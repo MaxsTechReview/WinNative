@@ -32,9 +32,17 @@ class BestConfigsViewModel @Inject constructor(
     private val repository: ConfigRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val gameSource: String = savedStateHandle.get<String>(NAV_ARG_GAME_SOURCE) ?: "CUSTOM_GAME"
-    val gameId: String = savedStateHandle.get<String>(NAV_ARG_GAME_ID) ?: ""
-    val gameName: String = savedStateHandle.get<String>(NAV_ARG_GAME_NAME) ?: ""
+    /**
+     * Game-context fields. Defaulted from the SavedStateHandle for the
+     * NavHost-route entry point; overridden via [bindGame] when the screen is
+     * hosted inside the LibraryGameDetailDialog (where there are no nav args).
+     */
+    var gameSource: String = savedStateHandle.get<String>(NAV_ARG_GAME_SOURCE) ?: "CUSTOM_GAME"
+        private set
+    var gameId: String = savedStateHandle.get<String>(NAV_ARG_GAME_ID) ?: ""
+        private set
+    var gameName: String = savedStateHandle.get<String>(NAV_ARG_GAME_NAME) ?: ""
+        private set
 
     private val deviceModel: String = Build.MODEL ?: ""
     private val deviceGpuModel: String = GpuDetector.detect()
@@ -47,6 +55,34 @@ class BestConfigsViewModel @Inject constructor(
         ),
     )
     val state: StateFlow<BestConfigsUiState> = _state.asStateFlow()
+
+    /**
+     * Re-target this ViewModel at a (possibly different) game and reload.
+     *
+     * Always triggers [refresh] so a fresh open of Community on the same game
+     * picks up new server-side entries; only resets the visible row list when
+     * the game actually changed (so we don't flash an empty list on a same-
+     * game reopen). Safe to call from a LaunchedEffect keyed on the game tuple
+     * — re-renders inside a single screen entry won't re-fire it.
+     */
+    fun bindGame(source: String, id: String, name: String) {
+        val gameChanged = gameSource != source || gameId != id || gameName != name
+        if (gameChanged) {
+            gameSource = source
+            gameId = id
+            gameName = name
+            _state.update {
+                it.copy(
+                    gameName = name,
+                    gameSource = source,
+                    phase = LoadPhase.Idle,
+                    allRows = emptyList(),
+                    errorMessage = null,
+                )
+            }
+        }
+        refresh()
+    }
 
     /**
      * Owns the Missing-Components import flow. Survives config changes (ViewModel-

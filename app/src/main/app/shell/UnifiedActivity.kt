@@ -301,13 +301,6 @@ class UnifiedActivity :
     // Root navigation controller for hub <-> settings transitions
     private var rootNavController: NavHostController? = null
 
-    // Game-detail popup state, hoisted out of LibraryCarousel so it survives
-    // navigation away from the hub (e.g. to the bestconfigs route). When the
-    // user backs out of Best Configs, LibraryCarousel re-enters composition,
-    // reads these values, and re-renders the popup it was on before.
-    private val detailAppState = androidx.compose.runtime.mutableStateOf<SteamApp?>(null)
-    private val detailGogGameState = androidx.compose.runtime.mutableStateOf<GOGGame?>(null)
-
     // Queued navigation to process once the nav controller is ready
     private var pendingNavigation: PendingNavigation? = null
 
@@ -2657,10 +2650,8 @@ class UnifiedActivity :
 
         var selectedAppForSettings by remember { mutableStateOf<SteamApp?>(null) }
         var selectedGogGameForSettings by remember { mutableStateOf<GOGGame?>(null) }
-        // Activity-scoped state — survives navigation to/from the bestconfigs route
-        // so backing out of Best Configs returns the user to the same game popup.
-        var detailApp by detailAppState
-        var detailGogGame by detailGogGameState
+        var detailApp by remember { mutableStateOf<SteamApp?>(null) }
+        var detailGogGame by remember { mutableStateOf<GOGGame?>(null) }
         val gridState = rememberLazyGridState()
         val carouselState = rememberLazyListState()
         val activity = LocalContext.current as? UnifiedActivity
@@ -4219,7 +4210,7 @@ class UnifiedActivity :
 
     // Library Game Detail Dialog
 
-    private enum class LibraryDetailScreen { Main, Shortcut, Saves, CloudSaves, Uninstall }
+    private enum class LibraryDetailScreen { Main, Shortcut, Saves, CloudSaves, Uninstall, Community }
 
     private enum class LibraryDetailPopup { Saves, CloudSaves }
 
@@ -4674,6 +4665,9 @@ class UnifiedActivity :
                 Box(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize()) {
                         val showHero = currentScreen == LibraryDetailScreen.Main
+                        // Community renders its own header (back arrow + Share button + title) so
+                        // suppress the popup's compact sub-screen title bar for that branch.
+                        val showSubHeader = !showHero && currentScreen != LibraryDetailScreen.Community
                         val subScreenTitle =
                             when (currentScreen) {
                                 LibraryDetailScreen.Shortcut -> stringResource(R.string.common_ui_shortcut)
@@ -4685,7 +4679,7 @@ class UnifiedActivity :
                             }
                         // Sub-screens get a compact title bar. The main launch view owns the full
                         // screen and draws artwork edge-to-edge in its content branch.
-                        if (!showHero) {
+                        if (showSubHeader) {
                             Row(
                                 modifier =
                                     Modifier
@@ -4793,28 +4787,12 @@ class UnifiedActivity :
                                         }
                                     },
                                     onCommunity = {
-                                        // Route into the Best Configs community board for this game.
-                                        // We deliberately do NOT call onDismissRequest() — the popup's
-                                        // detailApp state is preserved so backing out of BestConfigs
-                                        // returns the user to this same popup. The popup Dialog itself
-                                        // is suppressed while the bestconfigs route is on top (see the
-                                        // isOnBestConfigsRoute check in LibraryScreen).
-                                        val gameSource = when {
-                                            isGog -> "GOG"
-                                            isEpic -> "EPIC"
-                                            isCustom -> "CUSTOM_GAME"
-                                            else -> "STEAM"
-                                        }
-                                        val gameIdArg = when {
-                                            isGog -> gogGame?.id ?: app.id.toString()
-                                            isEpic -> epicId.toString()
-                                            else -> app.id.toString()
-                                        }
-                                        navigateToBestConfigs(
-                                            gameSource = gameSource,
-                                            gameId = gameIdArg,
-                                            gameName = app.name,
-                                        )
+                                        // Render BestConfigs inside this same popup Dialog (as
+                                        // LibraryDetailScreen.Community) instead of navigating to a
+                                        // separate NavHost route. Keeps the popup window alive the
+                                        // whole time so backing out reveals the launch screen
+                                        // instantly — no library flash between route transitions.
+                                        currentScreen = LibraryDetailScreen.Community
                                     },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
@@ -5175,6 +5153,29 @@ class UnifiedActivity :
                                         onCancel = { currentScreen = LibraryDetailScreen.Main },
                                     )
                                 }
+                            }
+
+                            LibraryDetailScreen.Community -> {
+                                // Compute the (gameSource, gameId) the same way the old
+                                // onCommunity callback did so the Best Configs list shows
+                                // entries for this exact game across all stores.
+                                val communityGameSource = when {
+                                    isGog -> "GOG"
+                                    isEpic -> "EPIC"
+                                    isCustom -> "CUSTOM_GAME"
+                                    else -> "STEAM"
+                                }
+                                val communityGameId = when {
+                                    isGog -> gogGame?.id ?: app.id.toString()
+                                    isEpic -> epicId.toString()
+                                    else -> app.id.toString()
+                                }
+                                BestConfigsScreen(
+                                    onBack = { currentScreen = LibraryDetailScreen.Main },
+                                    gameSource = communityGameSource,
+                                    gameId = communityGameId,
+                                    gameName = app.name,
+                                )
                             }
                         }
                     }

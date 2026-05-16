@@ -67,6 +67,9 @@ import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 @Composable
 fun BestConfigsScreen(
     onBack: () -> Unit,
+    gameSource: String? = null,
+    gameId: String? = null,
+    gameName: String? = null,
     viewModel: BestConfigsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -75,7 +78,16 @@ fun BestConfigsScreen(
     val activity = remember(context) { context.findActivity() }
     val unifiedActivity = activity as? com.winlator.cmod.app.shell.UnifiedActivity
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    // When hosted inside the popup (no nav args), the caller passes game
+    // context explicitly. bindGame is idempotent and will refresh the list
+    // when the target game changes.
+    LaunchedEffect(gameSource, gameId, gameName) {
+        if (gameSource != null && gameId != null && gameName != null) {
+            viewModel.bindGame(gameSource, gameId, gameName)
+        } else {
+            viewModel.refresh()
+        }
+    }
     LaunchedEffect(activity) { activity?.let { viewModel.bindActivityIdentity(it) } }
 
     val toast: (String) -> Unit = { msg ->
