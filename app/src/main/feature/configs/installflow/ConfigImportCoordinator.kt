@@ -93,10 +93,24 @@ class ConfigImportCoordinator(private val appContext: Context) {
         shortcut: Shortcut?,
         onResult: (String) -> Unit,
     ) {
-        if (_state.value !is ImportState.Idle) {
-            Timber.tag(TAG).w("start() ignored: state is ${_state.value::class.simpleName}")
+        // Allow start() from Idle (first run) and from the terminal states
+        // (Done / Failed) so the user can re-apply the same community config
+        // without having to dismiss + re-open the screen. We only block when
+        // a flow is actively mid-run — those states need the user to either
+        // confirm, retry, or cancel before a new analysis kicks off.
+        val current = _state.value
+        val isActive = current is ImportState.Analyzing ||
+            current is ImportState.ChoosingComponents ||
+            current is ImportState.Downloading ||
+            current is ImportState.Applying
+        if (isActive) {
+            Timber.tag(TAG).w("start() ignored: state is ${current::class.simpleName}")
             return
         }
+        // Coming out of Done/Failed: clear any lingering per-import state so
+        // the next analysis starts clean.
+        session = null
+        driverInstallNames.clear()
         // Wrap the caller's onResult so internal invocations always marshal to
         // Main. This is the boundary between coordinator coroutines (Default/IO)
         // and the UI side — without it, a caller that touches Toast/View/etc. from
@@ -119,7 +133,8 @@ class ConfigImportCoordinator(private val appContext: Context) {
             return
         }
         session = Session(configJson, container, shortcut, mainSafeOnResult)
-        driverInstallNames.clear()
+        // driverInstallNames was already cleared above for the Done/Failed
+        // re-entry case (or untouched if we came in from Idle).
         _state.value = ImportState.Analyzing
         workJob = scope.launch { runAnalysis() }
     }

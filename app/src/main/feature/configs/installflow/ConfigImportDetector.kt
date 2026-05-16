@@ -297,6 +297,18 @@ object ConfigImportDetector {
      * line ~2207). We try the exact pair first, then peel back to verName-only,
      * then walk a prefix-fallback chain so an old nightly that's been pruned from
      * the catalog still finds the latest sibling in the same family.
+     *
+     * Resolution attempts (first hit wins):
+     *  1. [findProfileWithFallback] on the raw token.
+     *  2. Same, but with the lowercased ContentType prefix stripped — handles
+     *     tokens like `vkd3d-3.0.1-nightly-abc` matching a catalog entry whose
+     *     verName is just `3.0.1-nightly-abc` (or the reverse).
+     *  3. Numeric-version peel: extract the leading "X.Y(.Z…)" version from
+     *     the token and look for any catalog entry whose verName starts with
+     *     the SAME version followed by a `-` build-tag. This is what catches
+     *     the user-reported case — `3.0.1-aaffggs-1` finding `3.0.1-jjkskls-2`
+     *     even when the dash-peel doesn't reach because the catalog's verName
+     *     never matched the original tag.
      */
     private fun resolveByVerNameAndCode(
         context: Context,
@@ -306,8 +318,54 @@ object ConfigImportDetector {
     ): RequirementResolution {
         val candidates = manager.getProfiles(type).orEmpty()
         val (match, substituted) = findProfileWithFallback(candidates, token)
+            ?: run {
+                // Try again with a stripped type prefix (defensive — some
+                // catalogs include the prefix in verName, some don't).
+                val typePrefix = type.toString().lowercase()
+                val stripped = if (token.startsWith("$typePrefix-", ignoreCase = true)) {
+                    token.substring(typePrefix.length + 1)
+                } else null
+                stripped?.let { findProfileWithFallback(candidates, it) }
+            }
+            ?: matchByNumericVersion(candidates, token)
             ?: return RequirementResolution.Unavailable("Not in the components catalog")
         return classifyProfile(context, match, substituteFor = if (substituted) token else null)
+    }
+
+    /**
+     * Last-resort matcher: extract a `X.Y(.Z…)` numeric-version stem from
+     * [token] AND from each candidate's verName, then match on equal version
+     * stems. Picks newest verCode. This is what catches the user-reported
+     * case — `3.0.1-aaffggs-1` finding `3.0.1-jjkskls-2` (or any other
+     * `3.0.1-<random-tag>`) even when the catalog has zero entries whose
+     * verName begins literally with the original request's build-tag.
+     *
+     * Extracting on BOTH sides means we naturally tolerate type-prefix noise
+     * — `vkd3d-3.0.1-tag` and `3.0.1-tag` both extract to `3.0.1`.
+     *
+     * Returns `(match, substituted=true)` when the picked verName differs
+     * from the request stem, so the UI surfaces a "→ latest" hint and
+     * [applyConfig] rewrites the persisted shortcut value.
+     */
+    private fun matchByNumericVersion(
+        candidates: List<ContentProfile>,
+        token: String,
+    ): Pair<ContentProfile, Boolean>? {
+        val tokenVersion = NUMERIC_VERSION_ANYWHERE.find(token)?.value ?: return null
+        if (tokenVersion.isBlank()) return null
+        val match = candidates
+            .filter { p ->
+                val cv = NUMERIC_VERSION_ANYWHERE.find(p.verName)?.value
+                cv != null && cv.equals(tokenVersion, ignoreCase = true)
+            }
+            .maxByOrNull { it.verCode }
+            ?: return null
+        val tokenBare = TRAILING_DIGITS_REGEX
+            .find(token)
+            ?.let { token.removeRange(it.range) }
+            ?: token
+        val substituted = !match.verName.equals(tokenBare, ignoreCase = true)
+        return match to substituted
     }
 
     /**
@@ -392,6 +450,25 @@ object ConfigImportDetector {
 
     private val TRAILING_DIGITS_REGEX = Regex("-\\d+$")
     private val WINE_ARCH_TAIL = Regex("(?i)-(x86_64|arm64ec|x86)$")
+
+    /**
+     * Captures the "extended version" of an identifier — the leading numeric
+     * `X.Y(.Z…)` run plus any **directly attached** letters (no separator).
+     *
+     * Examples:
+     *  - `vkd3d-3.0.1-aaffggs-1`   → `3.0.1`
+     *  - `3.0.1-jjkskls`           → `3.0.1`
+     *  - `3.0b`                    → `3.0b`   (attached letter = version letter)
+     *  - `3.0-b`                   → `3.0`    (separator → `b` is a tag)
+     *  - `proton-9.0-arm64ec-2`    → `9.0`
+     *
+     * This is what lets the user-reported rule work: short attached suffixes
+     * like the `b` in `3.0b` stay part of the version and demand an exact
+     * match, while long alphanumeric build tags after a `-` / `_` / `.`
+     * separator are treated as substitutable so a new nightly hash can
+     * replace an older one as long as the version itself is unchanged.
+     */
+    private val NUMERIC_VERSION_ANYWHERE = Regex("\\d+(?:\\.\\d+)+[a-zA-Z]*")
     private const val MAIN_PROTON_IDENT = "proton-9.0-x86_64"
     private const val MAIN_WINE_IDENT = "wine-9.0-x86_64"
 
