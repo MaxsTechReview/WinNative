@@ -30,11 +30,24 @@ object ConfigImportDetector {
         contentsManager: ContentsManager,
         driverCandidates: List<DriverAssetCandidate> = emptyList(),
     ): List<RequirementEntry> {
+        // Look up the effective value of a config key across the two blocks the
+        // serializer writes: per-shortcut override (`shortcutExtras`) wins over
+        // container default (`container`). Without this merge, a community
+        // config whose uploader had `dxwrapper="wined3d"` at the container level
+        // and a per-shortcut override to `"dxvk"` would silently skip DXVK
+        // detection — the detector would only see "wined3d" from `container`
+        // and never notice that the shortcut actually needs DXVK installed.
         val containerBlock = configJson.optJSONObject("container") ?: JSONObject()
+        val shortcutExtrasBlock = configJson.optJSONObject("shortcutExtras") ?: JSONObject()
+        fun effective(key: String): String {
+            val override = shortcutExtrasBlock.optString(key, "")
+            if (override.isNotEmpty()) return override
+            return containerBlock.optString(key, "")
+        }
         val results = mutableListOf<RequirementEntry>()
 
         // --- Wine / Proton -----------------------------------------------------
-        containerBlock.optString("wineVersion")
+        effective("wineVersion")
             .takeIf { it.isNotBlank() }
             ?.let { wineIdent ->
                 val req = ComponentRequirement(
@@ -50,8 +63,8 @@ object ConfigImportDetector {
         // --- DXVK -------------------------------------------------------------
         // dxwrapper has values like "dxvk", "wined3d", "vkd3d", etc. Only the
         // "dxvk" wrapper carries a DXVK version in dxwrapperConfig.
-        val dxwrapper = containerBlock.optString("dxwrapper", "").lowercase()
-        val dxwrapperConfig = containerBlock.optString("dxwrapperConfig", "")
+        val dxwrapper = effective("dxwrapper").lowercase()
+        val dxwrapperConfig = effective("dxwrapperConfig")
         if (dxwrapper.contains("dxvk")) {
             val token = readKey(dxwrapperConfig, "version")
             if (!token.isNullOrBlank() && !token.equals("None", ignoreCase = true)) {
@@ -98,8 +111,8 @@ object ConfigImportDetector {
         // These store verName + verCode separately on Container, but the upload
         // serializer flattens them to a single string. We match by verName only,
         // accepting any verCode (newest-installed-wins).
-        containerBlock.optString("box64Version").takeIf { it.isNotBlank() }?.let { ver ->
-            val emu = containerBlock.optString("emulator", "").lowercase()
+        effective("box64Version").takeIf { it.isNotBlank() }?.let { ver ->
+            val emu = effective("emulator").lowercase()
             val type = if (emu == "wowbox64") ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
             else ContentProfile.ContentType.CONTENT_TYPE_BOX64
             val resolved = resolveByVerNameAndCode(context, contentsManager, type, ver)
@@ -115,7 +128,7 @@ object ConfigImportDetector {
             )
         }
 
-        containerBlock.optString("fexcoreVersion").takeIf { it.isNotBlank() }?.let { ver ->
+        effective("fexcoreVersion").takeIf { it.isNotBlank() }?.let { ver ->
             val resolved = resolveByVerNameAndCode(context, contentsManager, ContentProfile.ContentType.CONTENT_TYPE_FEXCORE, ver)
             results += RequirementEntry(
                 ComponentRequirement(
@@ -137,7 +150,7 @@ object ConfigImportDetector {
         // `version=` value inside `graphicsDriverConfig` (set when the user
         // installs a custom Mesa Turnip / Adreno-Tools driver from the Drivers
         // screen).
-        val gfxConfig = containerBlock.optString("graphicsDriverConfig", "")
+        val gfxConfig = effective("graphicsDriverConfig")
         val gfxVersion = if (gfxConfig.isNotBlank()) {
             runCatching {
                 GraphicsDriverConfigUtils.parseGraphicsDriverConfig(gfxConfig)["version"]
