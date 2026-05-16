@@ -838,13 +838,13 @@ class ShortcutSettingsComposeDialog private constructor(
         else
             container.getBox64Version()
 
-        // Surface the shortcut's saved version even if that build isn't
-        // installed locally — important for community-config Previews where
-        // the row references a version this device doesn't have yet. Without
-        // this, the dropdown silently falls back to position 0 and the user
-        // sees a locally-installed version selected even though the row
-        // actually requests something else.
-        ensureValueVisible(itemList, currentVersion)
+        // Preview only: surface the shortcut's saved version even if that
+        // build isn't installed locally — so a community-config Preview shows
+        // the row's requested selection rather than a locally-installed one.
+        // In non-Preview Settings we deliberately let the dropdown fall back
+        // to position 0 when the saved value isn't installed, so deleting a
+        // component the shortcut had pinned auto-deselects it on next open.
+        if (isPreviewMode) ensureValueVisible(itemList, currentVersion)
         state.box64VersionEntries.value = itemList
 
         selectByValue(itemList, currentVersion ?: "", state.selectedBox64Version)
@@ -870,9 +870,8 @@ class ShortcutSettingsComposeDialog private constructor(
         else
             container.getFEXCoreVersion()
 
-        // See loadBox64Versions — surface the saved value even if not
-        // installed so community-Preview rows render their requested FEX build.
-        ensureValueVisible(items, savedVersion)
+        // See loadBox64Versions — Preview only.
+        if (isPreviewMode) ensureValueVisible(items, savedVersion)
         state.fexcoreVersionEntries.value = items
         selectByValue(items, savedVersion ?: "", state.selectedFexcoreVersion)
     }
@@ -910,27 +909,25 @@ class ShortcutSettingsComposeDialog private constructor(
      *
      * - If [wineInfo] resolved cleanly (regex match or installed profile),
      *   use the formatted display.
-     * - If the resolution fell back to MAIN_WINE_VERSION but the saved
-     *   identifier doesn't actually match it, surface the raw identifier so
-     *   community-config Previews still show what the row asks for instead
-     *   of silently showing the device's bundled Wine.
+     * - If we're in Preview mode AND the resolution fell back to
+     *   MAIN_WINE_VERSION (saved identifier doesn't match an installed
+     *   profile or the built-in name regex), surface the raw identifier so
+     *   the community config's selection is visible.
+     * - Otherwise (regular Settings), keep the resolved label — so when a
+     *   user deletes the Wine/Proton build their shortcut had pinned, the
+     *   Settings dialog shows the device's available fallback instead of
+     *   the stale identifier.
      */
     private fun displayLabelForRequestedWine(
         requestedIdentifier: String,
         resolvedInfo: WineInfo,
     ): String {
         val resolvedLabel = formatWineVersionDisplay(resolvedInfo)
+        if (!isPreviewMode) return resolvedLabel
         if (requestedIdentifier.isBlank()) return resolvedLabel
         val resolvedIdentifier = StringUtils.parseIdentifier(resolvedInfo.identifier())
         val requestedNorm = StringUtils.parseIdentifier(requestedIdentifier)
-        return if (resolvedIdentifier == requestedNorm) {
-            resolvedLabel
-        } else {
-            // Fall back to the raw identifier from the config so the Preview
-            // accurately reflects the row's selection even though the build
-            // isn't installed on this device.
-            requestedIdentifier
-        }
+        return if (resolvedIdentifier == requestedNorm) resolvedLabel else requestedIdentifier
     }
 
     // ARM64EC -> 64=FEXCore, 32=FEXCore|Wowbox64.
@@ -1857,6 +1854,15 @@ class ShortcutSettingsComposeDialog private constructor(
         entries.add(savedIdentifier)
     }
 
+    /**
+     * True when this dialog was opened from the Best Configs Preview button.
+     * Used to gate the "render the saved version even when not installed"
+     * behavior — outside Preview, the dropdowns should auto-fall back to
+     * locally-installed defaults so deleting a component cleanly deselects.
+     */
+    private val isPreviewMode: Boolean
+        get() = communityMode is ShortcutSettingsCommunityMode.Preview
+
     private fun saveOverride(
         extraName: String,
         newValue: String,
@@ -2151,13 +2157,14 @@ class ShortcutSettingsComposeDialog private constructor(
         val config = DXVKConfigUtils.parseConfig(configStr)
         val requestedDxvkVersion: String? = config.get("version")
 
-        // Surface the requested DXVK version even when it's not installed
-        // locally so the Preview shows the community config's selection
-        // rather than silently falling back to position 0 of the installed
-        // list. selectByIdentifier compares parseIdentifier(entry) against
-        // its `identifier` arg — normalize on both sides so mixed-case /
-        // hand-edited config values still match.
-        ensureIdentifierVisible(originalItems, requestedDxvkVersion)
+        // Preview only: surface the requested DXVK version even when not
+        // installed so the Preview shows the community config's selection.
+        // In non-Preview Settings, dropping the injection lets the dropdown
+        // fall back to position 0 — so deleting a DXVK build the shortcut
+        // had pinned auto-deselects it on the next Settings open.
+        // selectByIdentifier normalizes on both sides so the comparison is
+        // resilient to mixed-case / hand-edited config values.
+        if (isPreviewMode) ensureIdentifierVisible(originalItems, requestedDxvkVersion)
         state.dxvkVersionEntries.value = originalItems
         selectByIdentifier(
             originalItems,
@@ -2185,10 +2192,10 @@ class ShortcutSettingsComposeDialog private constructor(
         val config = DXVKConfigUtils.parseConfig(configStr)
         val requestedVkd3dVersion: String? = config.get("vkd3dVersion")
 
-        // Same rationale as loadDxvkVersions — render the community
-        // config's requested VKD3D version even when not installed, and
-        // normalize the identifier on the selection side too.
-        ensureIdentifierVisible(items, requestedVkd3dVersion)
+        // Same rationale as loadDxvkVersions — Preview only. Non-Preview
+        // mode falls back to position 0 so an uninstalled VKD3D auto-
+        // deselects on the next open.
+        if (isPreviewMode) ensureIdentifierVisible(items, requestedVkd3dVersion)
         state.dxvkVkd3dVersionEntries.value = items
         selectByIdentifier(
             items,
