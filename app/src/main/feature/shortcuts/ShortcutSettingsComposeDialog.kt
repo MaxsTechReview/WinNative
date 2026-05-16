@@ -567,7 +567,13 @@ class ShortcutSettingsComposeDialog private constructor(
         else shortcut.getExtra("wineVersion", container.getWineVersion())
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         isArm64EC = wineInfo.isArm64EC
-        state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+        // If WineInfo.fromIdentifier couldn't parse the saved identifier and
+        // fell back to MAIN_WINE_VERSION (e.g. a community config requested a
+        // wine/proton build that isn't installed and doesn't match the
+        // built-in name regex), surface the raw identifier as the label so
+        // the user still sees what the config actually selects.
+        state.wineVersionDisplay.value =
+            displayLabelForRequestedWine(wineVersionStr, wineInfo)
 
         rebuildEmulatorLists()
         selectByIdentifier(
@@ -679,7 +685,8 @@ class ShortcutSettingsComposeDialog private constructor(
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersionStr)
         val archChanged = isArm64EC != wineInfo.isArm64EC
         isArm64EC = wineInfo.isArm64EC
-        state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
+        state.wineVersionDisplay.value =
+            displayLabelForRequestedWine(wineVersionStr, wineInfo)
 
         rebuildEmulatorLists()
         state.emulatorsEnabled.value = true
@@ -826,17 +833,21 @@ class ShortcutSettingsComposeDialog private constructor(
             if (firstDash >= 0) itemList.add(entryName.substring(firstDash + 1))
         }
 
-        state.box64VersionEntries.value = itemList
-
         val currentVersion = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("box64Version", container.getBox64Version())
         else
             container.getBox64Version()
-        if (currentVersion != null) {
-            selectByValue(itemList, currentVersion, state.selectedBox64Version)
-        } else {
-            selectByValue(itemList, "", state.selectedBox64Version)
-        }
+
+        // Surface the shortcut's saved version even if that build isn't
+        // installed locally — important for community-config Previews where
+        // the row references a version this device doesn't have yet. Without
+        // this, the dropdown silently falls back to position 0 and the user
+        // sees a locally-installed version selected even though the row
+        // actually requests something else.
+        ensureValueVisible(itemList, currentVersion)
+        state.box64VersionEntries.value = itemList
+
+        selectByValue(itemList, currentVersion ?: "", state.selectedBox64Version)
 
         // Show/hide Box64 frame
         updateEmulatorFrameVisibility()
@@ -854,12 +865,16 @@ class ShortcutSettingsComposeDialog private constructor(
             if (firstDash >= 0) items.add(entryName.substring(firstDash + 1))
         }
 
-        state.fexcoreVersionEntries.value = items
         val savedVersion = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
         else
             container.getFEXCoreVersion()
-        selectByValue(items, savedVersion, state.selectedFexcoreVersion)
+
+        // See loadBox64Versions — surface the saved value even if not
+        // installed so community-Preview rows render their requested FEX build.
+        ensureValueVisible(items, savedVersion)
+        state.fexcoreVersionEntries.value = items
+        selectByValue(items, savedVersion ?: "", state.selectedFexcoreVersion)
     }
 
     private fun updateEmulatorFrameVisibility() {
@@ -888,6 +903,34 @@ class ShortcutSettingsComposeDialog private constructor(
             else -> wineInfo.arch ?: ""
         }
         return if (archLabel.isNotEmpty()) "$base ($archLabel)" else base
+    }
+
+    /**
+     * Best-effort label for the Wine/Proton version a shortcut requests.
+     *
+     * - If [wineInfo] resolved cleanly (regex match or installed profile),
+     *   use the formatted display.
+     * - If the resolution fell back to MAIN_WINE_VERSION but the saved
+     *   identifier doesn't actually match it, surface the raw identifier so
+     *   community-config Previews still show what the row asks for instead
+     *   of silently showing the device's bundled Wine.
+     */
+    private fun displayLabelForRequestedWine(
+        requestedIdentifier: String,
+        resolvedInfo: WineInfo,
+    ): String {
+        val resolvedLabel = formatWineVersionDisplay(resolvedInfo)
+        if (requestedIdentifier.isBlank()) return resolvedLabel
+        val resolvedIdentifier = StringUtils.parseIdentifier(resolvedInfo.identifier())
+        val requestedNorm = StringUtils.parseIdentifier(requestedIdentifier)
+        return if (resolvedIdentifier == requestedNorm) {
+            resolvedLabel
+        } else {
+            // Fall back to the raw identifier from the config so the Preview
+            // accurately reflects the row's selection even though the build
+            // isn't installed on this device.
+            requestedIdentifier
+        }
     }
 
     // ARM64EC -> 64=FEXCore, 32=FEXCore|Wowbox64.
@@ -1787,6 +1830,33 @@ class ShortcutSettingsComposeDialog private constructor(
         target.intValue = if (idx >= 0) idx else 0
     }
 
+    /**
+     * If [savedValue] is non-empty and not already present in [entries] as an
+     * exact match, append it. Used by load*Versions functions that select via
+     * [selectByValue] (exact-match) so that a community-config Preview can
+     * render the requested version even when it isn't installed locally.
+     */
+    private fun ensureValueVisible(entries: MutableList<String>, savedValue: String?) {
+        if (savedValue.isNullOrEmpty()) return
+        if (entries.any { it == savedValue }) return
+        entries.add(savedValue)
+    }
+
+    /**
+     * Identifier-flavoured equivalent of [ensureValueVisible] for load*Versions
+     * functions that select via [selectByIdentifier] (parseIdentifier match).
+     * Appends [savedIdentifier] if no entry's [StringUtils.parseIdentifier]
+     * already produces the normalized form. Normalising both sides of the
+     * comparison makes the helper resilient to mixed-case / whitespace
+     * variants that might appear in hand-edited or older configs.
+     */
+    private fun ensureIdentifierVisible(entries: MutableList<String>, savedIdentifier: String?) {
+        if (savedIdentifier.isNullOrEmpty()) return
+        val target = StringUtils.parseIdentifier(savedIdentifier)
+        if (entries.any { StringUtils.parseIdentifier(it) == target }) return
+        entries.add(savedIdentifier)
+    }
+
     private fun saveOverride(
         extraName: String,
         newValue: String,
@@ -2073,15 +2143,27 @@ class ShortcutSettingsComposeDialog private constructor(
             originalItems.removeAll { it.contains("arm64ec") }
         }
 
-        state.dxvkVersionEntries.value = originalItems
-
         // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
-        selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
+        val requestedDxvkVersion: String? = config.get("version")
+
+        // Surface the requested DXVK version even when it's not installed
+        // locally so the Preview shows the community config's selection
+        // rather than silently falling back to position 0 of the installed
+        // list. selectByIdentifier compares parseIdentifier(entry) against
+        // its `identifier` arg — normalize on both sides so mixed-case /
+        // hand-edited config values still match.
+        ensureIdentifierVisible(originalItems, requestedDxvkVersion)
+        state.dxvkVersionEntries.value = originalItems
+        selectByIdentifier(
+            originalItems,
+            StringUtils.parseIdentifier(requestedDxvkVersion ?: ""),
+            state.dxvkSelectedVersion,
+        )
     }
 
     private fun loadVkd3dVersions(container: Container = shortcut.container) {
@@ -2095,15 +2177,24 @@ class ShortcutSettingsComposeDialog private constructor(
             items.add(identifier)
         }
 
-        state.dxvkVkd3dVersionEntries.value = items
-
         // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
             container.getDXWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
-        selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
+        val requestedVkd3dVersion: String? = config.get("vkd3dVersion")
+
+        // Same rationale as loadDxvkVersions — render the community
+        // config's requested VKD3D version even when not installed, and
+        // normalize the identifier on the selection side too.
+        ensureIdentifierVisible(items, requestedVkd3dVersion)
+        state.dxvkVkd3dVersionEntries.value = items
+        selectByIdentifier(
+            items,
+            StringUtils.parseIdentifier(requestedVkd3dVersion ?: ""),
+            state.dxvkSelectedVkd3dVersion,
+        )
     }
 
     private fun selectByNumber(
