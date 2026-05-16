@@ -510,14 +510,25 @@ class ContentsFragment : Fragment() {
                 )
             }
 
+        // Hold the keep-alive across the extraction/install so screen lock
+        // doesn't kill the process mid-extract. The callback above can chain
+        // into finishInstallContent() asynchronously; we release after the
+        // install pipeline finishes (success, failure, or terminal callback).
+        val installKeepAliveTag = "components_install_${uri}_${System.currentTimeMillis()}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, installKeepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
-                .onFailure {
-                    runOnMain {
-                        clearDownloadProgress()
-                        WinToast.show(requireContext(), R.string.input_controls_editor_unable_to_import)
+            try {
+                runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
+                    .onFailure {
+                        runOnMain {
+                            clearDownloadProgress()
+                            WinToast.show(requireContext(), R.string.input_controls_editor_unable_to_import)
+                        }
                     }
-                }
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, installKeepAliveTag)
+            }
         }
     }
 
@@ -543,6 +554,12 @@ class ContentsFragment : Fragment() {
             indeterminate = true,
         )
 
+        // Keep the app process alive while the download/install runs so screen
+        // lock doesn't tear it down. installSelectedContent() owns its own
+        // keep-alive scope; this one covers the download step alone.
+        val keepAliveTag = "components_download_${remoteUrl}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "temp_${System.currentTimeMillis()}")
             val success =
@@ -567,26 +584,30 @@ class ContentsFragment : Fragment() {
                     }
                 }
 
-            if (!isAdded || view == null) {
-                output.delete()
-                clearDownloadProgress()
-                return@launch
-            }
+            try {
+                if (!isAdded || view == null) {
+                    output.delete()
+                    clearDownloadProgress()
+                    return@launch
+                }
 
-            if (success) {
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_extracting_title),
-                    message = profile.verName,
-                    indeterminate = true,
-                )
-                installSelectedContent(
-                    Uri.parse(output.absolutePath),
-                    getString(R.string.settings_content_download_complete),
-                    remoteUrl,
-                )
-            } else if (isAdded) {
-                clearDownloadProgress()
-                WinToast.show(requireContext(), R.string.settings_content_download_failed)
+                if (success) {
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = profile.verName,
+                        indeterminate = true,
+                    )
+                    installSelectedContent(
+                        Uri.parse(output.absolutePath),
+                        getString(R.string.settings_content_download_complete),
+                        remoteUrl,
+                    )
+                } else if (isAdded) {
+                    clearDownloadProgress()
+                    WinToast.show(requireContext(), R.string.settings_content_download_failed)
+                }
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, keepAliveTag)
             }
         }
     }

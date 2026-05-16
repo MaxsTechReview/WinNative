@@ -1,12 +1,7 @@
 package com.winlator.cmod.runtime.display;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.ActivityManager;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
@@ -48,11 +43,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
-import androidx.core.app.ActivityCompat;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.FileProvider;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.WindowInsetsCompat;
@@ -100,6 +91,7 @@ import com.winlator.cmod.shared.util.Callback;
 import com.winlator.cmod.shared.util.OnExtractFileListener;
 import com.winlator.cmod.shared.ui.dialog.PreloaderDialog;
 import com.winlator.cmod.runtime.system.ProcessHelper;
+import com.winlator.cmod.runtime.system.SessionKeepAliveService;
 import com.winlator.cmod.shared.android.RefreshRateUtils;
 import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
@@ -189,8 +181,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
-    public static String NOTIFICATION_CHANNEL_ID = "Winlator";
-    public static int NOTIFICATION_ID = -1;
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
     private static final long STEAM_TERMINATION_POLL_MS = 1000L;
     private static final long STEAM_PROCESS_RESPONSE_TIMEOUT_MS = 2000L;
@@ -427,16 +417,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
     };
-
-    private void createNotifcationChannel() {
-        String name = "WinNative";
-        String description = getString(R.string.session_xserver_notification_description);
-        int importance = NotificationManager.IMPORTANCE_LOW;
-        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
-        channel.setDescription(description);
-        NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        notificationManager.createNotificationChannel(channel);
-    }
 
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
@@ -1209,6 +1189,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cachedContainerLabel = container != null ? container.getName() : "";
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
+        SessionKeepAliveService.startSession(this);
+
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(new ScreenInfo(screenSize), isNativeRenderingEnabled);
         xServer.setWinHandler(winHandler);
@@ -1287,20 +1269,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Check if a profile is defined by the shortcut
         String controlsProfile = shortcut != null ? shortcut.getExtra("controlsProfile", "") : "";
-
-        createNotifcationChannel();
-
-        Intent notificationIntent = new Intent(this, XServerDisplayActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
-                .setContentTitle("WinNative")
-                .setContentText(getString(R.string.session_xserver_notification_content))
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(false);
-
-        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, builder.build());
 
         Runnable runnable = () -> {
             setupUI();
@@ -1786,8 +1754,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
-        if (!cleaningUp) {
+        if (!cleaningUp && !isPaused) {
             ProcessHelper.resumeAllWineProcesses();
+            SessionKeepAliveService.onResumeSession(this);
         }
 
         // Resume task-manager polling only if the pane is still the active selection.
@@ -1798,6 +1767,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onPause() {
+        SessionKeepAliveService.onPauseSession(this);
+
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
@@ -1840,6 +1811,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
             taskManagerAccum.clear();
         }
+
+        isPaused = true;
     }
 
     private void savePlaytimeData() {
@@ -2363,7 +2336,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
         if (shortcutName != null && !shortcutName.isEmpty()) {
             preloaderDialog.showOnUiThread("Closing " + shortcutName + "...");
         } else {
@@ -2406,6 +2378,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     xServerView = null;
                     if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
                     cleanupDebugDialog("exit");
+                    SessionKeepAliveService.stopSession(XServerDisplayActivity.this);
                     closeAfterSessionExit();
                 }
             }, 1000);
@@ -2852,6 +2825,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 multicastLock.release();
             } catch (Exception ignored) {}
         }
+        SessionKeepAliveService.stopSession(this);
+
         super.onDestroy();
         // Schedule a deferred update check 10 s after game exit
         if (!switchLaunchInProgress.get()) {
@@ -3739,9 +3714,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case R.id.main_menu_pause:
                 if (isPaused) {
                     ProcessHelper.resumeAllWineProcesses();
+                    SessionKeepAliveService.onResumeSession(this);
                 }
                 else {
                     ProcessHelper.pauseAllWineProcesses();
+                    SessionKeepAliveService.onPauseSession(this);
                 }
                 isPaused = !isPaused;
                 renderDrawerMenu();
@@ -5131,6 +5108,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        handleDrawerEdgeSwipe(event); // Allow edge swipe to open drawer even when container is paused.
+
+        // Avoid processing touch events when paused, except for allowing drawer edge swipe to open the drawer
+        // Fix for an 'ANR Input dispatching timed out' exception that crashes the app.
+        if (isPaused && (drawerStateHolder == null ||
+                (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
+
+            return true;
+        }
+
         return super.dispatchTouchEvent(event);
     }
 
@@ -5205,6 +5192,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
+//        if (isPaused) return super.dispatchGenericMotionEvent(event);
+        if (isPaused && (drawerStateHolder == null ||
+                (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
+
+            return true;
+        }
+
         boolean handledByWinHandler = false;
         boolean handledByTouchpadView = false;
 
@@ -5245,6 +5239,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isPaused) return super.dispatchKeyEvent(event);
         if (ExternalController.isGameController(event.getDevice())) {
             cancelMousePointerTimeout();
             if (touchpadView != null) {

@@ -453,6 +453,11 @@ class DriversFragment : Fragment() {
             )
         publishState()
 
+        // Hold the app process alive across this download so screen lock can't
+        // interrupt it. installDriverPackage owns its own keep-alive scope.
+        val keepAliveTag = "drivers_download_${asset.downloadUrl}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "driver_${System.currentTimeMillis()}.zip")
             val success =
@@ -482,24 +487,28 @@ class DriversFragment : Fragment() {
                     }
                 }
 
-            if (!isAdded || view == null) {
-                output.delete()
-                clearDownloadProgress()
-                return@launch
-            }
+            try {
+                if (!isAdded || view == null) {
+                    output.delete()
+                    clearDownloadProgress()
+                    return@launch
+                }
 
-            if (!success) {
-                output.delete()
-                clearDownloadProgress()
-                WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
-                return@launch
-            }
+                if (!success) {
+                    output.delete()
+                    clearDownloadProgress()
+                    WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
+                    return@launch
+                }
 
-            installDriverPackage(
-                uri = Uri.fromFile(output),
-                sourceAssetName = asset.name,
-                onComplete = { output.delete() },
-            )
+                installDriverPackage(
+                    uri = Uri.fromFile(output),
+                    sourceAssetName = asset.name,
+                    onComplete = { output.delete() },
+                )
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, keepAliveTag)
+            }
         }
     }
 
@@ -518,31 +527,40 @@ class DriversFragment : Fragment() {
             ),
         )
 
+        // Keep the process alive across the install (driver extraction +
+        // move). Released after the lifecycleScope coroutine finishes.
+        val installKeepAliveTag = "drivers_install_${sourceAssetName ?: uri}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, installKeepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
-            val installedDriverId =
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        adrenotoolsManager.installDriver(uri, sourceAssetName)
-                    }.getOrDefault("")
+            try {
+                val installedDriverId =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            adrenotoolsManager.installDriver(uri, sourceAssetName)
+                        }.getOrDefault("")
+                    }
+
+                if (!isAdded || view == null) {
+                    clearDownloadProgress()
+                    onComplete?.invoke()
+                    return@launch
                 }
 
-            if (!isAdded || view == null) {
                 clearDownloadProgress()
                 onComplete?.invoke()
-                return@launch
+
+                if (installedDriverId.isBlank()) {
+                    WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
+                    return@launch
+                }
+
+                SetupWizardActivity.recordInstalledDriver(requireContext(), installedDriverId)
+                refreshInstalledDrivers()
+                publishState()
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, installKeepAliveTag)
             }
-
-            clearDownloadProgress()
-            onComplete?.invoke()
-
-            if (installedDriverId.isBlank()) {
-                WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
-                return@launch
-            }
-
-            SetupWizardActivity.recordInstalledDriver(requireContext(), installedDriverId)
-            refreshInstalledDrivers()
-            publishState()
         }
     }
 

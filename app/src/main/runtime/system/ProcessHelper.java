@@ -14,6 +14,8 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Executors;
 
 public abstract class ProcessHelper {
   private static final String TAG = "ProcessHelper";
@@ -93,6 +95,25 @@ public abstract class ProcessHelper {
     if (PRINT_DEBUG) Log.d("ProcessHelper", "Process resumed with pid: " + pid);
   }
 
+  /**
+   * Best-effort write of /proc/[pid]/oom_score_adj for one of our own
+   * children. SIGSTOP'd processes are otherwise prime OOM-kill targets during
+   * long screen-locked windows; this lowers their kill priority so the OS
+   * leaves a manually-paused wine session alone over multi-minute windows.
+   * Silently ignored if the file is not writable on this device.
+   */
+  public static void setOomScoreAdj(int pid, int score) {
+    if (pid <= 0) return;
+    java.io.File f = new java.io.File("/proc/" + pid + "/oom_score_adj");
+    try (java.io.FileWriter w = new java.io.FileWriter(f, false)) {
+      w.write(Integer.toString(score));
+    } catch (Throwable t) {
+      // Some Android versions deny writes even for our own children. Don't
+      // spam logs — fall back silently and rely on the foreground service.
+      if (PRINT_DEBUG) Log.d(TAG, "oom_score_adj write skipped for pid " + pid + ": " + t);
+    }
+  }
+
   public static void terminateProcess(int pid) {
     Process.sendSignal(pid, SIGTERM);
     if (PRINT_DEBUG) Log.d("ProcessHelper", "Process terminated with pid: " + pid);
@@ -165,11 +186,24 @@ public abstract class ProcessHelper {
     return finalRemaining;
   }
 
+  // Aggressive OOM protection for paused wine processes. -1000 marks the
+  // process as oom_score_adj OOM_SCORE_ADJ_MIN, telling the kernel never to
+  // kill it on memory pressure. We restore to 0 (default) on resume so a
+  // running wine process is back to normal priority.
+  private static final int OOM_SCORE_ADJ_PROTECT = -1000;
+  private static final int OOM_SCORE_ADJ_DEFAULT = 0;
+
   public static void pauseAllWineProcesses() {
     ArrayList<String> processes = listRunningWineProcesses();
     if (!processes.isEmpty()) Log.d(TAG, "Pausing session processes: " + processes);
     for (String process : processes) {
-      suspendProcess(Integer.parseInt(process));
+      int pid = Integer.parseInt(process);
+
+      // Make the OS never OOM-kill the paused process. Without this, the
+      // kernel happily reaps SIGSTOP'd processes during long screen-locked
+      // windows because they look idle and unreclaimable.
+      setOomScoreAdj(pid, OOM_SCORE_ADJ_PROTECT);
+      suspendProcess(pid);
     }
   }
 
@@ -177,7 +211,9 @@ public abstract class ProcessHelper {
     ArrayList<String> processes = listRunningWineProcesses();
     if (!processes.isEmpty()) Log.d(TAG, "Resuming session processes: " + processes);
     for (String process : processes) {
-      resumeProcess(Integer.parseInt(process));
+      int pid = Integer.parseInt(process);
+      resumeProcess(pid);
+      setOomScoreAdj(pid, OOM_SCORE_ADJ_DEFAULT);
     }
   }
 

@@ -715,6 +715,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val imageFs = ImageFs.find(this)
         val rootDir = imageFs.rootDir
 
+        // Keep the process alive while the imagefs extraction runs; the user
+        // can lock the screen during this multi-minute step without losing it.
+        val keepAliveTag = "imagefs_install"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         Executors.newSingleThreadExecutor().execute {
             try {
                 clearRootDir(rootDir)
@@ -800,7 +804,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     imageFsInstalling.value = false
                     wizardError.value = "ImageFS install failed: ${e.message}"
                 }
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                    applicationContext,
+                    keepAliveTag,
+                )
             }
+
         }
     }
 
@@ -1319,81 +1329,92 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 .filter { isRecommendedSpec(it) && it.verName !in advancedInstalledSet }
         if (pending.isEmpty()) return
 
+        val keepAliveTag = "install_recommended_${System.currentTimeMillis()}"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         lifecycleScope.launch {
             wizardError.value = null
-            for ((index, spec) in pending.withIndex()) {
-                val profile =
-                    withContext(Dispatchers.IO) {
-                        try {
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = 0f,
-                                )
-                            val downloaded =
-                                downloadFileToCache(
-                                    label = spec.verName,
-                                    url = spec.remoteUrl,
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                )
-                            if (downloaded == null) return@withContext null
+            try {
+                for ((index, spec) in pending.withIndex()) {
+                    val profile =
+                        withContext(Dispatchers.IO) {
+                            try {
+                                transferState.value =
+                                    TransferState(
+                                        title = getString(R.string.setup_wizard_recommended_components),
+                                        detail = getString(R.string.setup_wizard_downloading, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = 0f,
+                                    )
+                                val downloaded =
+                                    downloadFileToCache(
+                                        label = spec.verName,
+                                        url = spec.remoteUrl,
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                    )
+                                if (downloaded == null) return@withContext null
 
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = 1f,
-                                )
-                            kotlinx.coroutines.delay(500)
+                                transferState.value =
+                                    TransferState(
+                                        title = getString(R.string.setup_wizard_recommended_components),
+                                        detail = getString(R.string.setup_wizard_downloading, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = 1f,
+                                    )
+                                kotlinx.coroutines.delay(500)
 
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_installing_package, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = null,
-                                )
+                                transferState.value =
+                                    TransferState(
+                                        title = getString(R.string.setup_wizard_recommended_components),
+                                        detail = getString(R.string.setup_wizard_installing_package, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = null,
+                                    )
 
-                            val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
-                            downloaded.delete()
-                            if (installed == null) {
+                                val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
+                                downloaded.delete()
+                                if (installed == null) {
+                                    wizardError.value =
+                                        lastInstallFailureMessage
+                                            ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
+                                }
+                                installed
+                            } catch (e: Exception) {
                                 wizardError.value =
-                                    lastInstallFailureMessage
-                                        ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
+                                    getString(
+                                        R.string.setup_wizard_install_failed_reason,
+                                        e.message ?: getString(R.string.common_ui_unknown_error),
+                                    )
+                                null
                             }
-                            installed
-                        } catch (e: Exception) {
-                            wizardError.value =
-                                getString(
-                                    R.string.setup_wizard_install_failed_reason,
-                                    e.message ?: getString(R.string.common_ui_unknown_error),
-                                )
-                            null
                         }
+                    if (profile != null) {
+                        if (spec.verName !in advancedInstalledSet) {
+                            advancedInstalledSet.add(spec.verName)
+                        }
+                    } else {
+                        break
                     }
-                if (profile != null) {
-                    if (spec.verName !in advancedInstalledSet) {
-                        advancedInstalledSet.add(spec.verName)
-                    }
-                } else {
-                    break
                 }
+                transferState.value = null
+                refreshAdvancedInstalledSet()
+                refreshWizardState()
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                    applicationContext,
+                    keepAliveTag,
+                )
             }
-            transferState.value = null
-            refreshAdvancedInstalledSet()
-            refreshWizardState()
         }
     }
 
     private fun installAdvancedComponent(spec: RemotePackageSpec) {
         if (transferState.value != null) return
+        val keepAliveTag = "install_advanced_${spec.remoteUrl}"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         lifecycleScope.launch {
             wizardError.value = null
             val profile =
@@ -1462,6 +1483,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 refreshAdvancedInstalledSet()
                 refreshWizardState()
             }
+            com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                applicationContext,
+                keepAliveTag,
+            )
         }
     }
 
