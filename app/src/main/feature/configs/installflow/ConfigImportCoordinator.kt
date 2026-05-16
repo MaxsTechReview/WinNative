@@ -256,11 +256,19 @@ class ConfigImportCoordinator(private val appContext: Context) {
                     .getOrDefault(emptyList())
             }
 
+            // Lock per-arch component matching (DXVK / VKD3D) to the target
+            // container's wineprefixArch. Without this, the detector's null-arch
+            // wildcard could accept an implicit-x86_64 catalog entry for an
+            // arm64ec container and queue the wrong build for download.
+            val containerArch = s.container.getExtra("wineprefixArch")
+                ?.takeIf { it.isNotEmpty() }
+                ?: "x86_64"
             val entries = ConfigImportDetector.detect(
                 appContext,
                 s.configJson,
                 manager,
                 driverCandidates,
+                containerArch = containerArch,
             )
             android.util.Log.d(
                 TAG,

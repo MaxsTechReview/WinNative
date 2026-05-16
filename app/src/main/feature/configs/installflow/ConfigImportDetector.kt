@@ -29,6 +29,7 @@ object ConfigImportDetector {
         configJson: JSONObject,
         contentsManager: ContentsManager,
         driverCandidates: List<DriverAssetCandidate> = emptyList(),
+        containerArch: String? = null,
     ): List<RequirementEntry> {
         // Log the effective values the detector is about to act on. Visible in
         // adb logcat regardless of Timber being planted, so a missing-dialog
@@ -80,7 +81,12 @@ object ConfigImportDetector {
                 // The dropdown stores `verName + "-" + verCode` (see
                 // ShortcutSettingsComposeDialog.kt:2202-2207). Split into the two
                 // parts; if no trailing verCode, treat as verName-only.
-                val resolved = resolveByVerNameAndCode(context, contentsManager, ContentProfile.ContentType.CONTENT_TYPE_DXVK, token)
+                // Lock arch to the target container so an arm64ec container can't
+                // silently accept an x86_64-implicit catalog entry.
+                val resolved = resolveByVerNameAndCode(
+                    context, contentsManager, ContentProfile.ContentType.CONTENT_TYPE_DXVK, token,
+                    archConstraint = containerArch,
+                )
                 results += RequirementEntry(
                     ComponentRequirement(
                         id = "dxvk",
@@ -103,7 +109,10 @@ object ConfigImportDetector {
         // into DX12).
         val vk = readKey(dxwrapperConfig, "vkd3dVersion")
         if (!vk.isNullOrBlank() && !vk.equals("None", ignoreCase = true)) {
-            val resolved = resolveByVerNameAndCode(context, contentsManager, ContentProfile.ContentType.CONTENT_TYPE_VKD3D, vk)
+            val resolved = resolveByVerNameAndCode(
+                context, contentsManager, ContentProfile.ContentType.CONTENT_TYPE_VKD3D, vk,
+                archConstraint = containerArch,
+            )
             results += RequirementEntry(
                 ComponentRequirement(
                     id = "vkd3d",
@@ -348,9 +357,10 @@ object ConfigImportDetector {
         manager: ContentsManager,
         type: ContentProfile.ContentType,
         token: String,
+        archConstraint: String? = null,
     ): RequirementResolution {
         val candidates = manager.getProfiles(type).orEmpty()
-        val (match, substituted) = findProfileWithFallback(candidates, token)
+        val (match, substituted) = findProfileWithFallback(candidates, token, archConstraint = archConstraint)
             ?: run {
                 // Try again with a stripped type prefix (defensive — some
                 // catalogs include the prefix in verName, some don't).
@@ -358,9 +368,9 @@ object ConfigImportDetector {
                 val stripped = if (token.startsWith("$typePrefix-", ignoreCase = true)) {
                     token.substring(typePrefix.length + 1)
                 } else null
-                stripped?.let { findProfileWithFallback(candidates, it) }
+                stripped?.let { findProfileWithFallback(candidates, it, archConstraint = archConstraint) }
             }
-            ?: matchByNumericVersion(candidates, token)
+            ?: matchByNumericVersion(candidates, token, archConstraint = archConstraint)
             ?: return RequirementResolution.Unavailable("Not in the components catalog")
         return classifyProfile(context, match, substituteFor = if (substituted) token else null)
     }
@@ -383,11 +393,13 @@ object ConfigImportDetector {
     private fun matchByNumericVersion(
         candidates: List<ContentProfile>,
         token: String,
+        archConstraint: String? = null,
     ): Pair<ContentProfile, Boolean>? {
         val tokenVersion = NUMERIC_VERSION_ANYWHERE.find(token)?.value ?: return null
         if (tokenVersion.isBlank()) return null
         val reqSignature = extractSignature(token)
         val match = candidates
+            .filter { matchesArchConstraint(it.verName, archConstraint) }
             .filter { p ->
                 // Try BOTH raw and normalized verName so catalog `Dxvk-2.4.1-pre-reg`
                 // matches a request that doesn't carry the `Dxvk-` prefix.
@@ -445,7 +457,7 @@ object ConfigImportDetector {
         // substituting a stable variant for what the user marked as nightly.
         val mustBeNightly = token.contains("nightly", ignoreCase = true)
         val filtered = candidates.filter { p ->
-            (archConstraint == null || p.verName.endsWith("-$archConstraint", ignoreCase = true)) &&
+            matchesArchConstraint(p.verName, archConstraint) &&
                 (!mustBeNightly || p.verName.contains("nightly", ignoreCase = true))
         }
 
@@ -569,6 +581,24 @@ object ConfigImportDetector {
         "ref4ik", "bionic", "wow",
         "g", "d8",
     )
+
+    /**
+     * Hard arch gate used by every component matcher that ships per-arch
+     * builds (DXVK, VKD3D, Wine via [resolveWine]'s own constraint).
+     *
+     * Catalog convention: an entry that omits an arch token is *implicitly*
+     * x86_64 — the components repo only tags non-default arches. So when a
+     * constraint is set, a candidate with no arch token is treated as
+     * x86_64 and rejected if the constraint is anything else.
+     *
+     * Returns true when [constraint] is null (callers that don't care
+     * about arch use a null constraint).
+     */
+    private fun matchesArchConstraint(verName: String, constraint: String?): Boolean {
+        if (constraint == null) return true
+        val candArch = extractSignature(verName).first ?: "x86_64"
+        return candArch.equals(constraint, ignoreCase = true)
+    }
 
     /**
      * (arch?, variantSet) signature for a component identifier. Used by
