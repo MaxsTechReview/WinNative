@@ -161,6 +161,15 @@ object ConfigSerializer {
      * settings like input bindings and HUD). Steam-only keys are filtered at export
      * and import time based on whether the source/target is Steam.
      */
+    /**
+     * Public read-only accessor for the override-key list. Used by the Preview→
+     * Import path in ShortcutSettingsComposeDialog so it can rebuild the
+     * `shortcutExtras` block straight from a Shortcut's in-memory extras
+     * without round-tripping through [exportToJson] (which would also pull in
+     * container values and mask community defaults).
+     */
+    fun shortcutOverrideKeys(): List<String> = SHORTCUT_OVERRIDE_KEYS
+
     private val SHORTCUT_OVERRIDE_KEYS: List<String> = listOf(
         // Display / graphics
         "screenSize",

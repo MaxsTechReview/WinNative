@@ -110,15 +110,24 @@ sealed class ShortcutSettingsCommunityMode {
      * Preview mode opens the Settings dialog with a community config already
      * applied (in-memory) to a throwaway Shortcut copy. The user can review
      * or tweak; tapping the (now-renamed) "Import" button dismisses the
-     * dialog and invokes [onImport] with the current serialized config JSON
-     * — the caller routes that through the same ConfigImportCoordinator the
-     * row-level Import button uses, so any missing Wine / DXVK / VKD3D /
-     * Box64 / FEXCore components get downloaded before the config lands.
+     * dialog and invokes [onImport] with a JSON payload that's [originalJson]
+     * merged with any user tweaks (carried in the previewShortcut.extras).
+     *
+     * [originalJson] is required because re-serialising the dialog state via
+     * `ConfigSerializer.exportToJson` would read container fields from the
+     * shared local container — silently overwriting the community values in
+     * the `container` block of the JSON with whatever the device's container
+     * currently holds. That, in turn, caused the post-import shortcut to
+     * land with the *local* defaults as overrides. Keeping [originalJson]'s
+     * container block intact, and overlaying only the shortcut-level extras
+     * the user changed, preserves the community values end-to-end.
      *
      * No Supabase write happens on Preview→Import — only local apply.
      */
-    data class Preview(val onImport: (org.json.JSONObject) -> Unit) :
-        ShortcutSettingsCommunityMode()
+    data class Preview(
+        val originalJson: org.json.JSONObject,
+        val onImport: (org.json.JSONObject) -> Unit,
+    ) : ShortcutSettingsCommunityMode()
 }
 
 class ShortcutSettingsComposeDialog private constructor(
@@ -2538,24 +2547,43 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     /**
-     * Preview "Import" button handler. Flushes the dialog's in-memory state
-     * into [shortcut.extras] WITHOUT writing to disk, re-serialises the
-     * resulting shortcut + container to JSON (so any tweaks the user made on
-     * top of the community config are preserved), dismisses the Settings
-     * dialog, and hands the JSON back to the caller via [mode.onImport]. The
-     * caller is expected to feed it into a ConfigImportCoordinator so missing
-     * Wine / DXVK / VKD3D / Box64 / FEXCore components get downloaded before
-     * the config actually lands on disk.
+     * Preview "Import" button handler.
+     *
+     * Build the payload that gets handed back to the caller (which routes it
+     * through ConfigImportCoordinator for missing-component downloads + the
+     * final ConfigSerializer.applyToShortcut). The payload is a **merge**:
+     *
+     *   1. Start from [mode.originalJson] — the verbatim community config
+     *      that originally fed Preview. Its `container` block carries the
+     *      community values (screenSize / graphicsDriver / wineVersion /
+     *      dxwrapperConfig / box64Version / etc.) as the *source of truth*.
+     *      Re-exporting via ConfigSerializer.exportToJson would lose them —
+     *      that function reads container fields from the local Container
+     *      instance, which holds the device's defaults, NOT the community
+     *      values; applying the result on the real shortcut wrote the
+     *      device defaults back as overrides and masked the community
+     *      values that *should* have come through.
+     *   2. Flush the dialog state into the throwaway previewShortcut (no
+     *      disk write) so any tweaks the user made show up in extras.
+     *   3. Replace the merged JSON's `shortcutExtras` block with the
+     *      previewShortcut's extras, so user tweaks land as overrides on
+     *      top of the community container values.
      *
      * No Supabase write happens here — Preview is local-apply only.
      */
     private fun handlePreviewImport(mode: ShortcutSettingsCommunityMode.Preview) {
         runCatching {
             saveSettings(persistToDisk = false)
-            val container = shortcut.container
-            requireNotNull(container) { "preview shortcut has no container" }
-            com.winlator.cmod.feature.configs.ConfigSerializer
-                .exportToJson(container, shortcut)
+            // Deep-copy the original payload so we don't mutate caller state.
+            val merged = org.json.JSONObject(mode.originalJson.toString())
+            val shortcutExtras = org.json.JSONObject()
+            com.winlator.cmod.feature.configs.ConfigSerializer.shortcutOverrideKeys()
+                .forEach { key ->
+                    val v = shortcut.getExtra(key)
+                    if (!v.isNullOrEmpty()) shortcutExtras.put(key, v)
+                }
+            merged.put("shortcutExtras", shortcutExtras)
+            merged
         }.onSuccess { json ->
             dismiss()
             mode.onImport(json)

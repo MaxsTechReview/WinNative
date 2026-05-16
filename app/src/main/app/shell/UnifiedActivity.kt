@@ -774,10 +774,22 @@ class UnifiedActivity :
         if (previewConfigJson != null) {
             val previewShortcut = com.winlator.cmod.runtime.container
                 .Shortcut(resolved.container, resolved.file)
+            // Parse the community JSON once so we can hand the *same* JSON
+            // object both to applyToShortcut (so the dialog renders community
+            // values) and to the Preview mode (so the Import handoff can
+            // merge user tweaks on top of those community container values).
+            val communityJson = runCatching { org.json.JSONObject(previewConfigJson) }
+                .getOrElse { ex ->
+                    android.widget.Toast.makeText(
+                        this,
+                        "Could not load preview: ${ex.message ?: "invalid config"}",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                    return
+                }
             runCatching {
-                val json = org.json.JSONObject(previewConfigJson)
                 com.winlator.cmod.feature.configs.ConfigSerializer
-                    .applyToShortcut(json, previewShortcut.container, previewShortcut)
+                    .applyToShortcut(communityJson, previewShortcut.container, previewShortcut)
             }.onFailure { ex ->
                 android.widget.Toast.makeText(
                     this,
@@ -788,6 +800,7 @@ class UnifiedActivity :
             }
             val previewMode = com.winlator.cmod.feature.shortcuts
                 .ShortcutSettingsCommunityMode.Preview(
+                    originalJson = communityJson,
                     onImport = { json ->
                         onPreviewImport?.invoke(json)
                             ?: android.widget.Toast.makeText(
