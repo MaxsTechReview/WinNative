@@ -42,6 +42,19 @@ class PluviaApp : Application() {
         // Initialize process-wide reactive network state
         com.winlator.cmod.app.service.NetworkMonitor
             .init(this)
+
+        // Eagerly initialise the Play Games v2 SDK so its automatic sign-in
+        // restores cached credentials on every cold start. Without this call,
+        // PlayGamesSdk.initialize() only ran lazily from the first GPG-touching
+        // screen (Sign-In / Cloud Sync / Best Configs upload). The v2 SDK's
+        // auto-sign-in is gated on initialize() — deferring it means the user
+        // appears signed out after process death until they manually
+        // re-authenticate, even though Google still has a valid session for
+        // them on this device. The init call itself is lightweight (registers
+        // a lifecycle observer + prepares the SDK; actual sign-in is async).
+        com.winlator.cmod.feature.sync.google.PlayGamesBootstrap
+            .ensureInitialized(this)
+
         scheduleColdStartWarmups()
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->

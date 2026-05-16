@@ -140,16 +140,26 @@ fun GoogleScreen() {
         }
     }
 
+    // First open of the screen: query the real Play Games SDK state instead
+    // of just reading the cached pref. The cached pref reflects the LAST
+    // known state and gets stale on cold start — particularly after process
+    // death, where the pref still says "signed in" but the v2 SDK hasn't yet
+    // auto-restored the session in this process. refreshRemoteState() forces
+    // a real isAuthenticated() check and updates the UI accordingly.
     LaunchedEffect(activity) {
         val currentActivity = activity ?: return@LaunchedEffect
-        syncState = CloudSyncManager.syncOnGoogleScreenOpened(currentActivity)
+        syncState = CloudSyncManager.refreshStoreLoginState(currentActivity)
         googleSignedIn = syncState.googleSignedIn
         driveConnected = GameSaveBackupManager.isDriveConnected(context)
     }
 
-    // The Drive consent UI runs in a separate task. When it returns,
-    // GameSaveBackupManager flips the connected pref but our in-memory
-    // copy is stale until we re-read on resume.
+    // Every time the screen returns to the foreground, re-query both
+    //   1. the real Play Games sign-in state, and
+    //   2. the Drive consent pref (which the Drive consent UI in another
+    //      task can flip out from under us).
+    // Without (1) the user sees a stale "signed in" indicator after the app
+    // is backgrounded long enough for Google to drop the in-memory session,
+    // and has to tap Refresh manually.
     val lifecycleOwner = activity as? LifecycleOwner
     DisposableEffect(lifecycleOwner) {
         if (lifecycleOwner == null) {
@@ -159,6 +169,7 @@ fun GoogleScreen() {
                 LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         driveConnected = GameSaveBackupManager.isDriveConnected(context)
+                        refreshRemoteState()
                     }
                 }
             lifecycleOwner.lifecycle.addObserver(observer)
