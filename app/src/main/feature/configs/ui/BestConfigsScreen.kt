@@ -108,12 +108,23 @@ fun BestConfigsScreen(
             if (ua == null) {
                 toast("Open this screen from a game to share or preview settings.")
             } else {
+                // When opening in Preview mode, give the dialog an Import
+                // handler that hands the (possibly user-tweaked) config back
+                // to BestConfigsViewModel — which routes through the same
+                // ConfigImportCoordinator the row-level Import button uses,
+                // so any missing Wine / DXVK / VKD3D / Box64 / FEXCore
+                // components are downloaded before the config is applied.
+                val previewImportHandler: ((org.json.JSONObject) -> Unit)? =
+                    if (previewJson != null) {
+                        { json -> viewModel.importPreviewedConfig(json, toast) }
+                    } else null
                 ua.openShortcutSettingsForCommunity(
                     gameSource = viewModel.gameSource,
                     gameId = viewModel.gameId,
                     gameName = viewModel.gameName,
                     uploadMode = uploadMode,
                     previewConfigJson = previewJson,
+                    onPreviewImport = previewImportHandler,
                 )
             }
         }

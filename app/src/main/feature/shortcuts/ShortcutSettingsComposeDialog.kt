@@ -105,7 +105,20 @@ private enum class LibraryArtworkTarget {
 sealed class ShortcutSettingsCommunityMode {
     object None : ShortcutSettingsCommunityMode()
     object Upload : ShortcutSettingsCommunityMode()
-    object Preview : ShortcutSettingsCommunityMode()
+
+    /**
+     * Preview mode opens the Settings dialog with a community config already
+     * applied (in-memory) to a throwaway Shortcut copy. The user can review
+     * or tweak; tapping the (now-renamed) "Import" button dismisses the
+     * dialog and invokes [onImport] with the current serialized config JSON
+     * — the caller routes that through the same ConfigImportCoordinator the
+     * row-level Import button uses, so any missing Wine / DXVK / VKD3D /
+     * Box64 / FEXCore components get downloaded before the config lands.
+     *
+     * No Supabase write happens on Preview→Import — only local apply.
+     */
+    data class Preview(val onImport: (org.json.JSONObject) -> Unit) :
+        ShortcutSettingsCommunityMode()
 }
 
 class ShortcutSettingsComposeDialog private constructor(
@@ -236,9 +249,14 @@ class ShortcutSettingsComposeDialog private constructor(
             override fun onUploadToCommunity() = performCommunityUpload()
 
             override fun onConfirm() {
-                saveSettings()
-                emitLibraryRefreshIfNeeded()
-                dismiss()
+                val previewMode = communityMode as? ShortcutSettingsCommunityMode.Preview
+                if (previewMode != null) {
+                    handlePreviewImport(previewMode)
+                } else {
+                    saveSettings()
+                    emitLibraryRefreshIfNeeded()
+                    dismiss()
+                }
             }
 
             override fun onDismiss() {
@@ -998,7 +1016,18 @@ class ShortcutSettingsComposeDialog private constructor(
     // Save Settings
     // ------------------------------------------------------------------
 
-    private fun saveSettings() {
+    /**
+     * Flush the dialog's [GameSettingsStateHolder] into the [shortcut]'s
+     * extras (and any container overrides) and optionally persist to disk.
+     *
+     * @param persistToDisk when true (default) writes the resulting extras to
+     *   the `.desktop` file via [Shortcut.saveData] and fires a library
+     *   refresh. When false the function still mutates the in-memory
+     *   shortcut, but skips the disk write + refresh — the caller is then
+     *   responsible for persisting (e.g. by routing through the import
+     *   coordinator after a Preview→Import).
+     */
+    private fun saveSettings(persistToDisk: Boolean = true) {
         // Compare against the target container (post-switch) so unchanged
         // values aren't written as overrides.
         val selectedContainerIdxEarly = state.selectedContainer.intValue
@@ -1338,26 +1367,30 @@ class ShortcutSettingsComposeDialog private constructor(
             if (container.id != originalContainer.id) {
                 shortcut.putExtra("container_id", container.id.toString())
                 shortcut.putExtra("cloud_force_download", "1")
-                shortcut.saveData()
+                if (persistToDisk) {
+                    shortcut.saveData()
 
-                val newDesktopDir = container.getDesktopDir()
-                if (!newDesktopDir.exists()) newDesktopDir.mkdirs()
-                val newShortcutFile = File(newDesktopDir, shortcut.file.name)
-                com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
-                shortcut.file.delete()
-                
-                // Also move the original .lnk file if it exists to prevent ghost shortcuts
-                val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
-                val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
-                if (oldLnkFile.exists()) {
-                    val newLnkFile = File(newDesktopDir, lnkFileName)
-                    com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
-                    oldLnkFile.delete()
+                    val newDesktopDir = container.getDesktopDir()
+                    if (!newDesktopDir.exists()) newDesktopDir.mkdirs()
+                    val newShortcutFile = File(newDesktopDir, shortcut.file.name)
+                    com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, newShortcutFile)
+                    shortcut.file.delete()
+
+                    // Also move the original .lnk file if it exists to prevent ghost shortcuts
+                    val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+                    val oldLnkFile = File(shortcut.file.parentFile, lnkFileName)
+                    if (oldLnkFile.exists()) {
+                        val newLnkFile = File(newDesktopDir, lnkFileName)
+                        com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, newLnkFile)
+                        oldLnkFile.delete()
+                    }
                 }
-            } else {
+            } else if (persistToDisk) {
                 shortcut.saveData()
             }
-            com.winlator.cmod.app.shell.UnifiedActivity.refreshLibrary()
+            if (persistToDisk) {
+                com.winlator.cmod.app.shell.UnifiedActivity.refreshLibrary()
+            }
         }
     }
 
@@ -2404,6 +2437,38 @@ class ShortcutSettingsComposeDialog private constructor(
     fun dismiss() {
         AppUtils.hideKeyboard(activity)
         dialog.dismiss()
+    }
+
+    /**
+     * Preview "Import" button handler. Flushes the dialog's in-memory state
+     * into [shortcut.extras] WITHOUT writing to disk, re-serialises the
+     * resulting shortcut + container to JSON (so any tweaks the user made on
+     * top of the community config are preserved), dismisses the Settings
+     * dialog, and hands the JSON back to the caller via [mode.onImport]. The
+     * caller is expected to feed it into a ConfigImportCoordinator so missing
+     * Wine / DXVK / VKD3D / Box64 / FEXCore components get downloaded before
+     * the config actually lands on disk.
+     *
+     * No Supabase write happens here — Preview is local-apply only.
+     */
+    private fun handlePreviewImport(mode: ShortcutSettingsCommunityMode.Preview) {
+        runCatching {
+            saveSettings(persistToDisk = false)
+            val container = shortcut.container
+            requireNotNull(container) { "preview shortcut has no container" }
+            com.winlator.cmod.feature.configs.ConfigSerializer
+                .exportToJson(container, shortcut)
+        }.onSuccess { json ->
+            dismiss()
+            mode.onImport(json)
+        }.onFailure { ex ->
+            Log.w("ShortcutSettings", "Preview import handoff failed", ex)
+            android.widget.Toast.makeText(
+                context,
+                "Could not import preview: ${ex.message ?: "unknown error"}",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     /**

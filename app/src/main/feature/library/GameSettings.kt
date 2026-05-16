@@ -511,6 +511,14 @@ fun GameSettingsContent(
             .background(BgDeep)
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
+            // Preview mode renames the primary action from "Save" to "Import"
+            // because tapping it doesn't just persist UI state — it routes
+            // through the import coordinator (downloading any missing
+            // components first, then applying), exactly like the row-level
+            // Import button does. This makes the affordance match the action.
+            val saveLabel = if (callbacks.communityPreviewMode) {
+                stringResource(R.string.best_configs_preview_apply)
+            } else null
             Sidebar(
                 title = state.name.value,
                 sections = sections.map { it.second },
@@ -519,6 +527,7 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                saveLabel = saveLabel,
                 showUploadAction = callbacks.communityUploadMode,
                 onUploadAction = { callbacks.onUploadToCommunity() },
                 modifier = Modifier
@@ -625,6 +634,7 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    saveLabel: String? = null,
     showUploadAction: Boolean = false,
     onUploadAction: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -742,7 +752,8 @@ private fun Sidebar(
                 height = 30.dp,
                 corner = 8.dp,
                 fontSize = SettingLabelSize,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                labelOverride = saveLabel,
             )
         }
     }
@@ -755,7 +766,8 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    labelOverride: String? = null,
 ) {
     Box(
         modifier = modifier
@@ -774,7 +786,7 @@ private fun SaveButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            stringResource(R.string.common_ui_save),
+            text = labelOverride ?: stringResource(R.string.common_ui_save),
             color = if (enabled) AccentBlue else TextDim,
             fontSize = fontSize,
             fontWeight = FontWeight.Medium

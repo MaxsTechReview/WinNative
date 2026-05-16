@@ -742,6 +742,7 @@ class UnifiedActivity :
         gameName: String,
         uploadMode: Boolean,
         previewConfigJson: String?,
+        onPreviewImport: ((org.json.JSONObject) -> Unit)? = null,
     ) {
         val containerManager = ContainerManager(this)
         val existing = containerManager.loadShortcuts().firstOrNull { sc ->
@@ -785,11 +786,18 @@ class UnifiedActivity :
                 ).show()
                 return
             }
-            ShortcutSettingsComposeDialog(
-                this,
-                previewShortcut,
-                com.winlator.cmod.feature.shortcuts.ShortcutSettingsCommunityMode.Preview,
-            ).show()
+            val previewMode = com.winlator.cmod.feature.shortcuts
+                .ShortcutSettingsCommunityMode.Preview(
+                    onImport = { json ->
+                        onPreviewImport?.invoke(json)
+                            ?: android.widget.Toast.makeText(
+                                this,
+                                "Preview Import: no handler wired up.",
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                    },
+                )
+            ShortcutSettingsComposeDialog(this, previewShortcut, previewMode).show()
         } else {
             val mode = if (uploadMode) {
                 com.winlator.cmod.feature.shortcuts.ShortcutSettingsCommunityMode.Upload

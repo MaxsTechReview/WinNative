@@ -240,6 +240,40 @@ class BestConfigsViewModel @Inject constructor(
     }
 
     /**
+     * Apply an arbitrary config JSON to the matching shortcut. Used by the
+     * Settings dialog's Preview→Import path: the user has just reviewed (and
+     * possibly tweaked) a community config in the Settings UI; on tap of
+     * "Import" the dialog serialises its current state to JSON and hands it
+     * here, so missing components get downloaded through the same coordinator
+     * the row-level Import button uses. Nothing is uploaded to Supabase.
+     */
+    fun importPreviewedConfig(json: org.json.JSONObject, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val match = withContext(Dispatchers.IO) {
+                runCatching {
+                    val cm = ContainerManager(appContext)
+                    cm.loadShortcuts().firstOrNull { sc ->
+                        val src = sc.getExtra("game_source") ?: ""
+                        if (src != gameSource) return@firstOrNull false
+                        val id = ConfigSerializer.gameIdForShortcut(sc, gameSource)
+                        id != null && id == gameId
+                    }
+                }.getOrNull()
+            }
+            if (match == null) {
+                onResult("No shortcut found for ${gameName}. Open Settings once to create one, then try again.")
+                return@launch
+            }
+            val container = match.container
+            if (container == null) {
+                onResult("Shortcut has no container; cannot apply settings.")
+                return@launch
+            }
+            importCoordinator.start(json, container, match, onResult)
+        }
+    }
+
+    /**
      * Delete [row] from the community board. The client only invokes this when
      * [BestConfigsUiState.isOwnedByMe] returned true for the row; the server
      * still enforces ownership via RLS.
