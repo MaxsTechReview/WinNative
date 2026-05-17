@@ -1949,9 +1949,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                 while (!exitRequested.get()
                         && !activityDestroyed.get()
-                        && System.currentTimeMillis() - startTime < STEAM_TERMINATION_TIMEOUT_MS) {
+                        && (System.currentTimeMillis() - startTime) < STEAM_TERMINATION_TIMEOUT_MS) {
                     
-                    if (isPaused) {
+                    if (isPaused || isActivityPaused) {
+                        startTime += STEAM_TERMINATION_POLL_MS;
+                        if (lastNonCoreSeenAt > 0) lastNonCoreSeenAt += STEAM_TERMINATION_POLL_MS;
                         Thread.sleep(STEAM_TERMINATION_POLL_MS);
                         continue;
                     }
@@ -4420,12 +4422,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         guestProgramLauncherComponent.setTerminationCallback((status) -> {
             Log.d("XServerDisplayActivity", "Guest process terminated with status: " + status);
 
-            if (shouldWatchSteamTermination(status)) {
-                return;
-            }
+            // Keep A:\Steam persistence for Android 16 testing
+            // User expressly requested: "don't remove the A:\Steam\ Folder unless the next game has the toggle off to not move it."
+            // Removed MoveSteamExe cleanup hook from termination callback.
 
-            if (isPaused || isActivityPaused) {
-                Log.w("XServerDisplayActivity", "Guest process reaped or terminated while backgrounded/paused; deferring exit");
+            if (shouldWatchSteamTermination(status)) {
                 return;
             }
 

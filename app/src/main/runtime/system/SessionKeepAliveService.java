@@ -169,18 +169,16 @@ public class SessionKeepAliveService extends Service {
         if (ACTION_SESSION_START.equals(action)) {
             sessionActive.set(true);
             isContainerPaused = false;
-        } else if (ACTION_SESSION_PAUSE.equals(action)) {
             if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
+        } else if (ACTION_SESSION_PAUSE.equals(action)) {
             isContainerPaused = true;
-//            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
         } else if (ACTION_SESSION_RESUME.equals(action)) {
-            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
             isContainerPaused = false;
-//            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         }
         else if (ACTION_SESSION_STOP.equals(action)) {
             sessionActive.set(false);
             isContainerPaused = false;
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         }
 
         // Always promote to foreground first so Android does not consider
