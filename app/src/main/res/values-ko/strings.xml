@@ -504,6 +504,7 @@
     <string name="container_graphics_bcn_emulation">BCn 에뮬레이션</string>
     <string name="container_graphics_bcn_emulation_type">BCn 에뮬레이션 유형</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 에뮬레이션 캐시</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 게임 슈퍼 해상도 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">이 프리셋을 복제하시겠습니까?</string>
     <string name="container_presets_confirm_remove">이 프리셋을 제거하시겠습니까?</string>
@@ -1037,7 +1038,6 @@
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">자연</string>
     <string name="session_drawer_color_profile_crt">CRT 효과</string>
-    <string name="session_drawer_upscaler_dls">선명</string>
     <string name="session_drawer_calibrate_advanced">고급 보정</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">자이로</string>
@@ -1063,9 +1063,11 @@
     <string name="session_drawer_logs_share_chooser">세션 로그 공유</string>
     <string name="session_drawer_logs_share_failed">로그를 공유하지 못했습니다</string>
     <string name="session_drawer_logs_share_empty">공유할 로그 줄이 없습니다</string>
-    <string name="session_drawer_super_resolution">선명도 필터</string>
-    <string name="session_drawer_upscaler_mode">필터</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">슈퍼 해상도</string>
+    <string name="session_drawer_upscaler_mode">업스케일러</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">선명</string>
+    <string name="session_drawer_vivid_strength">선명도 강도</string>
     <string name="session_drawer_main_menu_title">메뉴</string>
     <string name="session_gyroscope_activator">활성화</string>
     <string name="settings_general_check_for_updates">업데이트 확인</string>
@@ -1192,7 +1194,6 @@
     <string name="session_drawer_hud_summary">오버레이 표시 및 데이터 항목 조정</string>
     <string name="session_drawer_screen_effects">화면 효과</string>
     <string name="session_drawer_session_section">세션</string>
-    <string name="session_drawer_sharpness">선명도</string>
     <string name="session_drawer_swipe_hint">스와이프하여 게임으로 돌아가기</string>
     <string name="session_gamepad_enable_vibration">진동 활성화</string>
     <string name="session_gyroscope_experimental_mouse_movement">실험적 마우스 이동</string>

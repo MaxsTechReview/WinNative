@@ -1,5 +1,6 @@
 package com.winlator.cmod.runtime.display.xserver;
 
+import android.util.Log;
 import android.util.SparseArray;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
@@ -16,6 +17,8 @@ import java.util.EnumMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class XServer {
+  private static final String SGSR_RESIZE_TAG = "SGSRResize";
+
   public enum Lockable {
     WINDOW_MANAGER,
     PIXMAP_MANAGER,
@@ -129,6 +132,25 @@ public class XServer {
 
   public void setSHMSegmentManager(SHMSegmentManager shmSegmentManager) {
     this.shmSegmentManager = shmSegmentManager;
+  }
+
+  public boolean resizeScreen(ScreenInfo newScreenInfo) {
+    if (newScreenInfo == null) return false;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.DRAWABLE_MANAGER, Lockable.INPUT_DEVICE)) {
+      String oldScreenInfo = screenInfo.toString();
+      Log.i(SGSR_RESIZE_TAG, "resizeScreen requested: current='" + oldScreenInfo +
+          "' target='" + newScreenInfo + "'");
+      if (screenInfo.width == newScreenInfo.width && screenInfo.height == newScreenInfo.height) {
+        Log.i(SGSR_RESIZE_TAG, "resizeScreen no-op: screen already " + oldScreenInfo);
+        return false;
+      }
+      screenInfo.setSize(newScreenInfo);
+      windowManager.resizeRootWindow(screenInfo.width, screenInfo.height);
+      pointer.setPosition(pointer.getClampedX(), pointer.getClampedY());
+      Log.i(SGSR_RESIZE_TAG, "resizeScreen applied: '" + oldScreenInfo + "' -> '" +
+          screenInfo + "' pointer=" + pointer.getX() + "," + pointer.getY());
+      return true;
+    }
   }
 
   public void stop() {

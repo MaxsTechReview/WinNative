@@ -26,18 +26,30 @@ public class EffectComposer {
             effects.add(effect);
             cachedSnapshot = effects.toArray(new Effect[0]);
         }
-        if (renderer != null && renderer.xServerView != null) {
-            renderer.xServerView.requestRender();
+        requestRender();
+    }
+
+    public synchronized void addEffectFirst(Effect effect) {
+        if (effect == null) return;
+        int existingIndex = effects.indexOf(effect);
+        if (existingIndex == 0) {
+            requestRender();
+            return;
         }
+        if (existingIndex > 0) {
+            effects.remove(existingIndex);
+        }
+        effects.add(0, effect);
+        cachedSnapshot = effects.toArray(new Effect[0]);
+        requestRender();
     }
 
     public synchronized void removeEffect(Effect effect) {
+        if (effect == null) return;
         if (effects.remove(effect)) {
             cachedSnapshot = effects.toArray(new Effect[0]);
         }
-        if (renderer != null && renderer.xServerView != null) {
-            renderer.xServerView.requestRender();
-        }
+        requestRender();
     }
 
     @SuppressWarnings("unchecked")
@@ -55,5 +67,11 @@ public class EffectComposer {
     /** Snapshot the active effects for the renderer's per-frame consumption. */
     public synchronized Effect[] snapshot() {
         return cachedSnapshot;
+    }
+
+    private void requestRender() {
+        if (renderer != null && renderer.xServerView != null) {
+            renderer.xServerView.requestRender();
+        }
     }
 }

@@ -504,6 +504,7 @@
     <string name="container_graphics_bcn_emulation">BCn 模拟</string>
     <string name="container_graphics_bcn_emulation_type">BCn 模拟类型</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 模拟缓存</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 游戏超分辨率 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">您要复制此预设吗？</string>
     <string name="container_presets_confirm_remove">您要移除此预设吗？</string>
@@ -1037,7 +1038,6 @@
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">自然</string>
     <string name="session_drawer_color_profile_crt">CRT 效果</string>
-    <string name="session_drawer_upscaler_dls">鲜艳</string>
     <string name="session_drawer_calibrate_advanced">高级校准</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">陀螺仪</string>
@@ -1063,9 +1063,11 @@
     <string name="session_drawer_logs_share_chooser">分享会话日志</string>
     <string name="session_drawer_logs_share_failed">无法分享日志</string>
     <string name="session_drawer_logs_share_empty">没有可分享的日志行</string>
-    <string name="session_drawer_super_resolution">锐化滤镜</string>
-    <string name="session_drawer_upscaler_mode">滤镜</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">超分辨率</string>
+    <string name="session_drawer_upscaler_mode">升尺度器</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">鲜艳</string>
+    <string name="session_drawer_vivid_strength">鲜艳强度</string>
     <string name="session_drawer_main_menu_title">菜单</string>
     <string name="session_gyroscope_activator">激活器</string>
     <string name="settings_general_check_for_updates">检查更新</string>
@@ -1191,7 +1193,6 @@
     <string name="session_drawer_hud_summary">调整悬浮层可见性与数据点</string>
     <string name="session_drawer_screen_effects">屏幕效果</string>
     <string name="session_drawer_session_section">会话</string>
-    <string name="session_drawer_sharpness">锐化</string>
     <string name="session_drawer_swipe_hint">向外滑动即可返回游戏</string>
     <string name="session_gamepad_enable_vibration">启用振动</string>
     <string name="session_gyroscope_experimental_mouse_movement">实验性鼠标移动</string>

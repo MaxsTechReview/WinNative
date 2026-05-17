@@ -504,6 +504,7 @@
     <string name="container_graphics_bcn_emulation">Emulare BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tip emulare BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache emulare BCn</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Super rezoluție pentru jocuri 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Doresti sa duplici acest preset?</string>
     <string name="container_presets_confirm_remove">Doresti sa elimini acest preset?</string>
@@ -1037,7 +1038,6 @@ Cale instalata:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
     <string name="session_drawer_color_profile_crt">Efect CRT</string>
-    <string name="session_drawer_upscaler_dls">Viu</string>
     <string name="session_drawer_calibrate_advanced">Calibrare avansată</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
@@ -1063,9 +1063,11 @@ Cale instalata:
     <string name="session_drawer_logs_share_chooser">Partajează logurile sesiunii</string>
     <string name="session_drawer_logs_share_failed">Nu s-au putut partaja logurile</string>
     <string name="session_drawer_logs_share_empty">Nu există linii de log de partajat</string>
-    <string name="session_drawer_super_resolution">Filtre Claritate</string>
-    <string name="session_drawer_upscaler_mode">Filtru</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">Super rezoluție</string>
+    <string name="session_drawer_upscaler_mode">Upscaler</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">Viu</string>
+    <string name="session_drawer_vivid_strength">Intensitate vividă</string>
     <string name="session_drawer_main_menu_title">Meniu</string>
     <string name="session_gyroscope_activator">Activator</string>
     <string name="settings_general_check_for_updates">Verifică actualizările</string>
@@ -1191,7 +1193,6 @@ Cale instalata:
     <string name="session_drawer_hud_summary">Ajustează vizibilitatea suprapunerii și punctele de date</string>
     <string name="session_drawer_screen_effects">Efecte de ecran</string>
     <string name="session_drawer_session_section">Sesiune</string>
-    <string name="session_drawer_sharpness">Claritate</string>
     <string name="session_drawer_swipe_hint">Glisează pentru a reveni în joc</string>
     <string name="session_gamepad_enable_vibration">Activează vibrația</string>
     <string name="session_gyroscope_experimental_mouse_movement">Mișcare mouse experimentală</string>

@@ -504,6 +504,7 @@
     <string name="container_graphics_bcn_emulation">Emulazione BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tipo emulazione BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache emulazione BCn</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Super risoluzione per giochi 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Vuoi duplicare questo preset?</string>
     <string name="container_presets_confirm_remove">Vuoi rimuovere questo preset?</string>
@@ -1037,7 +1038,6 @@ Percorso installato:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturale</string>
     <string name="session_drawer_color_profile_crt">Effetto CRT</string>
-    <string name="session_drawer_upscaler_dls">Vivido</string>
     <string name="session_drawer_calibrate_advanced">Calibrazione avanzata</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
@@ -1063,9 +1063,11 @@ Percorso installato:
     <string name="session_drawer_logs_share_chooser">Condividi log della sessione</string>
     <string name="session_drawer_logs_share_failed">Impossibile condividere i log</string>
     <string name="session_drawer_logs_share_empty">Nessuna riga di log da condividere</string>
-    <string name="session_drawer_super_resolution">Filtri Nitidezza</string>
-    <string name="session_drawer_upscaler_mode">Filtro</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">Super risoluzione</string>
+    <string name="session_drawer_upscaler_mode">Upscaler</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">Vivido</string>
+    <string name="session_drawer_vivid_strength">Intensità vividezza</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Attivatore</string>
     <string name="settings_general_check_for_updates">Controlla aggiornamenti</string>
@@ -1191,7 +1193,6 @@ Percorso installato:
     <string name="session_drawer_hud_summary">Regola la visibilità dell\'overlay e i punti dati</string>
     <string name="session_drawer_screen_effects">Effetti schermo</string>
     <string name="session_drawer_session_section">Sessione</string>
-    <string name="session_drawer_sharpness">Nitidezza</string>
     <string name="session_drawer_swipe_hint">Scorri via per tornare al gioco</string>
     <string name="session_gamepad_enable_vibration">Abilita vibrazione</string>
     <string name="session_gyroscope_experimental_mouse_movement">Movimento mouse sperimentale</string>
