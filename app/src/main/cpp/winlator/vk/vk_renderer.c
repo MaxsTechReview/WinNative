@@ -360,6 +360,11 @@ static bool create_device(VkRenderer* r) {
 
     r->ext_ahb = ahb_ok;
     r->ext_ycbcr = has_ycbcr;
+    VK_LOGI("AHB Vulkan device support: android_hardware_buffer=%d external_memory=%d dedicated=%d get_memory_requirements2=%d queue_family_foreign=%d enabled=%d",
+            has_ahb, has_extmem, has_dedicated, has_get_mem_req2, has_queue_fam, r->ext_ahb);
+    if (!r->ext_ahb) {
+        VK_LOGW("AHB Vulkan import disabled; one or more required device extensions are missing");
+    }
 
     float qprio = 1.0f;
     VkDeviceQueueCreateInfo qci = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -388,6 +393,10 @@ static bool create_device(VkRenderer* r) {
     if (r->ext_ahb) {
         r->fnGetAhbProps = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)
             vkGetDeviceProcAddr(r->device, "vkGetAndroidHardwareBufferPropertiesANDROID");
+        if (!r->fnGetAhbProps) {
+            VK_LOGW("AHB Vulkan import disabled; vkGetAndroidHardwareBufferPropertiesANDROID is unavailable");
+            r->ext_ahb = false;
+        }
     }
     if (r->ext_ycbcr) {
         r->fnCreateYcbcr = (PFN_vkCreateSamplerYcbcrConversion)
@@ -2343,7 +2352,13 @@ JNIEXPORT jlong JNICALL GPU_FN(nativeImportAhbToVulkan)(JNIEnv* env, jclass claz
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)rendererHandle;
     AHardwareBuffer* ahb = (AHardwareBuffer*)(intptr_t)ahbPtr;
-    if (!r || !ahb) return 0;
+    if (!r || !ahb) {
+        VK_LOGW("nativeImportAhbToVulkan skipped: renderer=%p ahb=%p", (void*)r, (void*)ahb);
+        return 0;
+    }
     VkTexture* t = vkr_texture_import_ahb(r, ahb, transferOwnership);
+    if (!t) {
+        VK_LOGW("nativeImportAhbToVulkan failed: ahb=%p transfer=%d", (void*)ahb, transferOwnership);
+    }
     return (jlong)(intptr_t)t;
 }

@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.xserver.extensions;
 
 import static com.winlator.cmod.runtime.display.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
+import android.util.Log;
 import com.winlator.cmod.runtime.display.connector.SyncFenceFd;
 import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class DRI3Extension implements Extension {
+  private static final String TAG = "DRI3Extension";
   public static final byte MAJOR_OPCODE = -102;
   private static final int MAX_BUFFERS = 4;
   // Mesa's Android WSI path uses this private modifier to pass an AHardwareBuffer socket.
@@ -39,6 +41,8 @@ public class DRI3Extension implements Extension {
         if (data != null) SysVSharedMemory.unmapSHMSegment(data, data.capacity());
       };
   private SyncExtension syncExtension;
+  private boolean loggedAhbAdvertised;
+  private boolean loggedAhbUnavailable;
 
   private abstract static class ClientOpcodes {
     private static final byte QUERY_VERSION = 0;
@@ -186,6 +190,19 @@ public class DRI3Extension implements Extension {
         return;
       }
 
+      if (modifier == ANDROID_NATIVE_BUFFER_MODIFIER) {
+        Log.w(
+            TAG,
+            "AHB pixmap import failed; falling back to linear SHM path: pixmap="
+                + pixmapId
+                + " numBuffers="
+                + numBuffers
+                + " size="
+                + Short.toUnsignedInt(width)
+                + "x"
+                + Short.toUnsignedInt(height));
+      }
+
       if (numBuffers != 1 || stride <= 0 || size <= 0) throw new BadImplementation();
       int fd = fds[0];
       fds[0] = -1;
@@ -211,6 +228,22 @@ public class DRI3Extension implements Extension {
     boolean ahbSupported = GPUImage.isSupported() && bpp == 32 && (depth == 24 || depth == 32);
     int numWindow = ahbSupported ? 1 : 0;
     int numScreen = 1; // always advertise LINEAR for the CPU/SHM path
+    if (ahbSupported && !loggedAhbAdvertised) {
+      Log.i(
+          TAG,
+          "Advertising DRI3 AHB modifier for window pixmaps: depth=" + depth + " bpp=" + bpp);
+      loggedAhbAdvertised = true;
+    } else if (!ahbSupported && !loggedAhbUnavailable) {
+      Log.i(
+          TAG,
+          "DRI3 AHB modifier unavailable: gpuImageSupported="
+              + GPUImage.isSupported()
+              + " depth="
+              + depth
+              + " bpp="
+              + bpp);
+      loggedAhbUnavailable = true;
+    }
 
     int extraBytes = (numWindow + numScreen) * 8;
     try (XStreamLock lock = outputStream.lock()) {
@@ -323,6 +356,16 @@ public class DRI3Extension implements Extension {
       throws IOException, XRequestError {
     GPUImage gpuImage = new GPUImage(fd);
     if (!gpuImage.isValid()) {
+      Log.w(
+          TAG,
+          "Rejected DRI3 AHB pixmap: pixmap="
+              + pixmapId
+              + " size="
+              + Short.toUnsignedInt(width)
+              + "x"
+              + Short.toUnsignedInt(height)
+              + " depth="
+              + Byte.toUnsignedInt(depth));
       gpuImage.destroy();
       return false;
     }
@@ -336,6 +379,16 @@ public class DRI3Extension implements Extension {
     drawable.setTexture(gpuImage);
     drawable.setDirectScanout(true);
     client.xServer.pixmapManager.createPixmap(drawable);
+    Log.i(
+        TAG,
+        "Loaded DRI3 AHB pixmap for direct scanout: pixmap="
+            + pixmapId
+            + " size="
+            + Short.toUnsignedInt(width)
+            + "x"
+            + Short.toUnsignedInt(height)
+            + " depth="
+            + Byte.toUnsignedInt(depth));
     return true;
   }
 

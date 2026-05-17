@@ -53,6 +53,7 @@ public class VulkanRenderer
 
     private long nativeHandle = 0;
     private boolean supportProbed = false;
+    private boolean loggedAhbSceneUse = false;
     // Must be set before attachSurface — nativeCreate reads it once at instance creation.
     private volatile String graphicsDriverName = null;
 
@@ -340,6 +341,13 @@ public class VulkanRenderer
                     }
                 }
                 if (tex == null || !tex.isAllocated()) continue;
+                if (!loggedAhbSceneUse && tex instanceof GPUImage) {
+                    Log.i(TAG, "Submitting AHB-backed texture in Vulkan scene: windowCount="
+                            + (winCount + 1)
+                            + " tex=0x"
+                            + Long.toHexString(tex.getNativeHandle()));
+                    loggedAhbSceneUse = true;
+                }
                 buf.putLong(OFF_WINDOW_HANDLES + winCount * 8, tex.getNativeHandle());
                 int gOff = OFF_WINDOW_GEOM + winCount * 16;
                 buf.putInt(gOff,      rw.rootX);
