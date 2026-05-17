@@ -1213,4 +1213,30 @@ Installeret sti:
     <string name="shortcuts_list_readded_existing">Eksisterende genvej genføjet</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injicer Goldberg\'s runtime DRM patcher DLL i spillet ved hver opstart. Omgår anti-manipulationstjek der overlever Udpak filer-stripping. Reducerer FPS markant – aktiver kun hvis et spil stadig ikke starter med Udpak filer alene.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Vælg mappe til gemte spil</string>
+    <string name="cloud_saves_custom_folder_label">Mappe til gemte spil</string>
+    <string name="cloud_saves_custom_select_folder_summary">Peg på gemmemappen inde i containeren</string>
+    <string name="cloud_saves_custom_no_container">Containeren er ikke tilgængelig for denne genvej</string>
+    <string name="cloud_saves_custom_picker_title">Vælg gemmemappe</string>
+    <string name="cloud_saves_custom_outside_drive_c">Den valgte mappe skal være inde i containerens C:-drev</string>
+    <string name="cloud_saves_custom_path_map_failed">Kunne ikke knytte den valgte mappe til en Windows-sti.</string>
+    <string name="cloud_saves_custom_folder_set">Gemmemappe sat til %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Synkroniser fra Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Download seneste gemte spil</string>
+    <string name="cloud_saves_steam_sync_success">Synkroniseret fra Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Steam Cloud-synkronisering mislykkedes</string>
+    <string name="cloud_saves_steam_browse_label">Gennemse Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Åbn cloudlager</string>
+    <string name="cloud_saves_steam_browse_no_browser">Ingen browser tilgængelig til at åbne Steam-siden</string>
+    <string name="cloud_saves_steam_import_label">Importér filer</string>
+    <string name="cloud_saves_steam_import_helper">Gendan downloadede filer</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Filvælger utilgængelig</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Dette downloader Steam Clouds aktuelle gemte filer og overskriver de aktuelle gemte filer.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Ugyldigt app-id</string>
+    <string name="cloud_saves_label_saved">Etiket gemt</string>
 </resources>

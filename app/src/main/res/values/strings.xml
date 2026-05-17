@@ -1189,6 +1189,33 @@ Installed path:
     <string name="cloud_saves_history_delete_success">Backup deleted.</string>
     <string name="cloud_saves_history_delete_failed">Could not delete backup.</string>
 
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Select Save Folder</string>
+    <string name="cloud_saves_custom_folder_label">Save Folder</string>
+    <string name="cloud_saves_custom_select_folder_summary">Point to the in-container save directory</string>
+    <string name="cloud_saves_custom_no_container">Container not available for this shortcut</string>
+    <string name="cloud_saves_custom_picker_title">Select save folder</string>
+    <string name="cloud_saves_custom_outside_drive_c">Selected folder must be inside the container\'s C: drive</string>
+    <string name="cloud_saves_custom_path_map_failed">Could not map the selected folder to a Windows path.</string>
+    <string name="cloud_saves_custom_folder_set">Save folder set to %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Sync from Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Download latest save</string>
+    <string name="cloud_saves_steam_sync_success">Synced from Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Steam Cloud sync failed</string>
+    <string name="cloud_saves_steam_browse_label">Browse Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Open cloud storage</string>
+    <string name="cloud_saves_steam_browse_no_browser">No browser available to open the Steam page</string>
+    <string name="cloud_saves_steam_import_label">Import Files</string>
+    <string name="cloud_saves_steam_import_helper">Restore downloaded files</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">File picker unavailable</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">This will download Steam Cloud\'s current save files and overwrite the current save files.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Invalid app ID</string>
+    <string name="cloud_saves_label_saved">Label saved</string>
+
     <!-- Saves > Import and Export -->
     <string name="saves_import_export_title">Saves</string>
     <string name="saves_import_export_confirm_selection">Confirm Selection</string>

@@ -1213,5 +1213,31 @@ Percorso installato:
     <string name="shortcuts_list_readded_existing">Collegamento esistente riaggiunto</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Inietta la DLL del Runtime DRM patcher di Goldberg nel gioco a ogni avvio. Aggira i controlli anti-manomissione che sopravvivono allo strip di Decomprimi file. Riduce significativamente gli FPS — abilitalo solo se un gioco continua a non avviarsi con Decomprimi file da solo.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Seleziona cartella salvataggi</string>
+    <string name="cloud_saves_custom_folder_label">Cartella salvataggi</string>
+    <string name="cloud_saves_custom_select_folder_summary">Indica la directory dei salvataggi nel container</string>
+    <string name="cloud_saves_custom_no_container">Container non disponibile per questo collegamento</string>
+    <string name="cloud_saves_custom_picker_title">Seleziona cartella salvataggi</string>
+    <string name="cloud_saves_custom_outside_drive_c">La cartella selezionata deve trovarsi nell’unità C: del container</string>
+    <string name="cloud_saves_custom_path_map_failed">Impossibile associare la cartella selezionata a un percorso Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Cartella salvataggi impostata su %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Sincronizza da Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Scarica il salvataggio più recente</string>
+    <string name="cloud_saves_steam_sync_success">Sincronizzato da Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Sincronizzazione Steam Cloud non riuscita</string>
+    <string name="cloud_saves_steam_browse_label">Sfoglia Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Apri archivio cloud</string>
+    <string name="cloud_saves_steam_browse_no_browser">Nessun browser disponibile per aprire la pagina Steam</string>
+    <string name="cloud_saves_steam_import_label">Importa file</string>
+    <string name="cloud_saves_steam_import_helper">Ripristina i file scaricati</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Selettore file non disponibile</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Questo scaricherà i file di salvataggio attuali da Steam Cloud e sovrascriverà i file di salvataggio attuali.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">ID app non valido</string>
+    <string name="cloud_saves_label_saved">Etichetta salvata</string>
 </resources>
 

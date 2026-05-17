@@ -1213,5 +1213,31 @@ Chemin installé :
     <string name="shortcuts_list_readded_existing">Raccourci existant rajouté</string>
     <string name="shortcuts_properties_runtime_patcher">Correcteur DRM d\'exécution</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injecte le DLL correcteur DRM d\'exécution de Goldberg dans le jeu à chaque lancement. Contourne les vérifications anti-altération qui survivent au désencapsulage des fichiers. Réduit considérablement le FPS — n\'activez cette option que si un jeu échoue toujours à démarrer avec le désencapsulage des fichiers seul.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Sélectionner le dossier de sauvegarde</string>
+    <string name="cloud_saves_custom_folder_label">Dossier de sauvegarde</string>
+    <string name="cloud_saves_custom_select_folder_summary">Indiquez le dossier de sauvegarde dans le conteneur</string>
+    <string name="cloud_saves_custom_no_container">Conteneur indisponible pour ce raccourci</string>
+    <string name="cloud_saves_custom_picker_title">Sélectionner le dossier de sauvegarde</string>
+    <string name="cloud_saves_custom_outside_drive_c">Le dossier sélectionné doit se trouver dans le lecteur C: du conteneur</string>
+    <string name="cloud_saves_custom_path_map_failed">Impossible d’associer le dossier sélectionné à un chemin Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Dossier de sauvegarde défini sur %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Synchroniser depuis Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Télécharger la dernière sauvegarde</string>
+    <string name="cloud_saves_steam_sync_success">Synchronisé depuis Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Échec de la synchronisation Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_label">Parcourir Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Ouvrir le stockage cloud</string>
+    <string name="cloud_saves_steam_browse_no_browser">Aucun navigateur disponible pour ouvrir la page Steam</string>
+    <string name="cloud_saves_steam_import_label">Importer des fichiers</string>
+    <string name="cloud_saves_steam_import_helper">Restaurer les fichiers téléchargés</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Sélecteur de fichiers indisponible</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Cela téléchargera les fichiers de sauvegarde actuels de Steam Cloud et remplacera les fichiers de sauvegarde actuels.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">ID d’application invalide</string>
+    <string name="cloud_saves_label_saved">Libellé enregistré</string>
 </resources>
 

@@ -1213,5 +1213,31 @@ Cale instalata:
     <string name="shortcuts_list_readded_existing">Scurtătură existentă readăugată</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injectează DLL-ul runtime DRM patcher al Goldberg în joc la fiecare lansare. Ocolește verificările anti-manipulare care supraviețuiesc stripării Unpack Files. Reduce semnificativ FPS-ul — activează doar dacă un joc nu reușește să se lanseze nici cu Unpack Files singur.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Selectează folderul salvărilor</string>
+    <string name="cloud_saves_custom_folder_label">Folder salvări</string>
+    <string name="cloud_saves_custom_select_folder_summary">Indică directorul salvărilor din container</string>
+    <string name="cloud_saves_custom_no_container">Containerul nu este disponibil pentru această scurtătură</string>
+    <string name="cloud_saves_custom_picker_title">Selectează folderul salvărilor</string>
+    <string name="cloud_saves_custom_outside_drive_c">Folderul selectat trebuie să fie în unitatea C: a containerului</string>
+    <string name="cloud_saves_custom_path_map_failed">Folderul selectat nu a putut fi mapat la o cale Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Folderul salvărilor a fost setat la %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Sincronizează din Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Descarcă cea mai recentă salvare</string>
+    <string name="cloud_saves_steam_sync_success">Sincronizat din Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Sincronizarea Steam Cloud a eșuat</string>
+    <string name="cloud_saves_steam_browse_label">Răsfoiește Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Deschide stocarea în cloud</string>
+    <string name="cloud_saves_steam_browse_no_browser">Nu există niciun browser disponibil pentru a deschide pagina Steam</string>
+    <string name="cloud_saves_steam_import_label">Importă fișiere</string>
+    <string name="cloud_saves_steam_import_helper">Restaurează fișierele descărcate</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Selectorul de fișiere nu este disponibil</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Aceasta va descărca fișierele de salvare curente din Steam Cloud și va suprascrie fișierele de salvare curente.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">ID aplicație nevalid</string>
+    <string name="cloud_saves_label_saved">Etichetă salvată</string>
 </resources>
 

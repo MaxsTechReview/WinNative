@@ -1219,5 +1219,31 @@
     <string name="shortcuts_list_readded_existing">Повторно додано наявний ярлик</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
     <string name="shortcuts_properties_runtime_patcher_description">Вставляє runtime DRM patcher DLL від Goldberg у гру при кожному запуску. Обходить перевірки захисту від втручання, які залишаються після розпакування файлів. Значно знижує FPS — вмикайте лише якщо гра не запускається навіть з увімкненим розпакуванням файлів.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Вибрати папку збережень</string>
+    <string name="cloud_saves_custom_folder_label">Папка збережень</string>
+    <string name="cloud_saves_custom_select_folder_summary">Укажіть каталог збережень усередині контейнера</string>
+    <string name="cloud_saves_custom_no_container">Контейнер недоступний для цього ярлика</string>
+    <string name="cloud_saves_custom_picker_title">Вибрати папку збережень</string>
+    <string name="cloud_saves_custom_outside_drive_c">Вибрана папка має бути всередині диска C: контейнера</string>
+    <string name="cloud_saves_custom_path_map_failed">Не вдалося зіставити вибрану папку зі шляхом Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Папку збережень установлено на %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Синхронізувати зі Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Завантажити найновіше збереження</string>
+    <string name="cloud_saves_steam_sync_success">Синхронізовано зі Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Помилка синхронізації Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_label">Переглянути Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Відкрити хмарне сховище</string>
+    <string name="cloud_saves_steam_browse_no_browser">Немає доступного браузера, щоб відкрити сторінку Steam</string>
+    <string name="cloud_saves_steam_import_label">Імпортувати файли</string>
+    <string name="cloud_saves_steam_import_helper">Відновити завантажені файли</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Вибір файлів недоступний</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Це завантажить поточні файли збережень зі Steam Cloud і перезапише поточні файли збережень.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Недійсний ID застосунку</string>
+    <string name="cloud_saves_label_saved">Мітку збережено</string>
 </resources>
 
