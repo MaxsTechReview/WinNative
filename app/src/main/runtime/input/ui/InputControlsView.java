@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.R;
+import com.winlator.cmod.runtime.display.XServerDisplayActivity;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.Pointer;
@@ -490,7 +491,7 @@ public class InputControlsView extends View {
           new TimerTask() {
             @Override
             public void run() {
-              if (((com.winlator.cmod.runtime.display.XServerDisplayActivity)getContext()).isInputSuspended()) return;
+              if (((XServerDisplayActivity)getContext()).isInputSuspended()) return;
               if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
                 int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
                 int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
@@ -679,7 +680,7 @@ public class InputControlsView extends View {
 
   @Override
   public boolean onTouchEvent(MotionEvent event) {
-    if (((com.winlator.cmod.runtime.display.XServerDisplayActivity)getContext()).isInputSuspended()) return true;
+    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return true;
 
     boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
@@ -881,7 +882,7 @@ public class InputControlsView extends View {
   }
 
   public boolean onKeyEvent(KeyEvent event) {
-    if (((com.winlator.cmod.runtime.display.XServerDisplayActivity)getContext()).isInputSuspended()) return false;
+    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return false;
     if (profile != null && event.getRepeatCount() == 0) {
       ExternalController controller = profile.getController(event.getDeviceId());
       if (controller != null) {
