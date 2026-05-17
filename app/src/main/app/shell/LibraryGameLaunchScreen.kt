@@ -556,6 +556,7 @@ internal fun LaunchDangerConfirmDialog(
     icon: ImageVector = Icons.Outlined.Warning,
     titleTextAlign: TextAlign = TextAlign.Start,
     messageTextAlign: TextAlign = TextAlign.Start,
+    accentColor: Color = LaunchDanger,
 ) {
     if (!visible) return
 
@@ -599,6 +600,7 @@ internal fun LaunchDangerConfirmDialog(
                     icon = icon,
                     titleTextAlign = titleTextAlign,
                     messageTextAlign = messageTextAlign,
+                    accentColor = accentColor,
                 )
             }
         }
@@ -615,6 +617,7 @@ private fun LaunchDangerConfirmContent(
     icon: ImageVector,
     titleTextAlign: TextAlign,
     messageTextAlign: TextAlign,
+    accentColor: Color,
 ) {
     Column(
         modifier =
@@ -631,7 +634,7 @@ private fun LaunchDangerConfirmContent(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = LaunchDanger,
+                    tint = accentColor,
                     modifier =
                         Modifier
                             .align(Alignment.CenterStart)
@@ -659,7 +662,7 @@ private fun LaunchDangerConfirmContent(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = LaunchDanger,
+                    tint = accentColor,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
@@ -692,7 +695,7 @@ private fun LaunchDangerConfirmContent(
             )
             LaunchMenuTextAction(
                 label = confirmLabel,
-                textColor = LaunchDanger,
+                textColor = accentColor,
                 onClick = onConfirm,
             )
         }

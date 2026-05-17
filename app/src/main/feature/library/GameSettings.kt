@@ -1,7 +1,6 @@
 package com.winlator.cmod.feature.library
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -58,9 +57,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -118,7 +119,7 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val TextDim = Color(0xFF6E7681)
 private val DividerColor = Color(0xFF2A2A3A)
 private val CheckBorder = Color(0xFF2A2A3A)
-private val TrackInactive = Color(0xFF1C1C2A)
+private val SliderInactive = Color(0xFF21212A)
 private val ChipSurface = Color(0xFF171722)
 private val ChipBorder = Color(0xFF2A2A3A)
 private val DangerRed = Color(0xFFFF6B6B)
@@ -136,6 +137,21 @@ private val SettingSectionGap = 12.dp
 private val SettingTightGap = 4.dp
 private val SettingIconSize = 18.dp
 private val SettingControlIconSize = 16.dp
+private val SettingSliderHeight = 24.dp
+
+private fun graphicsCardExpandEnter() =
+    fadeIn(tween(200)) +
+        expandVertically(
+            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+        )
+
+private fun graphicsCardExpandExit() =
+    fadeOut(tween(140)) +
+        shrinkVertically(
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+        )
+private val SettingSliderThumbSize = 18.dp
+private const val SettingSliderTrackScaleY = 0.5f
 private val SettingLabelSize = 11.sp
 private val SettingValueSize = 13.sp
 private val SettingSectionLabelSize = 12.sp
@@ -222,6 +238,9 @@ class GameSettingsStateHolder {
     val selectedDxWrapper = mutableIntStateOf(0)
     val surfaceEffectEntries = mutableStateOf<List<String>>(emptyList())
     val selectedSurfaceEffect = mutableIntStateOf(0)
+    val sgsrEnabled = mutableStateOf(false)
+    val sgsrUpscaleMode = mutableIntStateOf(1)
+    val sgsrSharpness = mutableIntStateOf(100)
 
     // Graphics Driver Configuration (inline card)
     val gfxConfigExpanded = mutableStateOf(false)
@@ -1347,8 +1366,8 @@ private fun GraphicsDriverConfigCard(
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier
@@ -1701,8 +1720,8 @@ private fun DXVKConfigCard(
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier
@@ -1823,8 +1842,8 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier
@@ -3661,10 +3680,11 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
 
 @Composable
 private fun SettingGroup(
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(SettingGroupCorner))
             .background(CardSurface)
@@ -3681,12 +3701,13 @@ private fun SettingDropdown(
     entries: List<String>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    disabledAlpha: Float = 0.4f
 ) {
     var expanded by remember { mutableStateOf(false) }
     val menuOffset = rememberSmartDropdownOffset()
     val selectedText = entries.getOrElse(selectedIndex) { "" }
-    val alpha = if (enabled) 1f else 0.4f
+    val alpha = if (enabled) 1f else disabledAlpha
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
         Text(
@@ -3760,7 +3781,8 @@ private fun SettingTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -3774,6 +3796,7 @@ private fun SettingTextField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             textStyle = TextStyle(
                 color = TextPrimary,
                 fontSize = SettingValueSize
@@ -3829,10 +3852,83 @@ private fun SettingCheckbox(
 }
 
 @Composable
+private fun settingSliderColors() =
+    SliderDefaults.colors(
+        thumbColor = AccentBlue,
+        activeTrackColor = AccentBlue,
+        inactiveTrackColor = SliderInactive,
+        activeTickColor = Color.Transparent,
+        inactiveTickColor = Color.Transparent,
+    )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingSliderTrack(sliderState: SliderState) {
+    SliderDefaults.Track(
+        sliderState = sliderState,
+        colors = settingSliderColors(),
+        modifier = Modifier.scale(scaleX = 1f, scaleY = SettingSliderTrackScaleY),
+        drawStopIndicator = null,
+        drawTick = { _, _ -> },
+        thumbTrackGapSize = 0.dp,
+        trackInsideCornerSize = 0.dp,
+    )
+}
+
+@Composable
+private fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    val alpha = if (enabled) 1f else 0.4f
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha)
+            .clip(RoundedCornerShape(8.dp))
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { onCheckedChange(!checked) }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = SettingTightGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            color = TextPrimary,
+            fontSize = SettingValueSize,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onCheckedChange else null,
+            enabled = enabled,
+            colors = outlinedSwitchColors(
+                accentColor = AccentBlue,
+                textSecondaryColor = TextSecondary
+            )
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SettingSlider(
     label: String,
     value: Int,
     range: IntRange,
+    valueText: String = "$value%",
+    steps: Int = 0,
+    enabled: Boolean = true,
     onValueChange: (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -3853,7 +3949,7 @@ private fun SettingSlider(
                     .padding(horizontal = 7.dp, vertical = 2.dp)
             ) {
                 Text(
-                    "$value%",
+                    valueText,
                     color = AccentBlue,
                     fontSize = SettingLabelSize,
                     fontWeight = FontWeight.SemiBold
@@ -3865,14 +3961,22 @@ private fun SettingSlider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = steps,
+            enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = AccentBlue,
-                inactiveTrackColor = TrackInactive
-            )
+                .height(SettingSliderHeight),
+            colors = settingSliderColors(),
+            track = { SettingSliderTrack(it) },
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(SettingSliderThumbSize)
+                        .clip(RoundedCornerShape(50))
+                        .background(AccentBlue)
+                        .border(2.dp, CardSurface, RoundedCornerShape(50))
+                )
+            }
         )
     }
 }

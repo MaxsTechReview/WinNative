@@ -550,6 +550,19 @@ class ShortcutSettingsComposeDialog private constructor(
         val savedFpsLimit = shortcut.getExtra("fpsLimit", "0")
         state.fpsLimit.intValue = savedFpsLimit.toIntOrNull() ?: 0
 
+        // SGSR 1 per-game shortcut settings
+        state.sgsrEnabled.value = shortcut.getExtra("sgsrEnabled", "0") == "1"
+        state.sgsrUpscaleMode.intValue =
+            shortcut.getExtra("sgsrUpscaleMode", shortcut.getExtra("sgsr_upscale_mode", "1"))
+                .toIntOrNull()
+                ?.coerceIn(1, 6)
+                ?: 1
+        state.sgsrSharpness.intValue =
+            shortcut.getExtra("sgsrSharpness", shortcut.getExtra("sgsr_sharpness", "100"))
+                .toIntOrNull()
+                ?.coerceIn(0, 100)
+                ?: 100
+
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
             context.resources.getStringArray(R.array.graphics_driver_entries).toList()
@@ -1420,6 +1433,17 @@ class ShortcutSettingsComposeDialog private constructor(
             // FPS Limit
             val fpsLimit = state.fpsLimit.intValue
             shortcut.putExtra("fpsLimit", if (fpsLimit > 0) fpsLimit.toString() else null)
+
+            // SGSR 1 is a shortcut-only setting, not a container override.
+            if (state.sgsrEnabled.value) {
+                shortcut.putExtra("sgsrEnabled", "1")
+                shortcut.putExtra("sgsrUpscaleMode", state.sgsrUpscaleMode.intValue.coerceIn(1, 6).toString())
+                shortcut.putExtra("sgsrSharpness", state.sgsrSharpness.intValue.coerceIn(0, 100).toString())
+            } else {
+                shortcut.putExtra("sgsrEnabled", null)
+                shortcut.putExtra("sgsrUpscaleMode", null)
+                shortcut.putExtra("sgsrSharpness", null)
+            }
 
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {

@@ -6,9 +6,12 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Lazy initializer for the Play Games v2 SDK. Called from every entry point that needs it
- * (sign-in, snapshot client, auth check) instead of eagerly from [PluviaApp.onCreate] —
- * keeps cold-start fast and avoids initializing Google libs for users who never touch cloud sync.
+ * Idempotent initializer for the Play Games v2 SDK.
+ *
+ * Called eagerly from `PluviaApp.onCreate()` so the SDK's silent re-auth bootstrap starts at
+ * process start (covering the cold-start race where `isAuthenticated.await()` resolved false
+ * before the background auth had landed). Also called defensively from every entry point that
+ * needs PGS, so legacy callers and any new code paths are safe even if eager init is removed.
  */
 object PlayGamesBootstrap {
     private const val TAG = "PlayGamesBootstrap"

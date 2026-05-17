@@ -97,9 +97,10 @@ import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.runtime.display.renderer.EffectComposer;
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect;
-import com.winlator.cmod.runtime.display.renderer.effects.FSREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.HDREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NaturalEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.SGSRUpscaler;
+import com.winlator.cmod.runtime.display.renderer.effects.VividEffect;
 import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.runtime.wine.WineRegistryEditor;
 import com.winlator.cmod.runtime.wine.WineRequestHandler;
@@ -331,9 +332,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean dualSeriesBattery = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
-    private boolean fsrEnabled = false;
-    private int fsrMode = 0;
-    private int fsrSharpness = 100;
+    private boolean sgsrEnabled = false;
+    private boolean sgsrRuntimeEnabled = false;
+    private int sgsrUpscaleMode = 1;
+    private int sgsrSharpness = 100;
+    private String sgsrBaseScreenSize = Container.DEFAULT_SCREEN_SIZE;
+    private boolean vividEnabled = false;
+    private int vividStrength = 100;
     private int colorProfile = 0;
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
@@ -752,7 +757,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         containerManager = new ContainerManager(this);
         container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
         loadHUDSettings();
-        loadScreenEffectsSettings();
 
         // Determine launch target from intent extras and URI fallback.
         int containerId = getIntent().getIntExtra("container_id", 0);
@@ -875,6 +879,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
         }
+        loadScreenEffectsSettings();
 
         // Start the perf recorder/leaderboard collector now that shortcut + container
         // are loaded. Submission to PGS only happens if the user opted in via the
@@ -1198,7 +1203,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         SessionKeepAliveService.startSession(this);
 
         inputControlsManager = new InputControlsManager(this);
-        xServer = new XServer(new ScreenInfo(screenSize), isNativeRenderingEnabled);
+        sgsrBaseScreenSize = screenSize;
+        String effectiveScreenSize =
+                SGSRResolutionUtils.applyRenderScale(screenSize, sgsrEnabled, sgsrUpscaleMode);
+        if (!effectiveScreenSize.equals(screenSize)) {
+            Log.i("XServerDisplayActivity", "SGSR render scale active: container='" + screenSize +
+                    "' effective='" + effectiveScreenSize + "' mode=" + sgsrUpscaleMode);
+        }
+        xServer = new XServer(new ScreenInfo(effectiveScreenSize), isNativeRenderingEnabled);
+        sgsrRuntimeEnabled = sgsrEnabled;
         xServer.setWinHandler(winHandler);
 
         boolean[] winStarted = {false};
@@ -2603,8 +2616,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     /**
-     * If Cloud Sync Auto Backup is enabled, zips the local save and uploads to Google Drive.
-     * Reuses GameSaveBackupManager but skips downloading from the store provider.
+     * If Cloud Sync Auto Backup is enabled, zips the local save and uploads to Google Saves
+     * (Play Games Snapshots API). Steam saves are intentionally excluded — Steam Cloud
+     * handles them via SteamCloudSyncHelper / SteamService.syncCloudOnExit.
      */
     private void runAutoBackupIfEnabled(Runnable onComplete) {
         if (shortcut == null) {
@@ -2627,14 +2641,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource source;
 
         if ("STEAM".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.STEAM;
+            // Steam saves use Steam Cloud (handled by syncSteamCloudOnExit). Google Saves is intentionally not used.
+            onComplete.run();
+            return;
         } else if ("EPIC".equals(gameSource)) {
             gameId = shortcut.getExtra("app_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.EPIC;
         } else if ("GOG".equals(gameSource)) {
             gameId = shortcut.getExtra("gog_id");
             source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
+        } else if ("CUSTOM".equals(gameSource)) {
+            // Custom shortcuts opt in by either picking a folder via "Select Save Folder"
+            // (sets customSaveWindowsPath) or by having the legacy custom_game_folder extra.
+            String winPath = shortcut.getExtra(
+                    com.winlator.cmod.feature.sync.google.GameSaveBackupManager.CUSTOM_SAVE_WINDOWS_PATH_KEY);
+            String legacyFolder = shortcut.getExtra("custom_game_folder");
+            if ((winPath == null || winPath.isEmpty()) && (legacyFolder == null || legacyFolder.isEmpty())) {
+                onComplete.run();
+                return;
+            }
+            gameId = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.customGameId(shortcut);
+            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM;
         } else {
             onComplete.run();
             return;
@@ -2647,12 +2674,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         String gameName = shortcutName != null && !shortcutName.isEmpty() ? shortcutName : (shortcut.name != null ? shortcut.name : "Unknown");
 
-        Log.d("XServerDisplayActivity", "Starting auto backup to Google Drive for " + gameSource + "/" + gameId);
-        preloaderDialog.showOnUiThread("Backing up save to Google Drive...");
+        Log.d("XServerDisplayActivity", "Starting auto backup to Google Saves for " + gameSource + "/" + gameId);
+        preloaderDialog.showOnUiThread("Backing up save to Google Saves...");
 
         runExitUploadWithRetries(
-                "Google Drive auto backup",
-                "Backing up save to Google Drive...",
+                "Google Saves auto backup",
+                "Backing up save to Google Saves...",
                 callback -> runBlockingExitUpload(
                         "GoogleDriveExitBackup",
                         () -> {
@@ -3032,9 +3059,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 gyroscopeCardExpanded,
                 xServerView != null ? xServerView.getRenderer().getFpsLimit() : 0,
                 screenEffectsCardExpanded,
-                fsrEnabled,
-                fsrMode,
-                fsrSharpness,
+                sgsrEnabled,
+                sgsrSharpness,
+                vividEnabled,
+                vividStrength,
                 colorProfile,
                 inputProfileNames,
                 inputSelectedIndex,
@@ -3196,25 +3224,46 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onFSREnabledChanged(boolean enabled) {
-                        fsrEnabled = enabled;
-                        preferences.edit().putBoolean("fsr_enabled", enabled).apply();
+                    public void onSGSREnabledChanged(boolean enabled) {
+                        boolean wasEnabled = sgsrEnabled;
+                        boolean wasRuntimeEnabled = sgsrRuntimeEnabled;
+                        sgsrEnabled = enabled;
+                        saveSGSRShortcutSettings();
+                        if (!enabled) {
+                            sgsrRuntimeEnabled = false;
+                            logDeferredSGSRRestoreIfNeeded(wasEnabled || wasRuntimeEnabled);
+                        } else if (!wasEnabled) {
+                            sgsrRuntimeEnabled = canEnableSGSRLiveWithoutResize();
+                            if (sgsrRuntimeEnabled) {
+                                Log.i("SGSRResize", "SGSR enabled mid-session without XServer resize");
+                            } else {
+                                Log.i("SGSRResize", "SGSR enabled mid-session; live SGSR pass and render-size reduction are deferred until next launch");
+                            }
+                        }
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
 
                     @Override
-                    public void onFSRModeSelected(int mode) {
-                        fsrMode = mode;
-                        preferences.edit().putInt("fsr_mode", mode).apply();
+                    public void onSGSRSharpnessChanged(int sharpness) {
+                        sgsrSharpness = Math.max(0, Math.min(100, sharpness));
+                        saveSGSRShortcutSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
 
                     @Override
-                    public void onFSRSharpnessChanged(int sharpness) {
-                        fsrSharpness = sharpness;
-                        preferences.edit().putInt("fsr_sharpness", sharpness).apply();
+                    public void onVividEnabledChanged(boolean enabled) {
+                        vividEnabled = enabled;
+                        preferences.edit().putBoolean("vivid_enabled", enabled).apply();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onVividStrengthChanged(int strength) {
+                        vividStrength = strength;
+                        preferences.edit().putInt("vivid_strength", strength).apply();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -3559,23 +3608,97 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 memDetail));
     }
 
+    private static int clampSGSRUpscaleMode(int mode) {
+        return SGSRResolutionUtils.clampUpscaleMode(mode);
+    }
+
+    private static int normalizeSGSRShortcutUpscaleMode(int mode) {
+        return SGSRResolutionUtils.normalizeShortcutUpscaleMode(mode);
+    }
+
+    private void saveSGSRShortcutSettings() {
+        if (shortcut != null) {
+            if (sgsrEnabled) {
+                shortcut.putExtra("sgsrEnabled", "1");
+                shortcut.putExtra("sgsrUpscaleMode", String.valueOf(normalizeSGSRShortcutUpscaleMode(sgsrUpscaleMode)));
+                shortcut.putExtra("sgsrSharpness", String.valueOf(Math.max(0, Math.min(100, sgsrSharpness))));
+            } else {
+                shortcut.putExtra("sgsrEnabled", null);
+                shortcut.putExtra("sgsrUpscaleMode", null);
+                shortcut.putExtra("sgsrSharpness", null);
+            }
+            shortcut.saveData();
+        } else if (preferences != null) {
+            preferences.edit()
+                    .putBoolean("sgsr_enabled", sgsrEnabled)
+                    .putInt("sgsr_upscale_mode", clampSGSRUpscaleMode(sgsrUpscaleMode))
+                    .putInt("sgsr_sharpness", Math.max(0, Math.min(100, sgsrSharpness)))
+                    .apply();
+        }
+    }
+
+    private boolean canEnableSGSRLiveWithoutResize() {
+        if (xServer == null || sgsrBaseScreenSize == null || sgsrBaseScreenSize.isEmpty()) {
+            return false;
+        }
+
+        String targetScreenSize =
+                SGSRResolutionUtils.applyRenderScale(sgsrBaseScreenSize, true, sgsrUpscaleMode);
+        String currentScreenSize = xServer.screenInfo.toString();
+        boolean canEnable = targetScreenSize.equals(currentScreenSize);
+        if (!canEnable) {
+            Log.i("SGSRResize", "SGSR live enable blocked: current='" + currentScreenSize +
+                    "' target='" + targetScreenSize + "' base='" + sgsrBaseScreenSize +
+                    "' mode=" + sgsrUpscaleMode);
+        }
+        return canEnable;
+    }
+
+    private void logDeferredSGSRRestoreIfNeeded(boolean wasActive) {
+        if (!wasActive || xServer == null || sgsrBaseScreenSize == null || sgsrBaseScreenSize.isEmpty()) {
+            return;
+        }
+        final String currentScreenSize = xServer.screenInfo.toString();
+        if (!sgsrBaseScreenSize.equals(currentScreenSize)) {
+            Log.i("SGSRResize", "SGSR disabled mid-session; native XServer restore is deferred until next launch: current='" +
+                    currentScreenSize + "' base='" + sgsrBaseScreenSize + "' mode=" + sgsrUpscaleMode);
+        } else {
+            Log.i("SGSRResize", "SGSR disabled mid-session; XServer already at native size '" +
+                    currentScreenSize + "'");
+        }
+    }
+
     private void applyScreenEffects() {
         VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
         if (renderer == null) return;
         EffectComposer composer = renderer.getEffectComposer();
         if (composer == null) return;
 
-        // Handle FSR
-        FSREffect fsr = composer.getEffect(FSREffect.class);
-        if (fsrEnabled) {
-            if (fsr == null) {
-                fsr = new FSREffect();
-                composer.addEffect(fsr);
+        // Handle SGSR upscaling
+        SGSRUpscaler sgsr = composer.getEffect(SGSRUpscaler.class);
+        if (sgsrRuntimeEnabled) {
+            if (sgsr == null) {
+                sgsr = new SGSRUpscaler();
             }
-            fsr.setMode(fsrMode);
-            fsr.setLevel((fsrSharpness / 25.0f) + 1.0f);
-        } else if (fsr != null) {
-            composer.removeEffect(fsr);
+            sgsr.setSharpness(sgsrSharpness / 100.0f);
+            composer.addEffectFirst(sgsr);
+            Log.d("XServerDisplayActivity", "SGSR active mode=" + sgsrUpscaleMode
+                    + " sharpness=" + sgsrSharpness);
+        } else if (sgsr != null) {
+            composer.removeEffect(sgsr);
+            Log.d("XServerDisplayActivity", "SGSR inactive");
+        }
+
+        // Handle Vivid color/sharpening pass
+        VividEffect vivid = composer.getEffect(VividEffect.class);
+        if (vividEnabled) {
+            if (vivid == null) {
+                vivid = new VividEffect();
+            }
+            vivid.setLevel((vividStrength / 25.0f) + 1.0f);
+            composer.addEffect(vivid);
+        } else if (vivid != null) {
+            composer.removeEffect(vivid);
         }
 
         // Handle Color Profiles
@@ -3594,13 +3717,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 composer.addEffect(new CRTEffect());
                 break;
         }
+
     }
 
     private void loadScreenEffectsSettings() {
         if (preferences == null) return;
-        fsrEnabled = preferences.getBoolean("fsr_enabled", false);
-        fsrMode = preferences.getInt("fsr_mode", 0);
-        fsrSharpness = preferences.getInt("fsr_sharpness", 100);
+        boolean legacyEnabled = preferences.getBoolean("fsr_enabled", false);
+        int legacyMode = preferences.getInt("fsr_mode", 0);
+        int legacyStrength = preferences.getInt("fsr_sharpness", 100);
+        if (shortcut != null) {
+            sgsrEnabled = parseBoolean(shortcut.getExtra("sgsrEnabled", shortcut.getExtra("sgsr_enabled", "0")));
+            sgsrUpscaleMode = normalizeSGSRShortcutUpscaleMode(parsePositiveInt(
+                    shortcut.getExtra("sgsrUpscaleMode", shortcut.getExtra("sgsr_upscale_mode", "1"))));
+            sgsrSharpness = Math.max(0, Math.min(100, parsePositiveInt(
+                    shortcut.getExtra("sgsrSharpness", shortcut.getExtra("sgsr_sharpness", "100")))));
+        } else {
+            sgsrEnabled = preferences.contains("sgsr_enabled")
+                    ? preferences.getBoolean("sgsr_enabled", false)
+                    : legacyEnabled && legacyMode == 0;
+            sgsrUpscaleMode = clampSGSRUpscaleMode(preferences.getInt("sgsr_upscale_mode", 1));
+            sgsrSharpness = preferences.getInt("sgsr_sharpness", legacyStrength);
+        }
+        vividEnabled = preferences.contains("vivid_enabled")
+                ? preferences.getBoolean("vivid_enabled", false)
+                : legacyEnabled && legacyMode == 1;
+        vividStrength = preferences.getInt("vivid_strength", legacyStrength);
         colorProfile = preferences.getInt("color_profile", 0);
     }
 
@@ -4490,6 +4631,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerSurfaceView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
+        // Match the guest's libvulkan so imported AHBs share UBWC/tiling rules with the
+        // producer (otherwise the driver inserts an implicit layout copy on import).
+        String compositorGraphicsDriver =
+                graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : null;
+        if (compositorGraphicsDriver == null || compositorGraphicsDriver.isEmpty()) {
+            compositorGraphicsDriver = "System";
+        }
+        Log.i("XServerDisplayActivity", "Compositor graphics driver='"
+                + compositorGraphicsDriver + "' from graphicsDriver='" + graphicsDriver + "'");
+        renderer.setGraphicsDriver(compositorGraphicsDriver);
         renderer.setCursorVisible(false);
         renderer.setNativeMode(isNativeRenderingEnabled);
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(

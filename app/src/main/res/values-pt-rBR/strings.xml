@@ -504,6 +504,7 @@
     <string name="container_graphics_bcn_emulation">Emulacao BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tipo de Emulacao BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache de Emulacao BCn</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Super-resolução para jogos 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Deseja duplicar esta predefinicao?</string>
     <string name="container_presets_confirm_remove">Deseja remover esta predefinicao?</string>
@@ -1037,7 +1038,6 @@ Caminho instalado:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
     <string name="session_drawer_color_profile_crt">Efeito CRT</string>
-    <string name="session_drawer_upscaler_dls">Vívido</string>
     <string name="session_drawer_calibrate_advanced">Calibração avançada</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
@@ -1063,9 +1063,11 @@ Caminho instalado:
     <string name="session_drawer_logs_share_chooser">Compartilhar logs da sessão</string>
     <string name="session_drawer_logs_share_failed">Falha ao compartilhar logs</string>
     <string name="session_drawer_logs_share_empty">Não há linhas de log para compartilhar</string>
-    <string name="session_drawer_super_resolution">Filtros de Nitidez</string>
-    <string name="session_drawer_upscaler_mode">Filtro</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">Super-resolução</string>
+    <string name="session_drawer_upscaler_mode">Upscaler</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">Vívido</string>
+    <string name="session_drawer_vivid_strength">Intensidade do vívido</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Ativador</string>
     <string name="settings_general_check_for_updates">Verificar atualizações</string>
@@ -1191,7 +1193,6 @@ Caminho instalado:
     <string name="session_drawer_hud_summary">Ajuste a visibilidade da sobreposição e os dados exibidos</string>
     <string name="session_drawer_screen_effects">Efeitos de Tela</string>
     <string name="session_drawer_session_section">Sessão</string>
-    <string name="session_drawer_sharpness">Nitidez</string>
     <string name="session_drawer_swipe_hint">Deslize para voltar ao jogo</string>
     <string name="session_gamepad_enable_vibration">Ativar Vibração</string>
     <string name="session_gyroscope_experimental_mouse_movement">Movimento de Mouse Experimental</string>
@@ -1212,5 +1213,31 @@ Caminho instalado:
     <string name="shortcuts_list_readded_existing">Atalho existente readicionado</string>
     <string name="shortcuts_properties_runtime_patcher">Patcher DRM em Tempo de Execução</string>
     <string name="shortcuts_properties_runtime_patcher_description">Injeta o patcher DRM em tempo de execução do Goldberg como DLL no jogo a cada inicialização. Contorna verificações anti-adulteração que sobrevivem ao processo de DRM Legado. Reduz significativamente o FPS — ative apenas se o jogo ainda falhar ao iniciar somente com DRM Legado.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Selecionar pasta de saves</string>
+    <string name="cloud_saves_custom_folder_label">Pasta de saves</string>
+    <string name="cloud_saves_custom_select_folder_summary">Aponte para o diretório de saves dentro do contêiner</string>
+    <string name="cloud_saves_custom_no_container">Contêiner indisponível para este atalho</string>
+    <string name="cloud_saves_custom_picker_title">Selecionar pasta de saves</string>
+    <string name="cloud_saves_custom_outside_drive_c">A pasta selecionada deve estar dentro da unidade C: do contêiner</string>
+    <string name="cloud_saves_custom_path_map_failed">Não foi possível mapear a pasta selecionada para um caminho do Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Pasta de saves definida como %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Sincronizar do Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Baixar save mais recente</string>
+    <string name="cloud_saves_steam_sync_success">Sincronizado do Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Falha na sincronização do Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_label">Navegar no Steam</string>
+    <string name="cloud_saves_steam_browse_helper">Abrir armazenamento em nuvem</string>
+    <string name="cloud_saves_steam_browse_no_browser">Nenhum navegador disponível para abrir a página do Steam</string>
+    <string name="cloud_saves_steam_import_label">Importar arquivos</string>
+    <string name="cloud_saves_steam_import_helper">Restaurar arquivos baixados</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Seletor de arquivos indisponível</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Isso baixará os arquivos de save atuais do Steam Cloud e substituirá os arquivos de save atuais.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">ID de app inválido</string>
+    <string name="cloud_saves_label_saved">Rótulo salvo</string>
 </resources>
 

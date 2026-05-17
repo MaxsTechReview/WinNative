@@ -188,6 +188,7 @@ import com.winlator.cmod.feature.stores.steam.utils.getAvatarURL
 import com.winlator.cmod.feature.sync.CloudSyncHelper
 import com.winlator.cmod.feature.sync.google.CloudSyncManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.feature.sync.ui.CloudSavesContent
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
@@ -206,7 +207,6 @@ import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
 import com.winlator.cmod.shared.ui.ListView
-import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -3595,7 +3595,7 @@ class UnifiedActivity :
                     val gameIdStr =
                         when {
                             isEpic -> epicId.toString()
-                            isCustom -> app.name
+                            isCustom -> shortcut?.let { GameSaveBackupManager.customGameId(it) } ?: app.name
                             else -> app.id.toString()
                         }
                     val providerLabel =
@@ -3609,6 +3609,7 @@ class UnifiedActivity :
                         }
 
                     CloudSavesContent(
+                        activity = this@UnifiedActivity,
                         isWorking = isWorking,
                         cloudSyncEnabled = cloudSyncEnabled,
                         offlineModeEnabled = offlineModeEnabled,
@@ -3985,6 +3986,7 @@ class UnifiedActivity :
                     val gogProviderLabel = stringResource(R.string.preloader_platform_gog)
 
                     CloudSavesContent(
+                        activity = this@UnifiedActivity,
                         isWorking = isWorking,
                         cloudSyncEnabled = cloudSyncEnabled,
                         offlineModeEnabled = offlineModeEnabled,
@@ -4920,6 +4922,7 @@ class UnifiedActivity :
                                     }
 
                                 CloudSavesContent(
+                                    activity = this@UnifiedActivity,
                                     isWorking = isWorking,
                                     cloudSyncEnabled = cloudSyncEnabled,
                                     offlineModeEnabled = offlineModeEnabled,
@@ -5125,13 +5128,6 @@ class UnifiedActivity :
                                             isCustom -> GameSaveBackupManager.GameSource.CUSTOM
                                             else -> GameSaveBackupManager.GameSource.STEAM
                                         }
-                                    val detailGameId =
-                                        when {
-                                            isGog -> gogGame!!.id
-                                            isEpic -> epicId.toString()
-                                            isCustom -> app.name
-                                            else -> app.id.toString()
-                                        }
                                     val detailShortcut =
                                         remember(app.id, gogGame?.id, epicId, isGog, isEpic, isCustom) {
                                             val containerManager = ContainerManager(context)
@@ -5146,6 +5142,15 @@ class UnifiedActivity :
                                                     findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
                                                 }
                                             }
+                                        }
+                                    val detailGameId =
+                                        when {
+                                            isGog -> gogGame!!.id
+                                            isEpic -> epicId.toString()
+                                            isCustom ->
+                                                detailShortcut?.let { GameSaveBackupManager.customGameId(it) }
+                                                    ?: app.name
+                                            else -> app.id.toString()
                                         }
                                     var cloudSyncEnabled by remember(detailShortcut?.file?.absolutePath) {
                                         mutableStateOf(isShortcutCloudSyncEnabled(detailShortcut))
@@ -5167,6 +5172,7 @@ class UnifiedActivity :
                                         }
 
                                     CloudSavesContent(
+                                        activity = this@UnifiedActivity,
                                         isWorking = isWorking,
                                         cloudSyncEnabled = cloudSyncEnabled,
                                         offlineModeEnabled = offlineModeEnabled,
@@ -7941,664 +7947,6 @@ class UnifiedActivity :
         if (shortcut == null) return
         shortcut.putExtra("offline_mode", if (enabled) "1" else null)
         shortcut.saveData()
-    }
-
-    @Composable
-    private fun CloudSavesContent(
-        isWorking: Boolean,
-        cloudSyncEnabled: Boolean,
-        offlineModeEnabled: Boolean,
-        gameSource: GameSaveBackupManager.GameSource,
-        gameId: String,
-        gameName: String,
-        shortcut: Shortcut?,
-        onCloudSyncToggle: (Boolean) -> Unit,
-        onOfflineModeToggle: (Boolean) -> Unit,
-        onBackup: () -> Unit,
-        onRestore: () -> Unit,
-        onSyncFromCloud: () -> Unit,
-        showTitle: Boolean = true,
-        showBottomBack: Boolean = true,
-        onBack: () -> Unit,
-    ) {
-        val scope = rememberCoroutineScope()
-        val context = LocalContext.current
-        var historyRefreshKey by remember { mutableStateOf(0) }
-        var historyRequested by remember { mutableStateOf(false) }
-        var historyLoading by remember { mutableStateOf(false) }
-        var historyEntries by remember { mutableStateOf<List<GameSaveBackupManager.BackupHistoryEntry>>(emptyList()) }
-        var entryPendingRestore by remember {
-            mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
-        }
-        var entryPendingRename by remember {
-            mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
-        }
-        var entryPendingDelete by remember {
-            mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
-        }
-        val steamManagedCloud = gameSource == GameSaveBackupManager.GameSource.STEAM
-
-        LaunchedEffect(gameSource, gameId, historyRefreshKey) {
-            if (!historyRequested) return@LaunchedEffect
-            historyLoading = true
-            historyEntries =
-                GameSaveBackupManager.listBackupHistory(
-                    this@UnifiedActivity,
-                    gameSource,
-                    gameId,
-                    gameName,
-                )
-            historyLoading = false
-        }
-
-        // Auto-refresh the history list whenever a backup/restore finishes.
-        var wasWorking by remember { mutableStateOf(false) }
-        LaunchedEffect(isWorking) {
-            if (wasWorking && !isWorking && historyRequested) historyRefreshKey++
-            wasWorking = isWorking
-        }
-
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (showTitle) {
-                Text(
-                    stringResource(R.string.cloud_saves_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.1.sp,
-                )
-            }
-
-            TogglePairCard(
-                cloudSyncEnabled = cloudSyncEnabled,
-                offlineModeEnabled = offlineModeEnabled,
-                showCloudSync = !steamManagedCloud,
-                onCloudSyncToggle = onCloudSyncToggle,
-                onOfflineModeToggle = onOfflineModeToggle,
-            )
-
-            if (isWorking) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Accent,
-                    trackColor = CardBorder,
-                )
-            }
-
-            val providerLabel =
-                when (gameSource) {
-                    GameSaveBackupManager.GameSource.STEAM -> stringResource(R.string.preloader_platform_steam)
-                    GameSaveBackupManager.GameSource.EPIC -> stringResource(R.string.preloader_platform_epic)
-                    GameSaveBackupManager.GameSource.GOG -> stringResource(R.string.preloader_platform_gog)
-                    GameSaveBackupManager.GameSource.CUSTOM -> stringResource(R.string.preloader_platform_custom)
-                }
-
-            ActionWithHelper(
-                icon = Icons.Outlined.CloudSync,
-                label = stringResource(R.string.cloud_saves_sync_from_provider, providerLabel),
-                helper = stringResource(R.string.cloud_saves_sync_summary, providerLabel),
-                onClick = { if (!isWorking) onSyncFromCloud() },
-            )
-
-            if (!steamManagedCloud) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    ActionWithHelper(
-                        icon = Icons.Outlined.CloudUpload,
-                        label = stringResource(R.string.cloud_saves_backup),
-                        helper = stringResource(R.string.cloud_saves_backup_summary),
-                        modifier = Modifier.weight(1f),
-                        onClick = onBackup,
-                    )
-                    ActionWithHelper(
-                        icon = Icons.Outlined.CloudDownload,
-                        label = stringResource(R.string.cloud_saves_restore),
-                        helper = stringResource(R.string.cloud_saves_restore_summary),
-                        modifier = Modifier.weight(1f),
-                        onClick = onRestore,
-                    )
-                }
-
-                SaveHistorySection(
-                    loading = historyLoading,
-                    entries = historyEntries,
-                    onRefresh = {
-                        historyRequested = true
-                        historyRefreshKey++
-                    },
-                    onRestore = { entry -> entryPendingRestore = entry },
-                    onRename = { entry -> entryPendingRename = entry },
-                    onDelete = { entry -> entryPendingDelete = entry },
-                )
-            }
-
-            if (showBottomBack) {
-                Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = null,
-                        tint = TextSecondary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.common_ui_back), color = TextSecondary)
-                }
-            }
-        }
-
-        entryPendingRestore?.let { entry ->
-            val whenLabel =
-                remember(entry.timestampMs) {
-                    android.text.format.DateUtils
-                        .getRelativeTimeSpanString(
-                            entry.timestampMs,
-                            System.currentTimeMillis(),
-                            android.text.format.DateUtils.MINUTE_IN_MILLIS,
-                        ).toString()
-                }
-            AlertDialog(
-                onDismissRequest = { entryPendingRestore = null },
-                title = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_restore_confirm_title),
-                        color = TextPrimary,
-                    )
-                },
-                text = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_restore_confirm_body, whenLabel),
-                        color = TextSecondary,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val target = entryPendingRestore ?: return@TextButton
-                        entryPendingRestore = null
-                        scope.launch {
-                            val result =
-                                GameSaveBackupManager.restoreFromHistoryEntry(
-                                    this@UnifiedActivity,
-                                    gameSource,
-                                    gameId,
-                                    target,
-                                )
-                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                context,
-                                if (result.success) {
-                                    context.getString(R.string.cloud_saves_history_restore_success)
-                                } else {
-                                    context.getString(R.string.cloud_saves_history_restore_failed)
-                                },
-                                android.widget.Toast.LENGTH_SHORT,
-                            )
-                            historyRefreshKey++
-                        }
-                    }) { Text(stringResource(R.string.cloud_saves_history_restore), color = Accent) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { entryPendingRestore = null }) {
-                        Text(stringResource(R.string.common_ui_cancel), color = TextSecondary)
-                    }
-                },
-                containerColor = SurfaceDark,
-            )
-        }
-
-        entryPendingRename?.let { entry ->
-            var labelInput by remember(entry.fileId) { mutableStateOf(entry.label.orEmpty()) }
-            AlertDialog(
-                onDismissRequest = { entryPendingRename = null },
-                title = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_rename_title),
-                        color = TextPrimary,
-                    )
-                },
-                text = {
-                    OutlinedTextField(
-                        value = labelInput,
-                        onValueChange = { v ->
-                            labelInput = v.take(GameSaveBackupManager.MAX_HISTORY_LABEL_LENGTH)
-                        },
-                        singleLine = true,
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.cloud_saves_history_rename_hint),
-                                color = TextSecondary,
-                            )
-                        },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
-                        colors =
-                            OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Accent,
-                                unfocusedBorderColor = CardBorder,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                cursorColor = Accent,
-                            ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val target = entryPendingRename ?: return@TextButton
-                        val newLabel = labelInput
-                        entryPendingRename = null
-                        scope.launch {
-                            val result =
-                                GameSaveBackupManager.renameBackupHistoryEntry(
-                                    this@UnifiedActivity,
-                                    target,
-                                    newLabel,
-                                )
-                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                context,
-                                if (result.success) {
-                                    context.getString(R.string.cloud_saves_history_rename_success)
-                                } else {
-                                    context.getString(R.string.cloud_saves_history_rename_failed)
-                                },
-                                android.widget.Toast.LENGTH_SHORT,
-                            )
-                            historyRefreshKey++
-                        }
-                    }) {
-                        Text(stringResource(R.string.cloud_saves_history_rename_save), color = Accent)
-                    }
-                },
-                dismissButton = {
-                    Row {
-                        if (!entry.label.isNullOrBlank()) {
-                            TextButton(onClick = {
-                                val target = entryPendingRename ?: return@TextButton
-                                entryPendingRename = null
-                                scope.launch {
-                                    GameSaveBackupManager.renameBackupHistoryEntry(
-                                        this@UnifiedActivity,
-                                        target,
-                                        null,
-                                    )
-                                    historyRefreshKey++
-                                }
-                            }) {
-                                Text(stringResource(R.string.cloud_saves_history_rename_clear), color = TextSecondary)
-                            }
-                        }
-                        TextButton(onClick = { entryPendingRename = null }) {
-                            Text(stringResource(R.string.common_ui_cancel), color = TextSecondary)
-                        }
-                    }
-                },
-                containerColor = SurfaceDark,
-            )
-        }
-
-        entryPendingDelete?.let { entry ->
-            AlertDialog(
-                onDismissRequest = { entryPendingDelete = null },
-                title = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_delete_confirm_title),
-                        color = TextPrimary,
-                    )
-                },
-                text = {
-                    Text(
-                        stringResource(R.string.cloud_saves_history_delete_confirm_body),
-                        color = TextSecondary,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val target = entryPendingDelete ?: return@TextButton
-                        entryPendingDelete = null
-                        scope.launch {
-                            val result =
-                                GameSaveBackupManager.deleteBackupHistoryEntry(
-                                    this@UnifiedActivity,
-                                    target,
-                                )
-                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                context,
-                                if (result.success) {
-                                    context.getString(R.string.cloud_saves_history_delete_success)
-                                } else {
-                                    context.getString(R.string.cloud_saves_history_delete_failed)
-                                },
-                                android.widget.Toast.LENGTH_SHORT,
-                            )
-                            historyRefreshKey++
-                        }
-                    }) { Text(stringResource(R.string.cloud_saves_history_delete), color = DangerRed) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { entryPendingDelete = null }) {
-                        Text(stringResource(R.string.common_ui_cancel), color = TextSecondary)
-                    }
-                },
-                containerColor = SurfaceDark,
-            )
-        }
-    }
-
-    @Composable
-    private fun SaveHistorySection(
-        loading: Boolean,
-        entries: List<GameSaveBackupManager.BackupHistoryEntry>,
-        onRefresh: () -> Unit,
-        onRestore: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
-        onRename: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
-        onDelete: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.cloud_saves_history_title),
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.1.sp,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    Icons.Outlined.Refresh,
-                    contentDescription = stringResource(R.string.cloud_saves_history_refresh),
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = SurfaceDark,
-            border = BorderStroke(1.dp, CardBorder),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                when {
-                    loading -> {
-                        Text(
-                            stringResource(R.string.cloud_saves_history_loading),
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        )
-                    }
-
-                    entries.isEmpty() -> {
-                        Text(
-                            stringResource(R.string.cloud_saves_history_empty),
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        )
-                    }
-
-                    else -> {
-                        entries.forEachIndexed { index, entry ->
-                            SaveHistoryRow(
-                                entry = entry,
-                                onRestore = { onRestore(entry) },
-                                onRename = { onRename(entry) },
-                                onDelete = { onDelete(entry) },
-                            )
-                            if (index < entries.lastIndex) {
-                                androidx.compose.material3.HorizontalDivider(
-                                    color = CardBorder,
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun SaveHistoryRow(
-        entry: GameSaveBackupManager.BackupHistoryEntry,
-        onRestore: () -> Unit,
-        onRename: () -> Unit,
-        onDelete: () -> Unit,
-    ) {
-        val whenLabel =
-            remember(entry.timestampMs) {
-                android.text.format.DateUtils
-                    .getRelativeTimeSpanString(
-                        entry.timestampMs,
-                        System.currentTimeMillis(),
-                        android.text.format.DateUtils.MINUTE_IN_MILLIS,
-                    ).toString()
-            }
-        val originLabel =
-            when (entry.origin) {
-                GameSaveBackupManager.BackupOrigin.LOCAL -> stringResource(R.string.cloud_saves_history_origin_local)
-                GameSaveBackupManager.BackupOrigin.CLOUD -> stringResource(R.string.cloud_saves_history_origin_cloud)
-                GameSaveBackupManager.BackupOrigin.MANUAL -> stringResource(R.string.cloud_saves_history_origin_manual)
-                GameSaveBackupManager.BackupOrigin.AUTO -> stringResource(R.string.cloud_saves_history_origin_auto)
-            }
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.History,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                val title = entry.label?.takeIf { it.isNotBlank() } ?: whenLabel
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(CardBorder)
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                    ) {
-                        Text(originLabel, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = formatBytes(entry.sizeBytes),
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                    )
-                    if (!entry.label.isNullOrBlank()) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "\u2022 $whenLabel",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                        )
-                    }
-                }
-            }
-            TextButton(
-                onClick = onRename,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Text(stringResource(R.string.cloud_saves_history_rename), color = TextSecondary, fontSize = 12.sp)
-            }
-            TextButton(
-                onClick = onDelete,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Text(stringResource(R.string.cloud_saves_history_delete), color = DangerRed, fontSize = 12.sp)
-            }
-            TextButton(
-                onClick = onRestore,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Text(stringResource(R.string.cloud_saves_history_restore), color = Accent, fontSize = 12.sp)
-            }
-        }
-    }
-
-    private fun formatBytes(bytes: Long): String =
-        when {
-            bytes <= 0 -> "0 B"
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-            bytes < 1024L * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-            else -> "%.2f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
-        }
-
-    @Composable
-    private fun TogglePairCard(
-        cloudSyncEnabled: Boolean,
-        offlineModeEnabled: Boolean,
-        showCloudSync: Boolean = true,
-        onCloudSyncToggle: (Boolean) -> Unit,
-        onOfflineModeToggle: (Boolean) -> Unit,
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val stacked = maxWidth < 380.dp
-            val cloudSyncCell: @Composable (Modifier) -> Unit = { mod ->
-                TogglePaneCell(
-                    modifier = mod,
-                    title = stringResource(R.string.cloud_sync_title),
-                    summary =
-                        if (cloudSyncEnabled) {
-                            stringResource(R.string.cloud_sync_enabled_summary)
-                        } else {
-                            stringResource(R.string.cloud_sync_disabled_summary)
-                        },
-                    checked = cloudSyncEnabled && !offlineModeEnabled,
-                    enabled = !offlineModeEnabled,
-                    onCheckedChange = onCloudSyncToggle,
-                )
-            }
-            val offlineCell: @Composable (Modifier) -> Unit = { mod ->
-                TogglePaneCell(
-                    modifier = mod,
-                    title = stringResource(R.string.cloud_saves_offline_mode),
-                    summary = stringResource(R.string.cloud_saves_offline_mode_summary),
-                    checked = offlineModeEnabled,
-                    enabled = true,
-                    onCheckedChange = onOfflineModeToggle,
-                )
-            }
-            if (!showCloudSync) {
-                offlineCell(Modifier.fillMaxWidth())
-                return@BoxWithConstraints
-            }
-            if (stacked) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    cloudSyncCell(Modifier.fillMaxWidth())
-                    offlineCell(Modifier.fillMaxWidth())
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    cloudSyncCell(Modifier.weight(1f).fillMaxHeight())
-                    offlineCell(Modifier.weight(1f).fillMaxHeight())
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun TogglePaneCell(
-        modifier: Modifier = Modifier,
-        title: String,
-        summary: String,
-        checked: Boolean,
-        enabled: Boolean,
-        onCheckedChange: (Boolean) -> Unit,
-    ) {
-        Column(
-            modifier =
-                modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (enabled) TextPrimary else TextSecondary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = checked,
-                    onCheckedChange = if (enabled) onCheckedChange else { _ -> },
-                    enabled = enabled,
-                    colors =
-                        outlinedSwitchColors(
-                            accentColor = Accent,
-                            textSecondaryColor = TextSecondary,
-                            checkedThumbColor = TextPrimary,
-                        ),
-                )
-            }
-            Text(
-                summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
-                lineHeight = 14.sp,
-            )
-        }
-    }
-
-    @Composable
-    private fun ActionWithHelper(
-        icon: ImageVector,
-        label: String,
-        helper: String,
-        modifier: Modifier = Modifier.fillMaxWidth(),
-        onClick: () -> Unit,
-    ) {
-        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            CompactActionButton(
-                icon = icon,
-                label = label,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onClick,
-            )
-            Text(
-                helper,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(start = 10.dp),
-            )
-        }
     }
 
     private fun resolveLibraryShortcutArtworkModel(

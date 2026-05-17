@@ -102,7 +102,18 @@ object SteamLaunchCloudSync {
 
         activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
 
-        if (!useCloud) return
+        if (!useCloud) {
+            // Steam protocol: "Use Local" means "my local version wins." Push it up to
+            // overwrite cloud so subsequent syncs don't keep seeing the same conflict.
+            // Without this, exit-sync next launch finds local≠cloud again → Retry 3/3 →
+            // confusion. The Steam Client itself sends ClientConflictResolution_Notification
+            // (chose_local_files=true) followed by an upload batch — we mirror that here.
+            statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
+            runCatching { SteamCloudSyncHelper.uploadLocalSavesBlocking(activity, shortcut) }
+                .onFailure { Timber.tag("SteamLaunchCloudSync").w(it, "Use-Local upload to Steam Cloud failed") }
+            statusSink.show(activity.getString(R.string.preloader_initializing))
+            return
+        }
         if (keepBackup) {
             backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
         }
@@ -127,7 +138,7 @@ object SteamLaunchCloudSync {
                         gameId = gameId,
                         gameName = gameName,
                         origin = origin,
-                        authMode = GoogleAuthMode.SILENT,
+                        authMode = GoogleAuthMode.RESUME,
                     )
                 }
             Timber.tag("SteamLaunchCloudSync").i("Discarded Steam save backup: %s", result.message)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -216,6 +217,7 @@ fun WinNativeDialogShell(
     iconRes: Int? = null,
     iconImage: ImageVector? = null,
     maxWidth: Dp = 420.dp,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
     content: @Composable () -> Unit,
 ) {
     ComposeDialog(
@@ -244,7 +246,7 @@ fun WinNativeDialogShell(
                         .clip(RoundedCornerShape(16.dp))
                         .background(WinNativeSurface)
                         .border(1.dp, WinNativeOutline, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                        .padding(contentPadding),
             ) {
                 Column(
                     modifier =

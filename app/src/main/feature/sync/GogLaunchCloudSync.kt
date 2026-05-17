@@ -123,7 +123,7 @@ object GogLaunchCloudSync {
                         gameId = gameId,
                         gameName = gameName,
                         origin = origin,
-                        authMode = GoogleAuthMode.SILENT,
+                        authMode = GoogleAuthMode.RESUME,
                     )
                 }
             Timber.tag("GogLaunchCloudSync").i("Discarded GOG save backup: %s", result.message)

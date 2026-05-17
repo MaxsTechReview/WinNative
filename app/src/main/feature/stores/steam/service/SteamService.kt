@@ -4824,12 +4824,46 @@ class SteamService :
         )
 
         /**
-         * Single-round-trip variant for the launch-time conflict prompt: returns both
-         * "does the cloud differ from local?" and the newest remote timestamp from
-         * the same `getAppFileListChange` response. Avoids 2-3 separate Steam round-trips
-         * when the dialog is about to be shown.
+         * Public wrapper around the cloud-file-list RPC for callers outside the
+         * `SteamService` companion (which can't touch the private `_steamCloud` field).
+         *
+         * `changeNumber = 0L` requests the FULL listing (not a delta) — same pattern as
+         * `fetchCloudConflictSnapshot`. Returns null if Steam isn't connected.
          */
-        suspend fun fetchCloudConflictSnapshot(appId: Int): CloudConflictSnapshot? =
+        suspend fun fetchCloudFileList(
+            appId: Int,
+            changeNumber: Long = 0L,
+        ): `in`.dragonbra.javasteam.steam.handlers.steamcloud.AppFileChangeList? =
+            withContext(Dispatchers.IO) {
+                val steamInstance = instance ?: return@withContext null
+                val steamCloud = steamInstance._steamCloud ?: return@withContext null
+                try {
+                    steamCloud.getAppFileListChange(appId, changeNumber).await()
+                } catch (e: Exception) {
+                    Timber.e(e, "fetchCloudFileList failed for appId=%d", appId)
+                    null
+                }
+            }
+
+        /**
+         * Single-round-trip variant for the launch-time conflict prompt.
+         *
+         * Per Steam protocol (`steammessages_cloud.steamclient.proto`), a conflict requires
+         * BOTH an `app_change_number` mismatch AND per-file SHA divergence. The old CN-only
+         * check produced spurious dialogs whenever `localCN` was null/stale (e.g. after a
+         * partial download where the DAO insert was skipped) or when Steam bumped the CN
+         * for reasons unrelated to actual content change. We now fast-path on CN match (no
+         * SHA work) and fall through to a content check only when CN mismatches.
+         *
+         * Returns both "does the cloud differ from local?" and the newest remote timestamp
+         * from the same `getAppFileListChange` response. Avoids 2-3 separate Steam
+         * round-trips when the dialog is about to be shown.
+         */
+        @JvmOverloads
+        suspend fun fetchCloudConflictSnapshot(
+            appId: Int,
+            context: android.content.Context? = null,
+        ): CloudConflictSnapshot? =
             withContext(Dispatchers.IO) {
                 val steamInstance = instance ?: return@withContext null
                 val steamCloud = steamInstance._steamCloud ?: return@withContext null
@@ -4838,13 +4872,40 @@ class SteamService :
                     // Request the full file list so the timestamp scan covers everything,
                     // not just the delta from localCN.
                     val response = steamCloud.getAppFileListChange(appId, 0L).await()
-                    val differs = localCN == null || response.currentChangeNumber != localCN
+                    val cnMismatch = localCN == null || response.currentChangeNumber != localCN
                     val newest =
                         response.files
                             .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
                             .mapNotNull { it.timestamp?.time?.takeIf { ts -> ts > 0L } }
                             .maxOrNull()
-                    CloudConflictSnapshot(differs, newest)
+
+                    // CN match → no need to hash files. Common-case fast path.
+                    if (!cnMismatch) {
+                        return@withContext CloudConflictSnapshot(differs = false, newestRemoteTimestamp = newest)
+                    }
+
+                    // CN mismatch — verify against content. If every cloud file is present
+                    // locally with matching size+SHA, there's no real divergence to surface.
+                    // Falls back to "differs=true" (conservative) if we can't run the content
+                    // check (e.g. no Context for path resolution).
+                    val ctx = context ?: PluviaApp.instance
+                    val contentDiffers =
+                        if (ctx != null) {
+                            val accountId =
+                                userSteamId?.accountID?.toLong()
+                                    ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
+                                    ?: 0L
+                            val prefixToPath: (String) -> String = { prefix ->
+                                com.winlator.cmod.feature.stores.steam.enums.PathType
+                                    .from(prefix)
+                                    .toAbsPath(ctx, appId, accountId)
+                            }
+                            com.winlator.cmod.feature.steamcloudsync.SteamAutoCloud
+                                .cloudContentDiffersFromLocal(response, prefixToPath)
+                        } else {
+                            true
+                        }
+                    CloudConflictSnapshot(differs = contentDiffers, newestRemoteTimestamp = newest)
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to fetch Steam cloud conflict snapshot for appId=$appId")
                     null
@@ -5230,11 +5291,33 @@ class SteamService :
                                         return@async CloudSyncOutcome(true)
                                     }
 
-                                    lastErrorMessage = "Steam cloud save sync failed."
+                                    // Discriminate the failure message by SyncResult so callers
+                                    // (SteamExitCloudSync.isRetryable, the UI retry loop) can
+                                    // distinguish terminal failures (Conflict — needs user dialog)
+                                    // from transient ones (UpdateFail/DownloadFail — worth retrying).
+                                    lastErrorMessage =
+                                        when (syncResult) {
+                                            SyncResult.Conflict ->
+                                                "Steam cloud save sync conflict — relaunch the game to resolve."
+                                            SyncResult.PendingOperations ->
+                                                "Steam cloud sync pending — another device may still be uploading."
+                                            SyncResult.InProgress ->
+                                                "Steam cloud sync already in progress."
+                                            SyncResult.UpdateFail ->
+                                                "Steam cloud save upload failed."
+                                            SyncResult.DownloadFail ->
+                                                "Steam cloud save download failed."
+                                            else -> "Steam cloud save sync failed."
+                                        }
                                 } else {
                                     lastErrorMessage = "Steam cloud service is unavailable."
                                 }
                             } catch (e: AsyncJobFailedException) {
+                                // e.message often comes from SteamKit's EResult enum names
+                                // (e.g. "Pending", "RemoteFileConflict"). The SteamExitCloudSync
+                                // retry classifier matches substrings like "conflict" and "pending"
+                                // — so SteamKit failures with those names will correctly short-circuit
+                                // the retry loop without needing a SyncResult plumb-through here.
                                 lastErrorMessage = e.message ?: "Steam cloud save sync failed."
                                 if (attempt == maxAttempts) {
                                     Timber.e(e, "Close app sync failed after $maxAttempts attempts for app $appId")

@@ -2,7 +2,11 @@ package com.winlator.cmod.feature.steamcloudsync
 
 import android.app.Activity
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.container.Shortcut
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 object SteamExitCloudSync {
@@ -60,6 +64,25 @@ object SteamExitCloudSync {
                         success: Boolean,
                         message: String,
                     ) {
+                        if (success) {
+                            // Capture a rollback snapshot of the just-uploaded state. Best-effort —
+                            // fires on a detached IO scope so we don't delay the exit dialog.
+                            CoroutineScope(Dispatchers.IO).launch {
+                                runCatching {
+                                    SteamSaveSnapshotManager.recordSnapshot(
+                                        activity.applicationContext,
+                                        appId,
+                                        GameSaveBackupManager.BackupOrigin.AUTO,
+                                    )
+                                }.onFailure {
+                                    Timber.tag("SteamExitCloudSync").w(
+                                        it,
+                                        "recordSnapshot failed for appId=%d",
+                                        appId,
+                                    )
+                                }
+                            }
+                        }
                         callback.onComplete(
                             Result(
                                 success = success,
@@ -76,8 +99,31 @@ object SteamExitCloudSync {
         }
     }
 
+    /**
+     * A failure is retryable only when re-running the sync stands a chance of succeeding.
+     *
+     * Steam protocol (per `steammessages_cloud.steamclient.proto` + EResult conventions):
+     *  - `RemoteFileConflict` (Conflict)    — needs user intervention via the launch-time
+     *                                          dialog. Retry will keep hitting the same Conflict.
+     *  - `Busy` / `InProgress` / pending    — transient lock; we let the outer retry handle it.
+     *  - `AccessDenied` / auth issues       — need re-auth; pointless to retry the same call.
+     *  - `Offline` / no connection          — bounded retry won't help on a tap-out cycle.
+     *  - `UpdateFail` / `DownloadFail`      — transient network/server issue; worth retrying.
+     *  - Any other transient (Timeout, etc) — retry with backoff.
+     *
+     * Match strings produced by [SteamService.closeApp]'s discriminating `lastErrorMessage`.
+     */
     private fun isRetryable(message: String?): Boolean {
         if (message.isNullOrEmpty()) return true
-        return !message.lowercase().contains("offline")
+        val lower = message.lowercase()
+        return when {
+            lower.contains("conflict") -> false
+            lower.contains("pending") -> false
+            lower.contains("access denied") -> false
+            lower.contains("not signed in") -> false
+            lower.contains("logged in elsewhere") -> false
+            lower.contains("offline") -> false
+            else -> true
+        }
     }
 }

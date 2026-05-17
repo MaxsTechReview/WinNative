@@ -10,7 +10,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <vulkan/vulkan.h>
+
+// All vk* calls route through the dispatch table — vk_dispatch.h is the Vulkan header for
+// this translation unit (do not include <vulkan/vulkan.h> directly).
+#include "vk_dispatch.h"
 
 #define VK_LOG_TAG "VkRenderer"
 #define VK_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  VK_LOG_TAG, __VA_ARGS__)
@@ -81,18 +84,19 @@ typedef struct VkTextureBatchUpload {
 
 typedef enum VkEffectType {
     VK_EFFECT_CRT = 0,
-    VK_EFFECT_FSR = 1,
+    VK_EFFECT_VIVID = 1,
     VK_EFFECT_HDR = 2,
     VK_EFFECT_NATURAL = 3,
+    VK_EFFECT_SGSR1 = 4,
     VK_EFFECT_COUNT
 } VkEffectType;
 
 typedef struct VkEffectSlot {
     VkEffectType type;
-    int          mode;     // FSR only
+    int          mode;     // effect-specific mode
     float        param0;   // generic
     float        param1;
-    float        param2;   // FSR sharpness; ignored by other effects
+    float        param2;   // generic
 } VkEffectSlot;
 
 // ============================================================
@@ -128,6 +132,8 @@ typedef struct VkScene {
     // Render dims (logical screen size).
     uint32_t screen_width;
     uint32_t screen_height;
+    uint32_t source_width;
+    uint32_t source_height;
     bool     swap_rb;
 
     VkEffectSlot effects[VK_MAX_EFFECTS];
@@ -143,7 +149,7 @@ typedef struct VkScene {
 typedef struct VkPipelineSet {
     VkDescriptorSetLayout sampler_set_layout;
     VkPipelineLayout      window_layout;     // push constants: xform[6] + viewSize
-    VkPipelineLayout      effect_layout;     // push constants: resolution + 2 floats
+    VkPipelineLayout      effect_layout;     // push constants: resolution + effect params
     VkPipeline            window_pipeline;
     VkPipeline            cursor_pipeline;
     VkPipeline            blit_pipeline;
@@ -181,6 +187,13 @@ typedef struct VkOffscreen {
     VkFramebuffer   framebuffer;
     uint32_t        width, height;
 } VkOffscreen;
+
+typedef struct VkSgsr1State {
+    VkOffscreen source;
+    bool        built;
+    uint32_t    width;
+    uint32_t    height;
+} VkSgsr1State;
 
 // ============================================================
 // Staging pool for async texture uploads
@@ -262,6 +275,9 @@ typedef struct VkRenderer {
                                      // touch scene_mutex, so they never stall behind a frame.
 
     // Instance + physical/logical device
+    // dlopen handle for the libvulkan we resolved through. dlclose'd in nativeDestroy AFTER
+    // vkd_unload() to avoid stale dispatch pointers calling into freed memory.
+    void*            vulkan_handle;
     VkInstance       instance;
     bool             validation_enabled;
     bool             debug_utils_enabled;
@@ -293,6 +309,7 @@ typedef struct VkRenderer {
     // Offscreen ping-pong (created lazily when effects are present)
     VkOffscreen      offscreen[2];
     bool             offscreen_built;
+    VkSgsr1State     sgsr1;
 
     // Quad vertex buffer (window/cursor)
     VkBuffer         quad_vbo;
