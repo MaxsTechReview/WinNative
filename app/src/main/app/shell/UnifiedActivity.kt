@@ -1591,17 +1591,17 @@ class UnifiedActivity :
                                     }
 
                                     "steam" -> {
-                                        SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, libraryLayoutMode)
+                                        SteamStoreTab(isLoggedIn, filteredSteamApps, searchQuery, LibraryLayoutMode.GRID_4)
                                     }
 
                                     "epic" -> {
-                                        EpicStoreTab(isEpicLoggedIn, epicApps, searchQuery, libraryLayoutMode) {
+                                        EpicStoreTab(isEpicLoggedIn, epicApps, searchQuery, LibraryLayoutMode.GRID_4) {
                                             epicLoginLauncher.launch(Intent(this@UnifiedActivity, EpicOAuthActivity::class.java))
                                         }
                                     }
 
                                     "gog" -> {
-                                        GOGStoreTab(isGogLoggedIn, gogApps, searchQuery, libraryLayoutMode) {
+                                        GOGStoreTab(isGogLoggedIn, gogApps, searchQuery, LibraryLayoutMode.GRID_4) {
                                             gogLoginLauncher.launch(Intent(this@UnifiedActivity, GOGOAuthActivity::class.java))
                                         }
                                     }
@@ -5768,23 +5768,32 @@ class UnifiedActivity :
     private fun StoreInstalledBadge(
         modifier: Modifier = Modifier,
         compact: Boolean = false,
+        attachedCorner: Boolean = false,
     ) {
-        val shape = RoundedCornerShape(4.dp)
+        val shape =
+            if (attachedCorner) {
+                RoundedCornerShape(topStart = 8.dp)
+            } else {
+                RoundedCornerShape(4.dp)
+            }
         Box(
             modifier =
                 modifier
-                    .background(StatusOnline.copy(alpha = 0.94f), shape)
-                    .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
+                    .background(StatusOnline, shape)
+                    .border(1.dp, Color.White.copy(alpha = 0.34f), shape)
                     .padding(
-                        horizontal = if (compact) 5.dp else 7.dp,
-                        vertical = if (compact) 2.dp else 3.dp,
+                        start = if (compact) 6.dp else 9.dp,
+                        end = if (compact) 6.dp else 9.dp,
+                        top = if (compact) 2.dp else 4.dp,
+                        bottom = if (compact) 1.dp else 2.dp,
                     ),
         ) {
             Text(
                 stringResource(R.string.library_games_installed_badge),
-                color = Color(0xFF07120A),
-                fontSize = if (compact) 8.sp else 10.sp,
+                color = Color(0xFF06140A),
+                fontSize = if (compact) 9.sp else 11.sp,
                 fontWeight = FontWeight.Black,
+                letterSpacing = 0.6.sp,
                 maxLines = 1,
             )
         }
@@ -5918,7 +5927,8 @@ class UnifiedActivity :
 
                     if (isInstalled) {
                         StoreInstalledBadge(
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            attachedCorner = true,
                         )
                     }
                 }
@@ -6304,7 +6314,8 @@ class UnifiedActivity :
                         )
                         if (isInstalled) {
                             StoreInstalledBadge(
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                                modifier = Modifier.align(Alignment.BottomEnd),
+                                attachedCorner = true,
                             )
                         }
                     }
@@ -6767,7 +6778,8 @@ class UnifiedActivity :
 
                     if (isInstalled) {
                         StoreInstalledBadge(
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            attachedCorner = true,
                         )
                     }
                 }

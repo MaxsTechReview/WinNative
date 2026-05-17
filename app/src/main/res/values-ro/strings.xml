@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Niciun joc instalat\nApasa pentru a deschide Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALAT</string>
     <string name="library_games_unknown_game">Joc necunoscut</string>
-    <string name="library_games_layouts_header">ASPECTE</string>
+    <string name="library_games_layouts_header">ASPECTE ALE BIBLIOTECII</string>
     <string name="library_games_layout_carousel">Carusel</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_custom_game">Joc personalizat</string>

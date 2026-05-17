@@ -174,7 +174,7 @@
     <string name="library_games_no_games_hub">Brak zainstalowanych gier\nKliknij, aby otworzyć Winlator Backend</string>
     <string name="library_games_installed_badge">ZAINSTALOWANO</string>
     <string name="library_games_unknown_game">Nieznana gra</string>
-    <string name="library_games_layouts_header">UKŁADY</string>
+    <string name="library_games_layouts_header">UKŁADY BIBLIOTEKI</string>
     <string name="library_games_layout_carousel">Karuzela</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_custom_game">Własna gra</string>

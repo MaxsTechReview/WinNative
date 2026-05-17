@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Ingen spil installeret\nKlik for at åbne Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALLERET</string>
     <string name="library_games_unknown_game">Ukendt spil</string>
-    <string name="library_games_layouts_header">LAYOUTS</string>
+    <string name="library_games_layouts_header">BIBLIOTEKSLAYOUTS</string>
     <string name="library_games_layout_carousel">Karrusel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>

@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Aucun jeu installé\nCliquez pour ouvrir le backend Winlator</string>
     <string name="library_games_installed_badge">INSTALLÉ</string>
     <string name="library_games_unknown_game">Jeu inconnu</string>
-    <string name="library_games_layouts_header">DISPOSITIONS</string>
+    <string name="library_games_layouts_header">DISPOSITIONS DE LA BIBLIOTHÈQUE</string>
     <string name="library_games_layout_carousel">Carrousel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>

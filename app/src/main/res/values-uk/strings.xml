@@ -174,7 +174,7 @@
     <string name="library_games_no_games_hub">Ігор не встановлено\nНатисніть, щоб відкрити Winlator Backend</string>
     <string name="library_games_installed_badge">ВСТАНОВЛЕНО</string>
     <string name="library_games_unknown_game">Невідома гра</string>
-    <string name="library_games_layouts_header">МАКЕТИ</string>
+    <string name="library_games_layouts_header">МАКЕТИ БІБЛІОТЕКИ</string>
     <string name="library_games_layout_carousel">Карусель</string>
     <string name="library_games_layout_list">Список</string>
     <string name="library_games_custom_game">Користувацька гра</string>

@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">尚未安裝任何遊戲\n點擊以開啟 Winlator 後端</string>
     <string name="library_games_installed_badge">已安裝</string>
     <string name="library_games_unknown_game">未知遊戲</string>
-    <string name="library_games_layouts_header">版面配置</string>
+    <string name="library_games_layouts_header">遊戲庫版面配置</string>
     <string name="library_games_layout_carousel">輪播</string>
     <string name="library_games_layout_list">清單</string>
     <string name="library_games_custom_game">自訂遊戲</string>

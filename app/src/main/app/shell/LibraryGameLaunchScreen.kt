@@ -222,7 +222,7 @@ internal fun LibraryGameLaunchScreen(
                 onClick = onBack,
                 modifier =
                     Modifier
-                        .size(54.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(LaunchBlack.copy(alpha = 0.5f))
                         .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
@@ -231,7 +231,7 @@ internal fun LibraryGameLaunchScreen(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.common_ui_back),
                     tint = LaunchTextPrimary,
-                    modifier = Modifier.size(30.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
             Spacer(Modifier.weight(1f))
