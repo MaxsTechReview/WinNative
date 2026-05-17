@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -153,7 +154,7 @@ private fun graphicsCardExpandExit() =
 private val SettingSliderThumbSize = 18.dp
 private const val SettingSliderTrackScaleY = 0.5f
 private val SettingLabelSize = 11.sp
-private val SettingValueSize = 13.sp
+private val SettingValueSize = 12.sp
 private val SettingSectionLabelSize = 12.sp
 private val SmartDropdownPressStartInset = 28.dp
 
@@ -486,14 +487,16 @@ private const val SEC_COMPONENTS = 5
 private const val SEC_VARIABLES = 6
 private const val SEC_INPUT = 7
 private const val SEC_ADVANCED = 8
+private const val SEC_DRIVES = 9
 
-private fun buildSections(isSteam: Boolean): List<Pair<Int, SidebarSection>> {
+private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int, SidebarSection>> {
     val list = mutableListOf<Pair<Int, SidebarSection>>()
     list += SEC_GENERAL to SidebarSection(Icons.Outlined.Tune, R.string.settings_general_title)
     if (isSteam) list += SEC_STEAM to SidebarSection(Icons.Outlined.Science, R.string.steam_section_title)
     list += SEC_DISPLAY to SidebarSection(Icons.Outlined.Monitor, R.string.common_ui_graphics)
     list += SEC_ADVANCED to SidebarSection(Icons.Outlined.Settings, R.string.common_ui_advanced)
     list += SEC_INPUT to SidebarSection(Icons.Outlined.SportsEsports, R.string.common_ui_input_controls)
+    if (isContainer) list += SEC_DRIVES to SidebarSection(Icons.Outlined.Storage, R.string.container_config_drives)
     list += SEC_VARIABLES to SidebarSection(Icons.Outlined.Code, R.string.container_config_variables)
     list += SEC_WINE to SidebarSection(Icons.Outlined.Science, R.string.container_wine_title)
     list += SEC_COMPONENTS to SidebarSection(Icons.Outlined.Extension, R.string.settings_content_components)
@@ -509,7 +512,8 @@ fun GameSettingsContent(
     callbacks: GameSettingsCallbacks
 ) {
     val isSteam by state.isSteamGame
-    val sections = remember(isSteam) { buildSections(isSteam) }
+    val isContainer by state.isContainerEditMode
+    val sections = remember(isSteam, isContainer) { buildSections(isSteam, isContainer) }
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
@@ -593,6 +597,7 @@ private fun SectionContent(
                 SEC_VARIABLES -> VariablesSection(state, callbacks)
                 SEC_INPUT -> InputSection(state)
                 SEC_ADVANCED -> AdvancedSection(state, callbacks)
+                SEC_DRIVES -> DrivesSection(state, callbacks)
             }
             Spacer(Modifier.height(SettingSectionGap))
         }
@@ -1077,43 +1082,49 @@ private fun GeneralSection(
 
             Spacer(Modifier.height(SettingItemGap))
 
-            ArtworkPickerRow(
-                title = stringResource(R.string.shortcuts_library_artwork_game_card_title),
-                summary = state.gameCardArtworkSummary.value,
-                selected = state.gameCardArtworkSelected.value,
-                onPick = callbacks::onPickGameCardArtwork,
-                onRemove = callbacks::onRemoveGameCardArtwork
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_game_card_title),
+                        summary = state.gameCardArtworkSummary.value,
+                        selected = state.gameCardArtworkSelected.value,
+                        onPick = callbacks::onPickGameCardArtwork,
+                        onRemove = callbacks::onRemoveGameCardArtwork
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_grid_title),
+                        summary = state.gridArtworkSummary.value,
+                        selected = state.gridArtworkSelected.value,
+                        onPick = callbacks::onPickGridArtwork,
+                        onRemove = callbacks::onRemoveGridArtwork
+                    )
+                }
+            }
 
             Spacer(Modifier.height(SettingItemGap))
 
-            ArtworkPickerRow(
-                title = stringResource(R.string.shortcuts_library_artwork_grid_title),
-                summary = state.gridArtworkSummary.value,
-                selected = state.gridArtworkSelected.value,
-                onPick = callbacks::onPickGridArtwork,
-                onRemove = callbacks::onRemoveGridArtwork
-            )
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            ArtworkPickerRow(
-                title = stringResource(R.string.shortcuts_library_artwork_carousel_title),
-                summary = state.carouselArtworkSummary.value,
-                selected = state.carouselArtworkSelected.value,
-                onPick = callbacks::onPickCarouselArtwork,
-                onRemove = callbacks::onRemoveCarouselArtwork
-            )
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            ArtworkPickerRow(
-                title = stringResource(R.string.shortcuts_library_artwork_list_title),
-                summary = state.listArtworkSummary.value,
-                selected = state.listArtworkSelected.value,
-                onPick = callbacks::onPickListArtwork,
-                onRemove = callbacks::onRemoveListArtwork
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_carousel_title),
+                        summary = state.carouselArtworkSummary.value,
+                        selected = state.carouselArtworkSelected.value,
+                        onPick = callbacks::onPickCarouselArtwork,
+                        onRemove = callbacks::onRemoveCarouselArtwork
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    ArtworkPickerRow(
+                        title = stringResource(R.string.shortcuts_library_artwork_list_title),
+                        summary = state.listArtworkSummary.value,
+                        selected = state.listArtworkSelected.value,
+                        onPick = callbacks::onPickListArtwork,
+                        onRemove = callbacks::onRemoveListArtwork
+                    )
+                }
+            }
         }
     }
 
@@ -1169,21 +1180,24 @@ private fun GeneralSection(
 
     // Sound
     SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_config_audio_driver),
-            entries = state.audioDriverEntries.value,
-            selectedIndex = state.selectedAudioDriver.intValue,
-            onSelected = { state.selectedAudioDriver.intValue = it }
-        )
-
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingDropdown(
-            label = stringResource(R.string.settings_audio_midi_sound_font),
-            entries = state.midiSoundFontEntries.value,
-            selectedIndex = state.selectedMidiSoundFont.intValue,
-            onSelected = { state.selectedMidiSoundFont.intValue = it }
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_config_audio_driver),
+                    entries = state.audioDriverEntries.value,
+                    selectedIndex = state.selectedAudioDriver.intValue,
+                    onSelected = { state.selectedAudioDriver.intValue = it }
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.settings_audio_midi_sound_font),
+                    entries = state.midiSoundFontEntries.value,
+                    selectedIndex = state.selectedMidiSoundFont.intValue,
+                    onSelected = { state.selectedMidiSoundFont.intValue = it }
+                )
+            }
+        }
     }
 
     if (!isContainer) {
@@ -1242,39 +1256,52 @@ private fun DisplaySection(
 ) {
 
     SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_graphics_driver),
-            entries = state.graphicsDriverEntries.value,
-            selectedIndex = state.selectedGraphicsDriver.intValue,
-            onSelected = { state.selectedGraphicsDriver.intValue = it }
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_graphics_driver),
+                    entries = state.graphicsDriverEntries.value,
+                    selectedIndex = state.selectedGraphicsDriver.intValue,
+                    onSelected = { state.selectedGraphicsDriver.intValue = it }
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_surface_effect),
+                    entries = state.surfaceEffectEntries.value,
+                    selectedIndex = state.selectedSurfaceEffect.intValue,
+                    onSelected = { state.selectedSurfaceEffect.intValue = it }
+                )
+            }
+        }
 
         Spacer(Modifier.height(SettingSectionGap))
 
-        SettingDropdown(
-            label = stringResource(R.string.container_surface_effect),
-            entries = state.surfaceEffectEntries.value,
-            selectedIndex = state.selectedSurfaceEffect.intValue,
-            onSelected = { state.selectedSurfaceEffect.intValue = it }
-        )
-
-        Spacer(Modifier.height(SettingSectionGap))
-
-        SettingDropdown(
-            label = stringResource(R.string.container_wine_dxwrapper),
-            entries = state.dxWrapperEntries.value,
-            selectedIndex = state.selectedDxWrapper.intValue,
-            onSelected = { state.selectedDxWrapper.intValue = it }
-        )
-
-        Spacer(Modifier.height(SettingSectionGap))
-
-        SettingDropdown(
-            label = stringResource(R.string.container_graphics_compositor_present_mode),
-            entries = state.gfxCompositorPresentModeEntries.value,
-            selectedIndex = state.gfxSelectedCompositorPresentMode.intValue,
-            onSelected = { state.gfxSelectedCompositorPresentMode.intValue = it }
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_wine_dxwrapper),
+                    entries = state.dxWrapperEntries.value,
+                    selectedIndex = state.selectedDxWrapper.intValue,
+                    onSelected = { state.selectedDxWrapper.intValue = it }
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_graphics_compositor_present_mode),
+                    entries = state.gfxCompositorPresentModeEntries.value.map { mode ->
+                        when (mode.lowercase()) {
+                            "fifo" -> "FIFO"
+                            "mailbox" -> "Mailbox"
+                            "immediate" -> "Immediate"
+                            else -> mode.replaceFirstChar { it.uppercase() }
+                        }
+                    },
+                    selectedIndex = state.gfxSelectedCompositorPresentMode.intValue,
+                    onSelected = { state.gfxSelectedCompositorPresentMode.intValue = it }
+                )
+            }
+        }
     }
 
     Spacer(Modifier.height(SettingItemGap))
@@ -1377,109 +1404,126 @@ private fun GraphicsDriverConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_vulkan_version),
-                    entries = state.gfxVulkanVersionEntries.value,
-                    selectedIndex = state.gfxSelectedVulkanVersion.intValue,
-                    onSelected = { state.gfxSelectedVulkanVersion.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_version),
-                    entries = state.gfxDriverVersionEntries.value,
-                    selectedIndex = state.gfxSelectedDriverVersion.intValue,
-                    onSelected = {
-                        state.gfxSelectedDriverVersion.intValue = it
-                        callbacks.onGfxDriverVersionChanged(it)
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_vulkan_version),
+                            entries = state.gfxVulkanVersionEntries.value,
+                            selectedIndex = state.gfxSelectedVulkanVersion.intValue,
+                            onSelected = { state.gfxSelectedVulkanVersion.intValue = it }
+                        )
                     }
-                )
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_version),
+                            entries = state.gfxDriverVersionEntries.value,
+                            selectedIndex = state.gfxSelectedDriverVersion.intValue,
+                            onSelected = {
+                                state.gfxSelectedDriverVersion.intValue = it
+                                callbacks.onGfxDriverVersionChanged(it)
+                            }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                // Available Extensions (multi-select)
-                ExtensionsMultiSelect(state)
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        ExtensionsMultiSelect(state)
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_gpu_name),
+                            entries = state.gfxGpuNameEntries.value,
+                            selectedIndex = state.gfxSelectedGpuName.intValue,
+                            onSelected = { state.gfxSelectedGpuName.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_gpu_name),
-                    entries = state.gfxGpuNameEntries.value,
-                    selectedIndex = state.gfxSelectedGpuName.intValue,
-                    onSelected = { state.gfxSelectedGpuName.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_max_device_memory),
+                            entries = state.gfxMaxDeviceMemoryEntries.value,
+                            selectedIndex = state.gfxSelectedMaxDeviceMemory.intValue,
+                            onSelected = { state.gfxSelectedMaxDeviceMemory.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_present_modes),
+                            entries = state.gfxPresentModeEntries.value,
+                            selectedIndex = state.gfxSelectedPresentMode.intValue,
+                            onSelected = { state.gfxSelectedPresentMode.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_max_device_memory),
-                    entries = state.gfxMaxDeviceMemoryEntries.value,
-                    selectedIndex = state.gfxSelectedMaxDeviceMemory.intValue,
-                    onSelected = { state.gfxSelectedMaxDeviceMemory.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_resource_type),
+                            entries = state.gfxResourceTypeEntries.value,
+                            selectedIndex = state.gfxSelectedResourceType.intValue,
+                            onSelected = { state.gfxSelectedResourceType.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_bcn_emulation),
+                            entries = state.gfxBcnEmulationEntries.value,
+                            selectedIndex = state.gfxSelectedBcnEmulation.intValue,
+                            onSelected = { state.gfxSelectedBcnEmulation.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_present_modes),
-                    entries = state.gfxPresentModeEntries.value,
-                    selectedIndex = state.gfxSelectedPresentMode.intValue,
-                    onSelected = { state.gfxSelectedPresentMode.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_resource_type),
-                    entries = state.gfxResourceTypeEntries.value,
-                    selectedIndex = state.gfxSelectedResourceType.intValue,
-                    onSelected = { state.gfxSelectedResourceType.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_bcn_emulation),
-                    entries = state.gfxBcnEmulationEntries.value,
-                    selectedIndex = state.gfxSelectedBcnEmulation.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulation.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_bcn_emulation_type),
-                    entries = state.gfxBcnEmulationTypeEntries.value,
-                    selectedIndex = state.gfxSelectedBcnEmulationType.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulationType.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_graphics_bcn_emulation_cache),
-                    entries = state.gfxBcnEmulationCacheEntries.value,
-                    selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
-                    onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_bcn_emulation_type),
+                            entries = state.gfxBcnEmulationTypeEntries.value,
+                            selectedIndex = state.gfxSelectedBcnEmulationType.intValue,
+                            onSelected = { state.gfxSelectedBcnEmulationType.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_graphics_bcn_emulation_cache),
+                            entries = state.gfxBcnEmulationCacheEntries.value,
+                            selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
+                            onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
                 // Toggles
-                SettingCheckbox(
-                    label = stringResource(R.string.container_graphics_sync_frame),
-                    checked = state.gfxSyncFrame.value,
-                    onCheckedChange = { state.gfxSyncFrame.value = it }
-                )
-
-                Spacer(Modifier.height(SettingTightGap))
-
-                SettingCheckbox(
-                    label = stringResource(R.string.container_graphics_disable_present_wait),
-                    checked = state.gfxDisablePresentWait.value,
-                    onCheckedChange = { state.gfxDisablePresentWait.value = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingCheckbox(
+                            label = stringResource(R.string.container_graphics_sync_frame),
+                            checked = state.gfxSyncFrame.value,
+                            onCheckedChange = { state.gfxSyncFrame.value = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingCheckbox(
+                            label = stringResource(R.string.container_graphics_disable_present_wait),
+                            checked = state.gfxDisablePresentWait.value,
+                            onCheckedChange = { state.gfxDisablePresentWait.value = it }
+                        )
+                    }
+                }
             }
         }
     }
@@ -1731,65 +1775,70 @@ private fun DXVKConfigCard(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_vkd3d_version),
-                    entries = state.dxvkVkd3dVersionEntries.value,
-                    selectedIndex = state.dxvkSelectedVkd3dVersion.intValue,
-                    onSelected = {
-                        state.dxvkSelectedVkd3dVersion.intValue = it
-                        callbacks.onDxvkVkd3dVersionChanged(it)
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_vkd3d_version),
+                            entries = state.dxvkVkd3dVersionEntries.value,
+                            selectedIndex = state.dxvkSelectedVkd3dVersion.intValue,
+                            onSelected = {
+                                state.dxvkSelectedVkd3dVersion.intValue = it
+                                callbacks.onDxvkVkd3dVersionChanged(it)
+                            }
+                        )
                     }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_vkd3d_feature_level),
-                    entries = state.dxvkVkd3dFeatureLevelEntries.value,
-                    selectedIndex = state.dxvkSelectedVkd3dFeatureLevel.intValue,
-                    onSelected = { state.dxvkSelectedVkd3dFeatureLevel.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_dxvk_version),
-                    entries = state.dxvkVersionEntries.value,
-                    selectedIndex = state.dxvkSelectedVersion.intValue,
-                    onSelected = {
-                        state.dxvkSelectedVersion.intValue = it
-                        callbacks.onDxvkVersionChanged(it)
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_vkd3d_feature_level),
+                            entries = state.dxvkVkd3dFeatureLevelEntries.value,
+                            selectedIndex = state.dxvkSelectedVkd3dFeatureLevel.intValue,
+                            onSelected = { state.dxvkSelectedVkd3dFeatureLevel.intValue = it }
+                        )
                     }
-                )
-
-                // Async toggle - greyed out when version doesn't support it
-                Spacer(Modifier.height(SettingItemGap))
-                Box(modifier = Modifier.alpha(if (asyncEnabled) 1f else 0.35f)) {
-                    SettingCheckbox(
-                        label = stringResource(R.string.container_wine_enabled_async),
-                        checked = state.dxvkAsync.value && asyncEnabled,
-                        onCheckedChange = { if (asyncEnabled) state.dxvkAsync.value = it }
-                    )
-                }
-
-                // Async Cache toggle - greyed out when version doesn't support it
-                Spacer(Modifier.height(SettingTightGap))
-                Box(modifier = Modifier.alpha(if (asyncCacheEnabled) 1f else 0.35f)) {
-                    SettingCheckbox(
-                        label = stringResource(R.string.container_wine_enabled_async_cache),
-                        checked = state.dxvkAsyncCache.value && asyncCacheEnabled,
-                        onCheckedChange = { if (asyncCacheEnabled) state.dxvkAsyncCache.value = it }
-                    )
                 }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_ddraw_wrapper),
-                    entries = state.dxvkDdrawWrapperEntries.value,
-                    selectedIndex = state.dxvkSelectedDdrawWrapper.intValue,
-                    onSelected = { state.dxvkSelectedDdrawWrapper.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_dxvk_version),
+                            entries = state.dxvkVersionEntries.value,
+                            selectedIndex = state.dxvkSelectedVersion.intValue,
+                            onSelected = {
+                                state.dxvkSelectedVersion.intValue = it
+                                callbacks.onDxvkVersionChanged(it)
+                            }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_ddraw_wrapper),
+                            entries = state.dxvkDdrawWrapperEntries.value,
+                            selectedIndex = state.dxvkSelectedDdrawWrapper.intValue,
+                            onSelected = { state.dxvkSelectedDdrawWrapper.intValue = it }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(SettingItemGap))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f).alpha(if (asyncEnabled) 1f else 0.35f)) {
+                        SettingCheckbox(
+                            label = stringResource(R.string.container_wine_enabled_async),
+                            checked = state.dxvkAsync.value && asyncEnabled,
+                            onCheckedChange = { if (asyncEnabled) state.dxvkAsync.value = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f).alpha(if (asyncCacheEnabled) 1f else 0.35f)) {
+                        SettingCheckbox(
+                            label = stringResource(R.string.container_wine_enabled_async_cache),
+                            checked = state.dxvkAsyncCache.value && asyncCacheEnabled,
+                            onCheckedChange = { if (asyncCacheEnabled) state.dxvkAsyncCache.value = it }
+                        )
+                    }
+                }
             }
         }
     }
@@ -1853,57 +1902,66 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_csmt),
-                    entries = state.wined3dCsmtEntries.value,
-                    selectedIndex = state.wined3dSelectedCsmt.intValue,
-                    onSelected = { state.wined3dSelectedCsmt.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_csmt),
+                            entries = state.wined3dCsmtEntries.value,
+                            selectedIndex = state.wined3dSelectedCsmt.intValue,
+                            onSelected = { state.wined3dSelectedCsmt.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_gpu_name),
+                            entries = state.wined3dGpuNameEntries.value,
+                            selectedIndex = state.wined3dSelectedGpuName.intValue,
+                            onSelected = { state.wined3dSelectedGpuName.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_gpu_name),
-                    entries = state.wined3dGpuNameEntries.value,
-                    selectedIndex = state.wined3dSelectedGpuName.intValue,
-                    onSelected = { state.wined3dSelectedGpuName.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_video_memory_size),
+                            entries = state.wined3dVideoMemorySizeEntries.value,
+                            selectedIndex = state.wined3dSelectedVideoMemorySize.intValue,
+                            onSelected = { state.wined3dSelectedVideoMemorySize.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_strict_shader_math),
+                            entries = state.wined3dStrictShaderMathEntries.value,
+                            selectedIndex = state.wined3dSelectedStrictShaderMath.intValue,
+                            onSelected = { state.wined3dSelectedStrictShaderMath.intValue = it }
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_video_memory_size),
-                    entries = state.wined3dVideoMemorySizeEntries.value,
-                    selectedIndex = state.wined3dSelectedVideoMemorySize.intValue,
-                    onSelected = { state.wined3dSelectedVideoMemorySize.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_strict_shader_math),
-                    entries = state.wined3dStrictShaderMathEntries.value,
-                    selectedIndex = state.wined3dSelectedStrictShaderMath.intValue,
-                    onSelected = { state.wined3dSelectedStrictShaderMath.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_wine_offscreen_rendering_mode),
-                    entries = state.wined3dOffscreenRenderingModeEntries.value,
-                    selectedIndex = state.wined3dSelectedOffscreenRenderingMode.intValue,
-                    onSelected = { state.wined3dSelectedOffscreenRenderingMode.intValue = it }
-                )
-
-                Spacer(Modifier.height(SettingItemGap))
-
-                SettingDropdown(
-                    label = stringResource(R.string.container_config_renderer),
-                    entries = state.wined3dRendererEntries.value,
-                    selectedIndex = state.wined3dSelectedRenderer.intValue,
-                    onSelected = { state.wined3dSelectedRenderer.intValue = it }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_wine_offscreen_rendering_mode),
+                            entries = state.wined3dOffscreenRenderingModeEntries.value,
+                            selectedIndex = state.wined3dSelectedOffscreenRenderingMode.intValue,
+                            onSelected = { state.wined3dSelectedOffscreenRenderingMode.intValue = it }
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        SettingDropdown(
+                            label = stringResource(R.string.container_config_renderer),
+                            entries = state.wined3dRendererEntries.value,
+                            selectedIndex = state.wined3dSelectedRenderer.intValue,
+                            onSelected = { state.wined3dSelectedRenderer.intValue = it }
+                        )
+                    }
+                }
             }
         }
     }
@@ -2229,16 +2287,25 @@ private fun ComponentsSection(
         SubsectionLabel(stringResource(R.string.container_wine_directx))
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            state.directXComponents.value.forEachIndexed { index, component ->
-                if (index > 0) Spacer(Modifier.height(SettingItemGap))
-                SettingDropdown(
-                    label = component.label,
-                    entries = state.winComponentEntries.value,
-                    selectedIndex = component.selectedIndex,
-                    onSelected = { newVal ->
-                        callbacks.onUpdateWinComponent(true, index, newVal)
+            val items = state.directXComponents.value
+            items.chunked(2).forEachIndexed { rowIndex, pair ->
+                if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    pair.forEachIndexed { colIndex, component ->
+                        val index = rowIndex * 2 + colIndex
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = component.label,
+                                entries = state.winComponentEntries.value,
+                                selectedIndex = component.selectedIndex,
+                                onSelected = { newVal ->
+                                    callbacks.onUpdateWinComponent(true, index, newVal)
+                                }
+                            )
+                        }
                     }
-                )
+                    if (pair.size == 1) Box(Modifier.weight(1f))
+                }
             }
         }
         Spacer(Modifier.height(SettingSectionGap))
@@ -2249,16 +2316,25 @@ private fun ComponentsSection(
         SubsectionLabel(stringResource(R.string.settings_general_title))
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            state.generalComponents.value.forEachIndexed { index, component ->
-                if (index > 0) Spacer(Modifier.height(SettingItemGap))
-                SettingDropdown(
-                    label = component.label,
-                    entries = state.winComponentEntries.value,
-                    selectedIndex = component.selectedIndex,
-                    onSelected = { newVal ->
-                        callbacks.onUpdateWinComponent(false, index, newVal)
+            val items = state.generalComponents.value
+            items.chunked(2).forEachIndexed { rowIndex, pair ->
+                if (rowIndex > 0) Spacer(Modifier.height(SettingItemGap))
+                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                    pair.forEachIndexed { colIndex, component ->
+                        val index = rowIndex * 2 + colIndex
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = component.label,
+                                entries = state.winComponentEntries.value,
+                                selectedIndex = component.selectedIndex,
+                                onSelected = { newVal ->
+                                    callbacks.onUpdateWinComponent(false, index, newVal)
+                                }
+                            )
+                        }
                     }
-                )
+                    if (pair.size == 1) Box(Modifier.weight(1f))
+                }
             }
         }
     }
@@ -2426,111 +2502,113 @@ private fun VariablesSection(
         }
     }
 
-    if (isContainer) {
-        Spacer(Modifier.height(SettingSectionGap))
-        SubsectionLabel(stringResource(R.string.container_config_drives))
-        Spacer(Modifier.height(8.dp))
-        SettingGroup {
-            val drives = state.drivesList.value
-            if (drives.isEmpty()) {
-                Text(
+}
+
+@Composable
+private fun DrivesSection(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
+) {
+    SettingGroup {
+        val drives = state.drivesList.value
+        if (drives.isEmpty()) {
+            Text(
                 stringResource(R.string.common_ui_none),
                 color = TextDim,
                 fontSize = SettingValueSize,
                 modifier = Modifier.padding(vertical = 6.dp)
-                )
-            } else {
-                drives.forEachIndexed { index, drive ->
-                    val otherLetters =
-                        drives
-                            .mapIndexedNotNull { otherIndex, otherDrive ->
-                                otherDrive.letter.takeUnless { otherIndex == index }?.uppercase()
-                            }.toSet()
-                    val availableLetters =
-                        SelectableDriveLetters.filter { letter ->
-                            letter.equals(drive.letter, ignoreCase = true) || letter !in otherLetters
-                        }
-
-                    if (index > 0) {
-                        Spacer(Modifier.height(1.dp))
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
-                        Spacer(Modifier.height(1.dp))
+            )
+        } else {
+            drives.forEachIndexed { index, drive ->
+                val otherLetters =
+                    drives
+                        .mapIndexedNotNull { otherIndex, otherDrive ->
+                            otherDrive.letter.takeUnless { otherIndex == index }?.uppercase()
+                        }.toSet()
+                val availableLetters =
+                    SelectableDriveLetters.filter { letter ->
+                        letter.equals(drive.letter, ignoreCase = true) || letter !in otherLetters
                     }
-                    Row(
+
+                if (index > 0) {
+                    Spacer(Modifier.height(1.dp))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+                    Spacer(Modifier.height(1.dp))
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DriveLetterSelector(
+                        selectedLetter = drive.letter.uppercase(),
+                        canChangeLetter = drive.canChangeLetter,
+                        availableLetters = availableLetters,
+                        onSelected = { callbacks.onDriveLetterChanged(index, it) },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(InputSurface)
+                            .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                            .clickable { callbacks.onPickDrivePath(index) }
+                            .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
                     ) {
-                        DriveLetterSelector(
-                            selectedLetter = drive.letter.uppercase(),
-                            canChangeLetter = drive.canChangeLetter,
-                            availableLetters = availableLetters,
-                            onSelected = { callbacks.onDriveLetterChanged(index, it) },
+                        Text(
+                            drive.path.ifEmpty { stringResource(R.string.common_ui_select_folder) },
+                            color = if (drive.path.isEmpty()) TextDim else TextPrimary,
+                            fontSize = SettingLabelSize,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(InputSurface)
-                                .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
-                                .clickable { callbacks.onPickDrivePath(index) }
-                                .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
-                        ) {
-                            Text(
-                                drive.path.ifEmpty { stringResource(R.string.common_ui_select_folder) },
-                                color = if (drive.path.isEmpty()) TextDim else TextPrimary,
-                                fontSize = SettingLabelSize,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(DangerRed.copy(alpha = 0.1f))
-                                .clickable { callbacks.onRemoveDrive(index) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.Close,
-                                contentDescription = null,
-                                tint = DangerRed,
-                                modifier = Modifier.size(SettingControlIconSize)
-                            )
-                        }
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DangerRed.copy(alpha = 0.1f))
+                            .clickable { callbacks.onRemoveDrive(index) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = DangerRed,
+                            modifier = Modifier.size(SettingControlIconSize)
+                        )
                     }
                 }
             }
+        }
 
-            Spacer(Modifier.height(SettingItemGap))
+        Spacer(Modifier.height(SettingItemGap))
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(AccentBlue.copy(alpha = 0.08f))
-                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .clickable { callbacks.onAddDrive() }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Outlined.Add,
-                        contentDescription = null,
-                        tint = AccentBlue,
-                        modifier = Modifier.size(SettingIconSize)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.common_ui_add),
-                        color = AccentBlue,
-                        fontSize = SettingValueSize,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(AccentBlue.copy(alpha = 0.08f))
+                .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .clickable { callbacks.onAddDrive() }
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.Add,
+                    contentDescription = null,
+                    tint = AccentBlue,
+                    modifier = Modifier.size(SettingIconSize)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.common_ui_add),
+                    color = AccentBlue,
+                    fontSize = SettingValueSize,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -3038,21 +3116,24 @@ private fun InputSection(state: GameSettingsStateHolder) {
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         if (!isContainer) {
-            SettingDropdown(
-                label = stringResource(R.string.common_ui_profile),
-                entries = state.controlsProfileEntries.value,
-                selectedIndex = state.selectedControlsProfile.intValue,
-                onSelected = { state.selectedControlsProfile.intValue = it }
-            )
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            SettingDropdown(
-                label = stringResource(R.string.num_controllers),
-                entries = state.numControllersEntries.value,
-                selectedIndex = state.selectedNumControllers.intValue,
-                onSelected = { state.selectedNumControllers.intValue = it }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.common_ui_profile),
+                        entries = state.controlsProfileEntries.value,
+                        selectedIndex = state.selectedControlsProfile.intValue,
+                        onSelected = { state.selectedControlsProfile.intValue = it }
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.num_controllers),
+                        entries = state.numControllersEntries.value,
+                        selectedIndex = state.selectedNumControllers.intValue,
+                        onSelected = { state.selectedNumControllers.intValue = it }
+                    )
+                }
+            }
 
             Spacer(Modifier.height(SettingItemGap))
         }
@@ -3061,29 +3142,32 @@ private fun InputSection(state: GameSettingsStateHolder) {
         // Container mode backs it with the global "xinput_toggle" pref.
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
         else state.disableXInput.value
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_exclusive_input),
-            checked = exclusiveChecked,
-            onCheckedChange = { enabled ->
-                if (isContainer) {
-                    state.containerExclusiveInput.value = enabled
-                } else {
-                    state.disableXInput.value = enabled
-                }
-                if (!enabled) {
-                    state.enableXInput.value = true
-                    state.enableDInput.value = true
-                }
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingCheckbox(
+                    label = stringResource(R.string.shortcuts_properties_exclusive_input),
+                    checked = exclusiveChecked,
+                    onCheckedChange = { enabled ->
+                        if (isContainer) {
+                            state.containerExclusiveInput.value = enabled
+                        } else {
+                            state.disableXInput.value = enabled
+                        }
+                        if (!enabled) {
+                            state.enableXInput.value = true
+                            state.enableDInput.value = true
+                        }
+                    }
+                )
             }
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        SettingCheckbox(
-            label = stringResource(R.string.container_config_sdl2_compatibility),
-            checked = state.sdl2Compatibility.value,
-            onCheckedChange = { state.sdl2Compatibility.value = it }
-        )
+            Box(Modifier.weight(1f)) {
+                SettingCheckbox(
+                    label = stringResource(R.string.container_config_sdl2_compatibility),
+                    checked = state.sdl2Compatibility.value,
+                    onCheckedChange = { state.sdl2Compatibility.value = it }
+                )
+            }
+        }
 
         if (!isContainer) {
             Spacer(Modifier.height(4.dp))
@@ -3221,25 +3305,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
             }
         }
 
-        // Warning when both XInput and DInput enabled
-        if (state.enableXInput.value && state.enableDInput.value) {
-            Spacer(Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(WarningAmber.copy(alpha = 0.08f))
-                    .border(1.dp, WarningAmber.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .padding(10.dp)
-            ) {
-                Text(
-                    stringResource(R.string.container_config_xinput_dinput_warning),
-                    color = WarningAmber,
-                    fontSize = SettingLabelSize,
-                    lineHeight = 16.sp
-                )
-            }
-        }
     }
 }
 
@@ -3275,27 +3340,32 @@ private fun AdvancedSection(
     SubsectionLabel(stringResource(R.string.container_config_emulator_section))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
-        SettingDropdown(
-            label = stringResource(R.string.container_config_emulator_64bit),
-            entries = state.emulator64Entries.value,
-            selectedIndex = state.selectedEmulator64.intValue,
-            onSelected = {
-                state.selectedEmulator64.intValue = it
-                callbacks.onEmulatorChanged()
-            },
-            enabled = state.emulator64Entries.value.isNotEmpty()
-        )
-        Spacer(Modifier.height(SettingItemGap))
-        SettingDropdown(
-            label = stringResource(R.string.container_config_dll_emulator),
-            entries = state.emulator32Entries.value,
-            selectedIndex = state.selectedEmulator.intValue,
-            onSelected = {
-                state.selectedEmulator.intValue = it
-                callbacks.onEmulatorChanged()
-            },
-            enabled = state.emulator32Entries.value.isNotEmpty()
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_config_emulator_64bit),
+                    entries = state.emulator64Entries.value,
+                    selectedIndex = state.selectedEmulator64.intValue,
+                    onSelected = {
+                        state.selectedEmulator64.intValue = it
+                        callbacks.onEmulatorChanged()
+                    },
+                    enabled = state.emulator64Entries.value.isNotEmpty()
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_config_dll_emulator),
+                    entries = state.emulator32Entries.value,
+                    selectedIndex = state.selectedEmulator.intValue,
+                    onSelected = {
+                        state.selectedEmulator.intValue = it
+                        callbacks.onEmulatorChanged()
+                    },
+                    enabled = state.emulator32Entries.value.isNotEmpty()
+                )
+            }
+        }
     }
     Spacer(Modifier.height(SettingSectionGap))
 
@@ -3305,19 +3375,24 @@ private fun AdvancedSection(
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            SettingDropdown(
-                label = stringResource(R.string.container_fexcore_version),
-                entries = state.fexcoreVersionEntries.value,
-                selectedIndex = state.selectedFexcoreVersion.intValue,
-                onSelected = { state.selectedFexcoreVersion.intValue = it }
-            )
-            Spacer(Modifier.height(SettingItemGap))
-            SettingDropdown(
-                label = stringResource(R.string.container_fexcore_preset),
-                entries = state.fexcorePresetEntries.value,
-                selectedIndex = state.selectedFexcorePreset.intValue,
-                onSelected = { state.selectedFexcorePreset.intValue = it }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.container_fexcore_version),
+                        entries = state.fexcoreVersionEntries.value,
+                        selectedIndex = state.selectedFexcoreVersion.intValue,
+                        onSelected = { state.selectedFexcoreVersion.intValue = it }
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.container_fexcore_preset),
+                        entries = state.fexcorePresetEntries.value,
+                        selectedIndex = state.selectedFexcorePreset.intValue,
+                        onSelected = { state.selectedFexcorePreset.intValue = it }
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(SettingSectionGap))
     }
@@ -3341,19 +3416,24 @@ private fun AdvancedSection(
         EmulatorSectionHeader(box64Title, box64Usage)
         Spacer(Modifier.height(8.dp))
         SettingGroup {
-            SettingDropdown(
-                label = stringResource(R.string.container_box64_version),
-                entries = state.box64VersionEntries.value,
-                selectedIndex = state.selectedBox64Version.intValue,
-                onSelected = { state.selectedBox64Version.intValue = it }
-            )
-            Spacer(Modifier.height(SettingItemGap))
-            SettingDropdown(
-                label = stringResource(R.string.container_box64_preset),
-                entries = state.box64PresetEntries.value,
-                selectedIndex = state.selectedBox64Preset.intValue,
-                onSelected = { state.selectedBox64Preset.intValue = it }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.container_box64_version),
+                        entries = state.box64VersionEntries.value,
+                        selectedIndex = state.selectedBox64Version.intValue,
+                        onSelected = { state.selectedBox64Version.intValue = it }
+                    )
+                }
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.container_box64_preset),
+                        entries = state.box64PresetEntries.value,
+                        selectedIndex = state.selectedBox64Preset.intValue,
+                        onSelected = { state.selectedBox64Preset.intValue = it }
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(SettingSectionGap))
     }
