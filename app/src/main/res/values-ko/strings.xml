@@ -504,11 +504,7 @@
     <string name="container_graphics_bcn_emulation">BCn 에뮬레이션</string>
     <string name="container_graphics_bcn_emulation_type">BCn 에뮬레이션 유형</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 에뮬레이션 캐시</string>
-    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
-    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
-    <string name="shortcuts_graphics_sgsr_native_summary">해상도 업스케일: %1$s 네이티브 렌더링.</string>
-    <string name="shortcuts_graphics_sgsr_upscale_summary">해상도 업스케일: %1$s -> %2$s.</string>
-    <string name="shortcuts_graphics_sgsr_resolution_unknown">SGSR 렌더링 해상도를 미리 보려면 올바른 화면 크기를 선택하세요.</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 게임 슈퍼 해상도 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">이 프리셋을 복제하시겠습니까?</string>
     <string name="container_presets_confirm_remove">이 프리셋을 제거하시겠습니까?</string>
@@ -1070,8 +1066,6 @@
     <string name="session_drawer_super_resolution">슈퍼 해상도</string>
     <string name="session_drawer_upscaler_mode">업스케일러</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_upscale_ratio">업스케일 비율</string>
-    <string name="session_drawer_sgsr_upscale_native">네이티브</string>
     <string name="session_drawer_vivid">선명</string>
     <string name="session_drawer_vivid_strength">선명도 강도</string>
     <string name="session_drawer_main_menu_title">메뉴</string>
@@ -1200,7 +1194,6 @@
     <string name="session_drawer_hud_summary">오버레이 표시 및 데이터 항목 조정</string>
     <string name="session_drawer_screen_effects">화면 효과</string>
     <string name="session_drawer_session_section">세션</string>
-    <string name="session_drawer_sharpness">선명도</string>
     <string name="session_drawer_swipe_hint">스와이프하여 게임으로 돌아가기</string>
     <string name="session_gamepad_enable_vibration">진동 활성화</string>
     <string name="session_gyroscope_experimental_mouse_movement">실험적 마우스 이동</string>

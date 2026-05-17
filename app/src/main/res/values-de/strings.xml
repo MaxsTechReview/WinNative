@@ -504,11 +504,7 @@
     <string name="container_graphics_bcn_emulation">BCn-Emulation</string>
     <string name="container_graphics_bcn_emulation_type">BCn-Emulationstyp</string>
     <string name="container_graphics_bcn_emulation_cache">BCn-Emulations-Cache</string>
-    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
-    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
-    <string name="shortcuts_graphics_sgsr_native_summary">Auflösungsskalierung: %1$s native Darstellung.</string>
-    <string name="shortcuts_graphics_sgsr_upscale_summary">Auflösungsskalierung: %1$s -> %2$s.</string>
-    <string name="shortcuts_graphics_sgsr_resolution_unknown">Wähle eine gültige Bildschirmgröße aus, um die SGSR-Renderauflösung in der Vorschau anzuzeigen.</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Spiel-Superauflösung 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Möchtest du diese Voreinstellung duplizieren?</string>
     <string name="container_presets_confirm_remove">Möchtest du diese Voreinstellung entfernen?</string>
@@ -1070,8 +1066,6 @@ Installierter Pfad:
     <string name="session_drawer_super_resolution">Superauflösung</string>
     <string name="session_drawer_upscaler_mode">Upscaler</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_upscale_ratio">Skalierungsverhältnis</string>
-    <string name="session_drawer_sgsr_upscale_native">Nativ</string>
     <string name="session_drawer_vivid">Lebendig</string>
     <string name="session_drawer_vivid_strength">Lebendigkeit</string>
     <string name="session_drawer_main_menu_title">Menü</string>
@@ -1199,7 +1193,6 @@ Installierter Pfad:
     <string name="session_drawer_hud_summary">Overlay-Sichtbarkeit und Datenpunkte anpassen</string>
     <string name="session_drawer_screen_effects">Bildschirmeffekte</string>
     <string name="session_drawer_session_section">Sitzung</string>
-    <string name="session_drawer_sharpness">Schärfe</string>
     <string name="session_drawer_swipe_hint">Wegwischen, um ins Spiel zurückzukehren</string>
     <string name="session_gamepad_enable_vibration">Vibration aktivieren</string>
     <string name="session_gyroscope_experimental_mouse_movement">Experimentelle Mausbewegung</string>

@@ -311,9 +311,7 @@ data class XServerDrawerState(
     val fpsLimit: Int = 0,
     val screenEffectsCardExpanded: Boolean = false,
     val sgsrEnabled: Boolean = false,
-    val sgsrUpscaleMode: Int = 1,
     val sgsrSharpness: Int = 100,
-    val sgsrResolutionSummary: String = "",
     val vividEnabled: Boolean = false,
     val vividStrength: Int = 100,
     val colorProfile: Int = 0,
@@ -489,8 +487,6 @@ interface XServerDrawerActionListener {
 
     fun onSGSREnabledChanged(enabled: Boolean)
 
-    fun onSGSRUpscaleModeSelected(mode: Int)
-
     fun onSGSRSharpnessChanged(sharpness: Int)
 
     fun onVividEnabledChanged(enabled: Boolean)
@@ -569,9 +565,7 @@ fun buildXServerDrawerState(
     fpsLimit: Int = 0,
     screenEffectsCardExpanded: Boolean = false,
     sgsrEnabled: Boolean = false,
-    sgsrUpscaleMode: Int = 1,
     sgsrSharpness: Int = 100,
-    sgsrResolutionSummary: String = "",
     vividEnabled: Boolean = false,
     vividStrength: Int = 100,
     colorProfile: Int = 0,
@@ -731,9 +725,7 @@ fun buildXServerDrawerState(
         fpsLimit = fpsLimit,
         screenEffectsCardExpanded = screenEffectsCardExpanded,
         sgsrEnabled = sgsrEnabled,
-        sgsrUpscaleMode = sgsrUpscaleMode,
         sgsrSharpness = sgsrSharpness,
-        sgsrResolutionSummary = sgsrResolutionSummary,
         vividEnabled = vividEnabled,
         vividStrength = vividStrength,
         colorProfile = colorProfile,
@@ -2114,7 +2106,7 @@ private fun ScreenEffectsPaneContent(
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                    PaneSectionLabel(stringResource(R.string.shortcuts_graphics_sgsr_title))
+                    PaneSectionLabel(stringResource(R.string.shortcuts_graphics_sgsr_full_title))
                     DrawerBooleanRow(
                         title = stringResource(R.string.session_drawer_upscaler_fsr),
                         checked = state.sgsrEnabled,
@@ -2135,20 +2127,8 @@ private fun ScreenEffectsPaneContent(
                             ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                            DrawerReadOnlyValueRow(
-                                label = stringResource(R.string.session_drawer_sgsr_upscale_ratio),
-                                valueText = sgsrUpscaleRatioLabel(state.sgsrUpscaleMode),
-                            )
-                            if (state.sgsrResolutionSummary.isNotBlank()) {
-                                Text(
-                                    text = state.sgsrResolutionSummary,
-                                    color = DrawerTextSecondary,
-                                    fontSize = (12f * paneScale).sp,
-                                    lineHeight = (16f * paneScale).sp,
-                                )
-                            }
                             DrawerSliderRow(
-                                label = stringResource(R.string.session_drawer_sharpness),
+                                label = stringResource(R.string.session_drawer_sgsr_edge_sharpness),
                                 valueText = "${state.sgsrSharpness}%",
                                 value = state.sgsrSharpness.toFloat(),
                                 valueRange = 0f..100f,
@@ -3561,18 +3541,6 @@ private fun DrawerMetricChip(
         )
     }
 }
-
-@Composable
-private fun sgsrUpscaleRatioLabel(mode: Int): String =
-    when (mode.coerceIn(1, 6)) {
-        1 -> stringResource(R.string.session_drawer_sgsr_upscale_native)
-        2 -> "1.25x"
-        3 -> "1.33x"
-        4 -> "1.5x"
-        5 -> "1.66x"
-        6 -> "2x"
-        else -> stringResource(R.string.session_drawer_sgsr_upscale_native)
-    }
 
 @Composable
 private fun DrawerReadOnlyValueRow(

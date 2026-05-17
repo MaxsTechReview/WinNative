@@ -3058,9 +3058,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 xServerView != null ? xServerView.getRenderer().getFpsLimit() : 0,
                 screenEffectsCardExpanded,
                 sgsrEnabled,
-                sgsrUpscaleMode,
                 sgsrSharpness,
-                buildSGSRResolutionSummary(),
                 vividEnabled,
                 vividStrength,
                 colorProfile,
@@ -3239,17 +3237,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             } else {
                                 Log.i("SGSRResize", "SGSR enabled mid-session; live SGSR pass and render-size reduction are deferred until next launch");
                             }
-                        }
-                        applyScreenEffects();
-                        renderDrawerMenu();
-                    }
-
-                    @Override
-                    public void onSGSRUpscaleModeSelected(int mode) {
-                        sgsrUpscaleMode = clampSGSRUpscaleMode(mode);
-                        saveSGSRShortcutSettings();
-                        if (sgsrEnabled) {
-                            Log.i("SGSRResize", "SGSR upscale mode changed mid-session; XServer resize is deferred until next launch");
                         }
                         applyScreenEffects();
                         renderDrawerMenu();
@@ -3627,26 +3614,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return SGSRResolutionUtils.normalizeShortcutUpscaleMode(mode);
     }
 
-    private String buildSGSRResolutionSummary() {
-        int[] baseSize = SGSRResolutionUtils.parseScreenSize(sgsrBaseScreenSize);
-        if (baseSize == null) {
-            return getString(R.string.shortcuts_graphics_sgsr_resolution_unknown);
-        }
-
-        String baseLabel = baseSize[0] + "x" + baseSize[1];
-        if (!SGSRResolutionUtils.modeAdjustsScreenSize(sgsrUpscaleMode)) {
-            return getString(R.string.shortcuts_graphics_sgsr_native_summary, baseLabel);
-        }
-
-        String renderSize =
-                SGSRResolutionUtils.applyRenderScale(sgsrBaseScreenSize, true, sgsrUpscaleMode);
-
-        return getString(
-                R.string.shortcuts_graphics_sgsr_upscale_summary,
-                renderSize,
-                baseLabel);
-    }
-
     private void saveSGSRShortcutSettings() {
         if (shortcut != null) {
             if (sgsrEnabled) {
@@ -3749,7 +3716,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
         }
 
-        renderer.requestRenderCoalesced();
     }
 
     private void loadScreenEffectsSettings() {

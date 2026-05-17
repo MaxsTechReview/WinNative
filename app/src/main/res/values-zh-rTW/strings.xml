@@ -504,11 +504,7 @@
     <string name="container_graphics_bcn_emulation">BCn 模擬</string>
     <string name="container_graphics_bcn_emulation_type">BCn 模擬類型</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 模擬快取</string>
-    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
-    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
-    <string name="shortcuts_graphics_sgsr_native_summary">解析度放大：%1$s 原生算繪。</string>
-    <string name="shortcuts_graphics_sgsr_upscale_summary">解析度放大：%1$s -> %2$s。</string>
-    <string name="shortcuts_graphics_sgsr_resolution_unknown">選取有效的螢幕大小以預覽 SGSR 算繪解析度。</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 遊戲超解析度 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">您要複製此預設嗎？</string>
     <string name="container_presets_confirm_remove">您要移除此預設嗎？</string>
@@ -1070,8 +1066,6 @@
     <string name="session_drawer_super_resolution">超解析度</string>
     <string name="session_drawer_upscaler_mode">升尺度器</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_upscale_ratio">放大倍率</string>
-    <string name="session_drawer_sgsr_upscale_native">原生</string>
     <string name="session_drawer_vivid">鮮豔</string>
     <string name="session_drawer_vivid_strength">鮮豔強度</string>
     <string name="session_drawer_main_menu_title">選單</string>
@@ -1199,7 +1193,6 @@
     <string name="session_drawer_hud_summary">調整覆蓋層可見性與資料顯示點</string>
     <string name="session_drawer_screen_effects">螢幕效果</string>
     <string name="session_drawer_session_section">工作階段</string>
-    <string name="session_drawer_sharpness">銳利度</string>
     <string name="session_drawer_swipe_hint">向外滑動即可返回遊戲</string>
     <string name="session_gamepad_enable_vibration">啟用震動</string>
     <string name="session_gyroscope_experimental_mouse_movement">實驗性滑鼠移動</string>

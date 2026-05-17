@@ -1,9 +1,6 @@
 package com.winlator.cmod.feature.library
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -101,7 +98,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
-import com.winlator.cmod.runtime.display.SGSRResolutionUtils
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
@@ -142,6 +138,18 @@ private val SettingTightGap = 4.dp
 private val SettingIconSize = 18.dp
 private val SettingControlIconSize = 16.dp
 private val SettingSliderHeight = 24.dp
+
+private fun graphicsCardExpandEnter() =
+    fadeIn(tween(200)) +
+        expandVertically(
+            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+        )
+
+private fun graphicsCardExpandExit() =
+    fadeOut(tween(140)) +
+        shrinkVertically(
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+        )
 private val SettingSliderThumbSize = 18.dp
 private const val SettingSliderTrackScaleY = 0.5f
 private val SettingLabelSize = 11.sp
@@ -1271,11 +1279,6 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
-    if (!state.isContainerEditMode.value) {
-        SGSRShortcutSettings(state)
-        Spacer(Modifier.height(SettingItemGap))
-    }
-
     // Graphics Driver Configuration - expandable inline card
     GraphicsDriverConfigCard(state, callbacks)
 
@@ -1294,155 +1297,6 @@ private fun DisplaySection(
         WineD3DConfigCard(state)
     }
 
-}
-
-@Composable
-private fun SGSRShortcutSettings(state: GameSettingsStateHolder) {
-    val optionsEnabled = state.sgsrEnabled.value
-    val optionsAlpha by animateFloatAsState(
-        targetValue = if (optionsEnabled) 1f else 0.48f,
-        animationSpec = tween(180),
-        label = "SGSROptionsAlpha"
-    )
-
-    SettingGroup(
-        modifier = Modifier.animateContentSize(
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        )
-    ) {
-        SettingSwitch(
-            label = stringResource(R.string.shortcuts_graphics_sgsr_full_title),
-            checked = state.sgsrEnabled.value,
-            onCheckedChange = { state.sgsrEnabled.value = it }
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .alpha(optionsAlpha)
-        ) {
-            Spacer(Modifier.height(SettingItemGap))
-
-            SettingDropdown(
-                label = stringResource(R.string.container_config_screen_size),
-                entries = state.screenSizeEntries.value,
-                selectedIndex = state.selectedScreenSize.intValue,
-                onSelected = { state.selectedScreenSize.intValue = it },
-                enabled = optionsEnabled,
-                disabledAlpha = 1f
-            )
-
-            if (state.selectedScreenSize.intValue == 0) {
-                Spacer(Modifier.height(SettingItemGap))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(Modifier.weight(1f)) {
-                        SettingTextField(
-                            label = stringResource(R.string.common_ui_width),
-                            value = state.customWidth.value,
-                            onValueChange = { state.customWidth.value = it },
-                            keyboardType = KeyboardType.Number,
-                            enabled = optionsEnabled
-                        )
-                    }
-                    Box(Modifier.weight(1f)) {
-                        SettingTextField(
-                            label = stringResource(R.string.common_ui_height),
-                            value = state.customHeight.value,
-                            onValueChange = { state.customHeight.value = it },
-                            keyboardType = KeyboardType.Number,
-                            enabled = optionsEnabled
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            val ratioLabels = listOf(
-                stringResource(R.string.session_drawer_sgsr_upscale_native),
-                "1.25x",
-                "1.33x",
-                "1.5x",
-                "1.66x",
-                "2x"
-            )
-            val ratioIndex = (state.sgsrUpscaleMode.intValue - 1).coerceIn(0, ratioLabels.lastIndex)
-
-            SettingSlider(
-                label = stringResource(R.string.session_drawer_sgsr_upscale_ratio),
-                value = ratioIndex,
-                range = 0..5,
-                valueText = ratioLabels[ratioIndex],
-                steps = 4,
-                enabled = optionsEnabled,
-                onValueChange = { state.sgsrUpscaleMode.intValue = (it + 1).coerceIn(1, 6) }
-            )
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            Text(
-                text = sgsrResolutionSummary(state),
-                color = TextSecondary,
-                fontSize = SettingLabelSize,
-                lineHeight = 16.sp
-            )
-
-            Spacer(Modifier.height(SettingItemGap))
-
-            SettingSlider(
-                label = stringResource(R.string.session_drawer_sharpness),
-                value = state.sgsrSharpness.intValue.coerceIn(0, 100),
-                range = 0..100,
-                valueText = "${state.sgsrSharpness.intValue.coerceIn(0, 100)}%",
-                steps = 99,
-                enabled = optionsEnabled,
-                onValueChange = { state.sgsrSharpness.intValue = it.coerceIn(0, 100) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun sgsrResolutionSummary(state: GameSettingsStateHolder): String {
-    val base = screenSizeForSGSRSummary(state)
-        ?: return stringResource(R.string.shortcuts_graphics_sgsr_resolution_unknown)
-    val baseLabel = "${base.first}x${base.second}"
-    val mode = state.sgsrUpscaleMode.intValue.coerceIn(1, 6)
-    if (!SGSRResolutionUtils.modeAdjustsScreenSize(mode)) {
-        return stringResource(R.string.shortcuts_graphics_sgsr_native_summary, baseLabel)
-    }
-
-    val renderLabel = SGSRResolutionUtils.applyRenderScale(baseLabel, true, mode)
-    return stringResource(
-        R.string.shortcuts_graphics_sgsr_upscale_summary,
-        renderLabel,
-        baseLabel
-    )
-}
-
-private fun screenSizeForSGSRSummary(state: GameSettingsStateHolder): Pair<Int, Int>? {
-    val entries = state.screenSizeEntries.value
-    val selectedIdx = state.selectedScreenSize.intValue
-    val rawValue = if (selectedIdx == 0) {
-        "${state.customWidth.value.trim()}x${state.customHeight.value.trim()}"
-    } else {
-        entries.getOrNull(selectedIdx)?.let {
-            com.winlator.cmod.shared.util.StringUtils.parseIdentifier(it)
-        }
-    } ?: return null
-
-    val parts = rawValue.split("x")
-    if (parts.size != 2) return null
-    val width = parts[0].trim().toIntOrNull() ?: return null
-    val height = parts[1].trim().toIntOrNull() ?: return null
-    if (width <= 0 || height <= 0) return null
-    return width to height
 }
 
 // ===================================================================
@@ -1512,8 +1366,8 @@ private fun GraphicsDriverConfigCard(
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier
@@ -1866,8 +1720,8 @@ private fun DXVKConfigCard(
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier
@@ -1988,8 +1842,8 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
         // Expandable content
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+            enter = graphicsCardExpandEnter(),
+            exit = graphicsCardExpandExit()
         ) {
             Column(
                 modifier = Modifier

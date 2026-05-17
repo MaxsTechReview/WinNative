@@ -1744,18 +1744,25 @@ static bool record_and_submit_frame(VkRenderer* r) {
     destroy_graveyard_textures(r, dead, dead_count);
 
     bool wants_sgsr1 = scene_starts_with_sgsr1(&snap);
+    bool needs_fullres_offscreen = snap.effect_count > 0
+        && (!wants_sgsr1 || snap.effect_count > 1);
     VkExtent2D sgsr1_source_extent = wants_sgsr1
         ? compute_sgsr1_source_extent(r, &snap)
         : r->swapchain_extent;
 
-    // Rebuild offscreen targets if effects are active and dims changed (or first use).
+    // Rebuild full-res ping-pong targets only when the chain needs them. SGSR-only renders
+    // into its low-res source and writes directly to the swapchain, so the generic full-res
+    // offscreen pair would just waste memory.
     // Safe under render_mutex: lifecycle can't be tearing down the swapchain right now.
-    if (snap.effect_count > 0
+    if (needs_fullres_offscreen
         && (!r->offscreen_built
             || r->offscreen[0].width != r->swapchain_extent.width
             || r->offscreen[0].height != r->swapchain_extent.height)) {
         vkDeviceWaitIdle(r->device);
         create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height);
+    } else if (!needs_fullres_offscreen && r->offscreen_built) {
+        vkDeviceWaitIdle(r->device);
+        destroy_offscreen(r);
     }
     if (wants_sgsr1
         && (!r->sgsr1.built
@@ -1795,6 +1802,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
     vkBeginCommandBuffer(f->cmd, &bi);
 
     bool has_effects = snap.effect_count > 0 && r->offscreen_built;
+    if (snap.effect_count > 0) {
+        has_effects = (!needs_fullres_offscreen || r->offscreen_built)
+            && (!wants_sgsr1 || r->sgsr1.built);
+    }
 
     VkClearValue clear = {0};
     clear.color.float32[0] = 0.0f;

@@ -504,11 +504,7 @@
     <string name="container_graphics_bcn_emulation">Emulación BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tipo de emulación BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Caché de emulación BCn</string>
-    <string name="shortcuts_graphics_sgsr_title">SGSR 1</string>
-    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
-    <string name="shortcuts_graphics_sgsr_native_summary">Escalado de resolución: renderizado nativo %1$s.</string>
-    <string name="shortcuts_graphics_sgsr_upscale_summary">Escalado de resolución: %1$s -> %2$s.</string>
-    <string name="shortcuts_graphics_sgsr_resolution_unknown">Selecciona un tamaño de pantalla válido para previsualizar la resolución de renderizado SGSR.</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Súper resolución para juegos 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">¿Deseas duplicar este preset?</string>
     <string name="container_presets_confirm_remove">¿Deseas eliminar este preset?</string>
@@ -1070,8 +1066,6 @@ Ruta instalada:
     <string name="session_drawer_super_resolution">Superresolución</string>
     <string name="session_drawer_upscaler_mode">Escalador</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_upscale_ratio">Relación de escalado</string>
-    <string name="session_drawer_sgsr_upscale_native">Nativo</string>
     <string name="session_drawer_vivid">Vívido</string>
     <string name="session_drawer_vivid_strength">Intensidad de viveza</string>
     <string name="session_drawer_main_menu_title">Menú</string>
@@ -1199,7 +1193,6 @@ Ruta instalada:
     <string name="session_drawer_hud_summary">Ajusta la visibilidad de la superposición y los datos mostrados</string>
     <string name="session_drawer_screen_effects">Efectos de pantalla</string>
     <string name="session_drawer_session_section">Sesión</string>
-    <string name="session_drawer_sharpness">Nitidez</string>
     <string name="session_drawer_swipe_hint">Desliza para volver al juego</string>
     <string name="session_gamepad_enable_vibration">Activar vibración</string>
     <string name="session_gyroscope_experimental_mouse_movement">Movimiento de ratón experimental</string>
