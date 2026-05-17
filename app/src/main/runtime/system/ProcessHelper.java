@@ -100,17 +100,17 @@ public abstract class ProcessHelper {
    * children. SIGSTOP'd processes are otherwise prime OOM-kill targets during
    * long screen-locked windows; this lowers their kill priority so the OS
    * leaves a manually-paused wine session alone over multi-minute windows.
-   * Silently ignored if the file is not writable on this device.
+   * Note: On Android 7.0+ this is often blocked by the OS for non-root users.
    */
   public static void setOomScoreAdj(int pid, int score) {
     if (pid <= 0) return;
     java.io.File f = new java.io.File("/proc/" + pid + "/oom_score_adj");
     try (java.io.FileWriter w = new java.io.FileWriter(f, false)) {
       w.write(Integer.toString(score));
+      if (PRINT_DEBUG) Log.d(TAG, "Successfully set oom_score_adj to " + score + " for pid " + pid);
     } catch (Throwable t) {
-      // Some Android versions deny writes even for our own children. Don't
-      // spam logs — fall back silently and rely on the foreground service.
-      if (PRINT_DEBUG) Log.d(TAG, "oom_score_adj write skipped for pid " + pid + ": " + t);
+      // Some Android versions deny writes even for our own children.
+      if (PRINT_DEBUG) Log.d(TAG, "oom_score_adj write failed for pid " + pid + ": " + t.getMessage());
     }
   }
 
@@ -193,16 +193,45 @@ public abstract class ProcessHelper {
   private static final int OOM_SCORE_ADJ_PROTECT = -1000;
   private static final int OOM_SCORE_ADJ_DEFAULT = 0;
 
+  private static final String[] CORE_PROCESS_FILTERS = {
+    "wineserver",
+    "winhandler",
+    "services.exe",
+    "rpcss.exe",
+    "explorer.exe",
+    "winedevice.exe",
+    "plugplay.exe",
+    "wfm.exe",
+    "conhost.exe"
+  };
+
+  private static boolean isCoreProcess(String normalizedData) {
+    for (String filter : CORE_PROCESS_FILTERS) {
+      if (normalizedData.contains(filter)) return true;
+    }
+    return false;
+  }
+
   public static void pauseAllWineProcesses() {
+    File proc = new File("/proc");
     ArrayList<String> processes = listRunningWineProcesses();
     if (!processes.isEmpty()) Log.d(TAG, "Pausing session processes: " + processes);
     for (String process : processes) {
       int pid = Integer.parseInt(process);
 
-      // Make the OS never OOM-kill the paused process. Without this, the
-      // kernel happily reaps SIGSTOP'd processes during long screen-locked
-      // windows because they look idle and unreclaimable.
+      // Check if this is a core infrastructure process
+      String statData = readProcStat(proc, process);
+      String cmdlineData = readProcCmdline(proc, process);
+      String normalized = (statData + " " + cmdlineData).toLowerCase();
+
+      // Make the OS never OOM-kill the paused process if possible.
       setOomScoreAdj(pid, OOM_SCORE_ADJ_PROTECT);
+
+      if (isCoreProcess(normalized)) {
+        if (PRINT_DEBUG) Log.d(TAG, "Skipping SIGSTOP for core process: " + process + " (" + normalized + ")");
+        continue;
+      }
+
       suspendProcess(pid);
     }
   }
