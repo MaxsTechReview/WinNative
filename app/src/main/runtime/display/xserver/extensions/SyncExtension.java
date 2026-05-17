@@ -20,13 +20,20 @@ import java.util.List;
 public class SyncExtension implements Extension {
   public static final byte MAJOR_OPCODE = -104;
   private final SparseBooleanArray fences = new SparseBooleanArray();
-  /** Fence ID -> imported sync_file FD watched by a background poller. */
+  /** Fence ID -> imported sync_file FD currently watched by the dispatcher. */
   private final SparseIntArray waitFds = new SparseIntArray();
   /** Fence ID -> eventfds we own, signaled when the fence triggers. */
   private final SparseArray<List<Integer>> exportFds = new SparseArray<>();
-  /** Fence ID -> background poller; exits when the fence triggers or is destroyed. */
-  private final SparseArray<Thread> watchers = new SparseArray<>();
+  /**
+   * FDs that were removed from {@link #waitFds} but cannot be closed yet because the dispatcher
+   * may still be polling them. Closed by the dispatcher after each wake, before reissuing poll.
+   */
+  private final List<Integer> pendingCloseFds = new ArrayList<>();
   private final Object fenceLock = new Object();
+
+  /** eventfd used to wake the dispatcher when its watch set changes; -1 until lazy start. */
+  private volatile int dispatcherControlFd = -1;
+  private Thread dispatcherThread = null;
 
   private abstract static class ClientOpcodes {
     private static final byte CREATE_FENCE = 14;
@@ -56,9 +63,14 @@ public class SyncExtension implements Extension {
     return 0;
   }
 
+  /**
+   * Mark fence {@code id} triggered. Signals all export eventfds and queues the imported
+   * sync_file FD for close by the dispatcher (so we don't close an FD the dispatcher may
+   * currently be polling). No-op if the fence is unknown.
+   */
   public void setTriggered(int id) {
-    List<Integer> toSignal = null;
-    int waitFdToClose = -1;
+    List<Integer> toSignal;
+    boolean wake = false;
     synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) return;
       fences.put(id, true);
@@ -66,10 +78,10 @@ public class SyncExtension implements Extension {
       if (toSignal != null) exportFds.remove(id);
       int waitIdx = waitFds.indexOfKey(id);
       if (waitIdx >= 0) {
-        waitFdToClose = waitFds.valueAt(waitIdx);
+        pendingCloseFds.add(waitFds.valueAt(waitIdx));
         waitFds.removeAt(waitIdx);
+        wake = true;
       }
-      watchers.remove(id);
       fenceLock.notifyAll();
     }
     if (toSignal != null) {
@@ -78,59 +90,57 @@ public class SyncExtension implements Extension {
         SyncFenceFd.closeFd(fd);
       }
     }
-    if (waitFdToClose >= 0) SyncFenceFd.closeFd(waitFdToClose);
+    if (wake) wakeDispatcher();
   }
 
   /** Blocks until at least one of {@code ids} triggers; raises BadFence for unknown IDs. */
   public void waitForFences(int[] ids) throws XRequestError {
     if (ids == null || ids.length == 0) return;
-    boolean anyTriggered;
-    do {
-      anyTriggered = false;
-      synchronized (fenceLock) {
+    synchronized (fenceLock) {
+      while (true) {
         for (int id : ids) {
           if (fences.indexOfKey(id) < 0) throw new BadFence(id);
-          if (fences.get(id)) {
-            anyTriggered = true;
-            break;
-          }
+          if (fences.get(id)) return;
         }
-        if (!anyTriggered) {
-          try {
-            fenceLock.wait(2L);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-          }
+        try {
+          fenceLock.wait();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
         }
       }
-    } while (!anyTriggered);
+    }
   }
 
   /**
    * Register a fence that triggers when {@code fd} (a kernel sync_file) signals. Takes
-   * ownership of {@code fd}; closed when the fence is destroyed or the watcher sees the signal.
+   * ownership of {@code fd}; closed when the fence is destroyed or the dispatcher sees the
+   * signal.
    */
   public void createFromFd(int id, boolean initiallyTriggered, int fd) throws XRequestError {
     if (fd < 0) throw new BadAlloc();
-    Thread watcher = null;
     synchronized (fenceLock) {
       if (fences.indexOfKey(id) >= 0) {
         SyncFenceFd.closeFd(fd);
         throw new BadIdChoice(id);
       }
+      // Make sure the dispatcher exists BEFORE recording the fence, otherwise a failure
+      // here would leave a fence that can never be polled or triggered.
+      if (!initiallyTriggered && !ensureDispatcherStarted()) {
+        SyncFenceFd.closeFd(fd);
+        throw new BadAlloc();
+      }
       fences.put(id, initiallyTriggered);
-      waitFds.put(id, fd);
       if (initiallyTriggered) {
+        // No polling needed; release the FD immediately.
+        SyncFenceFd.closeFd(fd);
         fenceLock.notifyAll();
       } else {
-        watcher = new Thread(() -> watchFenceFd(id, fd), "FenceFd-" + id);
-        watcher.setDaemon(true);
-        watchers.put(id, watcher);
+        waitFds.put(id, fd);
       }
     }
-    if (watcher != null) watcher.start();
-    if (initiallyTriggered) setTriggered(id);
+    if (initiallyTriggered) drainAndSignalExports(id);
+    else wakeDispatcher();
   }
 
   /**
@@ -172,28 +182,73 @@ public class SyncExtension implements Extension {
     return replyFd;
   }
 
-  private void watchFenceFd(int id, int fd) {
+  // --- Dispatcher ----------------------------------------------------------
+
+  /** Must be called under {@link #fenceLock}. Returns false on eventfd allocation failure. */
+  private boolean ensureDispatcherStarted() {
+    if (dispatcherThread != null) return true;
+    int fd = SyncFenceFd.createSignalEventFd();
+    if (fd < 0) return false;
+    dispatcherControlFd = fd;
+    dispatcherThread = new Thread(this::dispatcherLoop, "SyncFenceDispatcher");
+    dispatcherThread.setDaemon(true);
+    dispatcherThread.start();
+    return true;
+  }
+
+  private void wakeDispatcher() {
+    int fd = dispatcherControlFd;
+    if (fd >= 0) SyncFenceFd.signalEventFd(fd);
+  }
+
+  private void dispatcherLoop() {
+    int[] watchIds = new int[0];
+    // First slot is the control fd; remaining slots mirror watchIds.
+    int[] pollFdArr = new int[] { dispatcherControlFd };
+
     while (!Thread.currentThread().isInterrupted()) {
-      int rc = SyncFenceFd.pollFd(fd, 200);
-      if (rc < 0) {
-        // Treat poll errors as signaled so Present wait-fences cannot deadlock forever.
-        setTriggered(id);
-        return;
-      }
-      if (rc > 0) {
-        setTriggered(id);
-        return;
-      }
-      // rc == 0: exit if the fence was destroyed or triggered by another path.
-      synchronized (fenceLock) {
-        int idx = fences.indexOfKey(id);
-        if (idx < 0 || fences.valueAt(idx)) {
-          watchers.remove(id);
+      int[] revents = SyncFenceFd.pollFds(pollFdArr, -1);
+      if (revents == null || revents.length != pollFdArr.length) {
+        // Native failure; back off briefly so we don't spin if it persists.
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           return;
         }
+        continue;
+      }
+
+      if (revents[0] != 0) SyncFenceFd.drainEventFd(dispatcherControlFd);
+      for (int i = 0; i < watchIds.length; i++) {
+        // Any event (POLLIN/POLLERR/POLLHUP/POLLNVAL) means the fence is done; setTriggered
+        // is a no-op if the fence was already destroyed.
+        if (revents[i + 1] != 0) setTriggered(watchIds[i]);
+      }
+
+      // Drain pending closes and rebuild the watch snapshot under lock. setTriggered above
+      // added to pendingCloseFds for each fd that fired, so this is also where freshly-fired
+      // FDs get closed.
+      List<Integer> toClose;
+      synchronized (fenceLock) {
+        toClose = pendingCloseFds.isEmpty() ? null : new ArrayList<>(pendingCloseFds);
+        pendingCloseFds.clear();
+        int n = waitFds.size();
+        if (watchIds.length != n) watchIds = new int[n];
+        pollFdArr = new int[n + 1];
+        pollFdArr[0] = dispatcherControlFd;
+        for (int i = 0; i < n; i++) {
+          watchIds[i] = waitFds.keyAt(i);
+          pollFdArr[i + 1] = waitFds.valueAt(i);
+        }
+      }
+      if (toClose != null) {
+        for (int fd : toClose) SyncFenceFd.closeFd(fd);
       }
     }
   }
+
+  // --- X SYNC opcodes ------------------------------------------------------
 
   private void drainAndSignalExports(int id) {
     List<Integer> toSignal;
@@ -251,24 +306,24 @@ public class SyncExtension implements Extension {
       throws IOException, XRequestError {
     int id = inputStream.readInt();
     List<Integer> exportsToClose = null;
-    int waitFdToClose = -1;
-    Thread watcherToInterrupt = null;
+    boolean wake = false;
     synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) throw new BadFence(id);
       fences.delete(id);
 
       int waitIdx = waitFds.indexOfKey(id);
       if (waitIdx >= 0) {
-        waitFdToClose = waitFds.valueAt(waitIdx);
+        pendingCloseFds.add(waitFds.valueAt(waitIdx));
         waitFds.removeAt(waitIdx);
+        wake = true;
       }
       exportsToClose = exportFds.get(id);
       if (exportsToClose != null) exportFds.remove(id);
-      watcherToInterrupt = watchers.get(id);
-      if (watcherToInterrupt != null) watchers.remove(id);
+      // Wake any waitForFences blocked on this id so they observe the deletion and raise
+      // BadFence rather than blocking forever.
+      fenceLock.notifyAll();
     }
-    if (watcherToInterrupt != null) watcherToInterrupt.interrupt();
-    if (waitFdToClose >= 0) SyncFenceFd.closeFd(waitFdToClose);
+    if (wake) wakeDispatcher();
     if (exportsToClose != null) {
       for (Integer fd : exportsToClose) SyncFenceFd.closeFd(fd);
     }
@@ -287,25 +342,7 @@ public class SyncExtension implements Extension {
     if (remaining > 0) inputStream.skip(remaining);
     if (ids.length == 0) return;
 
-    boolean anyTriggered;
-    do {
-      anyTriggered = false;
-      synchronized (fenceLock) {
-        for (int id : ids) {
-          if (fences.indexOfKey(id) < 0) throw new BadFence(id);
-          anyTriggered = fences.get(id);
-          if (anyTriggered) break;
-        }
-        if (!anyTriggered) {
-          try {
-            fenceLock.wait(2L);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-          }
-        }
-      }
-    } while (!anyTriggered);
+    waitForFences(ids);
   }
 
   @Override

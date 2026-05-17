@@ -15,11 +15,11 @@ public final class SyncFenceFd {
   private SyncFenceFd() {}
 
   /**
-   * Poll the given FD for POLLIN with the specified timeout in milliseconds (-1 = infinite).
-   * Returns 1 if the FD is signaled, 0 on timeout, or -1 on error (including the FD being
-   * closed while we were polling).
+   * Batched poll(2) over POLLIN with a single timeout (-1 = infinite). Returns an int[] parallel
+   * to {@code fds} containing each fd's revents (0 means no event); returns null on allocation
+   * failure or if {@code fds} is null. EINTR is retried internally.
    */
-  public static native int pollFd(int fd, int timeoutMs);
+  public static native int[] pollFds(int[] fds, int timeoutMs);
 
   /** Allocate a fresh non-blocking eventfd with initial count 0. */
   public static native int createSignalEventFd();
@@ -30,9 +30,9 @@ public final class SyncFenceFd {
   /** Write 1 to an eventfd so a peer waiting on it becomes ready. */
   public static native void signalEventFd(int fd);
 
+  /** Read-and-discard the accumulated counter on a non-blocking eventfd. */
+  public static native void drainEventFd(int fd);
+
   /** close(2) the FD. */
   public static native void closeFd(int fd);
-
-  /** Open /dev/null in O_RDONLY and return the FD. Returns -1 on failure. */
-  public static native int openDevNull();
 }
