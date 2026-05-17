@@ -876,7 +876,15 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
 // ----------------------------------------------------------------------
 
 VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool transfer_ownership) {
-    if (!r->ext_ahb || !r->fnGetAhbProps || !ahb) return NULL;
+    if (!ahb) {
+        VK_LOGW("AHB import skipped: null AHardwareBuffer");
+        return NULL;
+    }
+    if (!r->ext_ahb || !r->fnGetAhbProps) {
+        VK_LOGW("AHB import skipped: ext_ahb=%d fnGetAhbProps=%d",
+                r->ext_ahb, r->fnGetAhbProps != NULL);
+        return NULL;
+    }
 
     VkAndroidHardwareBufferFormatPropertiesANDROID format_props = {
         VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID
@@ -892,6 +900,12 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
 
     AHardwareBuffer_Desc desc = {0};
     AHardwareBuffer_describe(ahb, &desc);
+    VK_LOGI("AHB Vulkan import begin: %ux%u stride=%u format=%u usage=0x%llx allocation=%llu memoryBits=0x%x vkFormat=%d",
+            desc.width, desc.height, desc.stride, desc.format,
+            (unsigned long long)desc.usage,
+            (unsigned long long)props.allocationSize,
+            props.memoryTypeBits,
+            format_props.format);
 
     VkTexture* t = calloc(1, sizeof(VkTexture));
     if (!t) return NULL;
@@ -1057,6 +1071,9 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
         destroy_texture_resources(r, t);
         return NULL;
     }
+    VK_LOGI("AHB Vulkan import ready: %ux%u vkFormat=%d memoryType=%u texture=%p",
+            t->width, t->height, t->format, mai.memoryTypeIndex,
+            (void*)t);
     return t;
 }
 

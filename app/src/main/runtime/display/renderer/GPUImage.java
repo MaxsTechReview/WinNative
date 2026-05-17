@@ -1,5 +1,6 @@
 package com.winlator.cmod.runtime.display.renderer;
 
+import android.util.Log;
 import androidx.annotation.Keep;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import java.nio.ByteBuffer;
@@ -17,6 +18,8 @@ import java.nio.ByteBuffer;
  * </ul>
  */
 public class GPUImage extends Texture {
+    private static final String TAG = "GPUImage";
+
     private long ahbPtr = 0;
     private ByteBuffer virtualData;
     private short stride;
@@ -29,16 +32,24 @@ public class GPUImage extends Texture {
         try {
             cpuAccessible = true;
             ahbPtr = nativeAhbCreate(width, height);
-            if (ahbPtr == 0) return;
+            if (ahbPtr == 0) {
+                Log.w(TAG, "AHB allocation returned null for " + width + "x" + height);
+                return;
+            }
             virtualData = nativeAhbLock(ahbPtr);
             locked = virtualData != null && stride > 0;
             if (!locked) {
+                Log.w(TAG, "AHB CPU mapping failed for " + width + "x" + height);
                 nativeAhbDestroy(ahbPtr, false);
                 ahbPtr = 0;
                 virtualData = null;
+            } else {
+                Log.i(TAG, "AHB allocated and CPU mapped: " + width + "x" + height
+                        + " stride=" + Short.toUnsignedInt(stride)
+                        + " ptr=0x" + Long.toHexString(ahbPtr));
             }
         } catch (Throwable e) {
-            System.err.println("Error: Failed to create GPUImage: " + e.getMessage());
+            Log.e(TAG, "Failed to create AHB-backed GPUImage", e);
             destroy();
         }
     }
@@ -47,8 +58,14 @@ public class GPUImage extends Texture {
         try {
             cpuAccessible = false;
             ahbPtr = nativeAhbImportFromSocket(socketFd);
+            if (ahbPtr != 0) {
+                Log.i(TAG, "AHB loaded from DRI3 socket fd=" + socketFd
+                        + " ptr=0x" + Long.toHexString(ahbPtr));
+            } else {
+                Log.w(TAG, "AHB import from DRI3 socket failed for fd=" + socketFd);
+            }
         } catch (Throwable e) {
-            System.err.println("Error: Failed to import GPUImage: " + e.getMessage());
+            Log.e(TAG, "Failed to import AHB-backed GPUImage", e);
             destroy();
         }
     }
@@ -57,12 +74,20 @@ public class GPUImage extends Texture {
     public void allocateTexture(short width, short height, ByteBuffer data) {
         if (isAllocated()) return;
         long renderer = getRendererHandle();
-        if (renderer == 0 || ahbPtr == 0) return;
+        if (renderer == 0 || ahbPtr == 0) {
+            Log.w(TAG, "Skipping AHB Vulkan import: renderer=0x" + Long.toHexString(renderer)
+                    + " ahb=0x" + Long.toHexString(ahbPtr));
+            return;
+        }
         nativeHandle = nativeImportAhbToVulkan(renderer, ahbPtr, true);
         if (nativeHandle == 0) {
             samplingFailed = true;
+            Log.w(TAG, "AHB Vulkan import failed: " + width + "x" + height
+                    + " ahb=0x" + Long.toHexString(ahbPtr));
         } else {
             handleGeneration = getRendererGeneration();
+            Log.i(TAG, "AHB imported into Vulkan texture: " + width + "x" + height
+                    + " tex=0x" + Long.toHexString(nativeHandle));
         }
     }
 
@@ -120,12 +145,14 @@ public class GPUImage extends Texture {
         final short size = 8;
         GPUImage probe = null;
         try {
+            Log.i(TAG, "Probing AHB Vulkan support");
             probe = new GPUImage(size, size);
             probe.allocateTexture(size, size, null);
             supported = probe.isValid() && probe.getNativeHandle() != 0;
+            Log.i(TAG, "AHB Vulkan support probe result: supported=" + supported);
         } catch (Throwable e) {
             supported = false;
-            System.err.println("Error: GPUImage support probe failed: " + e.getMessage());
+            Log.e(TAG, "AHB Vulkan support probe failed", e);
         } finally {
             if (probe != null) probe.destroy();
         }

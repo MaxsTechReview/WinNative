@@ -3,6 +3,9 @@
 // Owns the entire native-side rendering state. Java JNI shims push scene snapshots and call
 // frame submit; this file handles instance/device/swapchain/pipelines/sync.
 //
+// All vk* calls below resolve through vk_dispatch.h, which redirects them to the dlopen
+// handle (system libvulkan or adrenotools-loaded Turnip) chosen at nativeCreate.
+//
 // Synchronization model:
 //   - One graphics queue, serialized externally via VkRenderer::queue_mutex (any thread submits).
 //   - VK_FRAMES_IN_FLIGHT in-flight frames, each with its own semaphores + fence + cmd buffer.
@@ -12,9 +15,11 @@
 //     native texture objects that Java handles have not explicitly destroyed yet.
 
 #include "vk_state.h"
+#include "vk_driver.h"
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <dlfcn.h>
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
@@ -224,6 +229,11 @@ static bool create_instance(VkRenderer* r) {
         return false;
     }
 
+    if (!vkd_load_instance(r->instance)) {
+        VK_LOGE("vkd_load_instance failed");
+        return false;
+    }
+
     if (r->debug_utils_enabled) {
         r->fnCreateDebugUtilsMessenger =
                 (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
@@ -353,6 +363,11 @@ static bool create_device(VkRenderer* r) {
 
     r->ext_ahb = ahb_ok;
     r->ext_ycbcr = has_ycbcr;
+    VK_LOGI("AHB Vulkan device support: android_hardware_buffer=%d external_memory=%d dedicated=%d get_memory_requirements2=%d queue_family_foreign=%d enabled=%d",
+            has_ahb, has_extmem, has_dedicated, has_get_mem_req2, has_queue_fam, r->ext_ahb);
+    if (!r->ext_ahb) {
+        VK_LOGW("AHB Vulkan import disabled; one or more required device extensions are missing");
+    }
 
     float qprio = 1.0f;
     VkDeviceQueueCreateInfo qci = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -381,6 +396,10 @@ static bool create_device(VkRenderer* r) {
     if (r->ext_ahb) {
         r->fnGetAhbProps = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)
             vkGetDeviceProcAddr(r->device, "vkGetAndroidHardwareBufferPropertiesANDROID");
+        if (!r->fnGetAhbProps) {
+            VK_LOGW("AHB Vulkan import disabled; vkGetAndroidHardwareBufferPropertiesANDROID is unavailable");
+            r->ext_ahb = false;
+        }
     }
     if (r->ext_ycbcr) {
         r->fnCreateYcbcr = (PFN_vkCreateSamplerYcbcrConversion)
@@ -1770,9 +1789,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
     VkSemaphore render_finished = r->swapchain_render_finished[image_index];
 
     vkResetFences(r->device, 1, &f->in_flight);
-    vkResetCommandBuffer(f->cmd, 0);
 
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f->cmd, &bi);
 
     bool has_effects = snap.effect_count > 0 && r->offscreen_built;
@@ -1932,8 +1951,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
 #define JNI_FN(name) Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_##name
 
-JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz, jboolean enableValidationLayers) {
-    (void)env; (void)clazz;
+JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
+                                              jboolean enableValidationLayers,
+                                              jstring driverName,
+                                              jobject context) {
+    (void)clazz;
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
     r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
@@ -1943,6 +1965,20 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz, jboolean
     pthread_mutex_init(&r->texture_mutex, NULL);
     pthread_mutex_init(&r->render_mutex, NULL);
     pthread_mutex_init(&r->descriptor_mutex, NULL);
+
+    const char* driver_name_c = NULL;
+    if (driverName != NULL) driver_name_c = (*env)->GetStringUTFChars(env, driverName, NULL);
+    r->vulkan_handle = winlator_open_vulkan(env, context, driver_name_c);
+    if (driver_name_c != NULL) (*env)->ReleaseStringUTFChars(env, driverName, driver_name_c);
+
+    if (!r->vulkan_handle) {
+        VK_LOGE("winlator_open_vulkan returned NULL");
+        goto fail;
+    }
+    if (!vkd_init(r->vulkan_handle)) {
+        VK_LOGE("vkd_init failed");
+        goto fail;
+    }
 
     if (!create_instance(r)) goto fail;
     if (!pick_physical_device(r)) goto fail;
@@ -1966,6 +2002,8 @@ fail:
     if (r->device) vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
     if (r->instance) vkDestroyInstance(r->instance, NULL);
+    vkd_unload();
+    if (r->vulkan_handle) { dlclose(r->vulkan_handle); r->vulkan_handle = NULL; }
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);
     pthread_mutex_destroy(&r->texture_mutex);
@@ -2014,6 +2052,11 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     if (r->device)  vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
     if (r->instance)vkDestroyInstance(r->instance, NULL);
+
+    // Clear dispatch BEFORE dlclose so a stray call from another thread faults on NULL
+    // rather than jumping into freed library memory.
+    vkd_unload();
+    if (r->vulkan_handle) { dlclose(r->vulkan_handle); r->vulkan_handle = NULL; }
 
     pthread_mutex_destroy(&r->scene_mutex);
     pthread_mutex_destroy(&r->queue_mutex);
@@ -2455,7 +2498,13 @@ JNIEXPORT jlong JNICALL GPU_FN(nativeImportAhbToVulkan)(JNIEnv* env, jclass claz
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)rendererHandle;
     AHardwareBuffer* ahb = (AHardwareBuffer*)(intptr_t)ahbPtr;
-    if (!r || !ahb) return 0;
+    if (!r || !ahb) {
+        VK_LOGW("nativeImportAhbToVulkan skipped: renderer=%p ahb=%p", (void*)r, (void*)ahb);
+        return 0;
+    }
     VkTexture* t = vkr_texture_import_ahb(r, ahb, transferOwnership);
+    if (!t) {
+        VK_LOGW("nativeImportAhbToVulkan failed: ahb=%p transfer=%d", (void*)ahb, transferOwnership);
+    }
     return (jlong)(intptr_t)t;
 }

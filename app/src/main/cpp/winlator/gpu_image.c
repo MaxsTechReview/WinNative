@@ -12,10 +12,19 @@
 #include <unistd.h>
 
 #define LOG_TAG "GPUImage"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
 
 #define HAL_PIXEL_FORMAT_BGRA_8888 5
+
+// Anything outside this set would silently misrender if treated as 32-bit RGBA; reject so
+// DRI3 falls back to the SHM path.
+static int gpuImageFormatSupported(uint32_t format) {
+    return format == HAL_PIXEL_FORMAT_BGRA_8888
+        || format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM
+        || format == AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM;
+}
 
 // ----------------------------------------------------------------------------
 // Java GPUImage.nativeAhbCreate(short w, short h) -> jlong (AHardwareBuffer*)
@@ -41,6 +50,10 @@ Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbCreate(
         LOGW("AHardwareBuffer_allocate failed (%dx%d BGRA)", width, height);
         return 0;
     }
+    AHardwareBuffer_Desc out = {0};
+    AHardwareBuffer_describe(ahb, &out);
+    LOGI("AHB allocated: %ux%u stride=%u format=%u usage=0x%llx",
+         out.width, out.height, out.stride, out.format, (unsigned long long)out.usage);
     return (jlong)(intptr_t)ahb;
 }
 
@@ -70,6 +83,23 @@ Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbImportFromSock
         LOGW("AHardwareBuffer_recvHandleFromUnixSocket failed");
         return 0;
     }
+
+    AHardwareBuffer_Desc desc = {0};
+    AHardwareBuffer_describe(ahb, &desc);
+    if (!gpuImageFormatSupported(desc.format)) {
+        LOGW("AHB import rejected: format=%u not supported", desc.format);
+        AHardwareBuffer_release(ahb);
+        return 0;
+    }
+    if (!(desc.usage & AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE)) {
+        LOGW("AHB import rejected: usage=0x%llx missing GPU_SAMPLED_IMAGE",
+             (unsigned long long)desc.usage);
+        AHardwareBuffer_release(ahb);
+        return 0;
+    }
+    LOGI("AHB received from socket: fd=%d size=%ux%u stride=%u format=%u usage=0x%llx",
+         fd, desc.width, desc.height, desc.stride, desc.format,
+         (unsigned long long)desc.usage);
     return (jlong)(intptr_t)ahb;
 }
 
@@ -109,6 +139,8 @@ Java_com_winlator_cmod_runtime_display_renderer_GPUImage_nativeAhbLock(
     if (setStride) (*env)->CallVoidMethod(env, obj, setStride, (jshort)desc.stride);
 
     jlong size = (jlong)desc.stride * desc.height * 4;
+    LOGI("AHB CPU mapped: %ux%u stride=%u bytes=%lld",
+         desc.width, desc.height, desc.stride, (long long)size);
     return (*env)->NewDirectByteBuffer(env, virt, size);
 }
 
