@@ -198,6 +198,7 @@ class TouchpadView(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
+        if ((context as? XServerDisplayActivity)?.isInputSuspended == true) return true
         val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
         resetMousePointerTimeout()
 

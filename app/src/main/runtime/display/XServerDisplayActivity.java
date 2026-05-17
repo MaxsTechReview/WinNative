@@ -318,6 +318,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isPaused = false;
     private boolean isActivityPaused = false;
     private boolean isRelativeMouseMovement = false;
+
+    public boolean isPaused() { return isPaused; }
+    public boolean isInputSuspended() {
+        return isPaused || (isActivityPaused && !isInPictureInPictureMode());
+    }
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
@@ -3727,6 +3732,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 else {
                     ProcessHelper.pauseAllWineProcesses();
                     SessionKeepAliveService.onPauseSession(this);
+                    if (touchpadView != null) touchpadView.resetInputState();
+                    if (inputControlsView != null) inputControlsView.cancelActiveTouches();
                 }
                 isPaused = !isPaused;
                 renderDrawerMenu();
@@ -5120,8 +5127,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Avoid processing touch events when paused, except for allowing drawer edge swipe to open the drawer
         // Fix for an 'ANR Input dispatching timed out' exception that crashes the app.
-        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
-        if (suspended && (drawerStateHolder == null ||
+        if (isInputSuspended() && (drawerStateHolder == null ||
                 (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
 
             return true;
@@ -5202,8 +5208,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
 //        if (isPaused) return super.dispatchGenericMotionEvent(event);
-        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
-        if (suspended && (drawerStateHolder == null ||
+        if (isInputSuspended() && (drawerStateHolder == null ||
                 (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
 
             return true;
@@ -5212,7 +5217,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         boolean handledByWinHandler = false;
         boolean handledByTouchpadView = false;
 
-        if (isPointerMotionEvent(event) && touchpadView != null) {
+        if (!isInputSuspended() && isPointerMotionEvent(event) && touchpadView != null) {
             if (shouldUsePointerCapture() && !touchpadView.hasPointerCapture()) {
                 updatePointerCapture();
             }
@@ -5223,7 +5228,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return true;
         }
 
-        if (isControllerMotionEvent(event)) {
+        if (!isInputSuspended() && isControllerMotionEvent(event)) {
             cancelMousePointerTimeout();
             if (touchpadView != null) {
                 touchpadView.cancelMousePointerTimeout();
@@ -5249,8 +5254,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        boolean suspended = isPaused || (isActivityPaused && !isInPictureInPictureMode());
-        if (suspended) return super.dispatchKeyEvent(event);
+        if (isInputSuspended()) return super.dispatchKeyEvent(event);
         if (ExternalController.isGameController(event.getDevice())) {
             cancelMousePointerTimeout();
             if (touchpadView != null) {
