@@ -87,14 +87,8 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
   }
 
   public void onPause() {
-    GuestProgramLauncherComponent guestProgramLauncherComponent =
-        getComponent(GuestProgramLauncherComponent.class);
-    if (guestProgramLauncherComponent != null) guestProgramLauncherComponent.suspendProcess();
   }
 
   public void onResume() {
-    GuestProgramLauncherComponent guestProgramLauncherComponent =
-        getComponent(GuestProgramLauncherComponent.class);
-    if (guestProgramLauncherComponent != null) guestProgramLauncherComponent.resumeProcess();
   }
 }

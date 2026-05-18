@@ -114,6 +114,7 @@ data class OtherSettingsState(
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
     val recordPerformanceToFile: Boolean = false,
+    val enableBackgroundSession: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
 
@@ -156,6 +157,7 @@ fun OtherSettingsScreen(
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
     onRecordPerformanceToFileChanged: (Boolean) -> Unit,
+    onEnableBackgroundSessionChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
 ) {
@@ -294,6 +296,16 @@ fun OtherSettingsScreen(
 
         item(key = "integration_section") {
             SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
+        }
+
+        item(key = "background_session_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_background),
+                subtitle = "Keep session alive while in background",
+                icon = Icons.Outlined.Visibility,
+                checked = state.enableBackgroundSession,
+                onCheckedChange = onEnableBackgroundSessionChanged,
+            )
         }
 
         item(key = "file_provider_card") {

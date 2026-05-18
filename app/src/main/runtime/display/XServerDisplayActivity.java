@@ -1200,7 +1200,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cachedContainerLabel = container != null ? container.getName() : "";
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
-        SessionKeepAliveService.startSession(this);
+        if (preferences.getBoolean("enable_background_session", false)) {
+            SessionKeepAliveService.startSession(this);
+        }
 
         inputControlsManager = new InputControlsManager(this);
         sgsrBaseScreenSize = screenSize;
@@ -1766,18 +1768,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             xServerView.onResume();
             environment.onResume();
         }
+
         if (inputControlsView != null && touchpadView != null) {
             ControlsProfile activeProfile = inputControlsView.getProfile();
             if (activeProfile == null) activeProfile = resolvePreferredStartupProfile();
             if (activeProfile != null) showInputControls(activeProfile);
             else startTouchscreenTimeout();
         }
+
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
-        if (!cleaningUp && !isPaused) {
-            ProcessHelper.resumeAllWineProcesses();
-            SessionKeepAliveService.onResumeSession(this);
-        }
 
         // Resume task-manager polling only if the pane is still the active selection.
         if (taskManagerPaneVisible && taskManagerTimer == null) {
@@ -1802,15 +1802,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         boolean cleaningUp = exitRequested.get() || sessionCleanupStarted.get() || activityDestroyed.get();
 
         if (!cleaningUp && !isInPictureInPictureMode()) {
-            // Only pause environment and xServerView if not in PiP mode
             if (environment != null) {
                 environment.onPause();
                 xServerView.onPause();
             }
-
-            ProcessHelper.pauseAllWineProcesses();
-            SessionKeepAliveService.onPauseSession(this);
-            isPaused = true;
         }
 
         if (touchpadView != null) {

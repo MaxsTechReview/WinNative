@@ -510,6 +510,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val storageGranted = mutableStateOf(false)
     private val notifGranted = mutableStateOf(false)
     private val notifDenied = mutableStateOf(false)
+    private val backgroundSessionEnabled = mutableStateOf(false)
 
     private val pageIndex = mutableIntStateOf(0)
     private val imageFsInstalling = mutableStateOf(false)
@@ -536,14 +537,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         ) {
             storageGranted.value = hasStoragePermission()
         }
-
     private val notifPermLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
             notifGranted.value = granted
             notifDenied.value = !granted
-            if (!granted && Build.VERSION.SDK_INT >= 33 &&
+            if (granted) {
+                backgroundSessionEnabled.value = true
+                prefs(this).edit().putBoolean("enable_background_session", true).apply()
+            } else if (Build.VERSION.SDK_INT >= 33 &&
                 !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
             ) {
                 openNotificationSettings()
@@ -579,6 +582,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
         storageGranted.value = hasStoragePermission()
         notifGranted.value = hasNotificationPermissionSilently()
+        backgroundSessionEnabled.value = prefs(this).getBoolean("enable_background_session", false)
         refreshWizardState()
         loadAdvancedProfiles()
 
@@ -602,7 +606,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         storageGranted.value = hasStoragePermission()
         val notificationsEnabled = hasNotificationPermissionSilently()
         notifGranted.value = notificationsEnabled
-        if (notificationsEnabled) notifDenied.value = false
+        if (notificationsEnabled) {
+            notifDenied.value = false
+        }
+        backgroundSessionEnabled.value = prefs(this).getBoolean("enable_background_session", false)
         refreshWizardState()
         refreshRecommendedPackageCache()
     }
@@ -677,6 +684,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     private fun requestNotifications() {
+        if (hasNotificationPermissionSilently()) {
+            backgroundSessionEnabled.value = true
+            prefs(this).edit().putBoolean("enable_background_session", true).apply()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= 33 && applicationInfo.targetSdkVersion >= 33) {
             if (notifDenied.value) {
                 openNotificationSettings()
@@ -2189,10 +2202,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier = mod,
                 title = stringResource(R.string.common_ui_notifications),
                 subtitle = stringResource(R.string.common_ui_optional),
-                completed = notifGranted.value,
+                completed = backgroundSessionEnabled.value,
                 buttonLabel =
                     when {
-                        notifGranted.value -> stringResource(R.string.setup_wizard_granted)
+                        backgroundSessionEnabled.value -> stringResource(R.string.setup_wizard_granted)
                         notifDenied.value -> stringResource(R.string.setup_wizard_denied)
                         else -> stringResource(R.string.setup_wizard_allow)
                     },
