@@ -1690,6 +1690,21 @@ static bool scene_starts_with_sgsr1(const VkScene* s) {
     return s->effect_count > 0 && s->effects[0].type == VK_EFFECT_SGSR1;
 }
 
+// Wait for any frame currently in flight on the graphics queue. Cheaper than
+// vkDeviceWaitIdle for the destroy-and-rebuild paths in record_and_submit_frame: we don't
+// care about non-graphics queue work, only about no live frame still sampling/drawing to
+// the resource we're about to recreate. Caller has already waited on the current frame's
+// fence; this picks up the other in-flight slots.
+static void wait_inflight_frames(VkRenderer* r) {
+    VkFence fences[VK_FRAMES_IN_FLIGHT];
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT; i++) {
+        if (r->frames[i].in_flight) fences[count++] = r->frames[i].in_flight;
+    }
+    if (count == 0) return;
+    vkWaitForFences(r->device, count, fences, VK_TRUE, UINT64_MAX);
+}
+
 // SGSR1 upscales the actual X/DRI3 source; ratio changes take effect after restart.
 static VkExtent2D compute_sgsr1_source_extent(VkRenderer* r, const VkScene* s) {
     VkExtent2D out = r->swapchain_extent;
@@ -1758,20 +1773,25 @@ static bool record_and_submit_frame(VkRenderer* r) {
         && (!r->offscreen_built
             || r->offscreen[0].width != r->swapchain_extent.width
             || r->offscreen[0].height != r->swapchain_extent.height)) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height);
     } else if (!needs_fullres_offscreen && r->offscreen_built) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         destroy_offscreen(r);
     }
-    if (wants_sgsr1
-        && (!r->sgsr1.built
-            || r->sgsr1.width != sgsr1_source_extent.width
-            || r->sgsr1.height != sgsr1_source_extent.height)) {
-        vkDeviceWaitIdle(r->device);
+    // Only rebuild SGSR1 source on meaningful dim change. Tiny pixmap-size flicker (off-by-
+    // one DRI3 jitter, transient resizes) used to thrash this allocation every frame and
+    // stall the render thread on the full-device wait that preceded it.
+    int sgsr1_dw = (int)r->sgsr1.width  - (int)sgsr1_source_extent.width;
+    int sgsr1_dh = (int)r->sgsr1.height - (int)sgsr1_source_extent.height;
+    if (sgsr1_dw < 0) sgsr1_dw = -sgsr1_dw;
+    if (sgsr1_dh < 0) sgsr1_dh = -sgsr1_dh;
+    bool sgsr1_dim_changed = r->sgsr1.built && (sgsr1_dw > 4 || sgsr1_dh > 4);
+    if (wants_sgsr1 && (!r->sgsr1.built || sgsr1_dim_changed)) {
+        wait_inflight_frames(r);
         create_sgsr1_resources(r, sgsr1_source_extent.width, sgsr1_source_extent.height);
     } else if (!wants_sgsr1 && r->sgsr1.built) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         destroy_sgsr1_resources(r);
     }
 
