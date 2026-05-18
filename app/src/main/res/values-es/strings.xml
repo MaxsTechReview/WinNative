@@ -1063,6 +1063,9 @@ Ruta instalada:
     <string name="settings_other_lsfg_verify_failed">No se pudo verificar la propiedad de Lossless Scaling en esta cuenta de Steam</string>
     <string name="settings_other_lsfg_remove">Eliminar</string>
     <string name="settings_other_lsfg_upload_action">Subir</string>
+    <string name="settings_hud_record_to_file_title">Registrar rendimiento en archivo</string>
+    <string name="settings_hud_record_to_file_summary">Escribe métricas por segundo de FPS, CPU, GPU, temperatura y batería en /WinNative/logs/ durante la partida.</string>
+    <string name="settings_leaderboard_category">Rendimiento</string>
     <string name="session_drawer_rail_label_apps">Más</string>
     <string name="session_drawer_rail_label_keyboard">Teclado</string>
     <string name="session_drawer_rail_label_input_controls">Mandos</string>

@@ -1063,6 +1063,9 @@
     <string name="settings_other_lsfg_verify_failed">이 Steam 계정에서 Lossless Scaling 소유권을 확인할 수 없습니다</string>
     <string name="settings_other_lsfg_remove">제거</string>
     <string name="settings_other_lsfg_upload_action">업로드</string>
+    <string name="settings_hud_record_to_file_title">성능을 파일에 기록</string>
+    <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/에 기록합니다.</string>
+    <string name="settings_leaderboard_category">성능</string>
     <string name="session_drawer_rail_label_apps">더 보기</string>
     <string name="session_drawer_rail_label_keyboard">키보드</string>
     <string name="session_drawer_rail_label_input_controls">컨트롤</string>

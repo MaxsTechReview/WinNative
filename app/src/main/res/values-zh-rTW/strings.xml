@@ -1063,6 +1063,9 @@
     <string name="settings_other_lsfg_verify_failed">無法在此 Steam 帳號上驗證 Lossless Scaling 擁有權</string>
     <string name="settings_other_lsfg_remove">移除</string>
     <string name="settings_other_lsfg_upload_action">上傳</string>
+    <string name="settings_hud_record_to_file_title">將效能記錄到檔案</string>
+    <string name="settings_hud_record_to_file_summary">遊玩期間每秒將 FPS、CPU、GPU、溫度和電池指標寫入 /WinNative/logs/。</string>
+    <string name="settings_leaderboard_category">效能</string>
     <string name="session_drawer_rail_label_apps">更多</string>
     <string name="session_drawer_rail_label_keyboard">鍵盤</string>
     <string name="session_drawer_rail_label_input_controls">控制</string>

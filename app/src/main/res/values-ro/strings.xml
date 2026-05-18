@@ -1063,6 +1063,9 @@ Cale instalata:
     <string name="settings_other_lsfg_verify_failed">Nu s-a putut verifica proprietatea Lossless Scaling pe acest cont Steam</string>
     <string name="settings_other_lsfg_remove">Elimină</string>
     <string name="settings_other_lsfg_upload_action">Încarcă</string>
+    <string name="settings_hud_record_to_file_title">Înregistrează performanța în fișier</string>
+    <string name="settings_hud_record_to_file_summary">Scrie în /WinNative/logs/ metrici pe secundă pentru FPS, CPU, GPU, temperatură și baterie în timpul jocului.</string>
+    <string name="settings_leaderboard_category">Performanță</string>
     <string name="session_drawer_rail_label_apps">Mai multe</string>
     <string name="session_drawer_rail_label_keyboard">Tastatura</string>
     <string name="session_drawer_rail_label_input_controls">Comenzi</string>

@@ -913,8 +913,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         loadScreenEffectsSettings();
 
         // Start the perf session collector now that shortcut + container are loaded.
+        // Local file recording is independent of the community-share path.
+        boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
         perfController = new SessionRecordingController(this);
-        perfController.start(shortcut, container);
+        perfController.start(shortcut, container, recordToFile);
 
         int numControllers = 1;
         if (shortcut != null) {

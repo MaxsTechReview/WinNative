@@ -114,6 +114,7 @@ data class OtherSettingsState(
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
+    val recordPerformanceToFile: Boolean = false,
     val imagefsInstallProgress: Int? = null,
     val lsfgStatus: LsfgStatus = LsfgStatus.NotUploaded,
 )
@@ -158,6 +159,7 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
+    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
     onUploadLsfgDll: () -> Unit,
@@ -342,6 +344,23 @@ fun OtherSettingsScreen(
                 status = state.lsfgStatus,
                 onUpload = onUploadLsfgDll,
                 onRemove = onRemoveLsfgDll,
+            )
+        }
+
+        item(key = "perf_recorder_section") {
+            SectionLabel(
+                stringResource(R.string.settings_leaderboard_category),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        item(key = "record_perf_to_file_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_hud_record_to_file_title),
+                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
+                icon = Icons.Outlined.Speed,
+                checked = state.recordPerformanceToFile,
+                onCheckedChange = onRecordPerformanceToFileChanged,
             )
         }
 

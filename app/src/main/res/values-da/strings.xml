@@ -1063,6 +1063,9 @@ Installeret sti:
     <string name="settings_other_lsfg_verify_failed">Kunne ikke bekræfte ejerskab af Lossless Scaling på denne Steam-konto</string>
     <string name="settings_other_lsfg_remove">Fjern</string>
     <string name="settings_other_lsfg_upload_action">Upload</string>
+    <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
+    <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under gameplay.</string>
+    <string name="settings_leaderboard_category">Ydeevne</string>
     <string name="session_drawer_rail_label_apps">Mere</string>
     <string name="session_drawer_rail_label_keyboard">Tastatur</string>
     <string name="session_drawer_rail_label_input_controls">Kontrol</string>

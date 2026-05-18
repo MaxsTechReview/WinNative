@@ -1063,6 +1063,9 @@ Percorso installato:
     <string name="settings_other_lsfg_verify_failed">Impossibile verificare la proprietà di Lossless Scaling su questo account Steam</string>
     <string name="settings_other_lsfg_remove">Rimuovi</string>
     <string name="settings_other_lsfg_upload_action">Carica</string>
+    <string name="settings_hud_record_to_file_title">Registra prestazioni su file</string>
+    <string name="settings_hud_record_to_file_summary">Scrive ogni secondo metriche FPS, CPU, GPU, temperatura e batteria in /WinNative/logs/ durante il gioco.</string>
+    <string name="settings_leaderboard_category">Prestazioni</string>
     <string name="session_drawer_rail_label_apps">Altro</string>
     <string name="session_drawer_rail_label_keyboard">Tastiera</string>
     <string name="session_drawer_rail_label_input_controls">Comandi</string>

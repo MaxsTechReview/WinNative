@@ -1069,6 +1069,9 @@ Zainstalowana ścieżka:
     <string name="settings_other_lsfg_verify_failed">Nie można zweryfikować własności Lossless Scaling na tym koncie Steam</string>
     <string name="settings_other_lsfg_remove">Usuń</string>
     <string name="settings_other_lsfg_upload_action">Prześlij</string>
+    <string name="settings_hud_record_to_file_title">Rejestruj wydajność do pliku</string>
+    <string name="settings_hud_record_to_file_summary">Podczas gry zapisuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii w /WinNative/logs/.</string>
+    <string name="settings_leaderboard_category">Wydajność</string>
     <string name="session_drawer_rail_label_apps">Więcej</string>
     <string name="session_drawer_rail_label_keyboard">Klawiatura</string>
     <string name="session_drawer_rail_label_input_controls">Sterow.</string>

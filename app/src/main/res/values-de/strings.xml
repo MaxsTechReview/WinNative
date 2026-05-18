@@ -1063,6 +1063,9 @@ Installierter Pfad:
     <string name="settings_other_lsfg_verify_failed">Besitz von Lossless Scaling konnte für dieses Steam-Konto nicht verifiziert werden</string>
     <string name="settings_other_lsfg_remove">Entfernen</string>
     <string name="settings_other_lsfg_upload_action">Hochladen</string>
+    <string name="settings_hud_record_to_file_title">Leistung in Datei aufzeichnen</string>
+    <string name="settings_hud_record_to_file_summary">Schreibt während des Spielens sekündliche FPS-, CPU-, GPU-, Temperatur- und Akkumetriken nach /WinNative/logs/.</string>
+    <string name="settings_leaderboard_category">Leistung</string>
     <string name="session_drawer_rail_label_apps">Mehr</string>
     <string name="session_drawer_rail_label_keyboard">Tastatur</string>
     <string name="session_drawer_rail_label_input_controls">Steuer.</string>
