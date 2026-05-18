@@ -65,11 +65,11 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.FilterFrames
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Memory
@@ -136,6 +136,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -266,7 +267,7 @@ private val RAIL_PANES =
             pane = DrawerPane.LSFG,
             itemId = R.id.main_menu_lsfg,
             labelRes = R.string.session_drawer_rail_label_lsfg,
-            iconOverride = Icons.Outlined.Bolt,
+            iconOverride = Icons.Outlined.FilterFrames,
         ),
     )
 
@@ -703,7 +704,7 @@ fun buildXServerDrawerState(
                 itemId = R.id.main_menu_lsfg,
                 title = context.getString(R.string.session_drawer_lsfg_title),
                 subtitle = context.getString(R.string.session_drawer_lsfg_subtitle),
-                icon = Icons.Outlined.Bolt,
+                icon = Icons.Outlined.FilterFrames,
                 active = lsfgEnabled,
             )
         if (screenEffectsIdx >= 0) {
@@ -962,6 +963,7 @@ private fun TopRail(
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
 
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
+    val scrollState = rememberScrollState()
 
     val selectedKey =
         when (openPane) {
@@ -1011,10 +1013,12 @@ private fun TopRail(
             Box(
                 modifier =
                     Modifier
-                        .offset(
-                            x = indicatorX + underlineHorizontalInset,
-                            y = indicatorTileHeight - underlineThickness,
-                        )
+                        .offset {
+                            IntOffset(
+                                x = (indicatorX + underlineHorizontalInset).roundToPx() - scrollState.value,
+                                y = (indicatorTileHeight - underlineThickness).roundToPx(),
+                            )
+                        }
                         .width((indicatorWidth - underlineHorizontalInset * 2).coerceAtLeast(0.dp))
                         .height(underlineThickness)
                         .graphicsLayer { alpha = indicatorAlpha }
@@ -1024,7 +1028,7 @@ private fun TopRail(
         }
 
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier.horizontalScroll(scrollState),
             horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {

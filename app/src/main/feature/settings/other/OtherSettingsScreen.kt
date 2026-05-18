@@ -38,9 +38,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Autorenew
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.FilterFrames
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Language
@@ -115,7 +114,6 @@ data class OtherSettingsState(
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
-    val recordPerformanceToFile: Boolean = false,
     val imagefsInstallProgress: Int? = null,
     val lsfgStatus: LsfgStatus = LsfgStatus.NotUploaded,
 )
@@ -160,7 +158,6 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
-    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
     onUploadLsfgDll: () -> Unit,
@@ -330,23 +327,6 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.ContentCopy,
                 checked = state.shareClipboard,
                 onCheckedChange = onShareClipboardChanged,
-            )
-        }
-
-        item(key = "perf_leaderboard_section") {
-            SectionLabel(
-                stringResource(R.string.settings_leaderboard_category),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-
-        item(key = "record_perf_to_file_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.settings_hud_record_to_file_title),
-                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
-                icon = Icons.Outlined.Speed,
-                checked = state.recordPerformanceToFile,
-                onCheckedChange = onRecordPerformanceToFileChanged,
             )
         }
 
@@ -1236,7 +1216,7 @@ private fun LsfgDllCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = if (isVerified) Icons.Outlined.CheckCircle else Icons.Outlined.Bolt,
+                    imageVector = Icons.Outlined.FilterFrames,
                     contentDescription = null,
                     tint = if (isVerified) Accent else Accent,
                     modifier = Modifier.size(17.dp),

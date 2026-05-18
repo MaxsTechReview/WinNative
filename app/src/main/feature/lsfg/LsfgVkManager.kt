@@ -32,7 +32,7 @@ object LsfgVkManager {
     private const val VERSION_FILENAME = ".lsfg_vk_runtime_version"
     // Bump this whenever the bundled .so changes so existing containers re-copy.
     // Switched from prebuilt asset .so to gradle-built nativeLibraryDir source.
-    private const val RUNTIME_VERSION = "v1.0.3-android-arm64-v8a-nativelib"
+    private const val RUNTIME_VERSION = "v1.0.5-android-arm64-v8a-lsfg-stats-graph"
     private const val FALLBACK_PROCESS_EXE_IDENTIFIER = "winnative-lsfg"
 
     private const val CONFIG_RELATIVE_PATH = ".config/lsfg-vk/conf.toml"
@@ -83,10 +83,13 @@ object LsfgVkManager {
     private fun layerDir(rootDir: File) = File(rootDir, LAYER_RELATIVE_DIR)
     private fun dllDir(rootDir: File) = File(rootDir, DLL_RELATIVE_DIR)
     private fun configFile(rootDir: File) = File(rootDir, CONFIG_RELATIVE_PATH)
+    private fun statsFile(rootDir: File) = File(dllDir(rootDir), "lsfg-vk_stats.bin")
     private fun layerSoFile(rootDir: File) = File(localLibDir(rootDir), LAYER_SO)
     private fun manifestFile(rootDir: File) = File(layerDir(rootDir), LAYER_MANIFEST)
     private fun versionFile(rootDir: File) = File(layerDir(rootDir), VERSION_FILENAME)
     private fun installedDllFile(rootDir: File) = File(dllDir(rootDir), "Lossless.dll")
+
+    fun statsFile(container: Container): File = statsFile(container.rootDir)
 
     fun ensureRuntimeInstalled(
         context: Context,
@@ -150,6 +153,7 @@ object LsfgVkManager {
 
     fun writeConfig(context: Context, container: Container, imageFs: ImageFs, processIdentifier: String?) {
         if (!LsfgVerification.isVerified(context)) return
+        ensureRuntimeInstalled(context, container, imageFs)
 
         val rootDir = container.rootDir
         val dllPath = installedDllFile(rootDir).absolutePath
@@ -201,11 +205,15 @@ object LsfgVkManager {
         val rootDir = container.rootDir
         val effectiveProcess = processIdentifier(container, processIdentifier)
         val lsfgTmpDir = dllDir(rootDir)
+        val stats = statsFile(rootDir)
+        stats.parentFile?.mkdirs()
+        stats.delete()
 
         envVars.put("LSFG_CONFIG", configFile(rootDir).absolutePath)
         envVars.put("LSFG_PROCESS", effectiveProcess)
         envVars.put("LSFG_PROCESS_EXE", effectiveProcess)
         envVars.put("LSFG_LAST_PATH", File(lsfgTmpDir, "lsfg-vk_last").absolutePath)
+        envVars.put("LSFG_STATS_PATH", stats.absolutePath)
         envVars.put("LSFG_TMP_DIR", lsfgTmpDir.absolutePath)
         envVars.put("LSFG_MULTIPLIER", getMultiplier(container).coerceIn(2, 4).toString())
         envVars.put("LSFG_FLOW_SCALE", String.format(Locale.US, "%.2f", getFlowScale(container)))
@@ -264,6 +272,7 @@ object LsfgVkManager {
         envVars.remove("LSFG_PROCESS")
         envVars.remove("LSFG_PROCESS_EXE")
         envVars.remove("LSFG_LAST_PATH")
+        envVars.remove("LSFG_STATS_PATH")
         envVars.remove("LSFG_TMP_DIR")
         envVars.remove("LSFG_MULTIPLIER")
         envVars.remove("LSFG_FLOW_SCALE")
@@ -332,6 +341,7 @@ object LsfgVkManager {
 
     private fun disableLayerInContainer(rootDir: File, envVars: EnvVars) {
         manifestFile(rootDir).delete()
+        statsFile(rootDir).delete()
         removeLegacyRuntime(rootDir)
         envVars.put("DISABLE_LSFG", "1")
         envVars.put("DISABLE_LSFGVK", "1")

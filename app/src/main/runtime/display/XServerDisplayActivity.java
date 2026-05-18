@@ -912,13 +912,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         loadScreenEffectsSettings();
 
-        // Start the perf recorder/leaderboard collector now that shortcut + container
-        // are loaded. Submission to PGS only happens if the user opted in via the
-        // settings toggle; recording is independent and follows the local-file toggle
-        // inside SessionRecordingController.
-        boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
+        // Start the perf session collector now that shortcut + container are loaded.
         perfController = new SessionRecordingController(this);
-        perfController.start(shortcut, container, recordToFile);
+        perfController.start(shortcut, container);
 
         int numControllers = 1;
         if (shortcut != null) {
@@ -3471,6 +3467,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             LsfgVkManager.INSTANCE.ensureRuntimeInstalled(XServerDisplayActivity.this, container, imageFs);
                             LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
                         }
+                        configureFrameRatingLsfgStats();
                         applyRuntimeFpsLimit();
                         renderDrawerMenu();
                     }
@@ -3482,6 +3479,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         container.putExtra(LsfgVkManager.EXTRA_MULTIPLIER, String.valueOf(clamped));
                         container.saveData();
                         if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        configureFrameRatingLsfgStats();
                         applyRuntimeFpsLimit();
                         renderDrawerMenu();
                     }
@@ -3493,6 +3491,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         container.putExtra(LsfgVkManager.EXTRA_FLOW_SCALE, String.valueOf(clamped));
                         container.saveData();
                         if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        configureFrameRatingLsfgStats();
                         renderDrawerMenu();
                     }
 
@@ -3502,6 +3501,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         container.putExtra(LsfgVkManager.EXTRA_PERFORMANCE_MODE, String.valueOf(enabled));
                         container.saveData();
                         if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        configureFrameRatingLsfgStats();
                         renderDrawerMenu();
                     }
                 };
@@ -3872,9 +3872,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating.setHudScale(hudScale);
             frameRating.setDualSeriesBattery(dualSeriesBattery);
             frameRating.setIsNative(isNativeRenderingEnabled);
+            configureFrameRatingLsfgStats();
             for (int i = 0; i < hudElements.length; i++) {
                 frameRating.toggleElement(i, hudElements[i]);
             }
+        }
+    }
+
+    private void configureFrameRatingLsfgStats() {
+        if (frameRating == null) return;
+        if (container != null && LsfgVkManager.INSTANCE.isActive(this, container)) {
+            frameRating.setLsfgStatsPath(LsfgVkManager.INSTANCE.statsFile(container).getAbsolutePath());
+        } else {
+            frameRating.setLsfgStatsPath(null);
         }
     }
 

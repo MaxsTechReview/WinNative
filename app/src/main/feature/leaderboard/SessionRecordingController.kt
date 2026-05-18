@@ -8,18 +8,16 @@ import android.provider.Settings
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.runtime.display.ui.FrameRating
-import com.winlator.cmod.runtime.system.PerformanceRecorder
-import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Activity-scoped owner of the per-session perf-stats collector and leaderboard submit.
+ * Activity-scoped owner of the per-session perf-stats collector.
  *
  * Lifecycle:
  *  1. [start] when the game session is ready (after window/container setup).
  *  2. [attachToFrameRating] each time a [FrameRating] view is constructed (HUD can be
  *     toggled on/off mid-session — re-attaching is idempotent).
- *  3. [stop] in the session-cleanup path. Submits to PGS if the user opted in.
+ *  3. [stop] in the session-cleanup path.
  *
  * Single instance per Activity. Re-calling [start] after [stop] is treated as a new
  * session and resets state.
@@ -36,13 +34,10 @@ class SessionRecordingController(
 
     private val active = AtomicBoolean(false)
     @Volatile private var collector: SessionStatsCollector? = null
-    @Volatile private var recorder: PerformanceRecorder? = null
 
-    @JvmOverloads
     fun start(
         shortcut: Shortcut?,
         container: Container?,
-        recordToFile: Boolean = false,
     ) {
         if (!active.compareAndSet(false, true)) return
         val ctx = appContext
@@ -67,46 +62,6 @@ class SessionRecordingController(
         )
         c.start()
         collector = c
-
-        if (recordToFile) {
-            val gameName = shortcut?.name ?: shortcut?.path ?: "Untitled"
-            val appVersion = runCatching {
-                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
-            }.getOrDefault("")
-            val effective = buildEffectiveSettings(container, shortcut)
-            val metadata = PerformanceRecorder.SessionMetadata(
-                gameName = gameName,
-                gameSource = gameSource,
-                gameId = gameId,
-                exePath = shortcut?.path,
-                androidId = androidId,
-                gpuRenderer = gpuRenderer,
-                containerFingerprint = configFingerprint,
-                effectiveSettings = effective,
-                appVersion = appVersion,
-            )
-            val r = PerformanceRecorder(ctx, metadata)
-            if (r.start()) recorder = r
-        }
-    }
-
-    private fun buildEffectiveSettings(container: Container?, shortcut: Shortcut?): Map<String, String> {
-        if (container == null) return emptyMap()
-        return linkedMapOf(
-            "screenSize" to container.screenSize.orEmpty(),
-            "graphicsDriver" to container.graphicsDriver.orEmpty(),
-            "graphicsDriverConfig" to container.graphicsDriverConfig.orEmpty(),
-            "dxwrapper" to container.getExtra("dxwrapper"),
-            "dxwrapperConfig" to container.getExtra("dxwrapperConfig"),
-            "audioDriver" to container.audioDriver.orEmpty(),
-            "wincomponents" to container.getExtra("wincomponents"),
-            "emulator" to container.emulator.orEmpty(),
-            "emulator64" to container.emulator64.orEmpty(),
-            "box64Preset" to container.box64Preset.orEmpty(),
-            "fexcorePreset" to container.getExtra("fexcorePreset"),
-            "inputType" to container.inputType.toString(),
-            "envVars" to container.envVars.orEmpty(),
-        )
     }
 
     /**
@@ -120,7 +75,6 @@ class SessionRecordingController(
 
     override fun onFramePresent(nanoTime: Long) {
         collector?.onFramePresent(nanoTime)
-        recorder?.recordFramePresent(nanoTime)
     }
 
     /**
@@ -129,14 +83,10 @@ class SessionRecordingController(
      * Note: this controller no longer submits to PGS. The community "Best Configs"
      * board lives in Supabase (see `feature/configs/`) and is populated explicitly
      * via the Export button in the shortcut settings dialog — not implicitly at
-     * session end. The collector and recorder still run because the local CSV
-     * recording feature ("Record performance to file") remains independent of the
-     * community-share path.
+     * session end. The collector remains active for in-session statistics.
      */
     fun stop() {
         if (!active.compareAndSet(true, false)) return
-        recorder?.stop()
-        recorder = null
         val c = collector ?: return
         c.stop()
         collector = null

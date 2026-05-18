@@ -40,6 +40,9 @@ import com.winlator.cmod.runtime.system.CPUStatus;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -124,6 +127,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
   private long lastHudRedraw;
+  private File lsfgStatsFile;
+  private long lsfgStatsActiveUntilNano;
+  private long lastLsfgPresents;
+  private long lastLsfgStatsSampleNano;
   private volatile String ramText;
   private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
   private int frameTimesStart;
@@ -154,6 +161,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
   private static final long HUD_REFRESH_MS = 1000L;
   private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
+  private static final long LSFG_STATS_SAMPLE_NS = 50000000L;
+  private static final long LSFG_STATS_STALE_NS = 1500000000L;
+  private static final long LSFG_GRAPH_REFRESH_MS = 50L;
+  private static final int LSFG_STATS_MAGIC = 0x4653474c;
+  private static final int LSFG_STATS_VERSION = 2;
+  private static final int LSFG_STATS_SIZE = 1096;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
@@ -181,6 +194,9 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastFrameNano = 0L;
     this.lastPrimaryFrameNano = 0L;
     this.lastHudRedraw = 0L;
+    this.lsfgStatsActiveUntilNano = 0L;
+    this.lastLsfgPresents = -1L;
+    this.lastLsfgStatsSampleNano = 0L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -960,7 +976,24 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
+    resetLsfgStatsSamplerLocked();
     post(this);
+  }
+
+  public synchronized void setLsfgStatsPath(String path) {
+    File file = path == null || path.trim().isEmpty() ? null : new File(path);
+    String oldPath = this.lsfgStatsFile != null ? this.lsfgStatsFile.getAbsolutePath() : null;
+    String newPath = file != null ? file.getAbsolutePath() : null;
+    if (oldPath != null && oldPath.equals(newPath)) return;
+    if (oldPath == null && newPath == null) return;
+    this.lsfgStatsFile = file;
+    resetLsfgStatsSamplerLocked();
+  }
+
+  private void resetLsfgStatsSamplerLocked() {
+    this.lsfgStatsActiveUntilNano = 0L;
+    this.lastLsfgPresents = -1L;
+    this.lastLsfgStatsSampleNano = 0L;
   }
 
   public void setGpuLoad(int load) {
@@ -1075,6 +1108,10 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
     long nowNano = System.nanoTime();
+    if (this.lsfgStatsActiveUntilNano > nowNano) {
+      sampleLsfgStats();
+      return;
+    }
 
     synchronized (this) {
       if (primarySource) {
@@ -1160,6 +1197,104 @@ public class FrameRating extends LinearLayout implements Runnable {
     long elapsedNano = last - first;
     this.lastFPS =
         elapsedNano > 0 ? ((this.frameTimesCount - 1) * 1000000000.0f) / elapsedNano : 0.0f;
+  }
+
+  private void sampleLsfgStats() {
+    File statsFile;
+    synchronized (this) {
+      statsFile = this.lsfgStatsFile;
+    }
+    if (statsFile == null) return;
+
+    LsfgStatsSnapshot snapshot = readLsfgStats(statsFile);
+    if (snapshot == null || snapshot.lastPresentNs <= 0L) return;
+
+    long nowNano = System.nanoTime();
+    if (nowNano - snapshot.lastPresentNs > LSFG_STATS_STALE_NS) {
+      synchronized (this) {
+        this.lsfgStatsActiveUntilNano = 0L;
+      }
+      return;
+    }
+
+    synchronized (this) {
+      this.lsfgStatsActiveUntilNano = nowNano + LSFG_STATS_STALE_NS;
+      if (this.lastLsfgStatsSampleNano > 0L
+          && nowNano - this.lastLsfgStatsSampleNano < LSFG_STATS_SAMPLE_NS) {
+        return;
+      }
+
+      if (this.lastLsfgPresents >= 0 && snapshot.totalPresents >= this.lastLsfgPresents) {
+        long frameDelta = snapshot.totalPresents - this.lastLsfgPresents;
+        long timeDelta = nowNano - this.lastLsfgStatsSampleNano;
+        if (frameDelta > 0L && timeDelta > 0L) {
+          appendSyntheticLsfgFramesLocked(this.lastLsfgStatsSampleNano, nowNano, frameDelta);
+          trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
+          updateRollingFpsLocked();
+          this.currentMs = this.lastFPS > 0.0f ? 1000.0f / this.lastFPS : 0.0f;
+          this.lastFrameNano = nowNano;
+          appendLsfgGraphSampleLocked(this.currentMs);
+        }
+      }
+      this.lastLsfgPresents = snapshot.totalPresents;
+      this.lastLsfgStatsSampleNano = nowNano;
+    }
+  }
+
+  private void appendSyntheticLsfgFramesLocked(long startNano, long endNano, long frameDelta) {
+    if (frameDelta <= 0L || endNano <= startNano) return;
+    long samples = Math.min(frameDelta, MAX_FRAME_SAMPLES);
+    long intervalNano = Math.max(1L, (endNano - startNano) / frameDelta);
+    long firstFrame = frameDelta - samples + 1L;
+    for (long i = firstFrame; i <= frameDelta; i++) {
+      long timestamp = startNano + intervalNano * i;
+      appendFrameTimeLocked(Math.min(timestamp, endNano));
+    }
+  }
+
+  private void appendLsfgGraphSampleLocked(float ms) {
+    if (!this.enableGraph || this.graphView == null) return;
+    if (ms <= 0.0f || ms >= 500.0f) return;
+    long time = SystemClock.elapsedRealtime();
+    if (time - this.lastGraphRedraw < LSFG_GRAPH_REFRESH_MS) return;
+    this.graphView.addFrame(ms);
+    this.graphView.postInvalidate();
+    this.lastGraphRedraw = time;
+  }
+
+  private LsfgStatsSnapshot readLsfgStats(File file) {
+    try {
+      if (!file.isFile() || file.length() < LSFG_STATS_SIZE) return null;
+      byte[] first = new byte[LSFG_STATS_SIZE];
+      byte[] second = new byte[LSFG_STATS_SIZE];
+      try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+        raf.readFully(first);
+        long firstSeq =
+            ByteBuffer.wrap(first).order(ByteOrder.LITTLE_ENDIAN).getLong(8);
+        if ((firstSeq & 1L) != 0L) return null;
+        raf.seek(0L);
+        raf.readFully(second);
+      }
+
+      ByteBuffer buffer = ByteBuffer.wrap(second).order(ByteOrder.LITTLE_ENDIAN);
+      int magic = buffer.getInt();
+      int version = buffer.getInt();
+      long sequence = buffer.getLong();
+      long firstSeq = ByteBuffer.wrap(first).order(ByteOrder.LITTLE_ENDIAN).getLong(8);
+      if (magic != LSFG_STATS_MAGIC
+          || version != LSFG_STATS_VERSION
+          || sequence != firstSeq
+          || (sequence & 1L) != 0L) {
+        return null;
+      }
+      long totalPresents = buffer.getLong();
+      buffer.getLong(); // generatedPresents
+      buffer.getLong(); // realPresents
+      long lastPresentNs = buffer.getLong();
+      return new LsfgStatsSnapshot(totalPresents, lastPresentNs);
+    } catch (Exception ignored) {
+      return null;
+    }
   }
 
   private long readSysFs(String path) {
@@ -1306,6 +1441,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.battFailCount++;
       }
     }
+    sampleLsfgStats();
   }
 
   @Override
@@ -1395,6 +1531,16 @@ public class FrameRating extends LinearLayout implements Runnable {
     b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
   }
 
+  private static final class LsfgStatsSnapshot {
+    final long totalPresents;
+    final long lastPresentNs;
+
+    LsfgStatsSnapshot(long totalPresents, long lastPresentNs) {
+      this.totalPresents = totalPresents;
+      this.lastPresentNs = lastPresentNs;
+    }
+  }
+
   private class FrametimeGraphView extends View {
     private final int MAX_SAMPLES = 60;
     private final float[] history = new float[MAX_SAMPLES];
@@ -1413,14 +1559,14 @@ public class FrameRating extends LinearLayout implements Runnable {
       setBackgroundColor(0);
     }
 
-    public void addFrame(float ms) {
+    public synchronized void addFrame(float ms) {
       this.history[this.historyIndex] = Math.min(ms, 66.6f);
       this.historyIndex = (this.historyIndex + 1) % MAX_SAMPLES;
       if (this.historySize < MAX_SAMPLES) this.historySize++;
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected synchronized void onDraw(Canvas canvas) {
       super.onDraw(canvas);
       if (this.historySize < 2) return;
       float w = getWidth();

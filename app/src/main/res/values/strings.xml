@@ -1324,8 +1324,4 @@ Installed path:
     <string name="best_configs_import_arch_mismatch">This config targets %1$s; this container is %2$s. The game may not launch — consider creating a new container for the imported Wine version before launching.</string>
     <string name="best_configs_import_pick_file">Pick a config file (.json)</string>
 
-    <!-- Performance recording settings -->
-    <string name="settings_hud_record_to_file_title">Record performance to file</string>
-    <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
-    <string name="settings_leaderboard_category">Performance</string>
 </resources>

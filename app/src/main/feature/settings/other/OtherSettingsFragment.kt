@@ -174,10 +174,6 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putBoolean("share_android_clipboard", checked) }
                             refresh()
                         },
-                        onRecordPerformanceToFileChanged = { checked ->
-                            preferences.edit { putBoolean("hud_record_to_file", checked) }
-                            refresh()
-                        },
                         onRunSetupWizard = {
                             startActivity(SetupWizardActivity.createManualRerunIntent(ctx))
                         },
@@ -254,7 +250,6 @@ class OtherSettingsFragment : Fragment() {
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
-                recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
                 lsfgStatus = currentLsfgStatus(ctx),
             )
