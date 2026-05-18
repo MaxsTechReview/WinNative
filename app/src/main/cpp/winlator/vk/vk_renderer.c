@@ -23,7 +23,6 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 // SPIR-V shader byte arrays generated at build time by glslc + bin2c.cmake.
 #include "shaders/window_vert.spv.h"
@@ -36,20 +35,6 @@
 #include "shaders/effect_hdr_frag.spv.h"
 #include "shaders/effect_natural_frag.spv.h"
 #include "shaders/sgsr1_frag.spv.h"
-
-// ============================================================
-// Time helpers
-// ============================================================
-
-static int64_t now_ns(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-
-static const int64_t FPS_LIMIT_RESYNC_NS = 100000000LL;
-static const int64_t FPS_LIMIT_SLEEP_THRESHOLD_NS = 500000LL;
-static const int64_t FPS_LIMIT_SPIN_WINDOW_NS = 4000000LL;
 
 // ============================================================
 // Forward decls
@@ -1946,33 +1931,12 @@ static bool record_and_submit_frame(VkRenderer* r) {
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
-    // FPS limiter. Keep this cadence aligned with XClient.enforceAbsoluteFramerate().
-    if (r->target_frame_time_ns > 0) {
-        int64_t now = now_ns();
-        if (r->next_frame_time_ns == 0 || now > r->next_frame_time_ns + FPS_LIMIT_RESYNC_NS) {
-            r->next_frame_time_ns = now + r->target_frame_time_ns;
-        }
-
-        int64_t sleep_ns = r->next_frame_time_ns - now;
-        if (sleep_ns > FPS_LIMIT_SLEEP_THRESHOLD_NS) {
-            if (sleep_ns > FPS_LIMIT_SPIN_WINDOW_NS) {
-                int64_t coarse_sleep_ns = sleep_ns - FPS_LIMIT_SPIN_WINDOW_NS;
-                struct timespec ts;
-                ts.tv_sec = coarse_sleep_ns / 1000000000LL;
-                ts.tv_nsec = coarse_sleep_ns % 1000000000LL;
-                nanosleep(&ts, NULL);
-            }
-
-            while (now_ns() < r->next_frame_time_ns) {
-                // Spin for the final interval to match upstream's precise heartbeat.
-            }
-        }
-
-        r->next_frame_time_ns += r->target_frame_time_ns;
-    } else {
-        r->next_frame_time_ns = 0;
-    }
-
+    // No compositor-side FPS pacing here. Frame rate is already bounded by the X dispatch
+    // thread's XClient.enforceAbsoluteFramerate (which gates the game), Choreographer-paced
+    // requestRenderCoalesced (one render request per vsync), and FIFO present mode. Running
+    // a third sleep+busy-spin on the render thread duplicates that pacing for no FPS gain
+    // and burned ~24% of one core on busy-spinning under the GL renderer's behaviour,
+    // measurably regressing in-game 60 FPS caps.
     return true;
 }
 
@@ -2352,16 +2316,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
     // here needs to touch swapchain-tied resources.
 }
 
+// FPS pacing is enforced on the X dispatch thread (XClient.enforceAbsoluteFramerate) and by
+// the swapchain present mode + Choreographer-coalesced render requests. The compositor used
+// to run its own sleep+busy-spin here too, which duplicated the pacing and burned CPU; this
+// entry point is kept as a no-op for Java-side ABI compatibility.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlong handle, jint fps) {
-    (void)env; (void)clazz;
-    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
-    if (!r) return;
-    if (fps <= 0) {
-        r->target_frame_time_ns = 0;
-        r->next_frame_time_ns = 0;
-    } else {
-        r->target_frame_time_ns = 1000000000LL / fps;
-    }
+    (void)env; (void)clazz; (void)handle; (void)fps;
 }
 
 // Set the compositor present mode. Java passes 0=FIFO, 1=MAILBOX, 2=IMMEDIATE; anything else
