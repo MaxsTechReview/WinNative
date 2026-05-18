@@ -58,6 +58,8 @@ import androidx.compose.ui.platform.ComposeView;
 import androidx.core.view.WindowInsetsCompat;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.feature.leaderboard.SessionRecordingController;
+import com.winlator.cmod.feature.lsfg.LsfgVerification;
+import com.winlator.cmod.feature.lsfg.LsfgVkManager;
 import com.winlator.cmod.feature.stores.steam.enums.Marker;
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils;
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager;
@@ -534,7 +536,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), getEffectiveRuntimeFpsLimit());
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -542,6 +544,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } else {
             runOnUiThread(applyRefresh);
         }
+    }
+
+    private boolean isLsfgFrameGenerationActive() {
+        return container != null && LsfgVkManager.INSTANCE.isActive(this, container);
+    }
+
+    private int getEffectiveRuntimeFpsLimit() {
+        return isLsfgFrameGenerationActive() ? 0 : runtimeFpsLimit;
+    }
+
+    private void applyRuntimeFpsLimit() {
+        if (xServerView != null && xServerView.getRenderer() != null) {
+            xServerView.getRenderer().setFpsLimit(getEffectiveRuntimeFpsLimit());
+        }
+        applyPreferredRefreshRate();
     }
 
 
@@ -974,7 +991,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         imageFs.setWinePath(wineInfo.path);
 
         ProcessHelper.removeAllDebugCallbacks();
-        if (enableLogsMenu) {
+        // Capture wine stderr to /sdcard/WinNative/logs whenever the user has
+        // wine/box64 debug on OR LSFG is enabled — LSFG writes diagnostic info
+        // (config match, swapchain wrapper status, fallback errors) to stderr
+        // and we need it to tell genuine frame generation from silent passthrough.
+        boolean lsfgEnabled = container != null && LsfgVkManager.INSTANCE.getEnabled(container);
+        if (enableLogsMenu || lsfgEnabled) {
             LogFileUtils.setFilename(getExecutable());
             attachLogStreamSink();
         }
@@ -3087,7 +3109,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false),
-                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
+                LsfgVerification.INSTANCE.isVerified(this),
+                container != null && LsfgVkManager.INSTANCE.getEnabled(container),
+                container != null ? LsfgVkManager.INSTANCE.getMultiplier(container) : LsfgVkManager.DEFAULT_MULTIPLIER,
+                container != null ? LsfgVkManager.INSTANCE.getFlowScale(container) : LsfgVkManager.DEFAULT_FLOW_SCALE,
+                container == null || LsfgVkManager.INSTANCE.getPerformanceMode(container)
         );
 
         if (drawerActionListener == null) {
@@ -3218,10 +3245,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onFPSLimitChanged(int limit) {
                         runtimeFpsLimit = Math.max(0, limit);
-                        if (xServerView != null) {
-                            xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
-                        }
-                        applyPreferredRefreshRate();
+                        applyRuntimeFpsLimit();
                         if (shortcut != null) {
                             shortcut.putExtra("fpsLimit", runtimeFpsLimit > 0 ? String.valueOf(runtimeFpsLimit) : null);
                             shortcut.saveData();
@@ -3436,6 +3460,49 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onLogsShare() {
                         shareLogStream();
+                    }
+
+                    @Override
+                    public void onLsfgEnabledChanged(boolean enabled) {
+                        if (container == null) return;
+                        container.putExtra(LsfgVkManager.EXTRA_ENABLED, String.valueOf(enabled));
+                        container.saveData();
+                        if (imageFs != null) {
+                            LsfgVkManager.INSTANCE.ensureRuntimeInstalled(XServerDisplayActivity.this, container, imageFs);
+                            LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        }
+                        applyRuntimeFpsLimit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onLsfgMultiplierChanged(int multiplier) {
+                        if (container == null) return;
+                        int clamped = Math.max(1, Math.min(4, multiplier));
+                        container.putExtra(LsfgVkManager.EXTRA_MULTIPLIER, String.valueOf(clamped));
+                        container.saveData();
+                        if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        applyRuntimeFpsLimit();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onLsfgFlowScaleChanged(float flowScale) {
+                        if (container == null) return;
+                        float clamped = Math.max(0.25f, Math.min(1.0f, flowScale));
+                        container.putExtra(LsfgVkManager.EXTRA_FLOW_SCALE, String.valueOf(clamped));
+                        container.saveData();
+                        if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onLsfgPerformanceModeChanged(boolean enabled) {
+                        if (container == null) return;
+                        container.putExtra(LsfgVkManager.EXTRA_PERFORMANCE_MODE, String.valueOf(enabled));
+                        container.saveData();
+                        if (imageFs != null) LsfgVkManager.INSTANCE.writeConfig(XServerDisplayActivity.this, container, imageFs);
+                        renderDrawerMenu();
                     }
                 };
         }
@@ -4663,7 +4730,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
             try {
                 runtimeFpsLimit = Integer.parseInt(savedFpsLimit);
-                renderer.setFpsLimit(runtimeFpsLimit);
+                renderer.setFpsLimit(getEffectiveRuntimeFpsLimit());
             } catch (NumberFormatException e) {
                 runtimeFpsLimit = 0;
             }

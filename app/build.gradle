@@ -46,12 +46,18 @@ abstract class InstallVulkanValidationLayerTask extends DefaultTask {
 task checkSubmodules {
     // Resolve the file path during the configuration phase so we don't
     // pass the Gradle Project object into the execution closure (which breaks the Configuration Cache).
-    def submodulePath = file("src/main/cpp/adrenotools").absolutePath
+    def submodulePaths = [
+            file("src/main/cpp/adrenotools").absolutePath,
+            file("src/main/cpp/lsfg-vk-android").absolutePath,
+            file("src/main/cpp/lsfg-vk-android/lsfg-vk-android").absolutePath
+    ]
 
     doFirst {
-        def adrenotoolsDir = new File(submodulePath)
-        if (adrenotoolsDir.exists() && adrenotoolsDir.isDirectory() && (adrenotoolsDir.list()?.length ?: 0) == 0) {
-            throw new GradleException("Native submodules are missing! Please run 'git submodule update --init --recursive' in your terminal before building.")
+        submodulePaths.each { submodulePath ->
+            def submoduleDir = new File(submodulePath)
+            if (!submoduleDir.exists() || !submoduleDir.isDirectory() || (submoduleDir.list()?.length ?: 0) == 0) {
+                throw new GradleException("Native submodules are missing! Please run 'git submodule update --init --recursive' in your terminal before building.")
+            }
         }
     }
 }

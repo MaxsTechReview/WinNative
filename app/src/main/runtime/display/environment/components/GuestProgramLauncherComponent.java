@@ -7,6 +7,7 @@ import android.net.ConnectivityManager;
 import android.os.Process;
 import android.util.Log;
 import androidx.preference.PreferenceManager;
+import com.winlator.cmod.feature.lsfg.LsfgVkManager;
 import com.winlator.cmod.runtime.compat.box64.Box64Preset;
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager;
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset;
@@ -798,13 +799,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     envVars.put("XDG_CONFIG_DIRS", rootDir.getPath() + "/usr/etc/xdg");
     envVars.put("GST_PLUGIN_PATH", rootDir.getPath() + "/usr/lib/gstreamer-1.0");
     envVars.put("FONTCONFIG_PATH", rootDir.getPath() + "/usr/etc/fonts");
-    envVars.put(
-        "VK_LAYER_PATH",
-        rootDir.getPath()
-            + "/usr/share/vulkan/implicit_layer.d"
-            + ":"
-            + rootDir.getPath()
-            + "/usr/share/vulkan/explicit_layer.d");
+    String implicitLayerPath = rootDir.getPath() + "/usr/share/vulkan/implicit_layer.d";
+    String explicitLayerPath = rootDir.getPath() + "/usr/share/vulkan/explicit_layer.d";
+    envVars.put("VK_LAYER_PATH", implicitLayerPath + ":" + explicitLayerPath);
+    envVars.put("VK_IMPLICIT_LAYER_PATH", implicitLayerPath);
     envVars.put("WRAPPER_LAYER_PATH", rootDir.getPath() + "/usr/lib");
     envVars.put("WRAPPER_CACHE_PATH", rootDir.getPath() + "/usr/var/cache");
     envVars.put("WINE_NO_DUPLICATE_EXPLORER", "1");
@@ -997,6 +995,18 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.get("FAKE_UDEV_DATA_DIR"));
     FEXCorePresetManager.normalizeSmcChecksEnvVars(envVars, this.envVars);
 
+    // Install the LSFG Vulkan layer runtime + write its conf.toml, then
+    // contribute LSFG_* env vars. Verified LSFG keeps the layer loadable even
+    // when the session toggle starts off; conf.toml switches it to passthrough.
+    // Done after mergeExternalEnvVars so the launcher-owned values cannot be
+    // overwritten by the activity-side env.
+    if (container != null) {
+      String lsfgProcess = resolveLsfgProcessIdentifier();
+      LsfgVkManager.INSTANCE.ensureRuntimeInstalled(context, container, imageFs);
+      LsfgVkManager.INSTANCE.writeConfig(context, container, imageFs, lsfgProcess);
+      LsfgVkManager.INSTANCE.applyLaunchEnv(context, container, imageFs, envVars, lsfgProcess);
+    }
+
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
     if (shortcut != null) {
@@ -1068,7 +1078,25 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             + envVars.get("GALLIUM_DRIVER")
             + " "
             + "MESA_VK_WSI_DEBUG="
-            + envVars.get("MESA_VK_WSI_DEBUG"));
+            + envVars.get("MESA_VK_WSI_DEBUG")
+            + " "
+            + "VK_LAYER_PATH="
+            + envVars.get("VK_LAYER_PATH")
+            + " "
+            + "VK_IMPLICIT_LAYER_PATH="
+            + envVars.get("VK_IMPLICIT_LAYER_PATH")
+            + " "
+            + "LSFG_CONFIG="
+            + envVars.get("LSFG_CONFIG")
+            + " "
+            + "LSFG_PROCESS="
+            + envVars.get("LSFG_PROCESS")
+            + " "
+            + "LSFG_LAST_PATH="
+            + envVars.get("LSFG_LAST_PATH")
+            + " "
+            + "DISABLE_LSFG="
+            + envVars.get("DISABLE_LSFG"));
 
     return ProcessHelper.exec(
         command,
@@ -1111,6 +1139,50 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("BOX86_CPULIST", cpuList);
       }
     }
+  }
+
+  private String resolveLsfgProcessIdentifier() {
+    String[] shortcutCandidates = new String[] {
+      shortcut != null ? shortcut.getExtra("launch_exe_path", "") : "",
+      shortcut != null ? shortcut.getExtra("custom_exe", "") : "",
+      shortcut != null ? shortcut.path : "",
+    };
+
+    for (String candidate : shortcutCandidates) {
+      String process = exeNameFromPath(candidate);
+      if (!process.isEmpty() && !isLsfgLauncherProcess(process)) {
+        return process;
+      }
+    }
+
+    return LsfgVkManager.INSTANCE.resolveProcessIdentifier(guestExecutable);
+  }
+
+  private static String exeNameFromPath(String path) {
+    if (path == null || path.trim().isEmpty()) return "";
+    String normalized = path.trim().replace('\\', '/');
+    int quoteIndex = normalized.lastIndexOf('"');
+    if (quoteIndex >= 0 && quoteIndex == normalized.length() - 1) {
+      normalized = normalized.substring(0, quoteIndex);
+    }
+    int exeIndex = normalized.toLowerCase(java.util.Locale.ROOT).lastIndexOf(".exe");
+    if (exeIndex < 0) return "";
+    normalized = normalized.substring(0, exeIndex + 4);
+    int slashIndex = normalized.lastIndexOf('/');
+    return slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
+  }
+
+  private static boolean isLsfgLauncherProcess(String process) {
+    String lower = process.toLowerCase(java.util.Locale.ROOT);
+    return lower.equals("wine.exe")
+        || lower.equals("wine64.exe")
+        || lower.equals("explorer.exe")
+        || lower.equals("winhandler.exe")
+        || lower.equals("wineboot.exe")
+        || lower.equals("wineserver.exe")
+        || lower.equals("steamclient_loader_x64.exe")
+        || lower.equals("steamclient_loader.exe")
+        || lower.equals("steam.exe");
   }
 
   private void repairRuntimeExecutablePermissions(Context context, ImageFs imageFs) {

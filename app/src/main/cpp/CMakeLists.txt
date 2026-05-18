@@ -8,6 +8,19 @@ add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
 
 # ----------------------------------------------------------------------------
+# lsfg-vk-android: Vulkan implicit layer for Lossless Scaling frame generation.
+# The submodule's inner CMakeLists.txt defines a `lsfg-vk` SHARED target plus a
+# STATIC framegen lib. We force-enable its Android/Wine code path and rename the
+# output so the .so name matches the implicit-layer manifest
+# (library_path = ".../liblsfg-vk-layer.so"). Static thirdparty deps don't ship.
+# ----------------------------------------------------------------------------
+set(LSFGVK_ANDROID_WINE ON CACHE BOOL "Build lsfg-vk for Wine-on-Android" FORCE)
+add_subdirectory(lsfg-vk-android/lsfg-vk-android)
+if(TARGET lsfg-vk)
+    set_target_properties(lsfg-vk PROPERTIES OUTPUT_NAME "lsfg-vk-layer")
+endif()
+
+# ----------------------------------------------------------------------------
 # SPIR-V shader compilation
 # Each .glsl is compiled by glslc (shipped with the NDK) into a .spv binary,
 # then converted to a C uint32_t array via bin2c.cmake. Headers are emitted

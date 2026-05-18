@@ -27,6 +27,7 @@ import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
 import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.feature.lsfg.LsfgVerification
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
@@ -51,6 +52,15 @@ class OtherSettingsFragment : Fragment() {
             if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
             val uri = result.data?.data ?: return@registerForActivityResult
             installSoundFont(uri)
+        }
+
+    private val uploadLsfgDllLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+            val uri = result.data?.data ?: return@registerForActivityResult
+            handleLsfgDllPicked(uri)
         }
 
     override fun onViewCreated(
@@ -172,6 +182,18 @@ class OtherSettingsFragment : Fragment() {
                             startActivity(SetupWizardActivity.createManualRerunIntent(ctx))
                         },
                         onReinstallImagefs = { startImagefsReinstall() },
+                        onUploadLsfgDll = {
+                            val intent =
+                                Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                    type = "*/*"
+                                }
+                            uploadLsfgDllLauncher.launch(intent)
+                        },
+                        onRemoveLsfgDll = {
+                            LsfgVerification.clear(ctx)
+                            refresh()
+                        },
                     )
                 }
             }
@@ -234,7 +256,40 @@ class OtherSettingsFragment : Fragment() {
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
                 recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
+                lsfgStatus = currentLsfgStatus(ctx),
             )
+    }
+
+    private fun currentLsfgStatus(ctx: Context): LsfgStatus =
+        if (LsfgVerification.isVerified(ctx)) LsfgStatus.Verified else uiState.lsfgStatus.takeIf {
+            it == LsfgStatus.NotOwned || it == LsfgStatus.NotSignedIn || it == LsfgStatus.Failed
+        } ?: LsfgStatus.NotUploaded
+
+    private fun handleLsfgDllPicked(uri: Uri) {
+        val ctx = context ?: return
+        uiState = uiState.copy(lsfgStatus = LsfgStatus.Verifying)
+        // Verification touches Steam state (in-memory) + filesystem; keep it
+        // on the main thread for simplicity since SteamService getters are
+        // synchronous (runBlocking on IO).
+        val result = LsfgVerification.verifyAndStore(ctx, uri)
+        val status =
+            when (result) {
+                is LsfgVerification.Result.Ok -> LsfgStatus.Verified
+                LsfgVerification.Result.NotOwned -> LsfgStatus.NotOwned
+                LsfgVerification.Result.NotSignedIn -> LsfgStatus.NotSignedIn
+                is LsfgVerification.Result.IoFailure -> LsfgStatus.Failed
+            }
+        uiState = uiState.copy(lsfgStatus = status)
+        if (status != LsfgStatus.Verified) {
+            val msgId =
+                when (status) {
+                    LsfgStatus.NotOwned -> R.string.settings_other_lsfg_status_not_owned
+                    LsfgStatus.NotSignedIn -> R.string.settings_other_lsfg_status_signed_out
+                    LsfgStatus.Failed -> R.string.settings_other_lsfg_verify_failed
+                    else -> return
+                }
+            WinToast.show(ctx, msgId)
+        }
     }
 
     private fun loadSoundFontFiles(ctx: Context): List<String> {

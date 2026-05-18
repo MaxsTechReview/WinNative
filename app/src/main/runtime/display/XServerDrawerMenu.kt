@@ -65,6 +65,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
@@ -198,7 +199,7 @@ private enum class HUDMetricEditor(
     SCALE(minPercent = 50, maxPercent = 200),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, LSFG, TASK_MANAGER, LOGS }
 
 internal const val LogsPaneMaxLines = 2000
 
@@ -260,6 +261,12 @@ private val RAIL_PANES =
             pane = DrawerPane.SCREEN_EFFECTS,
             itemId = R.id.main_menu_screen_effects,
             labelRes = R.string.session_drawer_rail_label_effects,
+        ),
+        RailPaneSpec(
+            pane = DrawerPane.LSFG,
+            itemId = R.id.main_menu_lsfg,
+            labelRes = R.string.session_drawer_rail_label_lsfg,
+            iconOverride = Icons.Outlined.Bolt,
         ),
     )
 
@@ -326,6 +333,11 @@ data class XServerDrawerState(
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = false,
+    val lsfgAvailable: Boolean = false,
+    val lsfgEnabled: Boolean = false,
+    val lsfgMultiplier: Int = 2,
+    val lsfgFlowScale: Float = 0.8f,
+    val lsfgPerformanceMode: Boolean = true,
 )
 
 class XServerDrawerStateHolder(
@@ -530,6 +542,14 @@ interface XServerDrawerActionListener {
     fun onLogsPaneVisibilityChanged(visible: Boolean)
 
     fun onLogsShare()
+
+    fun onLsfgEnabledChanged(enabled: Boolean)
+
+    fun onLsfgMultiplierChanged(multiplier: Int)
+
+    fun onLsfgFlowScaleChanged(flowScale: Float)
+
+    fun onLsfgPerformanceModeChanged(enabled: Boolean)
 }
 
 fun buildXServerDrawerState(
@@ -581,6 +601,11 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = false,
     fullscreenEnabled: Boolean = false,
+    lsfgAvailable: Boolean = false,
+    lsfgEnabled: Boolean = false,
+    lsfgMultiplier: Int = 2,
+    lsfgFlowScale: Float = 0.8f,
+    lsfgPerformanceMode: Boolean = true,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -671,6 +696,23 @@ fun buildXServerDrawerState(
             ),
         )
 
+    if (lsfgAvailable) {
+        val screenEffectsIdx = items.indexOfFirst { it.itemId == R.id.main_menu_screen_effects }
+        val lsfgItem =
+            XServerDrawerItem(
+                itemId = R.id.main_menu_lsfg,
+                title = context.getString(R.string.session_drawer_lsfg_title),
+                subtitle = context.getString(R.string.session_drawer_lsfg_subtitle),
+                icon = Icons.Outlined.Bolt,
+                active = lsfgEnabled,
+            )
+        if (screenEffectsIdx >= 0) {
+            items.add(screenEffectsIdx + 1, lsfgItem)
+        } else {
+            items += lsfgItem
+        }
+    }
+
     if (showMagnifier) {
         items +=
             XServerDrawerItem(
@@ -740,6 +782,11 @@ fun buildXServerDrawerState(
         inputControlsOverlayOpacity = inputControlsOverlayOpacity,
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
+        lsfgAvailable = lsfgAvailable,
+        lsfgEnabled = lsfgEnabled,
+        lsfgMultiplier = lsfgMultiplier,
+        lsfgFlowScale = lsfgFlowScale,
+        lsfgPerformanceMode = lsfgPerformanceMode,
     )
 }
 
@@ -856,6 +903,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
+                                DrawerPane.LSFG -> LsfgPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(
                                         taskManagerState = taskManagerState,
@@ -2176,6 +2224,78 @@ private fun ScreenEffectsPaneContent(
                             valueRange = 0f..100f,
                             steps = 99,
                             onValueChange = { listener.onVividStrengthChanged(it.roundToInt()) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun LsfgPaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+                PaneSectionLabel(stringResource(R.string.session_drawer_lsfg_title))
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_lsfg_enable),
+                    checked = state.lsfgEnabled,
+                    onCheckedChange = listener::onLsfgEnabledChanged,
+                )
+
+                AnimatedVisibility(
+                    visible = state.lsfgEnabled,
+                    enter =
+                        expandVertically(
+                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.Top,
+                        ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                    exit =
+                        shrinkVertically(
+                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.Top,
+                        ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.session_drawer_lsfg_multiplier))
+                        ChipFlow {
+                            // GameNative's layer accepts 1..4; 1 = passthrough (disabled).
+                            (2..4).forEach { mult ->
+                                HUDToggleChip(
+                                    label = "x$mult",
+                                    checked = state.lsfgMultiplier == mult,
+                                    onClick = { listener.onLsfgMultiplierChanged(mult) },
+                                )
+                            }
+                        }
+
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_drawer_lsfg_flow_scale),
+                            valueText = "%.2f".format(state.lsfgFlowScale),
+                            value = state.lsfgFlowScale,
+                            valueRange = 0.25f..1.0f,
+                            steps = 14, // 0.05 increments
+                            onValueChange = { listener.onLsfgFlowScaleChanged(it) },
+                        )
+
+                        DrawerBooleanRow(
+                            title = stringResource(R.string.session_drawer_lsfg_performance_mode),
+                            checked = state.lsfgPerformanceMode,
+                            onCheckedChange = listener::onLsfgPerformanceModeChanged,
                         )
                     }
                 }

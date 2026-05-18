@@ -38,6 +38,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -115,7 +117,10 @@ data class OtherSettingsState(
     val shareClipboard: Boolean = false,
     val recordPerformanceToFile: Boolean = false,
     val imagefsInstallProgress: Int? = null,
+    val lsfgStatus: LsfgStatus = LsfgStatus.NotUploaded,
 )
+
+enum class LsfgStatus { NotUploaded, Verifying, Verified, NotOwned, NotSignedIn, Failed }
 
 @Composable
 private fun settingsSliderColors() =
@@ -158,6 +163,8 @@ fun OtherSettingsScreen(
     onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
+    onUploadLsfgDll: () -> Unit,
+    onRemoveLsfgDll: () -> Unit,
 ) {
     var showReinstallDialog by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
@@ -340,6 +347,21 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.Speed,
                 checked = state.recordPerformanceToFile,
                 onCheckedChange = onRecordPerformanceToFileChanged,
+            )
+        }
+
+        item(key = "lsfg_section") {
+            SectionLabel(
+                stringResource(R.string.settings_other_section_lsfg),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        item(key = "lsfg_dll_card") {
+            LsfgDllCard(
+                status = state.lsfgStatus,
+                onUpload = onUploadLsfgDll,
+                onRemove = onRemoveLsfgDll,
             )
         }
 
@@ -1168,6 +1190,95 @@ private fun SettingsActionCard(
                 textColor = Accent,
                 onClick = onClick,
             )
+        }
+    }
+}
+
+// LSFG DLL upload card: lossless.dll picker + Steam-ownership status line.
+@Composable
+private fun LsfgDllCard(
+    status: LsfgStatus,
+    onUpload: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val statusText =
+        when (status) {
+            LsfgStatus.Verified -> stringResource(R.string.settings_other_lsfg_status_verified)
+            LsfgStatus.NotUploaded -> stringResource(R.string.settings_other_lsfg_status_not_uploaded)
+            LsfgStatus.NotOwned -> stringResource(R.string.settings_other_lsfg_status_not_owned)
+            LsfgStatus.NotSignedIn -> stringResource(R.string.settings_other_lsfg_status_signed_out)
+            LsfgStatus.Verifying -> stringResource(R.string.settings_other_lsfg_verifying)
+            LsfgStatus.Failed -> stringResource(R.string.settings_other_lsfg_verify_failed)
+        }
+    val isVerified = status == LsfgStatus.Verified
+    val statusColor = if (isVerified) Accent else TextSecondary
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(IconBoxBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (isVerified) Icons.Outlined.CheckCircle else Icons.Outlined.Bolt,
+                    contentDescription = null,
+                    tint = if (isVerified) Accent else Accent,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_other_lsfg_upload_title),
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = stringResource(R.string.settings_other_lsfg_upload_summary),
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = statusText,
+                    color = statusColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            if (isVerified) {
+                SmallActionButton(
+                    label = stringResource(R.string.settings_other_lsfg_remove),
+                    textColor = TextSecondary,
+                    onClick = onRemove,
+                )
+            } else {
+                SmallActionButton(
+                    label = stringResource(R.string.settings_other_lsfg_upload_action),
+                    textColor = Accent,
+                    onClick = onUpload,
+                )
+            }
         }
     }
 }
