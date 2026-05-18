@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">未安装游戏\n点击打开 Winlator 后端</string>
     <string name="library_games_installed_badge">已安装</string>
     <string name="library_games_unknown_game">未知游戏</string>
-    <string name="library_games_layouts_header">布局</string>
+    <string name="library_games_layouts_header">游戏库布局</string>
     <string name="library_games_layout_carousel">轮播</string>
     <string name="library_games_layout_list">列表</string>
     <string name="library_games_custom_game">自定义游戏</string>
@@ -268,13 +268,13 @@
     <string name="shortcuts_properties_exclusive_input">独占输入</string>
     <string name="shortcuts_properties_custom_game_settings">自定义游戏设置</string>
     <string name="shortcuts_properties_use_cold_client">使用 ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient 是处理 Steam 模拟和 DRM 的首选方式。它在运行时修补 DRM，无需修改游戏文件。</string>
+    <string name="shortcuts_properties_use_cold_client_description">首选 Steam 模拟方式。运行时修补 DRM，无需修改文件。</string>
     <string name="shortcuts_properties_unpack_files">旧版 DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">从磁盘上的 exe 中移除 SteamStub DRM。仅在游戏无法正常启动时启用。ColdClient 的运行时补丁程序会自动处理大多数游戏。</string>
+    <string name="shortcuts_properties_unpack_files_description">从 exe 中移除 SteamStub DRM。一次性操作。仅在游戏出问题时禁用。</string>
     <string name="shortcuts_properties_force_dlc">强制 DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">仅在 DLC 未被检测到或含 DLC 的存档无法正常工作时启用</string>
+    <string name="shortcuts_properties_force_dlc_description">如果 DLC 未被检测到或 DLC 存档无法正常工作，请启用。</string>
     <string name="shortcuts_properties_launch_steam_client_beta">启动 Steam 客户端（测试版）</string>
-    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中启动真实 Steam 客户端\n需要 Steam 账号，可能会降低性能\n并非所有游戏都支持</string>
+    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中运行真实 Steam 客户端。需要账号。可能会降低性能；并非所有游戏都支持。</string>
     <string name="shortcuts_properties_steam_type">Steam 客户端性能</string>
     <string name="steam_section_emulator">Steam 模拟器 (Goldberg)</string>
     <string name="steam_section_real_client">真实 Steam 客户端</string>
@@ -1212,7 +1212,7 @@
     <string name="shortcuts_library_artwork_title">库封面</string>
     <string name="shortcuts_list_readded_existing">已重新添加现有快捷方式</string>
     <string name="shortcuts_properties_runtime_patcher">运行时 DRM 破解器</string>
-    <string name="shortcuts_properties_runtime_patcher_description">每次启动时向游戏注入 Goldberg 运行时 DRM 破解 DLL。可绕过在"解包文件"剥离后仍存在的防篡改检测。会显著降低 FPS——仅在单独使用"解包文件"仍无法启动时启用。</string>
+    <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用 Unpack Files 失败时使用。</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">选择存档文件夹</string>
     <string name="cloud_saves_custom_folder_label">存档文件夹</string>

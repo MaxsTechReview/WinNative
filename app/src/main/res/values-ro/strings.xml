@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Niciun joc instalat\nApasa pentru a deschide Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALAT</string>
     <string name="library_games_unknown_game">Joc necunoscut</string>
-    <string name="library_games_layouts_header">ASPECTE</string>
+    <string name="library_games_layouts_header">ASPECTE ALE BIBLIOTECII</string>
     <string name="library_games_layout_carousel">Carusel</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_custom_game">Joc personalizat</string>
@@ -268,13 +268,13 @@
     <string name="shortcuts_properties_exclusive_input">Intrare exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Setari personalizate joc</string>
     <string name="shortcuts_properties_use_cold_client">Foloseste ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient este metoda preferată pentru gestionarea emulării Steam și a DRM. Aplică patch-ul DRM la rulare fără a modifica fișierele jocului.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Metoda preferata de emulare Steam. Aplica patch DRM la rulare fara a modifica fisiere.</string>
     <string name="shortcuts_properties_unpack_files">DRM vechi</string>
-    <string name="shortcuts_properties_unpack_files_description">Elimină DRM SteamStub din exe de pe disc. Activează doar dacă jocul nu pornește fără aceasta. Patcher-ul runtime al ColdClient gestionează automat majoritatea jocurilor.</string>
+    <string name="shortcuts_properties_unpack_files_description">Elimina DRM SteamStub din exe. Operatiune unica. Dezactiveaza doar daca un joc nu mai functioneaza.</string>
     <string name="shortcuts_properties_force_dlc">Forteaza DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Activeaza doar daca DLC-urile nu sunt detectate sau salvarile cu DLC nu functioneaza</string>
+    <string name="shortcuts_properties_force_dlc_description">Activeaza daca DLC-urile nu sunt detectate sau salvarile cu DLC nu functioneaza.</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Lanseaza clientul Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Lanseaza clientul real Steam in Wine\nNecesita un cont Steam si poate reduce performanta\nNu toate jocurile functioneaza</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Ruleaza clientul real Steam in Wine. Necesita un cont. Poate reduce performanta; nu toate jocurile functioneaza.</string>
     <string name="shortcuts_properties_steam_type">Performanta client Steam</string>
     <string name="steam_section_emulator">Emulator Steam (Goldberg)</string>
     <string name="steam_section_real_client">Client Steam real</string>
@@ -1212,7 +1212,7 @@ Cale instalata:
     <string name="shortcuts_library_artwork_title">Ilustrații bibliotecă</string>
     <string name="shortcuts_list_readded_existing">Scurtătură existentă readăugată</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injectează DLL-ul runtime DRM patcher al Goldberg în joc la fiecare lansare. Ocolește verificările anti-manipulare care supraviețuiesc stripării Unpack Files. Reduce semnificativ FPS-ul — activează doar dacă un joc nu reușește să se lanseze nici cu Unpack Files singur.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injecteaza un DLL patcher DRM la lansare. Reduce FPS — foloseste doar daca Unpack Files singur esueaza.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Selectează folderul salvărilor</string>
     <string name="cloud_saves_custom_folder_label">Folder salvări</string>

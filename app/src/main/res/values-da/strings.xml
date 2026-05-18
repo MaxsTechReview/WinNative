@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Ingen spil installeret\nKlik for at åbne Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALLERET</string>
     <string name="library_games_unknown_game">Ukendt spil</string>
-    <string name="library_games_layouts_header">LAYOUTS</string>
+    <string name="library_games_layouts_header">BIBLIOTEKSLAYOUTS</string>
     <string name="library_games_layout_carousel">Karrusel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>
@@ -268,13 +268,13 @@
     <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
     <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
     <string name="shortcuts_properties_use_cold_client">Brug ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient er den foretrukne måde at håndtere Steam-emulering og DRM. Det patcher DRM under kørsel uden at ændre spilfiler.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Foretrukken metode til Steam-emulering. Patcher DRM under kørsel uden at ændre filer.</string>
     <string name="shortcuts_properties_unpack_files">Ældre DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Fjern SteamStub DRM fra exe-filen på disken. Aktivér kun hvis spillet ikke starter uden det. ColdClient\'s runtime-patcher håndterer de fleste spil automatisk.</string>
+    <string name="shortcuts_properties_unpack_files_description">Fjerner SteamStub DRM fra exe-filen. Engangshandling. Deaktiver kun hvis et spil går i stykker.</string>
     <string name="shortcuts_properties_force_dlc">Tving DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Aktiver kun hvis DLC\'er ikke bliver fundet eller gemmedata med DLC ikke virker</string>
+    <string name="shortcuts_properties_force_dlc_description">Aktiver hvis DLC\'er ikke bliver fundet, eller gemmedata med DLC ikke virker.</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Starter den rigtige Steam-klient i Wine\nKræver en Steam-konto og kan reducere ydeevne\nIkke alle spil virker</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Kører den rigtige Steam-klient i Wine. Kræver en konto. Kan reducere ydeevnen; ikke alle spil virker.</string>
     <string name="shortcuts_properties_steam_type">Steam-klient ydeevne</string>
     <string name="steam_section_emulator">Steam-emulator (Goldberg)</string>
     <string name="steam_section_real_client">Rigtig Steam-klient</string>
@@ -1212,7 +1212,7 @@ Installeret sti:
     <string name="shortcuts_library_artwork_title">Biblioteksbilleder</string>
     <string name="shortcuts_list_readded_existing">Eksisterende genvej genføjet</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injicer Goldberg\'s runtime DRM patcher DLL i spillet ved hver opstart. Omgår anti-manipulationstjek der overlever Udpak filer-stripping. Reducerer FPS markant – aktiver kun hvis et spil stadig ikke starter med Udpak filer alene.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injicerer en DRM-patcher-DLL ved opstart. Reducerer FPS – brug kun hvis Udpak filer alene fejler.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Vælg mappe til gemte spil</string>
     <string name="cloud_saves_custom_folder_label">Mappe til gemte spil</string>

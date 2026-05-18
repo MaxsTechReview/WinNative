@@ -174,7 +174,7 @@
     <string name="library_games_no_games_hub">Brak zainstalowanych gier\nKliknij, aby otworzyć Winlator Backend</string>
     <string name="library_games_installed_badge">ZAINSTALOWANO</string>
     <string name="library_games_unknown_game">Nieznana gra</string>
-    <string name="library_games_layouts_header">UKŁADY</string>
+    <string name="library_games_layouts_header">UKŁADY BIBLIOTEKI</string>
     <string name="library_games_layout_carousel">Karuzela</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_custom_game">Własna gra</string>
@@ -272,13 +272,13 @@
     <string name="shortcuts_properties_exclusive_input">Wyłączne wejście</string>
     <string name="shortcuts_properties_custom_game_settings">Własne ustawienia gry</string>
     <string name="shortcuts_properties_use_cold_client">Użyj ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient to preferowany sposób obsługi emulacji Steam i DRM. Patchuje DRM w czasie działania bez modyfikowania plików gry.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Preferowana metoda emulacji Steam. Patchuje DRM w czasie działania bez modyfikowania plików.</string>
     <string name="shortcuts_properties_unpack_files">Starsze DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Usuwa SteamStub DRM z exe na dysku. Włącz tylko jeśli gra nie uruchamia się bez tego. Patcher runtime ColdClient obsługuje większość gier automatycznie.</string>
+    <string name="shortcuts_properties_unpack_files_description">Usuwa SteamStub DRM z exe. Operacja jednorazowa. Wyłącz tylko wtedy, gdy gra przestaje działać.</string>
     <string name="shortcuts_properties_force_dlc">Wymuś DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Włącz tylko wtedy, gdy DLC nie są wykrywane lub zapisy z DLC nie działają</string>
+    <string name="shortcuts_properties_force_dlc_description">Włącz, gdy DLC nie są wykrywane lub zapisy z DLC nie działają.</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Uruchom klienta Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Uruchamia prawdziwego klienta Steam w Wine\nWymaga konta Steam i może obniżyć wydajność\nNie wszystkie gry działają</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Uruchamia prawdziwego klienta Steam w Wine. Wymaga konta. Może obniżyć wydajność; nie wszystkie gry działają.</string>
     <string name="shortcuts_properties_steam_type">Wydajność klienta Steam</string>
     <string name="steam_section_emulator">Emulator Steam (Goldberg)</string>
     <string name="steam_section_real_client">Prawdziwy klient Steam</string>
@@ -1218,7 +1218,7 @@ Zainstalowana ścieżka:
     <string name="shortcuts_library_artwork_title">Grafiki biblioteki</string>
     <string name="shortcuts_list_readded_existing">Ponownie dodano istniejący skrót</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Wstrzykuje łatacz DRM Goldberga (DLL) do gry przy każdym uruchomieniu. Omija kontrole anty-tamper, które przetrwają operację Rozpakuj pliki. Znacząco obniża FPS — włączaj tylko wtedy, gdy gra nadal nie uruchamia się wyłącznie z opcją Rozpakuj pliki.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Wstrzykuje DLL patchera DRM przy starcie. Obniża FPS — używaj tylko, gdy samo Unpack Files zawodzi.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Wybierz folder zapisów</string>
     <string name="cloud_saves_custom_folder_label">Folder zapisów</string>

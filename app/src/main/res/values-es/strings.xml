@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">No hay juegos instalados\nHaz clic para abrir Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALADO</string>
     <string name="library_games_unknown_game">Juego desconocido</string>
-    <string name="library_games_layouts_header">DISEÑOS</string>
+    <string name="library_games_layouts_header">DISEÑOS DE BIBLIOTECA</string>
     <string name="library_games_layout_carousel">Carrusel</string>
     <string name="library_games_layout_list">Lista</string>
     <string name="library_games_custom_game">Juego personalizado</string>
@@ -268,13 +268,13 @@
     <string name="shortcuts_properties_exclusive_input">Entrada exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Ajustes personalizados del juego</string>
     <string name="shortcuts_properties_use_cold_client">Usar ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient es la forma preferida de manejar la emulación de Steam y el DRM. Parchea el DRM en tiempo de ejecución sin modificar los archivos del juego.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Método preferido de emulación de Steam. Parchea el DRM en tiempo de ejecución sin modificar archivos.</string>
     <string name="shortcuts_properties_unpack_files">DRM heredado</string>
-    <string name="shortcuts_properties_unpack_files_description">Elimina el DRM SteamStub del exe en disco. Actívalo solo si el juego no se inicia sin él. El parcheador en tiempo de ejecución de ColdClient maneja la mayoría de los juegos automáticamente.</string>
+    <string name="shortcuts_properties_unpack_files_description">Elimina el DRM SteamStub del exe. Operación única. Desactívalo solo si un juego falla.</string>
     <string name="shortcuts_properties_force_dlc">Forzar DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Activar solo si los DLCs no se detectan o las partidas guardadas con DLC no funcionan</string>
+    <string name="shortcuts_properties_force_dlc_description">Actívalo si no se detectan los DLC o si las partidas guardadas con DLC no funcionan.</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Iniciar cliente Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Inicia el cliente real de Steam en Wine\nRequiere una cuenta de Steam y puede reducir el rendimiento\nNo todos los juegos funcionan</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Ejecuta el cliente real de Steam en Wine. Requiere una cuenta. Puede reducir el rendimiento; no todos los juegos funcionan.</string>
     <string name="shortcuts_properties_steam_type">Rendimiento del cliente Steam</string>
     <string name="steam_section_emulator">Emulador de Steam (Goldberg)</string>
     <string name="steam_section_real_client">Cliente real de Steam</string>
@@ -1212,7 +1212,7 @@ Ruta instalada:
     <string name="shortcuts_library_artwork_title">Imágenes de la biblioteca</string>
     <string name="shortcuts_list_readded_existing">Acceso directo existente añadido de nuevo</string>
     <string name="shortcuts_properties_runtime_patcher">Parcheador DRM en tiempo de ejecución</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Inyecta el DLL del parcheador DRM en tiempo de ejecución de Goldberg en el juego en cada lanzamiento. Evita las comprobaciones anti-manipulación que sobreviven al proceso DRM heredado. Reduce considerablemente los FPS; actívalo solo si el juego sigue sin iniciarse únicamente con DRM heredado.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Inyecta un DLL parcheador de DRM al iniciar. Reduce los FPS; úsalo solo si Unpack Files por sí solo falla.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Seleccionar carpeta de guardados</string>
     <string name="cloud_saves_custom_folder_label">Carpeta de guardados</string>

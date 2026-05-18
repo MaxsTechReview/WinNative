@@ -170,7 +170,7 @@
     <string name="library_games_no_games_hub">Aucun jeu installé\nCliquez pour ouvrir le backend Winlator</string>
     <string name="library_games_installed_badge">INSTALLÉ</string>
     <string name="library_games_unknown_game">Jeu inconnu</string>
-    <string name="library_games_layouts_header">DISPOSITIONS</string>
+    <string name="library_games_layouts_header">DISPOSITIONS DE LA BIBLIOTHÈQUE</string>
     <string name="library_games_layout_carousel">Carrousel</string>
     <string name="library_games_layout_list">Liste</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>
@@ -268,13 +268,13 @@
     <string name="shortcuts_properties_exclusive_input">Entrée exclusive</string>
     <string name="shortcuts_properties_custom_game_settings">Paramètres de jeu personnalisés</string>
     <string name="shortcuts_properties_use_cold_client">Utiliser ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient est la méthode préférée pour gérer l\'émulation Steam et le DRM. Il corrige le DRM au moment de l\'exécution sans modifier les fichiers du jeu.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Méthode préférée d\'émulation Steam. Corrige le DRM à l\'exécution sans modifier les fichiers.</string>
     <string name="shortcuts_properties_unpack_files">DRM hérité</string>
-    <string name="shortcuts_properties_unpack_files_description">Supprime le DRM SteamStub de l\'exe sur le disque. À activer uniquement si le jeu ne se lance pas sans. Le patcheur runtime de ColdClient gère la plupart des jeux automatiquement.</string>
+    <string name="shortcuts_properties_unpack_files_description">Supprime le DRM SteamStub de l\'exe. Opération unique. Désactivez seulement si un jeu ne fonctionne plus.</string>
     <string name="shortcuts_properties_force_dlc">Forcer les DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Activez uniquement si les DLC ne sont pas détectés ou si les sauvegardes avec DLC ne fonctionnent pas</string>
+    <string name="shortcuts_properties_force_dlc_description">Activez si les DLC ne sont pas détectés ou si les sauvegardes avec DLC ne fonctionnent pas.</string>
     <string name="shortcuts_properties_launch_steam_client_beta">Lancer le client Steam (bêta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Lance le vrai client Steam dans Wine\nNécessite un compte Steam et peut réduire les performances\nTous les jeux ne fonctionnent pas</string>
+    <string name="shortcuts_properties_launch_steam_client_description">Lance le vrai client Steam dans Wine. Nécessite un compte. Peut réduire les performances; tous les jeux ne fonctionnent pas.</string>
     <string name="shortcuts_properties_steam_type">Performance du client Steam</string>
     <string name="steam_section_emulator">Émulateur Steam (Goldberg)</string>
     <string name="steam_section_real_client">Vrai client Steam</string>
@@ -1212,7 +1212,7 @@ Chemin installé :
     <string name="shortcuts_library_artwork_title">Illustrations de la bibliothèque</string>
     <string name="shortcuts_list_readded_existing">Raccourci existant rajouté</string>
     <string name="shortcuts_properties_runtime_patcher">Correcteur DRM d\'exécution</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injecte le DLL correcteur DRM d\'exécution de Goldberg dans le jeu à chaque lancement. Contourne les vérifications anti-altération qui survivent au désencapsulage des fichiers. Réduit considérablement le FPS — n\'activez cette option que si un jeu échoue toujours à démarrer avec le désencapsulage des fichiers seul.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injecte un DLL de correction DRM au lancement. Réduit les FPS — à utiliser seulement si Unpack Files seul échoue.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Sélectionner le dossier de sauvegarde</string>
     <string name="cloud_saves_custom_folder_label">Dossier de sauvegarde</string>
