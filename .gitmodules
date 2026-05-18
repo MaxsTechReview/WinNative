@@ -3,4 +3,4 @@
 	url = https://github.com/Pipetto-crypto/libadrenotools.git
 [submodule "app/src/main/cpp/lsfg-vk-android"]
 	path = app/src/main/cpp/lsfg-vk-android
-	url = https://github.com/WinNative-Emu/lsfg-vk-android.git
+	url = https://github.com/ribbit384/LSFG-Android.git
