@@ -151,14 +151,14 @@ public class SessionKeepAliveService extends Service {
 //            wakeLock.acquire();
         }
 
-        /*// Keep the Wi-Fi alive to prevent network interruptions. Useful for games that stream assets from the network or have online features.
+        // Keep the Wi-Fi alive to prevent network interruptions. Useful for games that stream assets from the network or have online features.
         // Note: This is not strictly necessary for keeping the session alive, so it's commented out by default. The use of this code is at the app developer’s discretion.
         // Note: wifiLock is called on "onDestroy" and "onStartCommand". Uncomment those too.
         WifiManager wm = (WifiManager) getSystemService(WIFI_SERVICE);
         if (wm != null) {
             wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "Winlator:WifiKeepAlive");
-//            wifiLock.acquire();
-        }*/
+            wifiLock.acquire();
+        }
 
         ensureChannel();
     }
