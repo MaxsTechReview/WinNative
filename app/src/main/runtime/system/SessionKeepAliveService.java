@@ -74,6 +74,7 @@ public class SessionKeepAliveService extends Service {
 
     public static void onPauseSession(Context ctx) {
         if (ctx == null) return;
+        sessionActive.set(true);
         sendCommand(ctx, ACTION_SESSION_PAUSE, null);
     }
 
@@ -169,7 +170,6 @@ public class SessionKeepAliveService extends Service {
         if (ACTION_SESSION_START.equals(action)) {
             sessionActive.set(true);
             isContainerPaused = false;
-            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
         } else if (ACTION_SESSION_PAUSE.equals(action)) {
             isContainerPaused = true;
         } else if (ACTION_SESSION_RESUME.equals(action)) {
@@ -178,7 +178,16 @@ public class SessionKeepAliveService extends Service {
         else if (ACTION_SESSION_STOP.equals(action)) {
             sessionActive.set(false);
             isContainerPaused = false;
+        }
+
+        // Ensure wake lock and OOM adj are correct based on current state
+        if (hasReason()) {
+            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
+            ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), -1000);
+            ProcessHelper.protectAllWineProcesses();
+        } else {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+            ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), 0);
         }
 
         // Always promote to foreground first so Android does not consider
@@ -193,7 +202,7 @@ public class SessionKeepAliveService extends Service {
             stopSelf();
             serviceRunning.set(false);
         }
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
     private void ensureForeground() {

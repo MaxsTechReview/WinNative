@@ -212,6 +212,13 @@ public abstract class ProcessHelper {
     return false;
   }
 
+  public static void protectAllWineProcesses() {
+    ArrayList<String> processes = listRunningWineProcesses();
+    for (String process : processes) {
+      setOomScoreAdj(Integer.parseInt(process), OOM_SCORE_ADJ_PROTECT);
+    }
+  }
+
   public static void pauseAllWineProcesses() {
     File proc = new File("/proc");
     ArrayList<String> processes = listRunningWineProcesses();

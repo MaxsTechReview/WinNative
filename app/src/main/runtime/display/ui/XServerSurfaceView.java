@@ -98,6 +98,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     public void onResume() {
         synchronized (renderLock) {
             paused = false;
+            renderRequested = true;
             renderLock.notifyAll();
         }
     }
