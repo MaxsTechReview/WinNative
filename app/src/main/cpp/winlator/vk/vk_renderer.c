@@ -1085,7 +1085,12 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             surface_extent.width, surface_extent.height, extent.width, extent.height,
             caps.currentTransform, pre_transform);
 
-    uint32_t image_count = caps.minImageCount + 1;
+    // FIFO is hard-vsync-locked at the panel rate, so a third image just adds a frame of
+    // latency and pins another full-screen color attachment in DEVICE_LOCAL memory. The
+    // min+1 tuning is only useful for MAILBOX, which needs a spare image to overwrite.
+    uint32_t image_count = caps.minImageCount;
+    if (present_mode != VK_PRESENT_MODE_FIFO_KHR) image_count = caps.minImageCount + 1;
+    if (image_count < 2) image_count = 2;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -1802,8 +1807,11 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     vkResetFences(r->device, 1, &f->in_flight);
 
+    // No ONE_TIME_SUBMIT: the same per-frame command buffer is re-recorded every
+    // VK_FRAMES_IN_FLIGHT cycle and the recorded state (scene topology, pipelines, descriptor
+    // sets) is mostly identical between frames at a steady FPS. Letting the driver retain
+    // any cached encoding between Begin/End calls trims per-frame CPU on Adreno.
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f->cmd, &bi);
 
     bool has_effects = snap.effect_count > 0 && r->offscreen_built;

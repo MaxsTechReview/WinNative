@@ -3,8 +3,6 @@ package com.winlator.cmod.runtime.display.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Surface;
@@ -85,8 +83,6 @@ public class VulkanRenderer
     public int surfaceWidth;
     public int surfaceHeight;
     private boolean cpuSaverMode = false;
-    private static final long CURSOR_ACTIVE_NS = 100_000_000L;
-    private volatile long cursorActiveUntilNs = 0L;
 
     private static final int MAX_FPS_LIMIT = 1000;
     private volatile int currentFpsLimit = 0;
@@ -118,7 +114,10 @@ public class VulkanRenderer
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    // Cached at construction (main thread). Choreographer.postFrameCallback is thread-safe
+    // once you have an instance, which lets us skip the main-thread Handler hop the old
+    // path needed just to call Choreographer.getInstance() from the right thread.
+    private final Choreographer choreographer = Choreographer.getInstance();
     private final AtomicBoolean renderRequested = new AtomicBoolean(false);
 
     // Reusable scratch — sized once, refilled per frame.
@@ -137,12 +136,20 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
+        // Align every render request to the next vsync via the cached Choreographer. This
+        // gives the GPU its full frame budget from a known start time, which the swapchain's
+        // vkAcquireNextImageKHR alone does not — a render started mid-interval ends up with
+        // a partial budget and is the source of microstutter under jittery loads (e.g. when
+        // a game-side FPS limiter spaces PresentPixmaps unevenly). compareAndSet collapses
+        // bursts to one callback per vsync. The previous code did the same thing but routed
+        // through mainHandler.post first just to satisfy Choreographer.getInstance()'s
+        // "must be on a Looper thread" contract; caching the instance at construction lets
+        // us skip that 0-16 ms detour.
         if (renderRequested.compareAndSet(false, true)) {
-            mainHandler.post(() ->
-                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
-                        renderRequested.set(false);
-                        xServerView.requestRender();
-                    }));
+            choreographer.postFrameCallback(frameTimeNanos -> {
+                renderRequested.set(false);
+                xServerView.requestRender();
+            });
         }
     }
 
@@ -508,8 +515,11 @@ public class VulkanRenderer
     }
 
     public void requestCursorRender() {
-        cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
-        xServerView.requestTransientRender(100);
+        // One coalesced render per cursor event. Choreographer collapses bursts of pointer
+        // moves to one frame per vsync; once the cursor stops, no further work is scheduled.
+        // The old transient path ran the render loop at panel rate for 100 ms after each
+        // event, drawing the same stationary cursor multiple times for no visible benefit.
+        requestRenderCoalesced();
     }
 
     @Override
