@@ -26,6 +26,7 @@ public abstract class ImageFsInstaller {
   public static final byte LATEST_VERSION = 22;
   private static final String IMAGEFS_ARCHIVE = "imagefs.tzst";
   private static final TarCompressorUtils.Type IMAGEFS_ARCHIVE_TYPE = TarCompressorUtils.Type.ZSTD;
+  private static final long IMAGEFS_EXTRACTED_BYTES = 869024992L;
 
   /**
    * Progress callback for installing ImageFS from assets. Lets callers drive a custom UI (e.g.
@@ -103,11 +104,7 @@ public abstract class ImageFsInstaller {
         .execute(
             () -> {
               clearRootDir(rootDir);
-              final byte compressionRatio = 22;
-              final long contentLength =
-                  (long)
-                      (FileUtils.getSize(activity, IMAGEFS_ARCHIVE)
-                          * (100.0f / compressionRatio));
+              final long contentLength = IMAGEFS_EXTRACTED_BYTES;
               AtomicLong totalSizeRef = new AtomicLong();
 
               boolean success =
@@ -119,7 +116,8 @@ public abstract class ImageFsInstaller {
                       (file, size) -> {
                         if (size > 0) {
                           long totalSize = totalSizeRef.addAndGet(size);
-                          final int progress = (int) (((float) totalSize / contentLength) * 100);
+                          final int progress =
+                              Math.min(100, (int) (((float) totalSize / contentLength) * 100));
                           if (listener != null) listener.onProgress(progress);
                         }
                         return file;
@@ -187,11 +185,7 @@ public abstract class ImageFsInstaller {
         .execute(
             () -> {
               clearRootDir(rootDir);
-              final byte compressionRatio = 22;
-              final long contentLength =
-                  (long)
-                      (FileUtils.getSize(activity, IMAGEFS_ARCHIVE)
-                          * (100.0f / compressionRatio));
+              final long contentLength = IMAGEFS_EXTRACTED_BYTES;
               AtomicLong totalSizeRef = new AtomicLong();
 
               boolean success =
@@ -203,7 +197,8 @@ public abstract class ImageFsInstaller {
                       (file, size) -> {
                         if (size > 0) {
                           long totalSize = totalSizeRef.addAndGet(size);
-                          final int progress = (int) (((float) totalSize / contentLength) * 100);
+                          final int progress =
+                              Math.min(100, (int) (((float) totalSize / contentLength) * 100));
                           activity.runOnUiThread(() -> dialog.setProgress(progress));
                         }
                         return file;

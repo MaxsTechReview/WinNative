@@ -147,6 +147,8 @@ private data class Particle(
 )
 
 private const val IMAGEFS_ARCHIVE = "imagefs.tzst"
+private const val IMAGEFS_EXTRACTED_BYTES = 869_024_992L
+private const val XZ_PROGRESS_COMPRESSION_RATIO = 22
 
 private val SetupDownloadChaseGradientStops =
     arrayOf(
@@ -721,15 +723,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             try {
                 clearRootDir(rootDir)
 
-                val compressionRatio = 22
-                var contentLength = 0L
-                val assetSize = FileUtils.getSize(this, IMAGEFS_ARCHIVE)
-                contentLength +=
-                    if (assetSize > 0) {
-                        (assetSize * (100.0f / compressionRatio)).toLong()
-                    } else {
-                        800_000_000L
-                    }
+                var contentLength = IMAGEFS_EXTRACTED_BYTES
 
                 try {
                     val versions = resources.getStringArray(R.array.wine_entries)
@@ -737,7 +731,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         val versionSize = FileUtils.getSize(this, "$version.txz")
                         contentLength +=
                             if (versionSize > 0) {
-                                (versionSize * (100.0f / compressionRatio)).toLong()
+                                (versionSize * (100.0f / XZ_PROGRESS_COMPRESSION_RATIO)).toLong()
                             } else {
                                 100_000_000L
                             }
