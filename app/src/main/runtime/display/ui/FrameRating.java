@@ -1364,7 +1364,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "BAT ", this.C_BAT);
         if (this.isCharging) {
-          append(b, "CHRG", this.C_BAT);
+          append(b, "CHRG", this.C_FPS_OK);
         } else {
           append(
               b,
