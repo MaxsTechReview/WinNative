@@ -507,12 +507,28 @@ class ContentsFragment : Fragment() {
             }
 
         val extractionProgress =
-            ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_extracting_title),
-                    message = getString(R.string.settings_content_extracting_detail, filesExtracted),
-                    indeterminate = true,
-                )
+            object : ContentsManager.OnExtractionProgressListener {
+                override fun onProgress(
+                    filesExtracted: Int,
+                    currentFileName: String,
+                ) {
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = getString(R.string.settings_content_extracting_detail, filesExtracted),
+                        indeterminate = true,
+                    )
+                }
+
+                override fun prefersByteProgress(): Boolean = true
+
+                override fun onByteProgress(bytesExtracted: Long) {
+                    val ctx = context ?: return
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = android.text.format.Formatter.formatFileSize(ctx, bytesExtracted),
+                        indeterminate = true,
+                    )
+                }
             }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
