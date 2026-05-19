@@ -2,6 +2,9 @@ package com.winlator.cmod.runtime.display.ui;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.os.Build;
+import android.os.Looper;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
@@ -24,7 +27,6 @@ import java.util.Deque;
 public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int RENDERMODE_WHEN_DIRTY  = 0;
     public static final int RENDERMODE_CONTINUOUSLY = 1;
-    private static final long TRANSIENT_FRAME_INTERVAL_NS = 1_000_000_000L / 120L;
 
     private final VulkanRenderer renderer;
 
@@ -33,15 +35,13 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private Thread renderThread;
     private volatile boolean running;
     private volatile boolean renderRequested;
-    private volatile boolean transientRenderRequested;
     private volatile boolean paused;
     private volatile boolean surfaceReady;
-    private volatile long transientRenderUntilNs;
-    private long nextContinuousFrameNs;
     private int renderMode = RENDERMODE_WHEN_DIRTY;
 
     private volatile int width;
     private volatile int height;
+    private volatile float surfaceFrameRate;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -67,15 +67,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     public void requestRender() {
         synchronized (renderLock) {
             renderRequested = true;
-            renderLock.notifyAll();
-        }
-    }
-
-    public void requestTransientRender(long durationMs) {
-        long untilNs = System.nanoTime() + Math.max(1L, durationMs) * 1_000_000L;
-        synchronized (renderLock) {
-            if (untilNs > transientRenderUntilNs) transientRenderUntilNs = untilNs;
-            transientRenderRequested = true;
             renderLock.notifyAll();
         }
     }
@@ -119,6 +110,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             height = 0;
         }
         renderer.attachSurface(holder.getSurface());
+        applySurfaceFrameRate();
         startRenderThreadIfNeeded();
     }
 
@@ -135,6 +127,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         }
 
         renderer.notifySurfaceChanged(w, h);
+        applySurfaceFrameRate();
         synchronized (renderLock) {
             width = w;
             height = h;
@@ -147,6 +140,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        clearSurfaceFrameRate(holder.getSurface());
         synchronized (renderLock) {
             surfaceReady = false;
             width = 0;
@@ -193,13 +187,9 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                 while (true) {
                     if (!running) break;
                     if (paused || !surfaceReady) {
-                        nextContinuousFrameNs = 0;
                         try { renderLock.wait(50); } catch (InterruptedException ignore) {}
                         continue;
                     }
-
-                    long now = System.nanoTime();
-                    boolean transientActive = transientRenderUntilNs > now;
 
                     if (!eventQueue.isEmpty()) {
                         event = eventQueue.poll();
@@ -209,36 +199,14 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                     if (renderRequested) {
                         draw = true;
                         renderRequested = false;
-                        transientRenderRequested = false;
-                        if (!transientActive) nextContinuousFrameNs = 0;
                         break;
                     }
 
                     if (renderMode == RENDERMODE_CONTINUOUSLY) {
                         draw = true;
-                        transientRenderRequested = false;
-                        nextContinuousFrameNs = 0;
                         break;
                     }
 
-                    if (transientRenderRequested) {
-                        draw = true;
-                        transientRenderRequested = false;
-                        nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
-                        break;
-                    }
-
-                    if (transientActive) {
-                        if (nextContinuousFrameNs == 0 || now >= nextContinuousFrameNs) {
-                            draw = true;
-                            nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
-                            break;
-                        }
-                        waitNanosLocked(nextContinuousFrameNs - now);
-                        continue;
-                    }
-
-                    nextContinuousFrameNs = 0;
                     try { renderLock.wait(); } catch (InterruptedException ignore) {}
                 }
             }
@@ -252,15 +220,35 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         renderer.onSurfaceDestroyed();
     }
 
-    private void waitNanosLocked(long nanos) {
-        if (nanos <= 0) return;
-        long millis = nanos / 1_000_000L;
-        int extraNanos = (int) (nanos % 1_000_000L);
-        try { renderLock.wait(millis, extraNanos); } catch (InterruptedException ignore) {}
-    }
-
     // ---- Convenience accessors used by VulkanRenderer ----------------------
 
     public int getSurfaceWidth() { return width; }
     public int getSurfaceHeight() { return height; }
+
+    public void setSurfaceFrameRate(float frameRate) {
+        surfaceFrameRate = frameRate > 0f ? frameRate : 0f;
+        applySurfaceFrameRate();
+    }
+
+    private void applySurfaceFrameRate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            post(this::applySurfaceFrameRate);
+            return;
+        }
+
+        Surface surface = getHolder().getSurface();
+        if (surface == null || !surface.isValid()) return;
+        try {
+            surface.setFrameRate(surfaceFrameRate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        } catch (IllegalArgumentException | IllegalStateException ignored) {}
+    }
+
+    private void clearSurfaceFrameRate(Surface surface) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        if (surface == null || !surface.isValid()) return;
+        try {
+            surface.setFrameRate(0f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        } catch (IllegalArgumentException | IllegalStateException ignored) {}
+    }
 }

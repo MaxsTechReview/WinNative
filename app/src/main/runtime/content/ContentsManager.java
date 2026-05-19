@@ -25,7 +25,7 @@ import org.json.JSONObject;
 public class ContentsManager {
   public static final String PROFILE_NAME = "profile.json";
   public static final String REMOTE_PROFILES =
-      "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/refs/heads/main/contents.json";
+      "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json";
   private static final long EXTRACTION_PROGRESS_INTERVAL_MS = 120L;
   public static final String[] DXVK_TRUST_FILES = {
     "${system32}/d3d8.dll",
