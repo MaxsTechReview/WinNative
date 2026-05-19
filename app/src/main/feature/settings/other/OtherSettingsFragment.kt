@@ -277,7 +277,15 @@ class OtherSettingsFragment : Fragment() {
 
                 override fun onFinished(success: Boolean) {
                     main.post {
-                        uiState = uiState.copy(imagefsInstallProgress = null)
+                        if (success) {
+                            uiState = uiState.copy(imagefsInstallProgress = 100)
+                            main.postDelayed(
+                                { uiState = uiState.copy(imagefsInstallProgress = null) },
+                                500L,
+                            )
+                        } else {
+                            uiState = uiState.copy(imagefsInstallProgress = null)
+                        }
                     }
                 }
             },

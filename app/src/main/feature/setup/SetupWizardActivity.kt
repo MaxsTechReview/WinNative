@@ -121,20 +121,14 @@ import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
-import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.io.TarCompressorUtils
-import com.winlator.cmod.shared.io.TarCompressorUtils.Type
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import com.winlator.cmod.shared.util.OnExtractFileListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -145,10 +139,6 @@ private data class Particle(
     val size: Float,
     val phaseOffset: Float,
 )
-
-private const val IMAGEFS_ARCHIVE = "imagefs.tzst"
-private const val IMAGEFS_EXTRACTED_BYTES = 869_024_992L
-private const val XZ_PROGRESS_COMPRESSION_RATIO = 22
 
 private val SetupDownloadChaseGradientStops =
     arrayOf(
@@ -716,96 +706,36 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         wizardError.value = null
         imageFsInstalling.value = true
         imageFsProgress.intValue = 0
-        val imageFs = ImageFs.find(this)
-        val rootDir = imageFs.rootDir
 
-        Executors.newSingleThreadExecutor().execute {
-            try {
-                clearRootDir(rootDir)
-
-                var contentLength = IMAGEFS_EXTRACTED_BYTES
-
-                try {
-                    val versions = resources.getStringArray(R.array.wine_entries)
-                    versions.forEach { version ->
-                        val versionSize = FileUtils.getSize(this, "$version.txz")
-                        contentLength +=
-                            if (versionSize > 0) {
-                                (versionSize * (100.0f / XZ_PROGRESS_COMPRESSION_RATIO)).toLong()
-                            } else {
-                                100_000_000L
-                            }
-                    }
-                } catch (_: Exception) {
-                }
-
-                val totalSize = AtomicLong()
-                val listener =
-                    OnExtractFileListener { file, size ->
-                        if (size > 0) {
-                            val total = totalSize.addAndGet(size)
-                            val percent = ((total.toFloat() / contentLength) * 100f).toInt().coerceIn(0, 100)
-                            runOnUiThread { imageFsProgress.intValue = percent }
-                        }
-                        file
-                }
-
-                val success =
-                    TarCompressorUtils.extractAsync(
-                        Type.ZSTD,
-                        this,
-                        IMAGEFS_ARCHIVE,
-                        rootDir,
-                        listener,
-                    ).get()
-
-                if (!success) {
+        ImageFsInstaller.installFromAssets(
+            this,
+            object : ImageFsInstaller.ProgressListener {
+                override fun onProgress(percent: Int) {
                     runOnUiThread {
-                        imageFsInstalling.value = false
-                        wizardError.value = "ImageFS extraction failed. Check available storage and try again."
+                        imageFsProgress.intValue = percent.coerceIn(0, 100)
                     }
-                    return@execute
                 }
 
-                try {
-                    val wineExtractions =
-                        resources.getStringArray(R.array.wine_entries).map { version ->
-                            val outFile = File(rootDir, "/opt/$version")
-                            outFile.mkdirs()
-                            TarCompressorUtils.extractAsync(
-                                Type.XZ,
-                                this,
-                                "$version.txz",
-                                outFile,
-                                listener,
+                override fun onFinished(success: Boolean) {
+                    runOnUiThread {
+                        imageFsProgress.intValue = if (success) 100 else imageFsProgress.intValue
+                        if (success) {
+                            window.decorView.postDelayed(
+                                {
+                                    imageFsInstalling.value = false
+                                    imageFsDone.value = true
+                                    refreshWizardState()
+                                },
+                                500L,
                             )
+                        } else {
+                            imageFsInstalling.value = false
+                            wizardError.value = "ImageFS install failed. Check available storage and try again."
                         }
-                    wineExtractions.forEach { it.get() }
-                } catch (_: Exception) {
-                }
-
-                try {
-                    val manager = AdrenotoolsManager(this)
-                    resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).forEach { driver ->
-                        manager.extractDriverFromResources(driver)
                     }
-                } catch (_: Exception) {
                 }
-
-                imageFs.createImgVersionFile(ImageFsInstaller.LATEST_VERSION.toInt())
-                runOnUiThread {
-                    imageFsProgress.intValue = 100
-                    imageFsInstalling.value = false
-                    imageFsDone.value = true
-                    refreshWizardState()
-                }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    imageFsInstalling.value = false
-                    wizardError.value = "ImageFS install failed: ${e.message}"
-                }
-            }
-        }
+            },
+        )
     }
 
     private suspend fun downloadAndInstallPackage(
@@ -1534,17 +1464,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             finish()
         } else {
             launchApp()
-        }
-    }
-
-    private fun clearRootDir(rootDir: File) {
-        if (rootDir.isDirectory) {
-            rootDir.listFiles()?.forEach { file ->
-                if (file.isDirectory && file.name == "home") return@forEach
-                FileUtils.delete(file)
-            }
-        } else {
-            rootDir.mkdirs()
         }
     }
 

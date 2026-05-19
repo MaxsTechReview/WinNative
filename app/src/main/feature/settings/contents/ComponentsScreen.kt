@@ -46,6 +46,7 @@ import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -83,6 +84,7 @@ private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val SuccessGreen = Color(0xFF5BD68F)
 private val DangerRed = Color(0xFFFF7A88)
+private val WarningAmber = Color(0xFFFFB454)
 private val TextPrimary = Color(0xFFD6DAE0)
 private val TextSecondary = Color(0xFF7A8FA8)
 
@@ -120,11 +122,16 @@ data class ComponentsDownloadProgress(
     val indeterminate: Boolean = false,
 )
 
+data class ComponentsConflict(
+    val path: String,
+)
+
 data class ComponentsState(
     val currentType: ContentProfile.ContentType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
     val installed: List<ComponentItem> = emptyList(),
     val available: List<ComponentItem> = emptyList(),
     val downloadProgress: ComponentsDownloadProgress? = null,
+    val conflict: ComponentsConflict? = null,
     val autoCreateContainer: Boolean = true,
 )
 
@@ -139,6 +146,7 @@ fun ComponentsScreen(
     onInstallFromFile: () -> Unit,
     onDownloadItem: (ComponentItem) -> Unit,
     onRemoveItem: (ComponentItem) -> Unit,
+    onDismissConflict: () -> Unit,
     onToggleAutoCreateContainer: (Boolean) -> Unit,
 ) {
     var itemPendingRemoval by remember { mutableStateOf<ComponentItem?>(null) }
@@ -164,6 +172,14 @@ fun ComponentsScreen(
 
     state.downloadProgress?.let { progress ->
         DownloadProgressDialog(progress = progress)
+    }
+
+    state.conflict?.let { conflict ->
+        ConflictDialog(
+            title = stringResource(R.string.settings_content_already_installed_title),
+            message = stringResource(R.string.settings_content_already_installed_message, conflict.path),
+            onDismiss = onDismissConflict,
+        )
     }
 
     LazyColumn(
@@ -846,6 +862,89 @@ private fun ConfirmDialog(
                 ) {
                     DialogActionButton(label = stringResource(R.string.common_ui_cancel), textColor = TextSecondary, onClick = onDismiss)
                     DialogActionButton(label = confirmLabel, textColor = confirmColor, onClick = onConfirm)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConflictDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.46f))
+                    .noRippleClickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .width(286.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardDark)
+                        .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+                        .noRippleClickable(onClick = {})
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Warning,
+                            contentDescription = null,
+                            tint = WarningAmber,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.CenterStart)
+                                    .size(18.dp),
+                        )
+                        Text(
+                            text = title,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 28.dp),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Text(
+                        text = message,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        DialogActionButton(
+                            label = stringResource(R.string.common_ui_ok),
+                            textColor = WarningAmber,
+                            onClick = onDismiss,
+                        )
+                    }
                 }
             }
         }
