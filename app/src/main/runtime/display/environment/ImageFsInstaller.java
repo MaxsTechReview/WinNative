@@ -16,10 +16,15 @@ import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.shared.ui.dialog.DownloadProgressDialog;
+import com.winlator.cmod.shared.util.OnExtractFileListener;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class ImageFsInstaller {
@@ -56,13 +61,22 @@ public abstract class ImageFsInstaller {
   }
 
   public static void installWineFromAssets(final android.app.Activity activity) {
+    installWineFromAssetsAsync(activity, null);
+  }
+
+  private static boolean installWineFromAssetsAsync(
+      final android.app.Activity activity, OnExtractFileListener listener) {
     String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
     File rootDir = ImageFs.find(activity).getRootDir();
+    List<Future<Boolean>> futures = new ArrayList<>();
     for (String version : versions) {
       File outFile = new File(rootDir, "/opt/" + version);
       outFile.mkdirs();
-      TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
+      futures.add(
+          TarCompressorUtils.extractAsync(
+              TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile, listener));
     }
+    return waitForExtractions(futures);
   }
 
   public static void installDriversFromAssets(final android.app.Activity activity) {
@@ -107,8 +121,8 @@ public abstract class ImageFsInstaller {
               final long contentLength = IMAGEFS_EXTRACTED_BYTES;
               AtomicLong totalSizeRef = new AtomicLong();
 
-              boolean success =
-                  TarCompressorUtils.extract(
+              Future<Boolean> imageFsExtraction =
+                  TarCompressorUtils.extractAsync(
                       IMAGEFS_ARCHIVE_TYPE,
                       activity,
                       IMAGEFS_ARCHIVE,
@@ -122,14 +136,17 @@ public abstract class ImageFsInstaller {
                         }
                         return file;
                       });
+              boolean success = waitForExtraction(imageFsExtraction);
 
               if (success) {
                 ExecutorService pool = Executors.newFixedThreadPool(3);
                 CountDownLatch latch = new CountDownLatch(3);
+                AtomicBoolean postInstallSuccess = new AtomicBoolean(true);
                 pool.execute(
                     () -> {
                       try {
-                        installWineFromAssets(activity);
+                        postInstallSuccess.compareAndSet(
+                            true, installWineFromAssetsAsync(activity, null));
                       } finally {
                         latch.countDown();
                       }
@@ -155,8 +172,11 @@ public abstract class ImageFsInstaller {
                 } catch (InterruptedException ignored) {
                 }
                 pool.shutdown();
-                imageFs.createImgVersionFile(LATEST_VERSION);
-                resetContainerImgVersions(activity);
+                success = postInstallSuccess.get();
+                if (success) {
+                  imageFs.createImgVersionFile(LATEST_VERSION);
+                  resetContainerImgVersions(activity);
+                }
               } else
                 WinToast.show(activity, R.string.setup_wizard_unable_to_install_system_files);
 
@@ -188,8 +208,8 @@ public abstract class ImageFsInstaller {
               final long contentLength = IMAGEFS_EXTRACTED_BYTES;
               AtomicLong totalSizeRef = new AtomicLong();
 
-              boolean success =
-                  TarCompressorUtils.extract(
+              Future<Boolean> imageFsExtraction =
+                  TarCompressorUtils.extractAsync(
                       IMAGEFS_ARCHIVE_TYPE,
                       activity,
                       IMAGEFS_ARCHIVE,
@@ -203,23 +223,19 @@ public abstract class ImageFsInstaller {
                         }
                         return file;
                       });
+              boolean success = waitForExtraction(imageFsExtraction);
 
               if (success) {
                 ExecutorService pool = Executors.newFixedThreadPool(2);
                 CountDownLatch latch = new CountDownLatch(2);
+                AtomicBoolean postInstallSuccess = new AtomicBoolean(true);
                 pool.execute(
                     () -> {
                       try {
-                        String[] versions =
-                            activity.getResources().getStringArray(R.array.wine_entries);
-                        for (String version : versions) {
-                          File outFile = new File(rootDir, "/opt/" + version);
-                          outFile.mkdirs();
-                          TarCompressorUtils.extract(
-                              TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
-                        }
+                        postInstallSuccess.compareAndSet(
+                            true, installWineFromAssetsAsync(activity, null));
                       } catch (Exception e) {
-                        /* wine assets may not exist */
+                        postInstallSuccess.set(false);
                       } finally {
                         latch.countDown();
                       }
@@ -237,8 +253,11 @@ public abstract class ImageFsInstaller {
                 } catch (InterruptedException ignored) {
                 }
                 pool.shutdown();
-                clearSteamDllMarkers(activity);
-                imageFs.createImgVersionFile(LATEST_VERSION);
+                success = postInstallSuccess.get();
+                if (success) {
+                  clearSteamDllMarkers(activity);
+                  imageFs.createImgVersionFile(LATEST_VERSION);
+                }
               } else {
                 activity.runOnUiThread(
                     () ->
@@ -318,6 +337,23 @@ public abstract class ImageFsInstaller {
   private static void chmodIfExists(File file) {
     if (file.exists()) {
       FileUtils.chmod(file, 0755);
+    }
+  }
+
+  private static boolean waitForExtractions(List<Future<Boolean>> futures) {
+    boolean success = true;
+    for (Future<Boolean> future : futures) {
+      success &= waitForExtraction(future);
+    }
+    return success;
+  }
+
+  private static boolean waitForExtraction(Future<Boolean> future) {
+    try {
+      return Boolean.TRUE.equals(future.get());
+    } catch (Exception e) {
+      Log.e("ImageFsInstaller", "Async extraction failed", e);
+      return false;
     }
   }
 

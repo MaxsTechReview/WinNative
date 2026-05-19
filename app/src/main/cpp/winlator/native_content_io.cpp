@@ -109,6 +109,11 @@ std::string clean_entry_name(std::string name) {
     return name;
 }
 
+bool is_safe_symlink_target(std::string target) {
+    target = clean_entry_name(std::move(target));
+    return is_safe_relative_path(target);
+}
+
 uint64_t parse_tar_number(const char* field, size_t length) {
     if (length == 0) return 0;
     const unsigned char first = static_cast<unsigned char>(field[0]);
@@ -243,8 +248,19 @@ private:
 
 class FileWriter final {
 public:
-    explicit FileWriter(const std::string& path) : file_(std::fopen(path.c_str(), "wb")) {
-        if (file_) std::setvbuf(file_, nullptr, _IOFBF, kBufferSize);
+    FileWriter(const std::string& path, bool nofollow) {
+        int flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
+        if (nofollow) flags |= O_NOFOLLOW;
+        int fd = ::open(
+            path.c_str(),
+            flags,
+            0660);
+        if (fd >= 0) file_ = ::fdopen(fd, "wb");
+        if (file_) {
+            std::setvbuf(file_, nullptr, _IOFBF, kBufferSize);
+        } else if (fd >= 0) {
+            ::close(fd);
+        }
     }
 
     ~FileWriter() {
@@ -445,7 +461,12 @@ bool read_payload(Reader& reader, uint64_t size, std::string* out) {
     return reader.skip(padding);
 }
 
-bool extract_tar(Reader& reader, const std::string& destination, JNIEnv* env, jobject listener) {
+bool extract_tar(
+    Reader& reader,
+    const std::string& destination,
+    JNIEnv* env,
+    jobject listener,
+    bool enforce_safe_symlinks) {
     JavaExtractListener java_listener(env, listener);
     std::vector<uint8_t> header(512);
     std::optional<std::string> next_name;
@@ -518,6 +539,11 @@ bool extract_tar(Reader& reader, const std::string& destination, JNIEnv* env, jo
         if (type == '5') {
             if (!mkdirs(out_path)) return false;
         } else if (type == '2') {
+            if (enforce_safe_symlinks && !is_safe_symlink_target(link_name)) {
+                NATIVE_LOGW("skipping unsafe symlink target for %s", out_path.c_str());
+                if (!reader.skip(size + padding)) return false;
+                continue;
+            }
             if (!ensure_parent_dir(out_path)) return false;
             ::unlink(out_path.c_str());
             if (::symlink(link_name.c_str(), out_path.c_str()) != 0 && errno != EEXIST) {
@@ -525,7 +551,7 @@ bool extract_tar(Reader& reader, const std::string& destination, JNIEnv* env, jo
             }
         } else if (type == '0' || type == '\0') {
             if (!ensure_parent_dir(out_path)) return false;
-            FileWriter out(out_path);
+            FileWriter out(out_path, enforce_safe_symlinks);
             if (!out.ok()) return false;
 
             std::vector<uint8_t> buffer(kBufferSize);
@@ -628,12 +654,12 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeExtractArchive(
         auto raw = std::make_unique<FileReader>(source);
         if (!raw->ok()) return JNI_FALSE;
         XzReader reader(std::move(raw));
-        ok = reader.ok() && extract_tar(reader, destination, env, listener);
+        ok = reader.ok() && extract_tar(reader, destination, env, listener, true);
     } else if (type == 1) {
         auto raw = std::make_unique<FileReader>(source);
         if (!raw->ok()) return JNI_FALSE;
         ZstdReader reader(std::move(raw));
-        ok = reader.ok() && extract_tar(reader, destination, env, listener);
+        ok = reader.ok() && extract_tar(reader, destination, env, listener, true);
     }
     if (!ok && env->ExceptionCheck()) return JNI_FALSE;
     return ok ? JNI_TRUE : JNI_FALSE;
@@ -659,12 +685,12 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeExtractAsset(
         auto raw = std::make_unique<AssetReader>(manager, asset_file);
         if (!raw->ok()) return JNI_FALSE;
         XzReader reader(std::move(raw));
-        ok = reader.ok() && extract_tar(reader, destination, env, listener);
+        ok = reader.ok() && extract_tar(reader, destination, env, listener, false);
     } else if (type == 1) {
         auto raw = std::make_unique<AssetReader>(manager, asset_file);
         if (!raw->ok()) return JNI_FALSE;
         ZstdReader reader(std::move(raw));
-        ok = reader.ok() && extract_tar(reader, destination, env, listener);
+        ok = reader.ok() && extract_tar(reader, destination, env, listener, false);
     }
     if (!ok && env->ExceptionCheck()) return JNI_FALSE;
     return ok ? JNI_TRUE : JNI_FALSE;
