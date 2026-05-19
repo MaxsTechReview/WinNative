@@ -146,6 +146,8 @@ private data class Particle(
     val phaseOffset: Float,
 )
 
+private const val IMAGEFS_ARCHIVE = "imagefs.tzst"
+
 private val SetupDownloadChaseGradientStops =
     arrayOf(
         0.00f to Color(0xFF2196F3),
@@ -721,7 +723,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
                 val compressionRatio = 22
                 var contentLength = 0L
-                val assetSize = FileUtils.getSize(this, "imagefs.txz")
+                val assetSize = FileUtils.getSize(this, IMAGEFS_ARCHIVE)
                 contentLength +=
                     if (assetSize > 0) {
                         (assetSize * (100.0f / compressionRatio)).toLong()
@@ -756,9 +758,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
                 val success =
                     TarCompressorUtils.extract(
-                        Type.XZ,
+                        Type.ZSTD,
                         this,
-                        "imagefs.txz",
+                        IMAGEFS_ARCHIVE,
                         rootDir,
                         listener,
                     )

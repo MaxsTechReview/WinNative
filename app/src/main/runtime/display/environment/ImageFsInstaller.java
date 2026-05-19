@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class ImageFsInstaller {
   public static final byte LATEST_VERSION = 22;
+  private static final String IMAGEFS_ARCHIVE = "imagefs.tzst";
+  private static final TarCompressorUtils.Type IMAGEFS_ARCHIVE_TYPE = TarCompressorUtils.Type.ZSTD;
 
   /**
    * Progress callback for installing ImageFS from assets. Lets callers drive a custom UI (e.g.
@@ -103,14 +105,16 @@ public abstract class ImageFsInstaller {
               clearRootDir(rootDir);
               final byte compressionRatio = 22;
               final long contentLength =
-                  (long) (FileUtils.getSize(activity, "imagefs.txz") * (100.0f / compressionRatio));
+                  (long)
+                      (FileUtils.getSize(activity, IMAGEFS_ARCHIVE)
+                          * (100.0f / compressionRatio));
               AtomicLong totalSizeRef = new AtomicLong();
 
               boolean success =
                   TarCompressorUtils.extract(
-                      TarCompressorUtils.Type.XZ,
+                      IMAGEFS_ARCHIVE_TYPE,
                       activity,
-                      "imagefs.txz",
+                      IMAGEFS_ARCHIVE,
                       rootDir,
                       (file, size) -> {
                         if (size > 0) {
@@ -185,14 +189,16 @@ public abstract class ImageFsInstaller {
               clearRootDir(rootDir);
               final byte compressionRatio = 22;
               final long contentLength =
-                  (long) (FileUtils.getSize(activity, "imagefs.txz") * (100.0f / compressionRatio));
+                  (long)
+                      (FileUtils.getSize(activity, IMAGEFS_ARCHIVE)
+                          * (100.0f / compressionRatio));
               AtomicLong totalSizeRef = new AtomicLong();
 
               boolean success =
                   TarCompressorUtils.extract(
-                      TarCompressorUtils.Type.XZ,
+                      IMAGEFS_ARCHIVE_TYPE,
                       activity,
-                      "imagefs.txz",
+                      IMAGEFS_ARCHIVE,
                       rootDir,
                       (file, size) -> {
                         if (size > 0) {
