@@ -111,6 +111,10 @@ android {
         buildConfigField("String", "SUPABASE_KEY", "\"\"")
     }
 
+    androidResources {
+        noCompress += ['tzst', 'txz']
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

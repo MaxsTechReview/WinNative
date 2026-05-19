@@ -111,6 +111,21 @@ public abstract class ImageFsInstaller {
         public void onExtractFileProgress(File file, long size) {
           addWork(size);
         }
+
+        @Override
+        public boolean mapsExtractedFiles() {
+          return false;
+        }
+
+        @Override
+        public boolean reportsExtractedBytesOnly() {
+          return true;
+        }
+
+        @Override
+        public void onExtractedBytes(long size) {
+          addWork(size);
+        }
       };
     }
 

@@ -32,6 +32,8 @@ namespace {
 
 constexpr const char* kLogTag = "NativeContentIO";
 constexpr size_t kBufferSize = 256 * 1024;
+constexpr int64_t kProgressBatchBytes = 8 * 1024 * 1024;
+constexpr int64_t kProgressBatchIntervalMs = 100;
 constexpr uint32_t kXzDictSizeMax = 128U << 20;
 
 #define NATIVE_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, kLogTag, __VA_ARGS__)
@@ -410,21 +412,41 @@ class JavaExtractListener {
 public:
     JavaExtractListener(JNIEnv* env, jobject listener) : env_(env), listener_(listener) {
         if (!listener_) return;
-        jclass file_cls = env_->FindClass("java/io/File");
-        file_class_ = static_cast<jclass>(env_->NewLocalRef(file_cls));
-        file_ctor_ = env_->GetMethodID(file_class_, "<init>", "(Ljava/lang/String;)V");
-        get_path_ = env_->GetMethodID(file_class_, "getPath", "()Ljava/lang/String;");
         jclass listener_cls = env_->FindClass("com/winlator/cmod/shared/util/OnExtractFileListener");
         on_extract_ =
             env_->GetMethodID(listener_cls, "onExtractFile", "(Ljava/io/File;J)Ljava/io/File;");
         on_progress_ =
             env_->GetMethodID(listener_cls, "onExtractFileProgress", "(Ljava/io/File;J)V");
-        enabled_ = file_class_ && file_ctor_ && get_path_ && on_extract_;
+        maps_files_method_ = env_->GetMethodID(listener_cls, "mapsExtractedFiles", "()Z");
+        byte_progress_method_ = env_->GetMethodID(listener_cls, "reportsExtractedBytesOnly", "()Z");
+        on_bytes_progress_ = env_->GetMethodID(listener_cls, "onExtractedBytes", "(J)V");
+
+        if (maps_files_method_) {
+            maps_files_ = env_->CallBooleanMethod(listener_, maps_files_method_) == JNI_TRUE;
+            if (env_->ExceptionCheck()) return;
+        }
+        if (byte_progress_method_) {
+            byte_progress_only_ =
+                env_->CallBooleanMethod(listener_, byte_progress_method_) == JNI_TRUE;
+            if (env_->ExceptionCheck()) return;
+        }
+
+        if (maps_files_ || !byte_progress_only_) {
+            jclass file_cls = env_->FindClass("java/io/File");
+            file_class_ = static_cast<jclass>(env_->NewLocalRef(file_cls));
+            file_ctor_ = env_->GetMethodID(file_class_, "<init>", "(Ljava/lang/String;)V");
+            get_path_ = env_->GetMethodID(file_class_, "getPath", "()Ljava/lang/String;");
+        }
+
+        enabled_ =
+            (!maps_files_ || (file_class_ && file_ctor_ && get_path_ && on_extract_)) &&
+            (byte_progress_only_ || !listener_ || (file_class_ && file_ctor_ && on_progress_));
     }
 
     std::optional<std::string> map(const std::string& destination, int64_t size) {
         if (!listener_) return destination;
         if (!enabled_) return std::nullopt;
+        if (!maps_files_) return destination;
 
         jstring path = env_->NewStringUTF(destination.c_str());
         jobject file = env_->NewObject(file_class_, file_ctor_, path);
@@ -443,14 +465,36 @@ public:
         return result;
     }
 
-    void progress(const std::string& destination, int64_t size) {
-        if (!listener_ || !enabled_ || !on_progress_) return;
+    bool progress(const std::string& destination, int64_t size) {
+        if (!listener_ || !enabled_) return true;
+        if (byte_progress_only_) {
+            pending_progress_bytes_ += std::max<int64_t>(size, 0);
+            auto now = std::chrono::steady_clock::now();
+            int64_t elapsed_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_progress_flush_).count();
+            if (pending_progress_bytes_ >= kProgressBatchBytes || elapsed_ms >= kProgressBatchIntervalMs) {
+                flush_progress();
+            }
+            return !env_->ExceptionCheck();
+        }
+        if (!on_progress_) return true;
 
         jstring path = env_->NewStringUTF(destination.c_str());
         jobject file = env_->NewObject(file_class_, file_ctor_, path);
         env_->DeleteLocalRef(path);
         env_->CallVoidMethod(listener_, on_progress_, file, static_cast<jlong>(size));
         env_->DeleteLocalRef(file);
+        return !env_->ExceptionCheck();
+    }
+
+    bool flush_progress() {
+        if (!listener_ || !enabled_ || !byte_progress_only_ || !on_bytes_progress_) return true;
+        if (pending_progress_bytes_ <= 0) return true;
+        int64_t bytes = pending_progress_bytes_;
+        pending_progress_bytes_ = 0;
+        last_progress_flush_ = std::chrono::steady_clock::now();
+        env_->CallVoidMethod(listener_, on_bytes_progress_, static_cast<jlong>(bytes));
+        return !env_->ExceptionCheck();
     }
 
 private:
@@ -461,7 +505,14 @@ private:
     jmethodID get_path_ = nullptr;
     jmethodID on_extract_ = nullptr;
     jmethodID on_progress_ = nullptr;
+    jmethodID maps_files_method_ = nullptr;
+    jmethodID byte_progress_method_ = nullptr;
+    jmethodID on_bytes_progress_ = nullptr;
     bool enabled_ = false;
+    bool maps_files_ = true;
+    bool byte_progress_only_ = false;
+    int64_t pending_progress_bytes_ = 0;
+    std::chrono::steady_clock::time_point last_progress_flush_ = std::chrono::steady_clock::now();
 };
 
 bool read_payload(Reader& reader, uint64_t size, std::string* out) {
@@ -494,7 +545,7 @@ bool extract_tar(
                 break;
             }
         }
-        if (all_zero) return true;
+        if (all_zero) return java_listener.flush_progress();
 
         auto* h = reinterpret_cast<const char*>(header.data());
         std::string name = tar_string(h, 100);
@@ -585,8 +636,7 @@ bool extract_tar(
             if (!out.close()) ok = false;
             if (!ok) return false;
             if ((mode & 0111) != 0) ::chmod(out_path.c_str(), 0771);
-            java_listener.progress(out_path, static_cast<int64_t>(size));
-            if (env->ExceptionCheck()) return false;
+            if (!java_listener.progress(out_path, static_cast<int64_t>(size))) return false;
             if (!reader.skip(padding)) return false;
             continue;
         } else if (type == '1') {
@@ -601,8 +651,7 @@ bool extract_tar(
             if (::link(link_path.c_str(), out_path.c_str()) != 0) {
                 NATIVE_LOGW("hard link failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
-            java_listener.progress(out_path, static_cast<int64_t>(size));
-            if (env->ExceptionCheck()) return false;
+            if (!java_listener.progress(out_path, static_cast<int64_t>(size))) return false;
         }
 
         if (!reader.skip(size + padding)) return false;
