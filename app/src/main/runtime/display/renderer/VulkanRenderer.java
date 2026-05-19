@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
-import android.view.Choreographer;
 import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
@@ -25,7 +24,6 @@ import com.winlator.cmod.shared.math.XForm;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Native Vulkan compositor.
@@ -114,11 +112,8 @@ public class VulkanRenderer
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
-    // Cached at construction (main thread). Choreographer.postFrameCallback is thread-safe
-    // once you have an instance, which lets us skip the main-thread Handler hop the old
-    // path needed just to call Choreographer.getInstance() from the right thread.
-    private final Choreographer choreographer = Choreographer.getInstance();
-    private final AtomicBoolean renderRequested = new AtomicBoolean(false);
+    private final Object framePacerLock = new Object();
+    private long nativeFramePacer = 0;
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -136,21 +131,38 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
-        // Align every render request to the next vsync via the cached Choreographer. This
-        // gives the GPU its full frame budget from a known start time, which the swapchain's
-        // vkAcquireNextImageKHR alone does not — a render started mid-interval ends up with
-        // a partial budget and is the source of microstutter under jittery loads (e.g. when
-        // a game-side FPS limiter spaces PresentPixmaps unevenly). compareAndSet collapses
-        // bursts to one callback per vsync. The previous code did the same thing but routed
-        // through mainHandler.post first just to satisfy Choreographer.getInstance()'s
-        // "must be on a Looper thread" contract; caching the instance at construction lets
-        // us skip that 0-16 ms detour.
-        if (renderRequested.compareAndSet(false, true)) {
-            choreographer.postFrameCallback(frameTimeNanos -> {
-                renderRequested.set(false);
-                xServerView.requestRender();
-            });
+        synchronized (framePacerLock) {
+            if (nativeFramePacer != 0) {
+                nativeRequestFrame(nativeFramePacer);
+                return;
+            }
         }
+        xServerView.requestRender();
+    }
+
+    private void ensureNativeFramePacer() {
+        synchronized (framePacerLock) {
+            if (nativeFramePacer == 0) {
+                nativeFramePacer = nativeCreateFramePacer(this);
+                if (nativeFramePacer == 0) {
+                    Log.w(TAG, "API 29 native frame pacer unavailable; using direct render requests");
+                }
+            }
+        }
+    }
+
+    private void destroyNativeFramePacer() {
+        synchronized (framePacerLock) {
+            if (nativeFramePacer != 0) {
+                nativeDestroyFramePacer(nativeFramePacer);
+                nativeFramePacer = 0;
+            }
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private void onNativeFrameTick(long frameTimeNanos) {
+        xServerView.requestRender();
     }
 
     private Drawable createRootCursorDrawable() {
@@ -176,11 +188,14 @@ public class VulkanRenderer
                 return;
             }
             Texture.setRendererHandle(nativeHandle);
+            ensureNativeFramePacer();
             // Apply the cached present-mode request now that the native renderer exists.
             // No-op if the requested mode equals the native default (FIFO).
             if (requestedPresentMode != PRESENT_MODE_FIFO) {
                 nativeSetPresentMode(nativeHandle, requestedPresentMode);
             }
+        } else {
+            ensureNativeFramePacer();
         }
         nativeSurfaceCreated(nativeHandle, surface);
     }
@@ -221,6 +236,7 @@ public class VulkanRenderer
 
     @Override
     public void onSurfaceDestroyed() {
+        destroyNativeFramePacer();
         if (nativeHandle != 0) {
             nativeDestroy(nativeHandle);
             nativeHandle = 0;
@@ -515,7 +531,7 @@ public class VulkanRenderer
     }
 
     public void requestCursorRender() {
-        // One coalesced render per cursor event. Choreographer collapses bursts of pointer
+        // One coalesced render per cursor event. The native frame pacer collapses pointer
         // moves to one frame per vsync; once the cursor stops, no further work is scheduled.
         // The old transient path ran the render loop at panel rate for 100 ms after each
         // event, drawing the same stationary cursor multiple times for no visible benefit.
@@ -776,4 +792,7 @@ public class VulkanRenderer
     private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
+    private static native long nativeCreateFramePacer(VulkanRenderer renderer);
+    private static native void nativeDestroyFramePacer(long handle);
+    private static native void nativeRequestFrame(long handle);
 }
