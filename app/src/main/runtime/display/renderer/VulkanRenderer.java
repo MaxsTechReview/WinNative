@@ -114,6 +114,7 @@ public class VulkanRenderer
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
     private final Object framePacerLock = new Object();
     private long nativeFramePacer = 0;
+    private volatile boolean nativeFrameRequestPending = false;
 
     // pacerPriorVsyncNanos is pacer-thread-private. The volatile snapshot fields
     // use vsyncSnapshotSequence as a seqlock so readers can copy a consistent pair.
@@ -140,6 +141,8 @@ public class VulkanRenderer
     public void requestRenderCoalesced() {
         synchronized (framePacerLock) {
             if (nativeFramePacer != 0) {
+                if (nativeFrameRequestPending) return;
+                nativeFrameRequestPending = true;
                 nativeRequestFrame(nativeFramePacer);
                 return;
             }
@@ -163,6 +166,7 @@ public class VulkanRenderer
             if (nativeFramePacer != 0) {
                 nativeDestroyFramePacer(nativeFramePacer);
                 nativeFramePacer = 0;
+                nativeFrameRequestPending = false;
                 // Pacer thread is joined; reset hands off to the next pacer via
                 // synchronized happens-before.
                 pacerPriorVsyncNanos = 0;
@@ -176,6 +180,8 @@ public class VulkanRenderer
 
     @SuppressWarnings("unused")
     private void onNativeFrameTick(long frameTimeNanos) {
+        nativeFrameRequestPending = false;
+
         long prior = pacerPriorVsyncNanos;
         long periodNanos = vsyncPeriodNanos;
         if (prior != 0) {
