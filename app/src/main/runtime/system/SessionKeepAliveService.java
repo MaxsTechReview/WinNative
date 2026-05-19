@@ -325,7 +325,7 @@ public class SessionKeepAliveService extends Service {
     @Override
     public void onDestroy() {
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-//        if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+        if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         serviceRunning.set(false);
         super.onDestroy();
     }
