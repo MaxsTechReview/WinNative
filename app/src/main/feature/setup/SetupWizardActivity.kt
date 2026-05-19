@@ -190,7 +190,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
         private const val DEFAULT_JSON_URL =
-            "https://github.com/Xnick417x/winlator-nightly-wcp/blob/main/default.json"
+            "https://github.com/nicholasx417/WinNative-Components/blob/main/default.json"
 
         @JvmStatic
         fun isSetupComplete(context: Context): Boolean = prefs(context).getBoolean(KEY_SETUP_COMPLETE, false)
@@ -415,50 +415,50 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             PackageSpec(
                 label = "DXVK 2.7.1 GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
                 nameHint = "dxvk-2.7.1-gplasync",
             ),
             PackageSpec(
                 label = "DXVK 2.7.1 ARM64EC GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
                 nameHint = "Dxvk-2.7.1-arm64ec-gplasync",
             ),
             PackageSpec(
-                label = "VKD3D Proton 3.0b",
+                label = "VKD3D Proton 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
-                nameHint = "Vk3dk-proton-3.0b",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-VKD3D/Vkd3d-proton-3.0.1.wcp",
+                nameHint = "Vkd3d-proton-3.0.1",
             ),
             PackageSpec(
-                label = "VKD3D ARM64EC 3.0b",
+                label = "VKD3D ARM64EC 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
-                nameHint = "Vk3dk-arm64ec-3.0b",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-arm64ec-VKD3D/Vkd3d-arm64ec-3.0.1.wcp",
+                nameHint = "Vk3dk-arm64ec-3.0.1",
             ),
             PackageSpec(
                 label = "DXVK 2.4.1 pre-reg",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
                 nameHint = "Dxvk-2.4.1-pre-reg",
             ),
             PackageSpec(
-                label = "FEX 2604",
+                label = "FEX 2605",
                 type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
-                nameHint = "FEX-2604",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-FEX/FEX-2605.wcp",
+                nameHint = "FEX-2605",
             ),
             PackageSpec(
-                label = "Box64 0.4.1 fix",
+                label = "Box64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
-                nameHint = "Box64-0.4.1-fix",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Box64/Box64-0.4.2.wcp",
+                nameHint = "Box64-0.4.2",
             ),
             PackageSpec(
-                label = "Wowbox64 0.4.1",
+                label = "Wowbox64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
-                nameHint = "Wowbox64-0.4.1",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-wowbox64/Wowbox64-0.4.2.wcp",
+                nameHint = "Wowbox64-0.4.2",
             ),
         )
 
@@ -467,7 +467,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended x86-64",
             archToken = "x86_64",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
-            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
+            fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} x86-64"
@@ -499,7 +499,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended ARM64EC",
             archToken = "arm64ec",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
-            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
+            fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
             containerDisplayName = { profile ->
                 "${runtimeDisplayLabel(profile)} ARM64EC"
@@ -943,36 +943,59 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         return if (failed) null else installedProfile
     }
 
-    private fun resolveRecommendedComponentSpecs(): List<PackageSpec> {
-        val componentTypes =
-            setOf(
-                ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-            )
-        val remoteSpecs =
-            fetchRecommendedPackages()
-                .filter { it.type in componentTypes }
-                .map {
-                    PackageSpec(
-                        label = it.verName,
-                        type = it.type,
-                        url = it.remoteUrl,
-                        nameHint = it.verName,
-                    )
+    private fun loadAdvancedProfiles() {
+        if (advancedProfiles.isNotEmpty()) return
+        lifecycleScope.launch {
+            val profiles =
+                withContext(Dispatchers.IO) {
+                    // 1. Fetch recommended (default.json)
+                    val recommended = fetchRecommendedPackages()
+
+                    // 2. Fetch full catalog (content.json)
+                    val fullCatalog =
+                        parseRecommendedPackages(
+                            Downloader.downloadString(ContentsManager.REMOTE_PROFILES),
+                        )
+
+                    // 3. Merge: start with recommended, then add any full catalog entries not already present
+                    val seen = recommended.map { it.remoteUrl }.toMutableSet()
+                    val merged = recommended.toMutableList()
+                    for (spec in fullCatalog) {
+                        if (spec.remoteUrl !in seen) {
+                            seen.add(spec.remoteUrl)
+                            merged.add(spec)
+                        }
+                    }
+
+                    // 4. Emergency Fallback: If everything failed and we have no profiles, use hardcoded ones
+                    if (merged.isEmpty()) {
+                        merged.addAll(getFallbackRemoteSpecs())
+                    }
+                    merged
                 }
-        return remoteSpecs.ifEmpty { recommendedComponents }
+            advancedProfiles.clear()
+            advancedProfiles.addAll(profiles)
+            refreshAdvancedInstalledSet()
+        }
     }
+
+    private fun getFallbackRemoteSpecs(): List<RemotePackageSpec> =
+        buildList {
+            recommendedComponents.forEach {
+                add(RemotePackageSpec(it.type, it.label, it.url))
+            }
+            add(RemotePackageSpec(x86ProtonSpec.fallbackType, x86ProtonSpec.label, x86ProtonSpec.fallbackUrl))
+            add(RemotePackageSpec(arm64ProtonSpec.fallbackType, arm64ProtonSpec.label, arm64ProtonSpec.fallbackUrl))
+        }
 
     private fun resolveRecommendedRuntimeSpec(spec: RuntimeSpec): PackageSpec {
         val resolved =
-            fetchRecommendedPackages().firstOrNull {
-                (
-                    it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                        it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
-                ) &&
+            advancedProfiles.firstOrNull {
+                isRecommendedSpec(it) &&
+                    (
+                        it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                            it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                    ) &&
                     it.verName.contains(spec.archToken, ignoreCase = true)
             }
 
@@ -1256,35 +1279,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 supportFragmentManager,
                 SetupWizardDriversDialogFragment.TAG,
             )
-        }
-    }
-
-    private fun loadAdvancedProfiles() {
-        if (advancedProfiles.isNotEmpty()) return
-        lifecycleScope.launch {
-            val profiles =
-                withContext(Dispatchers.IO) {
-                    // Fetch recommended (default.json) for marking recommendations
-                    val recommended = fetchRecommendedPackages()
-                    // Fetch full catalog (content.json) for all categories
-                    val fullCatalog =
-                        parseRecommendedPackages(
-                            Downloader.downloadString(ContentsManager.REMOTE_PROFILES),
-                        )
-                    // Merge: start with recommended, then add any full catalog entries not already present
-                    val seen = recommended.map { it.remoteUrl }.toMutableSet()
-                    val merged = recommended.toMutableList()
-                    for (spec in fullCatalog) {
-                        if (spec.remoteUrl !in seen) {
-                            seen.add(spec.remoteUrl)
-                            merged.add(spec)
-                        }
-                    }
-                    merged
-                }
-            advancedProfiles.clear()
-            advancedProfiles.addAll(profiles)
-            refreshAdvancedInstalledSet()
         }
     }
 
