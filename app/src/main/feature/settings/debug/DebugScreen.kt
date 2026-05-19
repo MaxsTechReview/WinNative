@@ -213,6 +213,7 @@ fun DebugScreen(
             SectionLabel(stringResource(R.string.settings_debug_section_subsystems), modifier = Modifier.padding(top = 8.dp))
         }
 
+/*
         item(key = "vulkan_validation_layers_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_vulkan_validation_layers_title),
@@ -223,6 +224,7 @@ fun DebugScreen(
                 onCheckedChange = onVulkanValidationLayersChanged,
             )
         }
+*/
 
         item(key = "steam_logs_card") {
             SettingsToggleCard(
