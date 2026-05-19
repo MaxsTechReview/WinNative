@@ -119,6 +119,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private FrametimeGraphView graphView;
   private boolean isNativeActive;
   private boolean isStatsRunning;
+  private volatile boolean isCharging;
   private volatile float lastFPS;
   private volatile long lastFrameNano;
   private long lastPrimaryFrameNano;
@@ -1298,6 +1299,9 @@ public class FrameRating extends LinearLayout implements Runnable {
           int temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
           if (temp > 0) this.cpuTemp = temp / 10;
           else this.cpuTemp = -1;
+
+          int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+          this.isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
         }
         this.battFailCount = 0;
       } catch (Exception e) {
@@ -1359,12 +1363,16 @@ public class FrameRating extends LinearLayout implements Runnable {
                 : this.batteryWatts;
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "BAT ", this.C_BAT);
-        append(
-            b,
-            displayedBatteryWatts >= 0.0f
-                ? String.format(Locale.US, "%.1fW", displayedBatteryWatts)
-                : "N/A",
-            this.C_VALUE);
+        if (this.isCharging) {
+          append(b, "CHRG", this.C_FPS_OK);
+        } else {
+          append(
+              b,
+              displayedBatteryWatts >= 0.0f
+                  ? String.format(Locale.US, "%.1fW", displayedBatteryWatts)
+                  : "N/A",
+              this.C_VALUE);
+        }
         this.tvBat.setText(b);
         this.tvBat.setVisibility(View.VISIBLE);
       }
