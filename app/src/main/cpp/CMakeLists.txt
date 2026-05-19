@@ -96,7 +96,6 @@ add_library(winlator SHARED
         winlator/process_lifecycle.c
         winlator/vulkan.c
         winlator/vk/vk_dispatch.c
-        winlator/vk/vk_frame_pacer.c
         winlator/vk/vk_image.c
         winlator/vk/vk_renderer.c
         xz/native_xz_stream.c

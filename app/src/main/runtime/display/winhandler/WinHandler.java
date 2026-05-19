@@ -586,7 +586,7 @@ public class WinHandler {
         if (xServer.getRenderer() != null) {
           xServer.getRenderer().requestCursorRender();
         } else {
-          this.activity.getXServerView().requestRender();
+          this.activity.getXServerView().requestTransientRender(100);
         }
         return;
       default:

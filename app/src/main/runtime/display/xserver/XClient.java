@@ -20,7 +20,6 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
   private final ArrayMap<Window, EventListener> eventListeners = new ArrayMap<>();
   private final ArrayList<XResource> resources = new ArrayList<>();
   private long nextFrameTimeNanos = 0;
-  private final long[] vsyncSnapshotNanos = new long[2];
 
   public XClient(XServer xServer, XInputStream inputStream, XOutputStream outputStream) {
 
@@ -167,46 +166,12 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
     }
 
     long targetFrameTime = 1_000_000_000L / targetFps;
-
-    // Snap to a vsync multiple when commensurate — otherwise the nanoTime heartbeat
-    // beats against the display's vsync clock and produces periodic stutter. 5% guard
-    // skips non-commensurate fps (e.g. 50 on 60Hz) so the user's choice isn't distorted.
-    renderer.copyVsyncSnapshotNanos(vsyncSnapshotNanos);
-    long vsyncTime = vsyncSnapshotNanos[0];
-    long vsyncPeriod = vsyncSnapshotNanos[1];
-    boolean snapped = false;
-    if (vsyncPeriod >= 5_000_000L && vsyncTime > 0) {
-      long multiple = Math.max(1L, Math.round((double) targetFrameTime / (double) vsyncPeriod));
-      long snappedFrameTime = multiple * vsyncPeriod;
-      if (Math.abs(snappedFrameTime - targetFrameTime) * 20L <= targetFrameTime) {
-        targetFrameTime = snappedFrameTime;
-        snapped = true;
-      }
-    }
-
     long now = System.nanoTime();
 
     // HARD RESYNC: If we are more than 100ms late, reset the clock heartbeat.
     // This prevents "speed-up" stutters after loading screens.
     if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + 100_000_000L) {
       nextFrameTimeNanos = now + targetFrameTime;
-      if (snapped) {
-        // Snap the seed to a vsync edge.
-        long offset = ((nextFrameTimeNanos - vsyncTime) % vsyncPeriod + vsyncPeriod) % vsyncPeriod;
-        if (offset < vsyncPeriod / 2) {
-          nextFrameTimeNanos -= offset;
-        } else {
-          nextFrameTimeNanos += (vsyncPeriod - offset);
-        }
-      }
-    } else if (snapped) {
-      // Per-call correction absorbs EMA drift; capped to keep sleep duration smooth.
-      long offset = ((nextFrameTimeNanos - vsyncTime) % vsyncPeriod + vsyncPeriod) % vsyncPeriod;
-      long correction = (offset < vsyncPeriod / 2) ? -offset : (vsyncPeriod - offset);
-      long cap = vsyncPeriod / 16;
-      if (correction > cap) correction = cap;
-      else if (correction < -cap) correction = -cap;
-      nextFrameTimeNanos += correction;
     }
 
     long sleepTime = nextFrameTimeNanos - now;

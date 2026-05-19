@@ -3,7 +3,10 @@ package com.winlator.cmod.runtime.display.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.Choreographer;
 import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
@@ -24,6 +27,7 @@ import com.winlator.cmod.shared.math.XForm;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Native Vulkan compositor.
@@ -81,6 +85,8 @@ public class VulkanRenderer
     public int surfaceWidth;
     public int surfaceHeight;
     private boolean cpuSaverMode = false;
+    private static final long CURSOR_ACTIVE_NS = 100_000_000L;
+    private volatile long cursorActiveUntilNs = 0L;
 
     private static final int MAX_FPS_LIMIT = 1000;
     private volatile int currentFpsLimit = 0;
@@ -112,15 +118,8 @@ public class VulkanRenderer
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
-    private final Object framePacerLock = new Object();
-    private long nativeFramePacer = 0;
-
-    // pacerPriorVsyncNanos is pacer-thread-private. The volatile snapshot fields
-    // use vsyncSnapshotSequence as a seqlock so readers can copy a consistent pair.
-    private long pacerPriorVsyncNanos = 0;
-    private volatile int vsyncSnapshotSequence = 0;
-    private volatile long vsyncTimeNanos = 0;
-    private volatile long vsyncPeriodNanos = 0;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean renderRequested = new AtomicBoolean(false);
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -138,85 +137,14 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
-        synchronized (framePacerLock) {
-            if (nativeFramePacer != 0) {
-                nativeRequestFrame(nativeFramePacer);
-                return;
-            }
-        }
-        xServerView.requestRender();
-    }
-
-    private void ensureNativeFramePacer() {
-        synchronized (framePacerLock) {
-            if (nativeFramePacer == 0) {
-                nativeFramePacer = nativeCreateFramePacer(this);
-                if (nativeFramePacer == 0) {
-                    Log.w(TAG, "API 29 native frame pacer unavailable; using direct render requests");
-                }
-            }
+        if (renderRequested.compareAndSet(false, true)) {
+            mainHandler.post(() ->
+                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
+                        renderRequested.set(false);
+                        xServerView.requestRender();
+                    }));
         }
     }
-
-    private void destroyNativeFramePacer() {
-        synchronized (framePacerLock) {
-            if (nativeFramePacer != 0) {
-                nativeDestroyFramePacer(nativeFramePacer);
-                nativeFramePacer = 0;
-                // Pacer thread is joined; reset hands off to the next pacer via
-                // synchronized happens-before.
-                pacerPriorVsyncNanos = 0;
-                vsyncSnapshotSequence++;
-                vsyncTimeNanos = 0;
-                vsyncPeriodNanos = 0;
-                vsyncSnapshotSequence++;
-            }
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private void onNativeFrameTick(long frameTimeNanos) {
-        long prior = pacerPriorVsyncNanos;
-        long periodNanos = vsyncPeriodNanos;
-        if (prior != 0) {
-            long delta = frameTimeNanos - prior;
-            if (periodNanos == 0) {
-                if (delta >= 5_000_000L && delta <= 50_000_000L) {
-                    periodNanos = delta;
-                }
-            } else if (delta >= periodNanos / 2 && delta <= periodNanos + (periodNanos / 2)) {
-                // Reject dropped-frame deltas so a single stutter can't poison the EMA.
-                periodNanos = (periodNanos * 7 + delta) / 8;
-            }
-        }
-        pacerPriorVsyncNanos = frameTimeNanos;
-        vsyncSnapshotSequence++;
-        vsyncPeriodNanos = periodNanos;
-        vsyncTimeNanos = frameTimeNanos;
-        vsyncSnapshotSequence++;
-        xServerView.requestRender();
-    }
-
-    public void copyVsyncSnapshotNanos(long[] out) {
-        if (out == null || out.length < 2) return;
-
-        int start;
-        int end;
-        long time;
-        long period;
-        do {
-            start = vsyncSnapshotSequence;
-            period = vsyncPeriodNanos;
-            time = vsyncTimeNanos;
-            end = vsyncSnapshotSequence;
-        } while ((start & 1) != 0 || start != end);
-
-        out[0] = time;
-        out[1] = period;
-    }
-
-    public long getVsyncTimeNanos() { return vsyncTimeNanos; }
-    public long getVsyncPeriodNanos() { return vsyncPeriodNanos; }
 
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
@@ -241,14 +169,11 @@ public class VulkanRenderer
                 return;
             }
             Texture.setRendererHandle(nativeHandle);
-            ensureNativeFramePacer();
             // Apply the cached present-mode request now that the native renderer exists.
             // No-op if the requested mode equals the native default (FIFO).
             if (requestedPresentMode != PRESENT_MODE_FIFO) {
                 nativeSetPresentMode(nativeHandle, requestedPresentMode);
             }
-        } else {
-            ensureNativeFramePacer();
         }
         nativeSurfaceCreated(nativeHandle, surface);
     }
@@ -289,7 +214,6 @@ public class VulkanRenderer
 
     @Override
     public void onSurfaceDestroyed() {
-        destroyNativeFramePacer();
         if (nativeHandle != 0) {
             nativeDestroy(nativeHandle);
             nativeHandle = 0;
@@ -584,7 +508,8 @@ public class VulkanRenderer
     }
 
     public void requestCursorRender() {
-        requestRenderCoalesced();
+        cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
+        xServerView.requestTransientRender(100);
     }
 
     @Override
@@ -841,7 +766,4 @@ public class VulkanRenderer
     private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
-    private static native long nativeCreateFramePacer(VulkanRenderer renderer);
-    private static native void nativeDestroyFramePacer(long handle);
-    private static native void nativeRequestFrame(long handle);
 }
