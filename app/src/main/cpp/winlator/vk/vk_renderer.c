@@ -23,7 +23,6 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 // SPIR-V shader byte arrays generated at build time by glslc + bin2c.cmake.
 #include "shaders/window_vert.spv.h"
@@ -36,20 +35,6 @@
 #include "shaders/effect_hdr_frag.spv.h"
 #include "shaders/effect_natural_frag.spv.h"
 #include "shaders/sgsr1_frag.spv.h"
-
-// ============================================================
-// Time helpers
-// ============================================================
-
-static int64_t now_ns(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-
-static const int64_t FPS_LIMIT_RESYNC_NS = 100000000LL;
-static const int64_t FPS_LIMIT_SLEEP_THRESHOLD_NS = 500000LL;
-static const int64_t FPS_LIMIT_SPIN_WINDOW_NS = 4000000LL;
 
 // ============================================================
 // Forward decls
@@ -1690,6 +1675,21 @@ static bool scene_starts_with_sgsr1(const VkScene* s) {
     return s->effect_count > 0 && s->effects[0].type == VK_EFFECT_SGSR1;
 }
 
+// Wait for any frame currently in flight on the graphics queue. Cheaper than
+// vkDeviceWaitIdle for the destroy-and-rebuild paths in record_and_submit_frame: we don't
+// care about non-graphics queue work, only about no live frame still sampling/drawing to
+// the resource we're about to recreate. Caller has already waited on the current frame's
+// fence; this picks up the other in-flight slots.
+static void wait_inflight_frames(VkRenderer* r) {
+    VkFence fences[VK_FRAMES_IN_FLIGHT];
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT; i++) {
+        if (r->frames[i].in_flight) fences[count++] = r->frames[i].in_flight;
+    }
+    if (count == 0) return;
+    vkWaitForFences(r->device, count, fences, VK_TRUE, UINT64_MAX);
+}
+
 // SGSR1 upscales the actual X/DRI3 source; ratio changes take effect after restart.
 static VkExtent2D compute_sgsr1_source_extent(VkRenderer* r, const VkScene* s) {
     VkExtent2D out = r->swapchain_extent;
@@ -1758,20 +1758,25 @@ static bool record_and_submit_frame(VkRenderer* r) {
         && (!r->offscreen_built
             || r->offscreen[0].width != r->swapchain_extent.width
             || r->offscreen[0].height != r->swapchain_extent.height)) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height);
     } else if (!needs_fullres_offscreen && r->offscreen_built) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         destroy_offscreen(r);
     }
-    if (wants_sgsr1
-        && (!r->sgsr1.built
-            || r->sgsr1.width != sgsr1_source_extent.width
-            || r->sgsr1.height != sgsr1_source_extent.height)) {
-        vkDeviceWaitIdle(r->device);
+    // Only rebuild SGSR1 source on meaningful dim change. Tiny pixmap-size flicker (off-by-
+    // one DRI3 jitter, transient resizes) used to thrash this allocation every frame and
+    // stall the render thread on the full-device wait that preceded it.
+    int sgsr1_dw = (int)r->sgsr1.width  - (int)sgsr1_source_extent.width;
+    int sgsr1_dh = (int)r->sgsr1.height - (int)sgsr1_source_extent.height;
+    if (sgsr1_dw < 0) sgsr1_dw = -sgsr1_dw;
+    if (sgsr1_dh < 0) sgsr1_dh = -sgsr1_dh;
+    bool sgsr1_dim_changed = r->sgsr1.built && (sgsr1_dw > 4 || sgsr1_dh > 4);
+    if (wants_sgsr1 && (!r->sgsr1.built || sgsr1_dim_changed)) {
+        wait_inflight_frames(r);
         create_sgsr1_resources(r, sgsr1_source_extent.width, sgsr1_source_extent.height);
     } else if (!wants_sgsr1 && r->sgsr1.built) {
-        vkDeviceWaitIdle(r->device);
+        wait_inflight_frames(r);
         destroy_sgsr1_resources(r);
     }
 
@@ -1926,33 +1931,12 @@ static bool record_and_submit_frame(VkRenderer* r) {
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
-    // FPS limiter. Keep this cadence aligned with XClient.enforceAbsoluteFramerate().
-    if (r->target_frame_time_ns > 0) {
-        int64_t now = now_ns();
-        if (r->next_frame_time_ns == 0 || now > r->next_frame_time_ns + FPS_LIMIT_RESYNC_NS) {
-            r->next_frame_time_ns = now + r->target_frame_time_ns;
-        }
-
-        int64_t sleep_ns = r->next_frame_time_ns - now;
-        if (sleep_ns > FPS_LIMIT_SLEEP_THRESHOLD_NS) {
-            if (sleep_ns > FPS_LIMIT_SPIN_WINDOW_NS) {
-                int64_t coarse_sleep_ns = sleep_ns - FPS_LIMIT_SPIN_WINDOW_NS;
-                struct timespec ts;
-                ts.tv_sec = coarse_sleep_ns / 1000000000LL;
-                ts.tv_nsec = coarse_sleep_ns % 1000000000LL;
-                nanosleep(&ts, NULL);
-            }
-
-            while (now_ns() < r->next_frame_time_ns) {
-                // Spin for the final interval to match upstream's precise heartbeat.
-            }
-        }
-
-        r->next_frame_time_ns += r->target_frame_time_ns;
-    } else {
-        r->next_frame_time_ns = 0;
-    }
-
+    // No compositor-side FPS pacing here. Frame rate is already bounded by the X dispatch
+    // thread's XClient.enforceAbsoluteFramerate (which gates the game), Choreographer-paced
+    // requestRenderCoalesced (one render request per vsync), and FIFO present mode. Running
+    // a third sleep+busy-spin on the render thread duplicates that pacing for no FPS gain
+    // and burned ~24% of one core on busy-spinning under the GL renderer's behaviour,
+    // measurably regressing in-game 60 FPS caps.
     return true;
 }
 
@@ -2332,16 +2316,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
     // here needs to touch swapchain-tied resources.
 }
 
+// FPS pacing is enforced on the X dispatch thread (XClient.enforceAbsoluteFramerate) and by
+// the swapchain present mode + Choreographer-coalesced render requests. The compositor used
+// to run its own sleep+busy-spin here too, which duplicated the pacing and burned CPU; this
+// entry point is kept as a no-op for Java-side ABI compatibility.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlong handle, jint fps) {
-    (void)env; (void)clazz;
-    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
-    if (!r) return;
-    if (fps <= 0) {
-        r->target_frame_time_ns = 0;
-        r->next_frame_time_ns = 0;
-    } else {
-        r->target_frame_time_ns = 1000000000LL / fps;
-    }
+    (void)env; (void)clazz; (void)handle; (void)fps;
 }
 
 // Set the compositor present mode. Java passes 0=FIFO, 1=MAILBOX, 2=IMMEDIATE; anything else
