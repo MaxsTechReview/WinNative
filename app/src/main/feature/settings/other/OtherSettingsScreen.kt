@@ -63,6 +63,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,10 +75,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -934,61 +937,71 @@ private fun ReinstallImagefsConfirmDialog(
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(24.dp),
+        val defaultDensity = LocalDensity.current
+        CompositionLocalProvider(
+            LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(IconBoxBg),
-                        contentAlignment = Alignment.Center,
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                        .padding(24.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Autorenew,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(19.dp),
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(IconBoxBg),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Autorenew,
+                                contentDescription = null,
+                                tint = Accent,
+                                modifier = Modifier.size(19.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.settings_general_reinstall_imagefs),
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.settings_general_reinstall_imagefs),
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                ) {
-                    SmallActionButton(
-                        label = stringResource(R.string.common_ui_cancel),
-                        textColor = TextSecondary,
-                        onClick = onDismiss,
-                    )
-                    SmallActionButton(
-                        label = stringResource(R.string.common_ui_reinstall),
-                        textColor = Accent,
-                        onClick = onConfirm,
-                    )
+                    Spacer(Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    ) {
+                        SmallActionButton(
+                            label = stringResource(R.string.common_ui_cancel),
+                            textColor = TextSecondary,
+                            onClick = onDismiss,
+                        )
+                        SmallActionButton(
+                            label = stringResource(R.string.common_ui_reinstall),
+                            textColor = Accent,
+                            onClick = onConfirm,
+                        )
+                    }
                 }
             }
         }
@@ -1019,69 +1032,77 @@ private fun ImagefsInstallProgressDialog(percent: Int) {
                 dismissOnClickOutside = false,
             ),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(24.dp),
+        val defaultDensity = LocalDensity.current
+        CompositionLocalProvider(
+            LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(IconBoxBg),
-                        contentAlignment = Alignment.Center,
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                        .padding(24.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Autorenew,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(19.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(IconBoxBg),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Autorenew,
+                                contentDescription = null,
+                                tint = Accent,
+                                modifier = Modifier.size(19.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.setup_wizard_installing_system_files),
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.settings_other_keep_app_open),
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Text(
-                            text = stringResource(R.string.setup_wizard_installing_system_files),
-                            color = TextPrimary,
-                            fontSize = 15.sp,
+                            text = "$animatedPercent%",
+                            color = Accent,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = stringResource(R.string.settings_other_keep_app_open),
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                        )
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = "$animatedPercent%",
+                    Spacer(Modifier.height(16.dp))
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
                         color = Accent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        trackColor = SurfaceDark,
+                        strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
                     )
                 }
-                Spacer(Modifier.height(16.dp))
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                    color = Accent,
-                    trackColor = SurfaceDark,
-                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-                    gapSize = 0.dp,
-                    drawStopIndicator = {},
-                )
             }
         }
     }
