@@ -6,6 +6,7 @@ import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class ImageFs {
