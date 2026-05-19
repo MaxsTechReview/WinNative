@@ -202,7 +202,10 @@ public abstract class ProcessHelper {
     "winedevice.exe",
     "plugplay.exe",
     "wfm.exe",
-    "conhost.exe"
+    "conhost.exe",
+    "steam.exe",
+    "steamwebhelper.exe",
+    "webhelper.exe"
   };
 
   private static boolean isCoreProcess(String normalizedData) {

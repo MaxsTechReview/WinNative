@@ -152,12 +152,13 @@ public class SessionKeepAliveService extends Service {
         }
 
         // Keep the Wi-Fi alive to prevent network interruptions. Useful for games that stream assets from the network or have online features.
-        // Note: This is not strictly necessary for keeping the session alive, so it's commented out by default. The use of this code is at the app developer’s discretion.
-        // Note: wifiLock is called on "onDestroy" and "onStartCommand". Uncomment those too.
         WifiManager wm = (WifiManager) getSystemService(WIFI_SERVICE);
         if (wm != null) {
-            wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "Winlator:WifiKeepAlive");
-            wifiLock.acquire();
+            int lockType = WifiManager.WIFI_MODE_FULL;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                lockType = WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+            }
+            wifiLock = wm.createWifiLock(lockType, "WinNative:WifiKeepAlive");
         }
 
         ensureChannel();
@@ -180,13 +181,15 @@ public class SessionKeepAliveService extends Service {
             isContainerPaused = false;
         }
 
-        // Ensure wake lock and OOM adj are correct based on current state
+        // Ensure wake lock, wifi lock and OOM adj are correct based on current state
         if (hasReason()) {
             if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
+            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
             ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), -1000);
             ProcessHelper.protectAllWineProcesses();
         } else {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
             ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), 0);
         }
 
