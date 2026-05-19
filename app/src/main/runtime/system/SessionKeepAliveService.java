@@ -8,7 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
-//import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -56,7 +56,7 @@ public class SessionKeepAliveService extends Service {
     private static boolean isContainerPaused = false;
 
     private PowerManager.WakeLock wakeLock;
-//    private WifiManager.WifiLock wifiLock;
+    private WifiManager.WifiLock wifiLock;
     private int notificationId;
 
     public static void startSession(Context ctx) {
