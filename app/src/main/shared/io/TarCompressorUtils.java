@@ -124,10 +124,16 @@ public abstract class TarCompressorUtils {
       String assetFile,
       File destination,
       OnExtractFileListener onExtractFileListener) {
+    int nativeType = type == Type.XZ ? NativeContentIO.TYPE_XZ : NativeContentIO.TYPE_ZSTD;
     try {
-      return extract(type, context.getAssets().open(assetFile), destination, onExtractFileListener);
+      if (NativeContentIO.extractAsset(
+          nativeType, context.getAssets(), assetFile, destination, onExtractFileListener)) {
+        return true;
+      }
+      Log.e("TarCompressor", "Native asset extraction failed: " + assetFile);
+      return false;
     } catch (Throwable e) {
-      Log.e("TarCompressor", "Error extracting asset: " + assetFile, e);
+      Log.e("TarCompressor", "Native asset extraction failed: " + assetFile, e);
       return false;
     }
   }
@@ -171,7 +177,6 @@ public abstract class TarCompressorUtils {
       if (inputStream == null) return false;
       return extract(
           type,
-          null,
           new BufferedInputStream(inputStream, StreamUtils.BUFFER_SIZE),
           destination,
           onExtractFileListener);
@@ -187,10 +192,11 @@ public abstract class TarCompressorUtils {
   public static boolean extract(
       Type type, File source, File destination, OnExtractFileListener onExtractFileListener) {
     if (source == null || !source.isFile()) return false;
+    int nativeType = type == Type.XZ ? NativeContentIO.TYPE_XZ : NativeContentIO.TYPE_ZSTD;
     try {
-      return extract(type, source, null, destination, onExtractFileListener);
+      return NativeContentIO.extractArchive(nativeType, source, destination, onExtractFileListener);
     } catch (Throwable e) {
-      Log.e("TarCompressor", "Error extracting file: " + source, e);
+      Log.e("TarCompressor", "Native extraction failed for " + source, e);
       return false;
     }
   }
@@ -200,17 +206,8 @@ public abstract class TarCompressorUtils {
       InputStream source,
       File destination,
       OnExtractFileListener onExtractFileListener) {
-    return extract(type, null, source, destination, onExtractFileListener);
-  }
-
-  private static boolean extract(
-      Type type,
-      File sourceFile,
-      InputStream source,
-      File destination,
-      OnExtractFileListener onExtractFileListener) {
-    if (sourceFile == null && source == null) return false;
-    try (InputStream inStream = getCompressorInputStream(type, sourceFile, source);
+    if (source == null) return false;
+    try (InputStream inStream = getCompressorInputStream(type, source);
         ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
       TarArchiveEntry entry;
       while ((entry = (TarArchiveEntry) tar.getNextEntry()) != null) {
@@ -260,32 +257,12 @@ public abstract class TarCompressorUtils {
     }
   }
 
-  private static InputStream getCompressorInputStream(
-      Type type, File sourceFile, InputStream source) throws IOException {
+  private static InputStream getCompressorInputStream(Type type, InputStream source)
+      throws IOException {
+    if (source == null) return null;
     if (type == Type.XZ) {
-      if (sourceFile != null) {
-        try {
-          return new NativeXzInputStream(sourceFile);
-        } catch (IOException e) {
-          Log.d("TarCompressor", "Falling back to Java XZ decoder for " + sourceFile);
-          BufferedInputStream bis =
-              new BufferedInputStream(new FileInputStream(sourceFile), StreamUtils.BUFFER_SIZE);
-          try {
-            return new XZCompressorInputStream(bis);
-          } catch (IOException e2) {
-            bis.close();
-            throw e2;
-          }
-        }
-      }
-      if (source == null) return null;
       return new XZCompressorInputStream(source);
     } else if (type == Type.ZSTD) {
-      if (sourceFile != null) {
-        return new ZstdInputStreamNoFinalizer(
-            new BufferedInputStream(new FileInputStream(sourceFile), StreamUtils.BUFFER_SIZE));
-      }
-      if (source == null) return null;
       return new ZstdInputStreamNoFinalizer(source);
     }
     return null;

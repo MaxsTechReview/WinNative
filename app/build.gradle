@@ -147,11 +147,13 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
+            proguardFiles 'proguard-rules.pro'
             // Use release signing if available, otherwise fall back to default debug signing
             signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
         }
         release {
             minifyEnabled true
+            proguardFiles 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
