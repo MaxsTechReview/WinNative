@@ -2,6 +2,9 @@ package com.winlator.cmod.runtime.display.ui;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.os.Build;
+import android.os.Looper;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
@@ -38,6 +41,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     private volatile int width;
     private volatile int height;
+    private volatile float surfaceFrameRate;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -106,6 +110,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             height = 0;
         }
         renderer.attachSurface(holder.getSurface());
+        applySurfaceFrameRate();
         startRenderThreadIfNeeded();
     }
 
@@ -122,6 +127,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         }
 
         renderer.notifySurfaceChanged(w, h);
+        applySurfaceFrameRate();
         synchronized (renderLock) {
             width = w;
             height = h;
@@ -134,6 +140,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        clearSurfaceFrameRate(holder.getSurface());
         synchronized (renderLock) {
             surfaceReady = false;
             width = 0;
@@ -217,4 +224,31 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     public int getSurfaceWidth() { return width; }
     public int getSurfaceHeight() { return height; }
+
+    public void setSurfaceFrameRate(float frameRate) {
+        surfaceFrameRate = frameRate > 0f ? frameRate : 0f;
+        applySurfaceFrameRate();
+    }
+
+    private void applySurfaceFrameRate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            post(this::applySurfaceFrameRate);
+            return;
+        }
+
+        Surface surface = getHolder().getSurface();
+        if (surface == null || !surface.isValid()) return;
+        try {
+            surface.setFrameRate(surfaceFrameRate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        } catch (IllegalArgumentException | IllegalStateException ignored) {}
+    }
+
+    private void clearSurfaceFrameRate(Surface surface) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        if (surface == null || !surface.isValid()) return;
+        try {
+            surface.setFrameRate(0f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        } catch (IllegalArgumentException | IllegalStateException ignored) {}
+    }
 }

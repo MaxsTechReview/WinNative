@@ -534,7 +534,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            int requestedHz = getRefreshRateOverride();
+            RefreshRateUtils.applyPreferredRefreshRate(this, requestedHz, runtimeFpsLimit);
+            if (xServerView != null) {
+                int effectiveHz = RefreshRateUtils.resolveFramePacedRefreshRate(
+                        this, requestedHz, runtimeFpsLimit);
+                float surfaceFrameRate = RefreshRateUtils.resolvePreferredRefreshRate(this, effectiveHz);
+                xServerView.setSurfaceFrameRate(surfaceFrameRate);
+            }
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {

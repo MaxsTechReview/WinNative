@@ -115,6 +115,13 @@ public class VulkanRenderer
     private final Object framePacerLock = new Object();
     private long nativeFramePacer = 0;
 
+    // pacerPriorVsyncNanos is pacer-thread-private. The volatile snapshot fields
+    // use vsyncSnapshotSequence as a seqlock so readers can copy a consistent pair.
+    private long pacerPriorVsyncNanos = 0;
+    private volatile int vsyncSnapshotSequence = 0;
+    private volatile long vsyncTimeNanos = 0;
+    private volatile long vsyncPeriodNanos = 0;
+
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
     // Effect.writeParams writes into a float[]; we copy into the ByteBuffer afterwards.
@@ -156,14 +163,60 @@ public class VulkanRenderer
             if (nativeFramePacer != 0) {
                 nativeDestroyFramePacer(nativeFramePacer);
                 nativeFramePacer = 0;
+                // Pacer thread is joined; reset hands off to the next pacer via
+                // synchronized happens-before.
+                pacerPriorVsyncNanos = 0;
+                vsyncSnapshotSequence++;
+                vsyncTimeNanos = 0;
+                vsyncPeriodNanos = 0;
+                vsyncSnapshotSequence++;
             }
         }
     }
 
     @SuppressWarnings("unused")
     private void onNativeFrameTick(long frameTimeNanos) {
+        long prior = pacerPriorVsyncNanos;
+        long periodNanos = vsyncPeriodNanos;
+        if (prior != 0) {
+            long delta = frameTimeNanos - prior;
+            if (periodNanos == 0) {
+                if (delta >= 5_000_000L && delta <= 50_000_000L) {
+                    periodNanos = delta;
+                }
+            } else if (delta >= periodNanos / 2 && delta <= periodNanos + (periodNanos / 2)) {
+                // Reject dropped-frame deltas so a single stutter can't poison the EMA.
+                periodNanos = (periodNanos * 7 + delta) / 8;
+            }
+        }
+        pacerPriorVsyncNanos = frameTimeNanos;
+        vsyncSnapshotSequence++;
+        vsyncPeriodNanos = periodNanos;
+        vsyncTimeNanos = frameTimeNanos;
+        vsyncSnapshotSequence++;
         xServerView.requestRender();
     }
+
+    public void copyVsyncSnapshotNanos(long[] out) {
+        if (out == null || out.length < 2) return;
+
+        int start;
+        int end;
+        long time;
+        long period;
+        do {
+            start = vsyncSnapshotSequence;
+            period = vsyncPeriodNanos;
+            time = vsyncTimeNanos;
+            end = vsyncSnapshotSequence;
+        } while ((start & 1) != 0 || start != end);
+
+        out[0] = time;
+        out[1] = period;
+    }
+
+    public long getVsyncTimeNanos() { return vsyncTimeNanos; }
+    public long getVsyncPeriodNanos() { return vsyncPeriodNanos; }
 
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
@@ -531,10 +584,6 @@ public class VulkanRenderer
     }
 
     public void requestCursorRender() {
-        // One coalesced render per cursor event. The native frame pacer collapses pointer
-        // moves to one frame per vsync; once the cursor stops, no further work is scheduled.
-        // The old transient path ran the render loop at panel rate for 100 ms after each
-        // event, drawing the same stationary cursor multiple times for no visible benefit.
         requestRenderCoalesced();
     }
 

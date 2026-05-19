@@ -10,12 +10,12 @@
 #include <jni.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #define LOG_TAG "VkFramePacer"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
 
 typedef struct NativeFramePacer {
     JavaVM* vm;
@@ -34,22 +34,11 @@ typedef struct NativeFramePacer {
     bool running;
     bool ready;
     bool post_requested;
-    bool callback_posted;
+    atomic_bool callback_posted;
 } NativeFramePacer;
 
-static void wake_looper_if_available(NativeFramePacer* p) {
-    ALooper* looper = NULL;
-    pthread_mutex_lock(&p->lock);
-    if (p->looper) {
-        looper = p->looper;
-        ALooper_acquire(looper);
-    }
-    pthread_mutex_unlock(&p->lock);
-
-    if (looper) {
-        ALooper_wake(looper);
-        ALooper_release(looper);
-    }
+static void wake_looper_locked(NativeFramePacer* p) {
+    if (p->looper) ALooper_wake(p->looper);
 }
 
 static JNIEnv* get_env_for_current_thread(NativeFramePacer* p) {
@@ -65,7 +54,7 @@ static void frame_callback(int64_t frame_time_nanos, void* data) {
     bool should_call_java = false;
 
     pthread_mutex_lock(&p->lock);
-    p->callback_posted = false;
+    atomic_store_explicit(&p->callback_posted, false, memory_order_release);
     should_call_java = p->running;
     pthread_mutex_unlock(&p->lock);
 
@@ -132,9 +121,11 @@ static void* frame_pacer_thread_main(void* data) {
             pthread_mutex_unlock(&p->lock);
             break;
         }
-        if (p->post_requested && !p->callback_posted && p->choreographer) {
+        if (p->post_requested
+                && !atomic_load_explicit(&p->callback_posted, memory_order_acquire)
+                && p->choreographer) {
             p->post_requested = false;
-            p->callback_posted = true;
+            atomic_store_explicit(&p->callback_posted, true, memory_order_release);
             should_post = true;
         }
         pthread_mutex_unlock(&p->lock);
@@ -151,7 +142,7 @@ static void* frame_pacer_thread_main(void* data) {
     p->choreographer = NULL;
     p->ready = false;
     p->post_requested = false;
-    p->callback_posted = false;
+    atomic_store_explicit(&p->callback_posted, false, memory_order_release);
     pthread_mutex_unlock(&p->lock);
 
     if (looper) ALooper_release(looper);
@@ -196,6 +187,7 @@ Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_nativeCreateFrame
     pthread_mutex_init(&p->lock, NULL);
     pthread_cond_init(&p->ready_cond, NULL);
     p->running = true;
+    atomic_init(&p->callback_posted, false);
 
     int rc = pthread_create(&p->thread, NULL, frame_pacer_thread_main, p);
     if (rc != 0) {
@@ -234,17 +226,19 @@ Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_nativeDestroyFram
     NativeFramePacer* p = (NativeFramePacer*)(intptr_t)handle;
     if (!p) return;
 
+    // Can't join self; freeing p with the thread still running would UAF.
+    if (pthread_equal(pthread_self(), p->thread)) {
+        LOGE("nativeDestroyFramePacer called from pacer thread; refusing to free");
+        return;
+    }
+
     pthread_mutex_lock(&p->lock);
     p->running = false;
     p->post_requested = false;
+    wake_looper_locked(p);
     pthread_mutex_unlock(&p->lock);
-    wake_looper_if_available(p);
 
-    if (!pthread_equal(pthread_self(), p->thread)) {
-        pthread_join(p->thread, NULL);
-    } else {
-        LOGW("nativeDestroyFramePacer called from pacer thread");
-    }
+    pthread_join(p->thread, NULL);
 
     if (p->renderer) (*env)->DeleteGlobalRef(env, p->renderer);
     pthread_cond_destroy(&p->ready_cond);
@@ -258,16 +252,15 @@ Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_nativeRequestFram
     (void)env; (void)clazz;
     NativeFramePacer* p = (NativeFramePacer*)(intptr_t)handle;
     if (!p) return;
+    if (atomic_load_explicit(&p->callback_posted, memory_order_acquire)) return;
 
-    bool should_wake = false;
     pthread_mutex_lock(&p->lock);
     if (p->running) {
-        if (!p->callback_posted) {
+        if (!atomic_load_explicit(&p->callback_posted, memory_order_acquire)
+                && !p->post_requested) {
             p->post_requested = true;
-            should_wake = true;
+            wake_looper_locked(p);
         }
     }
     pthread_mutex_unlock(&p->lock);
-
-    if (should_wake) wake_looper_if_available(p);
 }
