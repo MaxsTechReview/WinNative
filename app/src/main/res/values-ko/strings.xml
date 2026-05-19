@@ -111,6 +111,18 @@
     <string name="store_game_update_available">업데이트 가능</string>
     <string name="store_game_update_check_failed">업데이트 확인 실패</string>
     <string name="store_game_update">업데이트</string>
+    <string name="store_game_workshop">창작마당</string>
+    <string name="store_game_verify_files">파일 확인</string>
+    <string name="store_game_verify_started">%1$s 확인 중 — 다운로드 탭을 확인하세요</string>
+    <string name="store_game_steam_options">Steam 옵션</string>
+    <string name="store_game_verify_complete">파일 확인 완료</string>
+    <string name="store_game_verify_failed_notice">파일 확인 실패</string>
+    <string name="store_game_progress_background_hint">이 창을 닫아도 계속 실행됩니다. 언제든지 다운로드 탭에서 확인하세요.</string>
+    <string name="store_game_checking_updates">업데이트 확인 중…</string>
+    <string name="store_game_no_updates_notice">사용 가능한 업데이트 없음</string>
+    <string name="store_game_update_complete">업데이트 완료</string>
+    <string name="store_game_update_failed_notice">업데이트 실패</string>
+    <string name="store_game_update_check_failed_notice">업데이트 확인 실패</string>
     <string name="store_game_download_already_active">이 게임은 이미 다운로드 중입니다. DLC를 추가하기 전에 현재 다운로드를 취소하세요.</string>
     <string name="common_ui_select">선택</string>
     <string name="common_ui_select_folder">폴더 선택</string>
@@ -268,7 +280,7 @@
     <string name="shortcuts_properties_exclusive_input">전용 입력</string>
     <string name="shortcuts_properties_custom_game_settings">사용자 지정 게임 설정</string>
     <string name="shortcuts_properties_use_cold_client">ColdClient Launcher 사용</string>
-    <string name="shortcuts_properties_use_cold_client_description">권장 Steam 에뮬레이션 방식입니다. 파일을 수정하지 않고 런타임에 DRM을 패치합니다.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Steam 게임용 Steam 에뮬레이션 모드입니다 — DRM, 도전 과제 및 DLC를 처리합니다. 모든 Steam 게임에 권장됩니다.</string>
     <string name="shortcuts_properties_unpack_files">레거시 DRM</string>
     <string name="shortcuts_properties_unpack_files_description">exe에서 SteamStub DRM을 제거합니다. 한 번만 수행됩니다. 게임에 문제가 생길 때만 비활성화하세요.</string>
     <string name="shortcuts_properties_force_dlc">DLC 강제 적용</string>
@@ -828,6 +840,11 @@
     <string name="settings_content_extracting_detail">추출 중… (%1$d개 파일)</string>
     <string name="settings_content_preparing_package">패키지 준비 중…</string>
     <string name="settings_content_download_complete">다운로드 완료</string>
+    <string name="settings_content_already_installed_title">구성 요소가 이미 설치됨</string>
+    <string name="settings_content_already_installed_message">이 구성 요소는 이미 설치되어 있습니다. 다시 다운로드하기 전에 설치된 복사본을 제거하세요.
+
+설치된 경로:
+%1$s</string>
     <string name="settings_content_conflicting_title">충돌하는 콘텐츠가 설치되어 있음</string>
     <string name="settings_content_conflicting_message">이 패키지를 다운로드하기 전에 충돌하는 콘텐츠를 제거하세요.
 

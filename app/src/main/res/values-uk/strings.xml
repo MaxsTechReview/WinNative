@@ -111,6 +111,18 @@
     <string name="store_game_update_available">Доступне оновлення</string>
     <string name="store_game_update_check_failed">Не вдалося перевірити оновлення</string>
     <string name="store_game_update">Оновити</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Перевірити файли</string>
+    <string name="store_game_verify_started">Перевірка %1$s — дивіться вкладку Завантаження</string>
+    <string name="store_game_steam_options">Параметри Steam</string>
+    <string name="store_game_verify_complete">Перевірку файлів завершено</string>
+    <string name="store_game_verify_failed_notice">Не вдалося перевірити файли</string>
+    <string name="store_game_progress_background_hint">Це можна закрити — процес продовжить роботу. Перевіряйте вкладку Завантаження будь-коли.</string>
+    <string name="store_game_checking_updates">Перевірка оновлень…</string>
+    <string name="store_game_no_updates_notice">Оновлень немає</string>
+    <string name="store_game_update_complete">Оновлення завершено</string>
+    <string name="store_game_update_failed_notice">Не вдалося оновити</string>
+    <string name="store_game_update_check_failed_notice">Не вдалося перевірити оновлення</string>
     <string name="store_game_download_already_active">Ця гра вже завантажується. Скасуйте поточне завантаження, перш ніж додавати DLC.</string>
     <string name="common_ui_select">Вибрати</string>
     <string name="common_ui_select_folder">Вибрати теку</string>
@@ -272,7 +284,7 @@
     <string name="shortcuts_properties_exclusive_input">Ексклюзивне введення</string>
     <string name="shortcuts_properties_custom_game_settings">Користувацькі налаштування гри</string>
     <string name="shortcuts_properties_use_cold_client">Використовувати ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Рекомендований метод емуляції Steam. Патчить DRM під час виконання без зміни файлів.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Режим емуляції Steam для ігор Steam — обробляє DRM, досягнення та DLC. Рекомендовано для всіх ігор Steam.</string>
     <string name="shortcuts_properties_unpack_files">Застарілий DRM</string>
     <string name="shortcuts_properties_unpack_files_description">Видаляє SteamStub DRM з exe. Одноразова операція. Вимикайте лише якщо гра перестає працювати.</string>
     <string name="shortcuts_properties_force_dlc">Примусово увімкнути DLC</string>
@@ -834,6 +846,11 @@
     <string name="settings_content_extracting_detail">Розпакування… (%1$d файлів)</string>
     <string name="settings_content_preparing_package">Підготовка пакета…</string>
     <string name="settings_content_download_complete">Завантаження завершено</string>
+    <string name="settings_content_already_installed_title">Компонент уже встановлено</string>
+    <string name="settings_content_already_installed_message">Цей компонент уже встановлено. Видаліть встановлену копію, перш ніж завантажувати його знову.
+
+Встановлений шлях:
+%1$s</string>
     <string name="settings_content_conflicting_title">Встановлено конфліктуючий контент</string>
     <string name="settings_content_conflicting_message">Будь ласка, видаліть конфліктуючий контент перед завантаженням цього пакета.
 

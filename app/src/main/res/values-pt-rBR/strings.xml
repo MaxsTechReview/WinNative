@@ -111,6 +111,18 @@
     <string name="store_game_update_available">Atualização disponível</string>
     <string name="store_game_update_check_failed">Falha ao verificar atualização</string>
     <string name="store_game_update">Atualizar</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Verificar arquivos</string>
+    <string name="store_game_verify_started">Verificando %1$s — confira a aba Downloads</string>
+    <string name="store_game_steam_options">Opções do Steam</string>
+    <string name="store_game_verify_complete">Verificação de arquivos concluída</string>
+    <string name="store_game_verify_failed_notice">Falha na verificação de arquivos</string>
+    <string name="store_game_progress_background_hint">Você pode fechar isto — continuará em segundo plano. Confira a aba Downloads quando quiser.</string>
+    <string name="store_game_checking_updates">Verificando atualizações…</string>
+    <string name="store_game_no_updates_notice">Nenhuma atualização disponível</string>
+    <string name="store_game_update_complete">Atualização concluída</string>
+    <string name="store_game_update_failed_notice">Falha na atualização</string>
+    <string name="store_game_update_check_failed_notice">Falha ao verificar atualizações</string>
     <string name="store_game_download_already_active">Este jogo já está sendo baixado. Cancele o download atual antes de adicionar DLC.</string>
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
@@ -268,7 +280,7 @@
     <string name="shortcuts_properties_exclusive_input">Entrada Exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Configuracoes Personalizadas do Jogo</string>
     <string name="shortcuts_properties_use_cold_client">Usar ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Método preferido de emulação Steam. Corrige o DRM em tempo de execução sem modificar arquivos.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Modo de emulação Steam para jogos Steam — gerencia DRM, conquistas e DLC. Recomendado para todos os jogos Steam.</string>
     <string name="shortcuts_properties_unpack_files">DRM Legado</string>
     <string name="shortcuts_properties_unpack_files_description">Remove o DRM SteamStub do exe. Operação única. Desative apenas se um jogo quebrar.</string>
     <string name="shortcuts_properties_force_dlc">Forcar DLC</string>
@@ -828,6 +840,11 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_content_extracting_detail">Extraindo… (%1$d arquivos)</string>
     <string name="settings_content_preparing_package">Preparando pacote…</string>
     <string name="settings_content_download_complete">Download concluido</string>
+    <string name="settings_content_already_installed_title">Componente ja instalado</string>
+    <string name="settings_content_already_installed_message">Este componente ja esta instalado. Remova a copia instalada antes de baixa-lo novamente.
+
+Caminho instalado:
+%1$s</string>
     <string name="settings_content_conflicting_title">Conteudo Conflitante Instalado</string>
     <string name="settings_content_conflicting_message">Por favor, desinstale o conteudo conflitante antes de baixar este pacote.
 

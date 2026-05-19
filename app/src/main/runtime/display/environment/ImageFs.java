@@ -6,6 +6,7 @@ import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class ImageFs {
@@ -43,14 +44,28 @@ public class ImageFs {
   }
 
   public boolean isValid() {
-    return rootDir.isDirectory() && getImgVersionFile().exists();
+    return rootDir.isDirectory()
+        && getImgVersionFile().exists()
+        && getBinDir().isDirectory()
+        && getLibDir().isDirectory()
+        && getEtcDir().isDirectory()
+        && getShareDir().isDirectory()
+        && new File(rootDir, "opt").isDirectory();
+  }
+
+  public boolean isUpToDate() {
+    return isValid() && getVersion() >= ImageFsInstaller.LATEST_VERSION;
   }
 
   public int getVersion() {
     File imgVersionFile = getImgVersionFile();
-    return imgVersionFile.exists()
-        ? Integer.parseInt(FileUtils.readLines(imgVersionFile).get(0))
-        : 0;
+    if (!imgVersionFile.exists()) return 0;
+    try {
+      ArrayList<String> lines = FileUtils.readLines(imgVersionFile);
+      return lines.isEmpty() ? 0 : Integer.parseInt(lines.get(0).trim());
+    } catch (Exception e) {
+      return 0;
+    }
   }
 
   public String getFormattedVersion() {

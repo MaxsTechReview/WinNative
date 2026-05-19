@@ -2371,22 +2371,7 @@ class SteamService : Service() {
             )
         }
 
-        fun isImageFsInstalled(context: Context): Boolean = ImageFs.find(context).isValid()
-
-        fun isImageFsInstallable(
-            context: Context,
-            variant: String,
-        ): Boolean {
-            if (variant.equals("BIONIC")) {
-                return File(context.filesDir, "imagefs_bionic.txz").exists() || context.assets
-                    .list("")
-                    ?.contains("imagefs_bionic.txz") == true
-            } else {
-                return File(context.filesDir, "imagefs_gamenative.txz").exists() || context.assets
-                    .list("")
-                    ?.contains("imagefs_gamenative.txz") == true
-            }
-        }
+        fun isImageFsInstalled(context: Context): Boolean = ImageFs.find(context).isUpToDate()
 
         fun isSteamInstallable(context: Context): Boolean = File(context.filesDir, "steam.tzst").exists()
 
@@ -2475,39 +2460,6 @@ class SteamService : Service() {
                 total += bytesRead
                 progress(total)
             }
-        }
-
-        fun downloadImageFs(
-            onDownloadProgress: (Float) -> Unit,
-            parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-            variant: String,
-            context: Context,
-        ) = parentScope.async {
-            Timber.i("imagefs will be downloaded")
-            if (variant == "BIONIC") {
-                val dest = File(context.filesDir, "imagefs_bionic.txz")
-                Timber.d("Downloading imagefs_bionic to " + dest.toString())
-                fetchFileWithFallback("imagefs_bionic.txz", dest, context, onDownloadProgress)
-            } else {
-                Timber.d("Downloading imagefs_gamenative to " + File(context.filesDir, "imagefs_gamenative.txz"))
-                fetchFileWithFallback(
-                    "imagefs_gamenative.txz",
-                    File(context.filesDir, "imagefs_gamenative.txz"),
-                    context,
-                    onDownloadProgress,
-                )
-            }
-        }
-
-        fun downloadImageFsPatches(
-            onDownloadProgress: (Float) -> Unit,
-            parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-            context: Context,
-        ) = parentScope.async {
-            Timber.i("imagefs will be downloaded")
-            val dest = File(context.filesDir, "imagefs_patches_gamenative.tzst")
-            Timber.d("Downloading imagefs_patches_gamenative.tzst to " + dest.toString())
-            fetchFileWithFallback("imagefs_patches_gamenative.tzst", dest, context, onDownloadProgress)
         }
 
         fun downloadFile(
@@ -3696,7 +3648,16 @@ class SteamService : Service() {
                                         // di.updateBytesDownloaded(delta).
                                         Timber.i("Downloading game to $appDirPath (attempt $attempt)")
                                         val wnDepotBytes = java.util.concurrent.ConcurrentHashMap<Int, Long>()
-                                        val wnGlobalPrev = java.util.concurrent.atomic.AtomicLong(0L)
+                                        for ((depotId, bytes) in di.depotCumulativeUncompressedBytes) {
+                                            if (depotId in selectedDepots) {
+                                                val initialBytes = bytes.get().coerceAtLeast(0L)
+                                                if (initialBytes > 0L) {
+                                                    wnDepotBytes[depotId] = initialBytes
+                                                }
+                                            }
+                                        }
+                                        val wnGlobalPrev =
+                                            java.util.concurrent.atomic.AtomicLong(wnDepotBytes.values.sum())
                                         // Throttle for DownloadRecord progress persistence — a DB
                                         // write per chunk would be far too frequent.
                                         val wnLastPersistMs = java.util.concurrent.atomic.AtomicLong(0L)
@@ -3729,20 +3690,44 @@ class SteamService : Service() {
                                                             // worker unwinding). Ignore them — otherwise this
                                                             // would overwrite the PAUSED phase back to DOWNLOADING.
                                                             if (!di.isActive()) return
-                                                            wnDepotBytes[depotId] = depotDone
                                                             // Record per-depot cumulative bytes so the
                                                             // throttled progress snapshot (depot_bytes.json)
                                                             // stays accurate — on the next resume this lets
                                                             // the UI restore the real % instead of starting
                                                             // the bar at 0 while write_depot re-verifies.
-                                                            di.depotCumulativeUncompressedBytes
+                                                            //
+                                                            // Native verification reports bytes in scan order
+                                                            // from 0 on every resume. Do not let that lower a
+                                                            // previously persisted depot count; otherwise quick
+                                                            // pause/resume cycles during VERIFYING rewrite the
+                                                            // snapshot to the partially re-scanned byte count.
+                                                            val depotBytes =
+                                                                di.depotCumulativeUncompressedBytes
                                                                 .getOrPut(depotId) {
                                                                     java.util.concurrent.atomic.AtomicLong(0L)
-                                                                }.set(depotDone)
+                                                                }
+                                                            val observedDepotDone = depotDone.coerceAtLeast(0L)
+                                                            var monotonicDepotDone: Long
+                                                            while (true) {
+                                                                val currentDepotDone = depotBytes.get()
+                                                                monotonicDepotDone = maxOf(currentDepotDone, observedDepotDone)
+                                                                if (monotonicDepotDone == currentDepotDone ||
+                                                                    depotBytes.compareAndSet(currentDepotDone, monotonicDepotDone)
+                                                                ) {
+                                                                    break
+                                                                }
+                                                            }
+                                                            wnDepotBytes[depotId] = monotonicDepotDone
                                                             di.markProgressSnapshotDirty()
                                                             val g = wnDepotBytes.values.sum()
                                                             val delta = g - wnGlobalPrev.getAndSet(g)
                                                             if (delta > 0L) di.updateBytesDownloaded(delta)
+                                                            val statusTick =
+                                                                if (verifying && observedDepotDone < monotonicDepotDone) {
+                                                                    "$g/$observedDepotDone"
+                                                                } else {
+                                                                    g.toString()
+                                                                }
                                                             // Drive the phase from the native `verifying`
                                                             // flag — VERIFYING while validating on-disk
                                                             // content, DOWNLOADING while actually fetching
@@ -3762,9 +3747,9 @@ class SteamService : Service() {
                                                                     DownloadPhase.DOWNLOADING
                                                                 },
                                                                 if (verifying) {
-                                                                    "Verifying depot $depotId ($g)"
+                                                                    "Verifying depot $depotId ($statusTick)"
                                                                 } else {
-                                                                    "Downloading depot $depotId ($g)"
+                                                                    "Downloading depot $depotId ($statusTick)"
                                                                 },
                                                             )
                                                             // Also notify the progress-bar listeners.
@@ -3927,6 +3912,7 @@ class SteamService : Service() {
                                 if (di.isCancelling) {
                                     Timber.d("Download cancelled by user for app $appId")
                                     di.persistProgressSnapshot(force = true)
+                                    updateCoordinatorDownloadProgress(di)
                                     di.updateStatus(DownloadPhase.CANCELLED)
                                     di.setActive(false)
                                     runBlocking {
@@ -3942,6 +3928,7 @@ class SteamService : Service() {
                                 Timber.d(e, "Download paused for app $appId")
                                 // Keep downloadingAppInfo on cancellation so resume does not fall into verify mode.
                                 di.persistProgressSnapshot(force = true)
+                                updateCoordinatorDownloadProgress(di)
                                 di.updateStatus(DownloadPhase.PAUSED)
                                 di.setActive(false)
                                 runBlocking {
