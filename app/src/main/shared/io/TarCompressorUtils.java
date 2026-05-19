@@ -3,7 +3,6 @@ package com.winlator.cmod.shared.io;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
-import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
 import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
 import com.winlator.cmod.shared.util.OnExtractFileListener;
 import java.io.BufferedInputStream;
@@ -15,16 +14,24 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.commons.compress.archivers.ArchiveInputStream;
+import java.util.Locale;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.commons.compress.archivers.ArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.tar.TarConstants;
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream;
 
 public abstract class TarCompressorUtils {
+  private static final String TAG = "TarCompressor";
+  private static final ExecutorService EXTRACTION_EXECUTOR =
+      Executors.newFixedThreadPool(
+          Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors())));
+
   public enum Type {
     XZ,
     ZSTD
@@ -33,6 +40,49 @@ public abstract class TarCompressorUtils {
   // Interface to define the exclusion filter
   public interface ExclusionFilter {
     boolean shouldInclude(File file);
+  }
+
+  public static Future<Boolean> extractAsync(
+      Type type, Context context, String assetFile, File destination) {
+    return extractAsync(type, context, assetFile, destination, null);
+  }
+
+  public static Future<Boolean> extractAsync(
+      Type type,
+      Context context,
+      String assetFile,
+      File destination,
+      OnExtractFileListener onExtractFileListener) {
+    return submitExtraction(
+        () -> extract(type, context, assetFile, destination, onExtractFileListener));
+  }
+
+  public static Future<Boolean> extractAsync(
+      Type type, Context context, Uri source, File destination) {
+    return extractAsync(type, context, source, destination, null);
+  }
+
+  public static Future<Boolean> extractAsync(
+      Type type,
+      Context context,
+      Uri source,
+      File destination,
+      OnExtractFileListener onExtractFileListener) {
+    return submitExtraction(
+        () -> extract(type, context, source, destination, onExtractFileListener));
+  }
+
+  public static Future<Boolean> extractAsync(Type type, File source, File destination) {
+    return extractAsync(type, source, destination, null);
+  }
+
+  public static Future<Boolean> extractAsync(
+      Type type, File source, File destination, OnExtractFileListener onExtractFileListener) {
+    return submitExtraction(() -> extract(type, source, destination, onExtractFileListener));
+  }
+
+  private static Future<Boolean> submitExtraction(Callable<Boolean> task) {
+    return EXTRACTION_EXECUTOR.submit(task);
   }
 
   private static void addFile(ArchiveOutputStream tar, File file, String entryName) {
@@ -124,16 +174,17 @@ public abstract class TarCompressorUtils {
       String assetFile,
       File destination,
       OnExtractFileListener onExtractFileListener) {
-    int nativeType = type == Type.XZ ? NativeContentIO.TYPE_XZ : NativeContentIO.TYPE_ZSTD;
+    if (context == null || assetFile == null || destination == null) return false;
+    int nativeType = toNativeType(type);
     try {
       if (NativeContentIO.extractAsset(
           nativeType, context.getAssets(), assetFile, destination, onExtractFileListener)) {
         return true;
       }
-      Log.e("TarCompressor", "Native asset extraction failed: " + assetFile);
+      Log.e(TAG, "Native asset extraction failed: " + assetFile);
       return false;
     } catch (Throwable e) {
-      Log.e("TarCompressor", "Native asset extraction failed: " + assetFile, e);
+      Log.e(TAG, "Native asset extraction failed: " + assetFile, e);
       return false;
     }
   }
@@ -148,7 +199,7 @@ public abstract class TarCompressorUtils {
       Uri source,
       File destination,
       OnExtractFileListener onExtractFileListener) {
-    if (source == null) return false;
+    if (context == null || source == null || destination == null) return false;
     try {
       String scheme = source.getScheme();
       if (source.toString().startsWith("/")
@@ -173,14 +224,19 @@ public abstract class TarCompressorUtils {
         }
       }
 
-      InputStream inputStream = context.getContentResolver().openInputStream(source);
-      if (inputStream == null) return false;
-      return extract(
-          type,
-          new BufferedInputStream(inputStream, StreamUtils.BUFFER_SIZE),
-          destination,
-          onExtractFileListener);
+      File stagedArchive = stageUriArchive(context, source, type);
+      if (stagedArchive == null) return false;
+      try {
+        return extract(type, stagedArchive, destination, onExtractFileListener);
+      } finally {
+        if (!stagedArchive.delete() && stagedArchive.exists()) {
+          Log.w(TAG, "Unable to delete staged archive: " + stagedArchive);
+        }
+      }
     } catch (FileNotFoundException e) {
+      return false;
+    } catch (Throwable e) {
+      Log.e(TAG, "Native URI extraction failed for " + source, e);
       return false;
     }
   }
@@ -191,54 +247,46 @@ public abstract class TarCompressorUtils {
 
   public static boolean extract(
       Type type, File source, File destination, OnExtractFileListener onExtractFileListener) {
-    if (source == null || !source.isFile()) return false;
-    int nativeType = type == Type.XZ ? NativeContentIO.TYPE_XZ : NativeContentIO.TYPE_ZSTD;
+    if (source == null || destination == null || !source.isFile()) return false;
+    int nativeType = toNativeType(type);
     try {
       return NativeContentIO.extractArchive(nativeType, source, destination, onExtractFileListener);
     } catch (Throwable e) {
-      Log.e("TarCompressor", "Native extraction failed for " + source, e);
+      Log.e(TAG, "Native extraction failed for " + source, e);
       return false;
     }
   }
 
-  private static boolean extract(
-      Type type,
-      InputStream source,
-      File destination,
-      OnExtractFileListener onExtractFileListener) {
-    if (source == null) return false;
-    try (InputStream inStream = getCompressorInputStream(type, source);
-        ArchiveInputStream tar = new TarArchiveInputStream(inStream)) {
-      TarArchiveEntry entry;
-      while ((entry = (TarArchiveEntry) tar.getNextEntry()) != null) {
-        if (!tar.canReadEntryData(entry)) continue;
-        File file = new File(destination, entry.getName());
+  private static int toNativeType(Type type) {
+    return type == Type.XZ ? NativeContentIO.TYPE_XZ : NativeContentIO.TYPE_ZSTD;
+  }
 
-        if (onExtractFileListener != null) {
-          file = onExtractFileListener.onExtractFile(file, entry.getSize());
-          if (file == null) continue;
-        }
+  private static File stageUriArchive(Context context, Uri source, Type type) throws IOException {
+    File stagingDir = new File(context.getCacheDir(), "native-archive-stage");
+    if (!stagingDir.isDirectory() && !stagingDir.mkdirs()) return null;
 
-        if (entry.isDirectory()) {
-          if (!file.isDirectory()) file.mkdirs();
-        } else {
-          if (entry.isSymbolicLink()) {
-            FileUtils.symlink(entry.getLinkName(), file.getAbsolutePath());
-          } else {
-            try (BufferedOutputStream outStream =
-                new BufferedOutputStream(new FileOutputStream(file), StreamUtils.BUFFER_SIZE)) {
-              if (!StreamUtils.copy(tar, outStream)) return false;
-            }
-          }
-        }
-
-        applyExtractedEntryPermissions(file, entry);
+    File stagedArchive =
+        FileUtils.createTempFile(stagingDir, "archive-" + type.name().toLowerCase(Locale.ROOT));
+    try (InputStream inputStream = context.getContentResolver().openInputStream(source)) {
+      if (inputStream == null) {
+        stagedArchive.delete();
+        return null;
       }
-      return true;
-    } catch (Throwable e) {
-      Log.e("TarCompressor", "Error during extraction", e);
-      return false;
+      try (BufferedInputStream inStream =
+              new BufferedInputStream(inputStream, StreamUtils.BUFFER_SIZE);
+          BufferedOutputStream outStream =
+              new BufferedOutputStream(
+                  new FileOutputStream(stagedArchive), StreamUtils.BUFFER_SIZE)) {
+        if (!StreamUtils.copy(inStream, outStream)) {
+          stagedArchive.delete();
+          return null;
+        }
+      }
+    } catch (IOException e) {
+      stagedArchive.delete();
+      throw e;
     }
+    return stagedArchive;
   }
 
   private static void applyExtractedEntryPermissions(File file, TarArchiveEntry entry) {
@@ -255,17 +303,6 @@ public abstract class TarCompressorUtils {
     if ((entry.getMode() & 0111) != 0) {
       FileUtils.chmod(file, 0771);
     }
-  }
-
-  private static InputStream getCompressorInputStream(Type type, InputStream source)
-      throws IOException {
-    if (source == null) return null;
-    if (type == Type.XZ) {
-      return new XZCompressorInputStream(source);
-    } else if (type == Type.ZSTD) {
-      return new ZstdInputStreamNoFinalizer(source);
-    }
-    return null;
   }
 
   private static OutputStream getCompressorOutputStream(Type type, File destination, int level)

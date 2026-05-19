@@ -241,6 +241,35 @@ private:
     AAsset* asset_ = nullptr;
 };
 
+class FileWriter final {
+public:
+    explicit FileWriter(const std::string& path) : file_(std::fopen(path.c_str(), "wb")) {
+        if (file_) std::setvbuf(file_, nullptr, _IOFBF, kBufferSize);
+    }
+
+    ~FileWriter() {
+        close();
+    }
+
+    bool ok() const {
+        return file_ != nullptr;
+    }
+
+    bool write(const uint8_t* data, size_t length) {
+        return file_ && std::fwrite(data, 1, length, file_) == length;
+    }
+
+    bool close() {
+        if (!file_) return true;
+        FILE* file = file_;
+        file_ = nullptr;
+        return std::fclose(file) == 0;
+    }
+
+private:
+    FILE* file_ = nullptr;
+};
+
 class XzReader final : public Reader {
 public:
     explicit XzReader(std::unique_ptr<Reader> source) : source_(std::move(source)) {
@@ -496,9 +525,8 @@ bool extract_tar(Reader& reader, const std::string& destination, JNIEnv* env, jo
             }
         } else if (type == '0' || type == '\0') {
             if (!ensure_parent_dir(out_path)) return false;
-            FILE* out = std::fopen(out_path.c_str(), "wb");
-            if (!out) return false;
-            std::setvbuf(out, nullptr, _IOFBF, kBufferSize);
+            FileWriter out(out_path);
+            if (!out.ok()) return false;
 
             std::vector<uint8_t> buffer(kBufferSize);
             uint64_t remaining = size;
@@ -509,13 +537,13 @@ bool extract_tar(Reader& reader, const std::string& destination, JNIEnv* env, jo
                     ok = false;
                     break;
                 }
-                if (std::fwrite(buffer.data(), 1, chunk, out) != chunk) {
+                if (!out.write(buffer.data(), chunk)) {
                     ok = false;
                     break;
                 }
                 remaining -= chunk;
             }
-            if (std::fclose(out) != 0) ok = false;
+            if (!out.close()) ok = false;
             if (!ok) return false;
             if ((mode & 0111) != 0) ::chmod(out_path.c_str(), 0771);
             if (!reader.skip(padding)) return false;
