@@ -31,6 +31,7 @@ namespace wn_steam {
 struct DepotWriteResult {
     uint64_t    files_written = 0;
     uint64_t    bytes_written = 0;   // sum of decompressed chunk bytes
+    bool        resume_trust_safe = false;
     std::string error;               // empty on success
 
     [[nodiscard]] bool ok() const noexcept { return error.empty(); }
@@ -56,6 +57,12 @@ using DepotWriteProgress =
 // concurrent HTTPS connections to the CDN. Clamped to [1, 64] and never
 // exceeds the outstanding chunk count. This is what the user-facing
 // "Download Speed" setting maps to (8 / 16 / 24 / 32).
+//
+// `trust_existing_chunks` is only for resuming after an orderly pause marker.
+// It trusts fully allocated file ranges instead of checksumming them again,
+// while still treating holes / missing ranges as chunks to download.
+// `before_download` is called after validation and immediately before any new
+// chunk writes begin.
 [[nodiscard]] DepotWriteResult write_depot(
     const ContentManifest& manifest,
     std::span<const uint8_t> depot_key,
@@ -65,6 +72,8 @@ using DepotWriteProgress =
     std::string_view cdn_auth_token = {},
     const DepotWriteProgress& progress = {},
     const std::atomic<bool>* cancel = nullptr,
-    unsigned max_workers = 8);
+    unsigned max_workers = 8,
+    bool trust_existing_chunks = false,
+    const std::function<void()>& before_download = {});
 
 }  // namespace wn_steam

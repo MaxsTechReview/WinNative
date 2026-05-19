@@ -7,6 +7,7 @@
 #include <future>
 #include <optional>
 #include <span>
+#include <cstdio>
 
 #include "wn_steam/cdn_client.h"
 #include "wn_steam/cm_client.h"
@@ -51,6 +52,36 @@ bool write_file(const std::string& path, std::span<const uint8_t> data) {
                   static_cast<std::streamsize>(data.size()));
     }
     return static_cast<bool>(out);
+}
+
+std::string clean_pause_marker_path(const std::string& config_dir,
+                                    uint32_t depot_id,
+                                    uint64_t manifest_id) {
+    return config_dir + "/" + std::to_string(depot_id) + "_"
+         + std::to_string(manifest_id) + ".cleanpause";
+}
+
+bool has_clean_pause_marker(const DepotConfigStore& cfg,
+                            uint32_t depot_id,
+                            uint64_t manifest_id) {
+    std::ifstream in(clean_pause_marker_path(
+        cfg.config_dir(), depot_id, manifest_id), std::ios::binary);
+    return static_cast<bool>(in);
+}
+
+void write_clean_pause_marker(const DepotConfigStore& cfg,
+                              uint32_t depot_id,
+                              uint64_t manifest_id) {
+    std::ofstream out(clean_pause_marker_path(
+        cfg.config_dir(), depot_id, manifest_id), std::ios::binary | std::ios::trunc);
+    if (out) out << manifest_id;
+}
+
+void remove_clean_pause_marker(const DepotConfigStore& cfg,
+                               uint32_t depot_id,
+                               uint64_t manifest_id) {
+    std::remove(clean_pause_marker_path(
+        cfg.config_dir(), depot_id, manifest_id).c_str());
 }
 }  // namespace
 
@@ -119,6 +150,9 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
             ++result.depots_skipped;
             continue;
         }
+
+        const bool trust_existing_chunks =
+            !fresh && has_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
 
         // depot.config: mark in-progress BEFORE any file is written.
         if (!cfg.begin_depot(d.depot_id)) {
@@ -200,8 +234,16 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
                     progress(pr);
                 }
             },
-            cancel, max_workers);
+            cancel,
+            max_workers,
+            trust_existing_chunks,
+            [&cfg, depot_id = d.depot_id, manifest_id = d.manifest_id]() {
+                remove_clean_pause_marker(cfg, depot_id, manifest_id);
+            });
         if (!write_res.ok()) {
+            if (cancelled() && write_res.resume_trust_safe) {
+                write_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
+            }
             return fail("download: depot " + std::to_string(d.depot_id)
                         + " write failed: " + write_res.error);
         }
@@ -211,6 +253,7 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
             return fail("download: depot.config finish failed for depot "
                         + std::to_string(d.depot_id));
         }
+        remove_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
         result.bytes_written += write_res.bytes_written;
         ++result.depots_completed;
         WN_LOGI("depot %u complete (%llu bytes); %u/%u depots done",

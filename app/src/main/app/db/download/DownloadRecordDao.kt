@@ -54,7 +54,11 @@ interface DownloadRecordDao {
     ): Int
 
     @Query(
-        "UPDATE download_records SET bytes_downloaded = :bytesDownloaded, bytes_total = :bytesTotal, updated_at = :now WHERE id = :id",
+        "UPDATE download_records SET " +
+            "bytes_downloaded = CASE " +
+            "WHEN :bytesTotal = bytes_total AND :bytesDownloaded < bytes_downloaded THEN bytes_downloaded " +
+            "ELSE :bytesDownloaded END, " +
+            "bytes_total = :bytesTotal, updated_at = :now WHERE id = :id",
     )
     suspend fun updateProgress(
         id: Long,

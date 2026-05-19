@@ -40,8 +40,9 @@ uint32_t depot_adler_hash(std::span<const uint8_t> data) {
     return a | (b << 16);
 }
 
-DepotWriteResult fail(std::string msg) {
+DepotWriteResult fail(std::string msg, bool resume_trust_safe = false) {
     DepotWriteResult r;
+    r.resume_trust_safe = resume_trust_safe;
     r.error = std::move(msg);
     WN_LOGE("%s", r.error.c_str());
     return r;
@@ -87,6 +88,55 @@ bool make_parent_dirs(const std::string& path) {
     return true;
 }
 
+// Return false when the filesystem can prove this byte range is an unallocated
+// sparse hole. Older WinNative builds pre-sized every manifest file before any
+// chunks landed, so resume validation could waste minutes checksumming zeroed
+// holes for chunks that were never downloaded.
+bool range_may_have_data(int fd, uint64_t offset, uint32_t size,
+                         off_t file_size) {
+    if (size == 0) return false;
+    if (offset >= static_cast<uint64_t>(file_size)) return false;
+    const uint64_t end = offset + static_cast<uint64_t>(size);
+    if (end > static_cast<uint64_t>(file_size)) return false;
+
+#ifdef SEEK_DATA
+    errno = 0;
+    off_t data = ::lseek(fd, static_cast<off_t>(offset), SEEK_DATA);
+    if (data < 0) {
+        if (errno == ENXIO) return false;
+        // Filesystem does not support SEEK_DATA or returned an unexpected
+        // error. Fall back to reading and checksumming the range.
+        return true;
+    }
+    return static_cast<uint64_t>(data) < end;
+#else
+    (void)fd;
+    return true;
+#endif
+}
+
+bool range_is_fully_allocated(int fd, uint64_t offset, uint32_t size,
+                              off_t file_size) {
+    if (size == 0) return false;
+    if (offset >= static_cast<uint64_t>(file_size)) return false;
+    const uint64_t end = offset + static_cast<uint64_t>(size);
+    if (end > static_cast<uint64_t>(file_size)) return false;
+
+#if defined(SEEK_DATA) && defined(SEEK_HOLE)
+    errno = 0;
+    off_t data = ::lseek(fd, static_cast<off_t>(offset), SEEK_DATA);
+    if (data < 0 || static_cast<uint64_t>(data) != offset) return false;
+
+    errno = 0;
+    off_t hole = ::lseek(fd, static_cast<off_t>(offset), SEEK_HOLE);
+    if (hole < 0) return false;
+    return static_cast<uint64_t>(hole) >= end;
+#else
+    (void)fd;
+    return false;
+#endif
+}
+
 }  // namespace
 
 DepotWriteResult write_depot(const ContentManifest& manifest,
@@ -97,7 +147,9 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                              std::string_view cdn_auth_token,
                              const DepotWriteProgress& progress,
                              const std::atomic<bool>* cancel,
-                             unsigned max_workers) {
+                             unsigned max_workers,
+                             bool trust_existing_chunks,
+                             const std::function<void()>& before_download) {
     if (manifest.metadata.filenames_encrypted) {
         return fail("write_depot: manifest filenames are still encrypted");
     }
@@ -127,9 +179,10 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
     std::mutex            jobs_mtx;           // guards `jobs` appends from A2
 
     // ── Phase A — single-threaded prep ──────────────────────────────────
-    // Create directories / symlinks and pre-size every regular file. A file
-    // with on-disk content is queued for the parallel validation (Phase A2);
-    // a brand-new file has all of its chunks queued straight for download.
+    // Create directories / symlinks and create regular files without
+    // pre-sizing them. Pre-sizing every file makes a partially downloaded
+    // depot look fully present on resume, so validation has to read sparse
+    // placeholders for chunks that were never downloaded.
     for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {
         const auto& f = manifest.files[fi];
         if (cancelled()) return fail("write_depot: cancelled");
@@ -162,9 +215,10 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
             continue;
         }
 
-        // Regular file: create + pre-size to the manifest size. A pre-existing
+        // Regular file: create if missing, but don't pre-size. A pre-existing
         // file with content may already hold this depot's chunks (resume, or a
-        // verify pass) — do NOT O_TRUNC; ftruncate fixes it to the exact size.
+        // verify pass), and successful completion truncates to the exact
+        // manifest size below.
         if (!make_parent_dirs(path)) return fail("write_depot: mkdir failed");
         const mode_t mode = (f.flags & kFlagExecutable) ? 0755 : 0644;
         struct stat prev_st {};
@@ -174,10 +228,6 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         if (fd < 0) {
             return fail("write_depot: open '" + f.filename + "': "
                         + std::strerror(errno));
-        }
-        if (f.size > 0 && ::ftruncate(fd, static_cast<off_t>(f.size)) != 0) {
-            ::close(fd);
-            return fail("write_depot: ftruncate '" + f.filename + "'");
         }
         ::close(fd);
         ++result.files_written;
@@ -227,10 +277,22 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                     for (uint32_t ci = 0; ci < f.chunks.size(); ++ci)
                         local.push_back({fi, ci});
                 } else {
+                    struct stat st {};
+                    const off_t file_size =
+                        (::fstat(fd, &st) == 0 && st.st_size > 0)
+                            ? st.st_size
+                            : 0;
                     for (uint32_t ci = 0; ci < f.chunks.size(); ++ci) {
                         const auto& chunk = f.chunks[ci];
                         bool on_disk = false;
-                        if (chunk.cb_original > 0) {
+                        if (trust_existing_chunks &&
+                            range_is_fully_allocated(fd, chunk.offset,
+                                                     chunk.cb_original,
+                                                     file_size)) {
+                            on_disk = true;
+                        } else if (range_may_have_data(fd, chunk.offset,
+                                                       chunk.cb_original,
+                                                       file_size)) {
                             std::vector<uint8_t> buf(chunk.cb_original);
                             ssize_t rd = ::pread(fd, buf.data(), buf.size(),
                                                  static_cast<off_t>(chunk.offset));
@@ -269,14 +331,16 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         for (auto& t : vpool) t.join();
         if (cancelled()) return fail("write_depot: cancelled");
     }
+    result.resume_trust_safe = true;
 
     const bool any_download = !jobs.empty();
-    // The validation→download boundary callback stays "verifying": Phase B's
-    // own progress loop flips the phase to "downloading" once it actually
-    // starts fetching, so the UI doesn't jump to "Downloading" at a near-full
-    // bar before a single byte has been pulled from the CDN.
+    // The validation→download boundary should flip the UI out of verifying as
+    // soon as missing chunks are known. Waiting for the worker progress loop
+    // makes resume look stuck if connection setup or the first CDN chunk takes
+    // a while after a long validation pass.
     if (progress) {
-        progress(bytes_done.load(std::memory_order_relaxed), total_bytes, true);
+        progress(bytes_done.load(std::memory_order_relaxed), total_bytes,
+                 !any_download);
     }
 
     // ── Phase B — parallel chunk download ───────────────────────────────
@@ -284,7 +348,10 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
     // shared atomic cursor. pwrite() is positional, so concurrent writes to
     // distinct offsets — even within one file — need no file locking.
     unsigned workers_used = 0;
-    if (!jobs.empty() && !cancelled()) {
+    if (cancelled()) return fail("write_depot: cancelled", result.resume_trust_safe);
+
+    if (!jobs.empty()) {
+        if (before_download) before_download();
         unsigned n = max_workers == 0 ? 1u : max_workers;
         n = std::min<unsigned>(n, 64u);
         n = std::min<unsigned>(n, static_cast<unsigned>(jobs.size()));
@@ -375,7 +442,23 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         if (failed.load(std::memory_order_acquire)) {
             return fail(err.empty() ? "write_depot: download failed" : err);
         }
-        if (cancelled()) return fail("write_depot: cancelled");
+        if (cancelled()) return fail("write_depot: cancelled", result.resume_trust_safe);
+    }
+
+    for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {
+        const auto& f = manifest.files[fi];
+        if (!f.linktarget.empty() || (f.flags & kFlagDirectory)) continue;
+        int fd = ::open(file_paths[fi].c_str(), O_WRONLY);
+        if (fd < 0) {
+            return fail("write_depot: final open '" + f.filename + "': "
+                        + std::strerror(errno));
+        }
+        if (::ftruncate(fd, static_cast<off_t>(f.size)) != 0) {
+            ::close(fd);
+            return fail("write_depot: final ftruncate '" + f.filename + "': "
+                        + std::strerror(errno));
+        }
+        ::close(fd);
     }
 
     result.bytes_written = bytes_done.load(std::memory_order_relaxed);
