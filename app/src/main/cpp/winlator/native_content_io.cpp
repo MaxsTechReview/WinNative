@@ -414,9 +414,11 @@ public:
         file_class_ = static_cast<jclass>(env_->NewLocalRef(file_cls));
         file_ctor_ = env_->GetMethodID(file_class_, "<init>", "(Ljava/lang/String;)V");
         get_path_ = env_->GetMethodID(file_class_, "getPath", "()Ljava/lang/String;");
-        jclass listener_cls = env_->GetObjectClass(listener_);
+        jclass listener_cls = env_->FindClass("com/winlator/cmod/shared/util/OnExtractFileListener");
         on_extract_ =
             env_->GetMethodID(listener_cls, "onExtractFile", "(Ljava/io/File;J)Ljava/io/File;");
+        on_progress_ =
+            env_->GetMethodID(listener_cls, "onExtractFileProgress", "(Ljava/io/File;J)V");
         enabled_ = file_class_ && file_ctor_ && get_path_ && on_extract_;
     }
 
@@ -441,6 +443,16 @@ public:
         return result;
     }
 
+    void progress(const std::string& destination, int64_t size) {
+        if (!listener_ || !enabled_ || !on_progress_) return;
+
+        jstring path = env_->NewStringUTF(destination.c_str());
+        jobject file = env_->NewObject(file_class_, file_ctor_, path);
+        env_->DeleteLocalRef(path);
+        env_->CallVoidMethod(listener_, on_progress_, file, static_cast<jlong>(size));
+        env_->DeleteLocalRef(file);
+    }
+
 private:
     JNIEnv* env_;
     jobject listener_;
@@ -448,6 +460,7 @@ private:
     jmethodID file_ctor_ = nullptr;
     jmethodID get_path_ = nullptr;
     jmethodID on_extract_ = nullptr;
+    jmethodID on_progress_ = nullptr;
     bool enabled_ = false;
 };
 
@@ -572,6 +585,8 @@ bool extract_tar(
             if (!out.close()) ok = false;
             if (!ok) return false;
             if ((mode & 0111) != 0) ::chmod(out_path.c_str(), 0771);
+            java_listener.progress(out_path, static_cast<int64_t>(size));
+            if (env->ExceptionCheck()) return false;
             if (!reader.skip(padding)) return false;
             continue;
         } else if (type == '1') {
@@ -586,6 +601,8 @@ bool extract_tar(
             if (::link(link_path.c_str(), out_path.c_str()) != 0) {
                 NATIVE_LOGW("hard link failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
+            java_listener.progress(out_path, static_cast<int64_t>(size));
+            if (env->ExceptionCheck()) return false;
         }
 
         if (!reader.skip(size + padding)) return false;

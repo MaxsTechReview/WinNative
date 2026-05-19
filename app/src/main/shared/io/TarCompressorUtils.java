@@ -390,6 +390,9 @@ public abstract class TarCompressorUtils {
                 new BufferedOutputStream(new FileOutputStream(file), StreamUtils.BUFFER_SIZE)) {
               if (!StreamUtils.copy(tar, outStream)) return false;
             }
+            if (onExtractFileListener != null) {
+              onExtractFileListener.onExtractFileProgress(file, entry.getSize());
+            }
           }
         }
 

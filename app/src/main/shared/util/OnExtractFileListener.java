@@ -4,4 +4,6 @@ import java.io.File;
 
 public interface OnExtractFileListener {
   File onExtractFile(File destination, long size);
+
+  default void onExtractFileProgress(File destination, long size) {}
 }

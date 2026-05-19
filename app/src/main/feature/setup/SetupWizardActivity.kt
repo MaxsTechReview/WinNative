@@ -566,7 +566,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             refreshWizardState()
         }
 
-        if (!forceShow && isSetupComplete(this) && ImageFs.find(this).isValid) {
+        if (!forceShow && isSetupComplete(this) && ImageFs.find(this).isUpToDate) {
             launchApp()
             return
         }
@@ -603,7 +603,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
     private fun refreshWizardState() {
         val imageFs = ImageFs.find(this)
-        imageFsDone.value = imageFs.isValid && imageFs.version >= ImageFsInstaller.LATEST_VERSION.toInt()
+        imageFsDone.value = imageFs.isUpToDate
 
         val preferences = prefs(this)
         val containerManager = ContainerManager(this)

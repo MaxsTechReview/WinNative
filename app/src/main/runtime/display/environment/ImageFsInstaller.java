@@ -101,9 +101,16 @@ public abstract class ImageFsInstaller {
     }
 
     OnExtractFileListener asExtractListener() {
-      return (file, size) -> {
-        addWork(size);
-        return file;
+      return new OnExtractFileListener() {
+        @Override
+        public File onExtractFile(File file, long size) {
+          return file;
+        }
+
+        @Override
+        public void onExtractFileProgress(File file, long size) {
+          addWork(size);
+        }
       };
     }
 
@@ -149,6 +156,12 @@ public abstract class ImageFsInstaller {
     return Math.max(compressedSize, compressedSize * 4L);
   }
 
+  private static long estimateOptionalZstdExtractedBytes(Context context, String assetFile) {
+    return FileUtils.getSize(context, assetFile) > 0
+        ? estimateZstdExtractedBytes(context, assetFile, 0L)
+        : 0L;
+  }
+
   private static long estimateWineAssetsExtractedBytes(Context context) {
     long total = 0L;
     String[] versions = context.getResources().getStringArray(R.array.wine_entries);
@@ -159,7 +172,7 @@ public abstract class ImageFsInstaller {
   }
 
   private static long estimateGuestExtrasExtractedBytes(Context context) {
-    return estimateZstdExtractedBytes(context, "redirect.tzst", DEFAULT_GUEST_EXTRAS_EXTRACTED_BYTES / 3)
+    return estimateOptionalZstdExtractedBytes(context, "redirect.tzst")
         + estimateZstdExtractedBytes(context, "extras.tzst", DEFAULT_GUEST_EXTRAS_EXTRACTED_BYTES);
   }
 
@@ -268,13 +281,16 @@ public abstract class ImageFsInstaller {
                 pool.shutdown();
                 success = postInstallSuccess.get();
                 if (success) {
+                  clearSteamDllMarkers(activity);
                   imageFs.createImgVersionFile(LATEST_VERSION);
                   resetContainerImgVersions(activity);
                   progressTracker.addWork(FINALIZE_PROGRESS_BYTES);
                   progressTracker.finish();
                 }
-              } else
-                WinToast.show(activity, R.string.setup_wizard_unable_to_install_system_files);
+              } else {
+                activity.runOnUiThread(
+                    () -> WinToast.show(activity, R.string.setup_wizard_unable_to_install_system_files));
+              }
 
               if (listener != null) listener.onFinished(success);
             });
@@ -282,7 +298,7 @@ public abstract class ImageFsInstaller {
 
   public static void installIfNeeded(final android.app.Activity activity) {
     ImageFs imageFs = ImageFs.find(activity);
-    if (!imageFs.isValid() || imageFs.getVersion() < LATEST_VERSION) installFromAssets(activity);
+    if (!imageFs.isUpToDate()) installFromAssets(activity);
   }
 
   /**
@@ -291,92 +307,7 @@ public abstract class ImageFsInstaller {
    */
   public static void installIfNeededFromAny(final android.app.Activity activity) {
     ImageFs imageFs = ImageFs.find(activity);
-    if (imageFs.isValid() && imageFs.getVersion() >= LATEST_VERSION) return;
-
-    final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
-    activity.runOnUiThread(() -> dialog.show(R.string.setup_wizard_installing_system_files));
-
-    File rootDir = imageFs.getRootDir();
-    InstallProgressTracker progressTracker =
-        new InstallProgressTracker(estimateInstallWorkBytes(activity, false), new ProgressListener() {
-          @Override
-          public void onProgress(int percent) {
-            activity.runOnUiThread(() -> dialog.setProgress(percent));
-          }
-
-          @Override
-          public void onFinished(boolean success) {}
-        });
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              progressTracker.start();
-              clearRootDir(rootDir);
-
-              Future<Boolean> imageFsExtraction =
-                  TarCompressorUtils.extractAsync(
-                      IMAGEFS_ARCHIVE_TYPE,
-                      activity,
-                      IMAGEFS_ARCHIVE,
-                      rootDir,
-                      progressTracker.asExtractListener());
-              boolean success = waitForExtraction(imageFsExtraction);
-
-              if (success) {
-                ExecutorService pool = Executors.newFixedThreadPool(2);
-                CountDownLatch latch = new CountDownLatch(2);
-                AtomicBoolean postInstallSuccess = new AtomicBoolean(true);
-                pool.execute(
-                    () -> {
-                      try {
-                        postInstallSuccess.compareAndSet(
-                            true,
-                            installWineFromAssetsAsync(activity, progressTracker.asExtractListener()));
-                      } catch (Exception e) {
-                        postInstallSuccess.set(false);
-                      } finally {
-                        latch.countDown();
-                      }
-                    });
-                pool.execute(
-                    () -> {
-                      try {
-                        installGuestExtras(activity, rootDir, progressTracker.asExtractListener());
-                      } finally {
-                        latch.countDown();
-                      }
-                    });
-                try {
-                  latch.await();
-                } catch (InterruptedException ignored) {
-                }
-                pool.shutdown();
-                success = postInstallSuccess.get();
-                if (success) {
-                  clearSteamDllMarkers(activity);
-                  imageFs.createImgVersionFile(LATEST_VERSION);
-                  progressTracker.addWork(FINALIZE_PROGRESS_BYTES);
-                  progressTracker.finish();
-                }
-              } else {
-                activity.runOnUiThread(
-                    () ->
-                        WinToast.show(
-                            activity,
-                            R.string.setup_wizard_unable_to_install_system_files,
-                            android.widget.Toast.LENGTH_LONG));
-              }
-
-              boolean finalSuccess = success;
-              activity.runOnUiThread(
-                  () -> {
-                    if (finalSuccess) {
-                      activity.getWindow().getDecorView().postDelayed(dialog::close, 500L);
-                    } else {
-                      dialog.close();
-                    }
-                  });
-            });
+    if (!imageFs.isUpToDate()) installFromAssets(activity);
   }
 
   private static void clearOptDir(File optDir) {

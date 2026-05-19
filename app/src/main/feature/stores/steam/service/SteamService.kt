@@ -2371,7 +2371,7 @@ class SteamService : Service() {
             )
         }
 
-        fun isImageFsInstalled(context: Context): Boolean = ImageFs.find(context).isValid()
+        fun isImageFsInstalled(context: Context): Boolean = ImageFs.find(context).isUpToDate()
 
         fun isImageFsInstallable(
             context: Context,
