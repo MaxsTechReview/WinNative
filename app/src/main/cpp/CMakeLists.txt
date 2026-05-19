@@ -6,6 +6,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function
 
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
+add_subdirectory(wn-steam-client)
+add_subdirectory(wn-steam-bootstrap)
 
 # ----------------------------------------------------------------------------
 # lsfg-vk-android: Vulkan implicit layer for Lossless Scaling frame generation.

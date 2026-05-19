@@ -40,11 +40,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SettingsSuggest
@@ -134,12 +136,16 @@ internal fun StoreGameDetailScreen(
     updateStatusText: String? = null,
     isUpdateActionEnabled: Boolean = true,
     isUpdateCheckCoolingDown: Boolean = false,
+    showWorkshop: Boolean = false,
+    showVerifyFiles: Boolean = false,
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
     onBack: () -> Unit,
     onInstall: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
+    onWorkshop: () -> Unit = {},
+    onVerifyFiles: () -> Unit = {},
     onDownloadUpdate: () -> Unit = {},
     onUninstall: () -> Unit = {},
     onCloudSync: () -> Unit = {},
@@ -168,8 +174,12 @@ internal fun StoreGameDetailScreen(
         val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
         val showUpdateCheckButton = showUpdateCheck && isInstalled
         val showUpdateCta = showUpdateCheckButton && isUpdateAvailable
+        val showWorkshopButton = showWorkshop && isInstalled
+        val showVerifyFilesButton = showVerifyFiles && isInstalled
         val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
-        val showActionColumn = showDownloadCta || showUpdateCheckButton || (showCloudSync || showUninstall || showBestConfigs)
+        val showActionColumn =
+            showDownloadCta || showUpdateCheckButton || showWorkshopButton || showVerifyFilesButton ||
+                (showCloudSync || showUninstall || showBestConfigs)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -406,6 +416,16 @@ internal fun StoreGameDetailScreen(
                                 )
                             }
 
+                            if (showVerifyFilesButton) {
+                                StoreSecondaryActionButton(
+                                    icon = Icons.Outlined.FactCheck,
+                                    label = stringResource(R.string.store_game_verify_files),
+                                    enabled = !isLoading && !isCheckingForUpdate,
+                                    loading = false,
+                                    onClick = onVerifyFiles,
+                                )
+                            }
+
                             if (showUpdateCheckButton) {
                                 StoreSecondaryActionButton(
                                     icon = Icons.Outlined.Refresh,
@@ -438,6 +458,16 @@ internal fun StoreGameDetailScreen(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
+                            }
+
+                            if (showWorkshopButton) {
+                                StoreSecondaryActionButton(
+                                    icon = Icons.Outlined.Construction,
+                                    label = stringResource(R.string.store_game_workshop),
+                                    enabled = !isLoading,
+                                    loading = false,
+                                    onClick = onWorkshop,
+                                )
                             }
 
                             if (showDownloadCta && !isLoading && !isInstallEnabled && installSize > 0L) {

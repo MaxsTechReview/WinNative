@@ -77,6 +77,13 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
         .getOrElse("Nightly")
 
+// gbe_fork / ColdClient version bundled in assets/experimental-drm.tzst,
+// pinned by tools/gbe_fork.version. Baked into BuildConfig so the runtime
+// can detect an APK update that bumped the asset and refresh the extracted
+// ColdClient (see SteamClientManager.extractColdClientSupport).
+def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
+def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
+
 android {
     namespace 'com.winlator.cmod'
     compileSdk 35
@@ -91,7 +98,14 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
-                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384", "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                // ANDROID_STL=c++_shared: required by the Prefab OpenSSL and
+                // curl AARs (com.android.ndk.thirdparty:*), which are built
+                // against the shared STL. The existing native libraries in
+                // this project are C-only (winlator/*.c, patchelf, proot,
+                // xz, steam* shims) so the switch is a no-op for them.
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DANDROID_STL=c++_shared"
             }
         }
 
@@ -102,6 +116,7 @@ android {
         resConfigs "en", "da", "de", "es", "fr", "it", "ko", "pl", "pt-rBR", "ro", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("boolean", "GOLD", "false")
+        buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
         buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
         buildConfigField("String", "POSTHOG_HOST", "\"\"")
         buildConfigField("String", "SUPABASE_URL", "\"\"")
@@ -194,6 +209,7 @@ android {
         compose true
         viewBinding true
         buildConfig true
+        prefab true   // wn-steam-client links OpenSSL + curl via NDK Prefab AARs
     }
 
     sourceSets {
@@ -274,12 +290,23 @@ dependencies {
     implementation libs.recyclerview
     implementation libs.coreKtx
 
-    implementation(libs.javaSteam) {
-        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
-    }
-    implementation(libs.javaSteamDepotDownloader) {
-        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
-    }
+    // Phase 9 complete: the JavaSteam dependency (libs.javaSteam /
+    // libs.javaSteamDepotDownloader) has been fully removed. All Steam
+    // functionality — connection, login, PICS, cloud, downloads, licenses,
+    // user-stats, friends — is handled by the in-house C++ wn-steam-client
+    // plus in-house Kotlin types (steam.enums / steam.data / steam.utils).
+
+    // Native deps for wn-steam-client (consumed via NDK Prefab from CMake).
+    // These are AAR-packaged prebuilts of OpenSSL and libcurl built for Android NDK.
+    //
+    // NOTE: the com.android.ndk.thirdparty:* Prefab project is effectively
+    // abandoned — these are the LATEST available versions (verified against
+    // dl.google.com/dl/android/maven2/com/android/ndk/thirdparty/.../maven-metadata.xml).
+    // OpenSSL 1.1.1 went EOL on 2023-09-11. The primitives we depend on
+    // (RSA-OAEP-SHA1, AES-256-CBC, HMAC-SHA1, SHA-1/256) are not affected
+    // by any 1.1.1q CVE. Revisit if a maintained replacement appears.
+    implementation 'com.android.ndk.thirdparty:openssl:1.1.1q-beta-1'
+    implementation 'com.android.ndk.thirdparty:curl:7.85.0-beta-1'
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth

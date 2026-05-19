@@ -2089,6 +2089,7 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             fontSize = 11.sp,
             lineHeight = 16.sp
         )
+
         Spacer(Modifier.height(SettingItemGap))
 
         if (state.steamTypeEntries.value.isNotEmpty()) {

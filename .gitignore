@@ -47,3 +47,9 @@ app/schemas/
 *.jks
 *.keystore
 signing.properties
+
+# Local-only dev artifacts (never check in)
+.claude/
+References/
+*.hprof
+android_sysvshm/build64/

@@ -345,6 +345,12 @@ class DownloadInfo(
         val displayTotal = displayTotalExpectedBytes.get()
         if (displayTotal <= 0L) return getBytesProgress()
 
+        // A finished download is fully downloaded by definition. The byte
+        // accumulator can legitimately be 0 here — e.g. a resumed download
+        // whose depots were all already on disk and skipped, firing no
+        // progress callbacks — so derive the display value from the phase.
+        if (status.value == DownloadPhase.COMPLETE) return displayTotal to displayTotal
+
         val displayDownloaded = (getProgress().coerceIn(0f, 1f) * displayTotal.toFloat()).toLong()
         return displayDownloaded.coerceIn(0L, displayTotal) to displayTotal
     }

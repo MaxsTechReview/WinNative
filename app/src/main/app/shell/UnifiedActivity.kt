@@ -211,7 +211,7 @@ import com.winlator.cmod.shared.ui.widget.chasingBorder
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.Lazy
-import `in`.dragonbra.javasteam.enums.EPersonaState
+import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -320,6 +320,102 @@ class UnifiedActivity :
     // Lightweight refresh trigger for playtime/order changes when returning from a game.
     var libraryPlaytimeRefreshSignal by mutableIntStateOf(0)
     private var hasCompletedInitialResume = false
+
+    // Verify Files / Check for Update task pop-up state, hosted at the activity
+    // root (see [TaskProgressHost]) so it survives game-detail dialog teardown —
+    // a verify/update completing fires LibraryInstallStatusChanged, which
+    // refreshes the library and would otherwise kill a dialog-scoped progress
+    // watcher before it observes COMPLETE.
+    private var taskProgressInfo by mutableStateOf<DownloadInfo?>(null)
+    private var taskProgressGameName by mutableStateOf("")
+    private var taskProgressLabel by mutableStateOf("")
+    private var taskProgressCompleteMsg by mutableStateOf("")
+    private var taskProgressFailedMsg by mutableStateOf("")
+    private var taskProgressShown by mutableStateOf(false)
+    private var taskDoneMessage by mutableStateOf<String?>(null)
+    private var taskDoneFailed by mutableStateOf(false)
+    // Indeterminate "Checking for updates…" pop-up shown before a download
+    // task (if any) is known.
+    private var taskCheckingShown by mutableStateOf(false)
+    private var taskCheckingGameName by mutableStateOf("")
+    private var taskCheckingLabel by mutableStateOf("")
+
+    /** Opens the task progress pop-up for a freshly started verify/update task. */
+    private fun showTaskProgressPopup(
+        info: DownloadInfo,
+        gameName: String,
+        label: String,
+        completeMsg: String,
+        failedMsg: String,
+    ) {
+        taskCheckingShown = false
+        taskProgressInfo = info
+        taskProgressGameName = gameName
+        taskProgressLabel = label
+        taskProgressCompleteMsg = completeMsg
+        taskProgressFailedMsg = failedMsg
+        taskProgressShown = true
+        taskDoneMessage = null
+    }
+
+    // Re-entrancy guard for [startUpdateCheck] — taps after the checking
+    // pop-up is dismissed shouldn't launch overlapping checks.
+    private var updateCheckInProgress = false
+
+    /**
+     * Runs a Steam update check behind the "Checking for updates…" pop-up.
+     * On a hit it starts the update download and hands off to the progress
+     * pop-up; otherwise it shows a "No Updates Available" / failure notice.
+     * The check runs on [lifecycleScope] so it outlives the calling dialog.
+     */
+    private fun startUpdateCheck(appId: Int, gameName: String) {
+        if (updateCheckInProgress) return
+        updateCheckInProgress = true
+        taskCheckingGameName = gameName
+        taskCheckingLabel = getString(R.string.store_game_check_for_update)
+        taskCheckingShown = true
+        taskDoneMessage = null
+        lifecycleScope.launch {
+            val result =
+                runCatching {
+                    withContext(Dispatchers.IO) { SteamService.checkForAppUpdate(appId) }
+                }.getOrNull()
+            try {
+            when {
+                result == null || result.message != null -> {
+                    taskCheckingShown = false
+                    taskDoneFailed = true
+                    taskDoneMessage = getString(R.string.store_game_update_check_failed_notice)
+                }
+                result.hasUpdate -> {
+                    val started =
+                        withContext(Dispatchers.IO) {
+                            SteamService.downloadAppForUpdate(appId, result.depotIds)
+                        }
+                    if (started != null) {
+                        showTaskProgressPopup(
+                            started,
+                            gameName,
+                            getString(R.string.store_game_update),
+                            getString(R.string.store_game_update_complete),
+                            getString(R.string.store_game_update_failed_notice),
+                        )
+                    } else {
+                        // A download is already running — downloadApp showed its toast.
+                        taskCheckingShown = false
+                    }
+                }
+                else -> {
+                    taskCheckingShown = false
+                    taskDoneFailed = false
+                    taskDoneMessage = getString(R.string.store_game_no_updates_notice)
+                }
+            }
+            } finally {
+                updateCheckInProgress = false
+            }
+        }
+    }
 
     // Freezes the library/store card chasing borders while any full-screen
     // dialog is open, so the ~120 Hz animation cost isn't paid for content
@@ -1084,6 +1180,11 @@ class UnifiedActivity :
                         BestConfigsScreen(onBack = { rootNavController?.popBackStack() })
                     }
                 }
+
+                // Verify Files progress pop-up + completion notice. Hosted here,
+                // outside the NavHost, so it survives both hub<->settings
+                // navigation and game-detail dialog teardown.
+                TaskProgressHost()
             }
         }
         scheduleDeferredStoreBootstrap()
@@ -4142,6 +4243,7 @@ class UnifiedActivity :
         var activePopup by remember { mutableStateOf<LibraryDetailPopup?>(null) }
         var shortcutRefreshKey by remember(app.id, gogGame?.id) { mutableStateOf(0) }
         var pinnedShortcutOverride by remember(app.id, gogGame?.id) { mutableStateOf<Boolean?>(null) }
+        var showWorkshopDialog by remember(app.id) { mutableStateOf(false) }
 
         val isCustom = app.id < 0
         val isEpic = app.id >= 2000000000
@@ -4739,6 +4841,32 @@ class UnifiedActivity :
                                     onSaves = { activePopup = LibraryDetailPopup.Saves },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
                                     onUninstall = uninstallGame,
+                                    // The Steam source tag opens a menu (Verify Files /
+                                    // Check for Update / Workshop) for installed Steam games.
+                                    steamMenuEnabled = !isCustom && !isEpic && !isGog,
+                                    onVerifyFiles = {
+                                        scope.launch {
+                                            val started =
+                                                withContext(Dispatchers.IO) {
+                                                    SteamService.downloadAppForVerify(app.id)
+                                                }
+                                            if (started != null) {
+                                                // Hand off to the activity-root host so the
+                                                // pop-up + completion notice outlive this dialog.
+                                                showTaskProgressPopup(
+                                                    started,
+                                                    app.name,
+                                                    getString(R.string.store_game_verify_files),
+                                                    getString(R.string.store_game_verify_complete),
+                                                    getString(R.string.store_game_verify_failed_notice),
+                                                )
+                                            }
+                                            // else: a download is already running —
+                                            // downloadApp surfaced its own conflict toast.
+                                        }
+                                    },
+                                    onCheckForUpdate = { startUpdateCheck(app.id, app.name) },
+                                    onWorkshop = { showWorkshopDialog = true },
                                 )
                             }
 
@@ -5297,6 +5425,14 @@ class UnifiedActivity :
                             Icon(Icons.Outlined.Close, contentDescription = "Close", tint = TextPrimary)
                         }
                     }
+                }
+
+                if (showWorkshopDialog) {
+                    WorkshopDialog(
+                        appId = app.id,
+                        gameTitle = app.name,
+                        onDismissRequest = { showWorkshopDialog = false },
+                    )
                 }
             }
         }
@@ -6867,6 +7003,15 @@ class UnifiedActivity :
                     tick++
                 }
             }
+            // Also recompose on status-message changes. Active downloads push
+            // a changing message every progress tick, so this is what keeps
+            // the byte count / speed / progress bar refreshing live (the
+            // phase flow dedups to a single DOWNLOADING emission).
+            LaunchedEffect(info) {
+                info.getStatusMessageFlow().collect {
+                    tick++
+                }
+            }
         }
 
         Column(
@@ -7227,6 +7372,428 @@ class UnifiedActivity :
                     }
                 } else {
                     Box(fillModifier.background(fillColor))
+                }
+            }
+        }
+    }
+
+    /**
+     * The live progress body (phase label, bar, percentage, byte counts) for a
+     * game's in-flight download / verify. Observes [info] directly so it
+     * refreshes live. Rendered inside [SteamTaskProgressDialog].
+     */
+    @Composable
+    private fun SteamTaskProgressBody(info: DownloadInfo) {
+        var progress by remember(info) { mutableFloatStateOf(info.getProgress()) }
+        DisposableEffect(info) {
+            val listener: (Float) -> Unit = { progress = it }
+            info.addProgressListener(listener)
+            onDispose { info.removeProgressListener(listener) }
+        }
+        val status by info.getStatusFlow().collectAsState()
+        // The status message carries a unique suffix every progress tick;
+        // keying the byte sample on it (and on `progress`) keeps the card
+        // refreshing live — the Downloads-tab row relies on the same.
+        val statusMessage by info.getStatusMessageFlow().collectAsState()
+        val fraction = progress.coerceIn(0f, 1f)
+        val animatedFraction by animateFloatAsState(
+            targetValue = fraction,
+            animationSpec = tween(durationMillis = 400),
+            label = "steamTaskProgress",
+        )
+        val (doneBytes, totalBytes) =
+            remember(progress, statusMessage) { info.getDisplayBytesProgress() }
+
+        val phaseText =
+            when (status) {
+                DownloadPhase.VERIFYING -> "Verifying…"
+                DownloadPhase.DOWNLOADING -> "Downloading…"
+                DownloadPhase.PAUSED -> "Paused"
+                DownloadPhase.QUEUED -> "Queued"
+                DownloadPhase.PREPARING -> "Preparing…"
+                DownloadPhase.PATCHING -> "Patching…"
+                DownloadPhase.APPLYING_DATA -> "Installing…"
+                DownloadPhase.UNPACKING -> "Unpacking…"
+                DownloadPhase.FINALIZING -> "Finalizing…"
+                DownloadPhase.COMPLETE -> "Complete"
+                DownloadPhase.FAILED -> "Failed"
+                DownloadPhase.CANCELLED -> "Cancelled"
+                else -> "Working…"
+            }
+        val phaseColor =
+            when (status) {
+                DownloadPhase.COMPLETE -> StatusOnline
+                DownloadPhase.FAILED, DownloadPhase.CANCELLED -> DangerRed
+                DownloadPhase.PAUSED, DownloadPhase.QUEUED -> StatusAway
+                else -> Accent
+            }
+
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(phaseText, color = phaseColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${(fraction * 100).toInt()}%",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            DownloadChasingProgressBar(
+                progress = animatedFraction,
+                status = status,
+                animationsActive = true,
+                modifier = Modifier.fillMaxWidth().height(10.dp),
+            )
+            Text(
+                if (totalBytes > 0L) {
+                    "${StorageUtils.formatBinarySize(doneBytes)} / " +
+                        StorageUtils.formatBinarySize(totalBytes)
+                } else {
+                    " "
+                },
+                color = TextSecondary,
+                fontSize = 11.sp,
+            )
+        }
+    }
+
+    /**
+     * Activity-root host for the Verify Files progress pop-up + completion
+     * notice. Rendered once near the NavHost so it outlives the game-detail
+     * dialogs that start the task — the verify-completion library refresh
+     * tears those down, and a dialog-scoped watcher would miss COMPLETE.
+     *
+     * Reads the `taskProgress*` activity fields; [showTaskProgressPopup]
+     * populates them. The watcher is keyed on [taskProgressInfo] so it
+     * re-attaches if recomposed and (because the status is a StateFlow)
+     * still observes a terminal phase that landed in between.
+     */
+    @Composable
+    private fun TaskProgressHost() {
+        val info = taskProgressInfo
+        LaunchedEffect(info) {
+            if (info == null) return@LaunchedEffect
+            info.getStatusFlow().collect { st ->
+                when (st) {
+                    DownloadPhase.COMPLETE -> {
+                        taskProgressShown = false
+                        taskDoneFailed = false
+                        taskDoneMessage = taskProgressCompleteMsg
+                        taskProgressInfo = null
+                    }
+                    DownloadPhase.FAILED -> {
+                        taskProgressShown = false
+                        taskDoneFailed = true
+                        taskDoneMessage = taskProgressFailedMsg
+                        taskProgressInfo = null
+                    }
+                    DownloadPhase.CANCELLED -> {
+                        taskProgressShown = false
+                        taskProgressInfo = null
+                    }
+                    else -> Unit
+                }
+            }
+        }
+        if (taskCheckingShown) {
+            TaskCheckingDialog(
+                gameName = taskCheckingGameName,
+                taskLabel = taskCheckingLabel,
+                onDismissRequest = { taskCheckingShown = false },
+            )
+        }
+        if (info != null && taskProgressShown) {
+            SteamTaskProgressDialog(
+                info = info,
+                gameName = taskProgressGameName,
+                taskLabel = taskProgressLabel,
+                onDismissRequest = { taskProgressShown = false },
+            )
+        }
+        taskDoneMessage?.let { msg ->
+            TaskCompleteDialog(
+                message = msg,
+                failed = taskDoneFailed,
+                onClose = { taskDoneMessage = null },
+            )
+        }
+    }
+
+    /**
+     * Indeterminate "Checking for updates…" pop-up — same frame as
+     * [SteamTaskProgressDialog] but without a known task to track. Dismissable;
+     * the underlying check keeps running and the host shows the result.
+     */
+    @Composable
+    private fun TaskCheckingDialog(
+        gameName: String,
+        taskLabel: String,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onDismissRequest() }
+                        .windowInsetsPadding(WindowInsets.navigationBars),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .widthIn(min = 300.dp, max = 380.dp)
+                            .fillMaxWidth(0.92f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {},
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 8.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    taskLabel.uppercase(),
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.9.sp,
+                                )
+                                Text(
+                                    gameName,
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            IconButton(onClick = onDismissRequest, modifier = Modifier.size(34.dp)) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = "Close",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Text(
+                            stringResource(R.string.store_game_checking_updates),
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        LinearProgressIndicator(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                            color = Accent,
+                            trackColor = CardBorder,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Dismissable pop-up showing live progress for a Steam task (verify /
+     * update). Tapping outside closes it — the task keeps running and stays
+     * visible in the Downloads tab. The host watches the task to completion
+     * separately and shows [TaskCompleteDialog] when it finishes.
+     */
+    @Composable
+    private fun SteamTaskProgressDialog(
+        info: DownloadInfo,
+        gameName: String,
+        taskLabel: String,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onDismissRequest() }
+                        .windowInsetsPadding(WindowInsets.navigationBars),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .widthIn(min = 300.dp, max = 380.dp)
+                            .fillMaxWidth(0.92f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {},
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 8.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    taskLabel.uppercase(),
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.9.sp,
+                                )
+                                Text(
+                                    gameName,
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            IconButton(onClick = onDismissRequest, modifier = Modifier.size(34.dp)) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = "Close",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        SteamTaskProgressBody(info)
+                        Text(
+                            stringResource(R.string.store_game_progress_background_hint),
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Small completion notice ("Verify Files Complete" / "… Failed") with a
+     * single Close button. Shown by the host once a watched task finishes.
+     */
+    @Composable
+    private fun TaskCompleteDialog(message: String, failed: Boolean, onClose: () -> Unit) {
+        Dialog(
+            onDismissRequest = onClose,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onClose() }
+                        .windowInsetsPadding(WindowInsets.navigationBars),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .widthIn(min = 280.dp, max = 340.dp)
+                            .fillMaxWidth(0.86f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {},
+                    shape = RoundedCornerShape(16.dp),
+                    color = CardDark,
+                    border = BorderStroke(1.dp, CardBorder),
+                    tonalElevation = 8.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(
+                            if (failed) Icons.Outlined.Warning else Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = if (failed) DangerRed else StatusOnline,
+                            modifier = Modifier.size(42.dp),
+                        )
+                        Text(
+                            message,
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                        )
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .clickable(onClick = onClose),
+                            color = Accent.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(9.dp),
+                            border = BorderStroke(1.dp, Accent.copy(alpha = 0.4f)),
+                        ) {
+                            Text(
+                                "Close",
+                                color = Accent,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 28.dp, vertical = 10.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -7605,6 +8172,7 @@ class UnifiedActivity :
         var showCustomPathWarning by remember { mutableStateOf(false) }
         var isCheckingForUpdate by remember(app.id) { mutableStateOf(false) }
         var isUpdateCheckCoolingDown by remember(app.id) { mutableStateOf(false) }
+        var showWorkshopDialog by remember(app.id) { mutableStateOf(false) }
         var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
         var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
         val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
@@ -7772,6 +8340,10 @@ class UnifiedActivity :
                     updateStatusText = updateStatusText,
                     isUpdateActionEnabled = updateActionEnabled,
                     isUpdateCheckCoolingDown = isUpdateCheckCoolingDown,
+                    // Shown for any installed game; titles without UGC simply
+                    // open to an empty Workshop window (handled gracefully).
+                    showWorkshop = isReallyInstalled,
+                    showVerifyFiles = isReallyInstalled,
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     isDlcSelectionEnabled = steamDownloadRecord == null,
@@ -7793,39 +8365,32 @@ class UnifiedActivity :
                             withContext(Dispatchers.Main) { onDismissRequest() }
                         }
                     },
-                    onCheckForUpdate = {
-                        if (isCheckingForUpdate || isUpdateCheckCoolingDown) return@StoreGameDetailScreen
+                    onCheckForUpdate = { startUpdateCheck(app.id, app.name) },
+                    onWorkshop = { showWorkshopDialog = true },
+                    onVerifyFiles = {
+                        if (steamDownloadRecord != null) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                activeSteamDownloadText,
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@StoreGameDetailScreen
+                        }
                         scope.launch {
-                            try {
-                                isCheckingForUpdate = true
-                                updateStatusText = null
-                                val result =
-                                    withContext(Dispatchers.IO) {
-                                        SteamService.checkForAppUpdate(app.id)
-                                    }
-                                updateInfo = result
-                                updateStatusText =
-                                    when {
-                                        result.hasUpdate -> updateAvailableText
-                                        result.message != null -> updateFailedText
-                                        else -> null
-                                    }
-                                if (!result.hasUpdate && result.message == null) {
-                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                        context,
-                                        noUpdateAvailableText,
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    )
+                            val started =
+                                withContext(Dispatchers.IO) {
+                                    SteamService.downloadAppForVerify(app.id)
                                 }
-                                isUpdateCheckCoolingDown = true
-                                kotlinx.coroutines.delay(5_000L)
-                            } catch (e: Exception) {
-                                Log.w("UnifiedActivity", "Steam update check failed for appId=${app.id}", e)
-                                updateInfo = null
-                                updateStatusText = updateFailedText
-                            } finally {
-                                isCheckingForUpdate = false
-                                isUpdateCheckCoolingDown = false
+                            if (started != null) {
+                                // Hand off to the activity-root host so the
+                                // pop-up + completion notice outlive this dialog.
+                                showTaskProgressPopup(
+                                    started,
+                                    app.name,
+                                    getString(R.string.store_game_verify_files),
+                                    getString(R.string.store_game_verify_complete),
+                                    getString(R.string.store_game_verify_failed_notice),
+                                )
                             }
                         }
                     },
@@ -7902,6 +8467,164 @@ class UnifiedActivity :
                     },
                 )
             }
+        }
+
+        if (showWorkshopDialog) {
+            WorkshopDialog(
+                appId = app.id,
+                gameTitle = app.name,
+                onDismissRequest = { showWorkshopDialog = false },
+            )
+        }
+    }
+
+    @Composable
+    private fun WorkshopDialog(
+        appId: Int,
+        gameTitle: String,
+        onDismissRequest: () -> Unit,
+    ) {
+        var loadState by remember(appId) { mutableStateOf(WorkshopLoadState.LOADING) }
+        var errorMessage by remember(appId) { mutableStateOf<String?>(null) }
+        var allItems by remember(appId) { mutableStateOf<List<StoreWorkshopItem>>(emptyList()) }
+        var query by remember(appId) { mutableStateOf("") }
+        // Published-file-ids with an install OR uninstall in flight.
+        val busyIds = remember(appId) { mutableStateListOf<Long>() }
+        var reloadKey by remember(appId) { mutableStateOf(0) }
+        val scope = rememberCoroutineScope()
+
+        LaunchedEffect(appId, reloadKey) {
+            loadState = WorkshopLoadState.LOADING
+            errorMessage = null
+            // Drop any in-flight spinners — a reload re-fetches the list.
+            busyIds.clear()
+            try {
+                val items =
+                    withContext(Dispatchers.IO) {
+                        val json = SteamService.getSubscribedWorkshopItems(appId)
+                        if (json == null) {
+                            null
+                        } else {
+                            val installed =
+                                com.winlator.cmod.feature.stores.steam.workshop.WorkshopModsGenerator
+                                    .installedItemIds(applicationContext, appId)
+                            parseWorkshopItemsJson(json, installed)
+                        }
+                    }
+                if (items == null) {
+                    errorMessage =
+                        "Couldn't load your Workshop subscriptions. " +
+                            "Make sure you're signed in to Steam and online."
+                    loadState = WorkshopLoadState.ERROR
+                } else {
+                    allItems = items
+                    loadState = WorkshopLoadState.READY
+                }
+            } catch (e: Exception) {
+                Log.w("UnifiedActivity", "Workshop load failed for appId=$appId", e)
+                errorMessage = e.message
+                loadState = WorkshopLoadState.ERROR
+            }
+        }
+
+        val filtered =
+            remember(allItems, query) {
+                val q = query.trim()
+                if (q.isBlank()) {
+                    allItems
+                } else {
+                    allItems.filter {
+                        it.title.contains(q, ignoreCase = true) ||
+                            it.author.contains(q, ignoreCase = true)
+                    }
+                }
+            }
+
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+        ) {
+            StoreWorkshopScreen(
+                gameTitle = gameTitle,
+                loadState = loadState,
+                errorMessage = errorMessage,
+                items = filtered,
+                query = query,
+                // Snapshotted here inside the Dialog content lambda: a mutation of
+                // the SnapshotStateList invalidates this scope, so .toSet() re-runs.
+                busyIds = busyIds.toSet(),
+                onQueryChange = { query = it },
+                onInstall = { id ->
+                    val item = allItems.firstOrNull { it.publishedFileId == id }
+                    if (item != null && id !in busyIds) {
+                        if (item.manifestId == 0L) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                this@UnifiedActivity,
+                                "This Workshop item has no downloadable content",
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                        } else {
+                            busyIds.add(id)
+                            scope.launch {
+                                val ok =
+                                    SteamService.installWorkshopItem(
+                                        appId = appId,
+                                        publishedFileId = item.publishedFileId,
+                                        manifestId = item.manifestId,
+                                        title = item.title,
+                                        fileSizeBytes = item.fileSizeBytes,
+                                        timeUpdated = item.timeUpdated,
+                                        previewUrl = item.previewImageUrl ?: "",
+                                    )
+                                if (ok) {
+                                    allItems =
+                                        allItems.map {
+                                            if (it.publishedFileId == id) it.copy(isInstalled = true) else it
+                                        }
+                                } else {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        this@UnifiedActivity,
+                                        "Workshop download failed — check your Steam connection",
+                                        android.widget.Toast.LENGTH_LONG,
+                                    )
+                                }
+                                busyIds.remove(id)
+                            }
+                        }
+                    }
+                },
+                onUninstall = { id ->
+                    if (id !in busyIds) {
+                        busyIds.add(id)
+                        scope.launch {
+                            val ok =
+                                withContext(Dispatchers.IO) {
+                                    com.winlator.cmod.feature.stores.steam.workshop.WorkshopModsGenerator
+                                        .uninstall(applicationContext, appId, id)
+                                }
+                            if (ok) {
+                                allItems =
+                                    allItems.map {
+                                        if (it.publishedFileId == id) it.copy(isInstalled = false) else it
+                                    }
+                            } else {
+                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                    this@UnifiedActivity,
+                                    "Couldn't uninstall this Workshop item",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                )
+                            }
+                            busyIds.remove(id)
+                        }
+                    }
+                },
+                onRetry = { reloadKey++ },
+                onClose = onDismissRequest,
+            )
         }
     }
 

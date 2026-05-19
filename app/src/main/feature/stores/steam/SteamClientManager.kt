@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.wine.WineUtils
@@ -57,7 +58,7 @@ object SteamClientManager {
     fun isColdClientInstalled(context: Context): Boolean {
         val imageFs = ImageFs.find(context)
         val loaderExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe")
-        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/steamclient_extra_x64.dll")
+        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/StubDRM64.dll")
         return loaderExe.exists() && loaderExe.length() > 0 && extraDll.exists() && extraDll.length() > 0
     }
 
@@ -247,10 +248,39 @@ object SteamClientManager {
 
     @JvmStatic
     fun extractColdClientSupport(context: Context): Boolean {
-        if (isColdClientInstalled(context)) return true
-
         val imageFs = ImageFs.find(context)
         val expFile = File(context.filesDir, "experimental-drm.tzst")
+        val stampFile = File(context.filesDir, "experimental-drm.version")
+
+        // Version gate: the staged archive + extracted ColdClient are only
+        // refreshed when missing. An APK update that bumps the bundled
+        // gbe_fork would otherwise never reach an existing user. Compare the
+        // installed stamp against BuildConfig.COLD_CLIENT_VERSION (sourced
+        // from tools/gbe_fork.version at build time) and force a refresh on
+        // a mismatch.
+        val bundledVersion = BuildConfig.COLD_CLIENT_VERSION
+        val installedVersion = runCatching { stampFile.readText().trim() }.getOrNull()
+        val outdated = installedVersion != bundledVersion
+
+        if (isColdClientInstalled(context) && !outdated) return true
+
+        if (outdated) {
+            Log.i(TAG, "ColdClient version changed ($installedVersion -> $bundledVersion); refreshing")
+            // Drop the stale staged archive so the new one is copied below.
+            expFile.delete()
+            // Wipe the injection folder so a DLL dropped from the new asset
+            // (e.g. gbe_fork's steamclient_extra, replaced by StubDRM64.dll)
+            // can't linger and get injected alongside the current patcher.
+            // Re-extraction recreates it. Safe even in Real-Steam mode — that
+            // store has no extra_dlls folder.
+            runCatching {
+                File(
+                    imageFs.rootDir,
+                    "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls",
+                ).deleteRecursively()
+            }
+        }
+
         if (!expFile.exists()) {
             try {
                 context.assets.open("experimental-drm.tzst").use { input ->
@@ -258,7 +288,7 @@ object SteamClientManager {
                         input.copyTo(output)
                     }
                 }
-                Log.d(TAG, "Copied bundled experimental-drm.tzst to filesDir")
+                Log.d(TAG, "Copied bundled experimental-drm.tzst to filesDir ($bundledVersion)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to copy bundled experimental-drm.tzst: ${e.message}")
                 return false
@@ -272,6 +302,9 @@ object SteamClientManager {
                 imageFs.rootDir,
                 null,
             )
+            // Record the version now extracted so the next launch is a no-op
+            // until the next APK update bumps the bundled gbe_fork.
+            runCatching { stampFile.writeText(bundledVersion) }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract ColdClient support archive: ${e.message}")
@@ -687,6 +720,12 @@ object SteamClientManager {
      */
     @JvmStatic
     fun getEncryptedAppTicketBase64Blocking(appId: Int): String? {
+        // Blocks for a CM round-trip (can be tens of seconds). Never call on
+        // the main thread — that would ANR.
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            Log.e(TAG, "getEncryptedAppTicketBase64Blocking called on the main thread — refusing")
+            return null
+        }
         return try {
             val service = com.winlator.cmod.feature.stores.steam.service.SteamService.instance ?: return null
             kotlinx.coroutines.runBlocking {

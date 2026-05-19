@@ -2,7 +2,7 @@ package com.winlator.cmod.feature.stores.steam.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import `in`.dragonbra.javasteam.enums.EResult
+import com.winlator.cmod.feature.stores.steam.enums.EResult
 
 @Entity("encrypted_app_ticket")
 data class EncryptedAppTicket(

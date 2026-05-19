@@ -20,12 +20,11 @@ import com.winlator.cmod.feature.stores.steam.enums.OSArch
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.ReleaseState
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.INVALID_APP_ID
-import `in`.dragonbra.javasteam.types.KeyValue
 import timber.log.Timber
 import java.util.Date
 
 /**
- * Extension functions relating to [KeyValue] as the receiver type.
+ * Extension functions relating to [WnKeyValue] as the receiver type.
  */
 
 private data class WindowsRootRedirect(
@@ -35,7 +34,7 @@ private data class WindowsRootRedirect(
     val replacements: List<Pair<String, String>>,
 )
 
-private fun KeyValue.parseWindowsRootRedirects(): List<WindowsRootRedirect> =
+private fun WnKeyValue.parseWindowsRootRedirects(): List<WindowsRootRedirect> =
     this["ufs"]["rootoverrides"].children.mapNotNull { entry ->
         val os = entry["os"].value.orEmpty()
         val osList = entry["oslist"].value.orEmpty()
@@ -80,7 +79,7 @@ private fun remapWindowsUfsPath(
     return localPath
 }
 
-fun KeyValue.generateSteamApp(): SteamApp =
+fun WnKeyValue.generateSteamApp(): SteamApp =
     SteamApp(
         id = this["appid"].asInteger(INVALID_APP_ID),
         depots =
@@ -236,7 +235,7 @@ fun KeyValue.generateSteamApp(): SteamApp =
         },
     )
 
-private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerConfigDetail> {
+private fun WnKeyValue.parseSteamControllerConfigDetails(): List<SteamControllerConfigDetail> {
     val details = this["config"]["steamcontrollerconfigdetails"]
     if (details.children.isEmpty()) return emptyList()
 
@@ -259,7 +258,7 @@ private fun KeyValue.parseSteamControllerConfigDetails(): List<SteamControllerCo
     }
 }
 
-fun List<KeyValue>.generateManifest(): Map<String, ManifestInfo> =
+fun List<WnKeyValue>.generateManifest(): Map<String, ManifestInfo> =
     associate { manifest ->
         manifest.name!! to
             ManifestInfo(
@@ -270,7 +269,7 @@ fun List<KeyValue>.generateManifest(): Map<String, ManifestInfo> =
             )
     }
 
-fun List<KeyValue>.toLangImgMap(): Map<Language, String> =
+fun List<WnKeyValue>.toLangImgMap(): Map<Language, String> =
     mapNotNull { kv ->
         Language
             .from(kv.name!!)
@@ -287,7 +286,7 @@ private fun String?.parseDlcAppIds(): List<Int> =
         .distinct()
 
 @Suppress("unused")
-fun KeyValue.printAllKeyValues(depth: Int = 0) {
+fun WnKeyValue.printAllKeyValues(depth: Int = 0) {
     val parent = this
     var tabString = ""
 
