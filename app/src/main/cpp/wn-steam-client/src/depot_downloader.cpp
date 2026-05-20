@@ -3,10 +3,13 @@
 #include <android/log.h>
 #include <sys/stat.h>
 
+#include <chrono>
 #include <fstream>
 #include <future>
 #include <optional>
 #include <span>
+#include <thread>
+#include <vector>
 #include <cstdio>
 
 #include "wn_steam/cdn_client.h"
@@ -54,6 +57,40 @@ bool write_file(const std::string& path, std::span<const uint8_t> data) {
     return static_cast<bool>(out);
 }
 
+// Fetch a depot manifest, retrying transient failures with backoff and
+// rotating across the CDN server list. A manifest GET that drops mid-stream
+// or hits a flaky edge no longer fails the whole download on the first try.
+CdnManifestResult fetch_manifest_with_retry(
+        CdnClient& cdn,
+        const std::vector<pb::CContentServerDirectory_ServerInfo>& servers,
+        uint32_t depot_id, uint64_t manifest_id, uint64_t request_code,
+        const std::atomic<bool>* cancel) {
+    constexpr unsigned kAttempts = 5;
+    CdnManifestResult last;
+    for (unsigned attempt = 0; attempt < kAttempts; ++attempt) {
+        if (cancel && cancel->load()) {
+            last.error = "cancelled";
+            return last;
+        }
+        if (attempt > 0) {
+            unsigned ms = 300u << (attempt - 1);
+            if (ms > 4000u) ms = 4000u;
+            std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
+        const auto& srv = servers[attempt % servers.size()];
+        last = cdn.fetch_manifest(srv, depot_id, manifest_id, request_code);
+        if (last.ok()) return last;
+        WN_LOGE("manifest fetch attempt %u/%u failed (depot %u): %s",
+                attempt + 1, kAttempts, depot_id, last.error.c_str());
+    }
+    return last;
+}
+
+// Clean-pause marker — written when a depot was paused after a full A2
+// validation, so the next resume can trust on-disk byte ranges without
+// re-checksumming them. Distinct from the per-file DepotProgressStore
+// sidecar: cleanpause says "the whole depot is in a known-good state",
+// the sidecar says "these specific files are durable".
 std::string clean_pause_marker_path(const std::string& config_dir,
                                     uint32_t depot_id,
                                     uint64_t manifest_id) {
@@ -108,12 +145,24 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
     // Strict rule: a fresh download (no COMPLETE marker) must not trust a
     // stale depot.config — discard it so every depot is re-validated.
     DepotConfigStore cfg = DepotConfigStore::load(config_dir);
-    if (fresh) cfg.discard();
+    if (fresh) {
+        cfg.discard();
+        // A fresh (non-resume) download must not trust stale per-file resume
+        // sidecars or clean-pause markers either — drop them so every file
+        // is re-examined.
+        for (const auto& d : depots) {
+            DepotProgressStore::remove(config_dir, d.depot_id, d.manifest_id);
+            remove_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
+        }
+    }
 
     CdnClient cdn(ca_bundle_path_);
 
     // --- resolve the CDN content-server list once -----------------------
-    pb::CContentServerDirectory_ServerInfo server;
+    // Keep ALL usable servers, not just the first: write_depot's chunk
+    // retry and the manifest fetch fail over across this list, so one dead
+    // or throttled CDN edge can't sink the whole download.
+    std::vector<pb::CContentServerDirectory_ServerInfo> servers;
     {
         std::promise<std::optional<pb::CContentServerDirectory_GetServersForSteamPipe_Response>> p;
         auto fut = p.get_future();
@@ -122,19 +171,18 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
         if (!resp || resp->servers.empty()) {
             return fail("download: no CDN servers available");
         }
-        // First non-China server (download path is global content).
-        bool picked = false;
+        // Non-China servers only (download path is global content).
         for (auto& s : resp->servers) {
             if (!s.steam_china_only && !s.host.empty()) {
-                server = s;
-                picked = true;
-                break;
+                servers.push_back(s);
             }
         }
-        if (!picked) return fail("download: no usable CDN server");
-        WN_LOGI("cdn server: %s (https=%d)",
-                (server.vhost.empty() ? server.host : server.vhost).c_str(),
-                server.use_https() ? 1 : 0);
+        if (servers.empty()) return fail("download: no usable CDN server");
+        WN_LOGI("cdn servers: %zu usable (primary %s, https=%d)",
+                servers.size(),
+                (servers[0].vhost.empty() ? servers[0].host
+                                          : servers[0].vhost).c_str(),
+                servers[0].use_https() ? 1 : 0);
     }
 
     DepotDownloadResult result;
@@ -194,8 +242,9 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
                 if (r) request_code = r->manifest_request_code;
                 // A zero code is legal; fetch_manifest then omits the segment.
             }
-            auto m = cdn.fetch_manifest(server, d.depot_id, d.manifest_id,
-                                        request_code);
+            auto m = fetch_manifest_with_retry(cdn, servers, d.depot_id,
+                                               d.manifest_id, request_code,
+                                               cancel);
             if (!m.ok()) {
                 return fail("download: manifest fetch failed for depot "
                             + std::to_string(d.depot_id) + ": " + m.error);
@@ -219,9 +268,13 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
         }
 
         // --- write files ------------------------------------------------
+        // The per-file resume sidecar: lets a paused/interrupted depot resume
+        // without re-hashing every file of the whole depot on the next run.
         const uint32_t depots_done = result.depots_completed;
+        DepotProgressStore progress_store(config_dir, d.depot_id,
+                                          d.manifest_id);
         auto write_res = write_depot(
-            *manifest, depot_key, cdn, server, install_dir, /*cdn_auth_token=*/{},
+            *manifest, depot_key, cdn, servers, install_dir, /*cdn_auth_token=*/{},
             [&](uint64_t done, uint64_t total, bool verifying) {
                 if (progress) {
                     DepotDownloadProgress pr;
@@ -239,7 +292,8 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
             trust_existing_chunks,
             [&cfg, depot_id = d.depot_id, manifest_id = d.manifest_id]() {
                 remove_clean_pause_marker(cfg, depot_id, manifest_id);
-            });
+            },
+            &progress_store);
         if (!write_res.ok()) {
             if (cancelled() && write_res.resume_trust_safe) {
                 write_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
@@ -253,6 +307,9 @@ DepotDownloadResult DepotDownloader::download(uint32_t app_id,
             return fail("download: depot.config finish failed for depot "
                         + std::to_string(d.depot_id));
         }
+        // The depot is now recorded fully installed in depot.config — both
+        // the per-file sidecar and the clean-pause marker are redundant.
+        progress_store.discard();
         remove_clean_pause_marker(cfg, d.depot_id, d.manifest_id);
         result.bytes_written += write_res.bytes_written;
         ++result.depots_completed;

@@ -93,11 +93,12 @@ public class ContainerManager {
     return context;
   }
 
-  public void activateContainer(Container container) {
+  public boolean activateContainer(Container container) {
     Log.d("ContainerManager", "activateContainer: id=" + container.id);
     File containerDir = new File(homeDir, ImageFs.USER + "-" + container.id);
     container.setRootDir(containerDir);
     File file = new File(homeDir, ImageFs.USER);
+    String linkTarget = "./" + ImageFs.USER + "-" + container.id;
 
     // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
     try {
@@ -120,6 +121,20 @@ public class ContainerManager {
       migrateEssentialFiles(file, containerDir);
       boolean deleted = FileUtils.delete(file);
       Log.d("ContainerManager", "activateContainer: real xuser dir delete=" + deleted);
+      if (!deleted && file.exists()) {
+        File backup = new File(homeDir, ImageFs.USER + ".inactive-" + System.currentTimeMillis());
+        boolean renamed = file.renameTo(backup);
+        Log.w(
+            "ContainerManager",
+            "activateContainer: real xuser delete failed, rename to "
+                + backup.getName()
+                + "="
+                + renamed);
+        if (!renamed && file.exists()) {
+          Log.e("ContainerManager", "activateContainer: unable to replace real xuser directory");
+          return false;
+        }
+      }
     } else {
       boolean deleted = file.delete();
       Log.d(
@@ -129,15 +144,21 @@ public class ContainerManager {
               + " existed="
               + file.exists());
     }
-    FileUtils.symlink("./" + ImageFs.USER + "-" + container.id, file.getPath());
+    FileUtils.symlink(linkTarget, file.getPath());
+    boolean symlinkReady = FileUtils.isSymlink(file) && linkTarget.equals(FileUtils.readSymlink(file));
     Log.d(
         "ContainerManager",
         "activateContainer: xuser symlink created, isSymlink="
             + FileUtils.isSymlink(file)
-            + " target=./"
-            + ImageFs.USER
-            + "-"
-            + container.id);
+            + " target="
+            + FileUtils.readSymlink(file));
+    if (!symlinkReady) {
+      Log.e(
+          "ContainerManager",
+          "activateContainer: active xuser does not point to selected container "
+              + container.id);
+    }
+    return symlinkReady;
   }
 
   private void migrateEssentialFiles(File sourceDir, File destDir) {
@@ -313,8 +334,8 @@ public class ContainerManager {
     return null;
   }
 
-  // Returns "<verName>" of the newest installed profile of the given type, or "" if none.
-  // Mirrors SetupWizardActivity.resolvePreferredContentVersion's "newest installed" path.
+  // Returns the saved container version suffix of the newest installed profile, or "" if none.
+  // The launcher reconstructs profile names as "<type>-<suffix>", so keep the version code.
   private String pickNewestInstalledVersion(ContentsManager contentsManager, ContentProfile.ContentType type) {
     if (contentsManager == null) return "";
     java.util.List<ContentProfile> profiles = contentsManager.getProfiles(type);
@@ -331,7 +352,10 @@ public class ContainerManager {
         best = p;
       }
     }
-    return best != null && best.verName != null ? best.verName : "";
+    if (best == null) return "";
+    String entryName = ContentsManager.getEntryName(best);
+    int firstDash = entryName.indexOf('-');
+    return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
   }
 
   private void duplicateContainer(Container srcContainer) {
@@ -746,7 +770,7 @@ public class ContainerManager {
         return false;
       }
 
-      if (!FileUtils.copy(repairedPrefixDir, targetPrefixDir)) {
+      if (!copyWinePrefixTree(repairedPrefixDir, targetPrefixDir)) {
         Log.e("ContainerManager", "repairContainerWinePrefix: failed to copy repaired prefix");
         return false;
       }
@@ -767,6 +791,29 @@ public class ContainerManager {
     } finally {
       FileUtils.delete(tempDir);
     }
+  }
+
+  private boolean copyWinePrefixTree(File source, File target) {
+    if (source == null || target == null || !source.exists()) return false;
+
+    if (FileUtils.isSymlink(source)) {
+      File parent = target.getParentFile();
+      if (parent != null && !parent.isDirectory() && !parent.mkdirs()) return false;
+      FileUtils.symlink(FileUtils.readSymlink(source), target.getAbsolutePath());
+      return FileUtils.isSymlink(target);
+    }
+
+    if (source.isDirectory()) {
+      if (!target.isDirectory() && !target.mkdirs()) return false;
+      File[] children = source.listFiles();
+      if (children == null) return true;
+      for (File child : children) {
+        if (!copyWinePrefixTree(child, new File(target, child.getName()))) return false;
+      }
+      return true;
+    }
+
+    return FileUtils.copy(source, target);
   }
 
   public Container getContainerForShortcut(Shortcut shortcut) {
