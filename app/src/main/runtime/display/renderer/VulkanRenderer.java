@@ -134,6 +134,21 @@ public class VulkanRenderer
 
         xServer.windowManager.addOnWindowModificationListener(this);
         xServer.pointer.addOnPointerMotionListener(this);
+
+        // SYNC FIX: Immediately scan for existing windows to avoid black screen on re-attachment
+        view.queueEvent(this::updateScene);
+    }
+
+    public void destroy() {
+        // LEAK FIX: Unregister from the persistent XServer to prevent "zombie" listeners
+        xServer.windowManager.removeOnWindowModificationListener(this);
+        xServer.pointer.removeOnPointerMotionListener(this);
+
+        if (nativeHandle != 0) {
+            nativeDestroy(nativeHandle);
+            nativeHandle = 0;
+            Texture.setRendererHandle(0);
+        }
     }
 
     public void requestRenderCoalesced() {
@@ -214,11 +229,7 @@ public class VulkanRenderer
 
     @Override
     public void onSurfaceDestroyed() {
-        if (nativeHandle != 0) {
-            nativeDestroy(nativeHandle);
-            nativeHandle = 0;
-            Texture.setRendererHandle(0);
-        }
+        destroy();
     }
 
     @Override

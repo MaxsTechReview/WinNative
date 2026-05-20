@@ -594,7 +594,8 @@ public class WinHandler {
     }
   }
 
-  public void start() {
+  public synchronized void start() {
+    if (running) return;
     try {
       this.localhost = InetAddress.getLocalHost();
     } catch (UnknownHostException e) {

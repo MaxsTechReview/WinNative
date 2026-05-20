@@ -2883,6 +2883,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 multicastLock.release();
             } catch (Exception ignored) {}
         }
+
+        // LEAK FIX: Explicitly destroy the renderer to unregister listeners from the persistent XServer
+        if (xServerView != null) {
+            VulkanRenderer renderer = xServerView.getRenderer();
+            if (renderer != null) renderer.destroy();
+        }
+
         if (exitRequested.get()) {
             SessionKeepAliveService.stopSession(this);
         }
@@ -4704,11 +4711,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             SessionKeepAliveService.setActiveXServer(xServer);
         }
 
-        // Start the WinHandler
-        if (!reusingSession) {
-            winHandler.start();
-            if (wineRequestHandler != null) wineRequestHandler.start();
-        }
+        // Start the WinHandler (always start for each new Activity instance, even when re-attaching)
+        winHandler.start();
+        if (wineRequestHandler != null) wineRequestHandler.start();
 
         // Reset dxwrapper config
         dxwrapperConfig = null;
