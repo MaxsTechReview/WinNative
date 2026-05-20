@@ -4087,10 +4087,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ensureWinePrefixEssentialFiles();
 
         String dxwrapper = shortcut != null ? getShortcutSetting("dxwrapper", this.dxwrapper) : this.dxwrapper;
+        String dxwrapperConfig =
+                shortcut != null
+                        ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString())
+                        : this.dxwrapperConfig.toString();
+        KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
 
         if (dxwrapper.contains("dxvk")) {
-            String dxwrapperConfig = shortcut != null ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString()) : this.dxwrapperConfig.toString();
-            KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
             String dxvkWrapper = "dxvk-" + currentDXWrapperConfig.get("version");
             String vkd3dWrapper = "vkd3d-" + currentDXWrapperConfig.get("vkd3dVersion");
             String ddrawrapper = currentDXWrapperConfig.get("ddrawrapper");
@@ -4098,6 +4101,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     dxvkWrapper + "' vkd3d='" + vkd3dWrapper + "' ddrawrapper='" +
                     ddrawrapper + "'");
             dxwrapper = dxvkWrapper + ";" + vkd3dWrapper + ";" + ddrawrapper;
+        } else {
+            String vkd3dVersion = currentDXWrapperConfig.get("vkd3dVersion");
+            if (hasSelectedVkd3dVersion(vkd3dVersion)) {
+                String vkd3dWrapper = "vkd3d-" + vkd3dVersion;
+                Log.i("XServerDisplayActivity", "Launch VKD3D-only wrapper files selected: vkd3d='" +
+                        vkd3dWrapper + "'");
+                dxwrapper = dxwrapper + ";" + vkd3dWrapper;
+            }
         }
 
         String wincomponents = shortcut != null ? getShortcutSetting("wincomponents", container.getWinComponents()) : container.getWinComponents();
@@ -5669,6 +5680,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void extractDXWrapperFiles(String dxwrapper) {
         final String[] dlls = {"d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll", "d3d8.dll", "d3d9.dll", "dxgi.dll", "ddraw.dll", "d3dimm.dll"};
+        final String[] d3d12Dlls = {"d3d12.dll", "d3d12core.dll"};
+        final String[] nonD3D12WrapperDlls = {"d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d8.dll", "d3d9.dll", "dxgi.dll", "ddraw.dll", "d3dimm.dll"};
 
         File rootDir = imageFs.getRootDir();
         File windowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
@@ -5691,16 +5704,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             if (vkd3dWrapper.contains("None")) {
                 Log.i(TAG, "Launch VKD3D selected: None; restoring original d3d12");
-                restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+                restoreOriginalDllFiles(d3d12Dlls);
             }
             else {
-                ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
-                if (vkd3dProfile != null) {
-                    Log.i(TAG, "Loading VKD3D content profile: " + vkd3dWrapper);
-                    contentsManager.applyContent(vkd3dProfile);
-                } else {
-                    Log.w(TAG, "VKD3D content profile not installed; no bundled VKD3D archive will be loaded: " + vkd3dWrapper);
-                }
+                applyVkd3dWrapper(vkd3dWrapper);
             }
 
             Log.d(TAG, "Extracting nglide wrapper");
@@ -5720,9 +5727,44 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             Log.d(TAG, "Finished extraction of DXVK wrapper files, version: " + dxwrapper);
         } else if (dxwrapper.contains("wined3d")) {
-            Log.d(TAG, "Restoring original DLL files for wined3d.");
-            restoreOriginalDllFiles(dlls);
+            String vkd3dWrapper = findDelimitedWrapper(dxwrapper, "vkd3d-");
+            if (vkd3dWrapper != null) {
+                Log.d(TAG, "Restoring non-D3D12 wrapper files for WineD3D+VKD3D.");
+                restoreOriginalDllFiles(nonD3D12WrapperDlls);
+                applyVkd3dWrapper(vkd3dWrapper);
+            } else {
+                Log.d(TAG, "Restoring original DLL files for wined3d.");
+                restoreOriginalDllFiles(dlls);
+            }
         }
+    }
+
+    private void applyVkd3dWrapper(String vkd3dWrapper) {
+        if (vkd3dWrapper == null || vkd3dWrapper.contains("None")) {
+            Log.i(TAG, "Launch VKD3D selected: None; restoring original d3d12");
+            restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+            return;
+        }
+
+        ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
+        if (vkd3dProfile != null) {
+            Log.i(TAG, "Loading VKD3D content profile: " + vkd3dWrapper);
+            contentsManager.applyContent(vkd3dProfile);
+        } else {
+            Log.w(TAG, "VKD3D content profile not installed; no bundled VKD3D archive will be loaded: " + vkd3dWrapper);
+        }
+    }
+
+    private static String findDelimitedWrapper(String value, String prefix) {
+        if (value == null) return null;
+        for (String part : value.split(";")) {
+            if (part.startsWith(prefix)) return part;
+        }
+        return null;
+    }
+
+    private static boolean hasSelectedVkd3dVersion(String version) {
+        return version != null && !version.isEmpty() && !version.equalsIgnoreCase("None");
     }
 
     private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
