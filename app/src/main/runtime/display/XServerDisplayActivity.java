@@ -4068,6 +4068,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 " rootDir=" + container.getRootDir().getAbsolutePath());
 
         ensureWinePrefixReady();
+        ensureLaunchRuntimeFilesReady();
 
         String appVersion = String.valueOf(AppUtils.getVersionCode(this));
         String imgVersion = String.valueOf(imageFs.getVersion());
@@ -4416,6 +4417,165 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             container.saveData();
         }
         Log.d("ContainerLaunch", "=== setupWineSystemFiles END === container=" + container.id + " firstTimeBoot=" + firstTimeBoot);
+    }
+
+    private void ensureLaunchRuntimeFilesReady() {
+        if (container == null || wineInfo == null || imageFs == null || contentsManager == null) return;
+
+        if (wineInfo.isArm64EC()) {
+            ensureArm64EcRuntimeDllsReady();
+        } else {
+            ensureBox64RuntimeReady();
+        }
+    }
+
+    private void ensureBox64RuntimeReady() {
+        File rootDir = imageFs.getRootDir();
+        boolean box64Missing = !new File(rootDir, "usr/bin/box64").exists();
+        String box64Version = shortcut != null
+                ? getShortcutSetting("box64Version", container.getBox64Version())
+                : container.getBox64Version();
+        if (box64Version == null || box64Version.isEmpty()) {
+            box64Version = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_BOX64);
+            if (!box64Version.isEmpty()) container.setBox64Version(box64Version);
+        }
+
+        if (!box64Missing && box64Version.equals(container.getExtra("box64Version"))) return;
+
+        if (box64Version.isEmpty()) {
+            Log.w("ContainerLaunch", "No Box64 version selected before first boot; runtime extraction skipped");
+            return;
+        }
+
+        ContentProfile profile = resolveContentProfile(ContentProfile.ContentType.CONTENT_TYPE_BOX64, box64Version);
+        if (profile == null) {
+            Log.w("ContainerLaunch", "Box64 content profile not installed for version: " + box64Version);
+            return;
+        }
+
+        Log.i("ContainerLaunch", "Preparing Box64 before Wine setup: version=" + box64Version);
+        contentsManager.applyContent(profile);
+        container.putExtra("box64Version", box64Version);
+        container.saveData();
+    }
+
+    private void ensureArm64EcRuntimeDllsReady() {
+        File system32Dir = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/windows/system32");
+        boolean fexcoreDllsMissing =
+                !new File(system32Dir, "libwow64fex.dll").exists()
+                        || !new File(system32Dir, "libarm64ecfex.dll").exists();
+        boolean wowbox64DllMissing = !new File(system32Dir, "wowbox64.dll").exists();
+
+        String emulator = shortcut != null
+                ? getShortcutSetting("emulator", container.getEmulator())
+                : container.getEmulator();
+        String emulator64 = shortcut != null
+                ? getShortcutSetting("emulator64", container.getEmulator64())
+                : container.getEmulator64();
+        String wowbox64Version = shortcut != null
+                ? getShortcutSetting("box64Version", container.getBox64Version())
+                : container.getBox64Version();
+        String fexcoreVersion = shortcut != null
+                ? getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
+                : container.getFEXCoreVersion();
+
+        boolean usesWowbox64 = "wowbox64".equalsIgnoreCase(emulator);
+        boolean usesFexcore =
+                "fexcore".equalsIgnoreCase(emulator)
+                        || "fexcore".equalsIgnoreCase(emulator64)
+                        || !usesWowbox64;
+
+        boolean changed = false;
+        if (usesWowbox64 && (wowbox64DllMissing || !safeEquals(wowbox64Version, container.getExtra("box64Version")))) {
+            if (wowbox64Version == null || wowbox64Version.isEmpty()) {
+                wowbox64Version = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64);
+                if (!wowbox64Version.isEmpty()) container.setBox64Version(wowbox64Version);
+            }
+            changed |= applyRuntimeContentBeforeBoot(
+                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
+                    wowbox64Version,
+                    "WowBox64",
+                    "box64Version"
+            );
+        }
+
+        if (usesFexcore && (fexcoreDllsMissing || !safeEquals(fexcoreVersion, container.getExtra("fexcoreVersion")))) {
+            if (fexcoreVersion == null || fexcoreVersion.isEmpty()) {
+                fexcoreVersion = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE);
+                if (!fexcoreVersion.isEmpty()) container.setFEXCoreVersion(fexcoreVersion);
+            }
+            changed |= applyRuntimeContentBeforeBoot(
+                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+                    fexcoreVersion,
+                    "FEXCore",
+                    "fexcoreVersion"
+            );
+        }
+
+        if (changed) container.saveData();
+    }
+
+    private boolean applyRuntimeContentBeforeBoot(
+            ContentProfile.ContentType type,
+            String version,
+            String label,
+            String extraKey) {
+        if (version == null || version.isEmpty()) {
+            Log.w("ContainerLaunch", "No " + label + " version selected before first boot; runtime extraction skipped");
+            return false;
+        }
+
+        ContentProfile profile = resolveContentProfile(type, version);
+        if (profile == null) {
+            Log.w("ContainerLaunch", label + " content profile not installed for version: " + version);
+            return false;
+        }
+
+        Log.i("ContainerLaunch", "Preparing " + label + " before Wine setup: version=" + version);
+        contentsManager.applyContent(profile);
+        container.putExtra(extraKey, version);
+        return true;
+    }
+
+    private ContentProfile resolveContentProfile(ContentProfile.ContentType type, String version) {
+        ContentProfile profile = contentsManager.getProfileByEntryName(type.toString() + "-" + version);
+        if (profile != null) return profile;
+
+        List<ContentProfile> profiles = contentsManager.getProfiles(type);
+        if (profiles == null) return null;
+        for (ContentProfile candidate : profiles) {
+            if (version.equals(contentVersionIdentifier(candidate))) return candidate;
+        }
+        return null;
+    }
+
+    private String pickNewestInstalledContentVersion(ContentProfile.ContentType type) {
+        List<ContentProfile> profiles = contentsManager.getProfiles(type);
+        if (profiles == null || profiles.isEmpty()) return "";
+
+        ContentProfile best = null;
+        for (ContentProfile profile : profiles) {
+            if (!profile.isInstalled) continue;
+            if (best == null
+                    || profile.verCode > best.verCode
+                    || (profile.verCode == best.verCode
+                    && profile.verName != null
+                    && best.verName != null
+                    && profile.verName.compareToIgnoreCase(best.verName) > 0)) {
+                best = profile;
+            }
+        }
+        return best != null ? contentVersionIdentifier(best) : "";
+    }
+
+    private static String contentVersionIdentifier(ContentProfile profile) {
+        String entryName = ContentsManager.getEntryName(profile);
+        int firstDash = entryName.indexOf('-');
+        return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
+    }
+
+    private static boolean safeEquals(String a, String b) {
+        return a != null && a.equals(b);
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {

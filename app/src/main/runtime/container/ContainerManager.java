@@ -334,8 +334,8 @@ public class ContainerManager {
     return null;
   }
 
-  // Returns "<verName>" of the newest installed profile of the given type, or "" if none.
-  // Mirrors SetupWizardActivity.resolvePreferredContentVersion's "newest installed" path.
+  // Returns the saved container version suffix of the newest installed profile, or "" if none.
+  // The launcher reconstructs profile names as "<type>-<suffix>", so keep the version code.
   private String pickNewestInstalledVersion(ContentsManager contentsManager, ContentProfile.ContentType type) {
     if (contentsManager == null) return "";
     java.util.List<ContentProfile> profiles = contentsManager.getProfiles(type);
@@ -352,7 +352,10 @@ public class ContainerManager {
         best = p;
       }
     }
-    return best != null && best.verName != null ? best.verName : "";
+    if (best == null) return "";
+    String entryName = ContentsManager.getEntryName(best);
+    int firstDash = entryName.indexOf('-');
+    return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
   }
 
   private void duplicateContainer(Container srcContainer) {

@@ -338,7 +338,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         "Launch runtime selected: Box64 version=" + box64Version);
 
     File rootDir = imageFs.getRootDir();
-    boolean box64Missing = !new File(rootDir, "/usr/bin/box64").exists();
+    boolean box64Missing = !new File(rootDir, "usr/bin/box64").exists();
 
     if (box64Missing || !box64Version.equals(container.getExtra("box64Version"))) {
       if (box64Version.isEmpty()) {
@@ -366,7 +366,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
 
     // Set execute permissions for box64 just in case
-    File box64File = new File(rootDir, "/usr/bin/box64");
+    File box64File = new File(rootDir, "usr/bin/box64");
     if (box64File.exists()) {
       FileUtils.chmod(box64File, 0755);
     }
