@@ -132,6 +132,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private long lsfgStatsActiveUntilNano;
   private long lastLsfgPresents;
   private long lastLsfgStatsSampleNano;
+  private long lastLsfgFrametimeWriteIndex;
   private volatile String ramText;
   private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
   private int frameTimesStart;
@@ -162,12 +163,14 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
   private static final long HUD_REFRESH_MS = 1000L;
   private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
+  private static final long MAX_PLAUSIBLE_FRAMETIME_NS = 1000000000L;
   private static final long LSFG_STATS_SAMPLE_NS = 50000000L;
   private static final long LSFG_STATS_STALE_NS = 1500000000L;
   private static final long LSFG_GRAPH_REFRESH_MS = 50L;
   private static final int LSFG_STATS_MAGIC = 0x4653474c;
   private static final int LSFG_STATS_VERSION = 2;
   private static final int LSFG_STATS_SIZE = 1096;
+  private static final int LSFG_FRAMETIME_CAPACITY = 256;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
@@ -198,6 +201,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lsfgStatsActiveUntilNano = 0L;
     this.lastLsfgPresents = -1L;
     this.lastLsfgStatsSampleNano = 0L;
+    this.lastLsfgFrametimeWriteIndex = -1L;
     this.frameTimesStart = 0;
     this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
@@ -995,6 +999,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lsfgStatsActiveUntilNano = 0L;
     this.lastLsfgPresents = -1L;
     this.lastLsfgStatsSampleNano = 0L;
+    this.lastLsfgFrametimeWriteIndex = -1L;
   }
 
   public void setGpuLoad(int load) {
@@ -1109,9 +1114,13 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
     long nowNano = System.nanoTime();
-    if (this.lsfgStatsActiveUntilNano > nowNano) {
-      sampleLsfgStats();
-      return;
+    if (hasLsfgStatsFile()) {
+      sampleLsfgStats(nowNano);
+      synchronized (this) {
+        if (this.lsfgStatsActiveUntilNano > nowNano) {
+          return;
+        }
+      }
     }
 
     synchronized (this) {
@@ -1200,17 +1209,30 @@ public class FrameRating extends LinearLayout implements Runnable {
         elapsedNano > 0 ? ((this.frameTimesCount - 1) * 1000000000.0f) / elapsedNano : 0.0f;
   }
 
+  private synchronized boolean hasLsfgStatsFile() {
+    return this.lsfgStatsFile != null;
+  }
+
   private void sampleLsfgStats() {
+    sampleLsfgStats(System.nanoTime());
+  }
+
+  private void sampleLsfgStats(long nowNano) {
     File statsFile;
     synchronized (this) {
       statsFile = this.lsfgStatsFile;
+      if (statsFile != null
+          && this.lastLsfgStatsSampleNano > 0L
+          && nowNano - this.lastLsfgStatsSampleNano < LSFG_STATS_SAMPLE_NS
+          && this.lsfgStatsActiveUntilNano > nowNano) {
+        return;
+      }
     }
     if (statsFile == null) return;
 
     LsfgStatsSnapshot snapshot = readLsfgStats(statsFile);
     if (snapshot == null || snapshot.lastPresentNs <= 0L) return;
 
-    long nowNano = System.nanoTime();
     if (nowNano - snapshot.lastPresentNs > LSFG_STATS_STALE_NS) {
       synchronized (this) {
         this.lsfgStatsActiveUntilNano = 0L;
@@ -1220,12 +1242,21 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     synchronized (this) {
       this.lsfgStatsActiveUntilNano = nowNano + LSFG_STATS_STALE_NS;
+      if (this.lastLsfgPresents >= 0 && snapshot.totalPresents < this.lastLsfgPresents) {
+        this.lastLsfgPresents = -1L;
+        this.lastLsfgFrametimeWriteIndex = -1L;
+      }
       if (this.lastLsfgStatsSampleNano > 0L
           && nowNano - this.lastLsfgStatsSampleNano < LSFG_STATS_SAMPLE_NS) {
         return;
       }
 
-      if (this.lastLsfgPresents >= 0 && snapshot.totalPresents >= this.lastLsfgPresents) {
+      boolean appendedNativeFrametimes = appendNativeLsfgFrametimesLocked(snapshot);
+      if (appendedNativeFrametimes) {
+        trimFrameTimesLocked(snapshot.lastPresentNs - FPS_CALC_INTERVAL_NS);
+        updateRollingFpsLocked();
+        this.lastFrameNano = snapshot.lastPresentNs;
+      } else if (this.lastLsfgPresents >= 0 && snapshot.totalPresents >= this.lastLsfgPresents) {
         long frameDelta = snapshot.totalPresents - this.lastLsfgPresents;
         long timeDelta = nowNano - this.lastLsfgStatsSampleNano;
         if (frameDelta > 0L && timeDelta > 0L) {
@@ -1238,8 +1269,54 @@ public class FrameRating extends LinearLayout implements Runnable {
         }
       }
       this.lastLsfgPresents = snapshot.totalPresents;
+      this.lastLsfgFrametimeWriteIndex = snapshot.frametimeWriteIndex;
       this.lastLsfgStatsSampleNano = nowNano;
     }
+  }
+
+  private boolean appendNativeLsfgFrametimesLocked(LsfgStatsSnapshot snapshot) {
+    long available = Math.min(snapshot.frametimeCount, LSFG_FRAMETIME_CAPACITY);
+    if (available <= 0L) return false;
+
+    long newCount =
+        this.lastLsfgFrametimeWriteIndex < 0L
+            ? available
+            : snapshot.frametimeWriteIndex - this.lastLsfgFrametimeWriteIndex;
+    if (newCount <= 0L) return false;
+    newCount = Math.min(newCount, available);
+
+    long firstOrdinal = snapshot.frametimeWriteIndex - newCount;
+    long totalWindowNs = 0L;
+    for (long ordinal = firstOrdinal; ordinal < snapshot.frametimeWriteIndex; ordinal++) {
+      int index = (int) (ordinal % LSFG_FRAMETIME_CAPACITY);
+      totalWindowNs += Integer.toUnsignedLong(snapshot.frametimeNs[index]);
+    }
+
+    long timestamp = snapshot.lastPresentNs - totalWindowNs;
+    float latestMs = 0.0f;
+    boolean appended = false;
+    for (long ordinal = firstOrdinal; ordinal < snapshot.frametimeWriteIndex; ordinal++) {
+      int index = (int) (ordinal % LSFG_FRAMETIME_CAPACITY);
+      long dt = Integer.toUnsignedLong(snapshot.frametimeNs[index]);
+      timestamp += dt;
+      if (dt <= 0L || dt > MAX_PLAUSIBLE_FRAMETIME_NS) continue;
+
+      appendFrameTimeLocked(timestamp);
+      latestMs = dt / 1000000.0f;
+      appended = true;
+    }
+
+    if (!appended) return false;
+    this.currentMs = latestMs;
+    long time = SystemClock.elapsedRealtime();
+    if (time - this.lastGraphRedraw >= LSFG_GRAPH_REFRESH_MS) {
+      if (this.enableGraph && this.graphView != null && latestMs > 0.0f && latestMs < 500.0f) {
+        this.graphView.addFrame(latestMs);
+        this.graphView.postInvalidate();
+      }
+      this.lastGraphRedraw = time;
+    }
+    return true;
   }
 
   private void appendSyntheticLsfgFramesLocked(long startNano, long endNano, long frameDelta) {
@@ -1292,7 +1369,22 @@ public class FrameRating extends LinearLayout implements Runnable {
       buffer.getLong(); // generatedPresents
       buffer.getLong(); // realPresents
       long lastPresentNs = buffer.getLong();
-      return new LsfgStatsSnapshot(totalPresents, lastPresentNs);
+      buffer.getInt(); // multiplier
+      buffer.getInt(); // reserved
+      long frametimeWriteIndex = buffer.getLong();
+      int frametimeCount = buffer.getInt();
+      buffer.getInt(); // reserved2
+      if (frametimeWriteIndex < 0L
+          || frametimeCount < 0
+          || frametimeCount > LSFG_FRAMETIME_CAPACITY) {
+        return null;
+      }
+      int[] frametimeNs = new int[LSFG_FRAMETIME_CAPACITY];
+      for (int i = 0; i < LSFG_FRAMETIME_CAPACITY; i++) {
+        frametimeNs[i] = buffer.getInt();
+      }
+      return new LsfgStatsSnapshot(
+          totalPresents, lastPresentNs, frametimeWriteIndex, frametimeCount, frametimeNs);
     } catch (Exception ignored) {
       return null;
     }
@@ -1542,10 +1634,21 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final class LsfgStatsSnapshot {
     final long totalPresents;
     final long lastPresentNs;
+    final long frametimeWriteIndex;
+    final int frametimeCount;
+    final int[] frametimeNs;
 
-    LsfgStatsSnapshot(long totalPresents, long lastPresentNs) {
+    LsfgStatsSnapshot(
+        long totalPresents,
+        long lastPresentNs,
+        long frametimeWriteIndex,
+        int frametimeCount,
+        int[] frametimeNs) {
       this.totalPresents = totalPresents;
       this.lastPresentNs = lastPresentNs;
+      this.frametimeWriteIndex = frametimeWriteIndex;
+      this.frametimeCount = frametimeCount;
+      this.frametimeNs = frametimeNs;
     }
   }
 
