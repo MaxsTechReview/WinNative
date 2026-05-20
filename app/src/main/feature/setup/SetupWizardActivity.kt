@@ -385,7 +385,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val fallbackType: ContentProfile.ContentType,
         val fallbackUrl: String,
         val fallbackNameHint: String,
-        val containerDisplayName: (ContentProfile) -> String,
         val persistContainerId: (Context, Int) -> Unit,
     )
 
@@ -462,9 +461,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
-            containerDisplayName = { profile ->
-                ContainerCreation.displayNameForProfile(profile)
-            },
             persistContainerId = ::saveDefaultX86ContainerId,
         )
 
@@ -494,9 +490,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
-            containerDisplayName = { profile ->
-                ContainerCreation.displayNameForProfile(profile)
-            },
             persistContainerId = ::saveDefaultArm64ContainerId,
         )
 
@@ -2550,7 +2543,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         compact: Boolean = false,
     ) {
         val entryName = ContentsManager.getEntryName(profile)
-        val displayName = runtimeDisplayLabel(profile)
+        val displayName = ContainerCreation.displayNameForProfile(profile)
         val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
         val archLabel = if (isArm64) "ARM64EC" else "x86-64"
 
@@ -2848,8 +2841,4 @@ private fun resolveJsonDownloadUrl(url: String): String {
     }
 
     return "https://raw.githubusercontent.com/$ownerRepo/$branch/$filePath"
-}
-
-private fun runtimeDisplayLabel(profile: ContentProfile): String {
-    return ContainerCreation.displayNameForProfile(profile)
 }

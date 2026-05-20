@@ -464,29 +464,23 @@ class ContentsFragment : Fragment() {
                             )
                         ) {
                             val containerManager = ContainerManager(requireContext())
-                            val uniqueName =
-                                ContainerCreation.uniqueName(
-                                    containerManager,
-                                    ContainerCreation.displayNameForProfile(profile),
-                                )
 
                             val preloaderDialog =
                                 com.winlator.cmod.shared.ui.dialog
                                     .PreloaderDialog(activity)
                             preloaderDialog.show(R.string.containers_list_creating)
 
-                            ContainerCreation.createContainerAsync(
+                            ContainerCreation.createContainerForProfileAsync(
                                 requireContext(),
                                 containerManager,
                                 manager,
-                                uniqueName,
-                                ContentsManager.getEntryName(profile),
+                                profile,
                             ) { newContainer ->
                                 preloaderDialog.close()
                                 if (newContainer != null) {
                                     WinToast.show(
                                         requireContext(),
-                                        getString(R.string.settings_content_container_created, uniqueName),
+                                        getString(R.string.settings_content_container_created, newContainer.name),
                                     )
                                 }
                             }

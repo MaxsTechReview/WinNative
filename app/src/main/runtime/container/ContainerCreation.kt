@@ -196,6 +196,37 @@ object ContainerCreation {
     }
 
     @JvmStatic
+    fun createContainerAsync(
+        containerManager: ContainerManager,
+        contentsManager: ContentsManager,
+        data: JSONObject,
+        callback: Callback<Container?>,
+    ) {
+        containerManager.createContainerAsync(data, contentsManager) { container ->
+            callback.call(container)
+        }
+    }
+
+    @JvmStatic
+    fun createContainerForProfileAsync(
+        context: Context,
+        containerManager: ContainerManager,
+        contentsManager: ContentsManager,
+        profile: ContentProfile,
+        callback: Callback<Container?>,
+    ) {
+        val uniqueName = uniqueName(containerManager, displayNameForProfile(profile))
+        createContainerAsync(
+            context,
+            containerManager,
+            contentsManager,
+            uniqueName,
+            ContentsManager.getEntryName(profile),
+            callback,
+        )
+    }
+
+    @JvmStatic
     fun getOrCreateContainerForProfile(
         context: Context,
         containerManager: ContainerManager,

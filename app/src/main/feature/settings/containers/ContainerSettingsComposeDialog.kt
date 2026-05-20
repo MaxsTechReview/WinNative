@@ -813,7 +813,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 preloaderDialog.show(R.string.containers_list_creating)
                 ImageFs.find(File(context.filesDir, "imagefs"))
 
-                manager.createContainerAsync(data, contentsManager) { newContainer ->
+                ContainerCreation.createContainerAsync(manager, contentsManager, data) { newContainer ->
                     if (newContainer != null) {
                         saveMouseWarpOverride(newContainer)
                     } else {
