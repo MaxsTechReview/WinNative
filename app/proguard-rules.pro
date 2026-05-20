@@ -4,6 +4,10 @@
 
 -keep class com.winlator.cmod.shared.util.OnExtractFileListener {
     public java.io.File onExtractFile(java.io.File, long);
+    public void onExtractFileProgress(java.io.File, long);
+    public boolean mapsExtractedFiles();
+    public boolean reportsExtractedBytesOnly();
+    public void onExtractedBytes(long);
 }
 
 -keep class com.winlator.cmod.runtime.content.Downloader$DownloadListener {
