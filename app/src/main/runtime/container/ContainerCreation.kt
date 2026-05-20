@@ -13,22 +13,34 @@ import com.winlator.cmod.shared.util.Callback
 import org.json.JSONObject
 
 object ContainerCreation {
+    private const val WINE_DISPLAY_NAME = "Wine"
+    private const val PROTON_DISPLAY_NAME = "Proton"
+    private const val BOX64_EMULATOR = "box64"
+    private const val FEXCORE_EMULATOR = "fexcore"
+
+    private val displayNameUnsafeChars = Regex("[^a-zA-Z0-9._\\- ]")
+    private val whitespace = Regex("\\s+")
+    private val arm64EcPattern = Regex("arm64ec", RegexOption.IGNORE_CASE)
+
+    private data class LaunchReadyDefaults(
+        val emulator: String,
+        val box64Version: String,
+        val fexcoreVersion: String,
+        val dxWrapperConfig: String,
+    )
+
     @JvmStatic
     fun displayNameForProfile(profile: ContentProfile): String {
         val prefix =
             when (profile.type) {
-                ContentProfile.ContentType.CONTENT_TYPE_WINE -> "Wine"
-                ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"
+                ContentProfile.ContentType.CONTENT_TYPE_WINE -> WINE_DISPLAY_NAME
+                ContentProfile.ContentType.CONTENT_TYPE_PROTON -> PROTON_DISPLAY_NAME
                 else -> profile.type.toString()
             }
         val withoutPrefix =
             removeLeadingRuntimePrefix(profile.verName)
                 .trim()
-        return "$prefix $withoutPrefix"
-            .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
-            .trim()
-            .replace(Regex("\\s+"), " ")
-            .ifBlank { prefix }
+        return sanitizeDisplayName("$prefix $withoutPrefix").ifBlank { prefix }
     }
 
     @JvmStatic
@@ -45,11 +57,7 @@ object ContainerCreation {
         }
 
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion)
-        return wineInfo.toString()
-            .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
-            .trim()
-            .replace(Regex("\\s+"), " ")
-            .ifBlank { wineVersion }
+        return sanitizeDisplayName(wineInfo.toString()).ifBlank { wineVersion }
     }
 
     private fun displayNameFromWineVersionIdentifier(wineVersion: String): String? {
@@ -57,15 +65,15 @@ object ContainerCreation {
         if (trimmed.isEmpty()) return null
 
         val lower = trimmed.lowercase()
-        val type =
+        val runtimeName =
             when {
-                lower.startsWith("proton-") -> "Proton"
-                lower.startsWith("wine-") -> "Wine"
+                lower.startsWith("proton-") -> PROTON_DISPLAY_NAME
+                lower.startsWith("wine-") -> WINE_DISPLAY_NAME
                 else -> return null
             }
         val contentTypePrefix =
-            when (type) {
-                "Proton" -> ContentProfile.ContentType.CONTENT_TYPE_PROTON.toString() + "-"
+            when (runtimeName) {
+                PROTON_DISPLAY_NAME -> ContentProfile.ContentType.CONTENT_TYPE_PROTON.toString() + "-"
                 else -> ContentProfile.ContentType.CONTENT_TYPE_WINE.toString() + "-"
             }
         var versionPart =
@@ -81,11 +89,7 @@ object ContainerCreation {
             versionPart = versionPart.substring(0, lastDash)
         }
 
-        return "$type $versionPart"
-            .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
-            .trim()
-            .replace(Regex("\\s+"), " ")
-            .ifBlank { null }
+        return sanitizeDisplayName("$runtimeName $versionPart").ifBlank { null }
     }
 
     private fun findRuntimeProfile(
@@ -135,9 +139,7 @@ object ContainerCreation {
         name: String,
         wineVersion: String,
     ): JSONObject {
-        contentsManager.syncContents()
-        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion)
-        val isArm64Ec = wineInfo.isArm64EC
+        val defaults = resolveLaunchReadyDefaults(context, contentsManager, wineVersion)
 
         return JSONObject().apply {
             put("name", name)
@@ -154,30 +156,18 @@ object ContainerCreation {
                 "System",
             ))
             put("dxwrapper", Container.DEFAULT_DXWRAPPER)
-            put("dxwrapperConfig", buildDefaultDxWrapperConfig(contentsManager, isArm64Ec))
+            put("dxwrapperConfig", defaults.dxWrapperConfig)
             put("audioDriver", Container.DEFAULT_AUDIO_DRIVER)
-            put("emulator", if (isArm64Ec) "fexcore" else "box64")
-            put("emulator64", if (isArm64Ec) "fexcore" else "box64")
+            put("emulator", defaults.emulator)
+            put("emulator64", defaults.emulator)
             put("wincomponents", Container.DEFAULT_WINCOMPONENTS)
             put("drives", WineUtils.normalizePersistentDrives(context, Container.DEFAULT_DRIVES))
             put("fullscreenStretched", false)
             put("inputType", WinHandler.DEFAULT_INPUT_TYPE.toInt())
             put("startupSelection", Container.STARTUP_SELECTION_ESSENTIAL.toInt())
-            put("box64Version", resolvePreferredContentVersion(
-                contentsManager,
-                if (isArm64Ec) {
-                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
-                } else {
-                    ContentProfile.ContentType.CONTENT_TYPE_BOX64
-                },
-                "",
-            ))
+            put("box64Version", defaults.box64Version)
             put("box64Preset", Box64Preset.PERFORMANCE)
-            put("fexcoreVersion", resolvePreferredContentVersion(
-                contentsManager,
-                ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                "",
-            ))
+            put("fexcoreVersion", defaults.fexcoreVersion)
             put("fexcorePreset", FEXCorePreset.PERFORMANCE)
             put("desktopTheme", WineThemeManager.DEFAULT_DESKTOP_THEME)
             put("midiSoundFont", "")
@@ -291,9 +281,7 @@ object ContainerCreation {
         contentsManager: ContentsManager,
         container: Container,
     ) {
-        contentsManager.syncContents()
-        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, container.wineVersion)
-        val isArm64Ec = wineInfo.isArm64EC
+        val defaults = resolveLaunchReadyDefaults(context, contentsManager, container.wineVersion)
 
         container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
         container.setCPUList(Container.getFallbackCPUList())
@@ -309,27 +297,56 @@ object ContainerCreation {
             "System",
         ))
         container.setDXWrapper(Container.DEFAULT_DXWRAPPER)
-        container.setDXWrapperConfig(buildDefaultDxWrapperConfig(contentsManager, isArm64Ec))
-        container.setEmulator(if (isArm64Ec) "fexcore" else "box64")
-        container.setEmulator64(if (isArm64Ec) "fexcore" else "box64")
-        container.setBox64Version(resolvePreferredContentVersion(
-            contentsManager,
-            if (isArm64Ec) {
-                ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
-            } else {
-                ContentProfile.ContentType.CONTENT_TYPE_BOX64
-            },
-            "",
-        ))
-        container.setFEXCoreVersion(resolvePreferredContentVersion(
-            contentsManager,
-            ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-            "",
-        ))
+        container.setDXWrapperConfig(defaults.dxWrapperConfig)
+        container.setEmulator(defaults.emulator)
+        container.setEmulator64(defaults.emulator)
+        container.setBox64Version(defaults.box64Version)
+        container.setFEXCoreVersion(defaults.fexcoreVersion)
         container.setBox64Preset(Box64Preset.PERFORMANCE)
         container.setFEXCorePreset(FEXCorePreset.PERFORMANCE)
         container.saveData()
     }
+
+    private fun sanitizeDisplayName(value: String): String =
+        value
+            .replace(displayNameUnsafeChars, " ")
+            .trim()
+            .replace(whitespace, " ")
+
+    private fun resolveLaunchReadyDefaults(
+        context: Context,
+        contentsManager: ContentsManager,
+        wineVersion: String,
+    ): LaunchReadyDefaults {
+        contentsManager.syncContents()
+
+        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion)
+        val isArm64Ec = wineInfo.isArm64EC
+        return LaunchReadyDefaults(
+            emulator = emulatorFor(isArm64Ec),
+            box64Version = resolvePreferredContentVersion(
+                contentsManager,
+                box64ContentTypeFor(isArm64Ec),
+                "",
+            ),
+            fexcoreVersion = resolvePreferredContentVersion(
+                contentsManager,
+                ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+                "",
+            ),
+            dxWrapperConfig = buildDefaultDxWrapperConfig(contentsManager, isArm64Ec),
+        )
+    }
+
+    private fun emulatorFor(isArm64Ec: Boolean): String =
+        if (isArm64Ec) FEXCORE_EMULATOR else BOX64_EMULATOR
+
+    private fun box64ContentTypeFor(isArm64Ec: Boolean): ContentProfile.ContentType =
+        if (isArm64Ec) {
+            ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64
+        } else {
+            ContentProfile.ContentType.CONTENT_TYPE_BOX64
+        }
 
     private fun buildDefaultDxWrapperConfig(
         contentsManager: ContentsManager,
@@ -340,16 +357,16 @@ object ContainerCreation {
                 contentsManager,
                 ContentProfile.ContentType.CONTENT_TYPE_DXVK,
                 "",
-                includePattern = if (isArm64Ec) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                excludePattern = if (isArm64Ec) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
+                includePattern = if (isArm64Ec) arm64EcPattern else null,
+                excludePattern = if (isArm64Ec) null else arm64EcPattern,
             )
         val vkd3dVersion =
             resolvePreferredContentVersion(
                 contentsManager,
                 ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
                 "None",
-                includePattern = if (isArm64Ec) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                excludePattern = if (isArm64Ec) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
+                includePattern = if (isArm64Ec) arm64EcPattern else null,
+                excludePattern = if (isArm64Ec) null else arm64EcPattern,
             )
 
         return replaceDelimitedConfigValue(
