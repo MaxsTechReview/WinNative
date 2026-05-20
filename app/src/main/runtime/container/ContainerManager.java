@@ -746,7 +746,7 @@ public class ContainerManager {
         return false;
       }
 
-      if (!FileUtils.copy(repairedPrefixDir, targetPrefixDir)) {
+      if (!copyWinePrefixTree(repairedPrefixDir, targetPrefixDir)) {
         Log.e("ContainerManager", "repairContainerWinePrefix: failed to copy repaired prefix");
         return false;
       }
@@ -767,6 +767,29 @@ public class ContainerManager {
     } finally {
       FileUtils.delete(tempDir);
     }
+  }
+
+  private boolean copyWinePrefixTree(File source, File target) {
+    if (source == null || target == null || !source.exists()) return false;
+
+    if (FileUtils.isSymlink(source)) {
+      File parent = target.getParentFile();
+      if (parent != null && !parent.isDirectory() && !parent.mkdirs()) return false;
+      FileUtils.symlink(FileUtils.readSymlink(source), target.getAbsolutePath());
+      return FileUtils.isSymlink(target);
+    }
+
+    if (source.isDirectory()) {
+      if (!target.isDirectory() && !target.mkdirs()) return false;
+      File[] children = source.listFiles();
+      if (children == null) return true;
+      for (File child : children) {
+        if (!copyWinePrefixTree(child, new File(target, child.getName()))) return false;
+      }
+      return true;
+    }
+
+    return FileUtils.copy(source, target);
   }
 
   public Container getContainerForShortcut(Shortcut shortcut) {
