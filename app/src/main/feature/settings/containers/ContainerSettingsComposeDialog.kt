@@ -32,6 +32,7 @@ import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -57,7 +58,6 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.environment.ImageFs
-import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -776,7 +776,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             dismiss()
         } else {
             try {
-                val data = JSONObject()
+                val data = ContainerCreation.buildLaunchReadyData(
+                    context,
+                    contentsManager,
+                    name,
+                    selectedWineStr,
+                )
                 data.put("name", name)
                 data.put("screenSize", screenSize)
                 data.put("envVars", envVarsStr)

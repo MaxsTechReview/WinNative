@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -463,36 +464,24 @@ class ContentsFragment : Fragment() {
                             )
                         ) {
                             val containerManager = ContainerManager(requireContext())
-
-                            var desiredName =
-                                profile.verName
-                                    .replace("winlator", "", ignoreCase = true)
-                                    .replace("wine", "", ignoreCase = true)
-                                    .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
-                                    .trim()
-                                    .replace(Regex("\\s+"), " ")
-
-                            if (desiredName.isEmpty()) desiredName = getString(R.string.common_ui_container)
-
-                            var uniqueName = desiredName
-                            var counter = 2
-                            while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
-                                uniqueName = "$desiredName $counter"
-                                counter++
-                            }
-
-                            val data =
-                                org.json.JSONObject().apply {
-                                    put("name", uniqueName)
-                                    put("wineVersion", ContentsManager.getEntryName(profile))
-                                }
+                            val uniqueName =
+                                ContainerCreation.uniqueName(
+                                    containerManager,
+                                    ContainerCreation.displayNameForProfile(profile),
+                                )
 
                             val preloaderDialog =
                                 com.winlator.cmod.shared.ui.dialog
                                     .PreloaderDialog(activity)
                             preloaderDialog.show(R.string.containers_list_creating)
 
-                            containerManager.createContainerAsync(data, manager) { newContainer ->
+                            ContainerCreation.createContainerAsync(
+                                requireContext(),
+                                containerManager,
+                                manager,
+                                uniqueName,
+                                ContentsManager.getEntryName(profile),
+                            ) { newContainer ->
                                 preloaderDialog.close()
                                 if (newContainer != null) {
                                     WinToast.show(
