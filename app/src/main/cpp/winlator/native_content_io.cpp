@@ -111,9 +111,35 @@ std::string clean_entry_name(std::string name) {
     return name;
 }
 
-bool is_safe_symlink_target(std::string target) {
-    target = clean_entry_name(std::move(target));
-    return is_safe_relative_path(target);
+std::string trim_trailing_slashes(std::string path) {
+    while (path.size() > 1 && path.back() == '/') {
+        path.pop_back();
+    }
+    return path;
+}
+
+bool has_path_prefix(std::string_view path, std::string_view prefix) {
+    if (path == prefix) return true;
+    return path.size() > prefix.size()
+        && path.compare(0, prefix.size(), prefix) == 0
+        && path[prefix.size()] == '/';
+}
+
+bool has_symlink_ancestor(
+    const std::string& entry_name,
+    const std::vector<std::string>& symlink_entries) {
+    std::string normalized = trim_trailing_slashes(entry_name);
+    for (const std::string& link : symlink_entries) {
+        if (has_path_prefix(normalized, link)) return true;
+    }
+    return false;
+}
+
+std::string parent_entry_name(const std::string& entry_name) {
+    std::string normalized = trim_trailing_slashes(entry_name);
+    const size_t slash = normalized.find_last_of('/');
+    if (slash == std::string::npos) return {};
+    return normalized.substr(0, slash);
 }
 
 uint64_t parse_tar_number(const char* field, size_t length) {
@@ -535,6 +561,7 @@ bool extract_tar(
     std::vector<uint8_t> header(512);
     std::optional<std::string> next_name;
     std::optional<std::string> next_link;
+    std::vector<std::string> symlink_entries;
 
     while (true) {
         if (!reader.read_exact(header.data(), header.size())) return false;
@@ -592,6 +619,13 @@ bool extract_tar(
             continue;
         }
 
+        const bool is_symlink = type == '2';
+        if (!is_symlink && has_symlink_ancestor(name, symlink_entries)) {
+            NATIVE_LOGW("skipping archive entry under symlink: %s", name.c_str());
+            if (!reader.skip(size + padding)) return false;
+            continue;
+        }
+
         std::string out_path = join_path(destination, name);
         auto mapped = java_listener.map(out_path, static_cast<int64_t>(size));
         if (!mapped) {
@@ -603,8 +637,11 @@ bool extract_tar(
         if (type == '5') {
             if (!mkdirs(out_path)) return false;
         } else if (type == '2') {
-            if (enforce_safe_symlinks && !is_safe_symlink_target(link_name)) {
-                NATIVE_LOGW("skipping unsafe symlink target for %s", out_path.c_str());
+            // Wine prefixes legitimately use links like c: -> ../drive_c and z: -> /.
+            // Allow the link itself, but never extract later archive entries through it.
+            std::string parent_name = parent_entry_name(name);
+            if (!parent_name.empty() && has_symlink_ancestor(parent_name, symlink_entries)) {
+                NATIVE_LOGW("skipping symlink under symlinked parent: %s", name.c_str());
                 if (!reader.skip(size + padding)) return false;
                 continue;
             }
@@ -613,6 +650,7 @@ bool extract_tar(
             if (::symlink(link_name.c_str(), out_path.c_str()) != 0 && errno != EEXIST) {
                 NATIVE_LOGW("symlink failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
+            symlink_entries.push_back(trim_trailing_slashes(name));
         } else if (type == '0' || type == '\0') {
             if (!ensure_parent_dir(out_path)) return false;
             FileWriter out(out_path, enforce_safe_symlinks);
