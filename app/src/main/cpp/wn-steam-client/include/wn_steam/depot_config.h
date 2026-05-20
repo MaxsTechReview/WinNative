@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <map>
+#include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 
 // Phase 5.5b — DepotConfigStore.
@@ -70,6 +72,78 @@ private:
 
     std::string                       config_dir_;
     std::map<uint32_t, uint64_t>       installed_;  // depotId -> manifestId
+};
+
+// Phase 9 — DepotProgressStore (per-depot resume progress).
+//
+// depot.config only records *whole-depot* completion, so a download paused
+// (or killed) mid-depot has no finer-grained record: on resume write_depot
+// re-reads and re-hashes EVERY chunk of EVERY file of that depot — the
+// "verifying files" pass — which is O(full install size) every resume and
+// is what makes large games appear stuck on "Verifying".
+//
+// DepotProgressStore records, per (depotId, manifestId), the set of manifest
+// file indices whose bytes are fully written AND fsync'd to disk. A resumed
+// write_depot can then skip a completed file outright instead of re-hashing
+// it. Stored next to depot.config as:
+//
+//   <config_dir>/<depotId>_<manifestId>.progress
+//
+// in a compact binary form (magic, version, count, then count×uint32). A
+// missing or corrupt file simply means "nothing known done" — write_depot
+// then falls back to full on-disk validation. So this is always safe: at
+// worst it costs the old behaviour, it can never cause data loss.
+//
+// File indices are stable for a given manifest: ContentManifest::parse()
+// yields manifest.files in a deterministic order from the cached manifest
+// blob, and the sidecar is keyed by manifest id, so the index recorded on
+// one run refers to the same file on the next.
+//
+// mark_file_done() is thread-safe (the download workers call it
+// concurrently); flush() serialises and persists durably.
+class DepotProgressStore {
+public:
+    // Construct + load the sidecar for (depot_id, manifest_id). A missing or
+    // unreadable file yields an empty (but usable) store.
+    DepotProgressStore(const std::string& config_dir,
+                       uint32_t depot_id, uint64_t manifest_id);
+
+    DepotProgressStore(const DepotProgressStore&)            = delete;
+    DepotProgressStore& operator=(const DepotProgressStore&) = delete;
+
+    // True iff `file_index` was recorded fully written on a previous run.
+    [[nodiscard]] bool is_file_done(uint32_t file_index) const;
+
+    // Record a file as fully written. In-memory only — call flush() to
+    // persist. Safe to call from multiple threads.
+    void mark_file_done(uint32_t file_index);
+
+    [[nodiscard]] size_t done_count() const;
+
+    // Atomically persist the current set (temp file + fsync + rename + dir
+    // fsync). Cheap to call repeatedly; a no-op when nothing changed since
+    // the last flush.
+    bool flush() const;
+
+    // Delete the sidecar from disk + clear memory. Called once the depot is
+    // recorded fully installed in depot.config (the sidecar is then stale).
+    void discard();
+
+    // Delete a sidecar without constructing a live store — used to clear a
+    // stale sidecar when a fresh (non-resume) download starts.
+    static void remove(const std::string& config_dir,
+                        uint32_t depot_id, uint64_t manifest_id);
+
+private:
+    static std::string sidecar_path(const std::string& config_dir,
+                                    uint32_t depot_id, uint64_t manifest_id);
+
+    std::string             path_;
+    mutable std::mutex      mtx_;
+    std::set<uint32_t>      done_;
+    // done_'s size at the last successful flush() — lets flush() skip the
+    // write when nothing changed.
+    mutable size_t          flushed_count_ = 0;
 };
 
 }  // namespace wn_steam

@@ -227,6 +227,28 @@ class DownloadInfo(
         }
     }
 
+    /**
+     * Set the absolute downloaded-bytes total. Used by the native WN-Steam
+     * depot downloader: its per-depot cumulative counters are the source of
+     * truth, so the global is the *sum* of them, set directly. Adding a delta
+     * derived from the native counter (as [updateBytesDownloaded] would)
+     * double-counts on resume — the native counter restarts at 0 every
+     * write_depot call and re-counts already-verified bytes, which pushed the
+     * progress bar past 100% during the verify pass.
+     */
+    fun setBytesDownloaded(
+        totalBytes: Long,
+        timestampMs: Long = System.currentTimeMillis(),
+    ) {
+        if (!isActive) return
+        val clamped = if (totalBytes < 0L) 0L else totalBytes
+        bytesDownloaded.set(clamped)
+        if (timestampMs - lastSpeedSampleMs >= SPEED_SAMPLE_INTERVAL_MS) {
+            lastSpeedSampleMs = timestampMs
+            addSpeedSample(timestampMs, clamped)
+        }
+    }
+
     fun updateStatusMessage(message: String?) {
         statusMessage.value = message
     }
