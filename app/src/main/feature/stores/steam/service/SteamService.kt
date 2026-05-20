@@ -3692,11 +3692,9 @@ class SteamService : Service() {
                                         // downloader. downloadApp() runs on a native worker
                                         // thread; suspendCancellableCoroutine bridges its
                                         // WnDownloadListener.onComplete back to this coroutine.
-                                        // Progress maps per-depot cumulative bytes into
-                                        // di.updateBytesDownloaded(delta).
+                                        // Progress sets di's absolute byte count from the sum
+                                        // of every depot's cumulative bytes.
                                         Timber.i("Downloading game to $appDirPath (attempt $attempt)")
-                                        val wnDepotBytes = java.util.concurrent.ConcurrentHashMap<Int, Long>()
-                                        val wnGlobalPrev = java.util.concurrent.atomic.AtomicLong(0L)
                                         // Throttle for DownloadRecord progress persistence — a DB
                                         // write per chunk would be far too frequent.
                                         val wnLastPersistMs = java.util.concurrent.atomic.AtomicLong(0L)
@@ -3729,7 +3727,6 @@ class SteamService : Service() {
                                                             // worker unwinding). Ignore them — otherwise this
                                                             // would overwrite the PAUSED phase back to DOWNLOADING.
                                                             if (!di.isActive()) return
-                                                            wnDepotBytes[depotId] = depotDone
                                                             // Record per-depot cumulative bytes so the
                                                             // throttled progress snapshot (depot_bytes.json)
                                                             // stays accurate — on the next resume this lets
@@ -3740,9 +3737,19 @@ class SteamService : Service() {
                                                                     java.util.concurrent.atomic.AtomicLong(0L)
                                                                 }.set(depotDone)
                                                             di.markProgressSnapshotDirty()
-                                                            val g = wnDepotBytes.values.sum()
-                                                            val delta = g - wnGlobalPrev.getAndSet(g)
-                                                            if (delta > 0L) di.updateBytesDownloaded(delta)
+                                                            // Global downloaded = sum of EVERY depot's
+                                                            // cumulative bytes (depots resumed from the
+                                                            // on-disk snapshot are seeded into this map at
+                                                            // resume-init; this run's depots update it
+                                                            // above). Set it ABSOLUTELY — never add a
+                                                            // delta: the native depot counter restarts at
+                                                            // 0 on every write_depot call and re-counts
+                                                            // already-verified bytes, so an additive delta
+                                                            // double-counted on resume and pushed the bar
+                                                            // past 100% during the verify pass.
+                                                            val g = di.depotCumulativeUncompressedBytes
+                                                                .values.sumOf { it.get() }
+                                                            di.setBytesDownloaded(g)
                                                             // Drive the phase from the native `verifying`
                                                             // flag — VERIFYING while validating on-disk
                                                             // content, DOWNLOADING while actually fetching
@@ -3954,7 +3961,6 @@ class SteamService : Service() {
                                 throw e
                             } catch (e: Exception) {
                                 Timber.e(e, "Download failed for app $appId")
-                                clearFailedResumeState(appId)
 
                                 val errorMsg =
                                     when (e) {
@@ -3963,17 +3969,18 @@ class SteamService : Service() {
                                         else -> e.localizedMessage ?: e.message ?: e.javaClass.simpleName
                                     }
 
+                                // A Failed download must stay RESUMABLE: the user can hit
+                                // Resume to continue from where the native downloader left
+                                // off (it resumes per-depot via .DepotDownloader/depot.config
+                                // and per-file via the progress sidecar). So preserve every
+                                // resume breadcrumb exactly like the PAUSED path does —
+                                // do NOT clearFailedResumeState(), do NOT delete the
+                                // DownloadingAppInfo row, and do NOT remove the in-progress /
+                                // complete markers. Wiping them (the old behaviour) is why a
+                                // Failed download could only be resumed after an app restart.
+                                di.persistProgressSnapshot(force = true)
                                 di.updateStatus(DownloadPhase.FAILED, errorMsg)
                                 di.setActive(false)
-                                // Clean up markers and DB state
-                                MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                                if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
-                                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                                }
-                                runBlocking {
-                                    instance?.downloadingAppInfoDao?.deleteApp(appId)
-                                    Unit
-                                }
                                 runBlocking {
                                     DownloadCoordinator.notifyFinished(
                                         DownloadRecord.STORE_STEAM,

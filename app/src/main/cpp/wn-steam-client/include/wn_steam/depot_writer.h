@@ -6,9 +6,11 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "wn_steam/cdn_client.h"
 #include "wn_steam/content_manifest.h"
+#include "wn_steam/depot_config.h"
 #include "wn_steam/pb/ccontentserverdirectory.h"
 
 // Phase 5.5a — depot file writer.
@@ -45,7 +47,13 @@ using DepotWriteProgress =
 
 // Write all files of `manifest` under `target_dir`. `manifest` must already
 // have had decrypt_filenames() applied. `depot_key` is the 32-byte AES key.
-// Chunks are fetched from `server` via `cdn`. Stops at the first hard error.
+//
+// Chunks are fetched from `servers` via `cdn`. `servers` must be non-empty;
+// each parallel worker pins to one entry and, when a chunk fetch fails,
+// retries it with backoff and rotates to the next server — so a single bad
+// chunk or a flaky CDN edge no longer aborts the whole depot. Only after a
+// chunk has exhausted its retry budget across the server list does the depot
+// fail (the Kotlin side then surfaces a resumable "Failed").
 //
 // `cancel` (optional) is polled before every file and before every chunk
 // fetch; when it becomes true the write aborts promptly with a "cancelled"
@@ -56,15 +64,21 @@ using DepotWriteProgress =
 // concurrent HTTPS connections to the CDN. Clamped to [1, 64] and never
 // exceeds the outstanding chunk count. This is what the user-facing
 // "Download Speed" setting maps to (8 / 16 / 24 / 32).
+//
+// `progress_store` (optional) records which files are fully written +
+// fsync'd. When supplied, a resumed write_depot skips files already recorded
+// done instead of re-reading and re-hashing every chunk of the whole depot.
+// Pass nullptr to disable (full on-disk validation every run).
 [[nodiscard]] DepotWriteResult write_depot(
     const ContentManifest& manifest,
     std::span<const uint8_t> depot_key,
     CdnClient& cdn,
-    const pb::CContentServerDirectory_ServerInfo& server,
+    const std::vector<pb::CContentServerDirectory_ServerInfo>& servers,
     const std::string& target_dir,
     std::string_view cdn_auth_token = {},
     const DepotWriteProgress& progress = {},
     const std::atomic<bool>* cancel = nullptr,
-    unsigned max_workers = 8);
+    unsigned max_workers = 8,
+    DepotProgressStore* progress_store = nullptr);
 
 }  // namespace wn_steam
