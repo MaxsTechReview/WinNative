@@ -40,6 +40,9 @@ object ContainerCreation {
         findRuntimeProfile(contentsManager, wineVersion)?.let {
             return displayNameForProfile(it)
         }
+        displayNameFromWineVersionIdentifier(wineVersion)?.let {
+            return it
+        }
 
         val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion)
         return wineInfo.toString()
@@ -47,6 +50,42 @@ object ContainerCreation {
             .trim()
             .replace(Regex("\\s+"), " ")
             .ifBlank { wineVersion }
+    }
+
+    private fun displayNameFromWineVersionIdentifier(wineVersion: String): String? {
+        val trimmed = wineVersion.trim()
+        if (trimmed.isEmpty()) return null
+
+        val lower = trimmed.lowercase()
+        val type =
+            when {
+                lower.startsWith("proton-") -> "Proton"
+                lower.startsWith("wine-") -> "Wine"
+                else -> return null
+            }
+        val contentTypePrefix =
+            when (type) {
+                "Proton" -> ContentProfile.ContentType.CONTENT_TYPE_PROTON.toString() + "-"
+                else -> ContentProfile.ContentType.CONTENT_TYPE_WINE.toString() + "-"
+            }
+        var versionPart =
+            if (trimmed.startsWith(contentTypePrefix, ignoreCase = true)) {
+                trimmed.substring(contentTypePrefix.length)
+            } else {
+                removeLeadingRuntimePrefix(trimmed)
+            }
+        versionPart = removeLeadingRuntimePrefix(versionPart)
+
+        val lastDash = versionPart.lastIndexOf('-')
+        if (lastDash > 0 && versionPart.substring(lastDash + 1).all { it.isDigit() }) {
+            versionPart = versionPart.substring(0, lastDash)
+        }
+
+        return "$type $versionPart"
+            .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+            .ifBlank { null }
     }
 
     private fun findRuntimeProfile(
