@@ -323,6 +323,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
     private boolean isActivityPaused = false;
+    private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
 
     public boolean isPaused() { return isPaused; }
@@ -4419,6 +4420,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
+        if (SessionKeepAliveService.isSessionActive()) {
+            XEnvironment existingEnv = SessionKeepAliveService.getActiveEnvironment();
+            XServer existingXServer = SessionKeepAliveService.getActiveXServer();
+            if (existingEnv != null && existingXServer != null) {
+                Log.i("XServerDisplayActivity", "Re-attaching to existing background session environment");
+                this.environment = existingEnv;
+                this.xServer = existingXServer;
+                this.environment.setContext(this);
+                this.reusingSession = true;
+
+                // Re-bind winHandler to the existing server state
+                this.xServer.setWinHandler(winHandler);
+                
+                // Get the existing launcher component so we can track its status
+                this.guestProgramLauncherComponent = environment.getComponent(GuestProgramLauncherComponent.class);
+                return;
+            }
+        }
+
         cleanupLingeringSessionProcesses("new launch");
 
         // Set environment variables
@@ -4678,12 +4698,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         winHandler.preAssignConnectedControllers();
 
         // Start all environment components (XServer, Audio, etc.)
-        environment.startEnvironmentComponents();
+        if (!reusingSession) {
+            environment.startEnvironmentComponents();
+            SessionKeepAliveService.setActiveEnvironment(environment);
+            SessionKeepAliveService.setActiveXServer(xServer);
+        }
 
         // Start the WinHandler
-        winHandler.start();
-
-        if (wineRequestHandler != null) wineRequestHandler.start();
+        if (!reusingSession) {
+            winHandler.start();
+            if (wineRequestHandler != null) wineRequestHandler.start();
+        }
 
         // Reset dxwrapper config
         dxwrapperConfig = null;

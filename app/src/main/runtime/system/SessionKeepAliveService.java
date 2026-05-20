@@ -21,6 +21,8 @@ import androidx.core.app.NotificationCompat;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
+import com.winlator.cmod.runtime.display.environment.XEnvironment;
+import com.winlator.cmod.runtime.display.xserver.XServer;
 
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,11 +55,25 @@ public class SessionKeepAliveService extends Service {
     private static final HashSet<String> activeDownloads = new HashSet<>();
     private static final AtomicBoolean serviceRunning = new AtomicBoolean(false);
 
+    private static XEnvironment activeEnvironment;
+    private static XServer activeXServer;
+
     private static boolean isContainerPaused = false;
 
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private int notificationId;
+    private final Handler protectionHandler = new Handler(Looper.getMainLooper());
+    private final Runnable protectionRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (sessionActive.get()) {
+                Log.d(TAG, "Running periodic OOM protection for wine processes");
+                ProcessHelper.protectAllWineProcesses();
+                protectionHandler.postDelayed(this, 2 * 60 * 1000L); // Every 2 minutes
+            }
+        }
+    };
 
     public static void startSession(Context ctx) {
         if (ctx == null) return;
@@ -70,6 +86,22 @@ public class SessionKeepAliveService extends Service {
         if (sessionActive.compareAndSet(true, false)) {
             sendCommand(ctx, ACTION_SESSION_STOP, null);
         }
+    }
+
+    public static XEnvironment getActiveEnvironment() {
+        return activeEnvironment;
+    }
+
+    public static void setActiveEnvironment(XEnvironment environment) {
+        activeEnvironment = environment;
+    }
+
+    public static XServer getActiveXServer() {
+        return activeXServer;
+    }
+
+    public static void setActiveXServer(XServer xServer) {
+        activeXServer = xServer;
     }
 
     public static void onPauseSession(Context ctx) {
@@ -171,6 +203,8 @@ public class SessionKeepAliveService extends Service {
         if (ACTION_SESSION_START.equals(action)) {
             sessionActive.set(true);
             isContainerPaused = false;
+            protectionHandler.removeCallbacks(protectionRunnable);
+            protectionHandler.post(protectionRunnable);
         } else if (ACTION_SESSION_PAUSE.equals(action)) {
             isContainerPaused = true;
         } else if (ACTION_SESSION_RESUME.equals(action)) {
@@ -179,6 +213,19 @@ public class SessionKeepAliveService extends Service {
         else if (ACTION_SESSION_STOP.equals(action)) {
             sessionActive.set(false);
             isContainerPaused = false;
+            protectionHandler.removeCallbacks(protectionRunnable);
+            if (activeEnvironment != null) {
+                final XEnvironment env = activeEnvironment;
+                activeEnvironment = null;
+                activeXServer = null;
+                new Thread(() -> {
+                    try {
+                        env.stopEnvironmentComponents();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to stop environment components during session stop", e);
+                    }
+                }, "XServerTeardown").start();
+            }
         }
 
         // Ensure wake lock, wifi lock and OOM adj are correct based on current state
@@ -332,6 +379,7 @@ public class SessionKeepAliveService extends Service {
 
     @Override
     public void onDestroy() {
+        protectionHandler.removeCallbacks(protectionRunnable);
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         serviceRunning.set(false);

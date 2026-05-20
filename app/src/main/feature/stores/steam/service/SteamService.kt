@@ -14,6 +14,7 @@ import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.app.service.NetworkMonitor
 import com.winlator.cmod.app.service.download.DownloadCoordinator
+import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
 import com.winlator.cmod.feature.stores.steam.data.AppInfo
 import com.winlator.cmod.feature.stores.steam.data.CachedLicense
@@ -6506,6 +6507,7 @@ class SteamService : Service() {
         when {
             DownloadCoordinator.hasActiveDownload() -> "a download is active"
             PluviaApp.isGameSessionActive() -> "a game session is running"
+            SessionKeepAliveService.isSessionActive() -> "a background session is persistent"
             syncInProgressApps.values.any { it.get() } -> "a cloud save sync is in progress"
             else -> null
         }
