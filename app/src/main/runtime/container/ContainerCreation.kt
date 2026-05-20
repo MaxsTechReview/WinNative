@@ -22,14 +22,56 @@ object ContainerCreation {
                 else -> profile.type.toString()
             }
         val withoutPrefix =
-            profile.verName
-                .replace(Regex("(?i)^(wine|proton)[-_\\s]*"), "")
+            removeLeadingRuntimePrefix(profile.verName)
                 .trim()
         return "$prefix $withoutPrefix"
             .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
             .trim()
             .replace(Regex("\\s+"), " ")
             .ifBlank { prefix }
+    }
+
+    @JvmStatic
+    fun displayNameForWineVersion(
+        context: Context,
+        contentsManager: ContentsManager,
+        wineVersion: String,
+    ): String {
+        findRuntimeProfile(contentsManager, wineVersion)?.let {
+            return displayNameForProfile(it)
+        }
+
+        val wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion)
+        return wineInfo.toString()
+            .replace(Regex("[^a-zA-Z0-9._\\- ]"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+            .ifBlank { wineVersion }
+    }
+
+    private fun findRuntimeProfile(
+        contentsManager: ContentsManager,
+        entryName: String,
+    ): ContentProfile? =
+        (
+            contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_WINE).orEmpty() +
+                contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_PROTON).orEmpty()
+            ).firstOrNull { ContentsManager.getEntryName(it) == entryName }
+
+    private fun removeLeadingRuntimePrefix(versionName: String): String {
+        val trimmed = versionName.trim()
+        val prefixEnd =
+            when {
+                trimmed.regionMatches(0, "wine", 0, "wine".length, ignoreCase = true) -> "wine".length
+                trimmed.regionMatches(0, "proton", 0, "proton".length, ignoreCase = true) -> "proton".length
+                else -> return trimmed
+            }
+        val next = trimmed.getOrNull(prefixEnd)
+        return if (next == null || next == '-' || next == '_' || next.isWhitespace()) {
+            trimmed.drop(prefixEnd).dropWhile { it == '-' || it == '_' || it.isWhitespace() }
+        } else {
+            trimmed
+        }
     }
 
     @JvmStatic

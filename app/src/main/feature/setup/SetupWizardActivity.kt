@@ -463,7 +463,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
             containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} x86-64"
+                ContainerCreation.displayNameForProfile(profile)
             },
             persistContainerId = ::saveDefaultX86ContainerId,
         )
@@ -495,7 +495,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
             containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} ARM64EC"
+                ContainerCreation.displayNameForProfile(profile)
             },
             persistContainerId = ::saveDefaultArm64ContainerId,
         )
@@ -2851,17 +2851,5 @@ private fun resolveJsonDownloadUrl(url: String): String {
 }
 
 private fun runtimeDisplayLabel(profile: ContentProfile): String {
-    val prefix =
-        when (profile.type) {
-            ContentProfile.ContentType.CONTENT_TYPE_WINE -> "Wine"
-            ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"
-            else -> profile.type.toString()
-        }
-    val version =
-        Regex("(?i)(?:wine|proton)-([0-9]+(?:\\.[0-9]+)?)")
-            .find(profile.verName)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?: profile.verName
-    return "$prefix $version"
+    return ContainerCreation.displayNameForProfile(profile)
 }

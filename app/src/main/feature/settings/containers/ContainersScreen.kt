@@ -314,6 +314,13 @@ private fun ContainerCard(
     onShowInfo: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val nameFontSize =
+        when {
+            container.name.length > 44 -> 9.sp
+            container.name.length > 34 -> 10.sp
+            container.name.length > 26 -> 11.sp
+            else -> 13.sp
+        }
 
     Column(
         modifier =
@@ -388,9 +395,10 @@ private fun ContainerCard(
             Text(
                 text = container.name,
                 color = ContainersTextPrimary,
-                fontSize = 13.sp,
+                fontSize = nameFontSize,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 1,
+                softWrap = false,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
