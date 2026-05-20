@@ -111,8 +111,8 @@ import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.settings.DriversFragment
 import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
-import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
 import com.winlator.cmod.runtime.content.Downloader
@@ -127,7 +127,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.cos
@@ -386,7 +385,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val fallbackType: ContentProfile.ContentType,
         val fallbackUrl: String,
         val fallbackNameHint: String,
-        val containerDisplayName: (ContentProfile) -> String,
         val persistContainerId: (Context, Int) -> Unit,
     )
 
@@ -463,9 +461,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
-            containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} x86-64"
-            },
             persistContainerId = ::saveDefaultX86ContainerId,
         )
 
@@ -495,9 +490,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
-            containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} ARM64EC"
-            },
             persistContainerId = ::saveDefaultArm64ContainerId,
         )
 
@@ -1056,178 +1048,20 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         desiredName: String,
     ): Container {
         val containerManager = ContainerManager(this)
-        containerManager.containers.firstOrNull { it.name == desiredName }?.let {
-            val resolvedWineVersion = ContentsManager.getEntryName(profile)
-            if (it.wineVersion != resolvedWineVersion) {
-                it.setWineVersion(resolvedWineVersion)
-                it.putExtra("wineprefixNeedsUpdate", "t")
-                it.saveData()
-            }
-            applyRecommendedContainerDefaults(it)
-            return it
-        }
-
         val contentsManager = ContentsManager(this)
         contentsManager.syncContents()
-        val data =
-            JSONObject().apply {
-                put("name", desiredName)
-                put("wineVersion", ContentsManager.getEntryName(profile))
-            }
 
-        return requireNotNull(containerManager.createContainer(data, contentsManager)) {
-            "Unable to create container for ${profile.verName}"
-        }.also {
-            applyRecommendedContainerDefaults(it)
-        }
-    }
-
-    private fun applyRecommendedContainerDefaults(container: Container) {
-        val contentsManager = ContentsManager(this)
-        contentsManager.syncContents()
-        val wineInfo = WineInfo.fromIdentifier(this, contentsManager, container.wineVersion)
-        val isArm64 = wineInfo.isArm64EC
-        val normalizedDrives =
-            com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
+        return requireNotNull(
+            ContainerCreation.getOrCreateContainerForProfile(
                 this,
-                container.drives ?: Container.DEFAULT_DRIVES,
-            )
-
-        container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
-        container.setCPUList(Container.getFallbackCPUList())
-        container.setCPUListWoW64(Container.getFallbackCPUListWoW64())
-        container.setDrives(normalizedDrives)
-        container.setGraphicsDriverConfig(
-            replaceDelimitedConfigValue(
-                Container.DEFAULT_GRAPHICSDRIVERCONFIG,
-                ';',
-                "version",
-                resolvePreferredDriverVersion(),
+                containerManager,
+                contentsManager,
+                profile,
+                desiredName,
             ),
-        )
-        container.setDXWrapper(Container.DEFAULT_DXWRAPPER)
-        container.setDXWrapperConfig(
-            replaceDelimitedConfigValue(
-                replaceDelimitedConfigValue(
-                    Container.DEFAULT_DXWRAPPERCONFIG,
-                    ',',
-                    "version",
-                    resolvePreferredContentVersion(
-                        contentsManager,
-                        ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                        "",
-                        if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                        if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
-                    ),
-                ),
-                ',',
-                "vkd3dVersion",
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                    "None",
-                    if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                    if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
-                ),
-            ),
-        )
-
-        if (isArm64) {
-            container.setEmulator("fexcore")
-            container.setEmulator64("fexcore")
-            container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                    "",
-                ),
-            )
-            container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    "",
-                ),
-            )
-        } else {
-            container.setEmulator("box64")
-            container.setEmulator64("box64")
-            container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                    "",
-                ),
-            )
-            container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    "",
-                ),
-            )
+        ) {
+            "Unable to create container for ${profile.verName}"
         }
-
-        container.saveData()
-    }
-
-    private fun resolvePreferredDriverVersion(): String {
-        val adrenotoolsManager = AdrenotoolsManager(this)
-        val installedDrivers = adrenotoolsManager.enumarateInstalledDrivers()
-        val preferredDriver = getLastInstalledDriverId(this)
-        if (preferredDriver.isNotBlank() && installedDrivers.contains(preferredDriver)) {
-            return preferredDriver
-        }
-        return "System"
-    }
-
-    private fun resolvePreferredContentVersion(
-        manager: ContentsManager,
-        type: ContentProfile.ContentType,
-        fallback: String,
-        includePattern: Regex? = null,
-        excludePattern: Regex? = null,
-    ): String {
-        val preferenceKey = "last_content_${type.toString().lowercase()}"
-        val preferred = prefs(this).getString(preferenceKey, "") ?: ""
-        val installedProfiles = manager.getProfiles(type).orEmpty().filter { it.isInstalled }
-        val matchingProfiles =
-            installedProfiles
-                .filter { profile ->
-                    val versionName = profile.verName
-                    (includePattern == null || includePattern.containsMatchIn(versionName)) &&
-                        (excludePattern == null || !excludePattern.containsMatchIn(versionName))
-                }.ifEmpty { installedProfiles }
-
-        if (preferred.isNotBlank() && matchingProfiles.any { contentVersionIdentifier(it) == preferred }) {
-            return preferred
-        }
-
-        val newestInstalled =
-            matchingProfiles.maxWithOrNull(
-                compareBy<ContentProfile> { it.verCode }.thenBy { it.verName.lowercase() },
-            )
-        return newestInstalled?.let(::contentVersionIdentifier) ?: fallback
-    }
-
-    private fun replaceDelimitedConfigValue(
-        config: String,
-        delimiter: Char,
-        key: String,
-        value: String,
-    ): String {
-        val parts = config.split(delimiter).toMutableList()
-        var replaced = false
-        for (index in parts.indices) {
-            if (parts[index].startsWith("$key=")) {
-                parts[index] = "$key=$value"
-                replaced = true
-            }
-        }
-        if (!replaced) {
-            parts += "$key=$value"
-        }
-        return parts.joinToString(delimiter.toString())
     }
 
     private fun isPackageInstalled(
@@ -2709,7 +2543,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         compact: Boolean = false,
     ) {
         val entryName = ContentsManager.getEntryName(profile)
-        val displayName = runtimeDisplayLabel(profile)
+        val displayName = ContainerCreation.displayNameForProfile(profile)
         val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
         val archLabel = if (isArm64) "ARM64EC" else "x86-64"
 
@@ -3007,20 +2841,4 @@ private fun resolveJsonDownloadUrl(url: String): String {
     }
 
     return "https://raw.githubusercontent.com/$ownerRepo/$branch/$filePath"
-}
-
-private fun runtimeDisplayLabel(profile: ContentProfile): String {
-    val prefix =
-        when (profile.type) {
-            ContentProfile.ContentType.CONTENT_TYPE_WINE -> "Wine"
-            ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"
-            else -> profile.type.toString()
-        }
-    val version =
-        Regex("(?i)(?:wine|proton)-([0-9]+(?:\\.[0-9]+)?)")
-            .find(profile.verName)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?: profile.verName
-    return "$prefix $version"
 }

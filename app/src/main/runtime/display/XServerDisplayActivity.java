@@ -910,7 +910,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        containerManager.activateContainer(container);
+        if (!containerManager.activateContainer(container)) {
+            Log.e("XServerDisplayActivity", "Failed to activate container with ID: " + containerId);
+            finish();
+            return;
+        }
 
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
@@ -1030,7 +1034,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         finish();
                         return;
                     }
-                    containerManager.activateContainer(container);
+                    if (!containerManager.activateContainer(container)) {
+                        Log.e("XServerDisplayActivity", "Failed to activate overridden container with ID: " + newContainerId);
+                        finish();
+                        return;
+                    }
                     Log.d("XServerDisplayActivity", "Container overridden to ID: " + newContainerId);
 
                     // RE-EVALUATE wineVersion and wineInfo after container override!
@@ -4139,6 +4147,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 " rootDir=" + container.getRootDir().getAbsolutePath());
 
         ensureWinePrefixReady();
+        ensureLaunchRuntimeFilesReady();
 
         String appVersion = String.valueOf(AppUtils.getVersionCode(this));
         String imgVersion = String.valueOf(imageFs.getVersion());
@@ -4157,10 +4166,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         ensureWinePrefixEssentialFiles();
 
         String dxwrapper = shortcut != null ? getShortcutSetting("dxwrapper", this.dxwrapper) : this.dxwrapper;
+        String dxwrapperConfig =
+                shortcut != null
+                        ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString())
+                        : this.dxwrapperConfig.toString();
+        KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
 
         if (dxwrapper.contains("dxvk")) {
-            String dxwrapperConfig = shortcut != null ? getShortcutSetting("dxwrapperConfig", this.dxwrapperConfig.toString()) : this.dxwrapperConfig.toString();
-            KeyValueSet currentDXWrapperConfig = DXVKConfigUtils.parseConfig(dxwrapperConfig);
             String dxvkWrapper = "dxvk-" + currentDXWrapperConfig.get("version");
             String vkd3dWrapper = "vkd3d-" + currentDXWrapperConfig.get("vkd3dVersion");
             String ddrawrapper = currentDXWrapperConfig.get("ddrawrapper");
@@ -4168,6 +4180,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     dxvkWrapper + "' vkd3d='" + vkd3dWrapper + "' ddrawrapper='" +
                     ddrawrapper + "'");
             dxwrapper = dxvkWrapper + ";" + vkd3dWrapper + ";" + ddrawrapper;
+        } else {
+            String vkd3dVersion = currentDXWrapperConfig.get("vkd3dVersion");
+            if (hasSelectedVkd3dVersion(vkd3dVersion)) {
+                String vkd3dWrapper = "vkd3d-" + vkd3dVersion;
+                Log.i("XServerDisplayActivity", "Launch VKD3D-only wrapper files selected: vkd3d='" +
+                        vkd3dWrapper + "'");
+                dxwrapper = dxwrapper + ";" + vkd3dWrapper;
+            }
         }
 
         String wincomponents = shortcut != null ? getShortcutSetting("wincomponents", container.getWinComponents()) : container.getWinComponents();
@@ -4487,6 +4507,165 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             container.saveData();
         }
         Log.d("ContainerLaunch", "=== setupWineSystemFiles END === container=" + container.id + " firstTimeBoot=" + firstTimeBoot);
+    }
+
+    private void ensureLaunchRuntimeFilesReady() {
+        if (container == null || wineInfo == null || imageFs == null || contentsManager == null) return;
+
+        if (wineInfo.isArm64EC()) {
+            ensureArm64EcRuntimeDllsReady();
+        } else {
+            ensureBox64RuntimeReady();
+        }
+    }
+
+    private void ensureBox64RuntimeReady() {
+        File rootDir = imageFs.getRootDir();
+        boolean box64Missing = !new File(rootDir, "usr/bin/box64").exists();
+        String box64Version = shortcut != null
+                ? getShortcutSetting("box64Version", container.getBox64Version())
+                : container.getBox64Version();
+        if (box64Version == null || box64Version.isEmpty()) {
+            box64Version = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_BOX64);
+            if (!box64Version.isEmpty()) container.setBox64Version(box64Version);
+        }
+
+        if (!box64Missing && box64Version.equals(container.getExtra("box64Version"))) return;
+
+        if (box64Version.isEmpty()) {
+            Log.w("ContainerLaunch", "No Box64 version selected before first boot; runtime extraction skipped");
+            return;
+        }
+
+        ContentProfile profile = resolveContentProfile(ContentProfile.ContentType.CONTENT_TYPE_BOX64, box64Version);
+        if (profile == null) {
+            Log.w("ContainerLaunch", "Box64 content profile not installed for version: " + box64Version);
+            return;
+        }
+
+        Log.i("ContainerLaunch", "Preparing Box64 before Wine setup: version=" + box64Version);
+        contentsManager.applyContent(profile);
+        container.putExtra("box64Version", box64Version);
+        container.saveData();
+    }
+
+    private void ensureArm64EcRuntimeDllsReady() {
+        File system32Dir = new File(imageFs.getRootDir(), ImageFs.WINEPREFIX + "/drive_c/windows/system32");
+        boolean fexcoreDllsMissing =
+                !new File(system32Dir, "libwow64fex.dll").exists()
+                        || !new File(system32Dir, "libarm64ecfex.dll").exists();
+        boolean wowbox64DllMissing = !new File(system32Dir, "wowbox64.dll").exists();
+
+        String emulator = shortcut != null
+                ? getShortcutSetting("emulator", container.getEmulator())
+                : container.getEmulator();
+        String emulator64 = shortcut != null
+                ? getShortcutSetting("emulator64", container.getEmulator64())
+                : container.getEmulator64();
+        String wowbox64Version = shortcut != null
+                ? getShortcutSetting("box64Version", container.getBox64Version())
+                : container.getBox64Version();
+        String fexcoreVersion = shortcut != null
+                ? getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
+                : container.getFEXCoreVersion();
+
+        boolean usesWowbox64 = "wowbox64".equalsIgnoreCase(emulator);
+        boolean usesFexcore =
+                "fexcore".equalsIgnoreCase(emulator)
+                        || "fexcore".equalsIgnoreCase(emulator64)
+                        || !usesWowbox64;
+
+        boolean changed = false;
+        if (usesWowbox64 && (wowbox64DllMissing || !safeEquals(wowbox64Version, container.getExtra("box64Version")))) {
+            if (wowbox64Version == null || wowbox64Version.isEmpty()) {
+                wowbox64Version = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64);
+                if (!wowbox64Version.isEmpty()) container.setBox64Version(wowbox64Version);
+            }
+            changed |= applyRuntimeContentBeforeBoot(
+                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
+                    wowbox64Version,
+                    "WowBox64",
+                    "box64Version"
+            );
+        }
+
+        if (usesFexcore && (fexcoreDllsMissing || !safeEquals(fexcoreVersion, container.getExtra("fexcoreVersion")))) {
+            if (fexcoreVersion == null || fexcoreVersion.isEmpty()) {
+                fexcoreVersion = pickNewestInstalledContentVersion(ContentProfile.ContentType.CONTENT_TYPE_FEXCORE);
+                if (!fexcoreVersion.isEmpty()) container.setFEXCoreVersion(fexcoreVersion);
+            }
+            changed |= applyRuntimeContentBeforeBoot(
+                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
+                    fexcoreVersion,
+                    "FEXCore",
+                    "fexcoreVersion"
+            );
+        }
+
+        if (changed) container.saveData();
+    }
+
+    private boolean applyRuntimeContentBeforeBoot(
+            ContentProfile.ContentType type,
+            String version,
+            String label,
+            String extraKey) {
+        if (version == null || version.isEmpty()) {
+            Log.w("ContainerLaunch", "No " + label + " version selected before first boot; runtime extraction skipped");
+            return false;
+        }
+
+        ContentProfile profile = resolveContentProfile(type, version);
+        if (profile == null) {
+            Log.w("ContainerLaunch", label + " content profile not installed for version: " + version);
+            return false;
+        }
+
+        Log.i("ContainerLaunch", "Preparing " + label + " before Wine setup: version=" + version);
+        contentsManager.applyContent(profile);
+        container.putExtra(extraKey, version);
+        return true;
+    }
+
+    private ContentProfile resolveContentProfile(ContentProfile.ContentType type, String version) {
+        ContentProfile profile = contentsManager.getProfileByEntryName(type.toString() + "-" + version);
+        if (profile != null) return profile;
+
+        List<ContentProfile> profiles = contentsManager.getProfiles(type);
+        if (profiles == null) return null;
+        for (ContentProfile candidate : profiles) {
+            if (version.equals(contentVersionIdentifier(candidate))) return candidate;
+        }
+        return null;
+    }
+
+    private String pickNewestInstalledContentVersion(ContentProfile.ContentType type) {
+        List<ContentProfile> profiles = contentsManager.getProfiles(type);
+        if (profiles == null || profiles.isEmpty()) return "";
+
+        ContentProfile best = null;
+        for (ContentProfile profile : profiles) {
+            if (!profile.isInstalled) continue;
+            if (best == null
+                    || profile.verCode > best.verCode
+                    || (profile.verCode == best.verCode
+                    && profile.verName != null
+                    && best.verName != null
+                    && profile.verName.compareToIgnoreCase(best.verName) > 0)) {
+                best = profile;
+            }
+        }
+        return best != null ? contentVersionIdentifier(best) : "";
+    }
+
+    private static String contentVersionIdentifier(ContentProfile profile) {
+        String entryName = ContentsManager.getEntryName(profile);
+        int firstDash = entryName.indexOf('-');
+        return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
+    }
+
+    private static boolean safeEquals(String a, String b) {
+        return a != null && a.equals(b);
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
@@ -5580,6 +5759,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void extractDXWrapperFiles(String dxwrapper) {
         final String[] dlls = {"d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll", "d3d8.dll", "d3d9.dll", "dxgi.dll", "ddraw.dll", "d3dimm.dll"};
+        final String[] d3d12Dlls = {"d3d12.dll", "d3d12core.dll"};
+        final String[] nonD3D12WrapperDlls = {"d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d8.dll", "d3d9.dll", "dxgi.dll", "ddraw.dll", "d3dimm.dll"};
 
         File rootDir = imageFs.getRootDir();
         File windowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
@@ -5591,27 +5772,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String vkd3dWrapper = dxwrapper.split(";")[1];
             String ddrawrapper = dxwrapper.split(";")[2];
             
-            ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(dxvkWrapper);
-            if (dxvkProfile != null) {
-                Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
-                contentsManager.applyContent(dxvkProfile);
-                extractD8VKIfNeeded(dxvkWrapper, windowsDir);
+            if (hasSelectedDxvkWrapper(dxvkWrapper)) {
+                ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(dxvkWrapper);
+                if (dxvkProfile != null) {
+                    Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
+                    contentsManager.applyContent(dxvkProfile);
+                    extractD8VKIfNeeded(dxvkWrapper, windowsDir);
+                } else {
+                    Log.w(TAG, "DXVK content profile not installed; no bundled DXVK archive will be loaded: " + dxvkWrapper);
+                }
             } else {
-                Log.w(TAG, "DXVK content profile not installed; no bundled DXVK archive will be loaded: " + dxvkWrapper);
+                Log.i(TAG, "Launch DXVK selected: None; restoring non-D3D12 wrapper files");
+                restoreOriginalDllFiles(nonD3D12WrapperDlls);
             }
 
             if (vkd3dWrapper.contains("None")) {
                 Log.i(TAG, "Launch VKD3D selected: None; restoring original d3d12");
-                restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+                restoreOriginalDllFiles(d3d12Dlls);
             }
             else {
-                ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
-                if (vkd3dProfile != null) {
-                    Log.i(TAG, "Loading VKD3D content profile: " + vkd3dWrapper);
-                    contentsManager.applyContent(vkd3dProfile);
-                } else {
-                    Log.w(TAG, "VKD3D content profile not installed; no bundled VKD3D archive will be loaded: " + vkd3dWrapper);
-                }
+                applyVkd3dWrapper(vkd3dWrapper);
             }
 
             Log.d(TAG, "Extracting nglide wrapper");
@@ -5631,9 +5811,52 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             Log.d(TAG, "Finished extraction of DXVK wrapper files, version: " + dxwrapper);
         } else if (dxwrapper.contains("wined3d")) {
-            Log.d(TAG, "Restoring original DLL files for wined3d.");
-            restoreOriginalDllFiles(dlls);
+            String vkd3dWrapper = findDelimitedWrapper(dxwrapper, "vkd3d-");
+            if (vkd3dWrapper != null) {
+                Log.d(TAG, "Restoring non-D3D12 wrapper files for WineD3D+VKD3D.");
+                restoreOriginalDllFiles(nonD3D12WrapperDlls);
+                applyVkd3dWrapper(vkd3dWrapper);
+            } else {
+                Log.d(TAG, "Restoring original DLL files for wined3d.");
+                restoreOriginalDllFiles(dlls);
+            }
         }
+    }
+
+    private void applyVkd3dWrapper(String vkd3dWrapper) {
+        if (vkd3dWrapper == null || vkd3dWrapper.contains("None")) {
+            Log.i(TAG, "Launch VKD3D selected: None; restoring original d3d12");
+            restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+            return;
+        }
+
+        ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
+        if (vkd3dProfile != null) {
+            Log.i(TAG, "Loading VKD3D content profile: " + vkd3dWrapper);
+            contentsManager.applyContent(vkd3dProfile);
+        } else {
+            Log.w(TAG, "VKD3D content profile not installed; no bundled VKD3D archive will be loaded: " + vkd3dWrapper);
+        }
+    }
+
+    private static String findDelimitedWrapper(String value, String prefix) {
+        if (value == null) return null;
+        for (String part : value.split(";")) {
+            if (part.startsWith(prefix)) return part;
+        }
+        return null;
+    }
+
+    private static boolean hasSelectedVkd3dVersion(String version) {
+        return version != null && !version.isEmpty() && !version.equalsIgnoreCase("None");
+    }
+
+    private static boolean hasSelectedDxvkWrapper(String dxvkWrapper) {
+        if (dxvkWrapper == null) return false;
+        String version = dxvkWrapper.startsWith("dxvk-")
+                ? dxvkWrapper.substring("dxvk-".length())
+                : dxvkWrapper;
+        return !version.trim().isEmpty() && !version.equalsIgnoreCase("None");
     }
 
     private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
