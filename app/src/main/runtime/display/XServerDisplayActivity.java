@@ -5693,13 +5693,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String vkd3dWrapper = dxwrapper.split(";")[1];
             String ddrawrapper = dxwrapper.split(";")[2];
             
-            ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(dxvkWrapper);
-            if (dxvkProfile != null) {
-                Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
-                contentsManager.applyContent(dxvkProfile);
-                extractD8VKIfNeeded(dxvkWrapper, windowsDir);
+            if (hasSelectedDxvkWrapper(dxvkWrapper)) {
+                ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(dxvkWrapper);
+                if (dxvkProfile != null) {
+                    Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
+                    contentsManager.applyContent(dxvkProfile);
+                    extractD8VKIfNeeded(dxvkWrapper, windowsDir);
+                } else {
+                    Log.w(TAG, "DXVK content profile not installed; no bundled DXVK archive will be loaded: " + dxvkWrapper);
+                }
             } else {
-                Log.w(TAG, "DXVK content profile not installed; no bundled DXVK archive will be loaded: " + dxvkWrapper);
+                Log.i(TAG, "Launch DXVK selected: None; restoring non-D3D12 wrapper files");
+                restoreOriginalDllFiles(nonD3D12WrapperDlls);
             }
 
             if (vkd3dWrapper.contains("None")) {
@@ -5765,6 +5770,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private static boolean hasSelectedVkd3dVersion(String version) {
         return version != null && !version.isEmpty() && !version.equalsIgnoreCase("None");
+    }
+
+    private static boolean hasSelectedDxvkWrapper(String dxvkWrapper) {
+        if (dxvkWrapper == null) return false;
+        String version = dxvkWrapper.startsWith("dxvk-")
+                ? dxvkWrapper.substring("dxvk-".length())
+                : dxvkWrapper;
+        return !version.trim().isEmpty() && !version.equalsIgnoreCase("None");
     }
 
     private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
