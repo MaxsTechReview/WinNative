@@ -331,7 +331,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String box64Version = container.getBox64Version();
     if (box64Version == null) box64Version = "";
 
-    if (shortcut != null) box64Version = shortcut.getExtra("box64Version", box64Version);
+    if (shortcut != null) box64Version = shortcut.getSettingExtra("box64Version", box64Version);
 
     Log.i(
         "GuestProgramLauncherComponent",
@@ -389,10 +389,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (fexcoreVersion == null) fexcoreVersion = "";
 
     if (shortcut != null) {
-      emulator = shortcut.getExtra("emulator", emulator);
-      emulator64 = shortcut.getExtra("emulator64", emulator64);
-      wowbox64Version = shortcut.getExtra("box64Version", wowbox64Version);
-      fexcoreVersion = shortcut.getExtra("fexcoreVersion", fexcoreVersion);
+      emulator = shortcut.getSettingExtra("emulator", emulator);
+      emulator64 = shortcut.getSettingExtra("emulator64", emulator64);
+      wowbox64Version = shortcut.getSettingExtra("box64Version", wowbox64Version);
+      fexcoreVersion = shortcut.getSettingExtra("fexcoreVersion", fexcoreVersion);
     }
 
     boolean usesWowbox64 = emulator.equalsIgnoreCase("wowbox64");
@@ -1028,14 +1028,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
     if (shortcut != null) {
-      emulator = shortcut.getExtra("emulator", container.getEmulator());
-      emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
+      emulator = shortcut.getSettingExtra("emulator", container.getEmulator());
+      emulator64 = shortcut.getSettingExtra("emulator64", container.getEmulator64());
     }
 
     if (wineInfo.isArm64EC()) {
       emulator64 = container.getEmulator64();
       if (shortcut != null) {
-        emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
+        emulator64 = shortcut.getSettingExtra("emulator64", container.getEmulator64());
       }
     }
 
