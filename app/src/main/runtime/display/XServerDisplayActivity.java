@@ -893,7 +893,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        containerManager.activateContainer(container);
+        if (!containerManager.activateContainer(container)) {
+            Log.e("XServerDisplayActivity", "Failed to activate container with ID: " + containerId);
+            finish();
+            return;
+        }
 
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             shortcut = new Shortcut(container, new File(shortcutPath));
@@ -1010,7 +1014,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         finish();
                         return;
                     }
-                    containerManager.activateContainer(container);
+                    if (!containerManager.activateContainer(container)) {
+                        Log.e("XServerDisplayActivity", "Failed to activate overridden container with ID: " + newContainerId);
+                        finish();
+                        return;
+                    }
                     Log.d("XServerDisplayActivity", "Container overridden to ID: " + newContainerId);
 
                     // RE-EVALUATE wineVersion and wineInfo after container override!

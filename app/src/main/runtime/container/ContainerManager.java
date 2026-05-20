@@ -93,11 +93,12 @@ public class ContainerManager {
     return context;
   }
 
-  public void activateContainer(Container container) {
+  public boolean activateContainer(Container container) {
     Log.d("ContainerManager", "activateContainer: id=" + container.id);
     File containerDir = new File(homeDir, ImageFs.USER + "-" + container.id);
     container.setRootDir(containerDir);
     File file = new File(homeDir, ImageFs.USER);
+    String linkTarget = "./" + ImageFs.USER + "-" + container.id;
 
     // Make C: Drive accessible — 0771 not 0777 to prevent other apps reading file contents
     try {
@@ -120,6 +121,20 @@ public class ContainerManager {
       migrateEssentialFiles(file, containerDir);
       boolean deleted = FileUtils.delete(file);
       Log.d("ContainerManager", "activateContainer: real xuser dir delete=" + deleted);
+      if (!deleted && file.exists()) {
+        File backup = new File(homeDir, ImageFs.USER + ".inactive-" + System.currentTimeMillis());
+        boolean renamed = file.renameTo(backup);
+        Log.w(
+            "ContainerManager",
+            "activateContainer: real xuser delete failed, rename to "
+                + backup.getName()
+                + "="
+                + renamed);
+        if (!renamed && file.exists()) {
+          Log.e("ContainerManager", "activateContainer: unable to replace real xuser directory");
+          return false;
+        }
+      }
     } else {
       boolean deleted = file.delete();
       Log.d(
@@ -129,15 +144,21 @@ public class ContainerManager {
               + " existed="
               + file.exists());
     }
-    FileUtils.symlink("./" + ImageFs.USER + "-" + container.id, file.getPath());
+    FileUtils.symlink(linkTarget, file.getPath());
+    boolean symlinkReady = FileUtils.isSymlink(file) && linkTarget.equals(FileUtils.readSymlink(file));
     Log.d(
         "ContainerManager",
         "activateContainer: xuser symlink created, isSymlink="
             + FileUtils.isSymlink(file)
-            + " target=./"
-            + ImageFs.USER
-            + "-"
-            + container.id);
+            + " target="
+            + FileUtils.readSymlink(file));
+    if (!symlinkReady) {
+      Log.e(
+          "ContainerManager",
+          "activateContainer: active xuser does not point to selected container "
+              + container.id);
+    }
+    return symlinkReady;
   }
 
   private void migrateEssentialFiles(File sourceDir, File destDir) {
