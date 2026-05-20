@@ -1,6 +1,5 @@
 package com.winlator.cmod.feature.stores.steam.data
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
-import `in`.dragonbra.javasteam.steam.handlers.steamcloud.PendingRemoteOperation
 
 data class PostSyncInfo(
     val syncResult: SyncResult,
@@ -24,5 +23,7 @@ data class PostSyncInfo(
     val microsecDeleteFiles: Long = 0L,
     val microsecDownloadFiles: Long = 0L,
     val microsecUploadFiles: Long = 0L,
-    val pendingRemoteOperations: List<PendingRemoteOperation> = emptyList(),
+    // ECloudPendingRemoteOperation codes (1 AppSessionActive, 2 UploadInProgress,
+    // 3 UploadPending, 4 AppSessionSuspended); empty = clear to launch.
+    val pendingRemoteOperations: List<Int> = emptyList(),
 )

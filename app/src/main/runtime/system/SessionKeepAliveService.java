@@ -309,20 +309,25 @@ public class SessionKeepAliveService extends Service {
         // chance to run first; then defensively clean any wine processes that
         // might still be alive, and exit the process so swipe behaves like the
         // pre-existing "swipe-away closes everything" flow.
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.postDelayed(() -> {
+        new Thread(() -> {
             try {
+                Thread.sleep(1500L);
                 ProcessHelper.terminateSessionProcessesAndWait(1500, true);
                 ProcessHelper.drainDeadChildren("session keep-alive task removed");
             } catch (Throwable t) {
                 Log.w(TAG, "Defensive wine cleanup on task removal failed", t);
             }
-            stopForegroundCompat();
-            stopSelf();
-            serviceRunning.set(false);
-            // Match the previous swipe behaviour: actually exit the process.
-            android.os.Process.killProcess(android.os.Process.myPid());
-        }, 1500L);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                stopForegroundCompat();
+                stopSelf();
+                serviceRunning.set(false);
+                // Match the previous swipe behaviour: actually exit the process.
+                // We do this in a slight delay to ensure stopSelf() has processed.
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                }, 500L);
+            });
+        }, "SessionKeepAliveCleanup").start();
     }
 
     @Override

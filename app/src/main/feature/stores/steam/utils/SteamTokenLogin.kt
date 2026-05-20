@@ -5,7 +5,6 @@ import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.components.GuestProgramLauncherComponent
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
-import `in`.dragonbra.javasteam.types.KeyValue
 import timber.log.Timber
 import java.io.File
 import java.nio.file.Files

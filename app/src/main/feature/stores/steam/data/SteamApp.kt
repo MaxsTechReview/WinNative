@@ -8,7 +8,7 @@ import com.winlator.cmod.feature.stores.steam.enums.Language
 import com.winlator.cmod.feature.stores.steam.enums.OS
 import com.winlator.cmod.feature.stores.steam.enums.ReleaseState
 import com.winlator.cmod.feature.stores.steam.service.SteamService
-import `in`.dragonbra.javasteam.enums.ELicenseFlags
+import com.winlator.cmod.feature.stores.steam.enums.ELicenseFlags
 import java.util.EnumSet
 
 @Entity("steam_app")

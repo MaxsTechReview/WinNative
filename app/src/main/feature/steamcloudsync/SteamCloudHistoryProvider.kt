@@ -8,8 +8,6 @@ import com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupOrigin
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupStorage
 import com.winlator.cmod.runtime.container.Container
-import `in`.dragonbra.javasteam.protobufs.steamclient.Enums.ECloudStoragePersistState
-import `in`.dragonbra.javasteam.steam.handlers.steamcloud.AppFileInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -31,12 +29,12 @@ import java.security.MessageDigest
  * which syncs the entire current cloud state to local. Since Steam Cloud has the SAME current
  * state regardless of which group the user picks, the restore is effectively idempotent
  * across groups — the grouping is a visibility aid, not a per-group download primitive.
- * (Implementing per-group partial download would require duplicating the gzip/zip/fsync
- * download pipeline from `SteamAutoCloud.downloadFiles`; the user-visible result is
- * functionally identical because cloud is the single source of truth.)
  *
  * Rename: local-only label stored in SharedPrefs keyed on `<appId>:<groupId>`.
  * Delete: not supported (Steam manages cloud retention; the UI hides Delete for this storage).
+ *
+ * Phase 9: the cloud file listing comes from the C++ WN-Steam-Client
+ * ([SteamService.fetchCloudFileList] → [SteamAutoCloud.CloudFileChangeList]).
  */
 object SteamCloudHistoryProvider {
     private const val TAG = "SteamCloudHistory"
@@ -66,10 +64,10 @@ object SteamCloudHistoryProvider {
             try {
                 val response = SteamService.fetchCloudFileList(appId, 0L) ?: return@withContext emptyList()
 
-                val persistedFiles: List<AppFileInfo> =
+                val persistedFiles: List<SteamAutoCloud.CloudFileInfo> =
                     response.files
-                        .filter { it.persistState == ECloudStoragePersistState.k_ECloudStoragePersistStatePersisted }
-                        .sortedByDescending { it.timestamp?.time ?: 0L }
+                        .filter { it.isPersisted }
+                        .sortedByDescending { it.timestamp }
 
                 if (persistedFiles.isEmpty()) return@withContext emptyList()
 
@@ -77,7 +75,7 @@ object SteamCloudHistoryProvider {
                 // either joins the open cluster (if its timestamp is within GROUP_WINDOW_MS of
                 // the cluster's most-recent member) or starts a fresh cluster.
                 class FileCluster {
-                    val files = mutableListOf<AppFileInfo>()
+                    val files = mutableListOf<SteamAutoCloud.CloudFileInfo>()
                     val timestamps = mutableListOf<Long>()
                     fun representativeTs(): Long = timestamps.maxOrNull() ?: 0L
                     fun earliestTs(): Long = timestamps.minOrNull() ?: 0L
@@ -85,7 +83,7 @@ object SteamCloudHistoryProvider {
 
                 val clusters = mutableListOf<FileCluster>()
                 for (file in persistedFiles) {
-                    val ts: Long = file.timestamp?.time ?: continue
+                    val ts: Long = file.timestamp.takeIf { it > 0L } ?: continue
                     val current: FileCluster? = clusters.lastOrNull()
                     val joinsCurrent: Boolean =
                         current != null && (current.representativeTs() - ts) <= GROUP_WINDOW_MS
@@ -106,13 +104,16 @@ object SteamCloudHistoryProvider {
                     .map { cluster ->
                         val sortedFilenames = cluster.files.map { it.filename }.sorted()
                         val groupId = buildGroupId(sortedFilenames, cluster.earliestTs())
-                        val totalSize = cluster.files.sumOf { it.rawFileSize.toLong() }
+                        val totalSize = cluster.files.sumOf { it.rawFileSize }
                         val timestampMs = cluster.representativeTs()
                         val label = labelPrefs.getString("$appId:$groupId", null)
                         val firstFile = cluster.files.first().filename
                         val fileName =
-                            if (cluster.files.size == 1) firstFile
-                            else "$firstFile (+${cluster.files.size - 1} more)"
+                            if (cluster.files.size == 1) {
+                                firstFile
+                            } else {
+                                "$firstFile (+${cluster.files.size - 1} more)"
+                            }
                         BackupHistoryEntry(
                             fileId = "$appId:$groupId",
                             fileName = fileName,
@@ -135,10 +136,8 @@ object SteamCloudHistoryProvider {
      * **Why a full sync rather than a per-group download:** Steam Cloud only stores the
      * current version of each filename. Every group in the history list points at the SAME
      * current cloud state — they differ only in which subset of files was last modified in
-     * a given time window. Doing a full sync is correct, cheap (we already have a robust
-     * download pipeline), and gives the user identical behavior across group selections.
-     *
-     * Subsequent launch's conflict probe will see local == cloud → no spurious dialog.
+     * a given time window. A full sync is correct, cheap, and gives identical behavior
+     * across group selections.
      */
     suspend fun restoreSaveGroup(
         activity: Activity,
@@ -150,9 +149,6 @@ object SteamCloudHistoryProvider {
             try {
                 val ok = SteamCloudSyncHelper.forceDownloadById(activity, appId, containerHint)
                 if (ok) {
-                    // Honest copy: Steam Cloud only stores the current state, so this is what
-                    // we actually did. Older "groups" in the history are visibility aids, not
-                    // version-history rollback points (Steam doesn't keep prior versions).
                     BackupResult(true, "Synced current Steam Cloud state.")
                 } else {
                     BackupResult(false, "Steam Cloud sync failed.")

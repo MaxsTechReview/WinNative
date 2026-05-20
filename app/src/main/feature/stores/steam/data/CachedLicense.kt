@@ -4,9 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Entity to store raw License objects from JavaSteam.
+ * Entity to store a Steam license as serialized JSON.
  * Each license is stored in its own row.
- * Used by DepotDownloader which requires List<License>.
  */
 @Entity("cached_license")
 data class CachedLicense(

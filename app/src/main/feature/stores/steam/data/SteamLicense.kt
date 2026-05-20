@@ -2,10 +2,10 @@ package com.winlator.cmod.feature.stores.steam.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import `in`.dragonbra.javasteam.enums.ELicenseFlags
-import `in`.dragonbra.javasteam.enums.ELicenseType
-import `in`.dragonbra.javasteam.enums.EPaymentMethod
-import `in`.dragonbra.javasteam.steam.handlers.steamapps.License
+import com.winlator.cmod.feature.stores.steam.enums.ELicenseFlags
+import com.winlator.cmod.feature.stores.steam.enums.ELicenseType
+import com.winlator.cmod.feature.stores.steam.enums.EPaymentMethod
+// (Phase 9) License is now an in-house plain type — no JavaSteam import
 import java.util.Date
 import java.util.EnumSet
 

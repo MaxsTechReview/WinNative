@@ -69,6 +69,7 @@ public class Container {
     private String executablePath = "";
     private String execArgs = "";
     private boolean launchRealSteam;
+    private boolean launchBionicSteam;
     private boolean useColdClient = true;
     private String steamType = "normal";
     private boolean allowSteamUpdates;
@@ -432,6 +433,7 @@ public class Container {
             data.put("midiSoundFont", midiSoundFont);
             data.put("lc_all", lc_all);
             data.put("launchRealSteam", launchRealSteam);
+            data.put("launchBionicSteam", launchBionicSteam);
             data.put("useColdClient", useColdClient);
             data.put("coldClientMigrated", true);
             data.put("steamType", steamType);
@@ -547,6 +549,9 @@ public class Container {
                     break;
                 case "launchRealSteam" :
                     setLaunchRealSteam(data.getBoolean(key));
+                    break;
+                case "launchBionicSteam" :
+                    setLaunchBionicSteam(data.getBoolean(key));
                     break;
                 case "useColdClient" :
                     // Only respect explicit user choice if coldClientMigrated flag is set
@@ -710,6 +715,22 @@ public class Container {
 
     public void setLaunchRealSteam(boolean launchRealSteam) {
         this.launchRealSteam = launchRealSteam;
+        // The two Steam launch modes are mutually exclusive — keep the
+        // setters honest so a stale "both on" state can't sneak in via
+        // legacy import paths.
+        if (launchRealSteam) this.launchBionicSteam = false;
+    }
+
+    /** Bionic Steam mode: wine launches steam.exe + game.exe and our embedded
+     *  libsteamclient.so via wn-steam-bootstrap handles the SteamWorks IPC.
+     *  Mutually exclusive with {@link #isLaunchRealSteam()}. */
+    public boolean isLaunchBionicSteam() {
+        return launchBionicSteam;
+    }
+
+    public void setLaunchBionicSteam(boolean launchBionicSteam) {
+        this.launchBionicSteam = launchBionicSteam;
+        if (launchBionicSteam) this.launchRealSteam = false;
     }
 
     public boolean isUseColdClient() {

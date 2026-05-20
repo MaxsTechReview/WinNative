@@ -32,7 +32,6 @@ preference = "1.2.1"
 fragment = "1.8.6"
 recyclerview = "1.4.0"
 coreKtx = "1.15.0"
-javasteam = "1.8.1-SNAPSHOT" # Resolved from WinNative-Emu/JavaSteam winnative-maven first.
 playGames = "21.0.0"
 playServicesAuth = "21.5.1"
 xz = "1.7"
@@ -86,8 +85,6 @@ fragmentKtx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragme
 fragmentCompose = { module = "androidx.fragment:fragment-compose", version.ref = "fragment" }
 recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerview" }
 coreKtx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
-javaSteam = { module = "in.dragonbra:javasteam", version.ref = "javasteam" }
-javaSteamDepotDownloader = { module = "in.dragonbra:javasteam-depotdownloader", version.ref = "javasteam" }
 playServicesGamesV2 = { module = "com.google.android.gms:play-services-games-v2", version.ref = "playGames" }
 playServicesAuth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }

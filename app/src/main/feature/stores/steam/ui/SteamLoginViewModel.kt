@@ -8,7 +8,7 @@ import com.winlator.cmod.feature.stores.steam.enums.LoginScreen
 import com.winlator.cmod.feature.stores.steam.events.SteamEvent
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.ui.data.UserLoginState
-import `in`.dragonbra.javasteam.steam.authentication.IAuthenticator
+import com.winlator.cmod.feature.stores.steam.wnsteam.WnAuthenticator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +31,7 @@ class SteamLoginViewModel : ViewModel() {
     private var credentialLoginJob: Job? = null
 
     private val authenticator =
-        object : IAuthenticator {
+        object : WnAuthenticator {
             override fun acceptDeviceConfirmation(): CompletableFuture<Boolean> {
                 Timber.tag("SteamLoginViewModel").i("Two-Factor, device confirmation")
 

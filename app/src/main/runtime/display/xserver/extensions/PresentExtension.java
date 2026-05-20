@@ -338,12 +338,13 @@ public class PresentExtension
         queryVersion(client, inputStream, outputStream);
         break;
       case ClientOpcodes.PRESENT_PIXMAP: {
-        // Await wait-fence BEFORE the server lock so we don't serialise other clients
-        // behind this one's GPU.
+        // Wait-fence is parsed for protocol conformance but NOT awaited on the dispatch
+        // thread: blocking here stalls every subsequent X request from this client behind
+        // the GPU and was a measured FPS regression vs. pre-DRI3-1.3 behaviour. The actual
+        // sampling happens later on the renderer thread; if a GPU-side sync becomes
+        // necessary, import the sync_file as a Vulkan semaphore and chain it into the
+        // submit instead of blocking here.
         PresentPixmapParams p = parsePresentPixmap(client, inputStream);
-        if (p.waitFence != 0 && syncExtension != null) {
-          syncExtension.waitForFences(new int[] { p.waitFence });
-        }
 
         boolean isLargeFrame;
         try (XLock lock =

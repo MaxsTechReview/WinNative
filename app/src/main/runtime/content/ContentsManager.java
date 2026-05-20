@@ -116,6 +116,12 @@ public class ContentsManager {
    */
   public interface OnExtractionProgressListener {
     void onProgress(int filesExtracted, String currentFileName);
+
+    default boolean prefersByteProgress() {
+      return false;
+    }
+
+    default void onByteProgress(long bytesExtracted) {}
   }
 
   public void setRemoteProfiles(String json) {
@@ -223,22 +229,12 @@ public class ContentsManager {
 
     File file = getTmpDir(context);
 
-    // Count extracted files for progress
     final int[] fileCount = {0};
+    final long[] extractedBytes = {0L};
     final long[] lastProgressUpdateMs = {0L};
     OnExtractFileListener extractListener =
-        progressListener != null
-            ? (destination, size) -> {
-              fileCount[0]++;
-              long now = System.currentTimeMillis();
-              if (fileCount[0] <= 3
-                  || now - lastProgressUpdateMs[0] >= EXTRACTION_PROGRESS_INTERVAL_MS) {
-                progressListener.onProgress(fileCount[0], destination.getName());
-                lastProgressUpdateMs[0] = now;
-              }
-              return destination;
-            }
-            : null;
+        createExtractionProgressListener(
+            progressListener, fileCount, extractedBytes, lastProgressUpdateMs);
 
     boolean ret;
     TarCompressorUtils.Type primaryType = detectCompressionType(context, uri);
@@ -250,6 +246,7 @@ public class ContentsManager {
     ret = TarCompressorUtils.extract(primaryType, context, uri, file, extractListener);
     if (!ret) {
       fileCount[0] = 0;
+      extractedBytes[0] = 0L;
       lastProgressUpdateMs[0] = 0L;
       ret = TarCompressorUtils.extract(fallbackType, context, uri, file, extractListener);
     }
@@ -307,6 +304,50 @@ public class ContentsManager {
     }
 
     callback.onSucceed(profile);
+  }
+
+  private static OnExtractFileListener createExtractionProgressListener(
+      OnExtractionProgressListener progressListener,
+      int[] fileCount,
+      long[] extractedBytes,
+      long[] lastProgressUpdateMs) {
+    if (progressListener == null) return null;
+
+    if (progressListener.prefersByteProgress()) {
+      return new OnExtractFileListener() {
+        @Override
+        public File onExtractFile(File destination, long size) {
+          return destination;
+        }
+
+        @Override
+        public boolean mapsExtractedFiles() {
+          return false;
+        }
+
+        @Override
+        public boolean reportsExtractedBytesOnly() {
+          return true;
+        }
+
+        @Override
+        public void onExtractedBytes(long size) {
+          if (size <= 0) return;
+          extractedBytes[0] += size;
+          progressListener.onByteProgress(extractedBytes[0]);
+        }
+      };
+    }
+
+    return (destination, size) -> {
+      fileCount[0]++;
+      long now = System.currentTimeMillis();
+      if (fileCount[0] <= 3 || now - lastProgressUpdateMs[0] >= EXTRACTION_PROGRESS_INTERVAL_MS) {
+        progressListener.onProgress(fileCount[0], destination.getName());
+        lastProgressUpdateMs[0] = now;
+      }
+      return destination;
+    };
   }
 
   public void finishInstallContent(ContentProfile profile, OnInstallFinishedCallback callback) {

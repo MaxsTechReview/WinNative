@@ -79,6 +79,15 @@ object DownloadCoordinator {
     private val recordChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
     val changes = recordChanges.asSharedFlow()
 
+    /**
+     * True when at least one download is actively transferring. PAUSED and
+     * QUEUED records do not count — nothing is on the wire for them — so a
+     * paused download does not keep the Steam session awake in the
+     * background. Synchronous snapshot read of the current record state.
+     */
+    fun hasActiveDownload(): Boolean =
+        recordsState.value.any { it.status == DownloadRecord.STATUS_DOWNLOADING }
+
     fun init(database: PluviaDatabase) {
         if (dao != null) return
         dao = database.downloadRecordDao()
@@ -184,6 +193,7 @@ object DownloadCoordinator {
                             language = language,
                             taskType = taskType,
                             bytesTotal = if (bytesTotal > 0L) bytesTotal else existing.bytesTotal,
+                            bytesDownloaded = 0L,
                             status = status,
                             errorMessage = null,
                             updatedAt = now,
@@ -202,7 +212,17 @@ object DownloadCoordinator {
         val daoRef = dao ?: return
         scope.launch {
             val record = daoRef.findByStoreGame(store, storeGameId) ?: return@launch
-            daoRef.updateProgress(record.id, bytesDownloaded, bytesTotal)
+            val safeTotal = bytesTotal.coerceAtLeast(0L)
+            val safeDownloaded = bytesDownloaded.coerceAtLeast(0L).let { next ->
+                if (safeTotal == record.bytesTotal && next < record.bytesDownloaded) {
+                    record.bytesDownloaded
+                } else {
+                    next
+                }
+            }.let { next ->
+                if (safeTotal > 0L) next.coerceAtMost(safeTotal) else next
+            }
+            daoRef.updateProgress(record.id, safeDownloaded, safeTotal)
         }
     }
 
@@ -326,6 +346,13 @@ object DownloadCoordinator {
 
             for (record in queued) {
                 if (activeCount >= MAX_PARALLEL_DOWNLOADS) break
+                // Don't promote a record whose store has not registered its
+                // dispatcher yet (the store service is still starting up).
+                // Promoting it to DOWNLOADING here would strand it: dispatch
+                // fails, and a later tick() only scans QUEUED records so it
+                // would never be retried. registerDispatcher() runs tick()
+                // again once the dispatcher is available, picking it up then.
+                if (dispatchers[record.store] == null) continue
                 val started = record.copy(status = DownloadRecord.STATUS_DOWNLOADING, updatedAt = now)
                 daoRef.update(started)
                 toStart.add(started)

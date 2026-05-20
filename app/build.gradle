@@ -44,8 +44,7 @@ abstract class InstallVulkanValidationLayerTask extends DefaultTask {
 }
 
 task checkSubmodules {
-    // Resolve the file path during the configuration phase so we don't
-    // pass the Gradle Project object into the execution closure (which breaks the Configuration Cache).
+    // Keep the execution closure configuration-cache friendly.
     def submodulePath = file("src/main/cpp/adrenotools").absolutePath
 
     doFirst {
@@ -58,10 +57,12 @@ task checkSubmodules {
 
 preBuild.dependsOn(checkSubmodules)
 
+/*
 def installVulkanValidationLayer = tasks.register("installVulkanValidationLayer", InstallVulkanValidationLayerTask) {
     layerVersion.set("1.4.341.0")
     outputFile.set(layout.projectDirectory.file("src/debug/jniLibs/arm64-v8a/libVkLayer_khronos_validation.so"))
 }
+*/
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
@@ -70,6 +71,10 @@ ksp {
 def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
         .getOrElse("Nightly")
+
+// ColdClient asset version used to refresh extracted Steam support after APK updates.
+def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
+def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
 android {
     namespace 'com.winlator.cmod'
@@ -85,7 +90,10 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
-                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384", "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                // Prefab OpenSSL/curl AARs require the shared STL.
+                arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
+                          "-DANDROID_STL=c++_shared"
             }
         }
 
@@ -96,10 +104,15 @@ android {
         resConfigs "en", "da", "de", "es", "fr", "it", "ko", "pl", "pt-rBR", "ro", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("boolean", "GOLD", "false")
+        buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
         buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
         buildConfigField("String", "POSTHOG_HOST", "\"\"")
         buildConfigField("String", "SUPABASE_URL", "\"\"")
         buildConfigField("String", "SUPABASE_KEY", "\"\"")
+    }
+
+    androidResources {
+        noCompress += ['tzst', 'txz']
     }
 
     compileOptions {
@@ -132,11 +145,13 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
-            // Use release signing if available, otherwise fall back to default debug signing
+            proguardFiles 'proguard-rules.pro'
+            // Prefer release signing when configured.
             signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
         }
         release {
             minifyEnabled true
+            proguardFiles 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
@@ -188,6 +203,7 @@ android {
         compose true
         viewBinding true
         buildConfig true
+        prefab true   // OpenSSL/curl Prefab deps.
     }
 
     sourceSets {
@@ -204,9 +220,11 @@ android {
 
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
+/*
             tasks.named("pre${variant.name.capitalize()}Build").configure {
                 dependsOn installVulkanValidationLayer
             }
+*/
             variant.outputs.configureEach { output ->
                 output.outputFileName = "${variant.flavorName}.apk"
             }
@@ -268,12 +286,8 @@ dependencies {
     implementation libs.recyclerview
     implementation libs.coreKtx
 
-    implementation(libs.javaSteam) {
-        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
-    }
-    implementation(libs.javaSteamDepotDownloader) {
-        exclude group: 'com.squareup.okhttp3', module: 'okhttp-jvm'
-    }
+    implementation 'com.android.ndk.thirdparty:openssl:1.1.1q-beta-1'
+    implementation 'com.android.ndk.thirdparty:curl:7.85.0-beta-1'
 
     implementation libs.playServicesGamesV2
     implementation libs.playServicesAuth

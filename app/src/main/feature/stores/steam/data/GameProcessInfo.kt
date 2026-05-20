@@ -1,5 +1,4 @@
 package com.winlator.cmod.feature.stores.steam.data
-import `in`.dragonbra.javasteam.steam.handlers.steamapps.AppProcessInfo
 
 data class GameProcessInfo(
     val appId: Int,

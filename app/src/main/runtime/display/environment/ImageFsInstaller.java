@@ -16,14 +16,28 @@ import com.winlator.cmod.shared.ui.toast.WinToast;
 import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.shared.ui.dialog.DownloadProgressDialog;
+import com.winlator.cmod.shared.util.OnExtractFileListener;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class ImageFsInstaller {
   public static final byte LATEST_VERSION = 22;
+  private static final String IMAGEFS_ARCHIVE = "imagefs.tzst";
+  private static final TarCompressorUtils.Type IMAGEFS_ARCHIVE_TYPE = TarCompressorUtils.Type.ZSTD;
+  private static final long IMAGEFS_EXTRACTED_BYTES = 869024992L;
+  private static final int XZ_PROGRESS_COMPRESSION_RATIO = 22;
+  private static final long DEFAULT_WINE_EXTRACTED_BYTES = 100000000L;
+  private static final long DEFAULT_GUEST_EXTRAS_EXTRACTED_BYTES = 30000000L;
+  private static final long DRIVER_INSTALL_PROGRESS_BYTES = 25000000L;
+  private static final long FINALIZE_PROGRESS_BYTES = 5000000L;
+  private static final long PROGRESS_STEP_DELAY_MS = 10L;
 
   /**
    * Progress callback for installing ImageFS from assets. Lets callers drive a custom UI (e.g.
@@ -53,13 +67,136 @@ public abstract class ImageFsInstaller {
   }
 
   public static void installWineFromAssets(final android.app.Activity activity) {
+    installWineFromAssetsAsync(activity, null);
+  }
+
+  private static boolean installWineFromAssetsAsync(
+      final android.app.Activity activity, OnExtractFileListener listener) {
     String[] versions = activity.getResources().getStringArray(R.array.wine_entries);
     File rootDir = ImageFs.find(activity).getRootDir();
+    List<Future<Boolean>> futures = new ArrayList<>();
     for (String version : versions) {
       File outFile = new File(rootDir, "/opt/" + version);
       outFile.mkdirs();
-      TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
+      futures.add(
+          TarCompressorUtils.extractAsync(
+              TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile, listener));
     }
+    return waitForExtractions(futures);
+  }
+
+  private static final class InstallProgressTracker {
+    private final ProgressListener listener;
+    private final long totalWorkBytes;
+    private final AtomicLong completedBytes = new AtomicLong();
+    private int lastPercent = -1;
+
+    InstallProgressTracker(long totalWorkBytes, ProgressListener listener) {
+      this.totalWorkBytes = Math.max(1L, totalWorkBytes);
+      this.listener = listener;
+    }
+
+    void start() {
+      emit(0L, false);
+    }
+
+    OnExtractFileListener asExtractListener() {
+      return new OnExtractFileListener() {
+        @Override
+        public File onExtractFile(File file, long size) {
+          return file;
+        }
+
+        @Override
+        public void onExtractFileProgress(File file, long size) {
+          addWork(size);
+        }
+
+        @Override
+        public boolean mapsExtractedFiles() {
+          return false;
+        }
+
+        @Override
+        public boolean reportsExtractedBytesOnly() {
+          return true;
+        }
+
+        @Override
+        public void onExtractedBytes(long size) {
+          addWork(size);
+        }
+      };
+    }
+
+    void addWork(long bytes) {
+      if (bytes <= 0) return;
+      emit(completedBytes.addAndGet(bytes), false);
+    }
+
+    void finish() {
+      emit(totalWorkBytes, true);
+    }
+
+    private synchronized void emit(long completed, boolean complete) {
+      if (listener == null) return;
+      int maxPercent = complete ? 100 : 99;
+      int percent =
+          (int) Math.min(maxPercent, Math.floor((completed * 100.0) / totalWorkBytes));
+      if (percent <= lastPercent) return;
+      for (int nextPercent = lastPercent + 1; nextPercent <= percent; nextPercent++) {
+        lastPercent = nextPercent;
+        listener.onProgress(nextPercent);
+        if (nextPercent < percent) {
+          try {
+            Thread.sleep(PROGRESS_STEP_DELAY_MS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  private static long estimateXzExtractedBytes(Context context, String assetFile, long fallback) {
+    long compressedSize = FileUtils.getSize(context, assetFile);
+    if (compressedSize <= 0) return fallback;
+    return Math.max(1L, (compressedSize * 100L) / XZ_PROGRESS_COMPRESSION_RATIO);
+  }
+
+  private static long estimateZstdExtractedBytes(Context context, String assetFile, long fallback) {
+    long compressedSize = FileUtils.getSize(context, assetFile);
+    if (compressedSize <= 0) return fallback;
+    return Math.max(compressedSize, compressedSize * 4L);
+  }
+
+  private static long estimateOptionalZstdExtractedBytes(Context context, String assetFile) {
+    return FileUtils.getSize(context, assetFile) > 0
+        ? estimateZstdExtractedBytes(context, assetFile, 0L)
+        : 0L;
+  }
+
+  private static long estimateWineAssetsExtractedBytes(Context context) {
+    long total = 0L;
+    String[] versions = context.getResources().getStringArray(R.array.wine_entries);
+    for (String version : versions) {
+      total += estimateXzExtractedBytes(context, version + ".txz", DEFAULT_WINE_EXTRACTED_BYTES);
+    }
+    return total;
+  }
+
+  private static long estimateGuestExtrasExtractedBytes(Context context) {
+    return estimateOptionalZstdExtractedBytes(context, "redirect.tzst")
+        + estimateZstdExtractedBytes(context, "extras.tzst", DEFAULT_GUEST_EXTRAS_EXTRACTED_BYTES);
+  }
+
+  private static long estimateInstallWorkBytes(Context context, boolean includeDrivers) {
+    return IMAGEFS_EXTRACTED_BYTES
+        + estimateWineAssetsExtractedBytes(context)
+        + estimateGuestExtrasExtractedBytes(context)
+        + (includeDrivers ? DRIVER_INSTALL_PROGRESS_BYTES : 0L)
+        + FINALIZE_PROGRESS_BYTES;
   }
 
   public static void installDriversFromAssets(final android.app.Activity activity) {
@@ -84,7 +221,14 @@ public abstract class ImageFsInstaller {
 
           @Override
           public void onFinished(boolean success) {
-            dialog.closeOnUiThread();
+            activity.runOnUiThread(
+                () -> {
+                  if (success) {
+                    activity.getWindow().getDecorView().postDelayed(dialog::close, 500L);
+                  } else {
+                    dialog.close();
+                  }
+                });
           }
         });
   }
@@ -94,40 +238,36 @@ public abstract class ImageFsInstaller {
     AppUtils.keepScreenOn(activity);
     ImageFs imageFs = ImageFs.find(activity);
     File rootDir = imageFs.getRootDir();
+    InstallProgressTracker progressTracker =
+        new InstallProgressTracker(estimateInstallWorkBytes(activity, true), listener);
 
     SettingsConfig.resetEmulatorsVersion(activity);
 
     Executors.newSingleThreadExecutor()
         .execute(
             () -> {
+              progressTracker.start();
               clearRootDir(rootDir);
-              final byte compressionRatio = 22;
-              final long contentLength =
-                  (long) (FileUtils.getSize(activity, "imagefs.txz") * (100.0f / compressionRatio));
-              AtomicLong totalSizeRef = new AtomicLong();
 
-              boolean success =
-                  TarCompressorUtils.extract(
-                      TarCompressorUtils.Type.XZ,
+              Future<Boolean> imageFsExtraction =
+                  TarCompressorUtils.extractAsync(
+                      IMAGEFS_ARCHIVE_TYPE,
                       activity,
-                      "imagefs.txz",
+                      IMAGEFS_ARCHIVE,
                       rootDir,
-                      (file, size) -> {
-                        if (size > 0) {
-                          long totalSize = totalSizeRef.addAndGet(size);
-                          final int progress = (int) (((float) totalSize / contentLength) * 100);
-                          if (listener != null) listener.onProgress(progress);
-                        }
-                        return file;
-                      });
+                      progressTracker.asExtractListener());
+              boolean success = waitForExtraction(imageFsExtraction);
 
               if (success) {
                 ExecutorService pool = Executors.newFixedThreadPool(3);
                 CountDownLatch latch = new CountDownLatch(3);
+                AtomicBoolean postInstallSuccess = new AtomicBoolean(true);
                 pool.execute(
                     () -> {
                       try {
-                        installWineFromAssets(activity);
+                        postInstallSuccess.compareAndSet(
+                            true,
+                            installWineFromAssetsAsync(activity, progressTracker.asExtractListener()));
                       } finally {
                         latch.countDown();
                       }
@@ -137,13 +277,14 @@ public abstract class ImageFsInstaller {
                       try {
                         installDriversFromAssets(activity);
                       } finally {
+                        progressTracker.addWork(DRIVER_INSTALL_PROGRESS_BYTES);
                         latch.countDown();
                       }
                     });
                 pool.execute(
                     () -> {
                       try {
-                        installGuestExtras(activity, rootDir);
+                        installGuestExtras(activity, rootDir, progressTracker.asExtractListener());
                       } finally {
                         latch.countDown();
                       }
@@ -153,10 +294,18 @@ public abstract class ImageFsInstaller {
                 } catch (InterruptedException ignored) {
                 }
                 pool.shutdown();
-                imageFs.createImgVersionFile(LATEST_VERSION);
-                resetContainerImgVersions(activity);
-              } else
-                WinToast.show(activity, R.string.setup_wizard_unable_to_install_system_files);
+                success = postInstallSuccess.get();
+                if (success) {
+                  clearSteamDllMarkers(activity);
+                  imageFs.createImgVersionFile(LATEST_VERSION);
+                  resetContainerImgVersions(activity);
+                  progressTracker.addWork(FINALIZE_PROGRESS_BYTES);
+                  progressTracker.finish();
+                }
+              } else {
+                activity.runOnUiThread(
+                    () -> WinToast.show(activity, R.string.setup_wizard_unable_to_install_system_files));
+              }
 
               if (listener != null) listener.onFinished(success);
             });
@@ -164,7 +313,7 @@ public abstract class ImageFsInstaller {
 
   public static void installIfNeeded(final android.app.Activity activity) {
     ImageFs imageFs = ImageFs.find(activity);
-    if (!imageFs.isValid() || imageFs.getVersion() < LATEST_VERSION) installFromAssets(activity);
+    if (!imageFs.isUpToDate()) installFromAssets(activity);
   }
 
   /**
@@ -173,82 +322,7 @@ public abstract class ImageFsInstaller {
    */
   public static void installIfNeededFromAny(final android.app.Activity activity) {
     ImageFs imageFs = ImageFs.find(activity);
-    if (imageFs.isValid() && imageFs.getVersion() >= LATEST_VERSION) return;
-
-    final DownloadProgressDialog dialog = new DownloadProgressDialog(activity);
-    activity.runOnUiThread(() -> dialog.show(R.string.setup_wizard_installing_system_files));
-
-    File rootDir = imageFs.getRootDir();
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              clearRootDir(rootDir);
-              final byte compressionRatio = 22;
-              final long contentLength =
-                  (long) (FileUtils.getSize(activity, "imagefs.txz") * (100.0f / compressionRatio));
-              AtomicLong totalSizeRef = new AtomicLong();
-
-              boolean success =
-                  TarCompressorUtils.extract(
-                      TarCompressorUtils.Type.XZ,
-                      activity,
-                      "imagefs.txz",
-                      rootDir,
-                      (file, size) -> {
-                        if (size > 0) {
-                          long totalSize = totalSizeRef.addAndGet(size);
-                          final int progress = (int) (((float) totalSize / contentLength) * 100);
-                          activity.runOnUiThread(() -> dialog.setProgress(progress));
-                        }
-                        return file;
-                      });
-
-              if (success) {
-                ExecutorService pool = Executors.newFixedThreadPool(2);
-                CountDownLatch latch = new CountDownLatch(2);
-                pool.execute(
-                    () -> {
-                      try {
-                        String[] versions =
-                            activity.getResources().getStringArray(R.array.wine_entries);
-                        for (String version : versions) {
-                          File outFile = new File(rootDir, "/opt/" + version);
-                          outFile.mkdirs();
-                          TarCompressorUtils.extract(
-                              TarCompressorUtils.Type.XZ, activity, version + ".txz", outFile);
-                        }
-                      } catch (Exception e) {
-                        /* wine assets may not exist */
-                      } finally {
-                        latch.countDown();
-                      }
-                    });
-                pool.execute(
-                    () -> {
-                      try {
-                        installGuestExtras(activity, rootDir);
-                      } finally {
-                        latch.countDown();
-                      }
-                    });
-                try {
-                  latch.await();
-                } catch (InterruptedException ignored) {
-                }
-                pool.shutdown();
-                clearSteamDllMarkers(activity);
-                imageFs.createImgVersionFile(LATEST_VERSION);
-              } else {
-                activity.runOnUiThread(
-                    () ->
-                        WinToast.show(
-                            activity,
-                            R.string.setup_wizard_unable_to_install_system_files,
-                            android.widget.Toast.LENGTH_LONG));
-              }
-
-              dialog.closeOnUiThread();
-            });
+    if (!imageFs.isUpToDate()) installFromAssets(activity);
   }
 
   private static void clearOptDir(File optDir) {
@@ -279,8 +353,14 @@ public abstract class ImageFsInstaller {
   }
 
   private static void installGuestExtras(Context context, File rootDir) {
+    installGuestExtras(context, rootDir, null);
+  }
+
+  private static void installGuestExtras(
+      Context context, File rootDir, OnExtractFileListener listener) {
     try {
-      TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "redirect.tzst", rootDir);
+      TarCompressorUtils.extract(
+          TarCompressorUtils.Type.ZSTD, context, "redirect.tzst", rootDir, listener);
     } catch (Exception e) {
       Log.w(
           "ImageFsInstaller",
@@ -288,7 +368,8 @@ public abstract class ImageFsInstaller {
     }
 
     try {
-      TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "extras.tzst", rootDir);
+      TarCompressorUtils.extract(
+          TarCompressorUtils.Type.ZSTD, context, "extras.tzst", rootDir, listener);
     } catch (Exception e) {
       Log.w(
           "ImageFsInstaller",
@@ -317,6 +398,23 @@ public abstract class ImageFsInstaller {
   private static void chmodIfExists(File file) {
     if (file.exists()) {
       FileUtils.chmod(file, 0755);
+    }
+  }
+
+  private static boolean waitForExtractions(List<Future<Boolean>> futures) {
+    boolean success = true;
+    for (Future<Boolean> future : futures) {
+      success &= waitForExtraction(future);
+    }
+    return success;
+  }
+
+  private static boolean waitForExtraction(Future<Boolean> future) {
+    try {
+      return Boolean.TRUE.equals(future.get());
+    } catch (Exception e) {
+      Log.e("ImageFsInstaller", "Async extraction failed", e);
+      return false;
     }
   }
 

@@ -32,10 +32,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.SettingsSuggest
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Save
@@ -109,6 +113,7 @@ internal fun LibraryGameLaunchScreen(
     isCustom: Boolean,
     hasPinnedShortcut: Boolean,
     showSavesAction: Boolean,
+    steamMenuEnabled: Boolean = false,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSettings: () -> Unit,
@@ -116,6 +121,9 @@ internal fun LibraryGameLaunchScreen(
     onSaves: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
+    onVerifyFiles: () -> Unit = {},
+    onCheckForUpdate: () -> Unit = {},
+    onWorkshop: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var uninstallMenuOpen by remember { mutableStateOf(false) }
@@ -235,7 +243,13 @@ internal fun LibraryGameLaunchScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-            SourceTag(sourceLabel = sourceLabel)
+            SourceTag(
+                sourceLabel = sourceLabel,
+                menuEnabled = steamMenuEnabled,
+                onVerifyFiles = onVerifyFiles,
+                onCheckForUpdate = onCheckForUpdate,
+                onWorkshop = onWorkshop,
+            )
         }
 
         Column(
@@ -729,32 +743,104 @@ private fun LaunchMenuTextAction(
 @Composable
 private fun SourceTag(
     sourceLabel: String,
+    menuEnabled: Boolean = false,
+    onVerifyFiles: () -> Unit = {},
+    onCheckForUpdate: () -> Unit = {},
+    onWorkshop: () -> Unit = {},
 ) {
-    Surface(
-        color = Color.White.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            modifier = if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier,
         ) {
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(LaunchAccent),
-            )
-            Text(
-                sourceLabel.uppercase(),
-                color = LaunchTextPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(LaunchAccent),
+                )
+                Text(
+                    sourceLabel.uppercase(),
+                    color = LaunchTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (menuEnabled) {
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = stringResource(R.string.store_game_steam_options),
+                        tint = LaunchTextPrimary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
+        if (menuEnabled) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                offset = DpOffset(x = 0.dp, y = 6.dp),
+                modifier = Modifier.width(232.dp),
+                shape = RoundedCornerShape(12.dp),
+                containerColor = LaunchCard,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                tonalElevation = 0.dp,
+                shadowElevation = 14.dp,
+            ) {
+                LaunchSourceMenuItem(
+                    icon = Icons.Outlined.FactCheck,
+                    label = stringResource(R.string.store_game_verify_files),
+                ) { menuOpen = false; onVerifyFiles() }
+                LaunchSourceMenuItem(
+                    icon = Icons.Outlined.Refresh,
+                    label = stringResource(R.string.store_game_check_for_update),
+                ) { menuOpen = false; onCheckForUpdate() }
+                LaunchSourceMenuItem(
+                    icon = Icons.Outlined.Construction,
+                    label = stringResource(R.string.store_game_workshop),
+                ) { menuOpen = false; onWorkshop() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchSourceMenuItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = LaunchAccentGlow,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            label,
+            color = LaunchTextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

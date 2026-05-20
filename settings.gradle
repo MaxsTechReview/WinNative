@@ -8,12 +8,9 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven {
-            url 'https://raw.githubusercontent.com/WinNative-Emu/JavaSteam/winnative-maven/'
-            content {
-                includeGroup "in.dragonbra"
-            }
-        }
+        // (Phase 9) The in.dragonbra JavaSteam maven repo was removed — the
+        // JavaSteam dependency is gone; Steam support is the in-house
+        // C++ wn-steam-client.
         google()
         mavenCentral()
         maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }

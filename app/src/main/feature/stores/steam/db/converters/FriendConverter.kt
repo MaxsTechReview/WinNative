@@ -1,11 +1,11 @@
 package com.winlator.cmod.feature.stores.steam.db.converters
 import androidx.room.TypeConverter
-import `in`.dragonbra.javasteam.enums.EClientPersonaStateFlag
-import `in`.dragonbra.javasteam.enums.EFriendRelationship
-import `in`.dragonbra.javasteam.enums.EPersonaState
-import `in`.dragonbra.javasteam.enums.EPersonaStateFlag
-import `in`.dragonbra.javasteam.types.GameID
-import `in`.dragonbra.javasteam.types.SteamID
+import com.winlator.cmod.feature.stores.steam.enums.EClientPersonaStateFlag
+import com.winlator.cmod.feature.stores.steam.enums.EFriendRelationship
+import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
+import com.winlator.cmod.feature.stores.steam.enums.EPersonaStateFlag
+import com.winlator.cmod.feature.stores.steam.data.GameID
+import com.winlator.cmod.feature.stores.steam.data.SteamID
 import java.util.Date
 import java.util.EnumSet
 
@@ -17,13 +17,14 @@ class FriendConverter {
     fun dateToTimestamp(date: Date): Long = date.time
 
     @TypeConverter
-    fun toEFriendRelationship(value: Int): EFriendRelationship = EFriendRelationship.from(value)
+    fun toEFriendRelationship(value: Int): EFriendRelationship =
+        EFriendRelationship.from(value) ?: EFriendRelationship.None
 
     @TypeConverter
     fun fromEFriendRelationship(type: EFriendRelationship): Int = type.code()
 
     @TypeConverter
-    fun toEPersonaState(value: Int): EPersonaState = EPersonaState.from(value)
+    fun toEPersonaState(value: Int): EPersonaState = EPersonaState.from(value) ?: EPersonaState.Offline
 
     @TypeConverter
     fun fromEPersonaState(state: EPersonaState): Int = state.code()

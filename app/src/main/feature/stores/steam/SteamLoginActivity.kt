@@ -215,7 +215,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
                         )
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(stringResource(R.string.steam_login_sign_in_to_your_account), color = TextSecondary, fontSize = 11.sp)
-                            if (!state.isSteamConnected) {
+                            if (state.isLoggingIn) {
                                 CircularProgressIndicator(modifier = Modifier.size(10.dp), color = Accent, strokeWidth = 1.5.dp)
                             }
                         }
@@ -260,9 +260,12 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         val showLoginError = hasAttemptedLogin && !state.isLoggingIn && state.loginResult == LoginResult.Failed
         val spacing = if (compact) 10.dp else 14.dp
         val passwordFocus = remember { FocusRequester() }
+        // Phase 9: the C++ WN-Steam-Client connects on demand inside
+        // startLoginWithCredentials — there is no pre-login connection to
+        // wait on, so submission only needs non-empty credentials.
         val canSubmit =
             state.username.isNotEmpty() && state.password.isNotEmpty() &&
-                !state.isLoggingIn && state.isSteamConnected
+                !state.isLoggingIn
 
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
             OutlinedTextField(

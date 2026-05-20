@@ -111,6 +111,18 @@
     <string name="store_game_update_available">Opdatering tilgængelig</string>
     <string name="store_game_update_check_failed">Kunne ikke tjekke for opdatering</string>
     <string name="store_game_update">Opdater</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Bekræft filer</string>
+    <string name="store_game_verify_started">Bekræfter %1$s — se fanen Downloads</string>
+    <string name="store_game_steam_options">Steam-indstillinger</string>
+    <string name="store_game_verify_complete">Bekræftelse af filer fuldført</string>
+    <string name="store_game_verify_failed_notice">Bekræftelse af filer mislykkedes</string>
+    <string name="store_game_progress_background_hint">Du kan lukke dette — det fortsætter i baggrunden. Se fanen Downloads når som helst.</string>
+    <string name="store_game_checking_updates">Søger efter opdateringer…</string>
+    <string name="store_game_no_updates_notice">Ingen opdateringer tilgængelige</string>
+    <string name="store_game_update_complete">Opdatering fuldført</string>
+    <string name="store_game_update_failed_notice">Opdatering mislykkedes</string>
+    <string name="store_game_update_check_failed_notice">Søgning efter opdateringer mislykkedes</string>
     <string name="store_game_download_already_active">Dette spil downloades allerede. Annuller den aktuelle download, før du tilføjer DLC.</string>
     <string name="common_ui_select">Vælg</string>
     <string name="common_ui_select_folder">Vælg mappe</string>
@@ -268,7 +280,7 @@
     <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
     <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
     <string name="shortcuts_properties_use_cold_client">Brug ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Foretrukken metode til Steam-emulering. Patcher DRM under kørsel uden at ændre filer.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Steam-emuleringstilstanden for Steam-spil — håndterer DRM, præstationer og DLC. Anbefales til alle Steam-spil.</string>
     <string name="shortcuts_properties_unpack_files">Ældre DRM</string>
     <string name="shortcuts_properties_unpack_files_description">Fjerner SteamStub DRM fra exe-filen. Engangshandling. Deaktiver kun hvis et spil går i stykker.</string>
     <string name="shortcuts_properties_force_dlc">Tving DLC</string>
@@ -828,6 +840,11 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_extracting_detail">Udpakker… (%1$d filer)</string>
     <string name="settings_content_preparing_package">Forbereder pakke…</string>
     <string name="settings_content_download_complete">Download fuldført</string>
+    <string name="settings_content_already_installed_title">Komponent allerede installeret</string>
+    <string name="settings_content_already_installed_message">Denne komponent er allerede installeret. Fjern den installerede kopi, før du downloader den igen.
+
+Installeret sti:
+%1$s</string>
     <string name="settings_content_conflicting_title">Modstridende indhold installeret</string>
     <string name="settings_content_conflicting_message">Afinstaller venligst det modstridende indhold før du downloader denne pakke.
 

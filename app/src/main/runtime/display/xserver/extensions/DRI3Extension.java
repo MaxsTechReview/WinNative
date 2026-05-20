@@ -3,7 +3,6 @@ package com.winlator.cmod.runtime.display.xserver.extensions;
 import static com.winlator.cmod.runtime.display.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
 import android.util.Log;
-import com.winlator.cmod.runtime.display.connector.SyncFenceFd;
 import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
@@ -40,7 +39,6 @@ public class DRI3Extension implements Extension {
         ByteBuffer data = drawable.getData();
         if (data != null) SysVSharedMemory.unmapSHMSegment(data, data.capacity());
       };
-  private SyncExtension syncExtension;
   private boolean loggedAhbAdvertised;
   private boolean loggedAhbUnavailable;
 
@@ -48,13 +46,10 @@ public class DRI3Extension implements Extension {
     private static final byte QUERY_VERSION = 0;
     private static final byte OPEN = 1;
     private static final byte PIXMAP_FROM_BUFFER = 2;
-    private static final byte FENCE_FROM_FD = 4;
-    private static final byte FD_FROM_FENCE = 5;
     private static final byte GET_SUPPORTED_MODIFIERS = 6;
     private static final byte PIXMAP_FROM_BUFFERS = 7;
     // BuffersFromPixmap (8) intentionally not implemented; AHB re-export over X is rare and
     // requires a worker pool to drive AHardwareBuffer_sendHandleToUnixSocket asynchronously.
-    private static final byte SET_DRM_DEVICE_IN_USE = 9;
   }
 
   @Override
@@ -77,17 +72,17 @@ public class DRI3Extension implements Extension {
     return 0;
   }
 
-  private SyncExtension getSyncExtension(XClient client) {
-    if (syncExtension == null) syncExtension = client.xServer.getExtension(SyncExtension.MAJOR_OPCODE);
-    return syncExtension;
-  }
-
   private void queryVersion(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
     int clientMajor = inputStream.readInt();
     int clientMinor = inputStream.readInt();
+    // Cap at 1.2 — advertising 1.3 makes DXVK use FenceFromFD/FDFromFence per back-buffer,
+    // which adds a SyncExtension poll() dispatcher thread that contends with the X dispatch
+    // thread on fenceLock every frame. Pre-PR #424 advertised 1.0 with no observable issues;
+    // 1.2 keeps PixmapFromBuffers (multi-FD modifiers) which DXVK still uses, while turning
+    // off the sync-fence machinery that regressed in-game vsync 60 cap stability.
     int major = 1;
-    int minor = 3;
+    int minor = 2;
     if (clientMajor < major || (clientMajor == major && clientMinor < minor)) {
       major = clientMajor;
       minor = clientMinor;
@@ -259,73 +254,6 @@ public class DRI3Extension implements Extension {
     }
   }
 
-  /** DRI3 1.0 FenceFromFD (opcode 4). Imports a sync_file FD as an X SYNC fence. */
-  private void fenceFromFd(XClient client, XInputStream inputStream, XOutputStream outputStream)
-      throws IOException, XRequestError {
-    int drawableId = inputStream.readInt();
-    int fenceId = inputStream.readInt();
-    boolean initiallyTriggered = inputStream.readByte() != 0;
-    inputStream.skip(3);
-
-    Drawable drawable = client.xServer.drawableManager.getDrawable(drawableId);
-    if (drawable == null) throw new BadDrawable(drawableId);
-
-    int fd = inputStream.getAncillaryFd();
-    if (fd < 0) throw new BadAlloc();
-
-    SyncExtension sync = getSyncExtension(client);
-    if (sync == null) {
-      SyncFenceFd.closeFd(fd);
-      throw new BadImplementation();
-    }
-    sync.createFromFd(fenceId, initiallyTriggered, fd);
-  }
-
-  /**
-   * DRI3 1.0 FDFromFence (opcode 5). Hands the client an eventfd that becomes readable when
-   * the SYNC fence triggers, so it can poll instead of round-tripping AwaitFence.
-   */
-  private void fdFromFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
-      throws IOException, XRequestError {
-    int drawableId = inputStream.readInt();
-    int fenceId = inputStream.readInt();
-
-    Drawable drawable = client.xServer.drawableManager.getDrawable(drawableId);
-    if (drawable == null) throw new BadDrawable(drawableId);
-
-    SyncExtension sync = getSyncExtension(client);
-    if (sync == null) throw new BadImplementation();
-
-    int exportFd = sync.createExportFd(fenceId);
-    if (exportFd < 0) throw new BadAlloc();
-
-    // Reply FD is for SCM_RIGHTS only; close our copy once sendmsg has duplicated it.
-    try {
-      try (XStreamLock lock = outputStream.lock()) {
-        outputStream.setAncillaryFd(exportFd);
-        outputStream.writeByte(RESPONSE_CODE_SUCCESS);
-        outputStream.writeByte((byte) 1);
-        outputStream.writeShort(client.getSequenceNumber());
-        outputStream.writeInt(0);
-        outputStream.writePad(24);
-      }
-    } finally {
-      SyncFenceFd.closeFd(exportFd);
-    }
-  }
-
-  /** DRI3 1.3 SetDRMDeviceInUse (opcode 9). Single-GPU path, accepted as a no-op. */
-  private void setDrmDeviceInUse(
-      XClient client, XInputStream inputStream, XOutputStream outputStream)
-      throws IOException, XRequestError {
-    int windowId = inputStream.readInt();
-    inputStream.skip(8); // drm_major + drm_minor
-
-    Window window = client.xServer.windowManager.getWindow(windowId);
-    if (window == null) throw new BadWindow(windowId);
-    // intentionally a no-op
-  }
-
   private int[] readAncillaryFds(XInputStream inputStream, int numBuffers) throws XRequestError {
     if (numBuffers < 1 || numBuffers > MAX_BUFFERS) throw new BadAlloc();
 
@@ -445,16 +373,6 @@ public class DRI3Extension implements Extension {
           pixmapFromBuffer(client, inputStream, outputStream);
         }
         break;
-      case ClientOpcodes.FENCE_FROM_FD:
-        try (XLock lock = client.xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
-          fenceFromFd(client, inputStream, outputStream);
-        }
-        break;
-      case ClientOpcodes.FD_FROM_FENCE:
-        try (XLock lock = client.xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
-          fdFromFence(client, inputStream, outputStream);
-        }
-        break;
       case ClientOpcodes.GET_SUPPORTED_MODIFIERS:
         getSupportedModifiers(client, inputStream, outputStream);
         break;
@@ -465,11 +383,6 @@ public class DRI3Extension implements Extension {
                 XServer.Lockable.PIXMAP_MANAGER,
                 XServer.Lockable.DRAWABLE_MANAGER)) {
           pixmapFromBuffers(client, inputStream, outputStream);
-        }
-        break;
-      case ClientOpcodes.SET_DRM_DEVICE_IN_USE:
-        try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
-          setDrmDeviceInUse(client, inputStream, outputStream);
         }
         break;
       default:

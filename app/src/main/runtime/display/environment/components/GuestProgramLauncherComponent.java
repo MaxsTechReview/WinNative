@@ -27,6 +27,7 @@ import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -268,27 +269,54 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
     try {
       Log.d("GuestProgramLauncherComponent", "Shell command is " + finalCommand);
-      java.lang.Process process =
+      final java.lang.Process process =
           Runtime.getRuntime()
               .exec(
                   finalCommand,
                   envVars.toStringArray(),
                   workingDir != null ? workingDir : imageFs.getRootDir());
+
+      // stderr MUST be drained concurrently with stdout. Wine emits a steady
+      // stream of `fixme:`/`err:` lines; if nothing reads stderr, the kernel
+      // pipe buffer (64 KiB) fills and the child blocks forever on its next
+      // stderr write — even if we're only interested in stdout. Sequential
+      // "drain stdout, then stderr" deadlocks the same way, just less often.
+      final boolean captureStderr = includeStderr;
+      Thread stderrPump =
+          new Thread(
+              () -> {
+                try (BufferedReader er =
+                    new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                  String l;
+                  while ((l = er.readLine()) != null) {
+                    if (captureStderr) {
+                      synchronized (output) {
+                        output.append(l).append('\n');
+                      }
+                    }
+                  }
+                } catch (IOException ignored) {
+                  // child closed stderr or we were interrupted — both are fine
+                }
+              },
+              "execShellCommand-stderr-pump");
+      stderrPump.setDaemon(true);
+      stderrPump.start();
+
       try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()));
-          BufferedReader errorReader =
-              new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+          new BufferedReader(new InputStreamReader(process.getInputStream()))) {
         String line;
         while ((line = reader.readLine()) != null) {
-          output.append(line).append("\n");
-        }
-        if (includeStderr) {
-          while ((line = errorReader.readLine()) != null) {
-            output.append(line).append("\n");
+          synchronized (output) {
+            output.append(line).append('\n');
           }
         }
       }
       process.waitFor();
+      // Stderr pump exits on its own when the child closes its stderr fd
+      // (which happens at process exit). Give it a brief grace period to
+      // append any tail lines before we return.
+      stderrPump.join(200);
     } catch (Exception e) {
       output.append("Error: ").append(e.getMessage());
     }
