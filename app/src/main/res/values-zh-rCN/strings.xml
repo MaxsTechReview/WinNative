@@ -111,6 +111,18 @@
     <string name="store_game_update_available">有可用更新</string>
     <string name="store_game_update_check_failed">更新检查失败</string>
     <string name="store_game_update">更新</string>
+    <string name="store_game_workshop">创意工坊</string>
+    <string name="store_game_verify_files">验证文件</string>
+    <string name="store_game_verify_started">正在验证 %1$s — 请查看下载标签页</string>
+    <string name="store_game_steam_options">Steam 选项</string>
+    <string name="store_game_verify_complete">文件验证完成</string>
+    <string name="store_game_verify_failed_notice">文件验证失败</string>
+    <string name="store_game_progress_background_hint">你可以关闭此窗口 — 它会继续运行。可随时在下载标签页查看。</string>
+    <string name="store_game_checking_updates">正在检查更新…</string>
+    <string name="store_game_no_updates_notice">没有可用更新</string>
+    <string name="store_game_update_complete">更新完成</string>
+    <string name="store_game_update_failed_notice">更新失败</string>
+    <string name="store_game_update_check_failed_notice">检查更新失败</string>
     <string name="store_game_download_already_active">此游戏已在下载。请先取消当前下载，然后再添加 DLC。</string>
     <string name="common_ui_select">选择</string>
     <string name="common_ui_select_folder">选择文件夹</string>
@@ -268,7 +280,7 @@
     <string name="shortcuts_properties_exclusive_input">独占输入</string>
     <string name="shortcuts_properties_custom_game_settings">自定义游戏设置</string>
     <string name="shortcuts_properties_use_cold_client">使用 ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">首选 Steam 模拟方式。运行时修补 DRM，无需修改文件。</string>
+    <string name="shortcuts_properties_use_cold_client_description">Steam 游戏的 Steam 模拟模式 — 处理 DRM、成就和 DLC。推荐用于所有 Steam 游戏。</string>
     <string name="shortcuts_properties_unpack_files">旧版 DRM</string>
     <string name="shortcuts_properties_unpack_files_description">从 exe 中移除 SteamStub DRM。一次性操作。仅在游戏出问题时禁用。</string>
     <string name="shortcuts_properties_force_dlc">强制 DLC</string>
@@ -828,6 +840,11 @@
     <string name="settings_content_extracting_detail">正在解压…（%1$d 个文件）</string>
     <string name="settings_content_preparing_package">正在准备包…</string>
     <string name="settings_content_download_complete">下载完成</string>
+    <string name="settings_content_already_installed_title">组件已安装</string>
+    <string name="settings_content_already_installed_message">此组件已安装。再次下载前请先移除已安装的副本。
+
+安装路径：
+%1$s</string>
     <string name="settings_content_conflicting_title">存在冲突的已安装内容</string>
     <string name="settings_content_conflicting_message">请在下载此包之前卸载冲突的内容。
 

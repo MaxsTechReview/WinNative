@@ -33,6 +33,7 @@ namespace wn_steam {
 struct DepotWriteResult {
     uint64_t    files_written = 0;
     uint64_t    bytes_written = 0;   // sum of decompressed chunk bytes
+    bool        resume_trust_safe = false;
     std::string error;               // empty on success
 
     [[nodiscard]] bool ok() const noexcept { return error.empty(); }
@@ -65,10 +66,18 @@ using DepotWriteProgress =
 // exceeds the outstanding chunk count. This is what the user-facing
 // "Download Speed" setting maps to (8 / 16 / 24 / 32).
 //
-// `progress_store` (optional) records which files are fully written +
-// fsync'd. When supplied, a resumed write_depot skips files already recorded
-// done instead of re-reading and re-hashing every chunk of the whole depot.
-// Pass nullptr to disable (full on-disk validation every run).
+// `trust_existing_chunks` is only for resuming after an orderly pause marker.
+// It trusts fully allocated file ranges instead of checksumming them again,
+// while still treating holes / missing ranges as chunks to download.
+// `before_download` is called after validation and immediately before any new
+// chunk writes begin (the depot_downloader uses this to clear the
+// `.cleanpause` marker since we are about to mutate the on-disk depot).
+//
+// `progress_store` (optional, complements `trust_existing_chunks`) records
+// which files are fully written + fdatasync'd. When supplied, a resumed
+// write_depot skips files already recorded done — even after a kill that
+// never wrote a clean-pause marker — instead of re-reading and re-hashing
+// every chunk of the whole depot. Pass nullptr to disable.
 [[nodiscard]] DepotWriteResult write_depot(
     const ContentManifest& manifest,
     std::span<const uint8_t> depot_key,
@@ -79,6 +88,8 @@ using DepotWriteProgress =
     const DepotWriteProgress& progress = {},
     const std::atomic<bool>* cancel = nullptr,
     unsigned max_workers = 8,
+    bool trust_existing_chunks = false,
+    const std::function<void()>& before_download = {},
     DepotProgressStore* progress_store = nullptr);
 
 }  // namespace wn_steam

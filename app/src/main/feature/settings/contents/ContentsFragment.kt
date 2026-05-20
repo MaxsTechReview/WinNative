@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
@@ -50,6 +49,7 @@ class ContentsFragment : Fragment() {
     private val installedSizeFetchesInFlight = mutableSetOf<String>()
 
     private var downloadProgress: ComponentsDownloadProgress? = null
+    private var conflictingContentPath: String? = null
 
     private var autoCreateContainer = true
 
@@ -97,6 +97,10 @@ class ContentsFragment : Fragment() {
                         },
                         onRemoveItem = { item ->
                             profilesByKey[item.key]?.let { onRemoveRequested(it) }
+                        },
+                        onDismissConflict = {
+                            conflictingContentPath = null
+                            publishState()
                         },
                         onToggleAutoCreateContainer = { enabled ->
                             autoCreateContainer = enabled
@@ -186,6 +190,7 @@ class ContentsFragment : Fragment() {
                 installed = installedItems,
                 available = availableItems,
                 downloadProgress = downloadProgress,
+                conflict = conflictingContentPath?.let(::ComponentsConflict),
                 autoCreateContainer = autoCreateContainer,
             )
 
@@ -502,12 +507,28 @@ class ContentsFragment : Fragment() {
             }
 
         val extractionProgress =
-            ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_extracting_title),
-                    message = getString(R.string.settings_content_extracting_detail, filesExtracted),
-                    indeterminate = true,
-                )
+            object : ContentsManager.OnExtractionProgressListener {
+                override fun onProgress(
+                    filesExtracted: Int,
+                    currentFileName: String,
+                ) {
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = getString(R.string.settings_content_extracting_detail, filesExtracted),
+                        indeterminate = true,
+                    )
+                }
+
+                override fun prefersByteProgress(): Boolean = true
+
+                override fun onByteProgress(bytesExtracted: Long) {
+                    val ctx = context ?: return
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = android.text.format.Formatter.formatFileSize(ctx, bytesExtracted),
+                        indeterminate = true,
+                    )
+                }
             }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -522,21 +543,42 @@ class ContentsFragment : Fragment() {
     }
 
     private fun showConflictingContentDialog(profile: ContentProfile) {
-        val conflictingPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
-        val dialog = ContentDialog(requireContext())
-        dialog.setTitle(R.string.settings_content_conflicting_title)
-        dialog.setMessage(
-            getString(
-                R.string.settings_content_conflicting_message,
-                conflictingPath,
-            ),
-        )
-        dialog.findViewById<View>(R.id.BTCancel).isVisible = false
-        dialog.show()
+        conflictingContentPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
+        publishState()
+    }
+
+    private fun findInstalledProfileFor(profile: ContentProfile): ContentProfile? {
+        manager.syncContents()
+
+        val context = requireContext()
+        val remoteUrl = profile.remoteUrl
+        val installedProfile =
+            manager
+                .getProfiles(profile.type)
+                .orEmpty()
+                .firstOrNull { candidate ->
+                    val sameVersion =
+                        candidate.verName == profile.verName &&
+                            candidate.verCode == profile.verCode
+                    val sameRemote = remoteUrl != null && candidate.remoteUrl == remoteUrl
+
+                    candidate.isInstalled &&
+                        ContentsManager.isInstalled(context, candidate) &&
+                        (sameVersion || sameRemote)
+                }
+
+        return installedProfile
+            ?: profile.takeIf { ContentsManager.isInstalled(context, it) }
     }
 
     private fun downloadRemoteContent(profile: ContentProfile) {
         val remoteUrl = profile.remoteUrl ?: return
+        findInstalledProfileFor(profile)?.let { installedProfile ->
+            publishState()
+            showConflictingContentDialog(installedProfile)
+            return
+        }
+
         updateDownloadProgress(
             title = getString(R.string.settings_content_downloading_title),
             message = profile.verName,

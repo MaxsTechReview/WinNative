@@ -111,6 +111,18 @@
     <string name="store_game_update_available">Actualizare disponibilă</string>
     <string name="store_game_update_check_failed">Verificarea actualizărilor a eșuat</string>
     <string name="store_game_update">Actualizează</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Verifică fișierele</string>
+    <string name="store_game_verify_started">Se verifică %1$s — verifică fila Descărcări</string>
+    <string name="store_game_steam_options">Opțiuni Steam</string>
+    <string name="store_game_verify_complete">Verificarea fișierelor s-a încheiat</string>
+    <string name="store_game_verify_failed_notice">Verificarea fișierelor a eșuat</string>
+    <string name="store_game_progress_background_hint">Poți închide această fereastră — continuă în fundal. Verifică fila Descărcări oricând.</string>
+    <string name="store_game_checking_updates">Se verifică actualizările…</string>
+    <string name="store_game_no_updates_notice">Nu sunt actualizări disponibile</string>
+    <string name="store_game_update_complete">Actualizare finalizată</string>
+    <string name="store_game_update_failed_notice">Actualizarea a eșuat</string>
+    <string name="store_game_update_check_failed_notice">Verificarea actualizărilor a eșuat</string>
     <string name="store_game_download_already_active">Acest joc se descarcă deja. Anulează descărcarea curentă înainte de a adăuga DLC.</string>
     <string name="common_ui_select">Selectează</string>
     <string name="common_ui_select_folder">Selectează folder</string>
@@ -268,7 +280,7 @@
     <string name="shortcuts_properties_exclusive_input">Intrare exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Setari personalizate joc</string>
     <string name="shortcuts_properties_use_cold_client">Foloseste ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Metoda preferata de emulare Steam. Aplica patch DRM la rulare fara a modifica fisiere.</string>
+    <string name="shortcuts_properties_use_cold_client_description">Modul de emulare Steam pentru jocuri Steam — gestionează DRM, realizări și DLC. Recomandat pentru toate jocurile Steam.</string>
     <string name="shortcuts_properties_unpack_files">DRM vechi</string>
     <string name="shortcuts_properties_unpack_files_description">Elimina DRM SteamStub din exe. Operatiune unica. Dezactiveaza doar daca un joc nu mai functioneaza.</string>
     <string name="shortcuts_properties_force_dlc">Forteaza DLC</string>
@@ -828,6 +840,11 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_extracting_detail">Se extrage… (%1$d fisiere)</string>
     <string name="settings_content_preparing_package">Se pregateste pachetul…</string>
     <string name="settings_content_download_complete">Descarcare completa</string>
+    <string name="settings_content_already_installed_title">Componenta deja instalata</string>
+    <string name="settings_content_already_installed_message">Aceasta componenta este deja instalata. Elimina copia instalata inainte sa o descarci din nou.
+
+Cale instalata:
+%1$s</string>
     <string name="settings_content_conflicting_title">Continut conflictual instalat</string>
     <string name="settings_content_conflicting_message">Dezinstaleaza continutul conflictual inainte de a descarca acest pachet.
 

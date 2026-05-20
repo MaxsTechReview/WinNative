@@ -44,8 +44,7 @@ abstract class InstallVulkanValidationLayerTask extends DefaultTask {
 }
 
 task checkSubmodules {
-    // Resolve the file path during the configuration phase so we don't
-    // pass the Gradle Project object into the execution closure (which breaks the Configuration Cache).
+    // Keep the execution closure configuration-cache friendly.
     def submodulePath = file("src/main/cpp/adrenotools").absolutePath
 
     doFirst {
@@ -58,10 +57,12 @@ task checkSubmodules {
 
 preBuild.dependsOn(checkSubmodules)
 
+/*
 def installVulkanValidationLayer = tasks.register("installVulkanValidationLayer", InstallVulkanValidationLayerTask) {
     layerVersion.set("1.4.341.0")
     outputFile.set(layout.projectDirectory.file("src/debug/jniLibs/arm64-v8a/libVkLayer_khronos_validation.so"))
 }
+*/
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
@@ -71,10 +72,7 @@ def appVersionName = providers.gradleProperty("VERSION_NAME")
         .orElse(providers.environmentVariable("VERSION_NAME"))
         .getOrElse("Nightly")
 
-// gbe_fork / ColdClient version bundled in assets/experimental-drm.tzst,
-// pinned by tools/gbe_fork.version. Baked into BuildConfig so the runtime
-// can detect an APK update that bumped the asset and refresh the extracted
-// ColdClient (see SteamClientManager.extractColdClientSupport).
+// ColdClient asset version used to refresh extracted Steam support after APK updates.
 def coldClientVersionFile = rootProject.file("tools/gbe_fork.version")
 def coldClientVersion = coldClientVersionFile.exists() ? coldClientVersionFile.text.trim() : "unknown"
 
@@ -92,11 +90,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
-                // ANDROID_STL=c++_shared: required by the Prefab OpenSSL and
-                // curl AARs (com.android.ndk.thirdparty:*), which are built
-                // against the shared STL. The existing native libraries in
-                // this project are C-only (winlator/*.c, patchelf, proot,
-                // xz, steam* shims) so the switch is a no-op for them.
+                // Prefab OpenSSL/curl AARs require the shared STL.
                 arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
                           "-DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384",
                           "-DANDROID_STL=c++_shared"
@@ -115,6 +109,10 @@ android {
         buildConfigField("String", "POSTHOG_HOST", "\"\"")
         buildConfigField("String", "SUPABASE_URL", "\"\"")
         buildConfigField("String", "SUPABASE_KEY", "\"\"")
+    }
+
+    androidResources {
+        noCompress += ['tzst', 'txz']
     }
 
     compileOptions {
@@ -147,11 +145,13 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
-            // Use release signing if available, otherwise fall back to default debug signing
+            proguardFiles 'proguard-rules.pro'
+            // Prefer release signing when configured.
             signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
         }
         release {
             minifyEnabled true
+            proguardFiles 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
@@ -203,7 +203,7 @@ android {
         compose true
         viewBinding true
         buildConfig true
-        prefab true   // wn-steam-client links OpenSSL + curl via NDK Prefab AARs
+        prefab true   // OpenSSL/curl Prefab deps.
     }
 
     sourceSets {
@@ -220,9 +220,11 @@ android {
 
     applicationVariants.configureEach { variant ->
         if (variant.buildType.name == "debug") {
+/*
             tasks.named("pre${variant.name.capitalize()}Build").configure {
                 dependsOn installVulkanValidationLayer
             }
+*/
             variant.outputs.configureEach { output ->
                 output.outputFileName = "${variant.flavorName}.apk"
             }
@@ -284,21 +286,6 @@ dependencies {
     implementation libs.recyclerview
     implementation libs.coreKtx
 
-    // Phase 9 complete: the JavaSteam dependency (libs.javaSteam /
-    // libs.javaSteamDepotDownloader) has been fully removed. All Steam
-    // functionality — connection, login, PICS, cloud, downloads, licenses,
-    // user-stats, friends — is handled by the in-house C++ wn-steam-client
-    // plus in-house Kotlin types (steam.enums / steam.data / steam.utils).
-
-    // Native deps for wn-steam-client (consumed via NDK Prefab from CMake).
-    // These are AAR-packaged prebuilts of OpenSSL and libcurl built for Android NDK.
-    //
-    // NOTE: the com.android.ndk.thirdparty:* Prefab project is effectively
-    // abandoned — these are the LATEST available versions (verified against
-    // dl.google.com/dl/android/maven2/com/android/ndk/thirdparty/.../maven-metadata.xml).
-    // OpenSSL 1.1.1 went EOL on 2023-09-11. The primitives we depend on
-    // (RSA-OAEP-SHA1, AES-256-CBC, HMAC-SHA1, SHA-1/256) are not affected
-    // by any 1.1.1q CVE. Revisit if a maintained replacement appears.
     implementation 'com.android.ndk.thirdparty:openssl:1.1.1q-beta-1'
     implementation 'com.android.ndk.thirdparty:curl:7.85.0-beta-1'
 

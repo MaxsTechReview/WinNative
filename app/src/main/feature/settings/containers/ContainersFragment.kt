@@ -105,7 +105,7 @@ class ContainersFragment : Fragment() {
 
     private fun openAddContainer() {
         val context = context ?: return
-        if (!ImageFs.find(context).isValid) {
+        if (!ImageFs.find(context).isUpToDate) {
             WinToast.show(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG)
             return
         }

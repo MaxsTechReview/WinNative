@@ -993,6 +993,11 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_content_extracting_detail">Extracting… (%1$d files)</string>
     <string name="settings_content_preparing_package">Preparing package…</string>
     <string name="settings_content_download_complete">Download complete</string>
+    <string name="settings_content_already_installed_title">Component Already Installed</string>
+    <string name="settings_content_already_installed_message">This component is already installed. Remove the installed copy before downloading it again.
+
+Installed path:
+%1$s</string>
     <string name="settings_content_conflicting_title">Conflicting Content Installed</string>
     <string name="settings_content_conflicting_message">Please uninstall the conflicting content before downloading this package.
 

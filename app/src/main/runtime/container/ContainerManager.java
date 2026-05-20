@@ -109,7 +109,7 @@ public class ContainerManager {
     } catch (Exception e) {
     }
 
-    // Replace the real "xuser" dir (from imagefs.txz) with a symlink to the active
+    // Replace the real "xuser" dir (from the imagefs archive) with a symlink to the active
     // container. Migrate winhandler.exe/wfm.exe first since they aren't in container
     // pattern archives. Only runs once — after that xuser is already a symlink.
     if (file.exists() && !FileUtils.isSymlink(file)) {

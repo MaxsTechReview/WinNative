@@ -9,6 +9,8 @@ add_subdirectory(adrenotools)
 add_subdirectory(wn-steam-client)
 add_subdirectory(wn-steam-bootstrap)
 
+find_package(curl REQUIRED CONFIG)
+
 # ----------------------------------------------------------------------------
 # SPIR-V shader compilation
 # Each .glsl is compiled by glslc (shipped with the NDK) into a .spv binary,
@@ -90,6 +92,7 @@ add_custom_target(winlator_shaders DEPENDS ${SHADER_HEADERS})
 
 add_library(winlator SHARED
         winlator/drawable.c
+        winlator/native_content_io.cpp
         winlator/gpu_image.c
         winlator/sync_fence.c
         winlator/sysvshared_memory.c
@@ -100,7 +103,6 @@ add_library(winlator SHARED
         winlator/vk/vk_dispatch.c
         winlator/vk/vk_image.c
         winlator/vk/vk_renderer.c
-        xz/native_xz_stream.c
         xz/xz_embedded/xz_crc32.c
         xz/xz_embedded/xz_crc64.c
         xz/xz_embedded/xz_dec_bcj.c
@@ -130,6 +132,8 @@ target_include_directories(winlator PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+target_compile_features(winlator PRIVATE cxx_std_17)
+
 target_link_libraries(winlator
         log
         android
@@ -137,6 +141,8 @@ target_link_libraries(winlator
         aaudio
         vulkan
         adrenotools
+        libzstd_static
+        curl::curl
 )
 
 # Fake evdev input shim used by the pb_controller_fix controller path.
