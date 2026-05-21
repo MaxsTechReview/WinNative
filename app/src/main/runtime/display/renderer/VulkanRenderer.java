@@ -126,6 +126,8 @@ public class VulkanRenderer
     // Effect.writeParams writes into a float[]; we copy into the ByteBuffer afterwards.
     private final float[] effectParamsScratch = new float[MAX_EFFECTS * 4];
 
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
+
     public VulkanRenderer(XServerSurfaceView view, XServer xServer) {
         this.xServerView = view;
         this.xServer = xServer;
@@ -134,20 +136,37 @@ public class VulkanRenderer
 
         xServer.windowManager.addOnWindowModificationListener(this);
         xServer.pointer.addOnPointerMotionListener(this);
-
-        // SYNC FIX: Immediately scan for existing windows to avoid black screen on re-attachment
-        view.queueEvent(this::updateScene);
     }
 
     public void destroy() {
-        // LEAK FIX: Unregister from the persistent XServer to prevent "zombie" listeners
-        xServer.windowManager.removeOnWindowModificationListener(this);
-        xServer.pointer.removeOnPointerMotionListener(this);
+        if (destroyed.compareAndSet(false, true)) {
+            // LEAK FIX: Unregister from the persistent XServer to prevent "zombie" listeners
+            xServer.windowManager.removeOnWindowModificationListener(this);
+            xServer.pointer.removeOnPointerMotionListener(this);
 
-        if (nativeHandle != 0) {
-            nativeDestroy(nativeHandle);
-            nativeHandle = 0;
-            Texture.setRendererHandle(0);
+            if (nativeHandle != 0) {
+                // If we are on the UI thread, nativeDestroy (which might block on vkDeviceWaitIdle)
+                // should run on a background thread to avoid freezing the UI.
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    new Thread(() -> {
+                        synchronized (this) {
+                            if (nativeHandle != 0) {
+                                nativeDestroy(nativeHandle);
+                                nativeHandle = 0;
+                                Texture.setRendererHandle(0);
+                            }
+                        }
+                    }, "Vulkan-Cleanup").start();
+                } else {
+                    synchronized (this) {
+                        if (nativeHandle != 0) {
+                            nativeDestroy(nativeHandle);
+                            nativeHandle = 0;
+                            Texture.setRendererHandle(0);
+                        }
+                    }
+                }
+            }
         }
     }
 

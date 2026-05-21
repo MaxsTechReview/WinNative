@@ -1312,27 +1312,39 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 simulateConfirmInputControlsDialog();
             }
             Executors.newSingleThreadExecutor().execute(() -> {
+                // RE-ATTACH FIX: Detect active session early to skip heavy blocking setup
+                boolean sessionToReuse = SessionKeepAliveService.isSessionActive() &&
+                        SessionKeepAliveService.getActiveEnvironment() != null &&
+                        SessionKeepAliveService.getActiveXServer() != null;
+
                 // Cancel any pending post-game update check since we're launching a new game
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
-                SteamLaunchCloudSync.syncBeforeLaunch(
-                        this,
-                        shortcut,
-                        isCloudSyncEnabledForShortcut(),
-                        this::showLaunchPreloader);
-                EpicLaunchCloudSync.syncBeforeLaunch(
-                        this,
-                        shortcut,
-                        isCloudSyncEnabledForShortcut(),
-                        this::showLaunchPreloader);
-                GogLaunchCloudSync.syncBeforeLaunch(
-                        this,
-                        shortcut,
-                        isCloudSyncEnabledForShortcut(),
-                        this::showLaunchPreloader);
-                setupWineSystemFiles();
-                extractGraphicsDriverFiles();
-                changeWineAudioDriver();
+                if (!sessionToReuse) {
+                    SteamLaunchCloudSync.syncBeforeLaunch(
+                            this,
+                            shortcut,
+                            isCloudSyncEnabledForShortcut(),
+                            this::showLaunchPreloader);
+                    EpicLaunchCloudSync.syncBeforeLaunch(
+                            this,
+                            shortcut,
+                            isCloudSyncEnabledForShortcut(),
+                            this::showLaunchPreloader);
+                    GogLaunchCloudSync.syncBeforeLaunch(
+                            this,
+                            shortcut,
+                            isCloudSyncEnabledForShortcut(),
+                            this::showLaunchPreloader);
+                    setupWineSystemFiles();
+                    extractGraphicsDriverFiles();
+                    changeWineAudioDriver();
+                } else {
+                    Log.i("XServerDisplayActivity", "Skipping pre-game setup for active background session");
+                    // Still need to ensure refresh rate is applied for the new Activity window
+                    applyPreferredRefreshRate();
+                }
+
                 try {
                     setupXEnvironment();
                 } catch (PackageManager.NameNotFoundException e) {

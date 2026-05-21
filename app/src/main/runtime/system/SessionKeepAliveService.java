@@ -69,7 +69,13 @@ public class SessionKeepAliveService extends Service {
         public void run() {
             if (sessionActive.get()) {
                 Log.d(TAG, "Running periodic OOM protection for wine processes");
-                ProcessHelper.protectAllWineProcesses();
+                new Thread(() -> {
+                    try {
+                        ProcessHelper.protectAllWineProcesses();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to run OOM protection", e);
+                    }
+                }, "WineOomProtection").start();
                 protectionHandler.postDelayed(this, 2 * 60 * 1000L); // Every 2 minutes
             }
         }
@@ -233,10 +239,16 @@ public class SessionKeepAliveService extends Service {
             if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
             if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
             ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), -1000);
-            ProcessHelper.protectAllWineProcesses();
+            new Thread(() -> {
+                try {
+                    ProcessHelper.protectAllWineProcesses();
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to run initial OOM protection", e);
+                }
+            }, "InitialWineOomProtection").start();
         } else {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+            if (wifiLock != null && wakeLock.isHeld()) wifiLock.release();
             ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), 0);
         }
 

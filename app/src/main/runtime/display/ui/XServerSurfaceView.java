@@ -169,17 +169,10 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     }
 
     private void stopRenderThread() {
-        Thread t;
         synchronized (renderLock) {
             running = false;
             renderLock.notifyAll();
-            t = renderThread;
             renderThread = null;
-        }
-        if (t != null) {
-            try {
-                t.join(1000);
-            } catch (InterruptedException ignore) {}
         }
     }
 

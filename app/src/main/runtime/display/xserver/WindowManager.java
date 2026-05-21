@@ -444,59 +444,79 @@ public class WindowManager extends XResourceManager {
 
   public void addOnWindowModificationListener(
       OnWindowModificationListener onWindowModificationListener) {
-    onWindowModificationListeners.add(onWindowModificationListener);
+    synchronized (onWindowModificationListeners) {
+      onWindowModificationListeners.add(onWindowModificationListener);
+    }
   }
 
   public void removeOnWindowModificationListener(
       OnWindowModificationListener onWindowModificationListener) {
-    onWindowModificationListeners.remove(onWindowModificationListener);
+    synchronized (onWindowModificationListeners) {
+      onWindowModificationListeners.remove(onWindowModificationListener);
+    }
   }
 
   private void triggerOnMapWindow(Window window) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onMapWindow(window);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onMapWindow(window);
+      }
     }
   }
 
   private void triggerOnUnmapWindow(Window window) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onUnmapWindow(window);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onUnmapWindow(window);
+      }
     }
   }
 
   public void triggerOnDestroyWindow(Window window) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onDestroyWindow(window);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onDestroyWindow(window);
+      }
     }
   }
 
   private void triggerOnChangeWindowZOrder(Window window) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onChangeWindowZOrder(window);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onChangeWindowZOrder(window);
+      }
     }
   }
 
   protected void triggerOnUpdateWindowContent(Window window) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onUpdateWindowContent(window);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onUpdateWindowContent(window);
+      }
     }
   }
 
   protected void triggerOnUpdateWindowGeometry(Window window, boolean resized) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onUpdateWindowGeometry(window, resized);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onUpdateWindowGeometry(window, resized);
+      }
     }
   }
 
   public void triggerOnUpdateWindowAttributes(Window window, Bitmask mask) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onUpdateWindowAttributes(window, mask);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onUpdateWindowAttributes(window, mask);
+      }
     }
   }
 
   public void triggerOnModifyWindowProperty(Window window, Property property) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onModifyWindowProperty(window, property);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onModifyWindowProperty(window, property);
+      }
     }
   }
 
@@ -505,8 +525,10 @@ public class WindowManager extends XResourceManager {
   }
 
   public void triggerOnFramePresented(Window window, FrameSource source, int serial) {
-    for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-      onWindowModificationListeners.get(i).onFramePresented(window, source, serial);
+    synchronized (onWindowModificationListeners) {
+      for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
+        onWindowModificationListeners.get(i).onFramePresented(window, source, serial);
+      }
     }
   }
 }
