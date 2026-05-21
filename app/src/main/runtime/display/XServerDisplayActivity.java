@@ -4435,7 +4435,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         // Proton-version flips repair controller detection because they rebuild the prefix and
         // restore controller DllOverrides. Keep that correction narrow and explicit here.
-        WineUtils.ensureControllerDllOverrides(container);
         WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
         WineUtils.ensureWinebusConfig(container);
 

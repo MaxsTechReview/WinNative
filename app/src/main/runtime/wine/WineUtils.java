@@ -807,36 +807,6 @@ public abstract class WineUtils {
     }
   }
 
-  private static final String[] XINPUT_DLLS = {
-    "xinput1_1.dll", "xinput1_2.dll", "xinput1_3.dll",
-    "xinput1_4.dll", "xinput9_1_0.dll", "xinputuap.dll"
-  };
-
-  public static void ensureControllerDllOverrides(Container container) {
-    if (container == null) return;
-
-    File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
-    if (!userRegFile.isFile()) return;
-
-    final String dllOverridesKey = "Software\\Wine\\DllOverrides";
-    final String[] dinputLibs = {"dinput", "dinput8"};
-
-    try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-      for (String name : dinputLibs) {
-        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-        }
-      }
-
-      for (String dll : XINPUT_DLLS) {
-        String name = dll.substring(0, dll.length() - 4);
-        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-        }
-      }
-    }
-  }
-
   // Pre-seed the VC++ 2015-2022 redistributable registry markers when the proton
   // wcp has already laid down the runtime DLLs (msvcp140, vcruntime140, etc.) in
   // system32. Without these registry keys vc_redist's Burn bootstrapper sees
