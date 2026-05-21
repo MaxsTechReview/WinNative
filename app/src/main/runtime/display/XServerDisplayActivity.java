@@ -5925,7 +5925,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             boolean isArm64EC = wineInfo != null && wineInfo.isArm64EC();
 
             for (String[] wincomponent : new KeyValueSet(wincomponents)) {
-                if (wincomponent[1].equals(oldWinComponentsIter.next()[1]) && !firstTimeBoot) continue;
+                String[] oldWinComponent = oldWinComponentsIter.hasNext() ? oldWinComponentsIter.next() : null;
+                boolean wincomponentChanged = oldWinComponent == null || !wincomponent[1].equals(oldWinComponent[1]);
+                if (!wincomponentChanged && !firstTimeBoot) continue;
                 String identifier = wincomponent[0];
                 boolean useNative = wincomponent[1].equals("1");
 
@@ -5941,7 +5943,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
                 Log.d("XServerDisplayActivity", "Setting wincomponent " + identifier + " to " + useNative
                         + (useNative && isArm64EC ? " (arm64ec: tzst skipped, restoring arch-correct DLLs)" : ""));
-                WineUtils.overrideWinComponentDlls(this, container, identifier, useNative);
+                WineUtils.overrideWinComponentDlls(this, container, identifier, useNative, !wincomponentChanged);
                 WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative, this);
             }
 

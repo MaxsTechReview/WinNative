@@ -723,16 +723,16 @@ public abstract class WineUtils {
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (String name : direct3dLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
+        setDllOverrideDefault(registryEditor, dllOverridesKey, name, "native,builtin");
       for (String name : dinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        setDllOverrideDefault(registryEditor, dllOverridesKey, name, "builtin,native");
       for (String name : xinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        setDllOverrideDefault(registryEditor, dllOverridesKey, name, "builtin,native");
       // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
       if (wineInfo != null
           && wineInfo.isArm64EC()
           && !GPUInformation.getRenderer(null, null).contains("Mali")) {
-        registryEditor.setStringValue(dllOverridesKey, "opengl32", "native,builtin");
+        setDllOverrideDefault(registryEditor, dllOverridesKey, "opengl32", "native,builtin");
       }
       setWindowMetrics(registryEditor);
     }
@@ -788,6 +788,14 @@ public abstract class WineUtils {
     "xinput1_4.dll", "xinput9_1_0.dll", "xinputuap.dll"
   };
 
+  private static void setDllOverrideDefault(
+      WineRegistryEditor registryEditor, String dllOverridesKey, String name, String value) {
+    String currentValue = registryEditor.getStringValue(dllOverridesKey, name, null);
+    if (currentValue == null) {
+      registryEditor.setStringValue(dllOverridesKey, name, value);
+    }
+  }
+
   public static void ensureControllerDllOverrides(Container container) {
     if (container == null) return;
 
@@ -799,16 +807,12 @@ public abstract class WineUtils {
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (String name : dinputLibs) {
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
-        }
+        setDllOverrideDefault(registryEditor, dllOverridesKey, name, "builtin,native");
       }
 
       for (String dll : XINPUT_DLLS) {
         String name = dll.substring(0, dll.length() - 4);
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
-        }
+        setDllOverrideDefault(registryEditor, dllOverridesKey, name, "builtin,native");
       }
     }
   }
@@ -937,6 +941,15 @@ public abstract class WineUtils {
 
   public static void overrideWinComponentDlls(
       Context context, Container container, String identifier, boolean useNative) {
+    overrideWinComponentDlls(context, container, identifier, useNative, false);
+  }
+
+  public static void overrideWinComponentDlls(
+      Context context,
+      Container container,
+      String identifier,
+      boolean useNative,
+      boolean preserveExisting) {
     final String dllOverridesKey = "Software\\Wine\\DllOverrides";
     File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
 
@@ -948,8 +961,14 @@ public abstract class WineUtils {
       for (int i = 0; i < dlnames.length(); i++) {
         String dlname = dlnames.getString(i);
         if (useNative) {
-          registryEditor.setStringValue(dllOverridesKey, dlname, "native,builtin");
-        } else registryEditor.removeValue(dllOverridesKey, dlname);
+          if (preserveExisting) {
+            setDllOverrideDefault(registryEditor, dllOverridesKey, dlname, "native,builtin");
+          } else {
+            registryEditor.setStringValue(dllOverridesKey, dlname, "native,builtin");
+          }
+        } else if (!preserveExisting) {
+          registryEditor.removeValue(dllOverridesKey, dlname);
+        }
       }
     } catch (JSONException e) {
     }
