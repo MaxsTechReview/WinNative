@@ -312,8 +312,12 @@ class DriversFragment : Fragment() {
     }
 
     private fun fetchGithubReleases(source: DriverRepo): List<DriverReleaseItem> {
+        val apiUrl = if (source.apiUrl.contains("api.github.com")) {
+            if (source.apiUrl.contains("?")) "${source.apiUrl}&per_page=100" else "${source.apiUrl}?per_page=100"
+        } else source.apiUrl
+
         val connection =
-            (URL(source.apiUrl).openConnection() as HttpURLConnection).apply {
+            (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 15000
                 readTimeout = 15000
@@ -353,9 +357,9 @@ class DriversFragment : Fragment() {
         return buildList {
             for (index in 0 until length()) {
                 val assetObject = optJSONObject(index) ?: continue
-                val assetName = assetObject.optString("name")
+                val assetName = assetObject.optString("name").trim()
                 val downloadUrl = assetObject.optString("browser_download_url")
-                if (!assetName.lowercase(Locale.getDefault()).endsWith(".zip") || downloadUrl.isBlank()) continue
+                if (!assetName.lowercase(Locale.ROOT).endsWith(".zip") || downloadUrl.isBlank()) continue
 
                 add(
                     DriverAssetItem(
