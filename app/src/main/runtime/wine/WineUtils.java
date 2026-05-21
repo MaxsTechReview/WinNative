@@ -622,12 +622,26 @@ public abstract class WineUtils {
   }
 
   public static boolean isRegistryFileValid(File regFile) {
-    if (regFile == null || !regFile.isFile() || regFile.length() < 24) return false;
+    if (regFile == null || !regFile.isFile()) {
+        Log.w("WineUtils", "isRegistryFileValid: " + (regFile == null ? "null" : regFile.getPath()) + " is not a file");
+        return false;
+    }
+    if (regFile.length() < 24) {
+        Log.w("WineUtils", "isRegistryFileValid: " + regFile.getPath() + " is too short (" + regFile.length() + " bytes)");
+        return false;
+    }
     String contents = FileUtils.readString(regFile);
-    if (contents == null) return false;
+    if (contents == null) {
+        Log.w("WineUtils", "isRegistryFileValid: " + regFile.getPath() + " could not be read");
+        return false;
+    }
 
     String normalized = contents.trim();
-    return normalized.startsWith("WINE REGISTRY Version");
+    boolean valid = normalized.startsWith("WINE REGISTRY Version");
+    if (!valid) {
+        Log.w("WineUtils", "isRegistryFileValid: " + regFile.getPath() + " has invalid header: " + (normalized.length() > 24 ? normalized.substring(0, 24) : normalized));
+    }
+    return valid;
   }
 
   public static boolean isPrefixValid(File containerDir) {
@@ -638,10 +652,20 @@ public abstract class WineUtils {
     File userRegFile = new File(prefixDir, "user.reg");
     File windowsDir = new File(prefixDir, "drive_c/windows");
 
-    return prefixDir.isDirectory()
-        && windowsDir.isDirectory()
-        && isRegistryFileValid(systemRegFile)
-        && isRegistryFileValid(userRegFile);
+    boolean prefixExists = prefixDir.isDirectory();
+    boolean windowsExists = windowsDir.isDirectory();
+    boolean systemRegValid = isRegistryFileValid(systemRegFile);
+    boolean userRegValid = isRegistryFileValid(userRegFile);
+
+    if (!prefixExists || !windowsExists || !systemRegValid || !userRegValid) {
+        Log.w("WineUtils", "isPrefixValid: invalid for " + containerDir.getName() + 
+            " prefixDir=" + prefixExists + 
+            " windowsDir=" + windowsExists + 
+            " systemReg=" + systemRegValid + 
+            " userReg=" + userRegValid);
+    }
+
+    return prefixExists && windowsExists && systemRegValid && userRegValid;
   }
 
   private static void setWindowMetrics(WineRegistryEditor registryEditor) {
@@ -725,9 +749,9 @@ public abstract class WineUtils {
       for (String name : direct3dLibs)
         registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : dinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : xinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
       if (wineInfo != null
           && wineInfo.isArm64EC()
@@ -799,15 +823,15 @@ public abstract class WineUtils {
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (String name : dinputLibs) {
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
       }
 
       for (String dll : XINPUT_DLLS) {
         String name = dll.substring(0, dll.length() - 4);
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
       }
     }
