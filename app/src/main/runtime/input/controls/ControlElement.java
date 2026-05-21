@@ -1479,44 +1479,24 @@ return boundingBox;
         if (currentPosition == null) currentPosition = new PointF();
         currentPosition.x = boundingBox.left + deltaX * radius + radius;
         currentPosition.y = boundingBox.top + deltaY * radius + radius;
-        Binding firstBinding = getBindingAt(0);
-        if (firstBinding.isGamepad()) {
-          float magnitude = (float) Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          float finalX = 0;
-          float finalY = 0;
 
-          if (magnitude > STICK_DEAD_ZONE) {
-            float normalizedX = deltaX / magnitude;
-            float normalizedY = deltaY / magnitude;
-            float scaledMagnitude = Math.max(0, magnitude - 0.01f) * STICK_SENSITIVITY;
-            scaledMagnitude = Math.min(scaledMagnitude, 1.0f);
-            finalX = normalizedX * scaledMagnitude;
-            finalY = normalizedY * scaledMagnitude;
-          }
+        float adjDeltaX = (Math.abs(deltaX) < Math.abs(deltaY) * STICK_CROSS_ZONE) ? 0 : deltaX;
+        float adjDeltaY = (Math.abs(deltaY) < Math.abs(deltaX) * STICK_CROSS_ZONE) ? 0 : deltaY;
+        final boolean[] states = {adjDeltaY <= -STICK_DEAD_ZONE, adjDeltaX >= STICK_DEAD_ZONE, adjDeltaY >= STICK_DEAD_ZONE, adjDeltaX <= -STICK_DEAD_ZONE};
 
-          inputControlsView.handleStickInput(firstBinding, finalX, finalY);
-          for (byte i = 0; i < 4; i++) {
+        for (byte i = 0; i < 4; i++) {
+          float value = i == 1 || i == 3 ? adjDeltaX : adjDeltaY;
+          Binding binding = getBindingAt(i);
+          if (binding.isGamepad()) {
+            value = Mathf.clamp(Math.max(0, Math.abs(value) - 0.01f) * Mathf.sign(value) * STICK_SENSITIVITY, -1, 1);
+            inputControlsView.handleInputEvent(binding, true, value);
             this.states[i] = true;
-          }
-        } else {
-          float adjDeltaX = (Math.abs(deltaX) < Math.abs(deltaY) * STICK_CROSS_ZONE) ? 0 : deltaX;
-          float adjDeltaY = (Math.abs(deltaY) < Math.abs(deltaX) * STICK_CROSS_ZONE) ? 0 : deltaY;
-          final boolean[] states = {
-            adjDeltaY <= -STICK_DEAD_ZONE,
-            adjDeltaX >= STICK_DEAD_ZONE,
-            adjDeltaY >= STICK_DEAD_ZONE,
-            adjDeltaX <= -STICK_DEAD_ZONE
-          };
-
-          for (byte i = 0; i < 4; i++) {
-            float value = i == 1 || i == 3 ? deltaX : deltaY;
-            Binding binding = getBindingAt(i);
+          } else {
             boolean state = binding.isMouseMove() ? (states[i] || states[(i + 2) % 4]) : states[i];
             inputControlsView.handleInputEvent(binding, state, value);
             this.states[i] = state;
           }
         }
-
         inputControlsView.invalidate();
       } else if (type == Type.TRACKPAD) {
         Binding firstBinding = getBindingAt(0);
