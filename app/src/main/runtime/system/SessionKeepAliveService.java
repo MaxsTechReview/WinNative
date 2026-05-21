@@ -248,7 +248,7 @@ public class SessionKeepAliveService extends Service {
             }, "InitialWineOomProtection").start();
         } else {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-            if (wifiLock != null && wakeLock.isHeld()) wifiLock.release();
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
             ProcessHelper.setOomScoreAdj(android.os.Process.myPid(), 0);
         }
 
