@@ -597,6 +597,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        if (savedInstanceState != null) isPaused = savedInstanceState.getBoolean("isPaused", false);
         super.onCreate(savedInstanceState);
         AppUtils.hideSystemUI(this);
         AppUtils.keepScreenOn(this);
@@ -1849,11 +1850,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
 
-        if (!cleaningUp && !preferences.getBoolean("enable_background_session", false)) {
-            ProcessHelper.pauseAllWineProcesses();
-            SessionKeepAliveService.onPauseSession(this);
-        }
-
         // Suspend task-manager polling while backgrounded; onResume restarts it
         // if the pane is still the active selection.
         if (taskManagerTimer != null) {
@@ -1862,6 +1858,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
             taskManagerAccum.clear();
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("isPaused", isPaused);
     }
 
     private void savePlaytimeData() {
