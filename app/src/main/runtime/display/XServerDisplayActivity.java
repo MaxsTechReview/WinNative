@@ -3344,14 +3344,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index <= 0) {
                             hideInputControls();
                         } else {
-                            // Use the same filtered list the dropdown was rendered from so the
-                            // user's tap selects what they actually saw.
                             ArrayList<ControlsProfile> profiles = getVisibleControlsProfiles();
-                            if (index - 1 < profiles.size()) showInputControls(profiles.get(index - 1));
+                            if (index - 1 < profiles.size()) {
+                                ControlsProfile profile = profiles.get(index - 1);
+                                showInputControls(profile);
+
+                                if (profile.id != InputControlsManager.LEGACY_XBOX_PROFILE_ID &&
+                                    profile.id != InputControlsManager.LEGACY_PS_PROFILE_ID &&
+                                    profile.id != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
+                                    if (inputControlsView != null) inputControlsView.setLabelTheme(LabelTheme.DEFAULT);
+                                    preferences.edit().putString("input_label_theme", LabelTheme.DEFAULT.name()).apply();
+                                }                            }
                         }
                         renderDrawerMenu();
                     }
-
                     @Override
                     public void onInputControlsStyleSelected(int index) {
                         VisualStyle[] all = VisualStyle.values();
