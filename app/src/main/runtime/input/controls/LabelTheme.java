@@ -20,9 +20,24 @@ public enum LabelTheme {
     return new String[] {"Original", "Xbox", "PlayStation"};
   }
 
-  /** Returns the override color for a binding, or {@code 0} if this theme doesn't override it. */
-  public int colorFor(Binding binding) {
-    if (this == DEFAULT || binding == null) return 0;
+  public int colorFor(InputControlsManager manager, Binding binding) {
+    if (this == DEFAULT || binding == null || manager == null) return 0;
+
+    int profileId = -1;
+    if (this == XBOX) {
+        profileId = InputControlsManager.LEGACY_XBOX_PROFILE_ID;
+    } else if (this == PLAYSTATION) {
+        profileId = InputControlsManager.LEGACY_PS_PROFILE_ID;
+    }
+
+    if (profileId != -1) {
+        ControlsProfile p = manager.getProfile(profileId);
+        if (p != null) {
+            int color = p.findColorForBinding(binding);
+            if (color != -1) return color;
+        }
+    }
+
     switch (this) {
       case XBOX:
         switch (binding) {
@@ -55,7 +70,6 @@ public enum LabelTheme {
     }
   }
 
-  /** Returns the override label for a binding, or {@code null} if no override. */
   public String labelFor(Binding binding) {
     if (this == DEFAULT || binding == null) return null;
     switch (this) {
@@ -122,12 +136,10 @@ public enum LabelTheme {
     }
   }
 
-  /** Convenience for callers that don't want to deal with the 0 sentinel. */
-  public boolean overridesColor(Binding binding) {
-    return colorFor(binding) != 0;
+  public boolean overridesColor(InputControlsManager manager, Binding binding) {
+    return colorFor(manager, binding) != 0;
   }
 
-  /** Returns {@link Color#WHITE} as a neutral fallback when {@link #colorFor} returns 0. */
   public static int safeColor(int themedColor, int fallback) {
     return themedColor != 0 ? themedColor : fallback;
   }

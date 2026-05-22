@@ -231,6 +231,10 @@ public class ControlElement {
     this.boundingBoxNeedsUpdate = true;
   }
 
+  public Binding[] getBindings() {
+    return bindings;
+  }
+
   public Binding getBindingAt(int index) {
     return index < bindings.length ? bindings[index] : Binding.NONE;
   }
@@ -413,7 +417,7 @@ return boundingBox;
     if (customColor != -1) return customColor;
     LabelTheme theme = inputControlsView.getLabelTheme();
     if (theme != null) {
-      int c = theme.colorFor(getBindingAt(0));
+      int c = theme.colorFor(inputControlsView.getInputControlsManager(), getBindingAt(0));
       if (c != 0) return c;
     }
     return -1;

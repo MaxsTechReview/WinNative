@@ -42,6 +42,7 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
+import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
@@ -76,6 +77,7 @@ public class InputControlsView extends View {
   private boolean showTouchscreenControls = false;
   private VisualStyle visualStyle = VisualStyle.ORIGINAL;
   private LabelTheme labelTheme = LabelTheme.DEFAULT;
+  private InputControlsManager inputControlsManager;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
   private Runnable hideControlsRunnable; // Runnable to hide the controls
@@ -100,6 +102,10 @@ public class InputControlsView extends View {
   public void setFocusOnStick(boolean focus) {
     this.focusOnStick = focus;
     invalidate(); // Redraw the view with the new focus setting
+  }
+
+  public void setInputControlsManager(InputControlsManager inputControlsManager) {
+    this.inputControlsManager = inputControlsManager;
   }
 
   @SuppressLint("ResourceType")
@@ -193,6 +199,10 @@ public class InputControlsView extends View {
 
   public LabelTheme getLabelTheme() {
     return labelTheme;
+  }
+
+  public InputControlsManager getInputControlsManager() {
+    return inputControlsManager;
   }
 
   public void setLabelTheme(LabelTheme theme) {

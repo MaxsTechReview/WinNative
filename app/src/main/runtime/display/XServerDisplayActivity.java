@@ -3374,15 +3374,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index < 0 || index >= all.length) return;
                         LabelTheme chosen = all[index];
 
-                        if (chosen == LabelTheme.XBOX) {
-                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
-                            if (p != null) showInputControls(p);
-                        } else if (chosen == LabelTheme.PLAYSTATION) {
-                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
-                            if (p != null) showInputControls(p);
-                        } else if (chosen == LabelTheme.DEFAULT) {
-                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-                            if (p != null) showInputControls(p);
+                        ControlsProfile currentProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        int currentId = currentProfile != null ? currentProfile.id : -1;
+
+                        if (currentId != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
+                            if (chosen == LabelTheme.XBOX) {
+                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
+                                if (p != null) showInputControls(p);
+                            } else if (chosen == LabelTheme.PLAYSTATION) {
+                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
+                                if (p != null) showInputControls(p);
+                            } else if (chosen == LabelTheme.DEFAULT) {
+                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
+                                if (p != null) showInputControls(p);
+                            }
                         }
 
                         if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
@@ -4977,6 +4982,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         rootView.addView(touchpadView);
 
         inputControlsView = new InputControlsView(this, timeoutHandler, hideControlsRunnable);
+        inputControlsView.setInputControlsManager(inputControlsManager);
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
