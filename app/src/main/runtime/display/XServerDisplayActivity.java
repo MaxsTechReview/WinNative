@@ -5390,6 +5390,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void hideInputControls() {
         inputControlsView.setVisibility(View.GONE);
         inputControlsView.setProfile(null);
+        preferences.edit().putBoolean("show_touchscreen_controls_enabled", false).apply();
         applyTouchscreenOverlayPreference();
         persistSelectedProfile(null);
 

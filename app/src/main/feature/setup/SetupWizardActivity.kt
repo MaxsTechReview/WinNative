@@ -115,6 +115,7 @@ import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
+import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
@@ -246,7 +247,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
 
         @JvmStatic
-        fun getLastInstalledDriverId(context: Context): String = prefs(context).getString(KEY_LAST_DRIVER_ID, "") ?: ""
+        fun getLastInstalledDriverId(context: Context): String {
+            val lastId = prefs(context).getString(KEY_LAST_DRIVER_ID, "") ?: ""
+            if (lastId.isBlank() || lastId == "System") return ""
+
+            val manager = AdrenotoolsManager(context)
+            val installed = manager.enumarateInstalledDrivers()
+            if (installed.contains(lastId)) return lastId
+
+            return if (installed.isNotEmpty()) {
+                val first = installed[0]
+                recordInstalledDriver(context, first)
+                first
+            } else {
+                recordInstalledDriver(context, "")
+                ""
+            }
+        }
 
         @JvmStatic
         fun recordInstalledContent(
