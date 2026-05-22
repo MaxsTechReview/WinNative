@@ -577,6 +577,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_exit_subtitle">Laufende Sitzung schließen</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen-Overlay</string>
     <string name="session_drawer_resume">Fortsetzen</string>
+    <string name="session_drawer_retry">Erneut versuchen</string>
+    <string name="downloads_no_internet">Keine Internetverbindung</string>
     <string name="session_drawer_pause">Pausieren</string>
     <string name="session_drawer_wine_processes_paused">Wine-Prozesse sind pausiert</string>
     <string name="session_drawer_pause_all_wine_processes">Alle Wine-Prozesse pausieren</string>
@@ -1174,6 +1176,7 @@ Installierter Pfad:
     <string name="downloads_queue_phase_queued">In der Warteschlange</string>
     <string name="downloads_queue_phase_unknown">Unbekannt</string>
     <string name="downloads_queue_phase_unpacking">Wird entpackt…</string>
+    <string name="downloads_queue_phase_updating">Wird aktualisiert…</string>
     <string name="downloads_queue_phase_verifying">Wird überprüft…</string>
     <string name="downloads_queue_phase_verifying_file">Wird überprüft… [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>

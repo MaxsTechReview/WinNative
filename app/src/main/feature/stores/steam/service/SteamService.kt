@@ -21,6 +21,7 @@ import com.winlator.cmod.feature.stores.steam.data.CachedLicense
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
 import com.winlator.cmod.feature.stores.steam.data.DownloadFailedException
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
+import com.winlator.cmod.feature.stores.steam.data.WnDownloadTransientException
 import com.winlator.cmod.feature.stores.steam.data.DownloadingAppInfo
 import com.winlator.cmod.feature.stores.steam.data.EncryptedAppTicket
 import com.winlator.cmod.feature.stores.steam.data.GameProcessInfo
@@ -1987,6 +1988,17 @@ class SteamService : Service() {
                 if (!desktopDir.exists()) desktopDir.mkdirs()
 
                 val shortcutFile = File(desktopDir, "${appInfo.name}.desktop")
+
+                // Skip if present: rewriting on every verify/update wiped per-game
+                // [Extra Data] (wine version, dxwrapper, env vars, cover art).
+                if (shortcutFile.exists() && shortcutFile.length() > 0L) {
+                    Timber.i(
+                        "Steam shortcut already exists for appId=$appId (${appInfo.name}); " +
+                            "preserving existing per-game settings.",
+                    )
+                    return
+                }
+
                 val content = StringBuilder()
                 content.append("[Desktop Entry]\n")
                 content.append("Type=Application\n")
@@ -2987,45 +2999,22 @@ class SteamService : Service() {
                     emptyMap()
                 }
 
-            // SAFETY CHECK (scope-mismatch detection): if the persisted snapshot remembers
-            // depots that aren't in the current resume scope, the userSelectedDlcAppIds we
-            // resolved is a SUBSET of what was originally downloading. Continuing would
-            // download only the subset and then incorrectly mark the game COMPLETE because
-            // selectedDepots would empty out before the missing DLCs ever get registered.
-            // Refuse to proceed — the user can cancel + redownload to recover.
+            // Scope shrink (user de-selected a DLC, or Steam republished with
+            // a new depot list): drop orphan snapshot entries instead of
+            // refusing the resume. selectedDepots is built from current scope
+            // only, so partial-COMPLETE remains impossible.
             if (allowPersistedProgress && persistedDepotBytes.isNotEmpty()) {
                 val depotsInScope = allDepots.keys
                 val orphanSnapshotDepots = persistedDepotBytes.keys - depotsInScope
                 if (orphanSnapshotDepots.isNotEmpty()) {
-                    Timber.e(
-                        "Resume scope mismatch for appId=$appId: snapshot has depot(s) " +
+                    Timber.w(
+                        "Resume scope shrunk for appId=$appId: snapshot has depot(s) " +
                             "$orphanSnapshotDepots that are not in the current download scope " +
-                            "(scope depots: $depotsInScope). The DLC list used to resume is " +
-                            "incomplete; refusing to finalize to avoid a partial-COMPLETE.",
+                            "(scope depots: $depotsInScope). Dropping orphan snapshot entries " +
+                            "and continuing with in-scope depots.",
                     )
-                    instance?.let { service ->
-                        service.scope.launch(Dispatchers.Main) {
-                            WinToast.show(
-                                service.applicationContext,
-                                "Resume failed: download scope changed. Please cancel and re-download.",
-                                Toast.LENGTH_LONG,
-                            )
-                        }
-                    }
-                    val info = DownloadInfo(1, appId, CopyOnWriteArrayList(listOf(appId)))
-                    info.updateStatus(DownloadPhase.FAILED, "Resume scope mismatch — cancel and re-download")
-                    info.setActive(false)
-                    downloadJobs[appId] = info
-                    notifyDownloadStarted(appId)
-                    runBlocking {
-                        DownloadCoordinator.notifyFinished(
-                            DownloadRecord.STORE_STEAM,
-                            appId.toString(),
-                            DownloadRecord.STATUS_FAILED,
-                            "Resume scope mismatch",
-                        )
-                    }
-                    return info
+                    persistedDepotBytes = persistedDepotBytes.filterKeys { it in depotsInScope }
+                    DownloadInfo.persistDepotBytes(appDirPath, persistedDepotBytes)
                 }
             }
 
@@ -3061,19 +3050,15 @@ class SteamService : Service() {
                         Timber.w(
                             "REFUSING to skip ${fullyDownloadedDepotsFromSnapshot.size} depots claimed full by snapshot " +
                                 "for appId=$appId because COMPLETE marker is absent. Depots will be re-validated " +
-                                "by the downloader: $fullyDownloadedDepotsFromSnapshot",
+                                "by the downloader; persisted byte counts are kept so the progress bar stays at the " +
+                                "user's last position while verification confirms files on disk: " +
+                                "$fullyDownloadedDepotsFromSnapshot",
                         )
-                        // Drop the suspicious entries from persistedDepotBytes so they don't
-                        // get re-loaded into di.depotCumulativeUncompressedBytes (which would
-                        // re-persist them at depotSize on the next pause and re-trigger the
-                        // bug). The in-memory tracker for these depots will start at 0 and
-                        // grow with real download progress.
-                        persistedDepotBytes = persistedDepotBytes.filterKeys {
-                            it !in fullyDownloadedDepotsFromSnapshot
-                        }
-                        // Clear the on-disk snapshot file too. New persists will re-create
-                        // it with only the real, current per-depot bytes.
-                        clearPersistedProgressSnapshot(appDirPath)
+                        // Keep persistedDepotBytes — the monotonic CAS in
+                        // onProgress can't lower them, so the user sees their
+                        // restored % while the downloader validates. Just
+                        // clear the skip set so the depots still run through
+                        // validation.
                         fullyDownloadedDepotsFromSnapshot.clear()
                     }
                 }
@@ -3420,13 +3405,22 @@ class SteamService : Service() {
                             // concurrent logOut()/relogin can't close it mid-download.
                             // Disconnected + closed in this worker's finally.
                             var workerWnSession: WnSteamSession? = null
+                            // Wi-Fi + CPU keep-alive: without it, Wi-Fi PSP
+                            // drops radio power on screen-off and router NAT
+                            // evicts the chunk sockets, surfacing as spurious
+                            // "WN download failed" on stable Wi-Fi.
+                            val keepAliveTag = "steam-download-$appId"
+                            val keepAliveCtx = service.applicationContext
+                            runCatching {
+                                SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                            }.onFailure { e ->
+                                Timber.w(e, "Failed to acquire keep-alive for Steam download $appId")
+                            }
                             try {
                                 // Retry loop for transient Steam API failures (AsyncJobFailedException) or missing client
                                 val maxRetries = 3
-                                var lastException: Exception? = null
 
                                 for (attempt in 1..maxRetries) {
-                                    lastException = null
                                     try {
                                         if (attempt > 1) {
                                             Timber.i("Retry attempt $attempt/$maxRetries for appId: $appId")
@@ -3803,7 +3797,7 @@ class SteamService : Service() {
                                                             } else {
                                                                 cont.resumeWith(
                                                                     Result.failure(
-                                                                        Exception(
+                                                                        WnDownloadTransientException(
                                                                             "WN download failed (app $batchAppId): $error",
                                                                         ),
                                                                     ),
@@ -3850,12 +3844,31 @@ class SteamService : Service() {
                                         // If we got here without exception, download succeeded
                                         break
                                     } catch (e: AsyncJobFailedException) {
-                                        lastException = e
                                         Timber.w(e, "AsyncJobFailedException on attempt $attempt/$maxRetries for appId: $appId")
                                         if (attempt >= maxRetries) {
                                             Timber.e("All $maxRetries retry attempts failed for appId: $appId")
                                             throw e
                                         }
+                                        di.setActive(true)
+                                        continue
+                                    } catch (e: Exception) {
+                                        if (e is CancellationException) throw e
+                                        if (!di.isActive() || di.isCancelling) throw e
+                                        // Only retry the depot-transfer phase. Entitlement /
+                                        // manifest / session errors won't fix themselves —
+                                        // fail fast.
+                                        if (e !is WnDownloadTransientException) throw e
+                                        Timber.w(e, "Transient WN download failure on attempt $attempt/$maxRetries for appId: $appId")
+                                        if (attempt >= maxRetries) {
+                                            Timber.e("All $maxRetries retry attempts failed for appId: $appId")
+                                            throw e
+                                        }
+                                        // Force-flush the byte snapshot so the next attempt
+                                        // resumes from the same offset instead of re-validating.
+                                        runCatching { di.persistProgressSnapshot(force = true) }
+                                        runCatching { updateCoordinatorDownloadProgress(di) }
+                                        // Failed batch's listener sets isActive=false; restore
+                                        // so the next attempt's onProgress doesn't bail.
                                         di.setActive(true)
                                         continue
                                     }
@@ -4001,6 +4014,11 @@ class SteamService : Service() {
                                     Timber.i("downloadApp: closed worker WN-Steam session for app $appId")
                                 }
                                 workerWnSession = null
+                                runCatching {
+                                    SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                                }.onFailure { e ->
+                                    Timber.w(e, "Failed to release keep-alive for Steam download $appId")
+                                }
                                 Unit
                             }
                             Unit
@@ -4129,30 +4147,39 @@ class SteamService : Service() {
                     "remainingAppIds=${downloadInfo.downloadingAppIds.sorted()}",
             )
 
-            // Update database
-            val appInfo = instance?.appInfoDao?.getInstalledApp(downloadingAppId)
+            // Wrap in runCatching: a transient Room failure on one DLC row
+            // shouldn't flip the whole download (base + every other DLC) to
+            // FAILED. Bytes are on disk; stale-metadata recovery fixes the
+            // row on next launch.
+            runCatching {
+                val appInfo = instance?.appInfoDao?.getInstalledApp(downloadingAppId)
+                if (appInfo != null) {
+                    val updatedDownloadedDepots = (appInfo.downloadedDepots + entitledDepotIds).distinct()
+                    val updatedDlcDepots = (appInfo.dlcDepots + selectedDlcAppIds).distinct()
 
-            // Update Saved AppInfo
-            if (appInfo != null) {
-                val updatedDownloadedDepots = (appInfo.downloadedDepots + entitledDepotIds).distinct()
-                val updatedDlcDepots = (appInfo.dlcDepots + selectedDlcAppIds).distinct()
-
-                instance?.appInfoDao?.update(
-                    AppInfo(
-                        downloadingAppId,
-                        isDownloaded = true,
-                        downloadedDepots = updatedDownloadedDepots.sorted(),
-                        dlcDepots = updatedDlcDepots.sorted(),
-                    ),
-                )
-            } else {
-                instance?.appInfoDao?.insert(
-                    AppInfo(
-                        downloadingAppId,
-                        isDownloaded = true,
-                        downloadedDepots = entitledDepotIds.sorted(),
-                        dlcDepots = selectedDlcAppIds.sorted(),
-                    ),
+                    instance?.appInfoDao?.update(
+                        AppInfo(
+                            downloadingAppId,
+                            isDownloaded = true,
+                            downloadedDepots = updatedDownloadedDepots.sorted(),
+                            dlcDepots = updatedDlcDepots.sorted(),
+                        ),
+                    )
+                } else {
+                    instance?.appInfoDao?.insert(
+                        AppInfo(
+                            downloadingAppId,
+                            isDownloaded = true,
+                            downloadedDepots = entitledDepotIds.sorted(),
+                            dlcDepots = selectedDlcAppIds.sorted(),
+                        ),
+                    )
+                }
+            }.onFailure { e ->
+                Timber.e(
+                    e,
+                    "DB write failed for completed item $downloadingAppId (baseApp=${downloadInfo.gameId}); " +
+                        "files are on disk, continuing finalize anyway.",
                 )
             }
 
@@ -4184,40 +4211,65 @@ class SteamService : Service() {
                     }
                 }
 
-                // Handle completion: add markers
+                // Defensive wrapping per marker — bytes are on disk, a single
+                // marker / DB write failing shouldn't flip the game to FAILED.
                 withContext(Dispatchers.IO) {
-                    MarkerUtils.addMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                    MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DLL_REPLACED)
-                    MarkerUtils.removeMarker(appDirPath, Marker.STEAM_COLDCLIENT_USED)
-                    MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED)
-                    MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_UNPACK_CHECKED)
+                    val markerAdded =
+                        runCatching { MarkerUtils.addMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER) }
+                            .getOrElse { e ->
+                                Timber.e(e, "Failed to add DOWNLOAD_COMPLETE_MARKER at $appDirPath")
+                                false
+                            }
+                    if (!markerAdded) {
+                        Timber.e(
+                            "DOWNLOAD_COMPLETE_MARKER write returned false for appId=${downloadInfo.gameId} at $appDirPath " +
+                                "(disk full / permissions?). Game files are on disk but next launch may re-validate.",
+                        )
+                    }
+                    runCatching { MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER) }
+                    runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DLL_REPLACED) }
+                    runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_COLDCLIENT_USED) }
+                    runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED) }
+                    runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_UNPACK_CHECKED) }
 
-                    // Ensure the main app is marked as downloaded in the DB
+                    // Same reason as the runCatching above: a Room exception
+                    // here used to FAIL a fully-downloaded game with COMPLETE
+                    // marker already on disk.
                     val mainAppId = downloadInfo.gameId
                     val service = instance
                     if (service != null) {
-                        val mainAppInfo = service.appInfoDao.getInstalledApp(mainAppId)
-                        if (mainAppInfo != null) {
-                            val updatedMainDlcDepots = (mainAppInfo.dlcDepots + selectedDlcAppIds).distinct().sorted()
-                            service.appInfoDao.update(
-                                mainAppInfo.copy(
-                                    isDownloaded = true,
-                                    dlcDepots = updatedMainDlcDepots,
-                                ),
+                        runCatching {
+                            val mainAppInfo = service.appInfoDao.getInstalledApp(mainAppId)
+                            if (mainAppInfo != null) {
+                                val updatedMainDlcDepots =
+                                    (mainAppInfo.dlcDepots + selectedDlcAppIds).distinct().sorted()
+                                service.appInfoDao.update(
+                                    mainAppInfo.copy(
+                                        isDownloaded = true,
+                                        dlcDepots = updatedMainDlcDepots,
+                                    ),
+                                )
+                                Timber.i(
+                                    "Marked main app $mainAppId as downloaded in DB with dlcDepots=$updatedMainDlcDepots",
+                                )
+                            } else {
+                                service.appInfoDao.insert(
+                                    AppInfo(
+                                        mainAppId,
+                                        isDownloaded = true,
+                                        dlcDepots = selectedDlcAppIds.distinct().sorted(),
+                                    ),
+                                )
+                                Timber.i(
+                                    "Inserted main app $mainAppId as downloaded in DB with dlcDepots=${selectedDlcAppIds.distinct().sorted()}",
+                                )
+                            }
+                        }.onFailure { e ->
+                            Timber.e(
+                                e,
+                                "Database write failed during finalize for appId=$mainAppId — bytes are on disk, " +
+                                    "marker write ${if (markerAdded) "succeeded" else "FAILED"}; download will still be marked COMPLETE.",
                             )
-                            Timber.i(
-                                "Marked main app $mainAppId as downloaded in DB with dlcDepots=$updatedMainDlcDepots",
-                            )
-                        } else {
-                            service.appInfoDao.insert(
-                                AppInfo(
-                                    mainAppId,
-                                    isDownloaded = true,
-                                    dlcDepots = selectedDlcAppIds.distinct().sorted(),
-                                ),
-                            )
-                            Timber.i("Inserted main app $mainAppId as downloaded in DB with dlcDepots=${selectedDlcAppIds.distinct().sorted()}")
                         }
                     }
                     Unit

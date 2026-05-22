@@ -253,6 +253,7 @@
     <string name="downloads_queue_phase_applying_data">Applying data…</string>
     <string name="downloads_queue_phase_finalizing">Finalizing…</string>
     <string name="downloads_queue_phase_unpacking">Unpacking…</string>
+    <string name="downloads_queue_phase_updating">Updating…</string>
     <string name="downloads_queue_phase_complete">Complete</string>
     <string name="downloads_queue_phase_cancelled">Cancelled</string>
     <string name="downloads_queue_phase_failed">Failed: %1$s</string>
@@ -665,6 +666,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_exit_subtitle">Close the running session</string>
     <string name="session_drawer_touchscreen_overlay">Touchscreen Overlay</string>
     <string name="session_drawer_resume">Resume</string>
+    <string name="session_drawer_retry">Retry</string>
+    <string name="downloads_no_internet">No internet connection</string>
     <string name="session_drawer_pause">Pause</string>
     <string name="session_drawer_wine_processes_paused">Wine processes are paused</string>
     <string name="session_drawer_pause_all_wine_processes">Pause all Wine processes</string>

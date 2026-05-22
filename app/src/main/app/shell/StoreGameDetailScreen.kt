@@ -3,9 +3,16 @@ package com.winlator.cmod.app.shell
 import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -39,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
@@ -74,6 +82,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -85,9 +94,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -138,6 +150,7 @@ internal fun StoreGameDetailScreen(
     isUpdateCheckCoolingDown: Boolean = false,
     showWorkshop: Boolean = false,
     showVerifyFiles: Boolean = false,
+    areSteamActionsEnabled: Boolean = true,
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
@@ -172,13 +185,14 @@ internal fun StoreGameDetailScreen(
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
         val hasSelectedInstallableDlc = dlcs.any { !it.isInstalled && it.id in selectedDlcIds }
         val showDownloadCta = !isInstalled || hasSelectedInstallableDlc
-        val showUpdateCheckButton = showUpdateCheck && isInstalled
-        val showUpdateCta = showUpdateCheckButton && isUpdateAvailable
-        val showWorkshopButton = showWorkshop && isInstalled
-        val showVerifyFilesButton = showVerifyFiles && isInstalled
+        val updateCheckAvailable = showUpdateCheck && isInstalled
+        val showUpdateCta = updateCheckAvailable && isUpdateAvailable
+        val verifyFilesAvailable = showVerifyFiles && isInstalled
+        val workshopAvailable = showWorkshop && isInstalled
+        val sourceMenuEnabled = updateCheckAvailable || verifyFilesAvailable || workshopAvailable
         val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
         val showActionColumn =
-            showDownloadCta || showUpdateCheckButton || showWorkshopButton || showVerifyFilesButton ||
+            showDownloadCta || showUpdateCta ||
                 (showCloudSync || showUninstall || showBestConfigs)
 
         if (heroImageUrl != null) {
@@ -276,7 +290,23 @@ internal fun StoreGameDetailScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-            StoreSourceTag(sourceLabel = sourceLabel)
+            StoreSourceTag(
+                sourceLabel = sourceLabel,
+                menuEnabled = sourceMenuEnabled,
+                showCheckForUpdate = updateCheckAvailable,
+                showVerifyFiles = verifyFilesAvailable,
+                showWorkshop = workshopAvailable,
+                isCheckingForUpdate = isCheckingForUpdate,
+                areSteamActionsEnabled = areSteamActionsEnabled,
+                isUpdateCheckEnabled =
+                    !isLoading &&
+                        !isCheckingForUpdate &&
+                        !isUpdateCheckCoolingDown &&
+                        isUpdateActionEnabled,
+                onVerifyFiles = onVerifyFiles,
+                onCheckForUpdate = onCheckForUpdate,
+                onWorkshop = onWorkshop,
+            )
         }
 
         val dlcHeaderReserveHeight =
@@ -416,57 +446,19 @@ internal fun StoreGameDetailScreen(
                                 )
                             }
 
-                            if (showVerifyFilesButton) {
-                                StoreSecondaryActionButton(
-                                    icon = Icons.Outlined.FactCheck,
-                                    label = stringResource(R.string.store_game_verify_files),
-                                    enabled = !isLoading && !isCheckingForUpdate,
-                                    loading = false,
-                                    onClick = onVerifyFiles,
-                                )
-                            }
-
-                            if (showUpdateCheckButton) {
-                                StoreSecondaryActionButton(
-                                    icon = Icons.Outlined.Refresh,
-                                    label =
-                                        if (isCheckingForUpdate) {
-                                            stringResource(R.string.store_game_checking_for_update)
+                            if (updateCheckAvailable && !updateStatusText.isNullOrBlank()) {
+                                Text(
+                                    updateStatusText,
+                                    color =
+                                        if (updateStatusText == stringResource(R.string.store_game_update_check_failed)) {
+                                            StoreDanger
                                         } else {
-                                            stringResource(R.string.store_game_check_for_update)
+                                            StoreTextSecondary
                                         },
-                                    enabled =
-                                        !isLoading &&
-                                            !isCheckingForUpdate &&
-                                            !isUpdateCheckCoolingDown &&
-                                            isUpdateActionEnabled,
-                                    loading = isCheckingForUpdate,
-                                    onClick = onCheckForUpdate,
-                                )
-                                if (!updateStatusText.isNullOrBlank()) {
-                                    Text(
-                                        updateStatusText,
-                                        color =
-                                            if (updateStatusText == stringResource(R.string.store_game_update_check_failed)) {
-                                                StoreDanger
-                                            } else {
-                                                StoreTextSecondary
-                                            },
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-
-                            if (showWorkshopButton) {
-                                StoreSecondaryActionButton(
-                                    icon = Icons.Outlined.Construction,
-                                    label = stringResource(R.string.store_game_workshop),
-                                    enabled = !isLoading,
-                                    loading = false,
-                                    onClick = onWorkshop,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
 
@@ -649,14 +641,14 @@ private fun StoreDlcCard(
                 exit = shrinkVertically(),
             ) {
                 Column {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
+                    StoreDlcDivider()
                     if (selectableDlcs.isNotEmpty()) {
                         Row(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable(enabled = selectionEnabled, onClick = onToggleSelectAll)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .padding(horizontal = 6.dp, vertical = 0.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
@@ -680,7 +672,7 @@ private fun StoreDlcCard(
                                 modifier = Modifier.weight(1f),
                             )
                         }
-                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
+                        StoreDlcDivider()
                     }
                     Column(
                         modifier =
@@ -691,20 +683,14 @@ private fun StoreDlcCard(
                     ) {
                         dlcs.forEachIndexed { index, dlc ->
                             if (index > 0) {
-                                HorizontalDivider(
-                                    color = Color.White.copy(alpha = 0.16f),
-                                    thickness = 1.dp,
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                )
+                                StoreDlcDivider()
                             }
                             Row(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
                                         .then(
-                                            if (dlc.isInstalled) {
-                                                Modifier
-                                            } else if (!selectionEnabled) {
+                                            if (dlc.isInstalled || !selectionEnabled) {
                                                 Modifier
                                             } else {
                                                 Modifier.clickable { onToggleDlc(dlc.id) }
@@ -716,7 +702,7 @@ private fun StoreDlcCard(
                                 if (dlc.isInstalled) {
                                     Checkbox(
                                         checked = true,
-                                        onCheckedChange = null,
+                                        onCheckedChange = {},
                                         enabled = false,
                                         colors =
                                             CheckboxDefaults.colors(
@@ -740,30 +726,19 @@ private fun StoreDlcCard(
                                 }
                                 Text(
                                     dlc.name,
-                                    color = if (dlc.isInstalled) Color(0xFFB7F8CE) else StoreTextPrimary,
+                                    color = StoreTextPrimary,
                                     fontSize = 13.sp,
                                     modifier = Modifier.weight(1f),
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (dlc.isInstalled) {
-                                    Text(
-                                        stringResource(R.string.common_ui_installed),
-                                        color = Color(0xFF38D77A),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        modifier = Modifier.padding(horizontal = 10.dp),
-                                    )
-                                } else {
-                                    Text(
-                                        if (dlc.downloadSize > 0L) StorageUtils.formatBinarySize(dlc.downloadSize) else "—",
-                                        color = StoreTextSecondary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(horizontal = 10.dp),
-                                    )
-                                }
+                                Text(
+                                    if (dlc.downloadSize > 0L) StorageUtils.formatBinarySize(dlc.downloadSize) else "—",
+                                    color = StoreTextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                )
                             }
                         }
                     }
@@ -771,6 +746,15 @@ private fun StoreDlcCard(
             }
         }
     }
+}
+
+@Composable
+private fun StoreDlcDivider() {
+    HorizontalDivider(
+        color = Color.White.copy(alpha = 0.16f),
+        thickness = 1.dp,
+        modifier = Modifier.padding(horizontal = 12.dp),
+    )
 }
 
 private fun buildDlcSummary(
@@ -801,32 +785,177 @@ private fun buildDlcSummary(
 }
 
 @Composable
-private fun StoreSourceTag(sourceLabel: String) {
-    Surface(
-        color = Color.White.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(
+private fun StoreSourceTag(
+    sourceLabel: String,
+    menuEnabled: Boolean = false,
+    showCheckForUpdate: Boolean = false,
+    showVerifyFiles: Boolean = false,
+    showWorkshop: Boolean = false,
+    isCheckingForUpdate: Boolean = false,
+    areSteamActionsEnabled: Boolean = true,
+    isUpdateCheckEnabled: Boolean = true,
+    onVerifyFiles: () -> Unit = {},
+    onCheckForUpdate: () -> Unit = {},
+    onWorkshop: () -> Unit = {},
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    var anchorHeightPx by remember { mutableIntStateOf(0) }
+    Box {
+        Surface(
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            modifier =
                 Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(StoreAccent),
-            )
-            Text(
-                sourceLabel.uppercase(),
-                color = StoreTextPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(StoreAccent),
+                )
+                Text(
+                    sourceLabel.uppercase(),
+                    color = StoreTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (menuEnabled) {
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = stringResource(R.string.store_game_steam_options),
+                        tint = StoreTextPrimary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
+        if (menuEnabled) {
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            StoreSourceActionPopup(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                offset = IntOffset(0, anchorHeightPx + gapPx),
+            ) {
+                if (showVerifyFiles) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.FactCheck,
+                        label = stringResource(R.string.store_game_verify_files),
+                        enabled = areSteamActionsEnabled && !isCheckingForUpdate,
+                    ) { menuOpen = false; onVerifyFiles() }
+                }
+                if (showCheckForUpdate) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.Refresh,
+                        label =
+                            if (isCheckingForUpdate) {
+                                stringResource(R.string.store_game_checking_for_update)
+                            } else {
+                                stringResource(R.string.store_game_check_for_update)
+                            },
+                        enabled = areSteamActionsEnabled && isUpdateCheckEnabled,
+                    ) { menuOpen = false; onCheckForUpdate() }
+                }
+                if (showWorkshop) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.Construction,
+                        label = stringResource(R.string.store_game_workshop),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onWorkshop() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreSourceActionPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    offset: IntOffset,
+    content: @Composable () -> Unit,
+) {
+    val transitionState = remember { MutableTransitionState(false) }
+    transitionState.targetState = expanded
+    if (!transitionState.currentState && !transitionState.targetState) return
+
+    Popup(
+        alignment = Alignment.TopEnd,
+        offset = offset,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        AnimatedVisibility(
+            visibleState = transitionState,
+            enter =
+                fadeIn(animationSpec = tween(durationMillis = 90)) +
+                    scaleIn(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.78f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        initialScale = 0.88f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
+            exit =
+                fadeOut(animationSpec = tween(durationMillis = 80)) +
+                    scaleOut(
+                        animationSpec = tween(durationMillis = 110),
+                        targetScale = 0.92f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
+        ) {
+            Surface(
+                color = StoreBlack.copy(alpha = 0.78f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                tonalElevation = 0.dp,
+                shadowElevation = 16.dp,
+            ) {
+                Column { content() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreSourceMenuItem(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
+    Row(
+        modifier =
+            Modifier
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            label,
+            color = contentColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -967,74 +1096,6 @@ private fun StoreCtaButton(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoreSecondaryActionButton(
-    icon: ImageVector,
-    label: String,
-    enabled: Boolean,
-    loading: Boolean,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 620f),
-        label = "storeSecondaryActionScale",
-    )
-    val shape = remember { RoundedCornerShape(8.dp) }
-    val contentColor = if (enabled) StoreTextPrimary else StoreTextSecondary.copy(alpha = 0.58f)
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(40.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(shape)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = { if (enabled && !loading) onClick() },
-                ),
-        color = StoreBlack.copy(alpha = if (enabled) 0.52f else 0.34f),
-        shape = shape,
-        border = BorderStroke(1.dp, StoreAccentGlow.copy(alpha = if (enabled) 0.36f else 0.14f)),
-    ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = StoreAccentGlow,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = contentColor,
-                    )
-                    Spacer(Modifier.width(7.dp))
-                    Text(
-                        label,
-                        color = contentColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
     }

@@ -577,6 +577,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_exit_subtitle">Luk den kørende session</string>
     <string name="session_drawer_touchscreen_overlay">Touchskærm-overlay</string>
     <string name="session_drawer_resume">Genoptag</string>
+    <string name="session_drawer_retry">Prøv igen</string>
+    <string name="downloads_no_internet">Ingen internetforbindelse</string>
     <string name="session_drawer_pause">Pause</string>
     <string name="session_drawer_wine_processes_paused">Wine-processer er sat på pause</string>
     <string name="session_drawer_pause_all_wine_processes">Sæt alle Wine-processer på pause</string>
@@ -1174,6 +1176,7 @@ Installeret sti:
     <string name="downloads_queue_phase_queued">I kø</string>
     <string name="downloads_queue_phase_unknown">Ukendt</string>
     <string name="downloads_queue_phase_unpacking">Udpakker…</string>
+    <string name="downloads_queue_phase_updating">Opdaterer…</string>
     <string name="downloads_queue_phase_verifying">Verificerer…</string>
     <string name="downloads_queue_phase_verifying_file">Verificerer… [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>

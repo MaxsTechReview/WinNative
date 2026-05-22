@@ -2,8 +2,17 @@ package com.winlator.cmod.app.shell
 
 import android.os.Build
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,10 +74,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,11 +88,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -114,6 +129,9 @@ internal fun LibraryGameLaunchScreen(
     hasPinnedShortcut: Boolean,
     showSavesAction: Boolean,
     steamMenuEnabled: Boolean = false,
+    areSteamActionsEnabled: Boolean = true,
+    playEnabled: Boolean = true,
+    playDisabledLabel: String? = null,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSettings: () -> Unit,
@@ -246,6 +264,7 @@ internal fun LibraryGameLaunchScreen(
             SourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = steamMenuEnabled,
+                areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
@@ -340,7 +359,12 @@ internal fun LibraryGameLaunchScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    LaunchPlayButton(height = playHeight, onClick = onPlay)
+                    LaunchPlayButton(
+                        height = playHeight,
+                        enabled = playEnabled,
+                        disabledLabel = playDisabledLabel,
+                        onClick = onPlay,
+                    )
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
@@ -744,17 +768,22 @@ private fun LaunchMenuTextAction(
 private fun SourceTag(
     sourceLabel: String,
     menuEnabled: Boolean = false,
+    areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var anchorHeightPx by remember { mutableStateOf(0) }
     Box {
         Surface(
             color = Color.White.copy(alpha = 0.1f),
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-            modifier = if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier,
+            modifier =
+                Modifier
+                    .onSizeChanged { anchorHeightPx = it.height }
+                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -786,29 +815,78 @@ private fun SourceTag(
             }
         }
         if (menuEnabled) {
-            DropdownMenu(
+            val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+            LaunchSourceActionPopup(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                offset = DpOffset(x = 0.dp, y = 6.dp),
-                modifier = Modifier.width(232.dp),
-                shape = RoundedCornerShape(12.dp),
-                containerColor = LaunchCard,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                tonalElevation = 0.dp,
-                shadowElevation = 14.dp,
+                offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
                 LaunchSourceMenuItem(
                     icon = Icons.Outlined.FactCheck,
                     label = stringResource(R.string.store_game_verify_files),
+                    enabled = areSteamActionsEnabled,
                 ) { menuOpen = false; onVerifyFiles() }
                 LaunchSourceMenuItem(
                     icon = Icons.Outlined.Refresh,
                     label = stringResource(R.string.store_game_check_for_update),
+                    enabled = areSteamActionsEnabled,
                 ) { menuOpen = false; onCheckForUpdate() }
                 LaunchSourceMenuItem(
                     icon = Icons.Outlined.Construction,
                     label = stringResource(R.string.store_game_workshop),
+                    enabled = areSteamActionsEnabled,
                 ) { menuOpen = false; onWorkshop() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaunchSourceActionPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    offset: IntOffset,
+    content: @Composable () -> Unit,
+) {
+    val transitionState = remember { MutableTransitionState(false) }
+    transitionState.targetState = expanded
+    if (!transitionState.currentState && !transitionState.targetState) return
+
+    Popup(
+        alignment = Alignment.TopEnd,
+        offset = offset,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        AnimatedVisibility(
+            visibleState = transitionState,
+            enter =
+                fadeIn(animationSpec = tween(durationMillis = 90)) +
+                    scaleIn(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.78f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        initialScale = 0.88f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
+            exit =
+                fadeOut(animationSpec = tween(durationMillis = 80)) +
+                    scaleOut(
+                        animationSpec = tween(durationMillis = 110),
+                        targetScale = 0.92f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
+        ) {
+            Surface(
+                color = LaunchBlack.copy(alpha = 0.78f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                tonalElevation = 0.dp,
+                shadowElevation = 16.dp,
+            ) {
+                Column { content() }
             }
         }
     }
@@ -818,27 +896,28 @@ private fun SourceTag(
 private fun LaunchSourceMenuItem(
     icon: ImageVector,
     label: String,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
     Row(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(11.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(
             icon,
             contentDescription = null,
-            tint = LaunchAccentGlow,
-            modifier = Modifier.size(18.dp),
+            tint = contentColor,
+            modifier = Modifier.size(16.dp),
         )
         Text(
             label,
-            color = LaunchTextPrimary,
-            fontSize = 13.sp,
+            color = contentColor,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -892,35 +971,59 @@ private fun GameStatChip(
 @Composable
 private fun LaunchPlayButton(
     height: Dp,
+    enabled: Boolean = true,
+    disabledLabel: String? = null,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
+        targetValue = if (enabled && isPressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
         label = "launchPlayScale",
     )
 
     val playShape = remember { RoundedCornerShape(12.dp) }
+    // When disabled, the clickable is removed entirely (not no-op'd) so
+    // accessibility / focus skip it and a stray controller A-press can't fire onClick.
+    val backgroundBrush =
+        if (enabled) {
+            Brush.horizontalGradient(
+                colors = listOf(Color(0xFF00B4D8), LaunchAccent, Color(0xFF7B2FF7)),
+            )
+        } else {
+            Brush.horizontalGradient(
+                colors = listOf(Color(0xFF3A3F4A), Color(0xFF2D313A), Color(0xFF3A3F4A)),
+            )
+        }
+    val foregroundAlpha = if (enabled) 1f else 0.75f
+
+    val baseModifier =
+        Modifier
+            .fillMaxWidth()
+            .height(height)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }.clip(playShape)
+            .background(backgroundBrush)
+    val finalModifier =
+        if (enabled) {
+            baseModifier.clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+        } else {
+            baseModifier
+        }
+
+    val showStatus = !enabled && !disabledLabel.isNullOrBlank()
+    val icon = if (showStatus) Icons.Outlined.Refresh else Icons.Outlined.PlayArrow
+    val label = if (showStatus) disabledLabel!! else stringResource(R.string.library_games_play)
+
     Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(height)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }.clip(playShape)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF00B4D8), LaunchAccent, Color(0xFF7B2FF7)),
-                    ),
-                ).clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                ),
+        modifier = finalModifier,
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -928,15 +1031,15 @@ private fun LaunchPlayButton(
             horizontalArrangement = Arrangement.Center,
         ) {
             Icon(
-                Icons.Outlined.PlayArrow,
+                icon,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
-                tint = Color.White,
+                tint = Color.White.copy(alpha = foregroundAlpha),
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                stringResource(R.string.library_games_play),
-                color = Color.White,
+                label,
+                color = Color.White.copy(alpha = foregroundAlpha),
                 fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

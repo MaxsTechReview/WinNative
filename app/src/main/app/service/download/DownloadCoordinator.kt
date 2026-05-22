@@ -291,7 +291,11 @@ object DownloadCoordinator {
 
     suspend fun resumeAll() {
         val daoRef = dao ?: return
-        val toResume = daoRef.findByStatus(DownloadRecord.STATUS_PAUSED)
+        // Include FAILED: the dispatcher preserves resume breadcrumbs on
+        // failure, so a Resume All click continues from where they left off.
+        val toResume =
+            daoRef.findByStatus(DownloadRecord.STATUS_PAUSED) +
+                daoRef.findByStatus(DownloadRecord.STATUS_FAILED)
         toResume.forEach { resume(it.store, it.storeGameId) }
     }
 

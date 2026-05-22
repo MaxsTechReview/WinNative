@@ -581,6 +581,8 @@
     <string name="session_drawer_exit_subtitle">Закрити поточну сесію</string>
     <string name="session_drawer_touchscreen_overlay">Сенсорне накладання</string>
     <string name="session_drawer_resume">Продовжити</string>
+    <string name="session_drawer_retry">Повторити</string>
+    <string name="downloads_no_internet">Немає підключення до інтернету</string>
     <string name="session_drawer_pause">Пауза</string>
     <string name="session_drawer_wine_processes_paused">Процеси Wine призупинені</string>
     <string name="session_drawer_pause_all_wine_processes">Призупинити всі процеси Wine</string>
@@ -1180,6 +1182,7 @@
     <string name="downloads_queue_phase_queued">У черзі</string>
     <string name="downloads_queue_phase_unknown">Невідомо</string>
     <string name="downloads_queue_phase_unpacking">Розпакування…</string>
+    <string name="downloads_queue_phase_updating">Оновлення…</string>
     <string name="downloads_queue_phase_verifying">Перевірка…</string>
     <string name="downloads_queue_phase_verifying_file">Перевірка… [%1$s]</string>
     <string name="downloads_queue_status_label">Статус:</string>

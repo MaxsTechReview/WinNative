@@ -44,6 +44,47 @@ object StorageUtils {
         return 0L
     }
 
+    fun formatDecimalSize(
+        bytes: Long,
+        decimalPlaces: Int = 2,
+    ): String {
+        require(decimalPlaces >= 0) { "Negative decimal places unsupported" }
+        val isNegative = bytes < 0
+        val absBytes = kotlin.math.abs(bytes).toDouble()
+        if (absBytes < 1_000.0) return "${if (isNegative) -absBytes.toLong() else absBytes.toLong()} B"
+
+        val units = arrayOf("KB", "MB", "GB", "TB", "PB")
+        var value = absBytes
+        var unitIndex = -1
+        while (value >= 1_000.0 && unitIndex < units.lastIndex) {
+            value /= 1_000.0
+            unitIndex++
+        }
+        return "%.${decimalPlaces}f %s".format(
+            if (isNegative) -value else value,
+            units[unitIndex.coerceAtLeast(0)],
+        )
+    }
+
+    fun formatBitsPerSecond(
+        bytesPerSecond: Long,
+        decimalPlaces: Int = 1,
+    ): String {
+        require(decimalPlaces >= 0) { "Negative decimal places unsupported" }
+        val isNegative = bytesPerSecond < 0
+        val absBps = kotlin.math.abs(bytesPerSecond).toDouble() * 8.0
+
+        return when {
+            absBps < 1_000.0 -> "${if (isNegative) -absBps.toLong() else absBps.toLong()} bps"
+            absBps < 1_000_000.0 ->
+                "%.${decimalPlaces}f Kbps".format(if (isNegative) -absBps / 1_000.0 else absBps / 1_000.0)
+            absBps < 1_000_000_000.0 ->
+                "%.${decimalPlaces}f Mbps".format(if (isNegative) -absBps / 1_000_000.0 else absBps / 1_000_000.0)
+            else ->
+                "%.${decimalPlaces}f Gbps".format(if (isNegative) -absBps / 1_000_000_000.0 else absBps / 1_000_000_000.0)
+        }
+    }
+
     fun formatBinarySize(
         bytes: Long,
         decimalPlaces: Int = 2,

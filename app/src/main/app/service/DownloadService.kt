@@ -136,6 +136,16 @@ object DownloadService {
             if (id in knownIds) return@forEach
             val phase = mapRecordStatusToPhase(record.status)
             val gameIdInt = record.storeGameId.toIntOrNull() ?: 0
+            // Preserve the original FAILED reason across restarts so the row
+            // doesn't collapse to a generic "Unknown error" on rehydrate.
+            val stubStatusMessage =
+                when (phase) {
+                    com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED ->
+                        appContext?.getString(R.string.downloads_queue_paused_resume_hint)
+                    com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FAILED ->
+                        record.errorMessage?.takeUnless { it.isBlank() }
+                    else -> null
+                }
             val stub =
                 com.winlator.cmod.feature.stores.steam.data.DownloadInfo(
                     jobCount = 1,
@@ -143,12 +153,7 @@ object DownloadService {
                     downloadingAppIds = java.util.concurrent.CopyOnWriteArrayList(),
                 ).apply {
                     setActive(false)
-                    updateStatus(
-                        phase,
-                        appContext?.getString(R.string.downloads_queue_paused_resume_hint).takeIf {
-                            phase == com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.PAUSED
-                        },
-                    )
+                    updateStatus(phase, stubStatusMessage)
                     if (record.bytesTotal > 0L) {
                         setTotalExpectedBytes(record.bytesTotal)
                         setDisplayTotalExpectedBytes(record.bytesTotal)

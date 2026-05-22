@@ -577,6 +577,8 @@
     <string name="session_drawer_exit_subtitle">关闭当前会话</string>
     <string name="session_drawer_touchscreen_overlay">触屏覆盖层</string>
     <string name="session_drawer_resume">恢复</string>
+    <string name="session_drawer_retry">重试</string>
+    <string name="downloads_no_internet">无互联网连接</string>
     <string name="session_drawer_pause">暂停</string>
     <string name="session_drawer_wine_processes_paused">Wine 进程已暂停</string>
     <string name="session_drawer_pause_all_wine_processes">暂停所有 Wine 进程</string>
@@ -1174,6 +1176,7 @@
     <string name="downloads_queue_phase_queued">队列中</string>
     <string name="downloads_queue_phase_unknown">未知</string>
     <string name="downloads_queue_phase_unpacking">正在解压…</string>
+    <string name="downloads_queue_phase_updating">正在更新…</string>
     <string name="downloads_queue_phase_verifying">正在验证…</string>
     <string name="downloads_queue_phase_verifying_file">正在验证… [%1$s]</string>
     <string name="downloads_queue_status_label">状态：</string>

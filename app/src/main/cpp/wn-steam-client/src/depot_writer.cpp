@@ -32,6 +32,13 @@ constexpr uint32_t kFlagDirectory  = 64;
 // blip or a flaky CDN edge therefore no longer aborts a whole download.
 constexpr unsigned kMaxChunkAttempts = 5;
 
+// Chunks are <2MB and finish in 1–2s on a healthy edge; longer than this
+// flags the worker to rotate edges on its next chunk so it doesn't stay
+// stuck on a throttled one for the whole run (visible as post-resume
+// throughput drop when workers re-pick their pre-pause edges).
+constexpr std::chrono::seconds kSlowChunkRotateThreshold{8};
+constexpr unsigned kSlowChunkRotateConsecutiveLimit = 3;
+
 // Backoff before chunk retry `attempt` (attempt is >= 1): 300ms, 600ms,
 // 1200ms, 2400ms — capped so a long stall doesn't wedge a worker forever.
 std::chrono::milliseconds retry_backoff(unsigned attempt) {
@@ -446,9 +453,11 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
 
         auto worker = [&](unsigned worker_index) {
             CdnConnection conn;   // one reused TCP+TLS connection per worker
-            // Spread workers across the CDN server list; a worker rotates to
-            // the next server only when a fetch fails.
+            // Spread workers across the CDN server list; rotation is
+            // triggered on fetch failure or after multiple consecutive
+            // slow-but-successful chunks (see kSlowChunkRotateThreshold).
             unsigned srv_idx = worker_index % server_count;
+            unsigned consecutive_slow_chunks = 0;
             while (true) {
                 if (failed.load(std::memory_order_acquire) || cancelled()) break;
                 const size_t i =
@@ -460,6 +469,13 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                 const auto&        chunk = f.chunks[job.chunk_idx];
                 const std::string& path  = file_paths[job.file_idx];
 
+                if (consecutive_slow_chunks >= kSlowChunkRotateConsecutiveLimit &&
+                    server_count > 1) {
+                    srv_idx = (srv_idx + 1) % server_count;
+                    conn = CdnConnection{};
+                    consecutive_slow_chunks = 0;
+                }
+
                 // Fetch + decode the chunk, retrying transient failures with
                 // backoff and rotating CDN servers. Only after every attempt
                 // is exhausted does the depot fail.
@@ -467,6 +483,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                 DepotChunkResult processed;
                 std::string      last_err;
                 bool             got = false;
+                const auto       fetch_start = std::chrono::steady_clock::now();
                 for (unsigned attempt = 0;
                      attempt < kMaxChunkAttempts; ++attempt) {
                     if (failed.load(std::memory_order_acquire) || cancelled()) {
@@ -513,6 +530,13 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                                  + std::to_string(kMaxChunkAttempts)
                                  + " attempts: " + last_err);
                     break;
+                }
+                if (server_count > 1 &&
+                    std::chrono::steady_clock::now() - fetch_start
+                        > kSlowChunkRotateThreshold) {
+                    ++consecutive_slow_chunks;
+                } else {
+                    consecutive_slow_chunks = 0;
                 }
                 int fd = ::open(path.c_str(), O_WRONLY);
                 if (fd < 0) {
@@ -580,7 +604,50 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         if (failed.load(std::memory_order_acquire)) {
             return fail(err.empty() ? "write_depot: download failed" : err);
         }
-        if (cancelled()) return fail("write_depot: cancelled", result.resume_trust_safe);
+        if (cancelled()) {
+            // fdatasync partial files (file_remaining > 0) so the next
+            // resume's Phase A2 SEEK_DATA fast-path sees the chunks; without
+            // this, those bytes sit only in the page cache and resume falls
+            // back to Adler-hashing every chunk — slow on big pauses.
+            // Files with file_remaining == 0 were already synced at
+            // mark_file_done. Parallelized; per-file fds are independent.
+            std::vector<uint32_t> to_sync;
+            to_sync.reserve(manifest.files.size());
+            for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {
+                const auto& f = manifest.files[fi];
+                if (!f.linktarget.empty() || (f.flags & kFlagDirectory)) continue;
+                if (f.chunks.empty()) continue;
+                if (file_remaining[fi].load(std::memory_order_acquire) == 0) continue;
+                to_sync.push_back(fi);
+            }
+            if (!to_sync.empty()) {
+                unsigned sn = max_workers == 0 ? 1u : max_workers;
+                sn = std::min<unsigned>(sn, 64u);
+                sn = std::min<unsigned>(sn, static_cast<unsigned>(to_sync.size()));
+                std::atomic<size_t> next_sync{0};
+                auto syncer = [&]() {
+                    while (true) {
+                        const size_t si =
+                            next_sync.fetch_add(1, std::memory_order_relaxed);
+                        if (si >= to_sync.size()) break;
+                        const uint32_t fi = to_sync[si];
+                        int sfd = ::open(file_paths[fi].c_str(), O_WRONLY);
+                        if (sfd >= 0) {
+                            ::fdatasync(sfd);
+                            ::close(sfd);
+                        }
+                    }
+                };
+                std::vector<std::thread> spool;
+                spool.reserve(sn);
+                for (unsigned w = 0; w < sn; ++w) spool.emplace_back(syncer);
+                for (auto& t : spool) t.join();
+                WN_LOGI("cancel: fdatasync'd %zu partial file(s) so resume "
+                        "can fast-skip already-written chunks",
+                        to_sync.size());
+            }
+            return fail("write_depot: cancelled", result.resume_trust_safe);
+        }
     }
 
     for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {

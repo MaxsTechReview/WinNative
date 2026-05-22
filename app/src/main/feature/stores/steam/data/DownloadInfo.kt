@@ -20,6 +20,13 @@ class DownloadFailedException(
     message: String,
 ) : CancellationException(message)
 
+/** Marker for transient WN-Steam-Client depot-transfer failures (network blip, edge
+ *  hiccup) that the dispatcher should retry. Distinct from setup/entitlement errors
+ *  which must fail fast. */
+class WnDownloadTransientException(
+    message: String,
+) : Exception(message)
+
 class DownloadInfo(
     val jobCount: Int = 1,
     val gameId: Int,
@@ -516,6 +523,39 @@ class DownloadInfo(
                     isDaemon = true
                 }
             }
+
+        /**
+         * Overwrite the snapshot from a plain map. Swallows IO errors —
+         * the in-memory state is the truth; the next progress tick rewrites.
+         */
+        fun persistDepotBytes(appDirPath: String, depotBytes: Map<Int, Long>) {
+            synchronized(PERSISTENCE_IO_LOCK) {
+                try {
+                    val dir = File(appDirPath, PERSISTENCE_DIR)
+                    if (!dir.exists()) dir.mkdirs()
+                    val file = File(dir, PERSISTENCE_FILE)
+                    val sb = java.lang.StringBuilder()
+                    sb.append('{')
+                    var first = true
+                    for ((depotId, bytes) in depotBytes) {
+                        if (!first) sb.append(',')
+                        sb.append('"').append(depotId).append("\":")
+                            .append(bytes.coerceAtLeast(0L))
+                        first = false
+                    }
+                    sb.append('}')
+                    val jsonText = sb.toString()
+                    val tempFile = File(dir, "$PERSISTENCE_FILE.tmp")
+                    tempFile.writeText(jsonText)
+                    if (!tempFile.renameTo(file)) {
+                        file.writeText(jsonText)
+                        tempFile.delete()
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to rewrite depot bytes snapshot at $appDirPath")
+                }
+            }
+        }
 
         fun loadPersistedDepotBytes(appDirPath: String): Map<Int, Long> {
             return try {

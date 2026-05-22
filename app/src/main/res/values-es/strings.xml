@@ -577,6 +577,8 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="session_drawer_exit_subtitle">Cerrar la sesión en ejecución</string>
     <string name="session_drawer_touchscreen_overlay">Superposición táctil</string>
     <string name="session_drawer_resume">Reanudar</string>
+    <string name="session_drawer_retry">Reintentar</string>
+    <string name="downloads_no_internet">Sin conexión a internet</string>
     <string name="session_drawer_pause">Pausar</string>
     <string name="session_drawer_wine_processes_paused">Los procesos de Wine están pausados</string>
     <string name="session_drawer_pause_all_wine_processes">Pausar todos los procesos de Wine</string>
@@ -1174,6 +1176,7 @@ Ruta instalada:
     <string name="downloads_queue_phase_queued">En cola</string>
     <string name="downloads_queue_phase_unknown">Desconocido</string>
     <string name="downloads_queue_phase_unpacking">Descomprimiendo…</string>
+    <string name="downloads_queue_phase_updating">Actualizando…</string>
     <string name="downloads_queue_phase_verifying">Verificando…</string>
     <string name="downloads_queue_phase_verifying_file">Verificando… [%1$s]</string>
     <string name="downloads_queue_status_label">Estado:</string>

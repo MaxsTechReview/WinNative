@@ -577,6 +577,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_exit_subtitle">Inchide sesiunea curenta</string>
     <string name="session_drawer_touchscreen_overlay">Suprapunere tactila</string>
     <string name="session_drawer_resume">Reluare</string>
+    <string name="session_drawer_retry">Reîncearcă</string>
+    <string name="downloads_no_internet">Fără conexiune la internet</string>
     <string name="session_drawer_pause">Pauza</string>
     <string name="session_drawer_wine_processes_paused">Procesele Wine sunt in pauza</string>
     <string name="session_drawer_pause_all_wine_processes">Pune in pauza toate procesele Wine</string>
@@ -1174,6 +1176,7 @@ Cale instalata:
     <string name="downloads_queue_phase_queued">În coadă</string>
     <string name="downloads_queue_phase_unknown">Necunoscut</string>
     <string name="downloads_queue_phase_unpacking">Se dezarhivează…</string>
+    <string name="downloads_queue_phase_updating">Se actualizează…</string>
     <string name="downloads_queue_phase_verifying">Se verifică…</string>
     <string name="downloads_queue_phase_verifying_file">Se verifică… [%1$s]</string>
     <string name="downloads_queue_status_label">Stare:</string>
