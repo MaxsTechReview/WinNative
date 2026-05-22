@@ -417,7 +417,7 @@ return boundingBox;
     if (customColor != -1) return customColor;
     LabelTheme theme = inputControlsView.getLabelTheme();
     if (theme != null) {
-      int c = theme.colorFor(inputControlsView.getInputControlsManager(), getBindingAt(0));
+      int c = theme.colorFor(inputControlsView, getBindingAt(0));
       if (c != 0) return c;
     }
     return -1;

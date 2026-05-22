@@ -1,6 +1,7 @@
 package com.winlator.cmod.runtime.input.controls;
 
 import android.graphics.Color;
+import com.winlator.cmod.runtime.input.ui.InputControlsView;
 
 public enum LabelTheme {
   DEFAULT,
@@ -20,9 +21,11 @@ public enum LabelTheme {
     return new String[] {"Original", "Xbox", "PlayStation"};
   }
 
-  public int colorFor(InputControlsManager manager, Binding binding) {
-    if (this == DEFAULT || binding == null || manager == null) return 0;
-
+  public int colorFor(InputControlsView view, Binding binding) {
+    if (this == DEFAULT || binding == null || view == null) return 0;
+    InputControlsManager manager = view.getInputControlsManager();
+    if (manager == null) return 0;
+    
     int profileId = -1;
     if (this == XBOX) {
         profileId = InputControlsManager.LEGACY_XBOX_PROFILE_ID;
@@ -33,6 +36,7 @@ public enum LabelTheme {
     if (profileId != -1) {
         ControlsProfile p = manager.getProfile(profileId);
         if (p != null) {
+            if (!p.isElementsLoaded()) p.loadElements(view);
             int color = p.findColorForBinding(binding);
             if (color != -1) return color;
         }
@@ -136,8 +140,8 @@ public enum LabelTheme {
     }
   }
 
-  public boolean overridesColor(InputControlsManager manager, Binding binding) {
-    return colorFor(manager, binding) != 0;
+  public boolean overridesColor(InputControlsView view, Binding binding) {
+    return colorFor(view, binding) != 0;
   }
 
   public static int safeColor(int themedColor, int fallback) {
