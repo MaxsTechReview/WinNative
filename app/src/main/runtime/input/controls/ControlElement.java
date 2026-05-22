@@ -885,21 +885,15 @@ return boundingBox;
     boolean engaged = isEngaged();
     Rect boundingBox = getBoundingBox();
 
-    // Resolve accent (user customColor → theme color → none).
     int accent = resolveAccentColor();
     boolean hasAccent = accent != -1;
 
-    // GameHub palette — uses the source asset's alpha values directly so the dark-glass identity
-    // doesn't disappear at the default overlay opacity. Per-element opacity still applies; the
-    // overlayOpacity slider modulates with a gentle floor so the controls never look fully washed.
     float gameHubDim = Math.min(1.0f, 0.5f + overlayOpacity * 0.7f);
-    int fillAlpha = (int) (90 * gameHubDim * effectiveOpacity); // dark glass body
-    int strokeAlpha = (int) (150 * gameHubDim * effectiveOpacity); // light rim
-    int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity); // brighter inner glow when pressed
-    int pressedStrokeAlpha = (int) (220 * gameHubDim * effectiveOpacity); // brighter rim when pressed
+    int fillAlpha = (int) (90 * gameHubDim * effectiveOpacity);
+    int strokeAlpha = (int) (150 * gameHubDim * effectiveOpacity);
+    int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity);
+    int pressedStrokeAlpha = (int) (220 * gameHubDim * effectiveOpacity);
     int textAlpha = (int) (255 * gameHubDim * effectiveOpacity);
-    // Glass vignette — translucent black at the inner edge of each shape that fades to fully
-    // transparent at the center, producing a soft inset-shadow / glass look on top of the base fill.
     int glassEdgeAlpha = (int) (75 * gameHubDim * effectiveOpacity);
 
     int fillColor = Color.argb(fillAlpha, 0, 0, 0);
@@ -915,8 +909,6 @@ return boundingBox;
         ? ColorUtils.setAlphaComponent(accent, textAlpha)
         : Color.argb(textAlpha, 255, 255, 255);
 
-    // Edit-mode selection highlight reuses the existing secondary color so editing UX stays the
-    // same regardless of style.
     if (selected && !hasAccent) {
       int highlightAlpha = (int) (255 * overlayOpacity);
       strokeColor = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), highlightAlpha);
@@ -931,8 +923,6 @@ return boundingBox;
       case BUTTON: {
         float cx = boundingBox.centerX();
         float cy = boundingBox.centerY();
-        // L1/L2/R1/R2 buttons get the slanted GameHub trigger/bumper silhouette — a shape choice
-        // driven purely by the element's gamepad role, never by its position.
         GameHubLayout.RenderShape triggerShape = gameHubTriggerShape();
         boolean isTrigger = triggerShape != null;
 
@@ -992,8 +982,6 @@ return boundingBox;
         paint.setColor(ringFill);
         canvas.drawCircle(cx, cy, ringRadius, paint);
 
-        // Glass vignette across the outer ring — the inner thumb will cover the brightest center
-        // anyway, so this reads as a darker shadow just inside the ring's rim.
         if (glassEdgeAlpha > 0) {
           paint.setShader(new RadialGradient(
               cx, cy, ringRadius,
@@ -1008,13 +996,8 @@ return boundingBox;
         paint.setColor(engaged ? pressedStrokeColor : strokeColor);
         canvas.drawCircle(cx, cy, ringRadius - strokeWidth * 0.5f, paint);
 
-        // Inner thumb — substantial translucent white disc with a thin rim so it visually pops
-        // against the dark ring fill. While touched it tracks the finger; at rest it snaps to the
-        // ring center.
         float thumbX = engaged ? getCurrentPosition().x : cx;
         float thumbY = engaged ? getCurrentPosition().y : cy;
-        // Thumb radius at ~48% of the outer ring — matches GameHub's reference of roughly
-        // 0.43-0.50 regardless of which profile supplied the stick size.
         float thumbRadius = ringRadius * 0.48f;
         int thumbFillAlpha = (int) ((engaged ? 100 : 77) * gameHubDim * effectiveOpacity);
         int thumbFill = hasAccent
@@ -1032,12 +1015,7 @@ return boundingBox;
         float cx = boundingBox.centerX();
         float cy = boundingBox.centerY();
 
-        // GameHub d-pad: 4 detached pentagonal arrows at the cardinal edges of the bbox. This is
-        // the GameHub style's d-pad shape — applied wherever the profile places the d-pad.
         float radius = Math.min(boundingBox.width(), boundingBox.height()) * 0.5f;
-        // Per-arrow fill + glass vignette so each arrow has its own inner-shadow centroid;
-        // a single radial gradient across the whole cluster would put the bright spot in the
-        // gap between arrows rather than inside each one.
         float[] arrowCenter = new float[2];
         float arrowGradR = radius * 0.5f;
         for (int side = 0; side < 4; side++) {
@@ -1056,7 +1034,6 @@ return boundingBox;
                 canvas, paint, path, arrowCenter[0], arrowCenter[1], arrowGradR, glassEdgeAlpha);
           }
         }
-        // Combined stroke pass for all four arrows.
         GameHubLayout.buildDpadArrows(path, cx, cy, radius);
         paint.setStyle(Paint.Style.STROKE);
         paint.setColor(engaged ? pressedStrokeColor : strokeColor);
@@ -1080,8 +1057,6 @@ return boundingBox;
       case RADIAL_MENU:
       case RANGE_BUTTON:
       default:
-        // Less common element types — defer to the original renderer to avoid duplicating their
-        // bespoke geometry; the surrounding color resolution already covers theme colors.
         drawOriginalLegacy(canvas);
         break;
     }
@@ -1113,11 +1088,6 @@ return boundingBox;
     }
   }
 
-  /**
-   * Draws a soft radial vignette (transparent center → translucent black at the rim) clipped to
-   * the element's GameHub shape. Layered on top of the base fill so the inner edge of the border
-   * darkens and gradually fades toward the center, producing a glass / inset-shadow look.
-   */
   private void drawGameHubGlassShape(Canvas canvas, Paint paint, Rect bb, int edgeAlpha) {
     if (edgeAlpha <= 0) return;
     float cx = bb.exactCenterX();
@@ -1150,11 +1120,6 @@ return boundingBox;
     paint.setShader(null);
   }
 
-  /**
-   * Same vignette as {@link #drawGameHubGlassShape} but clipped to an arbitrary path (used for
-   * trigger silhouettes and per-arrow d-pad shapes). The gradient is anchored at {@code (cx, cy)}
-   * with radius {@code gradR}, which the caller picks to match the path's centroid and extent.
-   */
   private void drawGameHubGlassOnPath(
       Canvas canvas, Paint paint, Path path, float cx, float cy, float gradR, int edgeAlpha) {
     if (edgeAlpha <= 0 || gradR <= 0) return;

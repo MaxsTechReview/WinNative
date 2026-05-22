@@ -26,18 +26,10 @@ import org.json.JSONObject;
 
 public class InputControlsManager {
   private static final int ASSET_PROFILE_SYNC_REVISION = 5;
-  /** Profile IDs at or below this value were shipped as read-only built-ins (assets/inputcontrols/profiles/controls-*.icp).
-   * Edits to one of these always go through a duplicate first so the original layout stays pristine. */
   public static final int LAST_BUILTIN_PROFILE_ID = 7;
-  /** Asset profile ID that holds the canonical "Virtual Gamepad" layout (controls-3.icp).
-   * Used as the post-migration target when legacy Xbox/PS profiles are converted to label themes. */
   public static final int VIRTUAL_GAMEPAD_BUILTIN_ID = 3;
-  /** Asset profile ID for the "GameHub" button layout (controls-7.icp) — the GameHub button
-   * positions as a real profile, the layout counterpart to the GameHub VisualStyle. */
   public static final int GAMEHUB_LAYOUT_BUILTIN_ID = 7;
-  /** Legacy Playstation Controller asset profile (controls-4.icp) — superseded by LabelTheme.PLAYSTATION. */
   public static final int LEGACY_PS_PROFILE_ID = 4;
-  /** Legacy Xbox Controller asset profile (controls-5.icp) — superseded by LabelTheme.XBOX. */
   public static final int LEGACY_XBOX_PROFILE_ID = 5;
 
   private final Context context;
@@ -49,8 +41,6 @@ public class InputControlsManager {
     return profile != null && profile.id <= LAST_BUILTIN_PROFILE_ID;
   }
 
-  /** Returns true for asset profiles whose role is now covered by a LabelTheme — these should be
-   * hidden from the user-facing profile picker so the new flow stays uncluttered. */
   public static boolean isLegacyLabelOnlyProfile(ControlsProfile profile) {
     if (profile == null) return false;
     return profile.id == LEGACY_PS_PROFILE_ID || profile.id == LEGACY_XBOX_PROFILE_ID;
@@ -66,30 +56,21 @@ public class InputControlsManager {
     return profilesDir;
   }
 
-  /**
-   * Directory holding the pristine "original" snapshot of every profile, captured the moment it is
-   * first installed (asset built-in), downloaded, imported or created. {@link #resetProfile} copies
-   * a snapshot back over the working file. Kept as a sibling of {@code profiles/} so it never shows
-   * up in {@code profiles/} directory listings.
-   */
   public static File getBackupsDir(Context context) {
     File backupsDir = new File(context.getFilesDir(), "profile_backups");
     if (!backupsDir.isDirectory()) backupsDir.mkdir();
     return backupsDir;
   }
 
-  /** Pristine-snapshot file for the given profile id. */
   public static File getBackupFile(Context context, int id) {
     return new File(getBackupsDir(context), "controls-" + id + ".icp");
   }
 
-  /** Captures the current on-disk state of {@code id} as its pristine "original" snapshot. */
   public static void backupProfile(Context context, int id) {
     File working = ControlsProfile.getProfileFile(context, id);
     if (working.isFile()) FileUtils.copy(working, getBackupFile(context, id));
   }
 
-  /** A profile can be reset only if a pristine snapshot was captured for it. */
   public boolean canResetProfile(ControlsProfile profile) {
     return profile != null && getBackupFile(context, profile.id).isFile();
   }
@@ -143,11 +124,6 @@ public class InputControlsManager {
         .putInt("inputcontrols_asset_sync_revision", ASSET_PROFILE_SYNC_REVISION)
         .apply();
 
-    // Built-in asset profiles are editable in place, so the working copy is NEVER overwritten once
-    // it exists — that would clobber the user's edits on every app update. New built-ins (a brand
-    // new controls-*.icp shipped in a later version) still get copied because their working file
-    // is missing. The pristine backup snapshot is always refreshed from the asset so {@link
-    // #resetProfile} restores a built-in to the layout bundled with the current app version.
     try {
       AssetManager assetManager = context.getAssets();
       String[] assetFiles = assetManager.list("inputcontrols/profiles");
@@ -256,7 +232,6 @@ public class InputControlsManager {
       File targetFile = ControlsProfile.getProfileFile(context, targetId);
       data.put("id", targetId);
       FileUtils.writeString(targetFile, data.toString());
-      // Snapshot the freshly imported/downloaded layout as its pristine "original" for Reset.
       backupProfile(context, targetId);
       ControlsProfile newProfile = loadProfile(context, targetFile);
 

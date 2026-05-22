@@ -3367,6 +3367,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         LabelTheme[] all = LabelTheme.values();
                         if (index < 0 || index >= all.length) return;
                         LabelTheme chosen = all[index];
+
+                        if (chosen == LabelTheme.XBOX) {
+                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
+                            if (p != null) showInputControls(p);
+                        } else if (chosen == LabelTheme.PLAYSTATION) {
+                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
+                            if (p != null) showInputControls(p);
+                        } else if (chosen == LabelTheme.DEFAULT) {
+                            ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
+                            if (p != null) showInputControls(p);
+                        }
+
                         if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
                         preferences.edit().putString("input_label_theme", chosen.name()).apply();
                         renderDrawerMenu();
@@ -5282,32 +5294,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 LabelTheme.fromPreference(preferences.getString("input_label_theme", LabelTheme.DEFAULT.name())));
     }
 
-    /**
-     * One-time migration: if the user's previously-selected profile is the legacy "Xbox" or
-     * "Playstation Controller" asset, switch the active selection to the Virtual Gamepad layout
-     * and apply the matching LabelTheme so the new UI flow takes over without surprising them.
-     * Runs once per install (tracked by the {@code input_controls_label_theme_migrated} flag).
-     */
-    private void maybeMigrateLegacyControllerProfile() {
-        if (preferences == null || inputControlsManager == null) return;
-        if (preferences.getBoolean("input_controls_label_theme_migrated", false)) return;
-        int selectedId = preferences.getInt("selected_profile_id", 0);
-        SharedPreferences.Editor editor = preferences.edit();
-        if (selectedId == InputControlsManager.LEGACY_XBOX_PROFILE_ID) {
-            editor.putInt("selected_profile_id", InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-            editor.putInt("selected_profile_index", -1);
-            editor.putString("input_label_theme", LabelTheme.XBOX.name());
-        } else if (selectedId == InputControlsManager.LEGACY_PS_PROFILE_ID) {
-            editor.putInt("selected_profile_id", InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-            editor.putInt("selected_profile_index", -1);
-            editor.putString("input_label_theme", LabelTheme.PLAYSTATION.name());
-        }
-        editor.putBoolean("input_controls_label_theme_migrated", true);
-        editor.apply();
-    }
-
     private ControlsProfile resolvePreferredStartupProfile() {
-        maybeMigrateLegacyControllerProfile();
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
         int selectedProfileId = preferences.getInt("selected_profile_id", 0);
         int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);

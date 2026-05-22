@@ -2,18 +2,6 @@ package com.winlator.cmod.runtime.input.controls;
 
 import android.graphics.Color;
 
-/**
- * Label/color overlay applied at draw time for gamepad bindings.
- *
- * <p>DEFAULT — no overlay; element keeps its own text and {@code customColor}.
- *
- * <p>XBOX — A=green, B=red, X=blue, Y=yellow plus LT/LB/RT/RB/L3/R3 labels.
- *
- * <p>PLAYSTATION — Cross/Circle/Square/Triangle glyphs with PlayStation accent colors plus
- * L1/L2/R1/R2/L3/R3 labels.
- *
- * <p>Per-element {@code customColor} always wins over the theme so user edits aren't clobbered.
- */
 public enum LabelTheme {
   DEFAULT,
   XBOX,

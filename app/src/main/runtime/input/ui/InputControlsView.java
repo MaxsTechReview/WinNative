@@ -483,6 +483,7 @@ public class InputControlsView extends View {
   }
 
   private void createMouseMoveTimer() {
+    if (xServer == null) return;
     WinHandler winHandler = xServer.getWinHandler();
     if (mouseMoveTimer == null && profile != null) {
       final float cursorSpeed = profile.getCursorSpeed();
@@ -491,9 +492,8 @@ public class InputControlsView extends View {
           new TimerTask() {
             @Override
             public void run() {
-              if (((XServerDisplayActivity)getContext()).isInputSuspended()) return;
-              if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
-                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
+              if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return;
+              if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
                 int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
                 if (xServer.isRelativeMouseMovement()) {
                   xServer.updatePointerForDisplayDelta(dx, dy);
@@ -680,7 +680,7 @@ public class InputControlsView extends View {
 
   @Override
   public boolean onTouchEvent(MotionEvent event) {
-    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return true;
+    if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return true;
 
     boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
@@ -882,7 +882,7 @@ public class InputControlsView extends View {
   }
 
   public boolean onKeyEvent(KeyEvent event) {
-    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return false;
+    if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return false;
     if (profile != null && event.getRepeatCount() == 0) {
       ExternalController controller = profile.getController(event.getDeviceId());
       if (controller != null) {
@@ -912,10 +912,6 @@ public class InputControlsView extends View {
     handleInputEvent(controller, binding, isActionDown, 0);
   }
 
-  /**
-   * Updates both stick axes together so analog motion is dispatched as one coherent state update
-   * instead of four competing per-direction writes.
-   */
   public void handleStickInput(Binding firstBinding, float deltaX, float deltaY) {
     handleStickInput(firstBinding, deltaX, deltaY, !batchingUpdates);
   }
