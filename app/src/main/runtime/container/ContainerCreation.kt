@@ -9,6 +9,7 @@ import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.runtime.wine.WineThemeManager
 import com.winlator.cmod.runtime.wine.WineUtils
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.shared.util.Callback
 import org.json.JSONObject
 
@@ -141,6 +142,8 @@ object ContainerCreation {
     ): JSONObject {
         val defaults = resolveLaunchReadyDefaults(context, contentsManager, wineVersion)
 
+        val preferredDriver = SetupWizardActivity.getLastInstalledDriverId(context)
+
         return JSONObject().apply {
             put("name", name)
             put("wineVersion", wineVersion)
@@ -148,12 +151,12 @@ object ContainerCreation {
             put("envVars", Container.DEFAULT_ENV_VARS)
             put("cpuList", Container.getFallbackCPUList())
             put("cpuListWoW64", Container.getFallbackCPUListWoW64())
-            put("graphicsDriver", Container.DEFAULT_GRAPHICS_DRIVER)
+            put("graphicsDriver", preferredDriver.ifBlank { Container.DEFAULT_GRAPHICS_DRIVER })
             put("graphicsDriverConfig", replaceDelimitedConfigValue(
                 Container.DEFAULT_GRAPHICSDRIVERCONFIG,
                 ';',
                 "version",
-                "System",
+                preferredDriver.ifBlank { "System" },
             ))
             put("dxwrapper", Container.DEFAULT_DXWRAPPER)
             put("dxwrapperConfig", defaults.dxWrapperConfig)
@@ -282,8 +285,9 @@ object ContainerCreation {
         container: Container,
     ) {
         val defaults = resolveLaunchReadyDefaults(context, contentsManager, container.wineVersion)
+        val preferredDriver = SetupWizardActivity.getLastInstalledDriverId(context)
 
-        container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
+        container.setGraphicsDriver(preferredDriver.ifBlank { Container.DEFAULT_GRAPHICS_DRIVER })
         container.setCPUList(Container.getFallbackCPUList())
         container.setCPUListWoW64(Container.getFallbackCPUListWoW64())
         container.setDrives(WineUtils.normalizePersistentDrives(
@@ -294,7 +298,7 @@ object ContainerCreation {
             Container.DEFAULT_GRAPHICSDRIVERCONFIG,
             ';',
             "version",
-            "System",
+            preferredDriver.ifBlank { "System" },
         ))
         container.setDXWrapper(Container.DEFAULT_DXWRAPPER)
         container.setDXWrapperConfig(defaults.dxWrapperConfig)
