@@ -1,19 +1,8 @@
 package com.winlator.cmod.runtime.input.controls;
 
 import android.graphics.Color;
+import com.winlator.cmod.runtime.input.ui.InputControlsView;
 
-/**
- * Label/color overlay applied at draw time for gamepad bindings.
- *
- * <p>DEFAULT — no overlay; element keeps its own text and {@code customColor}.
- *
- * <p>XBOX — A=green, B=red, X=blue, Y=yellow plus LT/LB/RT/RB/L3/R3 labels.
- *
- * <p>PLAYSTATION — Cross/Circle/Square/Triangle glyphs with PlayStation accent colors plus
- * L1/L2/R1/R2/L3/R3 labels.
- *
- * <p>Per-element {@code customColor} always wins over the theme so user edits aren't clobbered.
- */
 public enum LabelTheme {
   DEFAULT,
   XBOX,
@@ -29,12 +18,30 @@ public enum LabelTheme {
   }
 
   public static String[] displayNames() {
-    return new String[] {"Default", "Xbox", "PlayStation"};
+    return new String[] {"Original", "Xbox", "PlayStation"};
   }
 
-  /** Returns the override color for a binding, or {@code 0} if this theme doesn't override it. */
-  public int colorFor(Binding binding) {
-    if (this == DEFAULT || binding == null) return 0;
+  public int colorFor(InputControlsView view, Binding binding) {
+    if (this == DEFAULT || binding == null || view == null) return 0;
+    InputControlsManager manager = view.getInputControlsManager();
+    if (manager == null) return 0;
+    
+    int profileId = -1;
+    if (this == XBOX) {
+        profileId = InputControlsManager.LEGACY_XBOX_PROFILE_ID;
+    } else if (this == PLAYSTATION) {
+        profileId = InputControlsManager.LEGACY_PS_PROFILE_ID;
+    }
+
+    if (profileId != -1) {
+        ControlsProfile p = manager.getProfile(profileId);
+        if (p != null) {
+            if (!p.isElementsLoaded()) p.loadElements(view);
+            int color = p.findColorForBinding(binding);
+            if (color != -1) return color;
+        }
+    }
+
     switch (this) {
       case XBOX:
         switch (binding) {
@@ -67,7 +74,6 @@ public enum LabelTheme {
     }
   }
 
-  /** Returns the override label for a binding, or {@code null} if no override. */
   public String labelFor(Binding binding) {
     if (this == DEFAULT || binding == null) return null;
     switch (this) {
@@ -134,12 +140,10 @@ public enum LabelTheme {
     }
   }
 
-  /** Convenience for callers that don't want to deal with the 0 sentinel. */
-  public boolean overridesColor(Binding binding) {
-    return colorFor(binding) != 0;
+  public boolean overridesColor(InputControlsView view, Binding binding) {
+    return colorFor(view, binding) != 0;
   }
 
-  /** Returns {@link Color#WHITE} as a neutral fallback when {@link #colorFor} returns 0. */
   public static int safeColor(int themedColor, int fallback) {
     return themedColor != 0 ? themedColor : fallback;
   }

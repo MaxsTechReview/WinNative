@@ -42,6 +42,7 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
+import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
@@ -76,6 +77,7 @@ public class InputControlsView extends View {
   private boolean showTouchscreenControls = false;
   private VisualStyle visualStyle = VisualStyle.ORIGINAL;
   private LabelTheme labelTheme = LabelTheme.DEFAULT;
+  private InputControlsManager inputControlsManager;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
   private Runnable hideControlsRunnable; // Runnable to hide the controls
@@ -100,6 +102,10 @@ public class InputControlsView extends View {
   public void setFocusOnStick(boolean focus) {
     this.focusOnStick = focus;
     invalidate(); // Redraw the view with the new focus setting
+  }
+
+  public void setInputControlsManager(InputControlsManager inputControlsManager) {
+    this.inputControlsManager = inputControlsManager;
   }
 
   @SuppressLint("ResourceType")
@@ -193,6 +199,10 @@ public class InputControlsView extends View {
 
   public LabelTheme getLabelTheme() {
     return labelTheme;
+  }
+
+  public InputControlsManager getInputControlsManager() {
+    return inputControlsManager;
   }
 
   public void setLabelTheme(LabelTheme theme) {
@@ -483,6 +493,7 @@ public class InputControlsView extends View {
   }
 
   private void createMouseMoveTimer() {
+    if (xServer == null) return;
     WinHandler winHandler = xServer.getWinHandler();
     if (mouseMoveTimer == null && profile != null) {
       final float cursorSpeed = profile.getCursorSpeed();
@@ -491,9 +502,8 @@ public class InputControlsView extends View {
           new TimerTask() {
             @Override
             public void run() {
-              if (((XServerDisplayActivity)getContext()).isInputSuspended()) return;
-              if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {
-                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
+              if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return;
+              if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
                 int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
                 if (xServer.isRelativeMouseMovement()) {
                   xServer.updatePointerForDisplayDelta(dx, dy);
@@ -680,7 +690,7 @@ public class InputControlsView extends View {
 
   @Override
   public boolean onTouchEvent(MotionEvent event) {
-    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return true;
+    if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return true;
 
     boolean hapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
 
@@ -882,7 +892,7 @@ public class InputControlsView extends View {
   }
 
   public boolean onKeyEvent(KeyEvent event) {
-    if (((XServerDisplayActivity)getContext()).isInputSuspended()) return false;
+    if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return false;
     if (profile != null && event.getRepeatCount() == 0) {
       ExternalController controller = profile.getController(event.getDeviceId());
       if (controller != null) {
@@ -912,10 +922,6 @@ public class InputControlsView extends View {
     handleInputEvent(controller, binding, isActionDown, 0);
   }
 
-  /**
-   * Updates both stick axes together so analog motion is dispatched as one coherent state update
-   * instead of four competing per-direction writes.
-   */
   public void handleStickInput(Binding firstBinding, float deltaX, float deltaY) {
     handleStickInput(firstBinding, deltaX, deltaY, !batchingUpdates);
   }

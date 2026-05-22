@@ -51,6 +51,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     setContentView(R.layout.controls_editor_activity);
 
     inputControlsView = new InputControlsView(this);
+    inputControlsView.setInputControlsManager(new InputControlsManager(this));
     inputControlsView.setEditMode(true);
     inputControlsView.setOverlayOpacity(0.6f);
 

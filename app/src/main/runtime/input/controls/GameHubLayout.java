@@ -2,18 +2,16 @@ package com.winlator.cmod.runtime.input.controls;
 
 import android.graphics.Path;
 import android.graphics.RectF;
-import java.util.EnumMap;
 
 /**
- * Layout overlay applied when {@link VisualStyle#GAMEHUB} is active.
+ * Shape helper for the {@link VisualStyle#GAMEHUB} renderer.
  *
- * <p>Each on-screen control whose primary binding matches a known gamepad role gets relocated and
- * reshaped at draw/hit-test time to mirror the GameHub launcher's reference layout (extracted from
- * the decompiled <code>OfficialLayout_gamepad.gtheme</code>). Underlying profile JSON is never
- * mutated — overrides are a runtime decoration only, so switching back to {@link
- * VisualStyle#ORIGINAL} immediately restores the user's saved positions.
- *
- * <p>Edit mode bypasses overrides so the user manipulates their real saved layout.
+ * <p>VisualStyle is strictly the <em>button shape</em>: it never moves or resizes controls — every
+ * position/size comes from the active ICP profile. This class only classifies an on-screen control
+ * by its gamepad {@link Role} (from the primary binding) so the GameHub renderer can pick the right
+ * silhouette — slanted trigger/bumper pills for L1/L2/R1/R2 and a four-arrow cross for the d-pad —
+ * and builds those silhouette {@link Path}s. Button locations live in the ICP (see the bundled
+ * "GameHub" profile <code>controls-7.icp</code>), exactly like "Virtual Gamepad" works for ORIGINAL.
  */
 public final class GameHubLayout {
 
@@ -49,70 +47,25 @@ public final class GameHubLayout {
     DPAD_CROSS
   }
 
-  public static final class Override {
-    /** Anchor center in normalized view coordinates (0..1). */
-    public final float normX;
-
-    public final float normY;
-    /** Half-extents expressed in snappingSize units (snappingSize = viewWidth/100). */
-    public final float halfWidthSnap;
-
-    public final float halfHeightSnap;
-    public final RenderShape shape;
-    public final float scale;
-
-    Override(float nx, float ny, float hw, float hh, RenderShape shape, float scale) {
-      this.normX = nx;
-      this.normY = ny;
-      this.halfWidthSnap = hw;
-      this.halfHeightSnap = hh;
-      this.shape = shape;
-      this.scale = scale;
+  /**
+   * Returns the trigger/bumper silhouette for a shoulder role, or {@code null} for every other
+   * role. Used by the GameHub renderer to draw L1/L2/R1/R2 buttons as slanted pills instead of
+   * plain round-rects — a pure shape decision, independent of where the ICP places the button.
+   */
+  public static RenderShape triggerShapeFor(Role role) {
+    if (role == null) return null;
+    switch (role) {
+      case LT:
+        return RenderShape.TRIGGER_LT;
+      case LB:
+        return RenderShape.TRIGGER_LB;
+      case RT:
+        return RenderShape.TRIGGER_RT;
+      case RB:
+        return RenderShape.TRIGGER_RB;
+      default:
+        return null;
     }
-  }
-
-  private static final EnumMap<Role, Override> OVERRIDES = new EnumMap<>(Role.class);
-
-  static {
-    // Shoulders / triggers — anchored hard against the top corners. Vertical spacing matches the
-    // GameHub asset (LT y=0.115, LB y=0.280) so the two pills sit clearly apart instead of
-    // visually touching.
-    OVERRIDES.put(Role.LT, new Override(0.087f, 0.115f, 5.5f, 2.3f, RenderShape.TRIGGER_LT, 1.0f));
-    OVERRIDES.put(Role.LB, new Override(0.087f, 0.280f, 5.5f, 2.3f, RenderShape.TRIGGER_LB, 1.0f));
-    OVERRIDES.put(Role.RT, new Override(0.913f, 0.115f, 5.5f, 2.3f, RenderShape.TRIGGER_RT, 1.0f));
-    OVERRIDES.put(Role.RB, new Override(0.913f, 0.280f, 5.5f, 2.3f, RenderShape.TRIGGER_RB, 1.0f));
-
-    // Stick-click buttons (L3/R3) — small circles tucked just under the shoulder column.
-    OVERRIDES.put(Role.L3, new Override(0.055f, 0.42f, 2.1f, 2.1f, RenderShape.CIRCLE, 1.0f));
-    OVERRIDES.put(Role.R3, new Override(0.945f, 0.42f, 2.1f, 2.1f, RenderShape.CIRCLE, 1.0f));
-
-    // Joysticks — large translucent rings, bottom row. Ring diameter ≈ 15% of view width,
-    // matching the GameHub reference measurement. Right stick pushed further right to clear the
-    // d-pad cluster and match the GameHub asset's x=0.684 anchor.
-    OVERRIDES.put(Role.LSTICK, new Override(0.16f, 0.70f, 7.0f, 7.0f, RenderShape.CIRCLE, 1.0f));
-    OVERRIDES.put(Role.RSTICK, new Override(0.72f, 0.70f, 7.0f, 7.0f, RenderShape.CIRCLE, 1.0f));
-
-    // D-pad in the gap between the left stick and the right-side face buttons. Bbox is large so
-    // each detached arrow has room to render as a recognizable chevron.
-    OVERRIDES.put(Role.DPAD, new Override(0.335f, 0.70f, 7.5f, 7.5f, RenderShape.DPAD_CROSS, 1.0f));
-
-    // Face buttons — diamond cluster. X↔B center distance set to 0.11 of view WIDTH so it reads
-    // visually equal to the Y↔A 0.24-of-view-HEIGHT span on a typical landscape device (since
-    // view height in landscape ≈ view width / 2.2, 0.24*height ≈ 0.109*width). Cluster center at
-    // 0.89 sits 25% closer to the right edge than the previous 0.85.
-    OVERRIDES.put(Role.BTN_Y, new Override(0.890f, 0.60f, 3.0f, 3.0f, RenderShape.CIRCLE, 1.0f));
-    OVERRIDES.put(Role.BTN_X, new Override(0.835f, 0.72f, 3.0f, 3.0f, RenderShape.CIRCLE, 1.0f));
-    OVERRIDES.put(Role.BTN_B, new Override(0.945f, 0.72f, 3.0f, 3.0f, RenderShape.CIRCLE, 1.0f));
-    OVERRIDES.put(Role.BTN_A, new Override(0.890f, 0.84f, 3.0f, 3.0f, RenderShape.CIRCLE, 1.0f));
-
-    // Start / Select pills along the bottom center — leave at original-ish positions because the
-    // GameHub reference is sparse here.
-    OVERRIDES.put(Role.START, new Override(0.54f, 0.94f, 3f, 1.8f, RenderShape.ROUND_RECT, 1.0f));
-    OVERRIDES.put(Role.SELECT, new Override(0.46f, 0.94f, 3f, 1.8f, RenderShape.ROUND_RECT, 1.0f));
-  }
-
-  public static Override overrideFor(Role role) {
-    return role != null ? OVERRIDES.get(role) : null;
   }
 
   /**

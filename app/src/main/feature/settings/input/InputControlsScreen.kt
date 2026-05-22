@@ -57,6 +57,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.ScreenRotationAlt
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Tune
@@ -138,6 +139,7 @@ private val InputSectionTextSize = 10.sp
 data class InputControlsScreenState(
     val selectedProfileName: String? = null,
     val selectedProfileElementCount: Int = 0,
+    val selectedProfileCanReset: Boolean = false,
     val overlayOpacity: Int = 40,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
@@ -217,6 +219,7 @@ data class InputControlsScreenActions(
     val onAddProfile: () -> Unit,
     val onEditProfile: () -> Unit,
     val onDuplicateProfile: () -> Unit,
+    val onResetProfile: () -> Unit,
     val onRemoveProfile: () -> Unit,
     val onDismissDialog: () -> Unit,
     val onConfirmDialog: () -> Unit,
@@ -1272,6 +1275,7 @@ private fun ProfileCard(
                     modifier = Modifier.padding(start = InputProfileActionStartGap),
                 )
                 ProfileActionRow(
+                    state = state,
                     actions = actions,
                     modifier = Modifier.padding(start = InputProfileActionStartGap),
                 )
@@ -1362,6 +1366,7 @@ private fun ProfileSelectorRow(
 
 @Composable
 private fun ProfileActionRow(
+    state: InputControlsScreenState,
     actions: InputControlsScreenActions,
     modifier: Modifier = Modifier,
 ) {
@@ -1400,6 +1405,16 @@ private fun ProfileActionRow(
                     actions.onDuplicateProfile()
                 },
             )
+            if (state.selectedProfileCanReset) {
+                ProfileActionMenuItem(
+                    icon = Icons.Outlined.Restore,
+                    label = stringResource(R.string.common_ui_reset),
+                    onClick = {
+                        menuOpen = false
+                        actions.onResetProfile()
+                    },
+                )
+            }
             ProfileActionMenuItem(
                 icon = Icons.Outlined.Delete,
                 label = stringResource(R.string.common_ui_remove),
