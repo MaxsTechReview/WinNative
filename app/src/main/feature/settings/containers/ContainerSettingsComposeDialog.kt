@@ -59,8 +59,13 @@ import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import kotlinx.coroutines.*
+import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
+import android.os.Environment
 
 /**
  * Compose replacement for the legacy `ContainerDetailFragment`. Reuses
@@ -97,6 +102,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     // Drives working copy, mirrored into state.drivesList via syncDrivesState.
     private val drivesWorking = mutableListOf<DriveDraft>()
     private var pendingDriveIndex: Int = -1
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val wallpaperPickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
@@ -115,7 +121,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 WinToast.show(
                     context,
                     context.getString(R.string.settings_containers_error_saving_wallpaper),
-                    Toast.LENGTH_SHORT,
+                    dialog.window?.decorView,
                 )
             }
         }
@@ -146,6 +152,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             setOnDismissListener {
                 AppUtils.hideKeyboard(activity)
                 wallpaperPickerLauncher?.unregister()
+                scope.cancel()
                 onFinished?.run()
             }
         }
@@ -284,6 +291,14 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
             override fun onPickWallpaper() {
                 wallpaperPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onExportSaves() {
+                exportSaves()
+            }
+
+            override fun onImportSaves() {
+                showImportSavesConfirmation()
             }
         }
     }
@@ -668,7 +683,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val c = container
         val name = state.name.value.trim()
         if (name.isEmpty()) {
-            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
+            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), dialog.window?.decorView)
             return
         }
 
@@ -1517,6 +1532,129 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         // the Dialog.OnDismissListener so back-button dismissal takes the
         // same path as Save/Cancel.
         dialog.dismiss()
+    }
+
+    private fun exportSaves() {
+        val container = this.container ?: return
+        val sanitizedName = container.name.replace(" ", "_")
+        val date = SimpleDateFormat("MMddyyyy_HHmmss", Locale.US).format(Date())
+        val zipName = "${sanitizedName}_${date}.zip"
+        val exportDir = File(Environment.getExternalStorageDirectory(), "WinNative/saves")
+        if (!exportDir.exists()) exportDir.mkdirs()
+        val zipFile = File(exportDir, zipName)
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                zipFile.outputStream().use { os ->
+                    java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os)).use { zos ->
+                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                        if (usersDir.exists()) {
+                            zos.putNextEntry(java.util.zip.ZipEntry("${usersDir.name}/"))
+                            zos.closeEntry()
+                            zipDir(usersDir, usersDir.name, zos)
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    WinToast.show(context, context.getString(R.string.saves_export_success_path, "/WinNative/saves"), dialog.window?.decorView)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    WinToast.show(context, context.getString(R.string.saves_import_export_exported_failed, e.message), dialog.window?.decorView)
+                }
+            }
+        }
+    }
+
+    private fun zipDir(
+        dir: File,
+        baseName: String,
+        zos: java.util.zip.ZipOutputStream,
+    ) {
+        val children = dir.listFiles() ?: return
+        for (child in children) {
+            val name = if (baseName.isEmpty()) child.name else "$baseName/${child.name}"
+            if (child.isDirectory) {
+                zos.putNextEntry(java.util.zip.ZipEntry("$name/"))
+                zos.closeEntry()
+                zipDir(child, name, zos)
+            } else {
+                zos.putNextEntry(java.util.zip.ZipEntry(name))
+                child.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            }
+        }
+    }
+
+    private fun showImportSavesConfirmation() {
+        WinNativeComposeDialogs.showConfirm(
+            context,
+            context.getString(R.string.saves_import_warning_title) + "\n\n" + context.getString(R.string.saves_import_warning_body),
+        ) {
+            DirectoryPickerDialog.showFile(
+                activity,
+                title = context.getString(R.string.common_ui_import),
+                allowedExtensions = setOf("zip"),
+            ) { pickedPath ->
+                importSaves(File(pickedPath))
+            }
+        }
+    }
+
+    private fun importSaves(zipFile: File) {
+        val container = this.container ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) {
+                    preloaderDialog.show(R.string.preloader_initializing)
+                }
+
+                zipFile.inputStream().use { isStream ->
+                    java.util.zip.ZipInputStream(java.io.BufferedInputStream(isStream)).use { zis ->
+                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                        val xuserDir = File(usersDir, "xuser")
+
+                        var ze: java.util.zip.ZipEntry?
+                        while (zis.nextEntry.also { ze = it } != null) {
+                            val entry = ze!!
+                            val name = entry.name
+                            var destFile: File? = null
+
+                            if (name.startsWith("users/")) {
+                                destFile = File(usersDir.parentFile, name)
+                            } else if (name.startsWith("xuser/")) {
+                                destFile = File(usersDir, name)
+                            } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
+                                destFile = File(xuserDir, name)
+                            }
+
+                            if (destFile != null) {
+                                if (entry.isDirectory) {
+                                    destFile.mkdirs()
+                                } else {
+                                    destFile.parentFile?.mkdirs()
+                                    destFile.outputStream().use { zis.copyTo(it) }
+                                }
+                            }
+                            zis.closeEntry()
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    preloaderDialog.close()
+                    WinToast.show(context, R.string.saves_import_export_imported, dialog.window?.decorView)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    preloaderDialog.close()
+                    WinToast.show(context, context.getString(R.string.saves_import_export_imported_failed, e.message), dialog.window?.decorView)
+                }
+            }
+        }
     }
 
     companion object {
