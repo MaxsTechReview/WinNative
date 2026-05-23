@@ -1013,11 +1013,15 @@ Percorso installato:
     <string name="preloader_launching">Avvio…</string>
     <string name="preloader_closing">Chiusura di %1$s…</string>
     <string name="preloader_setup_environment">Configurazione dell\'ambiente…</string>
+    <string name="preloader_retrying_steam_client_download">Nuovo tentativo di download del client Steam…</string>
     <string name="preloader_installing_mono">Installazione di Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Installazione dei redistributable…</string>
     <string name="preloader_unpacking_exe">Estrazione dell\'eseguibile del gioco…</string>
     <string name="preloader_downloading_cloud">Download dei salvataggi cloud…</string>
     <string name="preloader_syncing_cloud">Sincronizzazione dei salvataggi cloud…</string>
+    <string name="preloader_uploading_cloud">Upload dei salvataggi cloud…</string>
+    <string name="preloader_checking_cloud">Controllo dei salvataggi cloud…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Tentativo %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Download Cloud Sync…</string>
     <string name="cloud_sync_failed_provider">Sincronizzazione cloud %1$s non riuscita.</string>
     <string name="preloader_platform_steam">Steam</string>

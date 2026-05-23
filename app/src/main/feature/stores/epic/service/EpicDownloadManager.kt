@@ -571,6 +571,17 @@ class EpicDownloadManager
 
         private fun selectCdnUrls(cdnUrls: List<EpicManager.CdnUrl>): List<EpicManager.CdnUrl> = cdnUrls
 
+        // Spread chunks across CDNs by GUID hash; full list still iterated on failure.
+        private fun orderedCdnUrlsForChunk(
+            chunk: ChunkInfo,
+            cdnUrls: List<EpicManager.CdnUrl>,
+        ): List<EpicManager.CdnUrl> {
+            if (cdnUrls.size <= 1) return cdnUrls
+            val startIndex = ((chunk.guidStr.hashCode().toLong() and 0x7FFFFFFFL) % cdnUrls.size).toInt()
+            if (startIndex == 0) return cdnUrls
+            return cdnUrls.subList(startIndex, cdnUrls.size) + cdnUrls.subList(0, startIndex)
+        }
+
         private fun buildChunkDownloadUrl(
             cdnUrl: EpicManager.CdnUrl,
             chunkPath: String,
@@ -782,7 +793,11 @@ class EpicDownloadManager
                             .asSequence()
                             .filter { it.guidStr in completedChunks }
                             .sumOf { it.fileSize }
-                    downloadInfo.initializeBytesDownloaded(downloadInfo.getBytesDownloaded() + completedBytes)
+                    // maxOf, not +: bytes may already cover completedBytes from a Resume pre-seed
+                    // or prior DLC accumulation.
+                    downloadInfo.initializeBytesDownloaded(
+                        maxOf(downloadInfo.getBytesDownloaded(), completedBytes),
+                    )
 
                     var installedChunks = completedChunks.size
                     val totalChunks = chunks.size
@@ -1103,7 +1118,7 @@ class EpicDownloadManager
 
                     // Try each CDN base URL until one succeeds
                     var lastException: Exception? = null
-                    val orderedCdnUrls = cdnUrls
+                    val orderedCdnUrls = orderedCdnUrlsForChunk(chunk, cdnUrls)
                     for ((cdnIndex, cdnUrl) in orderedCdnUrls.withIndex()) {
                         try {
                             if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
@@ -1139,7 +1154,7 @@ class EpicDownloadManager
                                     // Stream download to temp file
                                     responseBody.byteStream().use { input ->
                                         tempChunkFile.outputStream().use { output ->
-                                            val buffer = ByteArray(8192)
+                                            val buffer = ByteArray(65536)
                                             var bytesRead: Int
                                             while (input.read(buffer).also { bytesRead = it } != -1) {
                                                 // Cooperative cancellation: bail out of the byte

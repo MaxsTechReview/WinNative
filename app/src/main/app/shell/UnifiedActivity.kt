@@ -4788,8 +4788,14 @@ class UnifiedActivity :
                                             stringResource(R.string.downloads_queue_phase_updating)
                                         else -> null
                                     }
+                                val launchAppName =
+                                    when {
+                                        isEpic -> epicGame?.title?.takeIf { it.isNotBlank() } ?: app.name
+                                        isGog -> gogGame?.title?.takeIf { it.isNotBlank() } ?: app.name
+                                        else -> app.name
+                                    }
                                 LibraryGameLaunchScreen(
-                                    appName = app.name,
+                                    appName = launchAppName,
                                     subtitle = subtitle,
                                     sourceLabel = sourceLabel,
                                     heroImageUrl = heroImageUrl,
@@ -8922,6 +8928,57 @@ class UnifiedActivity :
         shortcut.saveData()
     }
 
+    private fun repairShortcutDisplayNameIfNeeded(
+        shortcut: Shortcut,
+        displayName: String,
+        vararg technicalNames: String,
+    ) {
+        if (displayName.isBlank() || !shortcut.file.isFile) return
+
+        runCatching {
+            val technicalNameSet = (technicalNames.toList() + shortcut.file.nameWithoutExtension)
+                .filter { it.isNotBlank() }
+                .toSet()
+            val lines = com.winlator.cmod.shared.io.FileUtils.readLines(shortcut.file)
+            val sb = StringBuilder()
+            var changed = false
+            var sawName = false
+
+            for (line in lines) {
+                if (line.startsWith("Name=")) {
+                    sawName = true
+                    val currentName = line.removePrefix("Name=").trim()
+                    if (currentName.isBlank() || currentName in technicalNameSet) {
+                        sb.append("Name=").append(displayName).append('\n')
+                        changed = true
+                    } else {
+                        sb.append(line).append('\n')
+                    }
+                } else {
+                    sb.append(line).append('\n')
+                }
+            }
+
+            if (!sawName) {
+                val desktopHeader = "[Desktop Entry]\n"
+                val insertIndex =
+                    if (sb.startsWith(desktopHeader)) {
+                        desktopHeader.length
+                    } else {
+                        0
+                    }
+                sb.insert(insertIndex, "Name=$displayName\n")
+                changed = true
+            }
+
+            if (changed) {
+                com.winlator.cmod.shared.io.FileUtils.writeString(shortcut.file, sb.toString())
+            }
+        }.onFailure {
+            Log.w("SHORTCUTS", "Failed to repair shortcut display name for ${shortcut.file.name}", it)
+        }
+    }
+
     private fun resolveLibraryShortcutArtworkModel(
         context: android.content.Context,
         app: SteamApp,
@@ -9264,8 +9321,13 @@ class UnifiedActivity :
                 }
                 // Existing shortcut found: preserve per-game settings and update the mapped install path
                 val shortcut = existingShortcut
+                val epicDisplayName =
+                    app.title.takeIf { it.isNotBlank() }
+                        ?: shortcut.name.takeIf { it.isNotBlank() }
+                        ?: app.appName
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
+                repairShortcutDisplayNameIfNeeded(shortcut, epicDisplayName, app.appName, app.id.toString())
                 normalizeContainerDrives(shortcut.container)
 
                 // Repair broken Exec line if the executable is missing or still points at a legacy placeholder mapping.
@@ -9354,7 +9416,7 @@ class UnifiedActivity :
                 val intent = Intent(context, XServerDisplayActivity::class.java)
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
-                intent.putExtra("shortcut_name", shortcut.name)
+                intent.putExtra("shortcut_name", epicDisplayName)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
                 withContext(Dispatchers.Main) {
                     launchGame(context, intent)

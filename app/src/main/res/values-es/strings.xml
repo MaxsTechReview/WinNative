@@ -1013,11 +1013,15 @@ Ruta instalada:
     <string name="preloader_launching">Iniciando…</string>
     <string name="preloader_closing">Cerrando %1$s…</string>
     <string name="preloader_setup_environment">Configurando entorno…</string>
+    <string name="preloader_retrying_steam_client_download">Reintentando descarga del cliente de Steam…</string>
     <string name="preloader_installing_mono">Instalando Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Instalando redistribuibles…</string>
     <string name="preloader_unpacking_exe">Descomprimiendo ejecutable del juego…</string>
     <string name="preloader_downloading_cloud">Descargando guardados en la nube…</string>
     <string name="preloader_syncing_cloud">Sincronizando guardados en la nube…</string>
+    <string name="preloader_uploading_cloud">Subiendo guardados a la nube…</string>
+    <string name="preloader_checking_cloud">Comprobando guardados en la nube…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Reintento %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Descargando sincronización en la nube…</string>
     <string name="cloud_sync_failed_provider">Sincronización en la nube de %1$s falló.</string>
     <string name="preloader_platform_steam">Steam</string>

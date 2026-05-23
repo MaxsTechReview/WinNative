@@ -1013,11 +1013,15 @@ Cale instalata:
     <string name="preloader_launching">Se lansează…</string>
     <string name="preloader_closing">Se închide %1$s…</string>
     <string name="preloader_setup_environment">Se configurează mediul…</string>
+    <string name="preloader_retrying_steam_client_download">Se reîncearcă descărcarea clientului Steam…</string>
     <string name="preloader_installing_mono">Se instalează Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Se instalează redistribuibilele…</string>
     <string name="preloader_unpacking_exe">Se decomprimă executabilul jocului…</string>
     <string name="preloader_downloading_cloud">Se descarcă salvările din cloud…</string>
     <string name="preloader_syncing_cloud">Se sincronizează salvările din cloud…</string>
+    <string name="preloader_uploading_cloud">Se încarcă salvările în cloud…</string>
+    <string name="preloader_checking_cloud">Se verifică salvările din cloud…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Reîncercare %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Descărcare Cloud Sync…</string>
     <string name="cloud_sync_failed_provider">Sincronizarea cloud %1$s a eșuat.</string>
     <string name="preloader_platform_steam">Steam</string>

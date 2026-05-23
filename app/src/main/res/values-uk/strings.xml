@@ -1019,11 +1019,15 @@
     <string name="preloader_launching">Запуск…</string>
     <string name="preloader_closing">Закриття %1$s…</string>
     <string name="preloader_setup_environment">Налаштування середовища…</string>
+    <string name="preloader_retrying_steam_client_download">Повторне завантаження клієнта Steam…</string>
     <string name="preloader_installing_mono">Встановлення Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Встановлення поширюваних компонентів…</string>
     <string name="preloader_unpacking_exe">Розпакування виконуваного файлу гри…</string>
     <string name="preloader_downloading_cloud">Завантаження хмарних збережень…</string>
     <string name="preloader_syncing_cloud">Синхронізація хмарних збережень…</string>
+    <string name="preloader_uploading_cloud">Вивантаження хмарних збережень…</string>
+    <string name="preloader_checking_cloud">Перевірка хмарних збережень…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Повтор %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Завантаження Cloud Sync…</string>
     <string name="cloud_sync_failed_provider">Хмарна синхронізація %1$s не вдалася.</string>
     <string name="preloader_platform_steam">Steam</string>

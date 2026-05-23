@@ -215,6 +215,23 @@ object CloudSyncHelper {
     }
 
     @JvmStatic
+    fun getEpicPendingSyncAction(
+        context: Context,
+        shortcut: Shortcut,
+    ): EpicCloudSavesManager.SyncAction =
+        runBlocking {
+            try {
+                val appId =
+                    shortcut.getExtra("app_id").toIntOrNull()
+                        ?: return@runBlocking EpicCloudSavesManager.SyncAction.NONE
+                EpicCloudSavesManager.getPendingSyncAction(context, appId)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to probe Epic cloud sync action for %s", shortcut.name)
+                EpicCloudSavesManager.SyncAction.NONE
+            }
+        }
+
+    @JvmStatic
     fun getEpicConflictTimestamps(
         context: Context,
         shortcut: Shortcut,
@@ -353,7 +370,9 @@ object CloudSyncHelper {
     ): Boolean {
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
         return try {
-            EpicCloudSavesManager.syncCloudSaves(context, appId, "upload")
+            // Launch conflict handling should not create a fresh Epic manifest
+            // when the local files are older than, or equal to, the cloud copy.
+            EpicCloudSavesManager.syncCloudSaves(context, appId, "exit_upload")
         } catch (e: Exception) {
             Timber.e(e, "Failed to upload Epic cloud saves for appId=%d", appId)
             false

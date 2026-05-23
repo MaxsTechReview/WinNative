@@ -51,6 +51,7 @@ class EpicService : Service() {
         private var backgroundSyncJob: Job? = null
         private var lastSyncTimestamp: Long = 0L
         private var hasPerformedInitialSync: Boolean = false
+        private var hasPerformedInitialCloudSaveCheck: Boolean = false
 
         val isRunning: Boolean
             get() = instance != null
@@ -526,6 +527,17 @@ class EpicService : Service() {
                 )
 
             instance.activeDownloads[appId] = downloadInfo
+
+            // Pre-seed from the persisted record so Resume doesn't flash 0% during re-verify.
+            val priorRecord =
+                runBlocking {
+                    DownloadCoordinator.findRecord(DownloadRecord.STORE_EPIC, appId.toString())
+                }
+            if (priorRecord != null && priorRecord.bytesTotal > 0L) {
+                downloadInfo.setTotalExpectedBytes(priorRecord.bytesTotal)
+                downloadInfo.setDisplayTotalExpectedBytes(priorRecord.bytesTotal)
+                downloadInfo.initializeBytesDownloaded(priorRecord.bytesDownloaded)
+            }
 
             // Ask the global coordinator whether we can start now or must wait. The coordinator
             // persists a DownloadRecord either way, so the download survives an app restart.
@@ -1376,6 +1388,7 @@ class EpicService : Service() {
                             lastSyncTimestamp = System.currentTimeMillis()
                             // Mark that initial sync has been performed
                             hasPerformedInitialSync = true
+                            performInitialCloudSaveCheck(applicationContext)
                         }
                     } catch (e: Exception) {
                         Timber.e(e, "Exception starting background sync")
@@ -1385,9 +1398,59 @@ class EpicService : Service() {
                 }
         } else if (shouldSync) {
             Timber.tag("EPIC").d("Background sync already in progress, skipping")
+        } else if (!hasPerformedInitialCloudSaveCheck) {
+            scope.launch {
+                performInitialCloudSaveCheck(applicationContext)
+            }
         }
 
         return START_STICKY
+    }
+
+    private suspend fun performInitialCloudSaveCheck(context: Context) {
+        if (hasPerformedInitialCloudSaveCheck) return
+        hasPerformedInitialCloudSaveCheck = true
+
+        val games =
+            try {
+                epicManager
+                    .getAllGames()
+                    .filter { it.isInstalled && it.cloudSaveEnabled && !it.isDLC }
+            } catch (e: Exception) {
+                Timber.tag("Epic").w(e, "[Cloud Saves] Startup check could not load installed Epic games")
+                return
+            }
+        if (games.isEmpty()) return
+
+        val shortcuts: List<com.winlator.cmod.runtime.container.Shortcut> =
+            runCatching<List<com.winlator.cmod.runtime.container.Shortcut>> {
+                com.winlator.cmod.runtime.container.ContainerManager(context).loadShortcuts()
+            }.getOrElse {
+                Timber.tag("Epic").w(it, "[Cloud Saves] Startup check could not load shortcuts; using default cloud-sync state")
+                emptyList()
+            }
+        val shortcutsByAppId =
+            shortcuts
+                .filter { it.getExtra("game_source") == "EPIC" }
+                .associateBy { it.getExtra("app_id") }
+
+        Timber.tag("Epic").i("[Cloud Saves] Startup checking ${games.size} installed Epic cloud-save title(s)")
+        games.forEach { game ->
+            val shortcut = shortcutsByAppId[game.id.toString()]
+            if (shortcut != null &&
+                (shortcut.getExtra("cloud_sync_disabled", "0") == "1" ||
+                    shortcut.getExtra("offline_mode", "0") == "1")
+            ) {
+                Timber.tag("Epic").d("[Cloud Saves] Startup check skipped for ${game.title}: shortcut cloud sync disabled")
+                return@forEach
+            }
+
+            runCatching {
+                EpicCloudSavesManager.restoreCloudSavesIfLocalMissing(context, game.id)
+            }.onFailure {
+                Timber.tag("Epic").w(it, "[Cloud Saves] Startup restore failed for ${game.title}")
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -1399,6 +1462,7 @@ class EpicService : Service() {
         // Cancel sync operations
         backgroundSyncJob?.cancel()
         setSyncInProgress(false)
+        hasPerformedInitialCloudSaveCheck = false
 
         // Safety net for service/process teardown: persist the latest visible
         // progress into the coordinator before cancelling workers.

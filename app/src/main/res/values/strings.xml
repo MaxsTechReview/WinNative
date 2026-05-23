@@ -1234,11 +1234,15 @@ Installed path:
     <string name="preloader_launching">Launching…</string>
     <string name="preloader_closing">Closing %1$s…</string>
     <string name="preloader_setup_environment">Setting up environment…</string>
+    <string name="preloader_retrying_steam_client_download">Retrying Steam client download…</string>
     <string name="preloader_installing_mono">Installing Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Installing redistributables…</string>
     <string name="preloader_unpacking_exe">Unpacking game executable…</string>
     <string name="preloader_downloading_cloud">Downloading cloud saves…</string>
     <string name="preloader_syncing_cloud">Syncing cloud saves…</string>
+    <string name="preloader_uploading_cloud">Uploading cloud saves…</string>
+    <string name="preloader_checking_cloud">Checking cloud saves…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Retry %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Cloud Sync Downloading…</string>
     <string name="cloud_sync_failed_provider">%1$s cloud save sync failed.</string>
     <string name="preloader_platform_steam">Steam</string>

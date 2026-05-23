@@ -5,6 +5,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
 import com.winlator.cmod.runtime.container.Shortcut
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
@@ -35,7 +36,24 @@ object EpicLaunchCloudSync {
             return
         }
 
-        if (!CloudSyncHelper.cloudSavesDiffer(activity, shortcut)) return
+        when (CloudSyncHelper.getEpicPendingSyncAction(activity, shortcut)) {
+            EpicCloudSavesManager.SyncAction.NONE -> return
+            EpicCloudSavesManager.SyncAction.DOWNLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
+                CloudSyncHelper.downloadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            EpicCloudSavesManager.SyncAction.UPLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
+                CloudSyncHelper.uploadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            EpicCloudSavesManager.SyncAction.CONFLICT -> {
+                // Fall through to the conflict dialog below.
+            }
+        }
 
         val dialogLatch = CountDownLatch(1)
         var useCloud = false

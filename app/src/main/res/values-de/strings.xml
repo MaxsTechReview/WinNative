@@ -1013,11 +1013,15 @@ Installierter Pfad:
     <string name="preloader_launching">Wird gestartet…</string>
     <string name="preloader_closing">%1$s wird geschlossen…</string>
     <string name="preloader_setup_environment">Umgebung wird eingerichtet…</string>
+    <string name="preloader_retrying_steam_client_download">Steam-Client-Download wird erneut versucht…</string>
     <string name="preloader_installing_mono">Wine Mono v%1$s wird installiert…</string>
     <string name="preloader_installing_redist">Redistributables werden installiert…</string>
     <string name="preloader_unpacking_exe">Spiel-Programmdatei wird entpackt…</string>
     <string name="preloader_downloading_cloud">Cloud-Spielstände werden heruntergeladen…</string>
     <string name="preloader_syncing_cloud">Cloud-Spielstände werden synchronisiert…</string>
+    <string name="preloader_uploading_cloud">Cloud-Spielstände werden hochgeladen…</string>
+    <string name="preloader_checking_cloud">Cloud-Spielstände werden geprüft…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Wiederholung %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Cloud-Sync lädt herunter…</string>
     <string name="cloud_sync_failed_provider">%1$s Cloud-Synchronisierung fehlgeschlagen.</string>
     <string name="preloader_platform_steam">Steam</string>

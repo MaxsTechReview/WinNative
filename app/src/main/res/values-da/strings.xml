@@ -1013,11 +1013,15 @@ Installeret sti:
     <string name="preloader_launching">Starter…</string>
     <string name="preloader_closing">Lukker %1$s…</string>
     <string name="preloader_setup_environment">Opsætter miljø…</string>
+    <string name="preloader_retrying_steam_client_download">Prøver at downloade Steam-klienten igen…</string>
     <string name="preloader_installing_mono">Installerer Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Installerer redistribuerbare filer…</string>
     <string name="preloader_unpacking_exe">Udpakker spilprogram…</string>
     <string name="preloader_downloading_cloud">Downloader cloud-gemte data…</string>
     <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data…</string>
+    <string name="preloader_uploading_cloud">Uploader cloud-gemte data…</string>
+    <string name="preloader_checking_cloud">Kontrollerer cloud-gemte data…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Prøver igen %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Cloud Sync downloader…</string>
     <string name="cloud_sync_failed_provider">%1$s cloud-synkronisering mislykkedes.</string>
     <string name="preloader_platform_steam">Steam</string>

@@ -43,7 +43,7 @@ const val DATABASE_NAME = "pluvia_database"
         DownloadingAppInfo::class,
         DownloadRecord::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(

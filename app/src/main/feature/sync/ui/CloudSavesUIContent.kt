@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.app.shell.LaunchDangerConfirmDialog
+import com.winlator.cmod.feature.stores.epic.service.EpicCloudHistoryProvider
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
 import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
@@ -138,16 +139,28 @@ internal fun CloudSavesContent(
     LaunchedEffect(gameSource, gameId, historyRefreshKey) {
         historyLoading = true
         historyEntries =
-            if (gameSource == GameSaveBackupManager.GameSource.STEAM) {
-                val appId = gameId.toIntOrNull()
-                if (appId != null) {
-                    SteamCloudHistoryProvider
-                        .listCloudSaveGroups(context, appId)
-                } else {
-                    emptyList()
+            when (gameSource) {
+                GameSaveBackupManager.GameSource.STEAM -> {
+                    val appId = gameId.toIntOrNull()
+                    if (appId != null) {
+                        SteamCloudHistoryProvider
+                            .listCloudSaveGroups(context, appId)
+                    } else {
+                        emptyList()
+                    }
                 }
-            } else {
-                emptyList()
+                GameSaveBackupManager.GameSource.EPIC -> {
+                    val appId = gameId.toIntOrNull()
+                    if (appId != null) {
+                        EpicCloudHistoryProvider
+                            .listCloudSaveGroups(context, appId)
+                    } else {
+                        emptyList()
+                    }
+                }
+                GameSaveBackupManager.GameSource.GOG,
+                GameSaveBackupManager.GameSource.CUSTOM,
+                -> emptyList()
             }
         historyLoading = false
     }
@@ -575,6 +588,19 @@ internal fun CloudSavesContent(
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
                                 }
                             }
+                            GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> {
+                                val appId = gameId.toIntOrNull()
+                                if (appId != null) {
+                                    EpicCloudHistoryProvider
+                                        .restoreSaveGroup(
+                                            context,
+                                            appId,
+                                            target.fileId,
+                                        )
+                                } else {
+                                    GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
+                                }
+                            }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
                         }
                     WinToast.show(
@@ -675,6 +701,10 @@ internal fun CloudSavesContent(
                                         SteamCloudHistoryProvider
                                             .setLabel(context, target.fileId, null)
                                     }
+                                    GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> {
+                                        EpicCloudHistoryProvider
+                                            .setLabel(context, target.fileId, null)
+                                    }
                                     GameSaveBackupManager.BackupStorage.STEAM_LOCAL -> {
                                         val appId = gameId.toIntOrNull()
                                         if (appId != null) {
@@ -708,6 +738,11 @@ internal fun CloudSavesContent(
                                 when (target.storage) {
                                     GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> {
                                         SteamCloudHistoryProvider
+                                            .setLabel(context, target.fileId, newLabel)
+                                        GameSaveBackupManager.BackupResult(true, context.getString(R.string.cloud_saves_label_saved))
+                                    }
+                                    GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> {
+                                        EpicCloudHistoryProvider
                                             .setLabel(context, target.fileId, newLabel)
                                         GameSaveBackupManager.BackupResult(true, context.getString(R.string.cloud_saves_label_saved))
                                     }
@@ -889,10 +924,17 @@ private fun SaveHistoryRow(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = formatBytes(entry.sizeBytes),
+                    text =
+                        if (entry.fileName.isBlank()) {
+                            formatBytes(entry.sizeBytes)
+                        } else {
+                            "${formatBytes(entry.sizeBytes)} \u2022 ${entry.fileName}"
+                        },
                     color = TextSecondary,
                     fontSize = 9.sp,
                     lineHeight = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (!entry.label.isNullOrBlank()) {
                     Spacer(Modifier.width(5.dp))

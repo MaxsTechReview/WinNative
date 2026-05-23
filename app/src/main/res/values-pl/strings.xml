@@ -1019,11 +1019,15 @@ Zainstalowana ścieżka:
     <string name="preloader_launching">Uruchamianie…</string>
     <string name="preloader_closing">Zamykanie %1$s…</string>
     <string name="preloader_setup_environment">Konfiguracja środowiska…</string>
+    <string name="preloader_retrying_steam_client_download">Ponawianie pobierania klienta Steam…</string>
     <string name="preloader_installing_mono">Instalowanie Wine Mono v%1$s…</string>
     <string name="preloader_installing_redist">Instalowanie pakietów redystrybucyjnych…</string>
     <string name="preloader_unpacking_exe">Rozpakowywanie pliku wykonywalnego gry…</string>
     <string name="preloader_downloading_cloud">Pobieranie zapisów z chmury…</string>
     <string name="preloader_syncing_cloud">Synchronizacja zapisów z chmury…</string>
+    <string name="preloader_uploading_cloud">Przesyłanie zapisów do chmury…</string>
+    <string name="preloader_checking_cloud">Sprawdzanie zapisów w chmurze…</string>
+    <string name="preloader_cloud_sync_retry">%1$s Próba %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">Pobieranie synchronizacji chmury…</string>
     <string name="cloud_sync_failed_provider">Synchronizacja chmury %1$s nie powiodła się.</string>
     <string name="preloader_platform_steam">Steam</string>

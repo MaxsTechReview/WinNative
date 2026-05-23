@@ -124,6 +124,11 @@ object GameSaveBackupManager {
          * server-side version history — each "group" is files written within ~120s of each other.
          */
         STEAM_CLOUD,
+        /**
+         * Epic Games Store cloud-save manifests listed by savesync. Each upload writes a
+         * timestamped manifest plus chunk files; selecting a row restores that manifest.
+         */
+        EPIC_CLOUD,
     }
 
     /** Origin of a history backup — identifies which side of a conflict it came from. */

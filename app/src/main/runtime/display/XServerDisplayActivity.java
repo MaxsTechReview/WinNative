@@ -2336,6 +2336,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         new Thread(() -> {
+            performForcedEpicCloudUpload("forced cleanup (" + trigger + ")");
+
             try {
                 AppTerminationHelper.stopManagedServices(getApplicationContext(), "xserver_forced_cleanup_" + trigger);
             } catch (Exception e) {
@@ -2405,9 +2407,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (shortcutName != null && !shortcutName.isEmpty()) {
-            preloaderDialog.showOnUiThread("Closing " + shortcutName + "...");
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_closing, shortcutName));
         } else {
-            preloaderDialog.showOnUiThread("Closing Container...");
+            preloaderDialog.showOnUiThread(
+                    getString(R.string.preloader_closing, getString(R.string.preloader_default_name)));
         }
         
         // Sync store cloud saves before shutting down
@@ -2592,7 +2595,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     + "ms.");
                     if (preloaderDialog != null && retryStatusMessage != null && !retryStatusMessage.isEmpty()) {
                         preloaderDialog.showOnUiThread(
-                                retryStatusMessage + " Retry " + nextAttempt + "/" + EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS + "...");
+                                getString(
+                                        R.string.preloader_cloud_sync_retry,
+                                        retryStatusMessage,
+                                        nextAttempt,
+                                        EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS));
                     }
                     Handler activeHandler = handler != null ? handler : new Handler(Looper.getMainLooper());
                     activeHandler.postDelayed(
@@ -2661,7 +2668,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         runExitUploadWithRetries(
                 "Steam cloud sync for appId=" + appId,
-                "Cloud Sync Uploading...",
+                getString(R.string.preloader_uploading_cloud),
                 callback ->
                         SteamExitCloudSync.syncOnExit(
                                 this,
@@ -2692,10 +2699,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        // Skip silently when an upload can't possibly succeed — the game doesn't opt
+        // Skip silently when a sync can't possibly succeed — the game doesn't opt
         // into Epic cloud saves (most don't), the user isn't signed in, or there are
         // no local save files yet. Otherwise the retry-with-backoff loop below would
-        // run three full rounds showing "Cloud Sync Uploading… Retry 3/3" for a
+        // run three full rounds showing the cloud-check retry status for a
         // permanent no-op.
         if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
                 .canAttemptExitUpload(this, appId)) {
@@ -2708,20 +2715,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         try {
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_checking_cloud));
 
             runExitUploadWithRetries(
                     "Epic cloud sync for appId=" + appId,
-                    "Cloud Sync Uploading...",
+                    getString(R.string.preloader_checking_cloud),
                     callback -> runBlockingExitUpload(
                             "EpicExitCloudSync",
                             () -> {
+                                Object pendingAction = kotlinx.coroutines.BuildersKt.runBlocking(
+                                        kotlinx.coroutines.Dispatchers.getIO(),
+                                        (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.getPendingExitSyncAction(
+                                                this,
+                                                appId,
+                                                continuation
+                                        )
+                                );
+                                if (pendingAction == com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.SyncAction.UPLOAD) {
+                                    runOnUiThread(() -> preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud)));
+                                }
+
                                 Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
                                         kotlinx.coroutines.Dispatchers.getIO(),
                                         (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
                                                 this,
                                                 appId,
-                                                "upload",
+                                                "exit_upload",
                                                 continuation
                                         )
                                 );
@@ -2729,8 +2748,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 return new ExitUploadResult(
                                         success,
                                         success
-                                                ? "Epic cloud upload completed."
-                                                : "Epic cloud upload reported failure.",
+                                                ? "Epic cloud sync completed."
+                                                : "Epic cloud sync reported failure.",
                                         true);
                             },
                             callback),
@@ -2738,6 +2757,44 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Failed to start Epic cloud sync", e);
             onComplete.run();
+        }
+    }
+
+    private void performForcedEpicCloudUpload(String reason) {
+        if (shortcut == null || !"EPIC".equals(shortcut.getExtra("game_source"))) return;
+        if (!isCloudSyncEnabledForShortcut() || CloudSyncHelper.isOfflineMode(shortcut)) return;
+
+        String appIdStr = shortcut.getExtra("app_id");
+        if (appIdStr == null || appIdStr.isEmpty()) return;
+
+        final int appId;
+        try {
+            appId = Integer.parseInt(appIdStr);
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for forced cloud sync", e);
+            return;
+        }
+
+        try {
+            if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
+                    .canAttemptExitUpload(this, appId)) {
+                Log.i("XServerDisplayActivity", "Forced Epic cloud upload skipped for appId=" + appId + " during " + reason);
+                return;
+            }
+
+            Log.i("XServerDisplayActivity", "Attempting forced Epic cloud upload for appId=" + appId + " during " + reason);
+            Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                    kotlinx.coroutines.Dispatchers.getIO(),
+                    (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
+                            this,
+                            appId,
+                            "exit_upload",
+                            continuation
+                    )
+            );
+            Log.i("XServerDisplayActivity", "Forced Epic cloud upload result for appId=" + appId + ": " + syncSuccess);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Forced Epic cloud upload failed during " + reason, e);
         }
     }
 
@@ -2749,11 +2806,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         Log.d("XServerDisplayActivity", "Syncing GOG cloud saves for gogId=" + gogId);
-        preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+        preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud));
 
         runExitUploadWithRetries(
                 "GOG cloud sync for gogId=" + gogId,
-                "Cloud Sync Uploading...",
+                getString(R.string.preloader_uploading_cloud),
                 callback -> runBlockingExitUpload(
                         "GogExitCloudSync",
                         () -> {
@@ -4106,7 +4163,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         closeLaunchAttempt();
                         return;
                     }
-                    preloaderDialog.showOnUiThread("Retrying Steam client download...");
+                    preloaderDialog.showOnUiThread(getString(R.string.preloader_retrying_steam_client_download));
                 }
             }
 

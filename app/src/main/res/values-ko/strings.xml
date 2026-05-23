@@ -1013,11 +1013,15 @@
     <string name="preloader_launching">실행 중…</string>
     <string name="preloader_closing">%1$s 종료 중…</string>
     <string name="preloader_setup_environment">환경 설정 중…</string>
+    <string name="preloader_retrying_steam_client_download">Steam 클라이언트 다운로드 다시 시도 중…</string>
     <string name="preloader_installing_mono">Wine Mono v%1$s 설치 중…</string>
     <string name="preloader_installing_redist">재배포 파일 설치 중…</string>
     <string name="preloader_unpacking_exe">게임 실행 파일 압축 해제 중…</string>
     <string name="preloader_downloading_cloud">클라우드 세이브 다운로드 중…</string>
     <string name="preloader_syncing_cloud">클라우드 세이브 동기화 중…</string>
+    <string name="preloader_uploading_cloud">클라우드 세이브 업로드 중…</string>
+    <string name="preloader_checking_cloud">클라우드 세이브 확인 중…</string>
+    <string name="preloader_cloud_sync_retry">%1$s 재시도 %2$d/%3$d…</string>
     <string name="preloader_cloud_downloading">클라우드 동기화 다운로드 중…</string>
     <string name="cloud_sync_failed_provider">%1$s 클라우드 동기화에 실패했습니다.</string>
     <string name="preloader_platform_steam">Steam</string>

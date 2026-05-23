@@ -124,6 +124,7 @@ class EpicManager
             val ownershipToken: Boolean = false,
             val cloudSaveFolder: String? = null,
             val cloudIncludeList: String? = null,
+            val cloudExcludeList: String? = null,
             val neverUpdate: Boolean = false,
             val folderName: String? = null,
             val presenceId: String? = null,
@@ -592,6 +593,7 @@ class EpicManager
                 ownershipToken = getBooleanAttribute("OwnershipToken", false),
                 cloudSaveFolder = getAttribute("CloudSaveFolder"),
                 cloudIncludeList = getAttribute("CloudIncludeList"),
+                cloudExcludeList = getAttribute("CloudExcludeList"),
                 folderName = getAttribute("FolderName"),
                 presenceId = getAttribute("PresenceId"),
                 monitorPresence = getBooleanAttribute("MonitorPresence", false),
@@ -701,6 +703,8 @@ class EpicManager
             val requiresOwnershipToken = parsedAttributes.ownershipToken
             val cloudSaveEnabled = !parsedAttributes.cloudSaveFolder.isNullOrEmpty()
             val saveFolder = parsedAttributes.cloudSaveFolder ?: ""
+            val cloudIncludeList = parsedAttributes.cloudIncludeList ?: ""
+            val cloudExcludeList = parsedAttributes.cloudExcludeList ?: ""
             val executable = parsedAttributes.executableName ?: ""
             val thirdPartyApp =
                 listOfNotNull(
@@ -719,7 +723,7 @@ class EpicManager
                 }
 
             Timber.d(
-                "Game $appName - CloudSaveFolder: $saveFolder, CloudIncludeList: ${parsedAttributes.cloudIncludeList}, CanRunOffline: $canRunOffline",
+                "Game $appName - CloudSaveFolder: $saveFolder, CloudIncludeList: ${parsedAttributes.cloudIncludeList}, CloudExcludeList: ${parsedAttributes.cloudExcludeList}, CanRunOffline: $canRunOffline",
             )
 
             return EpicGame(
@@ -751,6 +755,8 @@ class EpicManager
                 requiresOT = requiresOwnershipToken,
                 cloudSaveEnabled = cloudSaveEnabled,
                 saveFolder = saveFolder,
+                cloudIncludeList = cloudIncludeList,
+                cloudExcludeList = cloudExcludeList,
                 thirdPartyManagedApp = thirdPartyApp,
                 isEAManaged = isEaManaged,
                 lastPlayed = 0,
@@ -835,6 +841,11 @@ class EpicManager
                 epicGameDao.update(game)
             }
         }
+
+        suspend fun getAllGames(): List<EpicGame> =
+            withContext(Dispatchers.IO) {
+                epicGameDao.getAllAsList()
+            }
 
         suspend fun uninstall(appId: Int) {
             withContext(Dispatchers.IO) {
