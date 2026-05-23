@@ -1113,6 +1113,19 @@ class EpicManager
                     Timber.tag("Epic").d("Install size for $appName: $installSize bytes")
                     Timber.tag("Epic").d("Download size for $appName: $downloadSize bytes")
 
+                    if (installSize > 0L || downloadSize > 0L) {
+                        try {
+                            epicGameDao.update(
+                                game.copy(
+                                    installSize = installSize.takeIf { it > 0L } ?: game.installSize,
+                                    downloadSize = downloadSize.takeIf { it > 0L } ?: game.downloadSize,
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            Timber.tag("Epic").w(e, "Failed to cache manifest sizes for $appName")
+                        }
+                    }
+
                     return@withContext ManifestSizes(installSize = installSize, downloadSize = downloadSize)
                 } catch (e: Exception) {
                     Timber.tag("Epic").e(e, "Exception fetching install size for appId: $appId")

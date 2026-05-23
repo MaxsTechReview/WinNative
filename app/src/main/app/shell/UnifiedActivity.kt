@@ -209,6 +209,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.Lazy
 import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -5978,11 +5980,49 @@ class UnifiedActivity :
 
         LaunchedEffect(app.id, installed) {
             if (!installed) {
-                withContext(Dispatchers.IO) {
-                    manifestSizes = EpicService.fetchManifestSizes(context, app.id)
-                    dlcApps = EpicService.getDLCForGameSuspend(app.id)
-                    isLoading = false
-                }
+                val (sizes, sizedDlcs) =
+                    withContext(Dispatchers.IO) {
+                        val baseSizes = EpicService.fetchManifestSizes(context, app.id)
+                        val dlcs = EpicService.getDLCForGameSuspend(app.id)
+                        val dlcsWithSizes =
+                            dlcs
+                                .map { dlc ->
+                                    async {
+                                        if (dlc.downloadSize > 0L || dlc.installSize > 0L) {
+                                            dlc
+                                        } else {
+                                            val dlcSizes = EpicService.fetchManifestSizes(context, dlc.id)
+                                            dlc.copy(
+                                                downloadSize = dlcSizes.downloadSize,
+                                                installSize = dlcSizes.installSize,
+                                            )
+                                        }
+                                    }
+                                }.awaitAll()
+                        baseSizes to dlcsWithSizes
+                    }
+                manifestSizes = sizes
+                dlcApps = sizedDlcs
+                isLoading = false
+            } else {
+                dlcApps =
+                    withContext(Dispatchers.IO) {
+                        EpicService
+                            .getDLCForGameSuspend(app.id)
+                            .map { dlc ->
+                                async {
+                                    if (dlc.downloadSize > 0L || dlc.installSize > 0L) {
+                                        dlc
+                                    } else {
+                                        val dlcSizes = EpicService.fetchManifestSizes(context, dlc.id)
+                                        dlc.copy(
+                                            downloadSize = dlcSizes.downloadSize,
+                                            installSize = dlcSizes.installSize,
+                                        )
+                                    }
+                                }
+                            }.awaitAll()
+                    }
             }
         }
 
@@ -6017,7 +6057,7 @@ class UnifiedActivity :
                     val size =
                         dlc.downloadSize.takeIf { it > 0L }
                             ?: dlc.installSize
-                    StoreDlcItem(id = dlc.id, name = dlc.title, downloadSize = size)
+                    StoreDlcItem(id = dlc.id, name = dlc.title, downloadSize = size, isInstalled = dlc.isInstalled)
                 }
             }
         val customPathLabel =
