@@ -225,9 +225,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
             "realtime-scheduling = no",
             "flat-volumes = no",
             "enable-deferred-volume = no",
-            "resample-method = speex-float-1",
+            "resample-method = speex-float-3",
             "avoid-resampling = yes",
-            "default-sample-format = s16le",
+            "default-sample-format = float32le",
             "default-sample-rate = " + sampleRate,
             "alternate-sample-rate = " + alternateSampleRate,
             "default-sample-channels = " + options.channels,
@@ -275,7 +275,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     command += " --exit-idle-time=-1";
     command += " --high-priority=true";
     command += " --realtime=false";
-    command += " --resample-method=speex-float-1";
+    command += " --resample-method=speex-float-3";
 
     return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
   }
