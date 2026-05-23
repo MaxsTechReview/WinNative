@@ -22,16 +22,18 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
+import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.DigestInputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import java.util.zip.Inflater
+import java.util.zip.InflaterInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -84,9 +86,12 @@ class GOGDownloadManager
         )
 
         companion object {
-            private const val MAX_PARALLEL_DOWNLOADS = 6
+            private const val MAX_PARALLEL_DOWNLOADS = 10
+            private const val MAX_PARALLEL_MANIFEST_FETCHES = 8
             private val EXPIRED_LINK_STATUS_CODES = setOf(401, 403, 404)
             private const val CHUNK_BUFFER_SIZE = 1024 * 1024 // 1MB buffer
+            private const val STREAM_BUFFER_SIZE = 64 * 1024 // 64KB per-read buffer for streaming I/O
+            private const val PROGRESS_EMIT_INTERVAL_MS = 250L
             private const val MAX_CHUNK_RETRIES = 3 // Maximum retries per chunk
             private const val RETRY_DELAY_MS = 1000L // Initial retry delay in milliseconds
             private const val DEPENDENCY_URL = "https://content-system.gog.com/dependencies/repository?generation=2"
@@ -262,8 +267,6 @@ class GOGDownloadManager
                             )
                     }
 
-                    downloadInfo.updateStatusMessage("Fetching depot manifests...")
-
                     // Step 4: Fetch depot manifests to get file lists
                     // Track which depot each file came from for proper productId mapping
                     data class FileWithDepot(
@@ -279,20 +282,39 @@ class GOGDownloadManager
                             else -> fileProductId
                         }
 
+                    downloadInfo.updateStatusMessage("Fetching depot manifests (${depots.size})...")
+
+                    val depotCompleted = AtomicInteger(0)
+                    val depotManifestResults =
+                        coroutineScope {
+                            val limit = minOf(MAX_PARALLEL_MANIFEST_FETCHES, depots.size).coerceAtLeast(1)
+                            val nextIndex = AtomicInteger(0)
+                            val perDepot = arrayOfNulls<Result<com.winlator.cmod.feature.stores.gog.api.DepotManifest>>(depots.size)
+                            (0 until limit)
+                                .map {
+                                    async {
+                                        while (true) {
+                                            val i = nextIndex.getAndIncrement()
+                                            if (i >= depots.size) break
+                                            perDepot[i] = apiClient.fetchDepotManifest(depots[i].manifest)
+                                            val done = depotCompleted.incrementAndGet()
+                                            downloadInfo.updateStatusMessage("Fetching depot $done/${depots.size}...")
+                                        }
+                                    }
+                                }.awaitAll()
+                            perDepot.toList()
+                        }
+
                     val allFilesWithDepots = mutableListOf<FileWithDepot>()
-
                     for ((index, depot) in depots.withIndex()) {
-                        downloadInfo.updateStatusMessage("Fetching depot ${index + 1}/${depots.size}...")
-
-                        val depotResult = apiClient.fetchDepotManifest(depot.manifest)
+                        val depotResult = depotManifestResults[index]
+                            ?: return@withContext Result.failure(Exception("Missing depot manifest result for ${depot.manifest}"))
                         if (depotResult.isFailure) {
                             return@withContext Result.failure(
                                 depotResult.exceptionOrNull() ?: Exception("Failed to fetch depot manifest"),
                             )
                         }
-
-                        val files = depotResult.getOrThrow().files
-                        files.forEach { file ->
+                        depotResult.getOrThrow().files.forEach { file ->
                             allFilesWithDepots.add(FileWithDepot(file, depot.productId))
                         }
                     }
@@ -316,14 +338,17 @@ class GOGDownloadManager
                             }.map { it.file }
                     var (gameFiles, supportFiles) = parser.separateSupportFiles(requestedFilesWithDepots.map { it.file })
 
-                    // Filter out files that already exist with correct size (incremental download)
+                    // Filter out files that already exist with correct size (incremental download).
+                    // We trust size-only here: fresh writes are MD5-verified per-chunk during
+                    // download/assembly, and re-hashing already-installed gigabytes on every resume is
+                    // prohibitive. Users who suspect corruption can re-install to force a rebuild.
                     val gameInstallDir = installPath
                     val beforeCount = gameFiles.size
                     gameFiles =
                         gameFiles.filter { file ->
                             val outputFile = File(gameInstallDir, file.path)
                             val expectedSize = file.chunks.sumOf { it.size }
-                            !fileExistsWithCorrectSize(outputFile, expectedSize, file.md5)
+                            !fileExistsWithCorrectSize(outputFile, expectedSize)
                         }
                     Timber.tag("GOG").d("Skipping ${beforeCount - gameFiles.size} existing file(s), downloading ${gameFiles.size}")
 
@@ -403,17 +428,24 @@ class GOGDownloadManager
                     Timber.tag("GOG").d("Need secure links for ${productIds.size} owned product(s): ${productIds.joinToString()}")
                     Timber.tag("GOG").d("Mapped ${chunkToProductMap.size} chunks to products")
 
-                    // Fetch secure links for each product
-                    for (productId in productIds) {
-                        val linksResult =
-                            apiClient.getSecureLink(
-                                productId = productId,
-                                path = "/",
-                                generation = selectedBuild.generation,
-                            )
+                    // Fetch secure links for each product in parallel.
+                    val linkResults =
+                        coroutineScope {
+                            productIds
+                                .map { productId ->
+                                    async {
+                                        productId to
+                                            apiClient.getSecureLink(
+                                                productId = productId,
+                                                path = "/",
+                                                generation = selectedBuild.generation,
+                                            )
+                                    }
+                                }.awaitAll()
+                        }
+                    for ((productId, linksResult) in linkResults) {
                         if (linksResult.isSuccess) {
-                            val urls = linksResult.getOrThrow().urls
-                            productUrlMap[productId] = urls
+                            productUrlMap[productId] = linksResult.getOrThrow().urls
                         } else {
                             return@withContext Result.failure(
                                 linksResult.exceptionOrNull() ?: Exception("Failed to get secure links for product $productId"),
@@ -660,8 +692,16 @@ class GOGDownloadManager
                     val productIds = filesToDownload.map { it.productId }.toSet()
                     val securePath = "/$platform/$timestamp/"
                     val productUrlMap = mutableMapOf<String, List<String>>()
-                    for (productId in productIds) {
-                        val linksResult = apiClient.getSecureLink(productId = productId, path = securePath, generation = 1)
+                    val gen1LinkResults =
+                        coroutineScope {
+                            productIds
+                                .map { productId ->
+                                    async {
+                                        productId to apiClient.getSecureLink(productId = productId, path = securePath, generation = 1)
+                                    }
+                                }.awaitAll()
+                        }
+                    for ((productId, linksResult) in gen1LinkResults) {
                         if (linksResult.isFailure) {
                             return@withContext Result.failure(
                                 linksResult.exceptionOrNull() ?: Exception("Failed to get secure link for product $productId"),
@@ -676,10 +716,32 @@ class GOGDownloadManager
                     )
                     val allV1Files = mutableListOf<FileWithProduct>()
 
-                    downloadInfo.updateStatusMessage("Fetching depot manifests...")
+                    downloadInfo.updateStatusMessage("Fetching depot manifests (${filesToDownload.size})...")
+                    val gen1DepotJsonResults =
+                        coroutineScope {
+                            val limit = minOf(MAX_PARALLEL_MANIFEST_FETCHES, filesToDownload.size).coerceAtLeast(1)
+                            val nextIndex = AtomicInteger(0)
+                            val perDepot = arrayOfNulls<Result<String>>(filesToDownload.size)
+                            val completed = AtomicInteger(0)
+                            (0 until limit)
+                                .map {
+                                    async {
+                                        while (true) {
+                                            val i = nextIndex.getAndIncrement()
+                                            if (i >= filesToDownload.size) break
+                                            val d = filesToDownload[i]
+                                            perDepot[i] =
+                                                apiClient.fetchDepotManifestV1(d.productId, platform, timestamp, d.manifest)
+                                            val done = completed.incrementAndGet()
+                                            downloadInfo.updateStatusMessage("Fetching depot $done/${filesToDownload.size}...")
+                                        }
+                                    }
+                                }.awaitAll()
+                            perDepot.toList()
+                        }
                     for ((idx, depot) in filesToDownload.withIndex()) {
-                        downloadInfo.updateStatusMessage("Fetching depot ${idx + 1}/${filesToDownload.size}...")
-                        val depotJsonResult = apiClient.fetchDepotManifestV1(depot.productId, platform, timestamp, depot.manifest)
+                        val depotJsonResult = gen1DepotJsonResults[idx]
+                            ?: return@withContext Result.failure(Exception("Missing Gen 1 depot result for ${depot.manifest}"))
                         if (depotJsonResult.isFailure) {
                             return@withContext Result.failure(
                                 depotJsonResult.exceptionOrNull() ?: Exception("Failed to fetch depot manifest"),
@@ -691,16 +753,17 @@ class GOGDownloadManager
 
                     var gameFiles = allV1Files.filter { !it.file.isSupport }
                     var supportFiles = allV1Files.filter { it.file.isSupport }
+                    // Size-only resume check — see comment in Gen 2 path for rationale.
                     gameFiles =
                         gameFiles.filter { f ->
                             val outFile = File(installPath, f.file.path)
-                            !fileExistsWithCorrectSize(outFile, f.file.size, f.file.hash.takeIf { it.isNotEmpty() })
+                            !fileExistsWithCorrectSize(outFile, f.file.size)
                         }
                     if (supportDir != null) {
                         supportFiles =
                             supportFiles.filter { f ->
                                 val outFile = File(supportDir, f.file.path)
-                                !fileExistsWithCorrectSize(outFile, f.file.size, f.file.hash.takeIf { it.isNotEmpty() })
+                                !fileExistsWithCorrectSize(outFile, f.file.size)
                             }
                     }
                     val totalSize =
@@ -759,9 +822,8 @@ class GOGDownloadManager
                                 if (!response.isSuccessful) return Result.failure(Exception("HTTP ${response.code} for ${file.path}"))
                                 val body = response.body ?: return Result.failure(Exception("Empty response"))
                                 val md = MessageDigest.getInstance("MD5")
-                                val buffer = ByteArray(256 * 1024) // 256KB
-                                val progressInterval = 512L * 1024 // emit progress every 512KB
-                                var copiedInFile = 0L
+                                val buffer = ByteArray(1024 * 1024) // 1MB
+                                var lastEmitMs = 0L
                                 DigestOutputStream(
                                     BufferedOutputStream(FileOutputStream(outFile)),
                                     md,
@@ -774,10 +836,10 @@ class GOGDownloadManager
                                                 return Result.failure(Exception("Download cancelled"))
                                             }
                                             out.write(buffer, 0, n)
-                                            copiedInFile += n
                                             downloadInfo.updateBytesDownloaded(n.toLong())
-                                            if (copiedInFile >= progressInterval || downloadInfo.getBytesDownloaded() >= totalSize) {
-                                                copiedInFile = 0L
+                                            val now = System.currentTimeMillis()
+                                            if (now - lastEmitMs >= PROGRESS_EMIT_INTERVAL_MS) {
+                                                lastEmitMs = now
                                                 downloadInfo.setProgress(
                                                     (downloadInfo.getBytesDownloaded().toFloat() / totalSize).coerceIn(0f, 1f),
                                                 )
@@ -1277,14 +1339,22 @@ class GOGDownloadManager
                 try {
                     val productUrlMap = mutableMapOf<String, List<String>>()
 
-                    // Get secure links for each product
-                    for (productId in context.productIds) {
-                        val linksResult =
-                            apiClient.getSecureLink(
-                                productId = productId,
-                                path = "/",
-                                generation = context.generation,
-                            )
+                    // Get secure links for each product in parallel.
+                    val refreshed =
+                        coroutineScope {
+                            context.productIds
+                                .map { productId ->
+                                    async {
+                                        productId to
+                                            apiClient.getSecureLink(
+                                                productId = productId,
+                                                path = "/",
+                                                generation = context.generation,
+                                            )
+                                    }
+                                }.awaitAll()
+                        }
+                    for ((productId, linksResult) in refreshed) {
                         if (linksResult.isSuccess) {
                             productUrlMap[productId] = linksResult.getOrThrow().urls
                         } else {
@@ -1365,22 +1435,18 @@ class GOGDownloadManager
             downloadInfo: DownloadInfo,
         ): Result<File> =
             withContext(Dispatchers.IO) {
+                val chunkFile = File(chunkCacheDir, "$chunkMd5.chunk")
+
+                // Cache hit: chunk files are only renamed to the final name after the streamed MD5
+                // matched, so existence implies verification — no need to re-hash.
+                if (chunkFile.exists()) {
+                    return@withContext Result.success(chunkFile)
+                }
+
+                val tempFile = File(chunkCacheDir, "$chunkMd5.chunk.tmp")
+                tempFile.delete()
+
                 try {
-                    val chunkFile = File(chunkCacheDir, "$chunkMd5.chunk")
-
-                    // Skip if already downloaded and verified
-                    if (chunkFile.exists()) {
-                        val existingMd5 = calculateMd5(chunkFile.readBytes())
-                        if (existingMd5 == chunkMd5) {
-                            Timber.tag("GOG").d("Chunk $chunkMd5 already exists and verified, skipping")
-                            return@withContext Result.success(chunkFile)
-                        } else {
-                            Timber.tag("GOG").w("Chunk $chunkMd5 exists but failed verification, re-downloading")
-                            chunkFile.delete()
-                        }
-                    }
-
-                    // Download compressed chunk
                     Timber.tag("GOG").d("Downloading chunk $chunkMd5 from: $url")
 
                     val request =
@@ -1398,44 +1464,60 @@ class GOGDownloadManager
                             )
                         }
 
-                        // Stream the chunk body so pause/cancel takes effect mid-chunk instead
-                        // of waiting for body.bytes() to complete.
                         val body = response.body
                             ?: return@withContext Result.failure(Exception("Empty response for chunk $chunkMd5"))
-                        val compressedBytes =
-                            java.io.ByteArrayOutputStream().use { buffer ->
-                                body.byteStream().use { input ->
-                                    val chunkBuffer = ByteArray(64 * 1024)
-                                    var bytesRead: Int
-                                    while (input.read(chunkBuffer).also { bytesRead = it } != -1) {
-                                        if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
-                                            return@withContext Result.failure(
-                                                kotlinx.coroutines.CancellationException(
-                                                    "Download cancelled mid-chunk",
-                                                ),
-                                            )
-                                        }
-                                        buffer.write(chunkBuffer, 0, bytesRead)
-                                    }
-                                }
-                                buffer.toByteArray()
-                            }
 
-                        // Verify compressed MD5
-                        val actualMd5 = calculateMd5(compressedBytes)
+                        val digest = MessageDigest.getInstance("MD5")
+                        var cancelled = false
+
+                        DigestOutputStream(BufferedOutputStream(FileOutputStream(tempFile)), digest).use { out ->
+                            body.byteStream().use { input ->
+                                val buffer = ByteArray(STREAM_BUFFER_SIZE)
+                                var bytesRead: Int
+                                while (input.read(buffer).also { bytesRead = it } != -1) {
+                                    if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                        cancelled = true
+                                        break
+                                    }
+                                    out.write(buffer, 0, bytesRead)
+                                    downloadInfo.updateBytesDownloaded(bytesRead.toLong())
+                                }
+                            }
+                        }
+
+                        if (cancelled) {
+                            tempFile.delete()
+                            return@withContext Result.failure(
+                                kotlinx.coroutines.CancellationException("Download cancelled mid-chunk"),
+                            )
+                        }
+
+                        val actualMd5 = digest.digest().joinToString("") { "%02x".format(it) }
                         if (actualMd5 != chunkMd5) {
+                            tempFile.delete()
                             return@withContext Result.failure(
                                 Exception("Compressed MD5 mismatch for chunk: expected $chunkMd5, got $actualMd5"),
                             )
                         }
 
-                        // Save compressed chunk (will decompress during assembly)
-                        chunkFile.writeBytes(compressedBytes)
-                        downloadInfo.updateBytesDownloaded(compressedBytes.size.toLong())
+                        if (!tempFile.renameTo(chunkFile)) {
+                            // Fall back: copy then delete. Rare; usually only happens across filesystems.
+                            try {
+                                tempFile.inputStream().use { input ->
+                                    FileOutputStream(chunkFile).use { output -> input.copyTo(output) }
+                                }
+                                tempFile.delete()
+                            } catch (e: Exception) {
+                                tempFile.delete()
+                                chunkFile.delete()
+                                return@withContext Result.failure(Exception("Failed to finalize chunk $chunkMd5", e))
+                            }
+                        }
 
                         Result.success(chunkFile)
                     }
                 } catch (e: Exception) {
+                    tempFile.delete()
                     Timber.tag("GOG").e(e, "Failed to download chunk $chunkMd5")
                     Result.failure(e)
                 }
@@ -1499,41 +1581,54 @@ class GOGDownloadManager
                     val outputFile = File(installDir, file.path)
                     outputFile.parentFile?.mkdirs()
 
-                    outputFile.outputStream().use { output ->
+                    BufferedOutputStream(FileOutputStream(outputFile)).use { output ->
+                        val buffer = ByteArray(STREAM_BUFFER_SIZE)
                         for (chunk in file.chunks) {
-                            // Get compressed chunk file
                             val chunkFile = File(chunkCacheDir, "${chunk.compressedMd5}.chunk")
-
                             if (!chunkFile.exists()) {
                                 return@withContext Result.failure(
                                     Exception("Chunk file missing: ${chunk.compressedMd5}"),
                                 )
                             }
 
-                            // Read compressed data
-                            val compressedBytes = chunkFile.readBytes()
+                            val digest = MessageDigest.getInstance("MD5")
+                            var bytesEmitted = 0L
 
-                            // Decompress chunk
-                            val decompressedBytes = decompressChunk(compressedBytes, chunk)
-                            if (decompressedBytes.isFailure) {
+                            try {
+                                BufferedInputStream(chunkFile.inputStream()).use { rawIn ->
+                                    val decompressedStream: InputStream =
+                                        if (chunk.compressedSize == null) rawIn else InflaterInputStream(rawIn)
+                                    DigestInputStream(decompressedStream, digest).use { input ->
+                                        var bytesRead: Int
+                                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                                            output.write(buffer, 0, bytesRead)
+                                            bytesEmitted += bytesRead
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // Treat decode failures as a poisoned cache entry and let the next
+                                // install attempt re-download the chunk fresh.
+                                chunkFile.delete()
                                 return@withContext Result.failure(
-                                    decompressedBytes.exceptionOrNull()
-                                        ?: Exception("Failed to decompress chunk ${chunk.compressedMd5}"),
+                                    Exception("Failed to decompress chunk ${chunk.compressedMd5}", e),
                                 )
                             }
 
-                            val data = decompressedBytes.getOrThrow()
+                            if (bytesEmitted != chunk.size) {
+                                chunkFile.delete()
+                                return@withContext Result.failure(
+                                    Exception("Decompressed size mismatch for chunk ${chunk.compressedMd5}: expected ${chunk.size}, got $bytesEmitted"),
+                                )
+                            }
 
-                            // Verify decompressed MD5
-                            val actualMd5 = calculateMd5(data)
+                            val actualMd5 = digest.digest().joinToString("") { "%02x".format(it) }
                             if (actualMd5 != chunk.md5) {
+                                chunkFile.delete()
                                 return@withContext Result.failure(
                                     Exception("Decompressed MD5 mismatch for chunk: expected ${chunk.md5}, got $actualMd5"),
                                 )
                             }
-
-                            // Write to output file
-                            output.write(data)
                         }
                     }
 
@@ -1553,81 +1648,6 @@ class GOGDownloadManager
                     Result.failure(e)
                 }
             }
-
-        /**
-         * Decompress a GOG chunk using zlib
-         *
-         * GOG chunks are compressed with zlib
-         * If chunk.compressedSize is null, data is uncompressed
-         *
-         * @param compressedBytes Compressed chunk data
-         * @param chunk Chunk metadata
-         * @return Decompressed data
-         */
-        private fun decompressChunk(
-            compressedBytes: ByteArray,
-            chunk: FileChunk,
-        ): Result<ByteArray> {
-            return try {
-                // If no compressed size specified, data is already uncompressed
-                if (chunk.compressedSize == null) {
-                    return Result.success(compressedBytes)
-                }
-
-                // Decompress using zlib
-                val inflater = Inflater()
-                try {
-                    inflater.setInput(compressedBytes)
-                    val outputStream = ByteArrayOutputStream(chunk.size.toInt())
-                    val buffer = ByteArray(8192)
-
-                    while (!inflater.finished()) {
-                        val count = inflater.inflate(buffer)
-                        if (count > 0) {
-                            outputStream.write(buffer, 0, count)
-                        } else {
-                            // No bytes produced - check if we need more input or a dictionary
-                            if (inflater.needsInput()) {
-                                throw java.io.IOException(
-                                    "Incomplete zlib data: decompression requires more input but none available",
-                                )
-                            } else if (inflater.needsDictionary()) {
-                                throw java.io.IOException(
-                                    "Zlib data requires a preset dictionary which is not supported",
-                                )
-                            }
-                            // If neither condition is true, inflater is still processing internally
-                            // Continue loop, but this should be rare
-                        }
-                    }
-
-                    val decompressed = outputStream.toByteArray()
-
-                    // Verify size matches expected
-                    if (decompressed.size.toLong() != chunk.size) {
-                        return Result.failure(
-                            Exception("Decompressed size mismatch: expected ${chunk.size}, got ${decompressed.size}"),
-                        )
-                    }
-
-                    Result.success(decompressed)
-                } finally {
-                    inflater.end()
-                }
-            } catch (e: Exception) {
-                Timber.tag("GOG").e(e, "Failed to decompress chunk ${chunk.compressedMd5}")
-                Result.failure(e)
-            }
-        }
-
-        /**
-         * Calculate MD5 hash of byte array
-         */
-        private fun calculateMd5(data: ByteArray): String {
-            val digest = MessageDigest.getInstance("MD5")
-            digest.update(data)
-            return digest.digest().joinToString("") { "%02x".format(it) }
-        }
 
         /**
          * Check if file exists and has the expected size. When [expectedMd5] is non-null/non-blank,
