@@ -1,6 +1,7 @@
 package com.winlator.cmod.runtime.display.environment.components;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.os.Process;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
@@ -38,7 +39,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     public static final int DEFAULT_SAMPLE_RATE = 48000;
     public static final int DEFAULT_ALTERNATE_SAMPLE_RATE = 44100;
     public static final int DEFAULT_CHANNELS = 2;
-    public static final float DEFAULT_VOLUME = 1.15f;
+    public static final float DEFAULT_VOLUME = 1.0f;
     public static final float MAX_VOLUME = 2.0f;
     public static final String PERFORMANCE_MODE_NONE = "none";
     public static final String PERFORMANCE_MODE_POWER_SAVING = "power_saving";
@@ -51,6 +52,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
     public int channels = DEFAULT_CHANNELS;
     public float volume = DEFAULT_VOLUME;
     public String performanceMode = PERFORMANCE_MODE_NONE;
+    public boolean sampleRateOverridden = false;
+    public boolean alternateSampleRateOverridden = false;
 
     public static Options fromEnvVars(EnvVars envVars) {
       Options options = new Options();
@@ -72,22 +75,25 @@ public class PulseAudioComponent extends EnvironmentComponent {
                       envVars.get("WINNATIVE_PULSE_FRAGMENT_MS"),
                       envVars.get("ANDROID_PULSE_FRAGMENT_MS")),
                   DEFAULT_FRAGMENT_MILLIS));
+      String sampleRate =
+          firstNonEmpty(
+              envVars.get("WINNATIVE_PULSE_SAMPLE_RATE"),
+              envVars.get("ANDROID_PULSE_SAMPLE_RATE"));
+      options.sampleRateOverridden = !sampleRate.isEmpty();
       options.sampleRate =
           Math.max(
               8000,
-              parseInt(
-                  firstNonEmpty(
-                      envVars.get("WINNATIVE_PULSE_SAMPLE_RATE"),
-                      envVars.get("ANDROID_PULSE_SAMPLE_RATE")),
-                  DEFAULT_SAMPLE_RATE));
+              parseInt(sampleRate, DEFAULT_SAMPLE_RATE));
+
+      String alternateSampleRate =
+          firstNonEmpty(
+              envVars.get("WINNATIVE_PULSE_ALTERNATE_SAMPLE_RATE"),
+              envVars.get("ANDROID_PULSE_ALTERNATE_SAMPLE_RATE"));
+      options.alternateSampleRateOverridden = !alternateSampleRate.isEmpty();
       options.alternateSampleRate =
           Math.max(
               8000,
-              parseInt(
-                  firstNonEmpty(
-                      envVars.get("WINNATIVE_PULSE_ALTERNATE_SAMPLE_RATE"),
-                      envVars.get("ANDROID_PULSE_ALTERNATE_SAMPLE_RATE")),
-                  DEFAULT_ALTERNATE_SAMPLE_RATE));
+              parseInt(alternateSampleRate, DEFAULT_ALTERNATE_SAMPLE_RATE));
       options.channels =
           Math.max(
               1,
@@ -202,6 +208,14 @@ public class PulseAudioComponent extends EnvironmentComponent {
     File runtimeDir = new File(workingDir, "run");
     if (!runtimeDir.isDirectory()) runtimeDir.mkdirs();
 
+    int sampleRate =
+        options.sampleRateOverridden ? options.sampleRate : getNativeOutputSampleRate(context);
+    int alternateSampleRate =
+        options.alternateSampleRateOverridden
+            ? options.alternateSampleRate
+            : getAlternateSampleRate(sampleRate);
+    String channelMap = getChannelMap(options.channels);
+
     File daemonConfigFile = new File(configDir, "daemon.conf");
     FileUtils.writeString(
         daemonConfigFile,
@@ -214,9 +228,10 @@ public class PulseAudioComponent extends EnvironmentComponent {
             "resample-method = speex-float-1",
             "avoid-resampling = yes",
             "default-sample-format = s16le",
-            "default-sample-rate = " + options.sampleRate,
-            "alternate-sample-rate = " + options.alternateSampleRate,
+            "default-sample-rate = " + sampleRate,
+            "alternate-sample-rate = " + alternateSampleRate,
             "default-sample-channels = " + options.channels,
+            "default-channel-map = " + channelMap,
             "default-fragments = 4",
             "default-fragment-size-msec = " + options.fragmentMillis,
             ""));
@@ -229,7 +244,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""
                 + socketConfig.path
                 + "\"",
-            "load-module module-aaudio-sink sink_name=AAudioSink rate=" + options.sampleRate,
+            "load-module module-aaudio-sink sink_name=AAudioSink rate=" + sampleRate,
             "set-default-sink AAudioSink",
             "set-sink-volume AAudioSink " + pulseVolumeHex(options.volume),
             ""));
@@ -268,6 +283,26 @@ public class PulseAudioComponent extends EnvironmentComponent {
   private static String pulseVolumeHex(float linearVolume) {
     int pulseVolume = Math.max(0, Math.round(0x10000 * linearVolume));
     return "0x" + Integer.toHexString(pulseVolume);
+  }
+
+  private static int getNativeOutputSampleRate(Context context) {
+    try {
+      AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+      String value = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+      if (value != null && !value.isEmpty()) return Math.max(8000, Integer.parseInt(value));
+    } catch (Exception ignored) {
+    }
+    return Options.DEFAULT_SAMPLE_RATE;
+  }
+
+  private static int getAlternateSampleRate(int sampleRate) {
+    return sampleRate == Options.DEFAULT_ALTERNATE_SAMPLE_RATE
+        ? Options.DEFAULT_SAMPLE_RATE
+        : Options.DEFAULT_ALTERNATE_SAMPLE_RATE;
+  }
+
+  private static String getChannelMap(int channels) {
+    return channels <= 1 ? "mono" : "front-left,front-right";
   }
 
   private void patchAAudioSinkPerformanceMode(File modulesDir) {
