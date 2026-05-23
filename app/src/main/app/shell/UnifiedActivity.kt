@@ -9310,11 +9310,14 @@ class UnifiedActivity :
                 }
 
             if (existingShortcut != null) {
-                if (!SetupWizardActivity.isContainerUsable(context, existingShortcut.container)) {
+                val launchContainer =
+                    resolveShortcutLaunchContainer(containerManager, existingShortcut)
+                        ?: existingShortcut.container
+                if (!SetupWizardActivity.isContainerUsable(context, launchContainer)) {
                     withContext(Dispatchers.Main) {
                         SetupWizardActivity.promptToInstallWineOrCreateContainer(
                             context,
-                            existingShortcut.container.wineVersion,
+                            launchContainer.wineVersion,
                         )
                     }
                     return@launch
@@ -9327,8 +9330,9 @@ class UnifiedActivity :
                         ?: app.appName
                 // Ensure game_install_path is always up-to-date
                 shortcut.putExtra("game_install_path", gameInstallPath)
+                shortcut.putExtra("container_id", launchContainer.id.toString())
                 repairShortcutDisplayNameIfNeeded(shortcut, epicDisplayName, app.appName, app.id.toString())
-                normalizeContainerDrives(shortcut.container)
+                normalizeContainerDrives(launchContainer)
 
                 // Repair broken Exec line if the executable is missing or still points at a legacy placeholder mapping.
                 val currentPath = shortcut.path
@@ -9338,7 +9342,7 @@ class UnifiedActivity :
                 ) {
                     val newExecCmd =
                         buildStoreWineExecCommandForSelectedExe(
-                            shortcut.container,
+                            launchContainer,
                             "EPIC",
                             gameInstallPath,
                             shortcut.getExtra("launch_exe_path"),
@@ -9347,7 +9351,7 @@ class UnifiedActivity :
                             if (exePath.isNotEmpty()) {
                                 shortcut.putExtra("launch_exe_path", exePath)
                                 buildStoreWineExecCommand(
-                                    shortcut.container,
+                                    launchContainer,
                                     "EPIC",
                                     gameInstallPath,
                                     java.io.File(gameInstallPath, exePath.replace("\\", "/")),
@@ -9356,7 +9360,7 @@ class UnifiedActivity :
                                 val exeFile = findGameExe(gameDir)
                                 if (exeFile != null) {
                                     shortcut.putExtra("launch_exe_path", exeFile.absolutePath)
-                                    buildStoreWineExecCommand(shortcut.container, "EPIC", gameInstallPath, exeFile)
+                                    buildStoreWineExecCommand(launchContainer, "EPIC", gameInstallPath, exeFile)
                                 } else {
                                     null
                                 }
@@ -9381,13 +9385,14 @@ class UnifiedActivity :
                 }
 
                 shortcut.saveData()
+                val launchShortcutFile = ensureShortcutFileInContainer(shortcut, launchContainer)
 
                 // Provision the EOS overlay into this container. Best-effort — failures are
                 // non-fatal (games without the EOS SDK ignore it; games with the SDK still run
                 // without the in-game HUD). Tokens must be staged inside the prefix because
                 // the dosdevices map doesn't expose the app cache dir on any drive letter.
                 runCatching {
-                    EpicService.installOverlay(context, shortcut.container)
+                    EpicService.installOverlay(context, launchContainer)
                 }.onFailure {
                     Log.w("EPIC", "EOS overlay install failed for ${app.appName}; launching anyway", it)
                 }
@@ -9396,7 +9401,7 @@ class UnifiedActivity :
                     EpicGameLauncher.buildLaunchParameters(
                         context = context,
                         game = app,
-                        container = shortcut.container,
+                        container = launchContainer,
                     )
                 launchArgsResult.exceptionOrNull()?.let { err ->
                     // The launch can still proceed (offline-tolerant titles, single-player non-DRM
@@ -9414,8 +9419,8 @@ class UnifiedActivity :
                 val args = launchArgsResult.getOrNull()?.joinToString(" ") ?: ""
 
                 val intent = Intent(context, XServerDisplayActivity::class.java)
-                intent.putExtra("container_id", shortcut.container.id)
-                intent.putExtra("shortcut_path", shortcut.file.path)
+                intent.putExtra("container_id", launchContainer.id)
+                intent.putExtra("shortcut_path", launchShortcutFile.path)
                 intent.putExtra("shortcut_name", epicDisplayName)
                 intent.putExtra("extra_exec_args", args) // Pass fresh tokens
                 withContext(Dispatchers.Main) {
@@ -9691,6 +9696,50 @@ class UnifiedActivity :
                 this,
                 container.drives ?: com.winlator.cmod.runtime.container.Container.DEFAULT_DRIVES,
             )
+    }
+
+    private fun resolveShortcutLaunchContainer(
+        containerManager: ContainerManager,
+        shortcut: Shortcut,
+    ): com.winlator.cmod.runtime.container.Container? {
+        val overrideContainerId = shortcut.getExtra("container_id").toIntOrNull()?.takeIf { it > 0 }
+        return overrideContainerId
+            ?.let { containerManager.getContainerById(it) }
+            ?: shortcut.container
+    }
+
+    private fun ensureShortcutFileInContainer(
+        shortcut: Shortcut,
+        targetContainer: com.winlator.cmod.runtime.container.Container,
+    ): java.io.File {
+        val targetDesktopDir = targetContainer.getDesktopDir()
+        val alreadyInTarget =
+            runCatching {
+                shortcut.file.parentFile?.canonicalFile == targetDesktopDir.canonicalFile
+            }.getOrDefault(false)
+
+        if (alreadyInTarget) return shortcut.file
+
+        if (!targetDesktopDir.exists()) targetDesktopDir.mkdirs()
+        shortcut.putExtra("container_id", targetContainer.id.toString())
+        shortcut.saveData()
+
+        val targetFile = java.io.File(targetDesktopDir, shortcut.file.name)
+        runCatching {
+            com.winlator.cmod.shared.io.FileUtils.copy(shortcut.file, targetFile)
+            val lnkFileName = shortcut.file.name.substringBeforeLast(".desktop") + ".lnk"
+            val oldLnkFile = java.io.File(shortcut.file.parentFile, lnkFileName)
+            if (oldLnkFile.exists()) {
+                com.winlator.cmod.shared.io.FileUtils.copy(oldLnkFile, java.io.File(targetDesktopDir, lnkFileName))
+                oldLnkFile.delete()
+            }
+            shortcut.file.delete()
+        }.onFailure {
+            Log.w("EPIC", "Failed to move Epic shortcut ${shortcut.file.name} to container ${targetContainer.id}; launching original file", it)
+            return shortcut.file
+        }
+
+        return targetFile
     }
 
     private fun buildWineExecCommand(

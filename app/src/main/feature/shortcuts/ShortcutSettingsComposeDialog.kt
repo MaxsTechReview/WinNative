@@ -1187,10 +1187,10 @@ class ShortcutSettingsComposeDialog private constructor(
                     resolveLaunchExeFile(launchExePath)?.takeIf { it.isFile }?.let { exeFile ->
                         val gameFolder = LibraryShortcutUtils.detectCustomGameFolder(exeFile)
                         shortcut.putExtra("custom_game_folder", gameFolder.absolutePath)
-                        updateCustomShortcutExecLine(gameFolder, exeFile)
+                        updateCustomShortcutExecLine(container, gameFolder, exeFile)
                     }
                 } else if (gameSource == "EPIC" || gameSource == "GOG") {
-                    updateStoreShortcutExecLine(gameSource, launchExePath)
+                    updateStoreShortcutExecLine(container, gameSource, launchExePath)
                 }
             }
 
@@ -1498,15 +1498,19 @@ class ShortcutSettingsComposeDialog private constructor(
             .replace(File.separatorChar, '/')
     }
 
-    private fun updateStoreShortcutExecLine(gameSource: String, launchExePath: String) {
+    private fun updateStoreShortcutExecLine(
+        targetContainer: Container,
+        gameSource: String,
+        launchExePath: String,
+    ) {
         val exeFile = File(launchExePath).takeIf { it.isFile } ?: return
         val gameInstallPath = shortcut.getExtra("game_install_path")
         val mappedPath =
             gameInstallPath
                 .takeIf { it.isNotBlank() && File(it).isDirectory }
-                ?.let { WineUtils.getDriveCGameWindowsPath(shortcut.container, gameSource, it, exeFile.absolutePath) }
+                ?.let { WineUtils.getDriveCGameWindowsPath(targetContainer, gameSource, it, exeFile.absolutePath) }
                 ?.takeIf { it.isNotBlank() }
-                ?: WineUtils.hostPathToRootWinePath(shortcut.container, exeFile.absolutePath)
+                ?: WineUtils.hostPathToRootWinePath(targetContainer, exeFile.absolutePath)
                     .takeIf { it.isNotBlank() }
                 ?: return
 
@@ -1526,15 +1530,19 @@ class ShortcutSettingsComposeDialog private constructor(
         FileUtils.writeString(shortcut.file, content.toString())
     }
 
-    private fun updateCustomShortcutExecLine(gameFolder: File, exeFile: File) {
+    private fun updateCustomShortcutExecLine(
+        targetContainer: Container,
+        gameFolder: File,
+        exeFile: File,
+    ) {
         val mappedPath =
             WineUtils.getDriveCGameWindowsPath(
-                shortcut.container,
+                targetContainer,
                 "CUSTOM",
                 gameFolder.absolutePath,
                 exeFile.absolutePath,
             )?.takeIf { it.isNotBlank() }
-                ?: WineUtils.hostPathToRootWinePath(shortcut.container, exeFile.absolutePath)
+                ?: WineUtils.hostPathToRootWinePath(targetContainer, exeFile.absolutePath)
                     .takeIf { it.isNotBlank() }
                 ?: return
 

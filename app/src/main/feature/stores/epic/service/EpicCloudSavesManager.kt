@@ -30,8 +30,13 @@ import java.util.zip.GZIPInputStream
 object EpicCloudSavesManager {
     // Synchronization to prevent duplicate concurrent syncs
     private val syncMutex = Mutex()
+    private data class SyncScope(
+        val appId: Int,
+        val containerId: Int?,
+    )
+
     private val activeSyncs = mutableSetOf<Int>()
-    private val recentSuccessfulUploads = mutableMapOf<Int, Long>()
+    private val recentSuccessfulUploads = mutableMapOf<SyncScope, Long>()
     private const val SAVE_TIMESTAMP_EQUAL_TOLERANCE_MS = 60_000L
     private const val DUPLICATE_UPLOAD_SUPPRESSION_MS = 120_000L
     private const val ANDROID_LOG_TAG = "EpicCloudSaves"
@@ -76,35 +81,59 @@ object EpicCloudSavesManager {
     suspend fun needsSync(
         context: Context,
         appId: Int,
-    ): Boolean = getPendingSyncAction(context, appId) != SyncAction.NONE
+    ): Boolean = needsSync(context, appId, null)
+
+    suspend fun needsSync(
+        context: Context,
+        appId: Int,
+        targetContainerId: Int?,
+    ): Boolean = getPendingSyncAction(context, appId, targetContainerId) != SyncAction.NONE
 
     suspend fun getPendingSyncAction(
         context: Context,
         appId: Int,
+    ): SyncAction = getPendingSyncAction(context, appId, null)
+
+    suspend fun getPendingSyncAction(
+        context: Context,
+        appId: Int,
+        targetContainerId: Int?,
     ): SyncAction {
         val game = getEpicGame(context, appId) ?: return SyncAction.NONE
         if (!game.cloudSaveEnabled) return SyncAction.NONE
         val credentials = EpicAuthManager.getStoredCredentials(context)
         if (credentials.isFailure) return SyncAction.NONE
         val creds = credentials.getOrNull() ?: return SyncAction.NONE
-        return determineSyncAction(context, creds.accountId, game, "probe")
+        return determineSyncAction(context, creds.accountId, game, "probe", targetContainerId)
     }
 
     suspend fun getPendingExitSyncAction(
         context: Context,
         appId: Int,
+    ): SyncAction = getPendingExitSyncAction(context, appId, null)
+
+    suspend fun getPendingExitSyncAction(
+        context: Context,
+        appId: Int,
+        targetContainerId: Int?,
     ): SyncAction {
         val game = getEpicGame(context, appId) ?: return SyncAction.NONE
         if (!game.cloudSaveEnabled) return SyncAction.NONE
         val credentials = EpicAuthManager.getStoredCredentials(context)
         if (credentials.isFailure) return SyncAction.NONE
         val creds = credentials.getOrNull() ?: return SyncAction.NONE
-        return determineSyncAction(context, creds.accountId, game, "exit_upload")
+        return determineSyncAction(context, creds.accountId, game, "exit_upload", targetContainerId)
     }
 
     suspend fun getResolvedSaveDirectory(
         context: Context,
         appId: Int,
+    ): File? = getResolvedSaveDirectory(context, appId, null)
+
+    suspend fun getResolvedSaveDirectory(
+        context: Context,
+        appId: Int,
+        targetContainerId: Int?,
     ): File? =
         withContext(Dispatchers.IO) {
             val game = getEpicGame(context, appId) ?: return@withContext null
@@ -112,7 +141,7 @@ object EpicCloudSavesManager {
             val credentials = EpicAuthManager.getStoredCredentials(context)
             if (credentials.isFailure) return@withContext null
             val creds = credentials.getOrNull() ?: return@withContext null
-            resolveSaveDirectory(context, game, creds.accountId)
+            resolveSaveDirectory(context, game, creds.accountId, targetContainerId)
         }
 
     /**
@@ -221,6 +250,13 @@ object EpicCloudSavesManager {
     fun canAttemptExitUpload(
         context: Context,
         appId: Int,
+    ): Boolean = canAttemptExitUpload(context, appId, null)
+
+    @JvmStatic
+    fun canAttemptExitUpload(
+        context: Context,
+        appId: Int,
+        targetContainerId: Int?,
     ): Boolean =
         kotlinx.coroutines.runBlocking(Dispatchers.IO) {
             try {
@@ -235,7 +271,7 @@ object EpicCloudSavesManager {
                     return@runBlocking false
                 }
                 val creds = credentialsResult.getOrNull() ?: return@runBlocking false
-                val saveDir = resolveSaveDirectory(context, game, creds.accountId)
+                val saveDir = resolveSaveDirectory(context, game, creds.accountId, targetContainerId)
                 if (saveDir == null || !saveDir.exists()) {
                     Timber.tag("Epic").i("[Cloud Saves] Skip exit upload: no save directory yet for ${game.title}")
                     return@runBlocking false
@@ -263,15 +299,23 @@ object EpicCloudSavesManager {
         context: Context,
         appId: Int,
         preferredAction: String = "auto",
+    ): Boolean = syncCloudSaves(context, appId, preferredAction, null)
+
+    suspend fun syncCloudSaves(
+        context: Context,
+        appId: Int,
+        preferredAction: String,
+        targetContainerId: Int?,
     ): Boolean =
         withContext(Dispatchers.IO) {
             // Check if sync is already in progress for this appId
             val forceUpload = preferredAction.equals("upload", ignoreCase = true)
             val uploadRequest =
                 forceUpload || preferredAction.equals("exit_upload", ignoreCase = true)
+            val syncScope = syncScope(appId, targetContainerId)
             syncMutex.withLock {
-                if (forceUpload && wasUploadRecentlyCompletedLocked(appId)) {
-                    Timber.tag("Epic").i("[Cloud Saves] Recent upload already completed for $appId, skipping duplicate upload")
+                if (forceUpload && wasUploadRecentlyCompletedLocked(syncScope)) {
+                    Timber.tag("Epic").i("[Cloud Saves] Recent upload already completed for $syncScope, skipping duplicate upload")
                     return@withContext true
                 }
                 if (activeSyncs.contains(appId)) {
@@ -282,7 +326,7 @@ object EpicCloudSavesManager {
             }
 
             try {
-                Timber.tag("Epic").i("[Cloud Saves] Starting sync for $appId (action: $preferredAction)")
+                Timber.tag("Epic").i("[Cloud Saves] Starting sync for $appId (action: $preferredAction, container: ${syncScope.containerId ?: "auto"})")
 
                 // Get game info to retrieve appName
                 val game = getEpicGame(context, appId)
@@ -308,7 +352,7 @@ object EpicCloudSavesManager {
                 Timber.tag("Epic").d("[Cloud Saves] Using account: ${creds.accountId} (${creds.displayName})")
 
                 //  Determine sync action - Upload,Download, Conflict or none
-                val action = determineSyncAction(context, creds.accountId, game, preferredAction)
+                val action = determineSyncAction(context, creds.accountId, game, preferredAction, targetContainerId)
 
                 Timber.tag("Epic").i("[Cloud Saves] Sync action determined: $action")
 
@@ -316,16 +360,16 @@ object EpicCloudSavesManager {
                 val result =
                     when (action) {
                         SyncAction.DOWNLOAD -> {
-                            downloadSaves(context, appId, creds.accountId)
+                            downloadSaves(context, appId, creds.accountId, targetContainerId = targetContainerId)
                         }
 
                         SyncAction.UPLOAD -> {
-                            uploadSaves(context, creds.accountId, game)
+                            uploadSaves(context, creds.accountId, game, targetContainerId = targetContainerId)
                         }
 
                         SyncAction.CONFLICT -> {
                             Timber.tag("Epic").w("[Cloud Saves] Conflict detected - resolving via timestamp comparison")
-                            resolveConflict(context, creds.accountId, game)
+                            resolveConflict(context, creds.accountId, game, targetContainerId)
                         }
 
                         SyncAction.NONE -> {
@@ -358,6 +402,7 @@ object EpicCloudSavesManager {
         accountId: String,
         game: com.winlator.cmod.feature.stores.epic.data.EpicGame,
         preferredAction: String,
+        targetContainerId: Int?,
     ): SyncAction =
         withContext(Dispatchers.IO) {
             try {
@@ -369,7 +414,7 @@ object EpicCloudSavesManager {
                 if (preferredAction.equals("upload", ignoreCase = true)) return@withContext SyncAction.UPLOAD
 
                 // Check local save directory
-                val saveDir = resolveSaveDirectory(context, game, accountId)
+                val saveDir = resolveSaveDirectory(context, game, accountId, targetContainerId)
                 val hasLocalFiles = saveDir.hasAnySaveFile()
 
                 // Check cloud saves
@@ -628,6 +673,7 @@ object EpicCloudSavesManager {
         context: Context,
         accountId: String,
         game: EpicGame,
+        targetContainerId: Int?,
     ): Boolean =
         withContext(Dispatchers.IO) {
             try {
@@ -635,7 +681,7 @@ object EpicCloudSavesManager {
 
                 // 1. Get local save directory and files
                 val saveDir =
-                    resolveSaveDirectory(context, game, accountId) ?: run {
+                    resolveSaveDirectory(context, game, accountId, targetContainerId) ?: run {
                         Timber.tag("Epic").e("[Cloud Saves] Failed to resolve save directory")
                         return@withContext false
                     }
@@ -664,7 +710,7 @@ object EpicCloudSavesManager {
                 val (manifestPath, manifestInfo) =
                     findLatestManifest(cloudSaves.files) ?: run {
                         Timber.tag("Epic").w("[Cloud Saves] No manifest in cloud, uploading all local files")
-                        return@withContext uploadSaves(context, accountId, game)
+                        return@withContext uploadSaves(context, accountId, game, targetContainerId = targetContainerId)
                     }
 
                 // 3. Download and parse manifest to get cloud file list with timestamps
@@ -679,7 +725,7 @@ object EpicCloudSavesManager {
                 // Validate manifest is not empty
                 if (manifestBytes.isEmpty()) {
                     Timber.tag("Epic").w("[Cloud Saves] Cloud manifest is empty, uploading all local files")
-                    return@withContext uploadSaves(context, accountId, game)
+                    return@withContext uploadSaves(context, accountId, game, targetContainerId = targetContainerId)
                 }
 
                 val manifest =
@@ -689,7 +735,7 @@ object EpicCloudSavesManager {
                         Timber.tag("Epic").e(e, "[Cloud Saves] Failed to parse manifest (size: ${manifestBytes.size} bytes)")
                         // If manifest is corrupt, upload our local version
                         Timber.tag("Epic").w("[Cloud Saves] Manifest parse failed, uploading local files")
-                        return@withContext uploadSaves(context, accountId, game)
+                        return@withContext uploadSaves(context, accountId, game, targetContainerId = targetContainerId)
                     }
 
                 // Epic's savesync manifests carry only a single manifest-level `lastModified`
@@ -826,7 +872,7 @@ object EpicCloudSavesManager {
                 if (toUpload.isNotEmpty()) {
                     Timber.tag("Epic").i("[Cloud Saves] Uploading ${toUpload.size} files based on timestamp comparison")
                     // ! Upload ALL local files, to ensure the manifest is correct with save-state
-                    uploadSuccess = uploadSaves(context, accountId, game)
+                    uploadSuccess = uploadSaves(context, accountId, game, targetContainerId = targetContainerId)
                 }
 
                 // 7. Update sync timestamp if both operations succeeded
@@ -853,6 +899,7 @@ object EpicCloudSavesManager {
         appId: Int,
         accountId: String,
         requestedManifestPath: String? = null,
+        targetContainerId: Int? = null,
     ): Boolean =
         withContext(Dispatchers.IO) {
             try {
@@ -976,7 +1023,7 @@ object EpicCloudSavesManager {
 
                 // 8. Reconstruct files from chunks
                 val saveDir =
-                    resolveSaveDirectory(context, game, accountId) ?: run {
+                    resolveSaveDirectory(context, game, accountId, targetContainerId) ?: run {
                         Timber.tag("Epic").e("[Cloud Saves] Failed to resolve save directory")
                         return@withContext false
                     }
@@ -1078,11 +1125,13 @@ object EpicCloudSavesManager {
         accountId: String,
         game: EpicGame,
         fileList: List<String>? = null, // Optional: only upload specific files
+        targetContainerId: Int? = null,
     ): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                if (wasUploadRecentlyCompleted(game.id)) {
-                    Timber.tag("Epic").i("[Cloud Saves] Recent upload already completed for ${game.id}, skipping duplicate upload")
+                val syncScope = syncScope(game.id, targetContainerId)
+                if (wasUploadRecentlyCompleted(syncScope)) {
+                    Timber.tag("Epic").i("[Cloud Saves] Recent upload already completed for $syncScope, skipping duplicate upload")
                     return@withContext true
                 }
 
@@ -1091,7 +1140,7 @@ object EpicCloudSavesManager {
 
                 // 1. Get local save directory
                 val saveDir =
-                    resolveSaveDirectory(context, game, accountId) ?: run {
+                    resolveSaveDirectory(context, game, accountId, targetContainerId) ?: run {
                         Timber.tag("Epic").e("[Cloud Saves] Failed to resolve save directory")
                         return@withContext false
                     }
@@ -1191,7 +1240,7 @@ object EpicCloudSavesManager {
                                 .now()
                                 .toString()
                         setSyncTimestamp(context, game.id, timestamp)
-                        markUploadCompleted(game.id)
+                        markUploadCompleted(syncScope)
 
                         Timber.tag("Epic").i("[Cloud Saves] Upload complete: $uploadedChunks chunks uploaded")
                         Log.i(ANDROID_LOG_TAG, "Upload complete appId=${game.id} manifest=${manifestEntry.key} chunks=$uploadedChunks")
@@ -1210,21 +1259,26 @@ object EpicCloudSavesManager {
             }
         }
 
-    private suspend fun wasUploadRecentlyCompleted(appId: Int): Boolean =
+    private fun syncScope(
+        appId: Int,
+        targetContainerId: Int?,
+    ): SyncScope = SyncScope(appId, targetContainerId?.takeIf { it > 0 })
+
+    private suspend fun wasUploadRecentlyCompleted(syncScope: SyncScope): Boolean =
         syncMutex.withLock {
-            wasUploadRecentlyCompletedLocked(appId)
+            wasUploadRecentlyCompletedLocked(syncScope)
         }
 
-    private fun wasUploadRecentlyCompletedLocked(appId: Int): Boolean {
+    private fun wasUploadRecentlyCompletedLocked(syncScope: SyncScope): Boolean {
         val now = System.currentTimeMillis()
         recentSuccessfulUploads.entries.removeAll { now - it.value > DUPLICATE_UPLOAD_SUPPRESSION_MS }
-        val lastUploadAt = recentSuccessfulUploads[appId] ?: return false
+        val lastUploadAt = recentSuccessfulUploads[syncScope] ?: return false
         return now - lastUploadAt <= DUPLICATE_UPLOAD_SUPPRESSION_MS
     }
 
-    private suspend fun markUploadCompleted(appId: Int) {
+    private suspend fun markUploadCompleted(syncScope: SyncScope) {
         syncMutex.withLock {
-            recentSuccessfulUploads[appId] = System.currentTimeMillis()
+            recentSuccessfulUploads[syncScope] = System.currentTimeMillis()
         }
     }
 
@@ -1752,16 +1806,15 @@ object EpicCloudSavesManager {
         context: Context,
         game: EpicGame,
         accountId: String,
+        targetContainerId: Int? = null,
     ): File? {
         val cloudSaveFolder = game.saveFolder.ifEmpty { return null }
 
-        // Prefer the shortcut's actual container. Falling back to the preferred
-        // game container can silently point at a different Wine prefix on exit.
-        val container = resolveEpicContainer(context, game.id) ?: return null
+        val container = resolveEpicContainer(context, game.id, targetContainerId) ?: return null
         val winePrefix = File(container.rootDir, ".wine").absolutePath
         val user = "xuser"
 
-        Timber.tag("Epic").d("[Cloud Saves] Using Wine prefix: $winePrefix")
+        Timber.tag("Epic").d("[Cloud Saves] Using Wine prefix: $winePrefix (container ${container.id})")
 
         // Resolve path variables used by Epic Games (case-insensitive)
         val pathVars =
@@ -1894,8 +1947,25 @@ object EpicCloudSavesManager {
     private fun resolveEpicContainer(
         context: Context,
         appId: Int,
+        targetContainerId: Int? = null,
     ) = runCatching {
         val containerManager = com.winlator.cmod.runtime.container.ContainerManager(context)
+        val explicitContainerId = targetContainerId?.takeIf { it > 0 }
+        if (explicitContainerId != null) {
+            val explicitContainer = containerManager.getContainerById(explicitContainerId)
+            if (explicitContainer == null) {
+                Timber.tag("Epic").w("[Cloud Saves] Explicit container $explicitContainerId not found for Epic appId=$appId")
+                return@runCatching null
+            }
+            if (!com.winlator.cmod.feature.setup.SetupWizardActivity.isContainerUsable(context, explicitContainer)) {
+                Timber.tag("Epic").w("[Cloud Saves] Explicit container $explicitContainerId is not usable for Epic appId=$appId")
+                return@runCatching null
+            }
+            return@runCatching explicitContainer
+        }
+
+        // Prefer a real Epic shortcut, but only fall back to the default preferred
+        // container when no explicit launch container was supplied.
         containerManager
             .loadShortcuts()
             .firstOrNull {
@@ -1904,11 +1974,11 @@ object EpicCloudSavesManager {
             ?.takeIf {
                 com.winlator.cmod.feature.setup.SetupWizardActivity.isContainerUsable(context, it)
             }
+            ?: com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
+                .getUsableContainerOrNull(context, "EPIC_$appId")
     }.onFailure {
         Timber.tag("Epic").w(it, "[Cloud Saves] Failed to resolve shortcut container for Epic appId=$appId")
     }.getOrNull()
-        ?: com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
-            .getUsableContainerOrNull(context, "EPIC_$appId")
 
     private fun resolveExistingPathCaseInsensitive(path: File): File {
         if (path.exists()) return path

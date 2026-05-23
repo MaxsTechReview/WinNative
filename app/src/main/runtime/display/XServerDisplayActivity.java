@@ -2684,6 +2684,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void syncEpicCloudOnExit(Runnable onComplete) {
+        if (shortcut != null && !shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Epic cloud sync skipped because a container-swap download is pending");
+            onComplete.run();
+            return;
+        }
+
         String appIdStr = shortcut.getExtra("app_id");
         if (appIdStr == null || appIdStr.isEmpty()) {
             onComplete.run();
@@ -2699,13 +2706,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
+        final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+
         // Skip silently when a sync can't possibly succeed — the game doesn't opt
         // into Epic cloud saves (most don't), the user isn't signed in, or there are
         // no local save files yet. Otherwise the retry-with-backoff loop below would
         // run three full rounds showing the cloud-check retry status for a
         // permanent no-op.
         if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
-                .canAttemptExitUpload(this, appId)) {
+                .canAttemptExitUpload(this, appId, targetContainerId)) {
             Log.i("XServerDisplayActivity",
                     "Epic cloud sync skipped for appId=" + appId
                             + " (game does not support cloud saves, user signed out, or no local save files)");
@@ -2728,6 +2737,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                         (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.getPendingExitSyncAction(
                                                 this,
                                                 appId,
+                                                targetContainerId,
                                                 continuation
                                         )
                                 );
@@ -2741,6 +2751,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                                 this,
                                                 appId,
                                                 "exit_upload",
+                                                targetContainerId,
                                                 continuation
                                         )
                                 );
@@ -2763,6 +2774,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void performForcedEpicCloudUpload(String reason) {
         if (shortcut == null || !"EPIC".equals(shortcut.getExtra("game_source"))) return;
         if (!isCloudSyncEnabledForShortcut() || CloudSyncHelper.isOfflineMode(shortcut)) return;
+        if (!shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Forced Epic cloud upload skipped because a container-swap download is pending during " + reason);
+            return;
+        }
 
         String appIdStr = shortcut.getExtra("app_id");
         if (appIdStr == null || appIdStr.isEmpty()) return;
@@ -2776,8 +2792,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         try {
+            final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
             if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
-                    .canAttemptExitUpload(this, appId)) {
+                    .canAttemptExitUpload(this, appId, targetContainerId)) {
                 Log.i("XServerDisplayActivity", "Forced Epic cloud upload skipped for appId=" + appId + " during " + reason);
                 return;
             }
@@ -2789,6 +2806,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             this,
                             appId,
                             "exit_upload",
+                            targetContainerId,
                             continuation
                     )
             );
@@ -6201,13 +6219,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.d("XServerDisplayActivity", "Set native working dir for store process: " + nativeDir.getPath());
                 }
 
-                if (wineInfo != null && wineInfo.isArm64EC()) {
-                    String epicCommand = dir + (dir.endsWith("\\") ? "" : "\\") + filename;
-                    args = "\"" + epicCommand + "\"" + extraArgs;
-                } else {
-                    // Avoid StringUtils.escapeDOSPath here as it might double-escape
-                    args = "/dir \"" + dir + "\" \"" + filename + "\"" + extraArgs;
-                }
+                String storeCommand = dir + (dir.endsWith("\\") ? "" : "\\") + filename;
+                args = "\"" + storeCommand + "\"" + extraArgs;
                 Log.d("XServerDisplayActivity", gameSource + " game launch: " + args);
             } else {
                 // Custom shortcut

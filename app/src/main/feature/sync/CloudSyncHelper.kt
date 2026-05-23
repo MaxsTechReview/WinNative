@@ -24,6 +24,13 @@ object CloudSyncHelper {
     private fun normalizeGogAppId(appId: String): String =
         if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
 
+    private fun epicTargetContainerId(shortcut: Shortcut): Int? =
+        shortcut
+            .getExtra("container_id")
+            .toIntOrNull()
+            ?.takeIf { it > 0 }
+            ?: shortcut.container?.id?.takeIf { it > 0 }
+
     @JvmStatic
     fun forceDownloadOnContainerSwap(
         context: Context,
@@ -84,15 +91,16 @@ object CloudSyncHelper {
         shortcut: Shortcut,
     ): Boolean {
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return forceEpicDownloadById(context, appId)
+        return forceEpicDownloadById(context, appId, epicTargetContainerId(shortcut))
     }
 
     private suspend fun forceEpicDownloadById(
         context: Context,
         appId: Int,
+        targetContainerId: Int? = null,
     ): Boolean =
         try {
-            EpicCloudSavesManager.syncCloudSaves(context, appId, "download")
+            EpicCloudSavesManager.syncCloudSaves(context, appId, "download", targetContainerId)
         } catch (e: Exception) {
             Timber.e(e, "Failed to force Epic cloud download for appId=%d", appId)
             false
@@ -138,7 +146,7 @@ object CloudSyncHelper {
                 "STEAM" -> SteamCloudSyncHelper.hasActualLocalSaves(context, appId.toIntOrNull() ?: return@runBlocking false)
                 "EPIC" -> {
                     val epicAppId = appId.toIntOrNull() ?: return@runBlocking false
-                    EpicCloudSavesManager.getResolvedSaveDirectory(context, epicAppId)?.hasAnyFile() == true
+                    EpicCloudSavesManager.getResolvedSaveDirectory(context, epicAppId, epicTargetContainerId(shortcut))?.hasAnyFile() == true
                 }
                 "GOG" -> GOGService.hasActualLocalCloudSaves(context, normalizeGogAppId(appId))
                 else -> false
@@ -193,7 +201,7 @@ object CloudSyncHelper {
                         val appId =
                             shortcut.getExtra("app_id").toIntOrNull()
                                 ?: return@runBlocking false
-                        EpicCloudSavesManager.needsSync(context, appId)
+                        EpicCloudSavesManager.needsSync(context, appId, epicTargetContainerId(shortcut))
                     }
 
                     // GOG probe fetches metadata only; it does not download or upload save files.
@@ -224,7 +232,7 @@ object CloudSyncHelper {
                 val appId =
                     shortcut.getExtra("app_id").toIntOrNull()
                         ?: return@runBlocking EpicCloudSavesManager.SyncAction.NONE
-                EpicCloudSavesManager.getPendingSyncAction(context, appId)
+                EpicCloudSavesManager.getPendingSyncAction(context, appId, epicTargetContainerId(shortcut))
             } catch (e: Exception) {
                 Timber.e(e, "Failed to probe Epic cloud sync action for %s", shortcut.name)
                 EpicCloudSavesManager.SyncAction.NONE
@@ -239,7 +247,7 @@ object CloudSyncHelper {
         runBlocking {
             try {
                 val appId = shortcut.getExtra("app_id").toIntOrNull()
-                val saveDir = appId?.let { EpicCloudSavesManager.getResolvedSaveDirectory(context, it) }
+                val saveDir = appId?.let { EpicCloudSavesManager.getResolvedSaveDirectory(context, it, epicTargetContainerId(shortcut)) }
                 val localNewest =
                     saveDir
                         ?.takeIf { it.exists() }
@@ -372,7 +380,7 @@ object CloudSyncHelper {
         return try {
             // Launch conflict handling should not create a fresh Epic manifest
             // when the local files are older than, or equal to, the cloud copy.
-            EpicCloudSavesManager.syncCloudSaves(context, appId, "exit_upload")
+            EpicCloudSavesManager.syncCloudSaves(context, appId, "exit_upload", epicTargetContainerId(shortcut))
         } catch (e: Exception) {
             Timber.e(e, "Failed to upload Epic cloud saves for appId=%d", appId)
             false
