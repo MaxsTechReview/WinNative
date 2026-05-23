@@ -193,11 +193,12 @@ class GOGManager
                                             .getOrNull()
                                             ?.downloadSize
                                             ?: 0L
+                                    val resolvedSizeInfo = sizeInfo.withProductDetailsFallback(productDetailsSize)
                                     GOGDlcInfo(
                                         id = product.productId,
                                         title = product.name,
-                                        downloadSize = maxOf(sizeInfo.downloadSize, productDetailsSize),
-                                        installSize = maxOf(sizeInfo.installSize, productDetailsSize),
+                                        downloadSize = resolvedSizeInfo.downloadSize,
+                                        installSize = resolvedSizeInfo.installSize,
                                         isInstalled = product.productId in installedDlcIds,
                                     )
                                 }
@@ -229,34 +230,22 @@ class GOGManager
                             add(baseProductId)
                             selectedDlcIds.mapTo(this) { it.toString() }
                         }
-                    val sizes =
-                        calculateManifestSizesByProduct(
+                    val selectedManifestSizes =
+                        calculateSelectedManifestSizes(
                             selectedBuild = selectedBuild,
                             manifest = manifest,
                             language = language,
                             productIds = requestedProductIds,
                             ownedProductIds = getAllGameIds(),
-                        ).toMutableMap()
+                        )
                     val productDetailsSizes =
                         getProductDetailsDownloadSizes(
                             gameId = gameId,
                             productIds = requestedProductIds,
                         )
-                    productDetailsSizes.forEach { (productId, downloadSize) ->
-                        val manifestSize = sizes[productId] ?: GOGManifestSizes()
-                        sizes[productId] =
-                            GOGManifestSizes(
-                                downloadSize = maxOf(manifestSize.downloadSize, downloadSize),
-                                installSize = maxOf(manifestSize.installSize, downloadSize),
-                            )
-                    }
-                    requestedProductIds.fold(GOGManifestSizes()) { total, productId ->
-                        val size = sizes[productId] ?: GOGManifestSizes()
-                        GOGManifestSizes(
-                            installSize = total.installSize + size.installSize,
-                            downloadSize = total.downloadSize + size.downloadSize,
-                        )
-                    }.takeIf { it.installSize > 0L || it.downloadSize > 0L }
+                    selectedManifestSizes
+                        .withProductDetailsFallback(productDetailsSizes.values.sum())
+                        .takeIf { it.installSize > 0L || it.downloadSize > 0L }
                         ?: fallbackGameManifestSizes(gameId)
                 } catch (e: Exception) {
                     Timber.tag("GOG").w(e, "Failed to calculate selected manifest sizes for game $gameId")
@@ -292,8 +281,8 @@ class GOGManager
                             ?.downloadSize
                             ?: 0L
                     GOGManifestSizes(
-                        downloadSize = maxOf(manifestSize.downloadSize, productDetailsSize),
-                        installSize = maxOf(manifestSize.installSize, productDetailsSize),
+                        downloadSize = manifestSize.withProductDetailsFallback(productDetailsSize).downloadSize,
+                        installSize = manifestSize.withProductDetailsFallback(productDetailsSize).installSize,
                     )
                 } catch (e: Exception) {
                     Timber.tag("GOG").w(e, "Failed to calculate DLC manifest size for game $gameId DLC $dlcId")
@@ -380,6 +369,7 @@ class GOGManager
                 return sizes
             }
 
+            val seenDownloadChunksByProduct = productIds.associateWith { mutableSetOf<String>() }
             for (depot in candidateDepots) {
                 val depotManifest =
                     gogContentApiClient
@@ -391,7 +381,15 @@ class GOGManager
                     val productId = effectiveProductId(file.productId, depot.productId)
                     if (productId !in productIds) return@forEach
 
-                    val downloadSize = file.chunks.sumOf { it.compressedSize ?: it.size }
+                    val seenDownloadChunks = seenDownloadChunksByProduct.getValue(productId)
+                    val downloadSize =
+                        file.chunks.sumOf {
+                            if (seenDownloadChunks.add(it.compressedMd5)) {
+                                (it.compressedSize ?: it.size).coerceAtLeast(0L)
+                            } else {
+                                0L
+                            }
+                        }
                     val installSize = file.chunks.sumOf { it.size }
                     sizes[productId] =
                         sizes.getValue(productId).let {
@@ -407,6 +405,73 @@ class GOGManager
             return sizes
         }
 
+        private suspend fun calculateSelectedManifestSizes(
+            selectedBuild: com.winlator.cmod.feature.stores.gog.api.GOGBuild,
+            manifest: com.winlator.cmod.feature.stores.gog.api.GOGManifestMeta,
+            language: String,
+            productIds: Set<String>,
+            ownedProductIds: Set<String>,
+        ): GOGManifestSizes {
+            if (productIds.isEmpty()) return GOGManifestSizes()
+
+            val (languageDepots, effectiveLanguage) = gogContentManifestParser.filterDepotsByLanguage(manifest, language)
+            val candidateDepots =
+                gogContentManifestParser
+                    .filterDepotsByOwnership(languageDepots, ownedProductIds)
+                    .filter { it.productId in productIds }
+
+            if (candidateDepots.isEmpty()) return GOGManifestSizes()
+
+            var downloadSize = 0L
+            var installSize = 0L
+
+            if (selectedBuild.generation == 1 && manifest.productTimestamp != null) {
+                for (depot in candidateDepots) {
+                    val depotJson =
+                        gogContentApiClient
+                            .fetchDepotManifestV1(
+                                productId = depot.productId,
+                                platform = selectedBuild.platform,
+                                timestamp = manifest.productTimestamp,
+                                manifestHash = depot.manifest,
+                            ).getOrNull()
+                            ?: continue
+                    val size =
+                        gogContentManifestParser
+                            .parseV1DepotManifest(depotJson)
+                            .filterNot { it.isSupport }
+                            .sumOf { it.size.coerceAtLeast(0L) }
+                    downloadSize += size
+                    installSize += size
+                }
+                return GOGManifestSizes(downloadSize = downloadSize, installSize = installSize)
+            }
+
+            val seenDownloadChunks = mutableSetOf<String>()
+            for (depot in candidateDepots) {
+                val depotManifest =
+                    gogContentApiClient
+                        .fetchDepotManifest(depot.manifest)
+                        .getOrNull()
+                        ?: continue
+                depotManifest.files.forEach { file ->
+                    if (file.isSupportFile()) return@forEach
+                    val productId = effectiveProductId(file.productId, depot.productId)
+                    if (productId !in productIds) return@forEach
+
+                    file.chunks.forEach { chunk ->
+                        if (seenDownloadChunks.add(chunk.compressedMd5)) {
+                            downloadSize += (chunk.compressedSize ?: chunk.size).coerceAtLeast(0L)
+                        }
+                        installSize += chunk.size.coerceAtLeast(0L)
+                    }
+                }
+            }
+
+            Timber.tag("GOG").d("Calculated selected manifest size using $effectiveLanguage")
+            return GOGManifestSizes(downloadSize = downloadSize, installSize = installSize)
+        }
+
         private fun effectiveProductId(
             fileProductId: String?,
             depotProductId: String,
@@ -415,6 +480,16 @@ class GOGManager
                 null, "", GOG_PLACEHOLDER_PRODUCT_ID -> depotProductId
                 else -> fileProductId
             }
+
+        private fun GOGManifestSizes.withProductDetailsFallback(productDetailsDownloadSize: Long): GOGManifestSizes {
+            val fallbackSize = productDetailsDownloadSize.coerceAtLeast(0L)
+            val resolvedDownloadSize = downloadSize.takeIf { it > 0L } ?: fallbackSize
+            val resolvedInstallSize = installSize.takeIf { it > 0L } ?: resolvedDownloadSize
+            return GOGManifestSizes(
+                downloadSize = resolvedDownloadSize,
+                installSize = resolvedInstallSize,
+            )
+        }
 
         suspend fun getInstalledDlcIds(gameId: String): Set<String> =
             withContext(Dispatchers.IO) {
