@@ -197,8 +197,8 @@ class GOGManager
                                     GOGDlcInfo(
                                         id = product.productId,
                                         title = product.name,
-                                        downloadSize = resolvedSizeInfo.downloadSize,
-                                        installSize = resolvedSizeInfo.installSize,
+                                        downloadSize = maxOf(resolvedSizeInfo.downloadSize, productDetailsSize),
+                                        installSize = maxOf(resolvedSizeInfo.installSize, productDetailsSize),
                                         isInstalled = product.productId in installedDlcIds,
                                     )
                                 }
@@ -281,8 +281,8 @@ class GOGManager
                             ?.downloadSize
                             ?: 0L
                     GOGManifestSizes(
-                        downloadSize = manifestSize.withProductDetailsFallback(productDetailsSize).downloadSize,
-                        installSize = manifestSize.withProductDetailsFallback(productDetailsSize).installSize,
+                        downloadSize = maxOf(manifestSize.withProductDetailsFallback(productDetailsSize).downloadSize, productDetailsSize),
+                        installSize = maxOf(manifestSize.withProductDetailsFallback(productDetailsSize).installSize, productDetailsSize),
                     )
                 } catch (e: Exception) {
                     Timber.tag("GOG").w(e, "Failed to calculate DLC manifest size for game $gameId DLC $dlcId")

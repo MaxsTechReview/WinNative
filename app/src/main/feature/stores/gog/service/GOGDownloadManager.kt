@@ -14,7 +14,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -26,6 +29,8 @@ import java.io.FileOutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.Inflater
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -79,7 +84,8 @@ class GOGDownloadManager
         )
 
         companion object {
-            private const val MAX_PARALLEL_DOWNLOADS = 4
+            private const val MAX_PARALLEL_DOWNLOADS = 6
+            private val EXPIRED_LINK_STATUS_CODES = setOf(401, 403, 404)
             private const val CHUNK_BUFFER_SIZE = 1024 * 1024 // 1MB buffer
             private const val MAX_CHUNK_RETRIES = 3 // Maximum retries per chunk
             private const val RETRY_DELAY_MS = 1000L // Initial retry delay in milliseconds
@@ -877,105 +883,87 @@ class GOGDownloadManager
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
-                    var currentChunkUrlMap = chunkUrlMap
-                    val chunks = chunkUrlMap.entries.toList()
+                    val currentChunkUrlMap = AtomicReference(chunkUrlMap)
+                    val chunks = chunkHashes.distinct()
                     val totalChunks = chunks.size
-                    var downloadedChunks = 0
+                    val nextChunkIndex = AtomicInteger(0)
+                    val downloadedChunks = AtomicInteger(0)
+                    val refreshMutex = Mutex()
 
                     Timber.tag("GOG").d("Downloading $totalChunks chunks...")
+
+                    if (totalChunks == 0) {
+                        return@withContext Result.success(Unit)
+                    }
 
                     // Initialize download progress
                     downloadInfo.setProgress(0.0f)
                     downloadInfo.setActive(true)
                     downloadInfo.emitProgressChange()
 
-                    // Download in batches to avoid overwhelming the system
-                    chunks.chunked(MAX_PARALLEL_DOWNLOADS).forEach { chunkBatch ->
-                        if (!downloadInfo.isActive()) {
-                            Timber.tag("GOG").w("Download cancelled by user")
-                            return@withContext Result.failure(Exception("Download cancelled"))
-                        }
+                    suspend fun downloadOneChunk(chunkMd5: String): File {
+                        var refreshAttempts = 0
+                        while (true) {
+                            val url =
+                                currentChunkUrlMap.get()[chunkMd5]
+                                    ?: throw Exception("No URL found for chunk $chunkMd5")
+                            val result = downloadChunkWithRetry(chunkMd5, url, chunkCacheDir, downloadInfo)
+                            if (result.isSuccess) return result.getOrThrow()
 
-                        // Download batch in parallel with retry logic
-                        val results =
-                            chunkBatch
-                                .map { (chunkMd5, _) ->
-                                    async {
-                                        // Use current URL map in case it was refreshed
-                                        val url =
-                                            currentChunkUrlMap[chunkMd5] ?: return@async Result.failure<File>(
-                                                Exception("No URL found for chunk $chunkMd5"),
-                                            )
-                                        downloadChunkWithRetry(chunkMd5, url, chunkCacheDir, downloadInfo)
+                            val exception = result.exceptionOrNull()
+                            if (exception is HttpStatusException &&
+                                exception.statusCode in EXPIRED_LINK_STATUS_CODES &&
+                                refreshAttempts < MAX_CHUNK_RETRIES
+                            ) {
+                                refreshMutex.withLock {
+                                    if (currentChunkUrlMap.get()[chunkMd5] == url) {
+                                        val productId = chunkToProductMap[chunkMd5]
+                                        Timber
+                                            .tag("GOG")
+                                            .w("Chunk $chunkMd5 belongs to product $productId: ${exception.message}; refreshing secure links")
+                                        val refreshResult = refreshSecureLinks(secureLinkContext, chunkHashes)
+                                        if (refreshResult.isFailure) {
+                                            throw refreshResult.exceptionOrNull()
+                                                ?: Exception("Failed to refresh secure links")
+                                        }
+                                        currentChunkUrlMap.set(refreshResult.getOrThrow())
+                                        Timber.tag("GOG").i("Secure links refreshed successfully")
                                     }
-                                }.awaitAll()
-
-                        // Check if any download failed due to expired links (401/403/404)
-                        val expiredLinkFailures =
-                            results.zip(chunkBatch).filter { (result, _) ->
-                                val exception = result.exceptionOrNull()
-                                exception is HttpStatusException && exception.statusCode in listOf(401, 403, 404)
-                            }
-
-                        if (expiredLinkFailures.isNotEmpty()) {
-                            Timber.tag("GOG").w("Detected ${expiredLinkFailures.size} expired secure link(s), refreshing...")
-
-                            // Log which products the failing chunks belong to
-                            expiredLinkFailures.forEach { (result, chunk) ->
-                                val chunkMd5 = chunk.key
-                                val productId = chunkToProductMap[chunkMd5]
-                                Timber.tag("GOG").w("Chunk $chunkMd5 belongs to product $productId: ${result.exceptionOrNull()?.message}")
-                            }
-
-                            // Refresh secure links
-                            val refreshResult = refreshSecureLinks(secureLinkContext, chunkHashes)
-                            if (refreshResult.isSuccess) {
-                                currentChunkUrlMap = refreshResult.getOrThrow()
-                                Timber.tag("GOG").i("Secure links refreshed successfully, retrying failed chunks")
-
-                                // Retry the failed chunks with new URLs
-                                val retryResults =
-                                    chunkBatch
-                                        .map { (chunkMd5, _) ->
-                                            async {
-                                                val url =
-                                                    currentChunkUrlMap[chunkMd5] ?: return@async Result.failure<File>(
-                                                        Exception("No URL found for chunk $chunkMd5 after refresh"),
-                                                    )
-                                                downloadChunkWithRetry(chunkMd5, url, chunkCacheDir, downloadInfo)
-                                            }
-                                        }.awaitAll()
-
-                                // Check retry results
-                                retryResults.firstOrNull { it.isFailure }?.let { failedResult ->
-                                    return@withContext Result.failure(
-                                        failedResult.exceptionOrNull() ?: Exception("Failed to download chunk after link refresh"),
-                                    )
                                 }
-                            } else {
-                                Timber.tag("GOG").e("Failed to refresh secure links: ${refreshResult.exceptionOrNull()?.message}")
-                                return@withContext Result.failure(
-                                    refreshResult.exceptionOrNull() ?: Exception("Failed to refresh secure links"),
-                                )
+                                refreshAttempts++
+                                continue
                             }
-                        } else {
-                            // Check if any download failed for other reasons
-                            results.firstOrNull { it.isFailure }?.let { failedResult ->
-                                return@withContext Result.failure(
-                                    failedResult.exceptionOrNull() ?: Exception("Failed to download chunk"),
-                                )
-                            }
+
+                            throw exception ?: Exception("Failed to download chunk $chunkMd5")
                         }
+                    }
 
-                        downloadedChunks += chunkBatch.size
+                    val workers = minOf(MAX_PARALLEL_DOWNLOADS, totalChunks).coerceAtLeast(1)
+                    coroutineScope {
+                        (0 until workers)
+                            .map {
+                                async {
+                                    while (true) {
+                                        if (!downloadInfo.isActive()) {
+                                            throw kotlinx.coroutines.CancellationException("Download cancelled")
+                                        }
 
-                        // Update progress with smooth interpolation
-                        val progress = downloadedChunks.toFloat() / totalChunks
-                        downloadInfo.setProgress(progress)
-                        downloadInfo.updateStatusMessage("Downloading chunks ($downloadedChunks/$totalChunks)")
-                        downloadInfo.emitProgressChange()
+                                        val index = nextChunkIndex.getAndIncrement()
+                                        if (index >= totalChunks) break
 
-                        Timber.tag("GOG").d("Progress: ${(progress * 100).toInt()}% ($downloadedChunks/$totalChunks chunks)")
+                                        val chunkMd5 = chunks[index]
+                                        downloadOneChunk(chunkMd5)
+
+                                        val completed = downloadedChunks.incrementAndGet()
+                                        val progress = completed.toFloat() / totalChunks
+                                        downloadInfo.setProgress(progress)
+                                        downloadInfo.updateStatusMessage("Downloading chunks ($completed/$totalChunks)")
+                                        downloadInfo.emitProgressChange()
+
+                                        Timber.tag("GOG").d("Progress: ${(progress * 100).toInt()}% ($completed/$totalChunks chunks)")
+                                    }
+                                }
+                            }.awaitAll()
                     }
 
                     Timber.tag("GOG").i("All $totalChunks chunks downloaded successfully")
@@ -1229,32 +1217,42 @@ class GOGDownloadManager
                 try {
                     val chunks = chunkUrlMap.entries.toList()
                     val totalChunks = chunks.size
-                    var downloadedChunks = 0
+                    val nextChunkIndex = AtomicInteger(0)
+                    val downloadedChunks = AtomicInteger(0)
 
                     downloadInfo.setProgress(0f)
                     downloadInfo.setActive(true)
                     downloadInfo.emitProgressChange()
 
-                    // Download in batches
-                    chunks.chunked(MAX_PARALLEL_DOWNLOADS).forEach { chunkBatch ->
-                        val results =
-                            chunkBatch
-                                .map { (chunkMd5, url) ->
-                                    async {
-                                        downloadChunk(chunkMd5, url, chunkCacheDir, downloadInfo)
+                    if (totalChunks == 0) {
+                        return@withContext Result.success(Unit)
+                    }
+
+                    val workers = minOf(MAX_PARALLEL_DOWNLOADS, totalChunks).coerceAtLeast(1)
+                    coroutineScope {
+                        (0 until workers)
+                            .map {
+                                async {
+                                    while (true) {
+                                        if (!downloadInfo.isActive()) {
+                                            throw kotlinx.coroutines.CancellationException("Download cancelled")
+                                        }
+
+                                        val index = nextChunkIndex.getAndIncrement()
+                                        if (index >= totalChunks) break
+
+                                        val (chunkMd5, url) = chunks[index]
+                                        val result = downloadChunk(chunkMd5, url, chunkCacheDir, downloadInfo)
+                                        if (result.isFailure) {
+                                            throw result.exceptionOrNull() ?: Exception("Failed to download chunk $chunkMd5")
+                                        }
+
+                                        val completed = downloadedChunks.incrementAndGet()
+                                        downloadInfo.setProgress(completed.toFloat() / totalChunks)
+                                        downloadInfo.emitProgressChange()
                                     }
-                                }.awaitAll()
-
-                        // Check if any download failed
-                        results.firstOrNull { it.isFailure }?.let { failedResult ->
-                            return@withContext Result.failure(
-                                failedResult.exceptionOrNull() ?: Exception("Failed to download chunk"),
-                            )
-                        }
-
-                        downloadedChunks += chunkBatch.size
-                        downloadInfo.setProgress(downloadedChunks.toFloat() / totalChunks)
-                        downloadInfo.emitProgressChange()
+                                }
+                            }.awaitAll()
                     }
 
                     Result.success(Unit)
