@@ -1045,6 +1045,7 @@ Percorso installato:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Mostra statistiche prestazioni in tempo reale</string>
     <string name="session_drawer_dual_series_battery">Batteria Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Mostra il frametime come numero</string>
     <string name="session_drawer_command_center">Centro comandi</string>
     <string name="session_drawer_command_center_input">Input</string>
     <string name="session_drawer_command_center_display">Schermo</string>

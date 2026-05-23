@@ -336,6 +336,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private float hudScale = 1.0f;
     private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
+    private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
     private boolean sgsrEnabled = false;
@@ -635,6 +636,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         dualSeriesBattery = preferences.getBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, false);
+        frametimeNumericMode = preferences.getBoolean(FrameRating.PREF_HUD_FRAMETIME_NUMERIC, false);
 
         // Check for Dark Mode
         isDarkMode = preferences.getBoolean("dark_mode", false);
@@ -3106,6 +3108,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudScale,
                 hudElements,
                 dualSeriesBattery,
+                frametimeNumericMode,
                 hudCardExpanded,
                 preferences.getBoolean("gyro_enabled", false),
                 preferences.getInt("gyro_mode", 0),
@@ -3177,6 +3180,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         dualSeriesBattery = enabled;
                         preferences.edit().putBoolean(FrameRating.PREF_HUD_DUAL_SERIES_BATTERY, enabled).apply();
                         if (frameRating != null) frameRating.setDualSeriesBattery(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrametimeNumericChanged(boolean enabled) {
+                        frametimeNumericMode = enabled;
+                        preferences.edit().putBoolean(FrameRating.PREF_HUD_FRAMETIME_NUMERIC, enabled).apply();
+                        if (frameRating != null) frameRating.setFrametimeNumericMode(enabled);
                         renderDrawerMenu();
                     }
 
@@ -3868,6 +3879,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating.setHudAlpha(hudTransparency);
             frameRating.setHudScale(hudScale);
             frameRating.setDualSeriesBattery(dualSeriesBattery);
+            frameRating.setFrametimeNumericMode(frametimeNumericMode);
             frameRating.setIsNative(isNativeRenderingEnabled);
             for (int i = 0; i < hudElements.length; i++) {
                 frameRating.toggleElement(i, hudElements[i]);

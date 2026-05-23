@@ -1051,6 +1051,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Pokaż statystyki wydajności w czasie rzeczywistym</string>
     <string name="session_drawer_dual_series_battery">Bateria Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Pokaż czas klatki jako liczbę</string>
     <string name="session_drawer_command_center">Centrum poleceń</string>
     <string name="session_drawer_command_center_input">Wejście</string>
     <string name="session_drawer_command_center_display">Ekran</string>

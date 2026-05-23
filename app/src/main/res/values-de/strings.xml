@@ -1045,6 +1045,7 @@ Installierter Pfad:
     <string name="session_drawer_fps_monitor">FPS-Monitor</string>
     <string name="session_drawer_fps_monitor_subtitle">Leistungsstatistiken in Echtzeit anzeigen</string>
     <string name="session_drawer_dual_series_battery">Dual-Series-Akku</string>
+    <string name="session_drawer_hud_frametime_numeric">Frametime als Zahl anzeigen</string>
     <string name="session_drawer_command_center">Befehlszentrum</string>
     <string name="session_drawer_command_center_input">Eingabe</string>
     <string name="session_drawer_command_center_display">Anzeige</string>

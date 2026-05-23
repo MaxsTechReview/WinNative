@@ -1045,6 +1045,7 @@ Caminho instalado:
     <string name="session_drawer_fps_monitor">Monitor de FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Mostrar estatísticas de desempenho em tempo real</string>
     <string name="session_drawer_dual_series_battery">Bateria Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Mostrar frametime como número</string>
     <string name="session_drawer_command_center">Central de comandos</string>
     <string name="session_drawer_command_center_input">Entrada</string>
     <string name="session_drawer_command_center_display">Tela</string>

@@ -1045,6 +1045,7 @@ Cale instalata:
     <string name="session_drawer_fps_monitor">Monitor FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Afișează statisticile de performanță în timp real</string>
     <string name="session_drawer_dual_series_battery">Baterie Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Afișează timpul cadrului ca număr</string>
     <string name="session_drawer_command_center">Centru de comandă</string>
     <string name="session_drawer_command_center_input">Intrare</string>
     <string name="session_drawer_command_center_display">Afișaj</string>

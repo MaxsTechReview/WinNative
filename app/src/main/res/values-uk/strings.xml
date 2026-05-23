@@ -1051,6 +1051,7 @@
     <string name="session_drawer_fps_monitor">Монітор FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Показувати статистику продуктивності в реальному часі</string>
     <string name="session_drawer_dual_series_battery">Батарея Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Показувати час кадру як число</string>
     <string name="session_drawer_command_center">Центр керування</string>
     <string name="session_drawer_command_center_input">Ввід</string>
     <string name="session_drawer_command_center_display">Дисплей</string>

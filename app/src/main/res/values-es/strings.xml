@@ -1045,6 +1045,7 @@ Ruta instalada:
     <string name="session_drawer_fps_monitor">Monitor de FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Mostrar estadísticas de rendimiento en tiempo real</string>
     <string name="session_drawer_dual_series_battery">Batería Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Mostrar tiempo de fotograma como número</string>
     <string name="session_drawer_command_center">Centro de comandos</string>
     <string name="session_drawer_command_center_input">Entrada</string>
     <string name="session_drawer_command_center_display">Pantalla</string>

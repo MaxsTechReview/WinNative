@@ -50,6 +50,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   public static final String PREF_HUD_POS_Y = "hud_position_y";
   public static final String PREF_HUD_HAS_POSITION = "hud_has_position";
   public static final String PREF_HUD_DUAL_SERIES_BATTERY = "hud_dual_series_battery";
+  public static final String PREF_HUD_FRAMETIME_NUMERIC = "hud_frametime_numeric";
   public static final String PREF_HUD_SCALE = "hud_scale";
   public static final String PREF_HUD_ALPHA = "hud_alpha";
   public static final String PREF_HUD_ELEMENTS = "hud_elements";
@@ -139,6 +140,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final TextView tvBat;
   private final TextView tvTemp;
   private final TextView tvFpsBig;
+  private final TextView tvFrametime;
   private final FrameLayout graphContainer;
   private Handler statsHandler;
   private Runnable statsRunnable;
@@ -166,6 +168,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final int MODE_COUNT = 4;
   private GradientDrawable backdropDrawable;
   private boolean dualSeriesBattery;
+  private boolean frametimeNumericMode;
 
   public FrameRating(Context context, HashMap graphicsDriverConfig) {
     this(context, graphicsDriverConfig, null);
@@ -234,6 +237,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.tvBat = view.findViewById(R.id.TVBat);
     this.tvTemp = view.findViewById(R.id.TVTemp);
     this.tvFpsBig = view.findViewById(R.id.TVFpsBig);
+    this.tvFrametime = view.findViewById(R.id.TVFrametime);
     this.graphContainer = view.findViewById(R.id.FLGraphContainer);
     this.sep0 = view.findViewById(R.id.Sep0);
     this.sep1 = view.findViewById(R.id.Sep1);
@@ -488,6 +492,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private void loadPersistedHudPreferences() {
     this.displayMode = this.preferences.getInt(PREF_HUD_DISPLAY_MODE, 0);
     this.dualSeriesBattery = this.preferences.getBoolean(PREF_HUD_DUAL_SERIES_BATTERY, false);
+    this.frametimeNumericMode = this.preferences.getBoolean(PREF_HUD_FRAMETIME_NUMERIC, false);
     this.currentAnchor = this.preferences.getInt(PREF_HUD_ANCHOR, ANCHOR_NONE);
   }
 
@@ -815,6 +820,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       tvTemp,
       sep5,
       tvFpsBig,
+      tvFrametime,
       graphContainer
     };
     for (View v : views) {
@@ -823,6 +829,10 @@ public class FrameRating extends LinearLayout implements Runnable {
         if (v == graphContainer) {
           lp.width = graphW;
           lp.height = graphH;
+          lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
+        } else if (v == tvFrametime) {
+          lp.width = LayoutParams.WRAP_CONTENT;
+          lp.height = LayoutParams.WRAP_CONTENT;
           lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
         } else {
           lp.width = LayoutParams.WRAP_CONTENT;
@@ -833,6 +843,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       }
     }
 
+    applyFrametimeDisplayVisibility();
     updateSeparators(horizontal);
     requestLayout();
   }
@@ -992,6 +1003,24 @@ public class FrameRating extends LinearLayout implements Runnable {
     post(this);
   }
 
+  public void setFrametimeNumericMode(boolean numeric) {
+    this.frametimeNumericMode = numeric;
+    this.preferences.edit().putBoolean(PREF_HUD_FRAMETIME_NUMERIC, numeric).apply();
+    post(this::applyFrametimeDisplayVisibility);
+    post(this);
+  }
+
+  private void applyFrametimeDisplayVisibility() {
+    boolean showNumeric = this.enableGraph && this.frametimeNumericMode;
+    boolean showGraph = this.enableGraph && !this.frametimeNumericMode;
+    if (this.tvFrametime != null) {
+      this.tvFrametime.setVisibility(showNumeric ? View.VISIBLE : View.GONE);
+    }
+    if (this.graphContainer != null) {
+      this.graphContainer.setVisibility(showGraph ? View.VISIBLE : View.GONE);
+    }
+  }
+
   public void toggleElement(int elementIndex, boolean visible) {
     int v = visible ? View.VISIBLE : View.GONE;
     switch (elementIndex) {
@@ -1028,9 +1057,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         break;
       case 6:
         this.enableGraph = visible;
-        if (this.graphContainer != null) {
-          this.graphContainer.setVisibility(v);
-        }
+        applyFrametimeDisplayVisibility();
         break;
     }
     updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
@@ -1110,10 +1137,16 @@ public class FrameRating extends LinearLayout implements Runnable {
       if (ms > 0.0f && ms < 500.0f) {
         this.currentMs = ms;
       }
-      if (this.enableGraph && ms > 0.0f && ms < 500.0f && time - this.lastGraphRedraw >= 50) {
-        if (this.graphView != null) {
+      long frametimeRedrawInterval = this.frametimeNumericMode ? 500L : 50L;
+      if (this.enableGraph && ms > 0.0f && ms < 500.0f
+          && time - this.lastGraphRedraw >= frametimeRedrawInterval) {
+        if (!this.frametimeNumericMode && this.graphView != null) {
           this.graphView.addFrame(ms);
           this.graphView.postInvalidate();
+        } else if (this.frametimeNumericMode && this.tvFrametime != null) {
+          final float msSnapshot = ms;
+          this.tvFrametime.post(
+              () -> this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", msSnapshot)));
         }
         this.lastGraphRedraw = time;
       }
@@ -1393,6 +1426,14 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvFpsBig.setTextColor(this.C_FPS_OK);
       this.tvFpsBig.setVisibility(View.VISIBLE);
     } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);
+
+    if (this.enableGraph && this.frametimeNumericMode && this.tvFrametime != null) {
+      this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", this.currentMs));
+      this.tvFrametime.setTextColor(this.C_FPS_OK);
+      this.tvFrametime.setVisibility(View.VISIBLE);
+    } else if (this.tvFrametime != null) {
+      this.tvFrametime.setVisibility(View.GONE);
+    }
 
     if (getOrientation() == LinearLayout.HORIZONTAL) updateSeparators(true);
   }

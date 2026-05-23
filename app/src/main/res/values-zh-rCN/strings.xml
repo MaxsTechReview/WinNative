@@ -1045,6 +1045,7 @@
     <string name="session_drawer_fps_monitor">FPS 监视器</string>
     <string name="session_drawer_fps_monitor_subtitle">显示实时性能统计信息</string>
     <string name="session_drawer_dual_series_battery">Dual Series 电量</string>
+    <string name="session_drawer_hud_frametime_numeric">将帧时间显示为数字</string>
     <string name="session_drawer_command_center">控制中心</string>
     <string name="session_drawer_command_center_input">输入</string>
     <string name="session_drawer_command_center_display">显示</string>

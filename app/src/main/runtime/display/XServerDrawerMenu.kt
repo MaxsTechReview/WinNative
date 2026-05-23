@@ -294,6 +294,7 @@ data class XServerDrawerState(
     val hudScale: Float = 1.0f,
     val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
     val dualSeriesBatteryEnabled: Boolean = false,
+    val frametimeNumericEnabled: Boolean = false,
     val hudCardExpanded: Boolean = false,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
@@ -453,6 +454,8 @@ interface XServerDrawerActionListener {
 
     fun onDualSeriesBatteryChanged(enabled: Boolean)
 
+    fun onFrametimeNumericChanged(enabled: Boolean)
+
     fun onHUDCardExpandedChanged(expanded: Boolean)
 
     fun onGyroscopeEnabledChanged(enabled: Boolean)
@@ -548,6 +551,7 @@ fun buildXServerDrawerState(
     hudScale: Float = 1.0f,
     hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
     dualSeriesBatteryEnabled: Boolean = false,
+    frametimeNumericEnabled: Boolean = false,
     hudCardExpanded: Boolean = false,
     gyroscopeEnabled: Boolean = false,
     gyroscopeModeIndex: Int = 0,
@@ -708,6 +712,7 @@ fun buildXServerDrawerState(
         hudScale = hudScale,
         hudElements = hudElements,
         dualSeriesBatteryEnabled = dualSeriesBatteryEnabled,
+        frametimeNumericEnabled = frametimeNumericEnabled,
         hudCardExpanded = hudCardExpanded,
         gyroscopeEnabled = gyroscopeEnabled,
         gyroscopeModeIndex = gyroscopeModeIndex,
@@ -1536,6 +1541,12 @@ private fun HUDPaneContent(
                         }
                     }
                 }
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_hud_frametime_numeric),
+                    checked = state.frametimeNumericEnabled,
+                    onCheckedChange = listener::onFrametimeNumericChanged,
+                )
 
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_dual_series_battery),

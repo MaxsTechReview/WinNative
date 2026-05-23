@@ -1045,6 +1045,7 @@ Installeret sti:
     <string name="session_drawer_fps_monitor">FPS-overvågning</string>
     <string name="session_drawer_fps_monitor_subtitle">Vis ydeevnestatistik i realtid</string>
     <string name="session_drawer_dual_series_battery">Dual Series-batteri</string>
+    <string name="session_drawer_hud_frametime_numeric">Vis frametime som tal</string>
     <string name="session_drawer_command_center">Kommandocenter</string>
     <string name="session_drawer_command_center_input">Input</string>
     <string name="session_drawer_command_center_display">Skærm</string>

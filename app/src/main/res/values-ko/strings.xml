@@ -1045,6 +1045,7 @@
     <string name="session_drawer_fps_monitor">FPS 모니터</string>
     <string name="session_drawer_fps_monitor_subtitle">실시간 성능 통계 표시</string>
     <string name="session_drawer_dual_series_battery">듀얼 시리즈 배터리</string>
+    <string name="session_drawer_hud_frametime_numeric">프레임타임을 숫자로 표시</string>
     <string name="session_drawer_command_center">명령 센터</string>
     <string name="session_drawer_command_center_input">입력</string>
     <string name="session_drawer_command_center_display">디스플레이</string>
