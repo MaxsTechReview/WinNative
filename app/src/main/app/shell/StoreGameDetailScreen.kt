@@ -187,7 +187,7 @@ internal fun StoreGameDetailScreen(
         val verifyFilesAvailable = showVerifyFiles && isInstalled
         val workshopAvailable = showWorkshop && isInstalled
         val sourceMenuEnabled = updateCheckAvailable || verifyFilesAvailable || workshopAvailable
-        val showDlcCard = dlcs.isNotEmpty() && (!isInstalled || dlcs.any { !it.isInstalled })
+        val showDlcCard = dlcs.isNotEmpty()
         val showActionColumn =
             showDownloadCta || showUpdateCta ||
                 (showCloudSync || showUninstall)

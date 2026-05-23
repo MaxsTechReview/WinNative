@@ -428,11 +428,36 @@ class GOGService : Service() {
             getInstance()?.gogManager?.refreshLibrary(context)
                 ?: Result.failure(Exception("Service not available"))
 
+        suspend fun getDLCForGameSuspend(
+            gameId: String,
+            containerLanguage: String,
+        ) = getInstance()?.gogManager?.getOwnedDlcsForGame(gameId, containerLanguage) ?: emptyList()
+
+        suspend fun getInstallableSelectedManifestSizes(
+            gameId: String,
+            containerLanguage: String,
+            dlcGameIds: Collection<Int> = emptyList(),
+        ): GOGManifestSizes =
+            getInstance()?.gogManager?.getInstallableSelectedManifestSizes(gameId, containerLanguage, dlcGameIds)
+                ?: GOGManifestSizes()
+
+        suspend fun getDlcOnlyManifestSizes(
+            gameId: String,
+            dlcGameId: Int,
+            containerLanguage: String,
+        ): GOGManifestSizes =
+            getInstance()?.gogManager?.getDlcOnlyManifestSizes(gameId, dlcGameId, containerLanguage)
+                ?: GOGManifestSizes()
+
+        suspend fun getInstalledDlcIds(gameId: String): Set<String> =
+            getInstance()?.gogManager?.getInstalledDlcIds(gameId) ?: emptySet()
+
         fun downloadGame(
             context: Context,
             gameId: String,
             installPath: String,
             containerLanguage: String,
+            dlcGameIds: List<Int> = emptyList(),
         ): Result<DownloadInfo?> {
             val activeInstance =
                 getInstance() ?: run {
@@ -482,6 +507,7 @@ class GOGService : Service() {
             // Stash the original parameters so resume() can restore them after pause.
             activeInstance.downloadParams[gameId] =
                 DownloadParams(
+                    dlcGameIds = dlcGameIds,
                     containerLanguage = containerLanguage,
                     installPath = effectiveInstallPath,
                 )
@@ -499,6 +525,7 @@ class GOGService : Service() {
                         title = game.title,
                         artUrl = game.iconUrl,
                         installPath = effectiveInstallPath,
+                        selectedDlcs = dlcGameIds.joinToString(","),
                         language = containerLanguage,
                     )
                 }
@@ -534,8 +561,9 @@ class GOGService : Service() {
                                 File(effectiveInstallPath),
                                 downloadInfo,
                                 containerLanguage,
-                                true,
-                                commonRedistDir,
+                                withDlcs = dlcGameIds.isNotEmpty(),
+                                supportDir = commonRedistDir,
+                                selectedDlcIds = dlcGameIds.map { it.toString() }.toSet(),
                             )
 
                         if (result.isFailure) {
@@ -866,6 +894,7 @@ class GOGService : Service() {
     // install path instead of falling back to defaults.
     // (Phase 2 will move this into a persistent record.)
     data class DownloadParams(
+        val dlcGameIds: List<Int>,
         val containerLanguage: String,
         val installPath: String,
     )
@@ -880,6 +909,11 @@ class GOGService : Service() {
                 val context = com.winlator.cmod.app.service.DownloadService.appContext ?: return
                 val gameId = record.storeGameId
                 val params = downloadParams[gameId]
+                val dlcGameIds =
+                    params?.dlcGameIds
+                        ?: record.selectedDlcs
+                            .split(',')
+                            .mapNotNull { it.trim().toIntOrNull() }
                 val installPath = params?.installPath ?: record.installPath
                 val containerLanguage = params?.containerLanguage ?: record.language
 
@@ -887,7 +921,7 @@ class GOGService : Service() {
                 // "already downloading" — it will recreate the DownloadInfo and launch.
                 activeDownloads.remove(gameId)
 
-                downloadGame(context, gameId, installPath, containerLanguage)
+                downloadGame(context, gameId, installPath, containerLanguage, dlcGameIds)
             }
 
             override fun pauseRunning(record: DownloadRecord) {

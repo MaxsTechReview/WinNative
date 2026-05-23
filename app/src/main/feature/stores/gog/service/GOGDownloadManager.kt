@@ -104,6 +104,7 @@ class GOGDownloadManager
             language: String = GOGConstants.GOG_FALLBACK_DOWNLOAD_LANGUAGE,
             withDlcs: Boolean = false,
             supportDir: File? = null,
+            selectedDlcIds: Set<String> = emptySet(),
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
@@ -211,6 +212,7 @@ class GOGDownloadManager
                             language = language,
                             withDlcs = withDlcs,
                             supportDir = supportDir,
+                            selectedDlcIds = selectedDlcIds,
                         )
                     }
 
@@ -231,7 +233,15 @@ class GOGDownloadManager
 
                     // Filter by ownership to exclude unowned DLC depots
                     val ownedGameIds = gogManager.getAllGameIds()
-                    val depots = parser.filterDepotsByOwnership(languageDepots, ownedGameIds)
+                    val requestedProductIds =
+                        buildSet {
+                            add(gameManifest.baseProductId)
+                            if (withDlcs) addAll(selectedDlcIds)
+                        }
+                    val depots =
+                        parser
+                            .filterDepotsByOwnership(languageDepots, ownedGameIds)
+                            .filter { it.productId in requestedProductIds }
                     if (depots.isEmpty()) {
                         return@withContext Result.failure(Exception("No owned depots found for language: $effectiveLang"))
                     }
@@ -254,6 +264,15 @@ class GOGDownloadManager
                         val file: DepotFile,
                         val depotProductId: String,
                     )
+                    fun effectiveProductId(
+                        fileProductId: String?,
+                        depotProductId: String,
+                    ): String =
+                        when (fileProductId) {
+                            null, "", "2147483047" -> depotProductId
+                            else -> fileProductId
+                        }
+
                     val allFilesWithDepots = mutableListOf<FileWithDepot>()
 
                     for ((index, depot) in depots.withIndex()) {
@@ -272,13 +291,24 @@ class GOGDownloadManager
                         }
                     }
 
-                    val allFiles = allFilesWithDepots.map { it.file }
-                    Timber.tag("GOG").d("Total files from all depots: ${allFiles.size}")
+                    val requestedFilesWithDepots =
+                        allFilesWithDepots.filter { (file, depotProductId) ->
+                            effectiveProductId(file.productId, depotProductId) in requestedProductIds
+                        }
+                    Timber.tag("GOG").d("Total files from all depots: ${allFilesWithDepots.size}")
 
                     // Step 5: Separate base game, DLC, and support files
-                    val (baseFiles, dlcFiles) = parser.separateBaseDLC(allFiles, gameManifest.baseProductId)
-                    val filesToDownload = if (withDlcs) baseFiles + dlcFiles else baseFiles
-                    var (gameFiles, supportFiles) = parser.separateSupportFiles(filesToDownload)
+                    val baseFiles =
+                        requestedFilesWithDepots
+                            .filter { (file, depotProductId) ->
+                                effectiveProductId(file.productId, depotProductId) == gameManifest.baseProductId
+                            }.map { it.file }
+                    val dlcFiles =
+                        requestedFilesWithDepots
+                            .filter { (file, depotProductId) ->
+                                effectiveProductId(file.productId, depotProductId) != gameManifest.baseProductId
+                            }.map { it.file }
+                    var (gameFiles, supportFiles) = parser.separateSupportFiles(requestedFilesWithDepots.map { it.file })
 
                     // Filter out files that already exist with correct size (incremental download)
                     val gameInstallDir = installPath
@@ -350,30 +380,10 @@ class GOGDownloadManager
                         if (file.path !in filesToDownloadPaths) return@forEach
                         // Use depot's productId as fallback when file has null/placeholder productId
 
-                        // TODO: Remove this logic and always use the depotProductId.
-                        val productId =
-                            when {
-                                file.productId == null -> {
-                                    Timber.tag("GOG").d("File ${file.path} has null productId, using depotProductId: $depotProductId")
-                                    depotProductId
-                                }
-
-                                file.productId == "2147483047" -> {
-                                    Timber
-                                        .tag(
-                                            "GOG",
-                                        ).d("File ${file.path} has placeholder productId, using depotProductId: $depotProductId")
-                                    depotProductId
-                                }
-
-                                else -> {
-                                    Timber.tag("GOG").d("File ${file.path} has productId: ${file.productId}")
-                                    file.productId
-                                }
-                            }
+                        val productId = effectiveProductId(file.productId, depotProductId)
 
                         // Only include files from products the user owns
-                        if (productId in ownedGameIds) {
+                        if (productId in ownedGameIds && productId in requestedProductIds) {
                             file.chunks.forEach { chunk ->
                                 chunkToProductMap[chunk.compressedMd5] = productId
                             }
@@ -470,7 +480,14 @@ class GOGDownloadManager
                     // Step 11: Cleanup
                     chunkCacheDir.deleteRecursively()
 
-                    saveManifestToGameDir(installPath, gameManifest, selectedBuild.buildId, selectedBuild.versionName, effectiveLang)
+                    saveManifestToGameDir(
+                        installPath,
+                        gameManifest,
+                        selectedBuild.buildId,
+                        selectedBuild.versionName,
+                        effectiveLang,
+                        selectedDlcIds,
+                    )
 
                     finalizeInstallSuccess(gameId, installPath, downloadInfo)
                     Timber.tag("GOG").i("Download completed successfully for game $gameId")
@@ -506,10 +523,13 @@ class GOGDownloadManager
             buildId: String,
             versionName: String,
             language: String,
+            selectedDlcIds: Set<String> = emptySet(),
         ) {
             try {
+                val installedDlcIds = GOGManifestUtils.getInstalledDlcIds(installPath) + selectedDlcIds
+                val installedProductIds = installedDlcIds + gameManifest.baseProductId
                 val productsArray = JSONArray()
-                gameManifest.products.forEach { p ->
+                gameManifest.products.filter { it.productId in installedProductIds }.forEach { p ->
                     productsArray.put(
                         JSONObject().apply {
                             put("productId", p.productId)
@@ -525,6 +545,12 @@ class GOGDownloadManager
                         put("baseProductId", gameManifest.baseProductId)
                         put("scriptInterpreter", gameManifest.scriptInterpreter)
                         put("products", productsArray)
+                        put(
+                            "installedDlcIds",
+                            JSONArray().apply {
+                                installedDlcIds.sorted().forEach { put(it) }
+                            },
+                        )
                         put("buildId", buildId)
                         put("versionName", versionName)
                         put("language", language)
@@ -589,6 +615,7 @@ class GOGDownloadManager
             language: String,
             withDlcs: Boolean,
             supportDir: File?,
+            selectedDlcIds: Set<String>,
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
@@ -614,7 +641,12 @@ class GOGDownloadManager
                     }
 
                     val baseProductId = gameManifest.baseProductId
-                    val filesToDownload = if (withDlcs) depots else depots.filter { it.productId == baseProductId }
+                    val requestedProductIds =
+                        buildSet {
+                            add(baseProductId)
+                            if (withDlcs) addAll(selectedDlcIds)
+                        }
+                    val filesToDownload = depots.filter { it.productId in requestedProductIds }
                     if (filesToDownload.isEmpty()) {
                         return@withContext Result.failure(Exception("No depots to download"))
                     }
@@ -798,7 +830,14 @@ class GOGDownloadManager
                         }
                     }
 
-                    saveManifestToGameDir(installPath, gameManifest, selectedBuild.buildId, selectedBuild.versionName, effectiveLang)
+                    saveManifestToGameDir(
+                        installPath,
+                        gameManifest,
+                        selectedBuild.buildId,
+                        selectedBuild.versionName,
+                        effectiveLang,
+                        selectedDlcIds,
+                    )
 
                     finalizeInstallSuccess(gameId, installPath, downloadInfo)
                     Timber.tag("GOG").i("Gen 1 download completed for game $gameId")

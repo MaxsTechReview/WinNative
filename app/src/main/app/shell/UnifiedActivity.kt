@@ -166,10 +166,12 @@ import com.winlator.cmod.feature.stores.epic.service.EpicManager
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.epic.service.EpicUpdateInfo
 import com.winlator.cmod.feature.stores.epic.ui.auth.EpicOAuthActivity
+import com.winlator.cmod.feature.stores.gog.data.GOGDlcInfo
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
 import com.winlator.cmod.feature.stores.gog.data.LibraryItem
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGConstants
+import com.winlator.cmod.feature.stores.gog.service.GOGManifestSizes
 import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
@@ -6673,8 +6675,13 @@ class UnifiedActivity :
         val context = LocalContext.current
         val installed = GOGService.isGameInstalled(app.id)
         val scope = rememberCoroutineScope()
+        var isLoading by remember(app.id) { mutableStateOf(true) }
+        var selectedManifestSizes by remember(app.id) { mutableStateOf(GOGManifestSizes()) }
+        var dlcSizes by remember(app.id) { mutableStateOf<Map<Int, GOGManifestSizes>>(emptyMap()) }
         var customPath by remember { mutableStateOf<String?>(null) }
         var showCustomPathWarning by remember { mutableStateOf(false) }
+        var dlcApps by remember(app.id) { mutableStateOf<List<GOGDlcInfo>>(emptyList()) }
+        val selectedDlcIds = remember(app.id) { mutableStateListOf<Int>() }
         val gogDownloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
             initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
         )
@@ -6704,6 +6711,58 @@ class UnifiedActivity :
             )
         }
 
+        data class GogInstallLoadData(
+            val dlcs: List<GOGDlcInfo>,
+            val dlcSizes: Map<Int, GOGManifestSizes>,
+            val baseManifestSizes: GOGManifestSizes,
+        )
+
+        LaunchedEffect(app.id, PrefManager.containerLanguage) {
+            isLoading = true
+            val loadData =
+                withContext(Dispatchers.IO) {
+                    val dlcs = GOGService.getDLCForGameSuspend(app.id, PrefManager.containerLanguage)
+                    val perDlcSizes =
+                        dlcs.mapNotNull { dlc ->
+                            val id = dlc.id.toIntOrNull() ?: return@mapNotNull null
+                            id to
+                                GOGManifestSizes(
+                                    installSize = dlc.installSize,
+                                    downloadSize = dlc.downloadSize,
+                                )
+                        }.toMap()
+                    GogInstallLoadData(
+                        dlcs = dlcs,
+                        dlcSizes = perDlcSizes,
+                        baseManifestSizes =
+                            GOGService.getInstallableSelectedManifestSizes(
+                                app.id,
+                                PrefManager.containerLanguage,
+                            ),
+                    )
+                }
+            dlcApps = loadData.dlcs
+            dlcSizes = loadData.dlcSizes
+            selectedManifestSizes = loadData.baseManifestSizes
+            selectedDlcIds.clear()
+            loadData.dlcs
+                .filterNot { it.isInstalled }
+                .mapNotNull { it.id.toIntOrNull() }
+                .forEach { selectedDlcIds.add(it) }
+            isLoading = false
+        }
+
+        LaunchedEffect(app.id, PrefManager.containerLanguage, selectedDlcIds.toList()) {
+            selectedManifestSizes =
+                withContext(Dispatchers.IO) {
+                    GOGService.getInstallableSelectedManifestSizes(
+                        app.id,
+                        PrefManager.containerLanguage,
+                        selectedDlcIds.toList(),
+                    )
+                }
+        }
+
         val defaultPathSet =
             if (PrefManager.useSingleDownloadFolder) {
                 PrefManager.defaultDownloadFolder.isNotEmpty()
@@ -6720,14 +6779,61 @@ class UnifiedActivity :
             } else {
                 GOGConstants.getGameInstallPath(app.title)
             }
-        val requiredBytes = maxOf(app.installSize, app.downloadSize)
+        val dlcItems =
+            remember(dlcApps, dlcSizes) {
+                dlcApps.mapNotNull { dlc ->
+                    val id = dlc.id.toIntOrNull() ?: return@mapNotNull null
+                    val manifestSize = dlcSizes[id]
+                    val size =
+                        manifestSize
+                            ?.downloadSize
+                            ?.takeIf { it > 0L }
+                            ?: manifestSize?.installSize?.takeIf { it > 0L }
+                            ?: dlc.downloadSize.takeIf { it > 0L }
+                            ?: dlc.installSize
+                    StoreDlcItem(id = id, name = dlc.title, downloadSize = size, isInstalled = dlc.isInstalled)
+                }
+            }
+        val selectedDlcDownloadSize =
+            remember(dlcItems, selectedDlcIds.toList()) {
+                dlcItems
+                    .filter { !it.isInstalled && it.id in selectedDlcIds }
+                    .sumOf { it.downloadSize.coerceAtLeast(0L) }
+            }
+        val selectedDlcInstallSize =
+            remember(dlcSizes, dlcItems, selectedDlcIds.toList()) {
+                dlcItems
+                    .filter { !it.isInstalled && it.id in selectedDlcIds }
+                    .sumOf { dlcSizes[it.id]?.installSize?.takeIf { size -> size > 0L } ?: it.downloadSize.coerceAtLeast(0L) }
+            }
+        val totalDownloadSize =
+            if (installed) {
+                selectedDlcDownloadSize
+            } else {
+                selectedManifestSizes.downloadSize.takeIf { it > 0L }
+                    ?: app.downloadSize + selectedDlcDownloadSize
+            }
+        val totalInstallSize =
+            if (installed) {
+                selectedDlcInstallSize
+            } else {
+                selectedManifestSizes.installSize.takeIf { it > 0L }
+                    ?: app.installSize.takeIf { it > 0L }
+                    ?: totalDownloadSize
+            }
+        val requiredBytes =
+            if (installed) {
+                selectedDlcInstallSize.takeIf { it > 0L } ?: selectedDlcDownloadSize
+            } else {
+                totalInstallSize.takeIf { it > 0L } ?: totalDownloadSize
+            }
         val availableBytes =
             try {
                 StorageUtils.getAvailableSpace(installRootPath)
             } catch (_: Exception) {
                 0L
             }
-        val isInstallEnabled = installed || requiredBytes == 0L || availableBytes >= requiredBytes
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installActionEnabled = isInstallEnabled && !hasBlockingGogDownload
         val customPathLabel =
             when {
@@ -6758,11 +6864,11 @@ class UnifiedActivity :
                         ).joinToString(" • "),
                     sourceLabel = "GOG",
                     heroImageUrl = app.imageUrl.ifEmpty { app.iconUrl },
-                    isLoading = false,
+                    isLoading = isLoading,
                     isInstalled = installed,
                     installPathDisplay = installPathDisplay,
-                    downloadSize = app.downloadSize,
-                    installSize = app.installSize,
+                    downloadSize = totalDownloadSize,
+                    installSize = totalInstallSize,
                     availableBytes = availableBytes,
                     isInstallEnabled = isInstallEnabled,
                     isDownloadActionEnabled = installActionEnabled,
@@ -6770,8 +6876,9 @@ class UnifiedActivity :
                     showCustomPath = true,
                     showCloudSync = true,
                     showUninstall = true,
-                    dlcs = emptyList(),
-                    selectedDlcIds = emptySet(),
+                    dlcs = dlcItems,
+                    selectedDlcIds = selectedDlcIds.toSet(),
+                    isDlcSelectionEnabled = installActionEnabled,
                     onBack = onDismissRequest,
                     onInstall = {
                         if (hasBlockingGogDownload) {
@@ -6783,7 +6890,13 @@ class UnifiedActivity :
                             return@StoreGameDetailScreen
                         }
                         context.runIfOnlineOrToast {
-                            GOGService.downloadGame(context, app.id, installPathDisplay, PrefManager.containerLanguage)
+                            GOGService.downloadGame(
+                                context,
+                                app.id,
+                                installPathDisplay,
+                                PrefManager.containerLanguage,
+                                selectedDlcIds.toList(),
+                            )
                             onDismissRequest()
                         }
                     },
@@ -6834,6 +6947,25 @@ class UnifiedActivity :
                                 initialPath = customPath ?: GOGConstants.defaultGOGGamesPath,
                                 title = getString(R.string.settings_content_install_directory),
                             ) { path -> customPath = path }
+                        }
+                    },
+                    onToggleDlc = { id ->
+                        if (dlcItems.any { it.id == id && it.isInstalled }) {
+                            return@StoreGameDetailScreen
+                        }
+                        if (selectedDlcIds.contains(id)) {
+                            selectedDlcIds.remove(id)
+                        } else {
+                            selectedDlcIds.add(id)
+                        }
+                    },
+                    onToggleSelectAllDlcs = {
+                        val selectableDlcItems = dlcItems.filterNot { it.isInstalled }
+                        val all = selectableDlcItems.isNotEmpty() && selectableDlcItems.all { it.id in selectedDlcIds }
+                        if (all) {
+                            selectedDlcIds.removeAll(selectableDlcItems.map { it.id }.toSet())
+                        } else {
+                            selectableDlcItems.forEach { if (it.id !in selectedDlcIds) selectedDlcIds.add(it.id) }
                         }
                     },
                 )

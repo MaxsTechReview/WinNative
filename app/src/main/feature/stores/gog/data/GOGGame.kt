@@ -71,3 +71,11 @@ data class GOGDownloadInfo(
     val isPaused: Boolean = false,
     val error: String? = null,
 )
+
+data class GOGDlcInfo(
+    val id: String,
+    val title: String,
+    val downloadSize: Long = 0,
+    val installSize: Long = 0,
+    val isInstalled: Boolean = false,
+)
