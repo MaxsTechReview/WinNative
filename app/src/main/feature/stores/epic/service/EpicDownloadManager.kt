@@ -1,6 +1,8 @@
 package com.winlator.cmod.feature.stores.epic.service
 import android.content.Context
 import android.util.Log
+import com.winlator.cmod.app.db.download.DownloadRecord
+import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.stores.epic.data.EpicGame
 import com.winlator.cmod.feature.stores.epic.service.manifest.ChunkInfo
 import com.winlator.cmod.feature.stores.epic.service.manifest.ChunkPart
@@ -8,11 +10,14 @@ import com.winlator.cmod.feature.stores.epic.service.manifest.EpicManifest
 import com.winlator.cmod.feature.stores.epic.service.manifest.FileManifest
 import com.winlator.cmod.feature.stores.epic.service.manifest.ManifestUtils
 import com.winlator.cmod.feature.stores.steam.data.DownloadInfo
+import com.winlator.cmod.feature.stores.steam.enums.DownloadPhase
 import com.winlator.cmod.feature.stores.steam.enums.Marker
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -24,6 +29,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit
 import java.util.zip.Inflater
 import javax.inject.Inject
@@ -54,10 +60,11 @@ class EpicDownloadManager
                 .build()
 
         companion object {
-            private const val MAX_PARALLEL_DOWNLOADS = 6
+            private const val MAX_PARALLEL_DOWNLOADS = 12
             private const val CHUNK_BUFFER_SIZE = 1024 * 1024 // 1MB buffer for decompression
-            private const val MAX_CHUNK_RETRIES = 3 // Maximum retries per chunk
+            private const val MAX_CHUNK_RETRIES = 5 // Maximum retries per chunk
             private const val RETRY_DELAY_MS = 1000L // Initial retry delay in milliseconds
+            private const val RESUME_STATE_FILE = "epic_applied_chunks.txt"
         }
 
         /**
@@ -131,8 +138,10 @@ class EpicDownloadManager
 
                     val manifestData = manifestResult.getOrNull()!!
 
-                    // ! Avoiding Cloudflare as it causes issues with some downloads and is inconsistent.
-                    val cdnUrls = manifestData.cdnUrls.filter { !it.baseUrl.startsWith("https://cloudflare.epicgamescdn.com") }
+                    val cdnUrls = selectCdnUrls(manifestData.cdnUrls)
+                    if (cdnUrls.isEmpty()) {
+                        return@withContext Result.failure(Exception("No usable CDN URLs in manifest"))
+                    }
 
                     Timber.tag("Epic").d("Manifest fetched with ${cdnUrls.size} CDN URLs, parsing...")
 
@@ -220,7 +229,9 @@ class EpicDownloadManager
                     )
 
                     downloadInfo.setTotalExpectedBytes(totalDownloadSize)
+                    downloadInfo.setDisplayTotalExpectedBytes(totalDownloadSize)
                     downloadInfo.updateStatusMessage("Downloading base game...")
+                    syncCoordinatorProgress(gameId, downloadInfo)
 
                     // Download chunks in parallel
                     val chunkCacheDir = File(installPath, ".chunks")
@@ -240,6 +251,7 @@ class EpicDownloadManager
                     // Initialize progress tracking
                     downloadInfo.setProgress(0.0f)
                     downloadInfo.emitProgressChange()
+                    syncCoordinatorProgress(gameId, downloadInfo)
 
                     val installDir = File(installPath)
                     installDir.mkdirs()
@@ -262,18 +274,19 @@ class EpicDownloadManager
                                 } else {
                                     "Downloading chunks ($downloadedChunks/$totalChunks)"
                                 }
-                            downloadInfo.updateStatusMessage(statusMsg)
+                            downloadInfo.updateStatus(DownloadPhase.DOWNLOADING, statusMsg)
                             downloadInfo.emitProgressChange()
+                            syncCoordinatorProgress(gameId, downloadInfo)
 
                             Timber.tag("Epic").d("Download progress: $downloadedChunks/$totalChunks chunks (${(progress * 100).toInt()}%)")
                         }
 
                     if (installResult.isFailure) {
-                        chunkCacheDir.deleteRecursively()
                         return@withContext Result.failure(
                             installResult.exceptionOrNull() ?: Exception("Failed to install chunks"),
                         )
                     }
+                    EpicInstalledManifestStore.saveManifest(installDir, game.appName, manifestData.manifestBytes)
 
                     // Cleanup chunk directory
                     chunkCacheDir.deleteRecursively()
@@ -322,7 +335,10 @@ class EpicDownloadManager
                             // Don't fail the base game download if DLC fails
                         }
                     }
-                    // Update database with install info
+                    MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    MarkerUtils.addMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+
+                    // Update database with install info after the completion marker exists.
                     try {
                         val updatedGame =
                             game.copy(
@@ -330,6 +346,7 @@ class EpicDownloadManager
                                 installPath = installPath,
                                 installSize = totalInstalledSize,
                                 executable = manifest.meta?.launchExe ?: "",
+                                version = manifest.meta?.buildVersion.orEmpty().ifBlank { game.version },
                             )
                         epicManager.updateGame(updatedGame)
                         Timber.tag("Epic").i("Updated database: game marked as installed with executable: ${updatedGame.executable}")
@@ -338,9 +355,6 @@ class EpicDownloadManager
                         // Don't fail the entire download for DB issues
                     }
 
-                    MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-                    MarkerUtils.addMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
-
                     // Clean up and update UI
                     downloadInfo.updateStatusMessage("Complete")
                     // Ensure bytes-based progress shows 100% completion
@@ -348,6 +362,7 @@ class EpicDownloadManager
                     downloadInfo.setProgress(1.0f)
                     downloadInfo.setActive(false)
                     downloadInfo.emitProgressChange()
+                    syncCoordinatorProgress(gameId, downloadInfo)
 
                     // Notify UI that installation status changed
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
@@ -390,7 +405,10 @@ class EpicDownloadManager
                     Timber.tag("Epic").i("Starting download for ${game.title} using pre-fetched manifest")
 
                     // Parse manifest
-                    val cdnUrls = manifestData.cdnUrls.filter { !it.baseUrl.startsWith("https://cloudflare.epicgamescdn.com") }
+                    val cdnUrls = selectCdnUrls(manifestData.cdnUrls)
+                    if (cdnUrls.isEmpty()) {
+                        return@withContext Result.failure(Exception("No usable CDN URLs in manifest"))
+                    }
                     val manifest = EpicManifest.readAll(manifestData.manifestBytes)
 
                     val files = ManifestUtils.getFilesForSelectedInstallTags(manifest, selectedTags)
@@ -422,18 +440,26 @@ class EpicDownloadManager
                             downloadInfo = downloadInfo,
                         )
                     if (installResult.isFailure) {
-                        chunkCacheDir.deleteRecursively()
                         return@withContext Result.failure(
                             installResult.exceptionOrNull() ?: Exception("Failed to install chunks"),
                         )
                     }
+                    EpicInstalledManifestStore.saveManifest(installDir, game.appName, manifestData.manifestBytes)
 
                     // Cleanup
                     chunkCacheDir.deleteRecursively()
 
                     // Update database
                     try {
-                        epicManager.updateGame(game.copy(isInstalled = true, installPath = installPath))
+                        epicManager.updateGame(
+                            game.copy(
+                                isInstalled = true,
+                                installPath = installPath,
+                                installSize = files.sumOf { it.fileSize }.takeIf { it > 0L } ?: game.installSize,
+                                executable = manifest.meta?.launchExe.orEmpty().ifBlank { game.executable },
+                                version = manifest.meta?.buildVersion.orEmpty().ifBlank { game.version },
+                            ),
+                        )
                         Timber.tag("Epic").i("Updated database: DLC ${game.title} marked as installed")
                     } catch (e: Exception) {
                         Timber.tag("Epic").e(e, "Failed to update database for DLC ${game.id}")
@@ -460,14 +486,7 @@ class EpicDownloadManager
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
-                    // Avoid the Cloudflare CDN when alternatives exist — same rationale as
-                    // [downloadGame]. Fall back to it if it is the only mirror Epic offered so we
-                    // don't hard-fail on overlays that are exclusively hosted on Cloudflare.
-                    val nonCfCdnUrls =
-                        manifestResult.cdnUrls.filter {
-                            !it.baseUrl.startsWith("https://cloudflare.epicgamescdn.com")
-                        }
-                    val cdnUrls = nonCfCdnUrls.ifEmpty { manifestResult.cdnUrls }
+                    val cdnUrls = selectCdnUrls(manifestResult.cdnUrls)
                     if (cdnUrls.isEmpty()) {
                         return@withContext Result.failure(Exception("No usable CDN URLs in manifest"))
                     }
@@ -545,12 +564,112 @@ class EpicDownloadManager
             val chunkPart: ChunkPart,
         )
 
+        private data class DownloadedChunk(
+            val chunk: ChunkInfo,
+            val chunkFile: File,
+        )
+
+        private fun selectCdnUrls(cdnUrls: List<EpicManager.CdnUrl>): List<EpicManager.CdnUrl> = cdnUrls
+
+        private fun buildChunkDownloadUrl(
+            cdnUrl: EpicManager.CdnUrl,
+            chunkPath: String,
+        ): String = "${cdnUrl.baseUrl}${cdnUrl.cloudDir}/$chunkPath${cdnUrl.authQueryParams}"
+
+        private fun loadCompletedChunkGuids(stateFile: File): MutableSet<String> {
+            if (!stateFile.exists()) return mutableSetOf()
+            return runCatching {
+                stateFile
+                    .readLines()
+                    .asSequence()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .toMutableSet()
+            }.getOrElse { error ->
+                Timber.tag("Epic").w(error, "Failed to read Epic resume state; restarting chunk application")
+                mutableSetOf()
+            }
+        }
+
+        private fun appendCompletedChunkGuid(
+            stateFile: File,
+            guid: String,
+        ) {
+            stateFile.parentFile?.mkdirs()
+            stateFile.appendText("$guid\n")
+        }
+
+        private data class ExistingFileInspection(
+            val validCompleteFiles: Set<String>,
+            val invalidCompleteFiles: Set<String>,
+        )
+
+        private fun inspectExistingFiles(
+            files: List<FileManifest>,
+            installDir: File,
+            downloadInfo: DownloadInfo,
+        ): ExistingFileInspection {
+            val validCompleteFiles = mutableSetOf<String>()
+            val invalidCompleteFiles = mutableSetOf<String>()
+            val existingCandidates =
+                files.filter { fileManifest ->
+                    File(installDir, fileManifest.filename).exists()
+                }
+
+            if (existingCandidates.isNotEmpty()) {
+                downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Verifying existing files...")
+            }
+
+            existingCandidates.forEachIndexed { index, fileManifest ->
+                if (index % 25 == 0) {
+                    downloadInfo.updateStatus(
+                        DownloadPhase.VERIFYING,
+                        "Verifying existing files (${index + 1}/${existingCandidates.size})",
+                    )
+                }
+
+                val outputFile = File(installDir, fileManifest.filename)
+                if (outputFile.length() != fileManifest.fileSize) return@forEachIndexed
+
+                val valid =
+                    if (hasExpectedHash(fileManifest.hash)) {
+                        verifyFileHash(outputFile, fileManifest.hash)
+                    } else {
+                        true
+                    }
+
+                if (valid) {
+                    validCompleteFiles.add(fileManifest.filename)
+                } else {
+                    invalidCompleteFiles.add(fileManifest.filename)
+                }
+            }
+
+            return ExistingFileInspection(
+                validCompleteFiles = validCompleteFiles,
+                invalidCompleteFiles = invalidCompleteFiles,
+            )
+        }
+
+        private fun hasExpectedHash(hash: ByteArray): Boolean = hash.any { it != 0.toByte() }
+
+        private fun isChunkPartRangePresent(
+            installDir: File,
+            target: ChunkWriteTarget,
+        ): Boolean {
+            val outputFile = File(installDir, target.fileManifest.filename)
+            if (!outputFile.exists()) return false
+
+            val partEnd = target.chunkPart.fileOffset + target.chunkPart.size.toLong()
+            return outputFile.length() >= partEnd
+        }
+
         /**
-         * Download chunks in small parallel batches, immediately apply each decompressed chunk
-         * to the final files that reference it, then delete the temporary chunk. This keeps the
-         * on-disk cache bounded by the current batch instead of another full copy of the game.
+         * Download chunks with a bounded worker pool, apply each verified chunk to the final
+         * files, then record it in a resume ledger. A pause, failed chunk, or process death only
+         * replays the current in-flight chunks instead of starting the whole game over.
          */
-        private suspend fun downloadChunksIntoFiles(
+        internal suspend fun repairManifestFiles(
             chunks: List<ChunkInfo>,
             files: List<FileManifest>,
             chunkCacheDir: File,
@@ -560,62 +679,212 @@ class EpicDownloadManager
             downloadInfo: DownloadInfo,
             onBatchInstalled: (Int, Int) -> Unit = { _, _ -> },
         ): Result<Unit> =
+            downloadChunksIntoFiles(
+                chunks = chunks,
+                files = files,
+                chunkCacheDir = chunkCacheDir,
+                chunkDir = chunkDir,
+                cdnUrls = cdnUrls,
+                installDir = installDir,
+                downloadInfo = downloadInfo,
+                allowExistingFileResume = false,
+                onBatchInstalled = onBatchInstalled,
+            )
+
+        internal suspend fun downloadManifestFiles(
+            chunks: List<ChunkInfo>,
+            files: List<FileManifest>,
+            chunkCacheDir: File,
+            chunkDir: String,
+            cdnUrls: List<EpicManager.CdnUrl>,
+            installDir: File,
+            downloadInfo: DownloadInfo,
+            onBatchInstalled: (Int, Int) -> Unit = { _, _ -> },
+        ): Result<Unit> =
+            downloadChunksIntoFiles(
+                chunks = chunks,
+                files = files,
+                chunkCacheDir = chunkCacheDir,
+                chunkDir = chunkDir,
+                cdnUrls = cdnUrls,
+                installDir = installDir,
+                downloadInfo = downloadInfo,
+                allowExistingFileResume = true,
+                onBatchInstalled = onBatchInstalled,
+            )
+
+        private suspend fun downloadChunksIntoFiles(
+            chunks: List<ChunkInfo>,
+            files: List<FileManifest>,
+            chunkCacheDir: File,
+            chunkDir: String,
+            cdnUrls: List<EpicManager.CdnUrl>,
+            installDir: File,
+            downloadInfo: DownloadInfo,
+            allowExistingFileResume: Boolean = true,
+            onBatchInstalled: (Int, Int) -> Unit = { _, _ -> },
+        ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
                     val chunkTargets = buildChunkTargets(files)
-                    prepareOutputFiles(files, installDir)
+                    val existingFileInspection =
+                        if (allowExistingFileResume) {
+                            inspectExistingFiles(
+                                files = files,
+                                installDir = installDir,
+                                downloadInfo = downloadInfo,
+                            )
+                        } else {
+                            ExistingFileInspection(emptySet(), emptySet())
+                        }
+                    val resumeStateFile = File(chunkCacheDir, RESUME_STATE_FILE)
+                    val chunkIds = chunks.mapTo(mutableSetOf()) { it.guidStr }
+                    val ledgerChunks =
+                        if (allowExistingFileResume) {
+                            loadCompletedChunkGuids(resumeStateFile)
+                                .filterTo(mutableSetOf()) { it in chunkIds }
+                                .filterTo(mutableSetOf()) { guid ->
+                                    val targets = chunkTargets[guid].orEmpty()
+                                    targets.isNotEmpty() &&
+                                        targets.none {
+                                            it.fileManifest.filename in existingFileInspection.invalidCompleteFiles
+                                        } &&
+                                        targets.all { target ->
+                                            target.fileManifest.filename in existingFileInspection.validCompleteFiles ||
+                                                isChunkPartRangePresent(installDir, target)
+                                        }
+                                }
+                        } else {
+                            mutableSetOf()
+                        }
+                    val validExistingFileChunks =
+                        if (allowExistingFileResume) {
+                            chunks
+                                .asSequence()
+                                .filter { chunk ->
+                                    chunkTargets[chunk.guidStr]
+                                        .orEmpty()
+                                        .all { it.fileManifest.filename in existingFileInspection.validCompleteFiles }
+                                }.mapTo(mutableSetOf()) { it.guidStr }
+                        } else {
+                            mutableSetOf()
+                        }
+                    val completedChunks = (ledgerChunks + validExistingFileChunks).toMutableSet()
 
-                    var installedChunks = 0
+                    prepareOutputFiles(
+                        files = files,
+                        installDir = installDir,
+                        resumeChunkCount = completedChunks.size,
+                    )
+
+                    val completedBytes =
+                        chunks
+                            .asSequence()
+                            .filter { it.guidStr in completedChunks }
+                            .sumOf { it.fileSize }
+                    downloadInfo.initializeBytesDownloaded(downloadInfo.getBytesDownloaded() + completedBytes)
+
+                    var installedChunks = completedChunks.size
                     val totalChunks = chunks.size
-
-                    chunks.chunked(MAX_PARALLEL_DOWNLOADS).forEach { chunkBatch ->
-                        if (!downloadInfo.isActive()) {
-                            Timber.tag("Epic").w("Download cancelled by user")
-                            return@withContext Result.failure(Exception("Download cancelled"))
-                        }
-
-                        val results =
-                            chunkBatch
-                                .map { chunk ->
-                                    async {
-                                        downloadChunkWithRetry(chunk, chunkCacheDir, chunkDir, cdnUrls, downloadInfo)
-                                    }
-                                }.awaitAll()
-
-                        chunkBatch.zip(results).forEach { (chunk, result) ->
-                            if (result.isFailure) {
-                                return@withContext Result.failure(
-                                    result.exceptionOrNull() ?: Exception("Failed to download chunk"),
-                                )
-                            }
-
-                            val chunkFile = result.getOrThrow()
-                            val applyResult =
-                                applyChunkToFiles(
-                                    chunk = chunk,
-                                    chunkFile = chunkFile,
-                                    targets = chunkTargets[chunk.guidStr].orEmpty(),
-                                    installDir = installDir,
-                                )
-                            if (applyResult.isFailure) {
-                                return@withContext Result.failure(
-                                    applyResult.exceptionOrNull() ?: Exception("Failed to apply chunk ${chunk.guidStr}"),
-                                )
-                            }
-
-                            if (!chunkFile.delete()) {
-                                Timber.tag("Epic").w("Failed to delete temporary chunk ${chunkFile.absolutePath}")
-                            }
-                        }
-
-                        installedChunks += chunkBatch.size
+                    if (installedChunks > 0) {
+                        Timber.tag("Epic").i("Resuming Epic download with $installedChunks/$totalChunks chunks already applied")
                         onBatchInstalled(installedChunks, totalChunks)
+                        syncCoordinatorProgress(downloadInfo)
                     }
 
-                    verifyInstalledFileSizes(files, installDir)
+                    val pendingChunks = chunks.filter { it.guidStr !in completedChunks }
+                    val nextIndex = AtomicInteger(0)
+                    val workers = minOf(MAX_PARALLEL_DOWNLOADS, pendingChunks.size).coerceAtLeast(1)
+                    val prefetchCapacity = (workers * 2).coerceAtLeast(1)
+
+                    coroutineScope {
+                        val downloadedChunks = Channel<DownloadedChunk>(capacity = prefetchCapacity)
+                        val downloaders =
+                            (0 until workers)
+                                .map {
+                                    async {
+                                        while (true) {
+                                            if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                                throw kotlinx.coroutines.CancellationException("Download cancelled")
+                                            }
+
+                                            val index = nextIndex.getAndIncrement()
+                                            if (index >= pendingChunks.size) break
+
+                                            val chunk = pendingChunks[index]
+                                            val downloadResult =
+                                                downloadChunkWithRetry(
+                                                    chunk,
+                                                    chunkCacheDir,
+                                                    chunkDir,
+                                                    cdnUrls,
+                                                    downloadInfo,
+                                                )
+                                            if (downloadResult.isFailure) {
+                                                throw downloadResult.exceptionOrNull() ?: Exception("Failed to download chunk ${chunk.guidStr}")
+                                            }
+
+                                            downloadedChunks.send(
+                                                DownloadedChunk(
+                                                    chunk = chunk,
+                                                    chunkFile = downloadResult.getOrThrow(),
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+
+                        val applier =
+                            async {
+                                for (downloaded in downloadedChunks) {
+                                    if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                        throw kotlinx.coroutines.CancellationException("Download cancelled")
+                                    }
+
+                                    val chunk = downloaded.chunk
+                                    val chunkFile = downloaded.chunkFile
+
+                                    if (chunk.guidStr !in completedChunks) {
+                                        val applyResult =
+                                            applyChunkToFiles(
+                                                chunk = chunk,
+                                                chunkFile = chunkFile,
+                                                targets = chunkTargets[chunk.guidStr].orEmpty(),
+                                                installDir = installDir,
+                                            )
+                                        if (applyResult.isFailure) {
+                                            throw applyResult.exceptionOrNull()
+                                                ?: Exception("Failed to apply chunk ${chunk.guidStr}")
+                                        }
+
+                                        appendCompletedChunkGuid(resumeStateFile, chunk.guidStr)
+                                        completedChunks.add(chunk.guidStr)
+                                    }
+
+                                    if (!chunkFile.delete()) {
+                                        Timber.tag("Epic").w("Failed to delete temporary chunk ${chunkFile.absolutePath}")
+                                    }
+
+                                    installedChunks += 1
+                                    onBatchInstalled(installedChunks, totalChunks)
+                                    syncCoordinatorProgress(downloadInfo)
+                                }
+                            }
+
+                        try {
+                            downloaders.awaitAll()
+                        } finally {
+                            downloadedChunks.close()
+                        }
+                        applier.await()
+                    }
+
+                    verifyInstalledFiles(files, installDir, downloadInfo)
+                    syncCoordinatorProgress(downloadInfo)
+                    Result.success(Unit)
                 } catch (e: Exception) {
                     Timber.tag("Epic").e(e, "Failed to download/install chunk batch")
-                    Result.failure(e)
+                    Result.failure<Unit>(e)
                 }
             }
 
@@ -634,11 +903,13 @@ class EpicDownloadManager
         private fun prepareOutputFiles(
             files: List<FileManifest>,
             installDir: File,
+            resumeChunkCount: Int,
         ) {
+            val canResume = resumeChunkCount > 0
             files.forEach { fileManifest ->
                 val outputFile = File(installDir, fileManifest.filename)
                 outputFile.parentFile?.mkdirs()
-                if (outputFile.exists() && !outputFile.delete()) {
+                if (!canResume && outputFile.exists() && !outputFile.delete()) {
                     throw Exception("Failed to replace existing file: ${outputFile.absolutePath}")
                 }
                 if (fileManifest.fileSize == 0L) {
@@ -702,11 +973,19 @@ class EpicDownloadManager
             }
         }
 
-        private fun verifyInstalledFileSizes(
+        private fun verifyInstalledFiles(
             files: List<FileManifest>,
             installDir: File,
+            downloadInfo: DownloadInfo,
         ): Result<Unit> {
-            files.forEach { fileManifest ->
+            downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Verifying installed files...")
+            files.forEachIndexed { index, fileManifest ->
+                if (index % 25 == 0) {
+                    downloadInfo.updateStatus(
+                        DownloadPhase.VERIFYING,
+                        "Verifying installed files (${index + 1}/${files.size})",
+                    )
+                }
                 val outputFile = File(installDir, fileManifest.filename)
                 if (!outputFile.exists()) {
                     return Result.failure(Exception("Installed file missing: ${fileManifest.filename}"))
@@ -719,8 +998,28 @@ class EpicDownloadManager
                         ),
                     )
                 }
+                if (hasExpectedHash(fileManifest.hash) && !verifyFileHash(outputFile, fileManifest.hash)) {
+                    return Result.failure(Exception("Installed file hash mismatch: ${fileManifest.filename}"))
+                }
             }
             return Result.success(Unit)
+        }
+
+        private fun syncCoordinatorProgress(downloadInfo: DownloadInfo) {
+            if (downloadInfo.gameId <= 0) return
+            syncCoordinatorProgress(downloadInfo.gameId, downloadInfo)
+        }
+
+        private fun syncCoordinatorProgress(
+            gameId: Int,
+            downloadInfo: DownloadInfo,
+        ) {
+            DownloadCoordinator.updateProgress(
+                DownloadRecord.STORE_EPIC,
+                gameId.toString(),
+                downloadInfo.getBytesDownloaded(),
+                downloadInfo.getTotalExpectedBytes(),
+            )
         }
 
         /**
@@ -737,6 +1036,10 @@ class EpicDownloadManager
                 var lastException: Exception? = null
 
                 repeat(MAX_CHUNK_RETRIES) { attempt ->
+                    if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                        return@withContext Result.failure(kotlinx.coroutines.CancellationException("Download cancelled"))
+                    }
+
                     val result = downloadChunk(chunk, chunkCacheDir, chunkDir, cdnUrls, downloadInfo)
 
                     if (result.isSuccess) {
@@ -747,6 +1050,9 @@ class EpicDownloadManager
                     }
 
                     lastException = result.exceptionOrNull() as? Exception
+                    if (lastException is kotlinx.coroutines.CancellationException) {
+                        return@withContext Result.failure(lastException)
+                    }
 
                     if (attempt < MAX_CHUNK_RETRIES - 1) {
                         val delay = RETRY_DELAY_MS * (1 shl attempt) // Exponential backoff: 1s, 2s, 4s
@@ -782,7 +1088,7 @@ class EpicDownloadManager
                     // Skip if already downloaded and decompressed
                     if (decompressedFile.exists() && decompressedFile.length() == chunk.windowSize.toLong()) {
                         // Quick verification - only verify if size matches
-                        if (verifyChunkHashBytes(decompressedFile.readBytes(), chunk.shaHash)) {
+                        if (verifyChunkHashFile(decompressedFile, chunk.shaHash)) {
                             Timber.tag("Epic").d("Chunk ${chunk.guidStr} already exists and verified, skipping")
                             downloadInfo.updateBytesDownloaded(chunk.fileSize)
                             return@withContext Result.success(decompressedFile)
@@ -797,10 +1103,15 @@ class EpicDownloadManager
 
                     // Try each CDN base URL until one succeeds
                     var lastException: Exception? = null
-                    for ((cdnIndex, cdnUrl) in cdnUrls.withIndex()) {
+                    val orderedCdnUrls = cdnUrls
+                    for ((cdnIndex, cdnUrl) in orderedCdnUrls.withIndex()) {
                         try {
-                            // Build full URL: baseUrl + cloudDir + chunkPath
-                            val url = "${cdnUrl.baseUrl}${cdnUrl.cloudDir}/$chunkPath"
+                            if (!downloadInfo.isActive() || downloadInfo.isCancelling) {
+                                throw kotlinx.coroutines.CancellationException("Download cancelled")
+                            }
+
+                            // Build full URL with the CDN auth params returned by Epic's launcher API.
+                            val url = buildChunkDownloadUrl(cdnUrl, chunkPath)
 
                             val request =
                                 Request
@@ -819,8 +1130,12 @@ class EpicDownloadManager
                                 // Download and decompress Epic chunk file using streaming to avoid OOM exceptions
                                 val responseBody = response.body!!
                                 val tempChunkFile = File(chunkCacheDir, "${chunk.guidStr}.tmp")
+                                val tempDecompressedFile = File(chunkCacheDir, "${chunk.guidStr}.decompressed.tmp")
 
                                 try {
+                                    tempChunkFile.delete()
+                                    tempDecompressedFile.delete()
+
                                     // Stream download to temp file
                                     responseBody.byteStream().use { input ->
                                         tempChunkFile.outputStream().use { output ->
@@ -845,12 +1160,17 @@ class EpicDownloadManager
                                     // This avoids allocating 1.5GB in memory
                                     decompressStreamingChunkToFile(
                                         tempChunkFile,
-                                        decompressedFile,
+                                        tempDecompressedFile,
                                         chunk.windowSize.toLong(),
                                         chunk.shaHash,
                                     )
+                                    decompressedFile.delete()
+                                    if (!tempDecompressedFile.renameTo(decompressedFile)) {
+                                        throw Exception("Failed to finalize chunk ${chunk.guidStr}")
+                                    }
                                 } finally {
                                     tempChunkFile.delete()
+                                    tempDecompressedFile.delete()
                                 }
 
                                 return@withContext Result.success(decompressedFile)
@@ -861,7 +1181,10 @@ class EpicDownloadManager
                                 continue
                             }
                         } catch (e: Exception) {
-                            if (cdnIndex < cdnUrls.size - 1) {
+                            if (e is kotlinx.coroutines.CancellationException) {
+                                throw e
+                            }
+                            if (cdnIndex < orderedCdnUrls.size - 1) {
                                 Timber.tag("Epic").w(e, "Failed to download from ${cdnUrl.baseUrl}, trying next...")
                             }
                             lastException = e
@@ -1226,6 +1549,38 @@ class EpicDownloadManager
                 }
             }
         }
+
+        private fun verifyFileHash(
+            file: File,
+            expectedHash: ByteArray,
+        ): Boolean =
+            try {
+                val digest = MessageDigest.getInstance("SHA-1")
+                file.inputStream().buffered().use { input ->
+                    val buffer = ByteArray(256 * 1024)
+                    while (true) {
+                        val bytesRead = input.read(buffer)
+                        if (bytesRead < 0) break
+                        digest.update(buffer, 0, bytesRead)
+                    }
+                }
+                val actualHash = digest.digest()
+                val matches = actualHash.contentEquals(expectedHash)
+                if (!matches) {
+                    val expectedHex = expectedHash.joinToString("") { "%02x".format(it) }
+                    val actualHex = actualHash.joinToString("") { "%02x".format(it) }
+                    Timber.tag("Epic").e("Hash mismatch for ${file.name}: expected $expectedHex, got $actualHex")
+                }
+                matches
+            } catch (e: Exception) {
+                Timber.tag("Epic").e(e, "Hash verification failed for ${file.absolutePath}")
+                false
+            }
+
+        private fun verifyChunkHashFile(
+            file: File,
+            expectedHash: ByteArray,
+        ): Boolean = verifyFileHash(file, expectedHash)
 
         /**
          * Verify chunk SHA-1 hash from byte array

@@ -559,7 +559,11 @@ class GOGManager
             libraryItem: LibraryItem,
         ): Boolean {
             try {
-                val appDirPath = getAppDirPath(libraryItem.appId)
+                val gameId = libraryItem.gameId.toString()
+                val game = runBlocking { getGameFromDbById(gameId) }
+                val appDirPath =
+                    game?.installPath?.takeIf { it.isNotBlank() }
+                        ?: getGameInstallPath(gameId, libraryItem.name)
 
                 // Use marker-based approach
                 val isDownloadComplete = MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
@@ -568,10 +572,8 @@ class GOGManager
                 val isInstalled = isDownloadComplete && !isDownloadInProgress
 
                 // Update database if status changed
-                val gameId = libraryItem.gameId.toString()
-                val game = runBlocking { getGameFromDbById(gameId) }
-                if (game != null && isInstalled != game.isInstalled) {
-                    val installPath = if (isInstalled) getGameInstallPath(gameId, libraryItem.name) else ""
+                if (game != null && (isInstalled != game.isInstalled || (isInstalled && game.installPath != appDirPath))) {
+                    val installPath = if (isInstalled) appDirPath else ""
                     val updatedGame = game.copy(isInstalled = isInstalled, installPath = installPath)
                     runBlocking { gogGameDao.update(updatedGame) }
                 }
@@ -598,6 +600,14 @@ class GOGManager
 
             if (!installDir.isDirectory) {
                 return Pair(false, "Install path is not a directory")
+            }
+
+            if (!MarkerUtils.hasMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)) {
+                return Pair(false, "Download is not marked complete")
+            }
+
+            if (MarkerUtils.hasMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)) {
+                return Pair(false, "Download is still in progress")
             }
 
             val contents = installDir.listFiles()

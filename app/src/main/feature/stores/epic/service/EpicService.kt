@@ -23,6 +23,7 @@ import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -381,7 +382,8 @@ class EpicService : Service() {
             val game = getEpicGameOf(appId) ?: return false
 
             if (game.isInstalled && game.installPath.isNotEmpty()) {
-                return MarkerUtils.hasMarker(game.installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                return MarkerUtils.hasMarker(game.installPath, Marker.DOWNLOAD_COMPLETE_MARKER) &&
+                    !MarkerUtils.hasMarker(game.installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
             }
 
             val installPath =
@@ -445,6 +447,26 @@ class EpicService : Service() {
         ): EpicManager.ManifestSizes =
             getInstance()?.epicManager?.fetchManifestSizes(context, appId)
                 ?: EpicManager.ManifestSizes(installSize = 0L, downloadSize = 0L)
+
+        suspend fun checkForGameUpdate(
+            context: Context,
+            appId: Int,
+        ): EpicUpdateInfo {
+            val instance = getInstance()
+                ?: return EpicUpdateInfo(message = "Service not available")
+            val game = instance.epicManager.getGameById(appId)
+                ?: return EpicUpdateInfo(message = "Game not found: $appId")
+            val installPath =
+                game.installPath.ifEmpty {
+                    EpicConstants.getGameInstallPath(context, game.appName)
+                }
+            return instance.epicUpdateManager.checkForGameUpdate(
+                context = context,
+                game = game,
+                installPath = installPath,
+                containerLanguage = PrefManager.containerLanguage,
+            )
+        }
 
         fun downloadGame(
             context: Context,
@@ -541,6 +563,13 @@ class EpicService : Service() {
             // Start download in background
             val job =
                 instance.scope.launch {
+                    val keepAliveTag = "epic-download-$appId"
+                    val keepAliveCtx = instance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for Epic download $appId")
+                    }
                     try {
                         val commonRedistDir = File(effectiveInstallPath, "_CommonRedist")
                         Timber.tag("Epic").i("Starting download for game: ${game.title}, gameId: ${game.id}")
@@ -577,6 +606,12 @@ class EpicService : Service() {
                                     downloadInfo.updateStatus(DownloadPhase.CANCELLED)
                                 }
 
+                                downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                    Timber.e(error, "[Download] Failed for game $gameId")
+                                    downloadInfo.setActive(false)
+                                    SnackbarManager.show("Download failed: ${error?.message ?: "Unknown error"}")
+                                }
+
                                 !downloadInfo.isActive() -> {
                                     Timber.i("[Download] Paused for game $gameId")
                                     downloadInfo.setActive(false)
@@ -600,6 +635,12 @@ class EpicService : Service() {
                                 downloadInfo.updateStatus(DownloadPhase.CANCELLED)
                             }
 
+                            downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                Timber.e(e, "[Download] Exception for game $gameId")
+                                downloadInfo.setActive(false)
+                                SnackbarManager.show("Download error: ${e.message ?: "Unknown error"}")
+                            }
+
                             !downloadInfo.isActive() -> {
                                 Timber.i("[Download] Paused for game $gameId")
                                 downloadInfo.setActive(false)
@@ -617,6 +658,7 @@ class EpicService : Service() {
                     } finally {
                         // Notify coordinator of the terminal status so the global queue can
                         // advance and the persisted DownloadRecord stays in sync.
+                        updateCoordinatorDownloadProgress(appId, downloadInfo)
                         val finalCoordStatus =
                             when (downloadInfo.getStatusFlow().value) {
                                 DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
@@ -636,12 +678,378 @@ class EpicService : Service() {
                         Timber.d(
                             "[Download] Finished for game $gameId, progress: ${downloadInfo.getProgress()}, active: ${downloadInfo.isActive()}",
                         )
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for Epic download $appId")
+                        }
                     }
                 }
             downloadInfo.setDownloadJob(job)
 
             // Return the DownloadInfo immediately so caller can track progress
             return Result.success(downloadInfo)
+        }
+
+        fun verifyGameFiles(
+            context: Context,
+            appId: Int,
+        ): DownloadInfo? {
+            val instance = getInstance() ?: return null
+
+            val game =
+                runBlocking(Dispatchers.IO) { instance.epicManager.getGameById(appId) }
+                    ?: return null
+            val installPath =
+                game.installPath.ifEmpty {
+                    EpicConstants.getGameInstallPath(context, game.appName)
+                }
+            if (installPath.isEmpty() || !File(installPath).isDirectory) {
+                return null
+            }
+
+            val activeCoordinatorRecords =
+                DownloadCoordinator.snapshotRecords()
+                    .filter {
+                        it.status == DownloadRecord.STATUS_DOWNLOADING ||
+                            it.status == DownloadRecord.STATUS_QUEUED
+                    }
+            if (activeCoordinatorRecords.any {
+                    it.store != DownloadRecord.STORE_EPIC || it.storeGameId != appId.toString()
+                }
+            ) {
+                return null
+            }
+
+            val existingDownload = instance.activeDownloads[appId]
+            if (existingDownload?.isActive() == true) {
+                return null
+            }
+            instance.activeDownloads.remove(appId)
+
+            val downloadInfo =
+                DownloadInfo(
+                    jobCount = 1,
+                    gameId = appId,
+                    downloadingAppIds = CopyOnWriteArrayList<Int>(),
+                )
+            instance.activeDownloads[appId] = downloadInfo
+
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_EPIC,
+                        storeGameId = appId.toString(),
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = installPath,
+                        language = PrefManager.containerLanguage,
+                        taskType = DownloadRecord.TASK_VERIFY,
+                    )
+                }
+
+            if (decision is DownloadCoordinator.Decision.Queue) {
+                downloadInfo.setActive(false)
+                downloadInfo.isCancelling = false
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, true))
+                return downloadInfo
+            }
+
+            downloadInfo.setActive(true)
+            downloadInfo.isCancelling = false
+            downloadInfo.updateStatus(DownloadPhase.VERIFYING)
+
+            val job =
+                instance.scope.launch {
+                    val keepAliveTag = "epic-verify-$appId"
+                    val keepAliveCtx = instance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for Epic verify $appId")
+                    }
+                    try {
+                        val result =
+                            instance.epicVerifyManager.verifyGameFiles(
+                                context = context,
+                                game = game,
+                                installPath = installPath,
+                                downloadInfo = downloadInfo,
+                                containerLanguage = PrefManager.containerLanguage,
+                            )
+
+                        if (result.isSuccess) {
+                            downloadInfo.setProgress(1.0f)
+                            downloadInfo.setActive(false)
+                            downloadInfo.updateStatus(DownloadPhase.COMPLETE)
+                            SnackbarManager.show("Verify files complete")
+                        } else {
+                            val error = result.exceptionOrNull()
+                            when {
+                                downloadInfo.isCancelling -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                                }
+                                downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                    Timber.e(error, "[Verify] Failed for Epic game $appId")
+                                    downloadInfo.setActive(false)
+                                    SnackbarManager.show("Verify files failed: ${error?.message ?: "Unknown error"}")
+                                }
+                                !downloadInfo.isActive() -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                                }
+                                else -> {
+                                    Timber.e(error, "[Verify] Failed for Epic game $appId")
+                                    downloadInfo.setProgress(-1.0f)
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.FAILED, error?.message ?: "Unknown error")
+                                    SnackbarManager.show("Verify files failed: ${error?.message ?: "Unknown error"}")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        when {
+                            downloadInfo.isCancelling -> {
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                            }
+                            downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                Timber.e(e, "[Verify] Exception for Epic game $appId")
+                                downloadInfo.setActive(false)
+                                SnackbarManager.show("Verify files failed: ${e.message ?: "Unknown error"}")
+                            }
+                            !downloadInfo.isActive() -> {
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                            }
+                            else -> {
+                                Timber.e(e, "[Verify] Exception for Epic game $appId")
+                                downloadInfo.setProgress(-1.0f)
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.FAILED, e.message ?: "Unknown error")
+                                SnackbarManager.show("Verify files failed: ${e.message ?: "Unknown error"}")
+                            }
+                        }
+                    } finally {
+                        updateCoordinatorDownloadProgress(appId, downloadInfo)
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_EPIC,
+                            appId.toString(),
+                            finalCoordStatus,
+                        )
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for Epic verify $appId")
+                        }
+                    }
+                }
+            downloadInfo.setDownloadJob(job)
+            return downloadInfo
+        }
+
+        fun updateGameFiles(
+            context: Context,
+            appId: Int,
+        ): DownloadInfo? {
+            val instance = getInstance() ?: return null
+
+            val game =
+                runBlocking(Dispatchers.IO) { instance.epicManager.getGameById(appId) }
+                    ?: return null
+            val installPath =
+                game.installPath.ifEmpty {
+                    EpicConstants.getGameInstallPath(context, game.appName)
+                }
+            if (installPath.isEmpty() || !File(installPath).isDirectory) {
+                return null
+            }
+
+            val activeCoordinatorRecords =
+                DownloadCoordinator.snapshotRecords()
+                    .filter {
+                        it.status == DownloadRecord.STATUS_DOWNLOADING ||
+                            it.status == DownloadRecord.STATUS_QUEUED
+                    }
+            if (activeCoordinatorRecords.any {
+                    it.store != DownloadRecord.STORE_EPIC || it.storeGameId != appId.toString()
+                }
+            ) {
+                return null
+            }
+
+            val existingDownload = instance.activeDownloads[appId]
+            if (existingDownload?.isActive() == true) {
+                return null
+            }
+            instance.activeDownloads.remove(appId)
+
+            val downloadInfo =
+                DownloadInfo(
+                    jobCount = 1,
+                    gameId = appId,
+                    downloadingAppIds = CopyOnWriteArrayList<Int>(),
+                )
+            instance.activeDownloads[appId] = downloadInfo
+
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_EPIC,
+                        storeGameId = appId.toString(),
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = installPath,
+                        language = PrefManager.containerLanguage,
+                        taskType = DownloadRecord.TASK_UPDATE,
+                    )
+                }
+
+            if (decision is DownloadCoordinator.Decision.Queue) {
+                downloadInfo.setActive(false)
+                downloadInfo.isCancelling = false
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, true))
+                return downloadInfo
+            }
+
+            downloadInfo.setActive(true)
+            downloadInfo.isCancelling = false
+            downloadInfo.updateStatus(DownloadPhase.DOWNLOADING)
+
+            val job =
+                instance.scope.launch {
+                    val keepAliveTag = "epic-update-$appId"
+                    val keepAliveCtx = instance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for Epic update $appId")
+                    }
+                    try {
+                        val result =
+                            instance.epicUpdateManager.updateGameFiles(
+                                context = context,
+                                game = game,
+                                installPath = installPath,
+                                downloadInfo = downloadInfo,
+                                containerLanguage = PrefManager.containerLanguage,
+                            )
+
+                        if (result.isSuccess) {
+                            downloadInfo.setProgress(1.0f)
+                            downloadInfo.setActive(false)
+                            downloadInfo.updateStatus(DownloadPhase.COMPLETE)
+                            SnackbarManager.show("Update complete")
+                        } else {
+                            val error = result.exceptionOrNull()
+                            when {
+                                downloadInfo.isCancelling -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                                }
+                                downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                    Timber.e(error, "[Update] Failed for Epic game $appId")
+                                    downloadInfo.setActive(false)
+                                    SnackbarManager.show("Update failed: ${error?.message ?: "Unknown error"}")
+                                }
+                                !downloadInfo.isActive() -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                                }
+                                else -> {
+                                    Timber.e(error, "[Update] Failed for Epic game $appId")
+                                    downloadInfo.setProgress(-1.0f)
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.FAILED, error?.message ?: "Unknown error")
+                                    SnackbarManager.show("Update failed: ${error?.message ?: "Unknown error"}")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        when {
+                            downloadInfo.isCancelling -> {
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                            }
+                            downloadInfo.getStatusFlow().value == DownloadPhase.FAILED -> {
+                                Timber.e(e, "[Update] Exception for Epic game $appId")
+                                downloadInfo.setActive(false)
+                                SnackbarManager.show("Update failed: ${e.message ?: "Unknown error"}")
+                            }
+                            !downloadInfo.isActive() -> {
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                            }
+                            else -> {
+                                Timber.e(e, "[Update] Exception for Epic game $appId")
+                                downloadInfo.setProgress(-1.0f)
+                                downloadInfo.setActive(false)
+                                downloadInfo.updateStatus(DownloadPhase.FAILED, e.message ?: "Unknown error")
+                                SnackbarManager.show("Update failed: ${e.message ?: "Unknown error"}")
+                            }
+                        }
+                    } finally {
+                        updateCoordinatorDownloadProgress(appId, downloadInfo)
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_EPIC,
+                            appId.toString(),
+                            finalCoordStatus,
+                        )
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for Epic update $appId")
+                        }
+                    }
+                }
+            downloadInfo.setDownloadJob(job)
+            return downloadInfo
+        }
+
+        private fun updateCoordinatorDownloadProgress(
+            appId: Int,
+            downloadInfo: DownloadInfo,
+        ) {
+            val (displayDownloadedBytes, displayTotalBytes) = downloadInfo.getDisplayBytesProgress()
+            val downloadedBytes =
+                if (displayTotalBytes > 0L) {
+                    displayDownloadedBytes
+                } else {
+                    downloadInfo.getBytesDownloaded()
+                }
+            val totalBytes =
+                if (displayTotalBytes > 0L) {
+                    displayTotalBytes
+                } else {
+                    downloadInfo.getTotalExpectedBytes()
+                }
+            DownloadCoordinator.updateProgress(
+                DownloadRecord.STORE_EPIC,
+                appId.toString(),
+                downloadedBytes,
+                totalBytes,
+            )
         }
 
         suspend fun refreshSingleGame(
@@ -761,6 +1169,12 @@ class EpicService : Service() {
     lateinit var epicDownloadManager: EpicDownloadManager
 
     @Inject
+    lateinit var epicVerifyManager: EpicVerifyManager
+
+    @Inject
+    lateinit var epicUpdateManager: EpicUpdateManager
+
+    @Inject
     lateinit var epicOverlayManager: EpicOverlayManager
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -801,12 +1215,24 @@ class EpicService : Service() {
                 // "already downloading" — it will recreate the DownloadInfo and launch.
                 activeDownloads.remove(appId)
 
-                downloadGame(context, appId, dlcGameIds, installPath, containerLanguage)
+                if (record.taskType == DownloadRecord.TASK_UPDATE) {
+                    updateGameFiles(context, appId)
+                } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
+                    verifyGameFiles(context, appId)
+                } else {
+                    downloadGame(context, appId, dlcGameIds, installPath, containerLanguage)
+                }
             }
 
             override fun pauseRunning(record: DownloadRecord) {
                 val appId = record.storeGameId.toIntOrNull() ?: return
                 val info = activeDownloads[appId] ?: return
+                DownloadCoordinator.updateProgress(
+                    DownloadRecord.STORE_EPIC,
+                    appId.toString(),
+                    info.getBytesDownloaded(),
+                    info.getTotalExpectedBytes(),
+                )
                 if (info.isActive()) {
                     info.isCancelling = false
                     info.updateStatus(DownloadPhase.PAUSED)
@@ -834,6 +1260,15 @@ class EpicService : Service() {
                                 EpicConstants.getGameInstallPath(applicationContext, game.appName)
                             } ?: ""
                         }
+                    if (record.taskType == DownloadRecord.TASK_UPDATE || record.taskType == DownloadRecord.TASK_VERIFY) {
+                        if (pathToDelete.isNotEmpty()) {
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            MarkerUtils.addMarker(pathToDelete, Marker.DOWNLOAD_COMPLETE_MARKER)
+                        }
+                        info?.updateStatus(DownloadPhase.CANCELLED)
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                        return@launch
+                    }
                     if (pathToDelete.isNotEmpty()) {
                         val dirFile = File(pathToDelete)
                         if (dirFile.exists() && dirFile.isDirectory) {
@@ -964,6 +1399,18 @@ class EpicService : Service() {
         // Cancel sync operations
         backgroundSyncJob?.cancel()
         setSyncInProgress(false)
+
+        // Safety net for service/process teardown: persist the latest visible
+        // progress into the coordinator before cancelling workers.
+        activeDownloads.forEach { (appId, info) ->
+            val (displayDownloadedBytes, displayTotalBytes) = info.getDisplayBytesProgress()
+            DownloadCoordinator.updateProgress(
+                DownloadRecord.STORE_EPIC,
+                appId.toString(),
+                if (displayTotalBytes > 0L) displayDownloadedBytes else info.getBytesDownloaded(),
+                if (displayTotalBytes > 0L) displayTotalBytes else info.getTotalExpectedBytes(),
+            )
+        }
 
         scope.cancel() // Cancel any ongoing operations
         stopForeground(STOP_FOREGROUND_REMOVE)

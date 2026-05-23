@@ -15,6 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -215,16 +216,6 @@ class EpicManager
                         return@withContext Result.success(0)
                     }
 
-                    // Re-fetch catalog metadata for every game in the library so
-                    // customAttributes-derived fields (`requiresOT`, `canRunOffline`,
-                    // `additionalCommandline`, `executableName`, etc.) backfill onto rows that
-                    // existed before those fields were parsed correctly. Without this, a user
-                    // whose DB was synced under an older build keeps `requiresOT=false` for
-                    // every Epic title and DRM games (Hogwarts Legacy, etc.) launch with no
-                    // ownership token → "must launch from Epic Launcher / must be online".
-                    //
-                    // upsertPreservingInstallStatus keeps install/play-state intact while
-                    // overwriting every other column from the fresh catalog response.
                     val epicGames = mutableListOf<EpicGame>()
                     var processedCount = 0
                     for ((index, game) in gamesList.withIndex()) {
@@ -269,7 +260,13 @@ class EpicManager
                 val allGames = epicGameDao.getAllAsList()
 
                 for (game in allGames) {
-                    if (game.isInstalled && game.installPath.isNotEmpty() && File(game.installPath).exists()) {
+                    if (
+                        game.isInstalled &&
+                        game.installPath.isNotEmpty() &&
+                        File(game.installPath).exists() &&
+                        MarkerUtils.hasMarker(game.installPath, Marker.DOWNLOAD_COMPLETE_MARKER) &&
+                        !MarkerUtils.hasMarker(game.installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    ) {
                         continue
                     }
 
@@ -1005,60 +1002,91 @@ class EpicManager
 
                     Timber.tag("Epic").d("Found ${cdnUrls.size} CDN mirrors")
 
-                    // Use the first manifest to download the manifest file
-                    val manifestObj = manifests.getJSONObject(0)
-                    var manifestUri = manifestObj.getString("uri")
+                    val expectedManifestHash = element.optString("hash", "")
+                    var manifestBytes: ByteArray? = null
+                    var lastManifestError: Exception? = null
 
-                    // Append query parameters (CDN authentication tokens) for manifest download
-                    val manifestQueryParams = manifestObj.optJSONArray("queryParams")
-                    if (manifestQueryParams != null && manifestQueryParams.length() > 0) {
-                        val params = StringBuilder()
-                        for (i in 0 until manifestQueryParams.length()) {
-                            val param = manifestQueryParams.getJSONObject(i)
-                            val name = param.getString("name")
-                            val value = param.getString("value")
-                            if (i == 0) {
-                                params.append("?")
-                            } else {
-                                params.append("&")
+                    for (i in 0 until manifests.length()) {
+                        val manifestObj = manifests.getJSONObject(i)
+                        var manifestUri = manifestObj.getString("uri")
+
+                        // Append query parameters (CDN authentication tokens) for manifest download.
+                        val manifestQueryParams = manifestObj.optJSONArray("queryParams")
+                        if (manifestQueryParams != null && manifestQueryParams.length() > 0) {
+                            val params = StringBuilder()
+                            for (j in 0 until manifestQueryParams.length()) {
+                                val param = manifestQueryParams.getJSONObject(j)
+                                val name = param.getString("name")
+                                val value = param.getString("value")
+                                if (j == 0) {
+                                    params.append("?")
+                                } else {
+                                    params.append("&")
+                                }
+                                params.append("$name=$value")
                             }
-                            params.append("$name=$value")
+                            manifestUri += params.toString()
                         }
-                        manifestUri += params.toString()
+
+                        Timber.tag("Epic").d("Downloading manifest binary from: $manifestUri")
+
+                        // Manifest downloads from CDN don't need/accept Epic auth tokens.
+                        val manifestRequest =
+                            Request
+                                .Builder()
+                                .url(manifestUri)
+                                .header("User-Agent", EpicConstants.EPIC_USER_AGENT)
+                                .get()
+                                .build()
+
+                        try {
+                            val bytes =
+                                cdnClient.newCall(manifestRequest).execute().use { manifestResponse ->
+                                    if (!manifestResponse.isSuccessful) {
+                                        throw Exception("Failed to download manifest binary: ${manifestResponse.code}")
+                                    }
+
+                                    manifestResponse.body?.bytes()
+                                        ?: throw Exception("Empty manifest bytes from CDN")
+                                }
+
+                            if (expectedManifestHash.isNotEmpty() && !verifyManifestHash(bytes, expectedManifestHash)) {
+                                throw Exception("Manifest SHA-1 mismatch")
+                            }
+
+                            manifestBytes = bytes
+                            break
+                        } catch (e: Exception) {
+                            Timber.tag("Epic").w(e, "Unable to download manifest from ${manifestObj.getString("uri")}, trying next URL")
+                            lastManifestError = e
+                        }
                     }
 
-                    Timber.tag("Epic").d("Downloading manifest binary from: $manifestUri")
-
-                    // Manifest downloads from CDN don't need/accept Epic auth tokens
-                    val manifestRequest =
-                        Request
-                            .Builder()
-                            .url(manifestUri)
-                            .header("User-Agent", EpicConstants.EPIC_USER_AGENT)
-                            .get()
-                            .build()
-
-                    val manifestBytes =
-                        cdnClient.newCall(manifestRequest).execute().use { manifestResponse ->
-                            if (!manifestResponse.isSuccessful) {
-                                return@withContext Result.failure(Exception("Failed to download manifest binary: ${manifestResponse.code}"))
-                            }
-
-                            val bytes = manifestResponse.body?.bytes()
-                            if (bytes == null) {
-                                return@withContext Result.failure(Exception("Empty manifest bytes from CDN"))
-                            }
-
-                            bytes
-                        }
+                    val finalManifestBytes =
+                        manifestBytes
+                            ?: return@withContext Result.failure(
+                                lastManifestError ?: Exception("Unable to download manifest from any CDN URL"),
+                            )
 
                     Timber.tag("Epic").d("Manifest fetched with ${cdnUrls.size} CDN URLs")
-                    Result.success(ManifestResult(manifestBytes, cdnUrls))
+                    Result.success(ManifestResult(finalManifestBytes, cdnUrls))
                 } catch (e: Exception) {
                     Timber.tag("Epic").e(e, "Exception fetching manifest")
                     Result.failure(e)
                 }
             }
+
+        private fun verifyManifestHash(
+            manifestBytes: ByteArray,
+            expectedHash: String,
+        ): Boolean {
+            val actualHash =
+                MessageDigest
+                    .getInstance("SHA-1")
+                    .digest(manifestBytes)
+                    .joinToString("") { "%02x".format(it) }
+            return actualHash.equals(expectedHash, ignoreCase = true)
+        }
 
         /**
          * Fetch install size for a game by downloading its manifest
@@ -1133,21 +1161,7 @@ class EpicManager
                 }
             }
 
-        /**
-         * Fetch the EOS deployment id for a game from the launcher manifest API.
-         *
-         * Mirrors Legendary's sidecar handling (legendary/core.py, _update_assets_and_meta and
-         * get_launch_parameters): the manifest API response contains
-         * `elements[0].sidecar.config` as a JSON-encoded string, which carries the game's
-         * `deploymentId`. Passing `-epicdeploymentid=<id>` on the command line is required by
-         * modern EOS-integrated games — without it, titles such as "Deliver At All Costs"
-         * refuse to start with "Failed to connect to the Epic Launcher".
-         *
-         * Cached per app-name under [Context.filesDir]/epic/deployment_ids/.
-         *
-         * @return the deployment id if the game exposes one, otherwise null. Null is a valid
-         *         result – most titles do not have a sidecar.
-         */
+        // Fetch the EOS deployment id for a game from the launcher manifest API.
         suspend fun fetchDeploymentId(
             context: Context,
             namespace: String,

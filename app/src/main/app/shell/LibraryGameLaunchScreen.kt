@@ -129,6 +129,9 @@ internal fun LibraryGameLaunchScreen(
     showSavesAction: Boolean,
     steamMenuEnabled: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
+    showVerifyFiles: Boolean = true,
+    showCheckForUpdate: Boolean = true,
+    showWorkshop: Boolean = true,
     playEnabled: Boolean = true,
     playDisabledLabel: String? = null,
     onBack: () -> Unit,
@@ -263,6 +266,9 @@ internal fun LibraryGameLaunchScreen(
             SourceTag(
                 sourceLabel = sourceLabel,
                 menuEnabled = steamMenuEnabled,
+                showVerifyFiles = showVerifyFiles,
+                showCheckForUpdate = showCheckForUpdate,
+                showWorkshop = showWorkshop,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
@@ -765,6 +771,9 @@ private fun LaunchMenuTextAction(
 private fun SourceTag(
     sourceLabel: String,
     menuEnabled: Boolean = false,
+    showVerifyFiles: Boolean = true,
+    showCheckForUpdate: Boolean = true,
+    showWorkshop: Boolean = true,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -818,21 +827,27 @@ private fun SourceTag(
                 onDismissRequest = { menuOpen = false },
                 offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
-                LaunchSourceMenuItem(
-                    icon = Icons.Outlined.FactCheck,
-                    label = stringResource(R.string.store_game_verify_files),
-                    enabled = areSteamActionsEnabled,
-                ) { menuOpen = false; onVerifyFiles() }
-                LaunchSourceMenuItem(
-                    icon = Icons.Outlined.Refresh,
-                    label = stringResource(R.string.store_game_check_for_update),
-                    enabled = areSteamActionsEnabled,
-                ) { menuOpen = false; onCheckForUpdate() }
-                LaunchSourceMenuItem(
-                    icon = Icons.Outlined.Construction,
-                    label = stringResource(R.string.store_game_workshop),
-                    enabled = areSteamActionsEnabled,
-                ) { menuOpen = false; onWorkshop() }
+                if (showVerifyFiles) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.FactCheck,
+                        label = stringResource(R.string.store_game_verify_files),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onVerifyFiles() }
+                }
+                if (showCheckForUpdate) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.Refresh,
+                        label = stringResource(R.string.store_game_check_for_update),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onCheckForUpdate() }
+                }
+                if (showWorkshop) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.Construction,
+                        label = stringResource(R.string.store_game_workshop),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onWorkshop() }
+                }
             }
         }
     }

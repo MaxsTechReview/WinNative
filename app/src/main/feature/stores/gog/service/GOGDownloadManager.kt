@@ -546,6 +546,9 @@ class GOGDownloadManager
             installPath: File,
             downloadInfo: DownloadInfo,
         ) {
+            MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+            MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_COMPLETE_MARKER)
+
             downloadInfo.updateStatusMessage("Updating database...")
             try {
                 val game = gogManager.getGameFromDbById(gameId)
@@ -563,8 +566,6 @@ class GOGDownloadManager
             downloadInfo.setProgress(1.0f)
             downloadInfo.setActive(false)
             downloadInfo.emitProgressChange()
-            MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
-            MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_COMPLETE_MARKER)
             com.winlator.cmod.app.PluviaApp.events.emitJava(
                 com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                     .DownloadStatusChanged(gameId.toIntOrNull() ?: 0, false),
@@ -592,6 +593,7 @@ class GOGDownloadManager
             withContext(Dispatchers.IO) {
                 try {
                     Timber.tag("GOG").i("Starting Gen 1 (legacy) download for game $gameId")
+
                     val timestamp =
                         gameManifest.productTimestamp
                             ?: return@withContext Result.failure(Exception("Gen 1 manifest missing productTimestamp"))
@@ -671,6 +673,8 @@ class GOGDownloadManager
                     downloadInfo.setProgress(0f)
                     downloadInfo.setActive(true)
                     downloadInfo.emitProgressChange()
+                    installPath.mkdirs()
+                    MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
 
                     val totalFiles = gameFiles.size + if (supportDir != null) supportFiles.size else 0
                     var doneFiles = 0
@@ -765,19 +769,31 @@ class GOGDownloadManager
                     }
 
                     for (f in gameFiles) {
-                        if (!downloadInfo.isActive()) return@withContext Result.failure(Exception("Download cancelled"))
+                        if (!downloadInfo.isActive()) {
+                            MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            return@withContext Result.failure(Exception("Download cancelled"))
+                        }
                         downloadInfo.updateStatusMessage("Downloading ${f.file.path}")
                         val res = downloadOneFile(f, installPath)
-                        if (res.isFailure) return@withContext res
+                        if (res.isFailure) {
+                            MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            return@withContext res
+                        }
                         doneFiles++
                     }
                     if (supportDir != null) {
                         supportDir.mkdirs()
                         for (f in supportFiles) {
-                            if (!downloadInfo.isActive()) return@withContext Result.failure(Exception("Download cancelled"))
+                            if (!downloadInfo.isActive()) {
+                                MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                return@withContext Result.failure(Exception("Download cancelled"))
+                            }
                             downloadInfo.updateStatusMessage("Downloading support ${f.file.path}")
                             val res = downloadOneFile(f, supportDir)
-                            if (res.isFailure) return@withContext res
+                            if (res.isFailure) {
+                                MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                return@withContext res
+                            }
                             doneFiles++
                         }
                     }
@@ -793,6 +809,7 @@ class GOGDownloadManager
                     downloadInfo.setProgress(-1.0f)
                     downloadInfo.setActive(false)
                     downloadInfo.emitProgressChange()
+                    MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .DownloadStatusChanged(gameId.toIntOrNull() ?: 0, false),

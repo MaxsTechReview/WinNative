@@ -349,25 +349,43 @@ class GOGService : Service() {
         fun isGameInstalled(gameId: String): Boolean {
             return runBlocking(Dispatchers.IO) {
                 val game = getInstance()?.gogManager?.getGameFromDbById(gameId)
-                if (game?.isInstalled != true) {
-                    return@runBlocking false
+                    ?: return@runBlocking false
+
+                val candidatePaths =
+                    linkedSetOf<String>().apply {
+                        if (game.installPath.isNotBlank()) add(game.installPath)
+                        if (game.title.isNotBlank()) add(GOGConstants.getGameInstallPath(game.title))
+                    }
+                val installedPath =
+                    candidatePaths.firstOrNull { path ->
+                        path.isNotBlank() &&
+                            File(path).isDirectory &&
+                            MarkerUtils.hasMarker(path, Marker.DOWNLOAD_COMPLETE_MARKER) &&
+                            !MarkerUtils.hasMarker(path, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    }
+                val isInstalled = installedPath != null
+
+                if (game.isInstalled != isInstalled || (isInstalled && game.installPath != installedPath)) {
+                    getInstance()?.gogManager?.updateGame(
+                        game.copy(
+                            isInstalled = isInstalled,
+                            installPath = installedPath.orEmpty(),
+                        ),
+                    )
                 }
 
-                // Verify the installation is actually valid
-                val (isValid, errorMessage) =
-                    getInstance()?.gogManager?.verifyInstallation(gameId)
-                        ?: Pair(false, "Service not available")
-                if (!isValid) {
-                    Timber.w("Game $gameId marked as installed but verification failed: $errorMessage")
-                }
-                isValid
+                isInstalled
             }
         }
 
         fun getInstallPath(gameId: String): String? =
             runBlocking(Dispatchers.IO) {
                 val game = getInstance()?.gogManager?.getGameFromDbById(gameId)
-                if (game?.isInstalled == true) game.installPath else null
+                if (game != null && isGameInstalled(gameId)) {
+                    game.installPath.ifBlank { GOGConstants.getGameInstallPath(game.title) }
+                } else {
+                    null
+                }
             }
 
         fun verifyInstallation(gameId: String): Pair<Boolean, String?> =
