@@ -44,7 +44,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
-import androidx.compose.material.icons.outlined.SettingsSuggest
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.History
@@ -371,8 +370,6 @@ internal fun LibraryGameLaunchScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Order (per user spec): Settings → Shortcut → (Saves) → Cloud Saves → Uninstall.
-                        // Best Configs lives inside the Settings dialog's Import flow (Device /
-                        // Community picker) instead of taking up an action-row slot.
                         // Saves is conditional but slots between Shortcut and Cloud Saves because the two
                         // saves-related buttons read better next to each other.
                         LaunchIconActionButton(

@@ -32,19 +32,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
-import com.winlator.cmod.feature.configs.ConfigExportImport
-import com.winlator.cmod.feature.configs.ConfigRepository
-import com.winlator.cmod.feature.configs.ConfigSerializer
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.winlator.cmod.feature.configs.ui.BestConfigsExportSheet
-import com.winlator.cmod.feature.configs.ui.BestConfigsImportSheet
-import com.winlator.cmod.feature.configs.ui.BestConfigsNameDialog
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
@@ -102,28 +90,6 @@ class ShortcutSettingsComposeDialog private constructor(
     private val fragment: ShortcutsFragment?
 ) {
     private val context: Context = activity
-
-    // Compose snapshot state for the Best Configs export/name flow. Stored as class
-    // fields so the non-Compose onExport()/onImport() callbacks can flip them, while
-    // the Composable in setContent observes them and renders the M3 dialogs in the
-    // app theme.
-    private val showExportSheet = androidx.compose.runtime.mutableStateOf(false)
-    private val showImportSheet = androidx.compose.runtime.mutableStateOf(false)
-    private val showNameDialog = androidx.compose.runtime.mutableStateOf(false)
-    private var pendingShareContainer: Container? = null
-
-    /**
-     * Coordinator for file-based imports invoked from this dialog. Lazily created
-     * on first use, disposed when the dialog dismisses. Same Missing-Components
-     * dialog as the community import flow.
-     */
-    private val fileImportCoordinator by lazy {
-        com.winlator.cmod.feature.configs.installflow.ConfigImportCoordinator(activity.applicationContext)
-    }
-    private val showFileImportDialog =
-        androidx.compose.runtime.mutableStateOf<com.winlator.cmod.feature.configs.installflow.ImportState>(
-            com.winlator.cmod.feature.configs.installflow.ImportState.Idle,
-        )
 
     constructor(fragment: ShortcutsFragment, shortcut: Shortcut) :
         this(fragment.requireActivity(), shortcut, fragment)
@@ -214,62 +180,15 @@ class ShortcutSettingsComposeDialog private constructor(
                             state = state,
                             callbacks = createCallbacks()
                         )
-                        // Best Configs export/import flows. Driven by Compose state
-                        // flipped by onExport()/onImport() in the callbacks above;
-                        // rendered as M3 dialogs so they inherit WinNativeTheme.
-                        if (showExportSheet.value) {
-                            BestConfigsExportSheet(
-                                onDismiss = { showExportSheet.value = false },
-                                onSaveToFile = { doExportToFile() },
-                                onShareToCommunity = { doShareToCommunity() },
-                            )
-                        }
-                        if (showImportSheet.value) {
-                            BestConfigsImportSheet(
-                                onDismiss = { showImportSheet.value = false },
-                                onBrowseCommunity = { openBestConfigsForThisShortcut() },
-                                onPickFile = { pickConfigFileForImport() },
-                            )
-                        }
-                        // Missing-Components flow for file-based imports. The coordinator
-                        // state drives a single Compose dialog tree across analyze →
-                        // choose → download → apply → done/failed transitions.
-                        val fileImportState by fileImportCoordinator.state.collectAsState()
-                        com.winlator.cmod.feature.configs.ui.MissingComponentsDialog(
-                            state = fileImportState,
-                            onToggleSelection = { fileImportCoordinator.toggleSelection(it) },
-                            onConfirmDownload = { fileImportCoordinator.confirmDownload() },
-                            onApplyAvailableOnly = { fileImportCoordinator.applyAvailableOnly() },
-                            onRetry = { fileImportCoordinator.retry(it) },
-                            onDismiss = { fileImportCoordinator.cancel() },
-                        )
-                        if (showNameDialog.value) {
-                            BestConfigsNameDialog(
-                                onDismiss = {
-                                    showNameDialog.value = false
-                                    pendingShareContainer = null
-                                },
-                                onConfirm = { customName ->
-                                    val container = pendingShareContainer
-                                    showNameDialog.value = false
-                                    pendingShareContainer = null
-                                    if (container != null) {
-                                        uploadConfigWithCustomName(container, customName)
-                                    }
-                                },
-                            )
-                        }
                     }
                 }
             }
         }
         dialog.setContentView(composeView)
 
-        // Auto-dismiss when activity is destroyed. Also disposes the file-import
-        // coordinator (idempotent — dismiss() already calls it).
+        // Auto-dismiss when activity is destroyed.
         (activity as LifecycleOwner).lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
-                runCatching { fileImportCoordinator.dispose() }
                 if (dialog.isShowing) dialog.dismiss()
             }
         })
@@ -280,11 +199,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
     private fun createCallbacks(): GameSettingsCallbacks {
         return object : GameSettingsCallbacks {
-            override val showExportImport: Boolean get() = true
-
-            override fun onExport() = showExportSheet()
-            override fun onImport() = showImportSheet()
-
             override fun onConfirm() {
                 saveSettings()
                 emitLibraryRefreshIfNeeded()
@@ -1054,137 +968,6 @@ class ShortcutSettingsComposeDialog private constructor(
                 state.customHeight.value = parts[1]
             }
         }
-    }
-
-    // ------------------------------------------------------------------
-    // Export / Import (community config board)
-    // ------------------------------------------------------------------
-
-    /** Triggered from the GameSettings sidebar. Flips Compose state — the M3 dialog
-     *  in setContent picks it up and renders. */
-    private fun showExportSheet() {
-        showExportSheet.value = true
-    }
-
-    private fun showImportSheet() {
-        showImportSheet.value = true
-    }
-
-    private fun doExportToFile() {
-        val container = currentSelectedContainer() ?: shortcut.container
-        if (container == null) {
-            WinToast.show(context, R.string.best_configs_export_label)
-            return
-        }
-        try {
-            val file = ConfigExportImport.exportToFile(context, container, shortcut)
-            Toast.makeText(context, file.absolutePath, Toast.LENGTH_LONG).show()
-        } catch (t: Throwable) {
-            Log.w("ShortcutSettings", "exportToFile failed", t)
-            Toast.makeText(context, "Export failed: ${t.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun doShareToCommunity() {
-        val container = currentSelectedContainer() ?: shortcut.container ?: run {
-            Toast.makeText(context, "No container linked to this shortcut.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        // Hand off to the Compose-rendered name dialog; the upload itself happens
-        // when the user taps Share inside that dialog.
-        pendingShareContainer = container
-        showNameDialog.value = true
-    }
-
-    private fun uploadConfigWithCustomName(container: Container, customName: String?) {
-        val repo = ConfigRepository(context.applicationContext)
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-        scope.launch {
-            val result = ConfigExportImport.shareToCommunity(
-                context = context.applicationContext,
-                container = container,
-                shortcut = shortcut,
-                repository = repo,
-                customName = customName,
-                notes = null,
-                perfSummary = null,
-            )
-            result.fold(
-                onSuccess = { id ->
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.best_configs_export_to_community) + ": OK",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    Log.i("ShortcutSettings", "Shared config id=$id customName=$customName")
-                },
-                onFailure = { ex ->
-                    Log.w("ShortcutSettings", "shareToCommunity failed", ex)
-                    Toast.makeText(context, "Share failed: ${ex.message}", Toast.LENGTH_LONG).show()
-                },
-            )
-            scope.cancel()
-        }
-    }
-
-    /**
-     * Launch the in-app file picker to choose a `.json` config and route through the
-     * Missing-Components coordinator. Reuses the codebase's existing
-     * [com.winlator.cmod.shared.android.DirectoryPickerDialog] pattern (no SAF —
-     * the dialog can't register an ActivityResultLauncher cleanly because it's a
-     * plain class, not a Fragment/ComponentActivity).
-     */
-    private fun pickConfigFileForImport() {
-        val container = currentSelectedContainer() ?: shortcut.container ?: run {
-            Toast.makeText(context, "No container linked to this shortcut.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        com.winlator.cmod.shared.android.DirectoryPickerDialog.showFile(
-            activity = activity,
-            title = context.getString(R.string.best_configs_import_pick_file),
-            allowedExtensions = setOf("json"),
-        ) { path ->
-            try {
-                val file = java.io.File(path)
-                val json = org.json.JSONObject(file.readText(Charsets.UTF_8))
-                fileImportCoordinator.start(json, container, shortcut) { msg ->
-                    activity.runOnUiThread {
-                        if (!activity.isFinishing && !activity.isDestroyed) {
-                            Toast.makeText(activity.applicationContext, msg, Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.w("ShortcutSettings", "pickConfigFile parse failed", t)
-                Toast.makeText(
-                    context,
-                    "Could not read config file: ${t.message ?: "invalid JSON"}",
-                    Toast.LENGTH_LONG,
-                ).show()
-            }
-        }
-    }
-
-    private fun openBestConfigsForThisShortcut() {
-        val gameSource = shortcut.getExtra("game_source")?.takeIf { it.isNotBlank() } ?: "CUSTOM_GAME"
-        val gameId = ConfigSerializer.gameIdForShortcut(shortcut, gameSource) ?: ""
-        val name = shortcut.name ?: "Untitled"
-        val ua = activity as? com.winlator.cmod.app.shell.UnifiedActivity
-        if (ua == null) {
-            Toast.makeText(
-                context,
-                "Open Best Configs from the game popup.",
-                Toast.LENGTH_SHORT,
-            ).show()
-            return
-        }
-        dismiss()
-        ua.navigateToBestConfigs(gameSource, gameId, name)
-    }
-
-    private fun currentSelectedContainer(): Container? {
-        val idx = state.selectedContainer.intValue
-        return if (idx in containerList.indices) containerList[idx] else shortcut.container
     }
 
     // ------------------------------------------------------------------
@@ -2607,11 +2390,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
     fun dismiss() {
         AppUtils.hideKeyboard(activity)
-        // Release the file-import coordinator's scope so any in-flight download/
-        // install coroutines stop running against a dismissed UI host. dispose()
-        // is idempotent so calling here AND from the lifecycle observer below is
-        // safe.
-        runCatching { fileImportCoordinator.dispose() }
         dialog.dismiss()
     }
 

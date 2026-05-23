@@ -28,10 +28,7 @@ class SessionRecordingController(
     activity: Activity,
 ) : FrameRating.FrameObserver {
 
-    // Application context is what we actually need for long-lived work. The Activity
-    // reference is no longer held (the previous PGS submit path required it; now that
-    // community uploads happen via the explicit Export button in the shortcut settings
-    // dialog rather than at session end, the controller has no need for the Activity).
+    // Application context is what we actually need for long-lived work.
     private val appContext: Context = activity.applicationContext
 
     private val active = AtomicBoolean(false)
@@ -126,12 +123,9 @@ class SessionRecordingController(
     /**
      * Stop sampling. Idempotent.
      *
-     * Note: this controller no longer submits to PGS. The community "Best Configs"
-     * board lives in Supabase (see `feature/configs/`) and is populated explicitly
-     * via the Export button in the shortcut settings dialog — not implicitly at
-     * session end. The collector and recorder still run because the local CSV
-     * recording feature ("Record performance to file") remains independent of the
-     * community-share path.
+     * Note: this controller does not submit to PGS. The collector and recorder still
+     * run because the local CSV recording feature ("Record performance to file")
+     * remains independent.
      */
     fun stop() {
         if (!active.compareAndSet(true, false)) return
@@ -142,22 +136,15 @@ class SessionRecordingController(
         collector = null
     }
 
-    /**
-     * Returns the finalized perf summary from this session, or null if the session
-     * never started or didn't run long enough. Caller uses this when the user taps
-     * Export → "Share with community" so the uploaded config carries the perf
-     * numbers from the run they just played.
-     */
-    fun lastFinalizedDigest(): PerfDigest? {
-        val c = collector
-        return runCatching { c?.finalizeDigest() }.getOrNull()
-    }
-
     private fun resolveGameId(shortcut: Shortcut?, gameSource: String): String {
         if (shortcut == null) return ""
-        return com.winlator.cmod.feature.configs.ConfigSerializer.gameIdForShortcut(shortcut, gameSource)
-            ?: shortcut.name
-            ?: ""
+        val storeId = when (gameSource) {
+            "STEAM", "EPIC" -> shortcut.getExtra("app_id")?.takeIf { it.isNotBlank() }
+            "GOG" -> shortcut.getExtra("gog_id")?.takeIf { it.isNotBlank() }
+                ?: shortcut.getExtra("app_id")?.takeIf { it.isNotBlank() }
+            else -> shortcut.path?.takeIf { it.isNotBlank() }
+        }
+        return storeId ?: shortcut.name ?: ""
     }
 
     /**
