@@ -196,8 +196,8 @@ class GOGManager
                                     GOGDlcInfo(
                                         id = product.productId,
                                         title = product.name,
-                                        downloadSize = sizeInfo.downloadSize.takeIf { it > 0L } ?: productDetailsSize,
-                                        installSize = sizeInfo.installSize.takeIf { it > 0L } ?: productDetailsSize,
+                                        downloadSize = maxOf(sizeInfo.downloadSize, productDetailsSize),
+                                        installSize = maxOf(sizeInfo.installSize, productDetailsSize),
                                         isInstalled = product.productId in installedDlcIds,
                                     )
                                 }
@@ -236,7 +236,20 @@ class GOGManager
                             language = language,
                             productIds = requestedProductIds,
                             ownedProductIds = getAllGameIds(),
+                        ).toMutableMap()
+                    val productDetailsSizes =
+                        getProductDetailsDownloadSizes(
+                            gameId = gameId,
+                            productIds = requestedProductIds,
                         )
+                    productDetailsSizes.forEach { (productId, downloadSize) ->
+                        val manifestSize = sizes[productId] ?: GOGManifestSizes()
+                        sizes[productId] =
+                            GOGManifestSizes(
+                                downloadSize = maxOf(manifestSize.downloadSize, downloadSize),
+                                installSize = maxOf(manifestSize.installSize, downloadSize),
+                            )
+                    }
                     requestedProductIds.fold(GOGManifestSizes()) { total, productId ->
                         val size = sizes[productId] ?: GOGManifestSizes()
                         GOGManifestSizes(
@@ -264,17 +277,53 @@ class GOGManager
                             .fetchManifest(selectedBuild.link)
                             .getOrNull()
                             ?: return@withContext GOGManifestSizes()
-                    calculateManifestSizesByProduct(
-                        selectedBuild = selectedBuild,
-                        manifest = manifest,
-                        language = language,
-                        productIds = setOf(dlcId.toString()),
-                        ownedProductIds = getAllGameIds(),
-                    )[dlcId.toString()] ?: GOGManifestSizes()
+                    val manifestSize =
+                        calculateManifestSizesByProduct(
+                            selectedBuild = selectedBuild,
+                            manifest = manifest,
+                            language = language,
+                            productIds = setOf(dlcId.toString()),
+                            ownedProductIds = getAllGameIds(),
+                        )[dlcId.toString()] ?: GOGManifestSizes()
+                    val productDetailsSize =
+                        GOGApiClient
+                            .getGameById(context, dlcId.toString(), expanded = listOf("downloads"))
+                            .getOrNull()
+                            ?.downloadSize
+                            ?: 0L
+                    GOGManifestSizes(
+                        downloadSize = maxOf(manifestSize.downloadSize, productDetailsSize),
+                        installSize = maxOf(manifestSize.installSize, productDetailsSize),
+                    )
                 } catch (e: Exception) {
                     Timber.tag("GOG").w(e, "Failed to calculate DLC manifest size for game $gameId DLC $dlcId")
                     GOGManifestSizes()
                 }
+            }
+
+        private suspend fun getProductDetailsDownloadSizes(
+            gameId: String,
+            productIds: Set<String>,
+        ): Map<String, Long> =
+            coroutineScope {
+                productIds
+                    .map { productId ->
+                        async {
+                            val size =
+                                if (productId == gameId) {
+                                    getGameFromDbById(gameId)?.downloadSize ?: 0L
+                                } else {
+                                    GOGApiClient
+                                        .getGameById(context, productId, expanded = listOf("downloads"))
+                                        .getOrNull()
+                                        ?.downloadSize
+                                        ?: 0L
+                                }
+                            productId to size
+                        }
+                    }.map { it.await() }
+                    .filter { it.second > 0L }
+                    .toMap()
             }
 
         private suspend fun fallbackGameManifestSizes(gameId: String): GOGManifestSizes {
