@@ -123,14 +123,25 @@ object ContainerCreation {
         containerManager: ContainerManager,
         desiredName: String,
     ): String {
-        val baseName = desiredName.trim().ifBlank { "Container" }
-        var candidate = baseName
-        var counter = 2
-        while (containerManager.containers.any { it.name.equals(candidate, ignoreCase = true) }) {
-            candidate = "$baseName $counter"
-            counter++
+        containerManager.loadContainers()
+        // Strip any existing "-number" suffix (e.g., "Proton 10-1" -> "Proton 10")
+        val baseName = desiredName.trim().replace(Regex("-\\d+$"), "").ifBlank { "Container" }
+        
+        var maxNumber = 0
+        val suffixRegex = Regex("^" + Regex.escape(baseName) + "-(\\d+)$", RegexOption.IGNORE_CASE)
+        
+        for (container in containerManager.containers) {
+            val name = container.name
+            if (name.equals(baseName, ignoreCase = true) && maxNumber < 1) {
+                maxNumber = 0 // Base name exists without suffix
+            }
+            suffixRegex.find(name)?.let { match ->
+                val num = match.groupValues[1].toIntOrNull() ?: 0
+                if (num > maxNumber) maxNumber = num
+            }
         }
-        return candidate
+        
+        return "$baseName-${maxNumber + 1}"
     }
 
     @JvmStatic
@@ -267,7 +278,8 @@ object ContainerCreation {
         desiredName: String = displayNameForProfile(profile),
     ): Container? {
         val wineVersion = ContentsManager.getEntryName(profile)
-        containerManager.containers.firstOrNull { it.name == desiredName }?.let {
+        // Find existing container with exact name match
+        containerManager.containers.firstOrNull { it.name.equals(desiredName, ignoreCase = true) }?.let {
             if (it.wineVersion != wineVersion) {
                 it.setWineVersion(wineVersion)
                 it.putExtra("wineprefixNeedsUpdate", "t")
@@ -275,7 +287,9 @@ object ContainerCreation {
             applyLaunchReadyDefaults(context, contentsManager, it)
             return it
         }
-        return createContainerForProfile(context, containerManager, contentsManager, profile, desiredName)
+        // If not found, create a new one using the smart unique naming logic (Name-1)
+        val uniqueName = uniqueName(containerManager, desiredName)
+        return createContainerForProfile(context, containerManager, contentsManager, profile, uniqueName)
     }
 
     @JvmStatic
