@@ -1025,9 +1025,7 @@
     <string name="preloader_downloading_cloud">Завантаження хмарних збережень…</string>
     <string name="preloader_syncing_cloud">Синхронізація хмарних збережень…</string>
     <string name="preloader_cloud_downloading">Завантаження Cloud Sync…</string>
-    <string name="preloader_cloud_backup">Резервне копіювання на Google Диск…</string>
     <string name="cloud_sync_failed_provider">Хмарна синхронізація %1$s не вдалася.</string>
-    <string name="google_cloud_backup_failed">Резервне копіювання на Google Диск не вдалося.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1035,13 +1033,6 @@
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Графіка</string>
-    <string name="container_backups_title">Резервні копії</string>
-    <string name="container_backups_prompt">Виберіть дію для цієї резервної копії контейнера.</string>
-    <string name="container_backups_backing_up">Створення резервної копії контейнера…</string>
-    <string name="container_backups_restoring">Відновлення контейнера…</string>
-    <string name="container_backups_checking">Перевірка резервних копій контейнера…</string>
-    <string name="container_backups_select_title">Виберіть резервну копію для відновлення</string>
-    <string name="container_backups_no_files">У Google Drive не знайдено резервних копій контейнера.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Вторинне призначення</string>
     <string name="input_controls_editor_tap_to_switch">Торкніться, щоб перемкнути</string>
@@ -1099,11 +1090,7 @@
     <string name="settings_general_check_for_updates">Перевірити оновлення</string>
     <string name="settings_general_check_for_updates_summary">Автоматично перевіряти нові версії застосунку під час запуску та періодично.</string>
     <string name="setup_wizard_containers">Налаштування контейнера</string>
-    <string name="google_cloud_auto_backup">Автоматичне резервне копіювання Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Автоматично створювати резервні копії збережень гри в Google Drive щоразу після виходу з гри.</string>
     <string name="cloud_saves_title">Хмарні збереження</string>
-    <string name="cloud_saves_backup">Створити резервну копію хмарного збереження</string>
-    <string name="cloud_saves_restore">Відновити хмарне збереження</string>
     <string name="cloud_sync_title">Хмарна синхронізація</string>
     <string name="cloud_sync_enabled_summary">Завантажувати хмарні збереження під час запуску та синхронізувати/резервувати їх під час виходу.</string>
     <string name="cloud_sync_disabled_summary">Запустити цю гру без завантаження хмарних збережень і синхронізації при виході.</string>
@@ -1130,12 +1117,6 @@
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch (110 strings) -->
-    <string name="cloud_saves_backup_summary">Зберігає поточну версію в історію на 30 днів.</string>
-    <string name="cloud_saves_history_delete">Видалити</string>
-    <string name="cloud_saves_history_delete_confirm_body">Назавжди видалити цю резервну копію з Google Drive. Цю дію не можна скасувати.</string>
-    <string name="cloud_saves_history_delete_confirm_title">Видалити цю резервну копію?</string>
-    <string name="cloud_saves_history_delete_failed">Не вдалося видалити резервну копію.</string>
-    <string name="cloud_saves_history_delete_success">Резервну копію видалено.</string>
     <string name="cloud_saves_history_empty">Попередніх збережень ще немає. Замінені збереження та ручні резервні копії з\'являтимуться тут протягом 30 днів.</string>
     <string name="cloud_saves_history_loading">Завантаження історії збережень\u2026</string>
     <string name="cloud_saves_history_origin_auto">авто</string>
@@ -1162,7 +1143,6 @@
     <string name="cloud_saves_no_backups">Для цієї гри ще немає резервних копій.</string>
     <string name="cloud_saves_offline_mode">Вимкнути хмарну синхронізацію</string>
     <string name="cloud_saves_offline_mode_summary">Вимикає будь-яку автоматичну хмарну активність для цієї гри.</string>
-    <string name="cloud_saves_restore_summary">Надсилає поточне збереження до хмарного провайдера.</string>
     <string name="cloud_saves_sync_from_provider">Синхронізувати з %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">Не вдалося завантажити збереження від %1$s.</string>
     <string name="cloud_saves_sync_from_provider_generic">Синхронізувати з хмари</string>
@@ -1188,11 +1168,6 @@
     <string name="downloads_queue_phase_verifying_file">Перевірка… [%1$s]</string>
     <string name="downloads_queue_status_label">Статус:</string>
     <string name="downloads_queue_this_game">цю гру</string>
-    <string name="google_cloud_connect_drive">Підключити Drive</string>
-    <string name="google_cloud_connect_drive_first">Спочатку підключіть Google Drive.</string>
-    <string name="google_cloud_drive_authorization_started">Авторизацію Google Drive розпочато.</string>
-    <string name="google_cloud_drive_connected">Google Drive підключено.</string>
-    <string name="google_cloud_drive_connected_short">Drive підключено</string>
     <string name="hud_position_bottom_center">Знизу по центру</string>
     <string name="hud_position_bottom_left">Знизу ліворуч</string>
     <string name="hud_position_bottom_right">Знизу праворуч</string>

@@ -1019,9 +1019,7 @@ Cale instalata:
     <string name="preloader_downloading_cloud">Se descarcă salvările din cloud…</string>
     <string name="preloader_syncing_cloud">Se sincronizează salvările din cloud…</string>
     <string name="preloader_cloud_downloading">Descărcare Cloud Sync…</string>
-    <string name="preloader_cloud_backup">Se face backup pe Google Drive…</string>
     <string name="cloud_sync_failed_provider">Sincronizarea cloud %1$s a eșuat.</string>
-    <string name="google_cloud_backup_failed">Backup-ul pe Google Drive a eșuat.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@ Cale instalata:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafică</string>
-    <string name="container_backups_title">Copii de rezervă</string>
-    <string name="container_backups_prompt">Alege o acțiune pentru această copie de rezervă a containerului.</string>
-    <string name="container_backups_backing_up">Se face copia de rezervă a containerului…</string>
-    <string name="container_backups_restoring">Se restaurează containerul…</string>
-    <string name="container_backups_checking">Se verifică copiile de rezervă ale containerului…</string>
-    <string name="container_backups_select_title">Selectează copia de rezervă de restaurat</string>
-    <string name="container_backups_no_files">Nu au fost găsite copii de rezervă ale containerului în Google Drive.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Asociere secundară</string>
     <string name="input_controls_editor_tap_to_switch">Atinge pentru a schimba</string>
@@ -1093,11 +1084,7 @@ Cale instalata:
     <string name="settings_general_check_for_updates">Verifică actualizările</string>
     <string name="settings_general_check_for_updates_summary">Verifică automat dacă există versiuni noi ale aplicației la pornire și periodic.</string>
     <string name="setup_wizard_containers">Configurare container</string>
-    <string name="google_cloud_auto_backup">Backup automat Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Salvează automat copiile de rezervă ale jocurilor în Google Drive de fiecare dată când ieși dintr-un joc.</string>
     <string name="cloud_saves_title">Salvări în cloud</string>
-    <string name="cloud_saves_backup">Fă backup salvării în cloud</string>
-    <string name="cloud_saves_restore">Restaurează salvarea în cloud</string>
     <string name="cloud_sync_title">Sincronizare în cloud</string>
     <string name="cloud_sync_enabled_summary">Descarcă salvările din cloud la pornire și sincronizează/fă backup la ieșire.</string>
     <string name="cloud_sync_disabled_summary">Pornește acest joc fără descărcarea salvărilor din cloud sau sincronizare la ieșire.</string>
@@ -1124,12 +1111,6 @@ Cale instalata:
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch (110 strings) -->
-    <string name="cloud_saves_backup_summary">Salvează versiunea curentă în istoric pentru 30 de zile.</string>
-    <string name="cloud_saves_history_delete">Șterge</string>
-    <string name="cloud_saves_history_delete_confirm_body">Elimină definitiv această copie de siguranță din Google Drive. Acțiunea nu poate fi anulată.</string>
-    <string name="cloud_saves_history_delete_confirm_title">Ștergi această copie de siguranță?</string>
-    <string name="cloud_saves_history_delete_failed">Imposibil de șters copia de siguranță.</string>
-    <string name="cloud_saves_history_delete_success">Copie de siguranță ștearsă.</string>
     <string name="cloud_saves_history_empty">Nicio salvare anterioară arhivată încă. Salvările înlocuite și copiile de siguranță manuale vor apărea aici timp de 30 de zile.</string>
     <string name="cloud_saves_history_loading">Se încarcă istoricul salvărilor\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
@@ -1156,7 +1137,6 @@ Cale instalata:
     <string name="cloud_saves_no_backups">Nicio copie de siguranță pentru acest joc încă.</string>
     <string name="cloud_saves_offline_mode">Dezactivează sincronizarea în cloud</string>
     <string name="cloud_saves_offline_mode_summary">Oprește toată activitatea cloud automată pentru acest joc.</string>
-    <string name="cloud_saves_restore_summary">Trimite salvarea curentă către furnizorul cloud.</string>
     <string name="cloud_saves_sync_from_provider">Sincronizare din cloud %1$s</string>
     <string name="cloud_saves_sync_from_provider_failed">Imposibil de descărcat salvarea de la %1$s.</string>
     <string name="cloud_saves_sync_from_provider_generic">Sincronizare din cloud</string>
@@ -1182,11 +1162,6 @@ Cale instalata:
     <string name="downloads_queue_phase_verifying_file">Se verifică… [%1$s]</string>
     <string name="downloads_queue_status_label">Stare:</string>
     <string name="downloads_queue_this_game">acest joc</string>
-    <string name="google_cloud_connect_drive">Conectează Drive</string>
-    <string name="google_cloud_connect_drive_first">Conectează mai întâi Google Drive.</string>
-    <string name="google_cloud_drive_authorization_started">Autorizarea Google Drive a început.</string>
-    <string name="google_cloud_drive_connected">Google Drive este conectat.</string>
-    <string name="google_cloud_drive_connected_short">Drive conectat</string>
     <string name="hud_position_bottom_center">Jos centru</string>
     <string name="hud_position_bottom_left">Jos stânga</string>
     <string name="hud_position_bottom_right">Jos dreapta</string>

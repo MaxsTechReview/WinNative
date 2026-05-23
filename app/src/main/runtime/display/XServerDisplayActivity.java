@@ -2495,8 +2495,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        // Wrap onComplete to chain auto backup to Google Drive after store sync finishes
-        Runnable afterStoreSync = () -> runAutoBackupIfEnabled(onComplete);
+        Runnable afterStoreSync = onComplete;
 
         String gameSource = shortcut.getExtra("game_source");
         if ("STEAM".equals(gameSource)) {
@@ -2642,107 +2641,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             final ExitUploadResult finalResult = result;
             runOnUiThread(() -> callback.onComplete(finalResult));
         }, workerName).start();
-    }
-
-    private boolean isRetryableGoogleDriveBackupMessage(@Nullable String message) {
-        if (message == null || message.isEmpty()) {
-            return true;
-        }
-        String normalized = message.toLowerCase(java.util.Locale.US);
-        return !normalized.contains("not enabled")
-                && !normalized.contains("not signed in")
-                && !normalized.contains("authorization required")
-                && !normalized.contains("no local save files")
-                && !normalized.contains("save files are empty")
-                && !normalized.contains("cannot determine save directory");
-    }
-
-    /**
-     * If Cloud Sync Auto Backup is enabled, zips the local save and uploads to Google Saves
-     * (Play Games Snapshots API). Steam saves are intentionally excluded — Steam Cloud
-     * handles them via SteamCloudSyncHelper / SteamService.syncCloudOnExit.
-     */
-    private void runAutoBackupIfEnabled(Runnable onComplete) {
-        if (shortcut == null) {
-            onComplete.run();
-            return;
-        }
-
-        if (!isCloudSyncEnabledForShortcut() || com.winlator.cmod.feature.sync.CloudSyncHelper.isOfflineMode(shortcut)) {
-            onComplete.run();
-            return;
-        }
-
-        if (!com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.isAutoBackupEnabled(this)) {
-            onComplete.run();
-            return;
-        }
-
-        String gameSource = shortcut.getExtra("game_source");
-        String gameId;
-        com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource source;
-
-        if ("STEAM".equals(gameSource)) {
-            // Steam saves use Steam Cloud (handled by syncSteamCloudOnExit). Google Saves is intentionally not used.
-            onComplete.run();
-            return;
-        } else if ("EPIC".equals(gameSource)) {
-            gameId = shortcut.getExtra("app_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.EPIC;
-        } else if ("GOG".equals(gameSource)) {
-            gameId = shortcut.getExtra("gog_id");
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.GOG;
-        } else if ("CUSTOM".equals(gameSource)) {
-            // Custom shortcuts opt in by either picking a folder via "Select Save Folder"
-            // (sets customSaveWindowsPath) or by having the legacy custom_game_folder extra.
-            String winPath = shortcut.getExtra(
-                    com.winlator.cmod.feature.sync.google.GameSaveBackupManager.CUSTOM_SAVE_WINDOWS_PATH_KEY);
-            String legacyFolder = shortcut.getExtra("custom_game_folder");
-            if ((winPath == null || winPath.isEmpty()) && (legacyFolder == null || legacyFolder.isEmpty())) {
-                onComplete.run();
-                return;
-            }
-            gameId = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.customGameId(shortcut);
-            source = com.winlator.cmod.feature.sync.google.GameSaveBackupManager.GameSource.CUSTOM;
-        } else {
-            onComplete.run();
-            return;
-        }
-
-        if (gameId == null || gameId.isEmpty()) {
-            onComplete.run();
-            return;
-        }
-
-        String gameName = shortcutName != null && !shortcutName.isEmpty() ? shortcutName : (shortcut.name != null ? shortcut.name : "Unknown");
-
-        Log.d("XServerDisplayActivity", "Starting auto backup to Google Saves for " + gameSource + "/" + gameId);
-        preloaderDialog.showOnUiThread("Backing up save to Google Saves...");
-
-        runExitUploadWithRetries(
-                "Google Saves auto backup",
-                "Backing up save to Google Saves...",
-                callback -> runBlockingExitUpload(
-                        "GoogleDriveExitBackup",
-                        () -> {
-                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult result =
-                                    (com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult)
-                                            kotlinx.coroutines.BuildersKt.runBlocking(
-                                                    kotlinx.coroutines.Dispatchers.getIO(),
-                                                    (scope, continuation) ->
-                                                            com.winlator.cmod.feature.sync.google.GameSaveBackupManager.INSTANCE.autoBackupToGoogle(
-                                                                    this,
-                                                                    source,
-                                                                    gameId,
-                                                                    gameName,
-                                                                    continuation));
-                            return new ExitUploadResult(
-                                    result.getSuccess(),
-                                    result.getMessage(),
-                                    isRetryableGoogleDriveBackupMessage(result.getMessage()));
-                        },
-                        callback),
-                onComplete);
     }
 
     private boolean isCloudSyncEnabledForShortcut() {

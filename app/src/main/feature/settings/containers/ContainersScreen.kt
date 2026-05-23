@@ -94,15 +94,6 @@ sealed interface ContainersDialogUiState {
         val container: Container,
     ) : ContainersDialogUiState
 
-    data class Backups(
-        val container: Container,
-    ) : ContainersDialogUiState
-
-    data class BackupSelection(
-        val container: Container,
-        val backupNames: List<String>,
-    ) : ContainersDialogUiState
-
     data class StorageInfo(
         val data: ContainerStorageInfoUiState,
     ) : ContainersDialogUiState
@@ -129,16 +120,12 @@ fun ContainersScreen(
     onRunContainer: (Container) -> Unit,
     onEditContainer: (Container) -> Unit,
     onDuplicateContainer: (Container) -> Unit,
-    onShowBackups: (Container) -> Unit,
     onRemoveContainer: (Container) -> Unit,
     onShowInfo: (Container) -> Unit,
     onDismissDialog: () -> Unit,
     onConfirmDuplicateDialog: (Container) -> Unit,
     onConfirmRemoveDialog: (Container) -> Unit,
-    onConfirmBackupDialog: (Container) -> Unit,
-    onConfirmRestoreDialog: (Container) -> Unit,
     onClearCacheDialog: (Container) -> Unit,
-    onBackupSelectionChosen: (Int) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
@@ -179,7 +166,6 @@ fun ContainersScreen(
                     onRun = { onRunContainer(container) },
                     onEdit = { onEditContainer(container) },
                     onDuplicate = { onDuplicateContainer(container) },
-                    onShowBackups = { onShowBackups(container) },
                     onRemove = { onRemoveContainer(container) },
                     onShowInfo = { onShowInfo(container) },
                 )
@@ -209,23 +195,6 @@ fun ContainersScreen(
                 confirmColor = ContainersDanger,
                 onDismiss = onDismissDialog,
                 onConfirm = { onConfirmRemoveDialog(dialog.container) },
-            )
-        }
-
-        is ContainersDialogUiState.Backups -> {
-            ContainersBackupsDialog(
-                onDismiss = onDismissDialog,
-                onBackup = { onConfirmBackupDialog(dialog.container) },
-                onRestore = { onConfirmRestoreDialog(dialog.container) },
-            )
-        }
-
-        is ContainersDialogUiState.BackupSelection -> {
-            ContainersSelectionDialog(
-                title = stringResource(R.string.container_backups_select_title),
-                options = dialog.backupNames,
-                onDismiss = onDismissDialog,
-                onSelected = onBackupSelectionChosen,
             )
         }
 
@@ -309,7 +278,6 @@ private fun ContainerCard(
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onShowBackups: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
 ) {
@@ -360,13 +328,6 @@ private fun ContainerCard(
                     onDismissRequest = { menuExpanded = false },
                     containerColor = ContainersCard,
                 ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.container_backups_title), color = ContainersTextPrimary) },
-                        onClick = {
-                            menuExpanded = false
-                            onShowBackups()
-                        },
-                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.container_config_storage_info), color = ContainersTextPrimary) },
                         onClick = {
@@ -610,129 +571,6 @@ private fun ContainersConfirmDialog(
                 borderColor = confirmColor.copy(alpha = 0.3f),
                 onClick = onConfirm,
             )
-        }
-    }
-}
-
-@Composable
-private fun ContainersBackupsDialog(
-    onDismiss: () -> Unit,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit,
-) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        title = stringResource(R.string.container_backups_title),
-        maxWidth = 420.dp,
-    ) {
-        Text(
-            text = stringResource(R.string.container_backups_prompt),
-            color = ContainersTextSecondary,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        )
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(ContainersOutline),
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-        ) {
-            ContainersDialogButton(
-                label = stringResource(R.string.common_ui_cancel),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onDismiss,
-            )
-            ContainersDialogButton(
-                label = stringResource(R.string.google_cloud_restore),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onRestore,
-            )
-            ContainersDialogButton(
-                label = stringResource(R.string.google_cloud_backup),
-                primary = false,
-                textColor = ContainersAccent,
-                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
-                borderColor = ContainersAccent.copy(alpha = 0.3f),
-                onClick = onBackup,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ContainersSelectionDialog(
-    title: String,
-    options: List<String>,
-    onDismiss: () -> Unit,
-    onSelected: (Int) -> Unit,
-) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        title = title,
-        maxWidth = 420.dp,
-    ) {
-        Column {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                        .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                options.forEachIndexed { index, option ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ContainersSubcard)
-                                .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { onSelected(index) },
-                                ).padding(horizontal = 14.dp, vertical = 10.dp),
-                    ) {
-                        Text(
-                            text = option,
-                            color = ContainersTextPrimary,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(ContainersOutline),
-            )
-            Spacer(Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                ContainersDialogButton(
-                    label = stringResource(R.string.common_ui_cancel),
-                    primary = false,
-                    textColor = ContainersTextPrimary,
-                    onClick = onDismiss,
-                )
-            }
         }
     }
 }

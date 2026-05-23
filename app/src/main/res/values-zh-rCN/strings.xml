@@ -1019,9 +1019,7 @@
     <string name="preloader_downloading_cloud">正在下载云存档…</string>
     <string name="preloader_syncing_cloud">正在同步云存档…</string>
     <string name="preloader_cloud_downloading">云同步下载中…</string>
-    <string name="preloader_cloud_backup">正在备份存档到 Google 云端硬盘…</string>
     <string name="cloud_sync_failed_provider">%1$s 云同步失败。</string>
-    <string name="google_cloud_backup_failed">Google 云端硬盘备份失败。</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">图形</string>
-    <string name="container_backups_title">备份</string>
-    <string name="container_backups_prompt">选择对此容器备份执行的操作。</string>
-    <string name="container_backups_backing_up">正在备份容器…</string>
-    <string name="container_backups_restoring">正在恢复容器…</string>
-    <string name="container_backups_checking">正在检查容器备份…</string>
-    <string name="container_backups_select_title">选择要恢复的备份</string>
-    <string name="container_backups_no_files">未在 Google Drive 中找到容器备份。</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">次要绑定</string>
     <string name="input_controls_editor_tap_to_switch">点按切换</string>
@@ -1093,11 +1084,7 @@
     <string name="settings_general_check_for_updates">检查更新</string>
     <string name="settings_general_check_for_updates_summary">在启动时和定期自动检查新版本。</string>
     <string name="setup_wizard_containers">容器设置</string>
-    <string name="google_cloud_auto_backup">云同步自动备份</string>
-    <string name="google_cloud_auto_backup_summary">每次退出游戏时自动将游戏存档备份到 Google Drive。</string>
     <string name="cloud_saves_title">云存档</string>
-    <string name="cloud_saves_backup">备份云存档</string>
-    <string name="cloud_saves_restore">恢复云存档</string>
     <string name="cloud_sync_title">云同步</string>
     <string name="cloud_sync_enabled_summary">启动时下载云存档，并在退出时同步/备份。</string>
     <string name="cloud_sync_disabled_summary">启动此游戏时不下载云存档，也不在退出时同步。</string>
@@ -1124,12 +1111,6 @@
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch (110 strings) -->
-    <string name="cloud_saves_backup_summary">将当前版本保存至历史记录，保留 30 天。</string>
-    <string name="cloud_saves_history_delete">删除</string>
-    <string name="cloud_saves_history_delete_confirm_body">从 Google Drive 永久删除此备份，此操作无法撤销。</string>
-    <string name="cloud_saves_history_delete_confirm_title">删除此备份？</string>
-    <string name="cloud_saves_history_delete_failed">无法删除备份。</string>
-    <string name="cloud_saves_history_delete_success">备份已删除。</string>
     <string name="cloud_saves_history_empty">暂无已备份的历史存档。被替换的存档和手动备份将在此处保留 30 天。</string>
     <string name="cloud_saves_history_loading">正在加载存档历史\u2026</string>
     <string name="cloud_saves_history_origin_auto">自动</string>
@@ -1156,7 +1137,6 @@
     <string name="cloud_saves_no_backups">此游戏暂无备份。</string>
     <string name="cloud_saves_offline_mode">禁用云同步</string>
     <string name="cloud_saves_offline_mode_summary">停止此游戏的所有自动云端活动。</string>
-    <string name="cloud_saves_restore_summary">将当前存档推送到云端提供商。</string>
     <string name="cloud_saves_sync_from_provider">从 %1$s 云端同步</string>
     <string name="cloud_saves_sync_from_provider_failed">无法从 %1$s 下载存档。</string>
     <string name="cloud_saves_sync_from_provider_generic">从云端同步</string>
@@ -1182,11 +1162,6 @@
     <string name="downloads_queue_phase_verifying_file">正在验证… [%1$s]</string>
     <string name="downloads_queue_status_label">状态：</string>
     <string name="downloads_queue_this_game">此游戏</string>
-    <string name="google_cloud_connect_drive">连接 Drive</string>
-    <string name="google_cloud_connect_drive_first">请先连接 Google Drive。</string>
-    <string name="google_cloud_drive_authorization_started">Google Drive 授权已启动。</string>
-    <string name="google_cloud_drive_connected">Google Drive 已连接。</string>
-    <string name="google_cloud_drive_connected_short">Drive 已连接</string>
     <string name="hud_position_bottom_center">底部居中</string>
     <string name="hud_position_bottom_left">左下角</string>
     <string name="hud_position_bottom_right">右下角</string>

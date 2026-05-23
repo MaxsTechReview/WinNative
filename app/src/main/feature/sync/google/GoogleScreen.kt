@@ -1,6 +1,5 @@
 package com.winlator.cmod.feature.sync.google
 import android.app.Activity
-import android.content.Context
 import android.text.format.DateUtils
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -46,11 +45,8 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,11 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.shared.ui.toast.WinToast
-import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlinx.coroutines.launch
 
 private val BgDark = Color(0xFF18181D)
@@ -106,23 +98,11 @@ fun GoogleScreen() {
     var syncState by remember { mutableStateOf(CloudSyncManager.StoreLoginSyncState()) }
     var busy by remember { mutableStateOf(false) }
 
-    val autoBackupPrefs =
-        remember {
-            context.getSharedPreferences("google_store_login_sync", Context.MODE_PRIVATE)
-        }
-    var autoBackupEnabled by remember {
-        mutableStateOf(autoBackupPrefs.getBoolean("cloud_sync_auto_backup", false))
-    }
-    var driveConnected by remember {
-        mutableStateOf(GameSaveBackupManager.isDriveConnected(context))
-    }
-
     fun loadCachedState() {
         val currentActivity = activity ?: return
         scope.launch {
             syncState = CloudSyncManager.readStoreLoginState(currentActivity)
             googleSignedIn = syncState.googleSignedIn
-            driveConnected = GameSaveBackupManager.isDriveConnected(context)
         }
     }
 
@@ -133,7 +113,6 @@ fun GoogleScreen() {
             try {
                 syncState = CloudSyncManager.refreshStoreLoginState(currentActivity)
                 googleSignedIn = syncState.googleSignedIn
-                driveConnected = GameSaveBackupManager.isDriveConnected(context)
             } finally {
                 busy = false
             }
@@ -144,26 +123,6 @@ fun GoogleScreen() {
         val currentActivity = activity ?: return@LaunchedEffect
         syncState = CloudSyncManager.syncOnGoogleScreenOpened(currentActivity)
         googleSignedIn = syncState.googleSignedIn
-        driveConnected = GameSaveBackupManager.isDriveConnected(context)
-    }
-
-    // The Drive consent UI runs in a separate task. When it returns,
-    // GameSaveBackupManager flips the connected pref but our in-memory
-    // copy is stale until we re-read on resume.
-    val lifecycleOwner = activity as? LifecycleOwner
-    DisposableEffect(lifecycleOwner) {
-        if (lifecycleOwner == null) {
-            onDispose { }
-        } else {
-            val observer =
-                LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) {
-                        driveConnected = GameSaveBackupManager.isDriveConnected(context)
-                    }
-                }
-            lifecycleOwner.lifecycle.addObserver(observer)
-            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-        }
     }
 
     LazyColumn(
@@ -251,141 +210,6 @@ fun GoogleScreen() {
                     }
                 },
             )
-        }
-
-        item("auto_backup_section") {
-            SectionLabel(stringResource(R.string.google_cloud_auto_backup), modifier = Modifier.padding(top = 8.dp))
-        }
-
-        item("auto_backup_card") {
-            AutoBackupCard(
-                enabled = autoBackupEnabled,
-                driveConnected = driveConnected,
-                busy = busy,
-                onConnectDrive = {
-                    val currentActivity = activity ?: return@AutoBackupCard
-                    busy = true
-                    scope.launch {
-                        try {
-                            val alreadyAuthorized = GameSaveBackupManager.requestDriveAuthorization(currentActivity)
-                            WinToast.show(
-                                context,
-                                if (alreadyAuthorized) {
-                                    driveConnected = true
-                                    context.getString(R.string.google_cloud_drive_connected)
-                                } else {
-                                    context.getString(R.string.google_cloud_drive_authorization_started)
-                                },
-                            )
-                        } catch (e: Exception) {
-                            WinToast.show(context, "Drive authorization failed: ${e.message}")
-                        } finally {
-                            busy = false
-                        }
-                    }
-                },
-                onToggle = { newValue ->
-                    if (newValue) {
-                        if (!driveConnected) {
-                            WinToast.show(context, context.getString(R.string.google_cloud_connect_drive_first))
-                            return@AutoBackupCard
-                        }
-                        autoBackupEnabled = true
-                        autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", true).apply()
-                    } else {
-                        autoBackupEnabled = false
-                        autoBackupPrefs.edit().putBoolean("cloud_sync_auto_backup", false).apply()
-                    }
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun AutoBackupCard(
-    enabled: Boolean,
-    driveConnected: Boolean,
-    busy: Boolean,
-    onConnectDrive: () -> Unit,
-    onToggle: (Boolean) -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .clickable(enabled = !busy) { onToggle(!enabled) },
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(IconBoxBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.CloudSync,
-                    contentDescription = null,
-                    tint = if (driveConnected) StatusGreen else TextSecondary,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
-
-            Spacer(Modifier.width(13.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.google_cloud_auto_backup),
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.google_cloud_auto_backup_summary),
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                )
-            }
-
-            Spacer(Modifier.width(4.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                ActionButton(
-                    label =
-                        if (driveConnected) {
-                            stringResource(R.string.google_cloud_drive_connected_short)
-                        } else {
-                            stringResource(R.string.google_cloud_connect_drive)
-                        },
-                    textColor = Accent,
-                    icon = Icons.Outlined.CloudSync,
-                    enabled = !busy,
-                    onClick = onConnectDrive,
-                )
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = { onToggle(it) },
-                    enabled = !busy,
-                    modifier = Modifier.scale(0.78f),
-                    colors =
-                        outlinedSwitchColors(
-                            accentColor = StatusGreen,
-                            textSecondaryColor = TextSecondary,
-                        ),
-                )
-            }
         }
     }
 }

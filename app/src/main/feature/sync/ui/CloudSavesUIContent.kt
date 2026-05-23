@@ -31,10 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudSync
-import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.History
@@ -86,7 +83,6 @@ import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeAccent
 import com.winlator.cmod.shared.theme.WinNativeBackground
-import com.winlator.cmod.shared.theme.WinNativeDanger
 import com.winlator.cmod.shared.theme.WinNativeOutline
 import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
@@ -102,7 +98,6 @@ private val CardBorder = Color(0xFF2A2A3A)
 private val Accent = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
-private val DangerRed = Color(0xFFFF6B6B)
 private val CloudPanel = Color(0xFF1C1C2A)
 private val CloudPanelRaised = Color(0xFF232334)
 private val CloudBorder = Color(0xFF2A2A3A)
@@ -122,8 +117,6 @@ internal fun CloudSavesContent(
     shortcut: Shortcut?,
     onCloudSyncToggle: (Boolean) -> Unit,
     onOfflineModeToggle: (Boolean) -> Unit,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit,
     onSyncFromCloud: () -> Unit,
     showTitle: Boolean = true,
     showBottomBack: Boolean = true,
@@ -140,9 +133,6 @@ internal fun CloudSavesContent(
     var entryPendingRename by remember {
         mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
     }
-    var entryPendingDelete by remember {
-        mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
-    }
     val steamManagedCloud = gameSource == GameSaveBackupManager.GameSource.STEAM
 
     LaunchedEffect(gameSource, gameId, historyRefreshKey) {
@@ -157,12 +147,7 @@ internal fun CloudSavesContent(
                     emptyList()
                 }
             } else {
-                GameSaveBackupManager.listBackupHistory(
-                    activity,
-                    gameSource,
-                    gameId,
-                    gameName,
-                )
+                emptyList()
             }
         historyLoading = false
     }
@@ -343,29 +328,6 @@ internal fun CloudSavesContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             firstAction(Modifier.weight(1f))
-                            ActionWithHelper(
-                                icon = Icons.Outlined.CloudUpload,
-                                label = stringResource(R.string.cloud_saves_backup),
-                                helper = stringResource(R.string.cloud_saves_backup_summary),
-                                tint = CloudSuccess,
-                                modifier = Modifier.weight(1f),
-                                enabled = !isWorking,
-                                onClick = onBackup,
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            ActionWithHelper(
-                                icon = Icons.Outlined.CloudDownload,
-                                label = stringResource(R.string.cloud_saves_restore),
-                                helper = stringResource(R.string.cloud_saves_restore_summary),
-                                tint = CloudAccent,
-                                modifier = Modifier.weight(1f),
-                                enabled = !isWorking,
-                                onClick = onRestore,
-                            )
                             Spacer(Modifier.weight(1f))
                         }
                     }
@@ -375,24 +337,6 @@ internal fun CloudSavesContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         firstAction(Modifier.weight(1f))
-                        ActionWithHelper(
-                            icon = Icons.Outlined.CloudUpload,
-                            label = stringResource(R.string.cloud_saves_backup),
-                            helper = stringResource(R.string.cloud_saves_backup_summary),
-                            tint = CloudSuccess,
-                            modifier = Modifier.weight(1f),
-                            enabled = !isWorking,
-                            onClick = onBackup,
-                        )
-                        ActionWithHelper(
-                            icon = Icons.Outlined.CloudDownload,
-                            label = stringResource(R.string.cloud_saves_restore),
-                            helper = stringResource(R.string.cloud_saves_restore_summary),
-                            tint = CloudAccent,
-                            modifier = Modifier.weight(1f),
-                            enabled = !isWorking,
-                            onClick = onRestore,
-                        )
                     }
                 }
             }
@@ -554,7 +498,6 @@ internal fun CloudSavesContent(
             },
             onRestore = { entry -> entryPendingRestore = entry },
             onRename = { entry -> entryPendingRename = entry },
-            onDelete = { entry -> entryPendingDelete = entry },
         )
 
         if (showBottomBack) {
@@ -632,13 +575,7 @@ internal fun CloudSavesContent(
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
                                 }
                             }
-                            GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
-                                GameSaveBackupManager.restoreFromHistoryEntry(
-                                    activity,
-                                    gameSource,
-                                    gameId,
-                                    target,
-                                )
+                            else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
                         }
                     WinToast.show(
                         context,
@@ -745,12 +682,7 @@ internal fun CloudSavesContent(
                                                 .renameEntry(activity, appId, target.fileId, null)
                                         }
                                     }
-                                    GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
-                                        GameSaveBackupManager.renameBackupHistoryEntry(
-                                            activity,
-                                            target,
-                                            null,
-                                        )
+                                    else -> Unit
                                 }
                                 historyRefreshKey++
                             }
@@ -788,12 +720,7 @@ internal fun CloudSavesContent(
                                             GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
                                         }
                                     }
-                                    GameSaveBackupManager.BackupStorage.GOOGLE_SNAPSHOTS ->
-                                        GameSaveBackupManager.renameBackupHistoryEntry(
-                                            activity,
-                                            target,
-                                            newLabel,
-                                        )
+                                    else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_rename_failed))
                                 }
                             WinToast.show(
                                 context,
@@ -801,71 +728,6 @@ internal fun CloudSavesContent(
                                     context.getString(R.string.cloud_saves_history_rename_success)
                                 } else {
                                     context.getString(R.string.cloud_saves_history_rename_failed)
-                                },
-                                Toast.LENGTH_SHORT,
-                            )
-                            historyRefreshKey++
-                        }
-                    },
-                )
-            }
-        }
-    }
-
-    entryPendingDelete?.let { entry ->
-        WinNativeDialogShell(
-            onDismiss = { entryPendingDelete = null },
-            title = stringResource(R.string.cloud_saves_history_delete_confirm_title),
-        ) {
-            Text(
-                text = stringResource(R.string.cloud_saves_history_delete_confirm_body),
-                color = WinNativeTextSecondary,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-            )
-            Spacer(Modifier.height(16.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(WinNativeOutline),
-            )
-            Spacer(Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-            ) {
-                WinNativeDialogButton(
-                    label = stringResource(R.string.common_ui_cancel),
-                    textColor = WinNativeTextPrimary,
-                    onClick = { entryPendingDelete = null },
-                )
-                WinNativeDialogButton(
-                    label = stringResource(R.string.cloud_saves_history_delete),
-                    textColor = WinNativeDanger,
-                    backgroundColor = WinNativeDanger.copy(alpha = 0.12f),
-                    borderColor = WinNativeDanger.copy(alpha = 0.3f),
-                    onClick = {
-                        val target = entryPendingDelete ?: return@WinNativeDialogButton
-                        entryPendingDelete = null
-                        if (target.storage == GameSaveBackupManager.BackupStorage.STEAM_LOCAL ||
-                            target.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
-                        ) {
-                            return@WinNativeDialogButton
-                        }
-                        scope.launch {
-                            val result =
-                                GameSaveBackupManager.deleteBackupHistoryEntry(
-                                    activity,
-                                    target,
-                                )
-                            WinToast.show(
-                                context,
-                                if (result.success) {
-                                    context.getString(R.string.cloud_saves_history_delete_success)
-                                } else {
-                                    context.getString(R.string.cloud_saves_history_delete_failed)
                                 },
                                 Toast.LENGTH_SHORT,
                             )
@@ -886,7 +748,6 @@ private fun SaveHistorySection(
     onRefresh: () -> Unit,
     onRestore: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
     onRename: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
-    onDelete: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -942,7 +803,6 @@ private fun SaveHistorySection(
                             entry = entry,
                             onRestore = { onRestore(entry) },
                             onRename = { onRename(entry) },
-                            onDelete = { onDelete(entry) },
                         )
                         if (index < entries.lastIndex) {
                             HorizontalDivider(
@@ -962,7 +822,6 @@ private fun SaveHistoryRow(
     entry: GameSaveBackupManager.BackupHistoryEntry,
     onRestore: () -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val whenLabel =
         remember(entry.timestampMs) {
@@ -1066,16 +925,6 @@ private fun SaveHistoryRow(
                 tint = TextPrimary,
                 onClick = onRename,
             )
-            if (entry.storage != GameSaveBackupManager.BackupStorage.STEAM_LOCAL &&
-                entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
-            ) {
-                HistoryIconButton(
-                    icon = Icons.Outlined.DeleteOutline,
-                    contentDescription = stringResource(R.string.cloud_saves_history_delete),
-                    tint = DangerRed,
-                    onClick = onDelete,
-                )
-            }
         }
     }
 }

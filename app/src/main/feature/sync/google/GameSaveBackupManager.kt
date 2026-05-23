@@ -59,15 +59,9 @@ import java.util.zip.ZipOutputStream
  * Backup/Restore/History for Steam games via `steamManagedCloud`.
  *
  * Backwards-compat note (post-#308):
- *  - Public name `KEY_GOOGLE_DRIVE_CONNECTED` and `isDriveConnected()` are kept
- *    so the rest of the codebase (UI, settings) is undisturbed. The pref name
- *    is unchanged on disk; only the backend storage moved off Drive.
- *  - `GoogleAuthMode` (SILENT/INTERACTIVE) is honored: SILENT only attempts to
- *    use existing Play Games credentials (auto-backup, history list); INTERACTIVE
- *    triggers the Play Games sign-in if the user isn't yet authenticated.
- *  - `requestDriveAuthorization` is preserved as the entry point for the user's
- *    "Connect Google" action — it now performs Play Games sign-in rather than
- *    Drive consent.
+ *  - Public data classes/enums are still shared by the Steam local/cloud history UI.
+ *  - Non-store Google save snapshot entry points have been retired; store-login
+ *    sync continues through [CloudSyncManager].
  */
 object GameSaveBackupManager {
     private const val TAG = "GameSaveBackup"
@@ -76,7 +70,6 @@ object GameSaveBackupManager {
     /** Pref name preserved verbatim — flips true once Play Games sign-in succeeds. */
     private const val KEY_GOOGLE_DRIVE_CONNECTED = "google_drive_connected"
     private const val KEY_KEEP_REPLACED_BACKUP = "cloud_sync_keep_replaced_backup"
-    private const val KEY_AUTO_BACKUP = "cloud_sync_auto_backup"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
 
@@ -122,7 +115,6 @@ object GameSaveBackupManager {
      * don't apply (e.g. Delete is hidden for STEAM_LOCAL since Steam manages cloud retention).
      */
     enum class BackupStorage {
-        GOOGLE_SNAPSHOTS,
         /** Local rolling-snapshot capture (zipped to filesDir/save_history/steam/...). */
         STEAM_LOCAL,
         /**
@@ -170,8 +162,8 @@ object GameSaveBackupManager {
         val sizeBytes: Long,
         /** Optional user label. Persisted on the manifest snapshot's description field. */
         val label: String? = null,
-        /** Which backend produced this entry. Defaults to GOOGLE_SNAPSHOTS for legacy callers. */
-        val storage: BackupStorage = BackupStorage.GOOGLE_SNAPSHOTS,
+        /** Which backend produced this entry. Defaults to local Steam history for legacy callers. */
+        val storage: BackupStorage = BackupStorage.STEAM_LOCAL,
     )
 
     /** Max length of a user-provided history-entry label, after sanitization. */
@@ -250,117 +242,11 @@ object GameSaveBackupManager {
 
     // ── Public API ──
 
-    @JvmOverloads
-    suspend fun backupToGoogle(
-        activity: Activity,
-        gameSource: GameSource,
-        gameId: String,
-        gameName: String,
-        customSaveDir: File? = null,
-    ): BackupResult =
-        backupDiscardedSave(
-            activity,
-            gameSource,
-            gameId,
-            gameName,
-            BackupOrigin.MANUAL,
-            GoogleAuthMode.INTERACTIVE,
-            customSaveDir,
-        )
-
-    @JvmOverloads
-    suspend fun autoBackupToGoogle(
-        activity: Activity,
-        gameSource: GameSource,
-        gameId: String,
-        gameName: String,
-        customSaveDir: File? = null,
-    ): BackupResult {
-        if (gameSource == GameSource.STEAM) {
-            return BackupResult(true, "Steam saves use Steam Cloud (skipped).")
-        }
-        val context = activity.applicationContext
-        if (!isDriveConnected(context)) {
-            return BackupResult(false, "Google Saves is not connected.")
-        }
-        if (!isAutoBackupEnabled(context)) {
-            return BackupResult(false, "Auto backup is not enabled.")
-        }
-        return backupDiscardedSave(
-            activity,
-            gameSource,
-            gameId,
-            gameName,
-            BackupOrigin.AUTO,
-            // RESUME (not SILENT) so the SDK's cold-start silent re-auth has time to land —
-            // exit-time backups often run shortly after a process restart and would otherwise
-            // race the bootstrap, silently failing for users who were previously connected.
-            GoogleAuthMode.RESUME,
-            customSaveDir,
-        )
-    }
-
-    fun isAutoBackupEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_AUTO_BACKUP, false)
-
     /** Pref name kept verbatim ("google_drive_connected") for upgrade compatibility — the backend is now PGS. */
     fun isDriveConnected(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_DRIVE_CONNECTED, false)
 
     private fun setDriveConnected(context: Context, connected: Boolean) {
         prefs(context).edit().putBoolean(KEY_GOOGLE_DRIVE_CONNECTED, connected).apply()
-    }
-
-    /**
-     * "Connect Google" entry point used by the Settings UI. Drive is no longer required;
-     * this just signs in to Play Games and flips the connected pref true on success.
-     * Returns true if Play Games session is available, false otherwise.
-     */
-    suspend fun requestDriveAuthorization(activity: Activity): Boolean =
-        withContext(Dispatchers.IO) {
-            val ok = awaitAuthenticatedSession(activity)
-            if (ok) setDriveConnected(activity.applicationContext, true)
-            ok
-        }
-
-    /**
-     * Push the on-disk save back up to the store provider (Epic / GOG). Steam, custom,
-     * and unknown sources short-circuit. Kept named `restoreFromGoogle` to avoid
-     * touching every caller; the button label says "Restore cloud save".
-     */
-    suspend fun restoreFromGoogle(
-        activity: Activity,
-        gameSource: GameSource,
-        gameId: String,
-        @Suppress("UNUSED_PARAMETER") gameName: String,
-    ): BackupResult =
-        withContext(Dispatchers.IO) {
-            try {
-                if (gameSource == GameSource.STEAM) {
-                    return@withContext BackupResult(true, "Steam saves use Steam Cloud (skipped).")
-                }
-                if (gameSource == GameSource.CUSTOM) {
-                    return@withContext BackupResult(false, "Custom games have no provider to push to.")
-                }
-                val context = activity.applicationContext
-                val ok = syncUpToProvider(context, gameSource, gameId)
-                if (ok) {
-                    BackupResult(true, "Save pushed to ${gameSource.name}.")
-                } else {
-                    BackupResult(false, "Failed to push save to ${gameSource.name}.")
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "restoreFromGoogle (push) failed for $gameSource/$gameId")
-                BackupResult(false, "Push failed: ${e.message}")
-            }
-        }
-
-    /**
-     * Legacy onActivityResult callback. Drive consent is no longer requested for
-     * the game-save flow, so this is a no-op for GameSaveBackupManager. Kept for
-     * caller compatibility with the existing dispatch in UnifiedActivity.
-     */
-    @Suppress("UNUSED_PARAMETER")
-    fun onDriveAuthResult(activity: Activity, resultCode: Int) {
-        // intentionally empty — Drive scope retired in favor of Saved Games
     }
 
     fun isKeepReplacedBackupEnabled(context: Context): Boolean =
@@ -391,335 +277,22 @@ object GameSaveBackupManager {
     ): BackupResult =
         withContext(Dispatchers.IO) {
             try {
-                if (gameSource == GameSource.STEAM) {
-                    // Steam saves don't go to Google. Delegate to the local snapshot manager so
-                    // callers like SteamLaunchCloudSync's "keep backup" flow get a real history
-                    // entry written instead of a silent no-op.
-                    val appId = gameId.toIntOrNull()
-                    if (appId != null) {
-                        val ok = com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
-                            .recordSnapshot(activity.applicationContext, appId, origin)
-                        return@withContext BackupResult(
-                            ok || origin == BackupOrigin.LOCAL,
-                            if (ok) "Local snapshot captured." else "No local save files found to snapshot.",
-                        )
-                    }
-                    return@withContext BackupResult(false, "Invalid Steam appId for snapshot.")
+                if (gameSource != GameSource.STEAM) {
+                    return@withContext BackupResult(false, "Google save backups are disabled.")
                 }
-                val context = activity.applicationContext
-                if (!isDriveConnected(context) && authMode == GoogleAuthMode.SILENT) {
-                    return@withContext BackupResult(false, "Google Saves is not connected.")
+                val appId = gameId.toIntOrNull()
+                if (appId != null) {
+                    val ok = com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
+                        .recordSnapshot(activity.applicationContext, appId, origin)
+                    return@withContext BackupResult(
+                        ok || origin == BackupOrigin.LOCAL,
+                        if (ok) "Local snapshot captured." else "No local save files found to snapshot.",
+                    )
                 }
-                if (!ensureAuthenticated(activity, authMode)) {
-                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
-                }
-
-                val saveSources = getLocalSaveSources(context, gameSource, gameId, customSaveDir, forRestore = false)
-                if (saveSources.isEmpty()) {
-                    return@withContext BackupResult(false, "No local save files found to back up.")
-                }
-
-                val cacheFile = File(context.cacheDir, "save_export_${System.nanoTime()}.zip.gz")
-                try {
-                    val (uncompressedSize, sha256Hex) = streamGzippedZipToFile(saveSources, cacheFile)
-                    val compressedSize = cacheFile.length()
-                    if (compressedSize == 0L) {
-                        return@withContext BackupResult(false, "Save files are empty.")
-                    }
-                    if (compressedSize > MAX_COMPRESSED_BYTES) {
-                        return@withContext BackupResult(
-                            false,
-                            "Save is too large (${compressedSize / 1_048_576} MB compressed; max ${MAX_COMPRESSED_BYTES / 1_048_576} MB).",
-                        )
-                    }
-
-                    val client = freshSnapshotsClient(activity)
-                        ?: return@withContext BackupResult(false, "Play Games sign-in unavailable.")
-                    val maxDataSize = runCatching { Tasks.await(client.maxDataSize) }.getOrNull() ?: (3 * 1024 * 1024)
-                    val partSize =
-                        ((maxDataSize - PART_SIZE_HEADROOM_BYTES).toLong())
-                            .coerceAtLeast(MIN_PART_SIZE_BYTES)
-
-                    val partCount = ((compressedSize + partSize - 1) / partSize).toInt().coerceAtLeast(1)
-                    if (partCount > MAX_PARTS) {
-                        return@withContext BackupResult(
-                            false,
-                            "Save would require $partCount parts (limit $MAX_PARTS). Reduce save size.",
-                        )
-                    }
-
-                    val createdAtMs = System.currentTimeMillis()
-                    val saveId = buildSaveId(createdAtMs)
-                    val gameKey = buildGameKeyHash(gameSource, gameId)
-                    val partNames = (0 until partCount).map { partUniqueName(gameSource, gameKey, saveId, it) }
-
-                    val partUploadOk = uploadParts(activity, client, cacheFile, partNames, partSize)
-                    if (!partUploadOk) {
-                        runCatching { deleteSnapshotsByName(activity, partNames) }
-                        return@withContext BackupResult(false, "Failed to upload save parts.")
-                    }
-
-                    val windowsPath =
-                        if (gameSource == GameSource.CUSTOM) {
-                            customSaveWindowsPathFor(context, gameId)
-                        } else {
-                            null
-                        }
-                    val manifest =
-                        Manifest(
-                            schema = 1,
-                            source = gameSource,
-                            gameId = gameId,
-                            gameName = gameName,
-                            origin = origin,
-                            createdAtMs = createdAtMs,
-                            uncompressedSize = uncompressedSize,
-                            compressedSize = compressedSize,
-                            sha256 = sha256Hex,
-                            parts = partNames,
-                            windowsPath = windowsPath,
-                        )
-                    val manifestName = manifestUniqueName(gameSource, gameKey, saveId)
-                    val manifestOk =
-                        writeSnapshot(
-                            activity,
-                            client,
-                            uniqueName = manifestName,
-                            description = manifestDescription(origin, null),
-                            playedTimeMs = createdAtMs,
-                            data = manifest.toJson().toByteArray(Charsets.UTF_8),
-                        )
-                    if (!manifestOk) {
-                        runCatching { deleteSnapshotsByName(activity, partNames) }
-                        return@withContext BackupResult(false, "Failed to commit save manifest.")
-                    }
-
-                    runCatching { pruneHistory(activity, gameSource, gameId, gameName) }
-                        .onFailure { Timber.tag(TAG).w(it, "History prune failed") }
-
-                    // Keep the `google_drive_connected` pref in sync with reality so subsequent
-                    // listBackupHistory / autoBackupToGoogle calls don't short-circuit.
-                    setDriveConnected(activity.applicationContext, true)
-
-                    BackupResult(true, "Save backed up.")
-                } finally {
-                    runCatching { cacheFile.delete() }
-                }
+                BackupResult(false, "Invalid Steam appId for snapshot.")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "backupDiscardedSave failed for $gameSource/$gameId")
                 BackupResult(false, "Failed to back up save: ${e.message}")
-            }
-        }
-
-    suspend fun listBackupHistory(
-        activity: Activity,
-        gameSource: GameSource,
-        gameId: String,
-        @Suppress("UNUSED_PARAMETER") gameName: String,
-    ): List<BackupHistoryEntry> =
-        withContext(Dispatchers.IO) {
-            try {
-                if (gameSource == GameSource.STEAM) return@withContext emptyList()
-                // RESUME mode: silent check with brief retries so the SDK's cold-start
-                // silent re-auth has time to land. Without this, opening Cloud Saves shortly
-                // after launching the app would race the SDK and show an empty list even when
-                // the user was previously authorized. Never calls signIn(); never shows UI.
-                if (!ensureAuthenticated(activity, GoogleAuthMode.RESUME)) return@withContext emptyList()
-
-                val client = freshSnapshotsClient(activity) ?: return@withContext emptyList()
-                val gameKey = buildGameKeyHash(gameSource, gameId)
-                val manifestPrefix = manifestPrefix(gameSource, gameKey)
-                val partPrefix = partPrefix(gameSource, gameKey)
-
-                val all = loadAllSnapshotsMetadata(client)
-                val manifestMetas = all.filter { it.uniqueName.startsWith(manifestPrefix) && it.uniqueName.endsWith("_m") }
-
-                data class ParsedEntry(val entry: BackupHistoryEntry, val manifest: Manifest)
-                val parsed: List<ParsedEntry> =
-                    manifestMetas.mapNotNull { meta ->
-                        val bytes = readSnapshotBytes(client, meta.uniqueName) ?: return@mapNotNull null
-                        val manifest = Manifest.fromJson(String(bytes, Charsets.UTF_8)) ?: return@mapNotNull null
-                        ParsedEntry(
-                            entry = BackupHistoryEntry(
-                                fileId = meta.uniqueName,
-                                fileName = meta.uniqueName,
-                                timestampMs = manifest.createdAtMs,
-                                origin = manifest.origin,
-                                sizeBytes = manifest.uncompressedSize.coerceAtLeast(0L),
-                                label = parseLabelFromDescription(meta.description),
-                            ),
-                            manifest = manifest,
-                        )
-                    }
-                val entries = parsed.map { it.entry }
-
-                // GC: orphan parts (no manifest referencing them) older than the grace window.
-                val knownPartNames = parsed.flatMap { it.manifest.parts }.toSet()
-                val now = System.currentTimeMillis()
-                val orphans =
-                    all
-                        .filter { it.uniqueName.startsWith(partPrefix) && it.uniqueName !in knownPartNames }
-                        .filter { now - it.lastModifiedTimestamp > ORPHAN_GRACE_MS }
-                        .map { it.uniqueName }
-                if (orphans.isNotEmpty()) {
-                    Timber.tag(TAG).i("GC: deleting %d orphan part snapshots for %s/%s", orphans.size, gameSource, gameId)
-                    runCatching { deleteSnapshotsByName(activity, orphans) }
-                        .onFailure { Timber.tag(TAG).w(it, "Orphan part GC failed") }
-                }
-
-                // Age-based prune
-                val cutoff = now - HISTORY_MAX_AGE_DAYS * 24L * 60L * 60L * 1000L
-                val toDeleteOld = entries.filter { it.timestampMs in 1L..cutoff }
-                toDeleteOld.forEach { runCatching { deleteEntry(activity, client, it) } }
-
-                // Trim to MAX_HISTORY_ENTRIES newest
-                val sorted =
-                    entries
-                        .filter { it.timestampMs > cutoff }
-                        .sortedByDescending { it.timestampMs }
-                val toDeleteOverflow = sorted.drop(MAX_HISTORY_ENTRIES)
-                toDeleteOverflow.forEach { runCatching { deleteEntry(activity, client, it) } }
-
-                sorted.take(MAX_HISTORY_ENTRIES)
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "listBackupHistory failed for $gameSource/$gameId")
-                emptyList()
-            }
-        }
-
-    @JvmOverloads
-    suspend fun restoreFromHistoryEntry(
-        activity: Activity,
-        gameSource: GameSource,
-        gameId: String,
-        entry: BackupHistoryEntry,
-        customSaveDir: File? = null,
-    ): BackupResult =
-        withContext(Dispatchers.IO) {
-            try {
-                if (gameSource == GameSource.STEAM) {
-                    return@withContext BackupResult(false, "Steam saves are not stored on Google.")
-                }
-                val context = activity.applicationContext
-                if (!isDriveConnected(context)) {
-                    return@withContext BackupResult(false, "Google Saves is not connected.")
-                }
-                if (!ensureAuthenticated(activity, GoogleAuthMode.INTERACTIVE)) {
-                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
-                }
-
-                val client = freshSnapshotsClient(activity)
-                    ?: return@withContext BackupResult(false, "Play Games sign-in unavailable.")
-                val manifestBytes =
-                    readSnapshotBytes(client, entry.fileId)
-                        ?: return@withContext BackupResult(false, "Manifest snapshot is missing.")
-                val manifest =
-                    Manifest.fromJson(String(manifestBytes, Charsets.UTF_8))
-                        ?: return@withContext BackupResult(false, "Manifest is unreadable.")
-
-                val cacheFile = File(context.cacheDir, "save_import_${System.nanoTime()}.zip.gz")
-                try {
-                    if (!downloadParts(client, manifest.parts, cacheFile)) {
-                        return@withContext BackupResult(false, "Failed to download save parts.")
-                    }
-                    if (cacheFile.length() != manifest.compressedSize && manifest.compressedSize > 0) {
-                        Timber.tag(TAG).w(
-                            "Compressed size mismatch (got %d, expected %d)",
-                            cacheFile.length(),
-                            manifest.compressedSize,
-                        )
-                    }
-                    if (manifest.sha256.isNotEmpty()) {
-                        val actual = sha256OfFile(cacheFile)
-                        if (!actual.equals(manifest.sha256, ignoreCase = true)) {
-                            return@withContext BackupResult(false, "Save integrity check failed (hash mismatch).")
-                        }
-                    }
-
-                    val effectiveCustomDir =
-                        customSaveDir ?: if (gameSource == GameSource.CUSTOM) {
-                            resolveCustomSaveAndroidDir(context, gameId, manifest.windowsPath)
-                        } else {
-                            null
-                        }
-                    val saveSources = getLocalSaveSources(context, gameSource, gameId, effectiveCustomDir, forRestore = true)
-                    if (saveSources.isEmpty()) {
-                        return@withContext BackupResult(false, "Cannot determine save directory for this game.")
-                    }
-                    saveSources.forEach { it.localDir.mkdirs() }
-                    extractGzippedZipToSources(cacheFile, saveSources)
-                    BackupResult(true, "Save restored from backup.")
-                } finally {
-                    runCatching { cacheFile.delete() }
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "restoreFromHistoryEntry failed for $gameSource/$gameId")
-                BackupResult(false, "Restore failed: ${e.message}")
-            }
-        }
-
-    suspend fun renameBackupHistoryEntry(
-        activity: Activity,
-        entry: BackupHistoryEntry,
-        newLabel: String?,
-    ): BackupResult =
-        withContext(Dispatchers.IO) {
-            try {
-                val context = activity.applicationContext
-                if (!isDriveConnected(context)) {
-                    return@withContext BackupResult(false, "Google Saves is not connected.")
-                }
-                if (!ensureAuthenticated(activity, GoogleAuthMode.INTERACTIVE)) {
-                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
-                }
-
-                val client = freshSnapshotsClient(activity)
-                    ?: return@withContext BackupResult(false, "Play Games sign-in unavailable.")
-
-                val manifestBytes = readSnapshotBytes(client, entry.fileId)
-                    ?: return@withContext BackupResult(false, "Manifest is missing.")
-                val cleanLabel = sanitizeHistoryLabel(newLabel)
-
-                val ok =
-                    writeSnapshot(
-                        activity,
-                        client,
-                        uniqueName = entry.fileId,
-                        description = manifestDescription(entry.origin, cleanLabel),
-                        playedTimeMs = entry.timestampMs,
-                        data = manifestBytes,
-                    )
-                if (ok) {
-                    BackupResult(true, if (cleanLabel.isNullOrEmpty()) "Label cleared." else "Renamed.")
-                } else {
-                    BackupResult(false, "Rename failed.")
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "renameBackupHistoryEntry failed for %s", entry.fileName)
-                BackupResult(false, "Rename failed: ${e.message}")
-            }
-        }
-
-    suspend fun deleteBackupHistoryEntry(
-        activity: Activity,
-        entry: BackupHistoryEntry,
-    ): BackupResult =
-        withContext(Dispatchers.IO) {
-            try {
-                val context = activity.applicationContext
-                if (!isDriveConnected(context)) {
-                    return@withContext BackupResult(false, "Google Saves is not connected.")
-                }
-                if (!ensureAuthenticated(activity, GoogleAuthMode.INTERACTIVE)) {
-                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
-                }
-                val client = freshSnapshotsClient(activity)
-                    ?: return@withContext BackupResult(false, "Play Games sign-in unavailable.")
-                val ok = deleteEntry(activity, client, entry)
-                if (ok) BackupResult(true, "Backup deleted.") else BackupResult(false, "Delete failed.")
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "deleteBackupHistoryEntry failed for %s", entry.fileName)
-                BackupResult(false, "Delete failed: ${e.message}")
             }
         }
 
@@ -1294,9 +867,9 @@ object GameSaveBackupManager {
         return true
     }
 
-    /** Delegates to listBackupHistory so a user who never opens History still gets pruned. */
+    /** Google snapshot history is retired; retained as a no-op for legacy backup code paths. */
     private suspend fun pruneHistory(activity: Activity, gameSource: GameSource, gameId: String, gameName: String) {
-        runCatching { listBackupHistory(activity, gameSource, gameId, gameName) }
+        Unit
     }
 
     // ── Naming ──

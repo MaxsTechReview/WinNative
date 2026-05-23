@@ -1019,9 +1019,7 @@ Installierter Pfad:
     <string name="preloader_downloading_cloud">Cloud-Spielstände werden heruntergeladen…</string>
     <string name="preloader_syncing_cloud">Cloud-Spielstände werden synchronisiert…</string>
     <string name="preloader_cloud_downloading">Cloud-Sync lädt herunter…</string>
-    <string name="preloader_cloud_backup">Spielstand wird auf Google Drive gesichert…</string>
     <string name="cloud_sync_failed_provider">%1$s Cloud-Synchronisierung fehlgeschlagen.</string>
-    <string name="google_cloud_backup_failed">Google Drive-Sicherung fehlgeschlagen.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@ Installierter Pfad:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
-    <string name="container_backups_title">Sicherungen</string>
-    <string name="container_backups_prompt">Wähle eine Aktion für diese Containersicherung.</string>
-    <string name="container_backups_backing_up">Container wird gesichert…</string>
-    <string name="container_backups_restoring">Container wird wiederhergestellt…</string>
-    <string name="container_backups_checking">Containersicherungen werden geprüft…</string>
-    <string name="container_backups_select_title">Sicherung zum Wiederherstellen auswählen</string>
-    <string name="container_backups_no_files">Keine Containersicherungen in Google Drive gefunden.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Sekundäre Belegung</string>
     <string name="input_controls_editor_tap_to_switch">Tippen zum Wechseln</string>
@@ -1093,11 +1084,7 @@ Installierter Pfad:
     <string name="settings_general_check_for_updates">Nach Updates suchen</string>
     <string name="settings_general_check_for_updates_summary">Beim Start und regelmäßig automatisch nach neuen App-Versionen suchen.</string>
     <string name="setup_wizard_containers">Container-Einrichtung</string>
-    <string name="google_cloud_auto_backup">Automatische Cloud-Sync-Sicherung</string>
-    <string name="google_cloud_auto_backup_summary">Spielstände bei jedem Beenden eines Spiels automatisch in Google Drive sichern.</string>
     <string name="cloud_saves_title">Cloud-Speicherstände</string>
-    <string name="cloud_saves_backup">Cloud-Speicherstand sichern</string>
-    <string name="cloud_saves_restore">Cloud-Speicherstand wiederherstellen</string>
     <string name="cloud_sync_title">Cloud-Synchronisierung</string>
     <string name="cloud_sync_enabled_summary">Cloud-Speicherstände beim Start herunterladen und beim Beenden synchronisieren/sichern.</string>
     <string name="cloud_sync_disabled_summary">Dieses Spiel ohne Cloud-Speicherstand-Download oder Synchronisierung beim Beenden starten.</string>
@@ -1124,12 +1111,6 @@ Installierter Pfad:
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch: cloud saves, downloads queue, session drawer, HUD position, artwork picker, runtime patcher (110 strings) -->
-    <string name="cloud_saves_backup_summary">Speichert die aktuelle Version für 30 Tage im Verlauf.</string>
-    <string name="cloud_saves_history_delete">Löschen</string>
-    <string name="cloud_saves_history_delete_confirm_body">Dieses Backup wird dauerhaft von Google Drive entfernt. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="cloud_saves_history_delete_confirm_title">Dieses Backup löschen?</string>
-    <string name="cloud_saves_history_delete_failed">Backup konnte nicht gelöscht werden.</string>
-    <string name="cloud_saves_history_delete_success">Backup gelöscht.</string>
     <string name="cloud_saves_history_empty">Noch keine früheren Spielstände gesichert. Ersetzte Spielstände und manuelle Backups erscheinen hier für 30 Tage.</string>
     <string name="cloud_saves_history_loading">Speicherverlauf wird geladen\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
@@ -1156,7 +1137,6 @@ Installierter Pfad:
     <string name="cloud_saves_no_backups">Noch keine Backups für dieses Spiel vorhanden.</string>
     <string name="cloud_saves_offline_mode">Cloud-Synchronisierung deaktivieren</string>
     <string name="cloud_saves_offline_mode_summary">Stoppt alle automatischen Cloud-Aktivitäten für dieses Spiel.</string>
-    <string name="cloud_saves_restore_summary">Überträgt deinen aktuellen Spielstand an den Cloud-Anbieter.</string>
     <string name="cloud_saves_sync_from_provider">Von %1$s Cloud synchronisieren</string>
     <string name="cloud_saves_sync_from_provider_failed">Spielstand konnte nicht von %1$s heruntergeladen werden.</string>
     <string name="cloud_saves_sync_from_provider_generic">Von Cloud synchronisieren</string>
@@ -1182,11 +1162,6 @@ Installierter Pfad:
     <string name="downloads_queue_phase_verifying_file">Wird überprüft… [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>
     <string name="downloads_queue_this_game">dieses Spiel</string>
-    <string name="google_cloud_connect_drive">Drive verbinden</string>
-    <string name="google_cloud_connect_drive_first">Bitte zuerst Google Drive verbinden.</string>
-    <string name="google_cloud_drive_authorization_started">Google Drive-Autorisierung gestartet.</string>
-    <string name="google_cloud_drive_connected">Google Drive ist verbunden.</string>
-    <string name="google_cloud_drive_connected_short">Drive verbunden</string>
     <string name="hud_position_bottom_center">Unten Mitte</string>
     <string name="hud_position_bottom_left">Unten Links</string>
     <string name="hud_position_bottom_right">Unten Rechts</string>

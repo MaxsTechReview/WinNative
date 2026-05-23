@@ -274,13 +274,6 @@
     <string name="containers_list_duplicating">Duplicating Container…</string>
     <string name="containers_list_confirm_remove">Do you want to remove this container?</string>
     <string name="containers_list_confirm_duplicate">Do you want to duplicate this container?</string>
-    <string name="container_backups_title">Backups</string>
-    <string name="container_backups_prompt">Choose an action for this container backup.</string>
-    <string name="container_backups_backing_up">Backing up container…</string>
-    <string name="container_backups_restoring">Restoring container…</string>
-    <string name="container_backups_checking">Checking container backups…</string>
-    <string name="container_backups_select_title">Select Backup to Restore</string>
-    <string name="container_backups_no_files">No container backups were found in Google Drive.</string>
 
     <!-- Shortcuts > List -->
     <string name="shortcuts_list_confirm_remove">Do you want to remove this shortcut?</string>
@@ -1115,11 +1108,6 @@ Installed path:
     <string name="google_cloud_working">Working\u2026</string>
     <string name="google_cloud_sign_in">Sign In</string>
     <string name="google_cloud_disable_sync">Disable Sync</string>
-    <string name="google_cloud_connect_drive">Connect Drive</string>
-    <string name="google_cloud_connect_drive_first">Connect Google Drive first.</string>
-    <string name="google_cloud_drive_connected_short">Drive Connected</string>
-    <string name="google_cloud_drive_connected">Google Drive is connected.</string>
-    <string name="google_cloud_drive_authorization_started">Google Drive authorization started.</string>
     <string name="google_cloud_store_logins">Store Logins</string>
     <string name="google_cloud_store_login_sync_busy">Working on your store login sync\u2026</string>
     <string name="google_cloud_saved_games_unavailable">Google Saved Games unavailable</string>
@@ -1160,13 +1148,7 @@ Installed path:
     <string name="google_cloud_error_no_snapshot">No saved store logins were found in Google cloud sync yet.</string>
     <string name="google_cloud_error_generic">Google cloud sync failed: %1$s</string>
     <string name="google_cloud_error_before_open">Google cloud sync failed before Google Saved Games could open.</string>
-    <string name="google_cloud_auto_backup">Cloud Sync Auto Backup</string>
-    <string name="google_cloud_auto_backup_summary">Automatically back up game saves to Google Drive each time you exit a game.</string>
     <string name="cloud_saves_title">Cloud Saves</string>
-    <string name="cloud_saves_backup">Back up save</string>
-    <string name="cloud_saves_restore">Restore cloud save</string>
-    <string name="cloud_saves_backup_summary">Saves the current version to history for 30 days.</string>
-    <string name="cloud_saves_restore_summary">Pushes your current save to the cloud provider.</string>
     <string name="cloud_saves_sync_summary">Pull the version %1$s has right now.</string>
     <string name="cloud_saves_sync_summary_generic">Pull the current cloud version.</string>
     <string name="cloud_saves_no_backups">No backups yet for this game.</string>
@@ -1207,11 +1189,6 @@ Installed path:
     <string name="cloud_saves_history_rename_clear">Clear</string>
     <string name="cloud_saves_history_rename_success">Backup renamed.</string>
     <string name="cloud_saves_history_rename_failed">Could not rename backup.</string>
-    <string name="cloud_saves_history_delete">Delete</string>
-    <string name="cloud_saves_history_delete_confirm_title">Delete this backup?</string>
-    <string name="cloud_saves_history_delete_confirm_body">Permanently remove this backup from Google Drive. This can\'t be undone.</string>
-    <string name="cloud_saves_history_delete_success">Backup deleted.</string>
-    <string name="cloud_saves_history_delete_failed">Could not delete backup.</string>
 
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Select Save Folder</string>
@@ -1263,9 +1240,7 @@ Installed path:
     <string name="preloader_downloading_cloud">Downloading cloud saves…</string>
     <string name="preloader_syncing_cloud">Syncing cloud saves…</string>
     <string name="preloader_cloud_downloading">Cloud Sync Downloading…</string>
-    <string name="preloader_cloud_backup">Backing up save to Google Drive…</string>
     <string name="cloud_sync_failed_provider">%1$s cloud save sync failed.</string>
-    <string name="google_cloud_backup_failed">Google Drive backup failed.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>

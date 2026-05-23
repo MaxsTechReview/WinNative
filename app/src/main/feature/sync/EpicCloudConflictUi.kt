@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -26,17 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
 private val EpicCloudConflictWindow = Color(0xFF171A21)
@@ -70,7 +62,7 @@ object EpicCloudConflictDialog {
     fun show(
         activity: Activity,
         timestamps: EpicCloudConflictTimestamps,
-        onUseCloud: (keepBackup: Boolean) -> Unit,
+        onUseCloud: () -> Unit,
         onUseLocal: () -> Unit,
     ) {
         val dialog =
@@ -111,13 +103,9 @@ object EpicCloudConflictDialog {
                     ) {
                         EpicCloudConflictDialogContent(
                             timestamps = timestamps,
-                            initialKeepBackup = GameSaveBackupManager.isKeepReplacedBackupEnabled(activity),
-                            onKeepBackupChanged = { enabled ->
-                                GameSaveBackupManager.setKeepReplacedBackupEnabled(activity, enabled)
-                            },
-                            onUseCloud = { keepBackup ->
+                            onUseCloud = {
                                 dialog.dismiss()
-                                onUseCloud(keepBackup)
+                                onUseCloud()
                             },
                             onUseLocal = {
                                 dialog.dismiss()
@@ -145,13 +133,10 @@ object EpicCloudConflictDialog {
 @Composable
 internal fun EpicCloudConflictDialogContent(
     timestamps: EpicCloudConflictTimestamps,
-    initialKeepBackup: Boolean,
-    onKeepBackupChanged: (Boolean) -> Unit,
-    onUseCloud: (keepBackup: Boolean) -> Unit,
+    onUseCloud: () -> Unit,
     onUseLocal: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    var keepBackup by remember { mutableStateOf(initialKeepBackup) }
 
     Surface(
         modifier =
@@ -219,13 +204,6 @@ internal fun EpicCloudConflictDialogContent(
                         EpicVersionLine("Epic cloud saves", timestamps.cloudTimestampLabel)
                     }
 
-                    EpicKeepBackupCheckbox(
-                        checked = keepBackup,
-                        onCheckedChange = { v ->
-                            keepBackup = v
-                            onKeepBackupChanged(v)
-                        },
-                    )
                 }
 
                 if (compactActions) {
@@ -241,7 +219,7 @@ internal fun EpicCloudConflictDialogContent(
                             onUseLocal()
                         }
                         EpicPrimaryButton("Use Epic Cloud", Modifier.fillMaxWidth()) {
-                            onUseCloud(keepBackup)
+                            onUseCloud()
                         }
                     }
                 } else {
@@ -258,7 +236,7 @@ internal fun EpicCloudConflictDialogContent(
                             onUseLocal()
                         }
                         EpicPrimaryButton("Use Epic Cloud", Modifier.widthIn(min = 132.dp)) {
-                            onUseCloud(keepBackup)
+                            onUseCloud()
                         }
                     }
                 }
@@ -332,55 +310,5 @@ private fun EpicOutlinedButton(
         contentPadding = ButtonDefaults.ContentPadding,
     ) {
         Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun EpicKeepBackupCheckbox(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) },
-        shape = RoundedCornerShape(2.dp),
-        color = EpicPanelAlt,
-        border = BorderStroke(1.dp, EpicBorder),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors =
-                    CheckboxDefaults.colors(
-                        checkedColor = EpicCloudConflictBlue,
-                        uncheckedColor = EpicMuted,
-                        checkmarkColor = EpicCloudConflictWindow,
-                    ),
-            )
-            Spacer(Modifier.widthIn(min = 2.dp))
-            Column(modifier = Modifier.padding(start = 4.dp)) {
-                Text(
-                    text = "Back up local saves before using cloud",
-                    color = EpicCloudConflictText,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = "Creates a Save History entry before Epic cloud saves replace local files.",
-                    color = EpicMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                )
-            }
-        }
     }
 }

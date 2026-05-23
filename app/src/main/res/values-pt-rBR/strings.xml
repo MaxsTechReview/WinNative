@@ -1019,9 +1019,7 @@ Caminho instalado:
     <string name="preloader_downloading_cloud">Baixando saves na nuvem…</string>
     <string name="preloader_syncing_cloud">Sincronizando saves na nuvem…</string>
     <string name="preloader_cloud_downloading">Download da sincronização na nuvem…</string>
-    <string name="preloader_cloud_backup">Fazendo backup do save no Google Drive…</string>
     <string name="cloud_sync_failed_provider">Sincronização na nuvem do %1$s falhou.</string>
-    <string name="google_cloud_backup_failed">Backup no Google Drive falhou.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@ Caminho instalado:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
-    <string name="container_backups_title">Backups</string>
-    <string name="container_backups_prompt">Escolha uma ação para este backup do contêiner.</string>
-    <string name="container_backups_backing_up">Fazendo backup do contêiner…</string>
-    <string name="container_backups_restoring">Restaurando contêiner…</string>
-    <string name="container_backups_checking">Verificando backups do contêiner…</string>
-    <string name="container_backups_select_title">Selecione o backup para restaurar</string>
-    <string name="container_backups_no_files">Nenhum backup de contêiner foi encontrado no Google Drive.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Vinculação secundária</string>
     <string name="input_controls_editor_tap_to_switch">Toque para alternar</string>
@@ -1093,11 +1084,7 @@ Caminho instalado:
     <string name="settings_general_check_for_updates">Verificar atualizações</string>
     <string name="settings_general_check_for_updates_summary">Verifique automaticamente novas versões do app ao iniciar e periodicamente.</string>
     <string name="setup_wizard_containers">Configuração do contêiner</string>
-    <string name="google_cloud_auto_backup">Backup automático do Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Faça backup automático dos salvamentos do jogo no Google Drive sempre que sair de um jogo.</string>
     <string name="cloud_saves_title">Salvamentos na nuvem</string>
-    <string name="cloud_saves_backup">Fazer backup do salvamento na nuvem</string>
-    <string name="cloud_saves_restore">Restaurar salvamento na nuvem</string>
     <string name="cloud_sync_title">Sincronização na nuvem</string>
     <string name="cloud_sync_enabled_summary">Baixe os salvamentos na nuvem ao iniciar e sincronize/faça backup deles ao sair.</string>
     <string name="cloud_sync_disabled_summary">Inicie este jogo sem baixar salvamentos na nuvem nem sincronizar ao sair.</string>
@@ -1124,12 +1111,6 @@ Caminho instalado:
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch (110 strings) -->
-    <string name="cloud_saves_backup_summary">Salva a versão atual no histórico por 30 dias.</string>
-    <string name="cloud_saves_history_delete">Excluir</string>
-    <string name="cloud_saves_history_delete_confirm_body">Remover permanentemente este backup do Google Drive. Essa ação não pode ser desfeita.</string>
-    <string name="cloud_saves_history_delete_confirm_title">Excluir este backup?</string>
-    <string name="cloud_saves_history_delete_failed">Não foi possível excluir o backup.</string>
-    <string name="cloud_saves_history_delete_success">Backup excluído.</string>
     <string name="cloud_saves_history_empty">Nenhum save anterior com backup ainda. Saves substituídos e backups manuais aparecerão aqui por 30 dias.</string>
     <string name="cloud_saves_history_loading">Carregando histórico de saves\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
@@ -1156,7 +1137,6 @@ Caminho instalado:
     <string name="cloud_saves_no_backups">Nenhum backup ainda para este jogo.</string>
     <string name="cloud_saves_offline_mode">Desativar Sincronização com a Nuvem</string>
     <string name="cloud_saves_offline_mode_summary">Interrompe toda atividade automática na nuvem para este jogo.</string>
-    <string name="cloud_saves_restore_summary">Envia seu save atual para o provedor de nuvem.</string>
     <string name="cloud_saves_sync_from_provider">Sincronizar da Nuvem %1$s</string>
     <string name="cloud_saves_sync_from_provider_failed">Não foi possível baixar o save de %1$s.</string>
     <string name="cloud_saves_sync_from_provider_generic">Sincronizar da Nuvem</string>
@@ -1182,11 +1162,6 @@ Caminho instalado:
     <string name="downloads_queue_phase_verifying_file">Verificando… [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>
     <string name="downloads_queue_this_game">este jogo</string>
-    <string name="google_cloud_connect_drive">Conectar Drive</string>
-    <string name="google_cloud_connect_drive_first">Conecte o Google Drive primeiro.</string>
-    <string name="google_cloud_drive_authorization_started">Autorização do Google Drive iniciada.</string>
-    <string name="google_cloud_drive_connected">Google Drive está conectado.</string>
-    <string name="google_cloud_drive_connected_short">Drive Conectado</string>
     <string name="hud_position_bottom_center">Centro Inferior</string>
     <string name="hud_position_bottom_left">Inferior Esquerdo</string>
     <string name="hud_position_bottom_right">Inferior Direito</string>

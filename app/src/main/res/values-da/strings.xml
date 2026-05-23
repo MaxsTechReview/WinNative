@@ -1019,9 +1019,7 @@ Installeret sti:
     <string name="preloader_downloading_cloud">Downloader cloud-gemte data…</string>
     <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data…</string>
     <string name="preloader_cloud_downloading">Cloud Sync downloader…</string>
-    <string name="preloader_cloud_backup">Sikkerhedskopierer til Google Drev…</string>
     <string name="cloud_sync_failed_provider">%1$s cloud-synkronisering mislykkedes.</string>
-    <string name="google_cloud_backup_failed">Sikkerhedskopiering til Google Drev mislykkedes.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@ Installeret sti:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
-    <string name="container_backups_title">Sikkerhedskopier</string>
-    <string name="container_backups_prompt">Vælg en handling for denne containersikkerhedskopi.</string>
-    <string name="container_backups_backing_up">Sikkerhedskopierer container…</string>
-    <string name="container_backups_restoring">Gendanner container…</string>
-    <string name="container_backups_checking">Kontrollerer containersikkerhedskopier…</string>
-    <string name="container_backups_select_title">Vælg sikkerhedskopi der skal gendannes</string>
-    <string name="container_backups_no_files">Der blev ikke fundet nogen containersikkerhedskopier i Google Drive.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Sekundær binding</string>
     <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
@@ -1093,11 +1084,7 @@ Installeret sti:
     <string name="settings_general_check_for_updates">Søg efter opdateringer</string>
     <string name="settings_general_check_for_updates_summary">Søg automatisk efter nye appversioner ved opstart og med jævne mellemrum.</string>
     <string name="setup_wizard_containers">Containeropsætning</string>
-    <string name="google_cloud_auto_backup">Automatisk sikkerhedskopi af Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Sikkerhedskopiér automatisk spilsaves til Google Drive hver gang du afslutter et spil.</string>
     <string name="cloud_saves_title">Cloud-saves</string>
-    <string name="cloud_saves_backup">Sikkerhedskopiér cloud-save</string>
-    <string name="cloud_saves_restore">Gendan cloud-save</string>
     <string name="cloud_sync_title">Cloud Sync</string>
     <string name="cloud_sync_enabled_summary">Download cloud-saves ved opstart og synkroniser/sikkerhedskopiér dem ved afslutning.</string>
     <string name="cloud_sync_disabled_summary">Start dette spil uden download af cloud-save eller synkronisering ved afslutning.</string>
@@ -1124,12 +1111,6 @@ Installeret sti:
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch: cloud saves, downloads queue, session drawer, HUD position, artwork picker, runtime patcher (110 strings) -->
-    <string name="cloud_saves_backup_summary">Gemmer den nuværende version i historikken i 30 dage.</string>
-    <string name="cloud_saves_history_delete">Slet</string>
-    <string name="cloud_saves_history_delete_confirm_body">Fjern permanent denne sikkerhedskopi fra Google Drive. Dette kan ikke fortrydes.</string>
-    <string name="cloud_saves_history_delete_confirm_title">Slet denne sikkerhedskopi?</string>
-    <string name="cloud_saves_history_delete_failed">Kunne ikke slette sikkerhedskopi.</string>
-    <string name="cloud_saves_history_delete_success">Sikkerhedskopi slettet.</string>
     <string name="cloud_saves_history_empty">Ingen tidligere saves er sikkerhedskopieret endnu. Erstattede saves og manuelle sikkerhedskopier vises her i 30 dage.</string>
     <string name="cloud_saves_history_loading">Indlæser save-historik\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
@@ -1156,7 +1137,6 @@ Installeret sti:
     <string name="cloud_saves_no_backups">Ingen sikkerhedskopier endnu for dette spil.</string>
     <string name="cloud_saves_offline_mode">Deaktiver Cloud Sync</string>
     <string name="cloud_saves_offline_mode_summary">Stopper al automatisk cloud-aktivitet for dette spil.</string>
-    <string name="cloud_saves_restore_summary">Sender dit nuværende save til cloud-udbyderen.</string>
     <string name="cloud_saves_sync_from_provider">Synkroniser fra %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">Kunne ikke downloade save fra %1$s.</string>
     <string name="cloud_saves_sync_from_provider_generic">Synkroniser fra Cloud</string>
@@ -1182,11 +1162,6 @@ Installeret sti:
     <string name="downloads_queue_phase_verifying_file">Verificerer… [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>
     <string name="downloads_queue_this_game">dette spil</string>
-    <string name="google_cloud_connect_drive">Tilslut Drive</string>
-    <string name="google_cloud_connect_drive_first">Tilslut Google Drive først.</string>
-    <string name="google_cloud_drive_authorization_started">Google Drive-godkendelse startet.</string>
-    <string name="google_cloud_drive_connected">Google Drive er tilsluttet.</string>
-    <string name="google_cloud_drive_connected_short">Drive tilsluttet</string>
     <string name="hud_position_bottom_center">Bund centrum</string>
     <string name="hud_position_bottom_left">Bund venstre</string>
     <string name="hud_position_bottom_right">Bund højre</string>

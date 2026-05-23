@@ -1019,9 +1019,7 @@
     <string name="preloader_downloading_cloud">正在下載雲端存檔…</string>
     <string name="preloader_syncing_cloud">正在同步雲端存檔…</string>
     <string name="preloader_cloud_downloading">雲端同步下載中…</string>
-    <string name="preloader_cloud_backup">正在備份存檔至 Google 雲端硬碟…</string>
     <string name="cloud_sync_failed_provider">%1$s 雲端同步失敗。</string>
-    <string name="google_cloud_backup_failed">Google 雲端硬碟備份失敗。</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1029,13 +1027,6 @@
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">圖形</string>
-    <string name="container_backups_title">備份</string>
-    <string name="container_backups_prompt">選擇要對此容器備份執行的操作。</string>
-    <string name="container_backups_backing_up">正在備份容器…</string>
-    <string name="container_backups_restoring">正在還原容器…</string>
-    <string name="container_backups_checking">正在檢查容器備份…</string>
-    <string name="container_backups_select_title">選擇要還原的備份</string>
-    <string name="container_backups_no_files">未在 Google Drive 中找到容器備份。</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">次要綁定</string>
     <string name="input_controls_editor_tap_to_switch">點按切換</string>
@@ -1093,11 +1084,7 @@
     <string name="settings_general_check_for_updates">檢查更新</string>
     <string name="settings_general_check_for_updates_summary">啟動時及定期自動檢查新版本。</string>
     <string name="setup_wizard_containers">容器設定</string>
-    <string name="google_cloud_auto_backup">雲端同步自動備份</string>
-    <string name="google_cloud_auto_backup_summary">每次退出遊戲時自動將遊戲存檔備份到 Google Drive。</string>
     <string name="cloud_saves_title">雲端存檔</string>
-    <string name="cloud_saves_backup">備份雲端存檔</string>
-    <string name="cloud_saves_restore">還原雲端存檔</string>
     <string name="cloud_sync_title">雲端同步</string>
     <string name="cloud_sync_enabled_summary">啟動時下載雲端存檔，並在退出時同步/備份。</string>
     <string name="cloud_sync_disabled_summary">啟動此遊戲時不下載雲端存檔，也不在退出時同步。</string>
@@ -1124,12 +1111,6 @@
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
     <!-- Translated batch (110 strings) -->
-    <string name="cloud_saves_backup_summary">將目前版本儲存至歷史紀錄，保留 30 天。</string>
-    <string name="cloud_saves_history_delete">刪除</string>
-    <string name="cloud_saves_history_delete_confirm_body">從 Google Drive 永久移除此備份。此操作無法復原。</string>
-    <string name="cloud_saves_history_delete_confirm_title">刪除此備份？</string>
-    <string name="cloud_saves_history_delete_failed">無法刪除備份。</string>
-    <string name="cloud_saves_history_delete_success">備份已刪除。</string>
     <string name="cloud_saves_history_empty">尚無先前的存檔備份。被取代的存檔和手動備份將在此顯示 30 天。</string>
     <string name="cloud_saves_history_loading">正在載入存檔歷史紀錄\u2026</string>
     <string name="cloud_saves_history_origin_auto">自動</string>
@@ -1156,7 +1137,6 @@
     <string name="cloud_saves_no_backups">此遊戲尚無備份。</string>
     <string name="cloud_saves_offline_mode">停用雲端同步</string>
     <string name="cloud_saves_offline_mode_summary">停止此遊戲的所有自動雲端活動。</string>
-    <string name="cloud_saves_restore_summary">將您目前的存檔上傳至雲端供應商。</string>
     <string name="cloud_saves_sync_from_provider">從 %1$s 雲端同步</string>
     <string name="cloud_saves_sync_from_provider_failed">無法從 %1$s 下載存檔。</string>
     <string name="cloud_saves_sync_from_provider_generic">從雲端同步</string>
@@ -1182,11 +1162,6 @@
     <string name="downloads_queue_phase_verifying_file">正在驗證… [%1$s]</string>
     <string name="downloads_queue_status_label">狀態：</string>
     <string name="downloads_queue_this_game">此遊戲</string>
-    <string name="google_cloud_connect_drive">連結 Drive</string>
-    <string name="google_cloud_connect_drive_first">請先連結 Google Drive。</string>
-    <string name="google_cloud_drive_authorization_started">Google Drive 授權已開始。</string>
-    <string name="google_cloud_drive_connected">Google Drive 已連結。</string>
-    <string name="google_cloud_drive_connected_short">Drive 已連結</string>
     <string name="hud_position_bottom_center">底部置中</string>
     <string name="hud_position_bottom_left">左下角</string>
     <string name="hud_position_bottom_right">右下角</string>
