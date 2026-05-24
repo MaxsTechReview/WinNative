@@ -456,9 +456,7 @@ object DirectoryPickerDialog {
                     }
 
                     Spacer(Modifier.height(4.dp))
-
-                    CurrentPathCard(path = currentDir.absolutePath)
-
+                    CurrentPathCard(path = selectedFile?.name ?: currentDir.absolutePath)
                     Spacer(Modifier.height(8.dp))
 
                     androidx.compose.foundation.layout.Box(
