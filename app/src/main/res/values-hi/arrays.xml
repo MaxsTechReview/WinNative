@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="screen_size_entries">
+        <item>कस्टम</item>
+        <item>640x360 (16:9)</item>
+        <item>780x360 (19.5:9)</item>
+        <item>640x480 (4:3)</item>
+        <item>800x600 (4:3)</item>
+        <item>854x480 (16:9)</item>
+        <item>960x544 (16:9)</item>
+        <item>1024x768 (4:3)</item>
+        <item>1280x720 (16:9)</item>
+        <item>1280x800 (16:10)</item>
+        <item>1280x1024 (5:4)</item>
+        <item>1366x768 (16:9)</item>
+        <item>1440x900 (16:10)</item>
+        <item>1560x720 (19.5:9)</item>
+        <item>1600x900 (16:9)</item>
+        <item>1920x1080 (16:9)</item>
+    </string-array>
+    <string-array name="graphics_driver_entries">
+        <item>रैपर</item>
+    </string-array>
+    <string-array name="wrapper_graphics_driver_version_entries">
+        <item>सिस्टम</item>
+    </string-array>
+    <string-array name="audio_driver_entries">
+        <item>ALSA</item>
+        <item>PulseAudio</item>
+    </string-array>
+    <string-array name="binding_type_entries">
+        <item>कीबोर्ड</item>
+        <item>माउस</item>
+        <item>गेमपैड</item>
+    </string-array>
+    <string-array name="dxwrapper_entries">
+        <item>WineD3D</item>
+        <item>DXVK+VKD3D</item>
+    </string-array>
+    <string-array name="surface_effect_entries">
+        <item>RGBA</item>
+        <item>BGRA</item>
+    </string-array>
+    <string-array name="ddrawrapper_entries">
+        <item>CnC-DDraw</item>
+        <item>Dd7To9</item>
+        <item>ddraw-4.21</item>
+        <item>ddraw-11.8</item>
+        <item>कोई नहीं</item>
+    </string-array>
+    <string-array name="dxvk_version_entries">
+        <item>कोई नहीं</item>
+    </string-array>
+    <string-array name="device_memory_entries">
+        <item>0 (डिफ़ॉल्ट)</item>
+        <item>512 MB</item>
+        <item>1024 MB</item>
+        <item>2048 MB</item>
+        <item>4096 MB</item>
+        <item>8192 MB</item>
+        <item>12288 MB</item>
+        <item>16384 MB</item>
+    </string-array>
+    <string-array name="present_mode_entries">
+        <item>mailbox</item>
+        <item>fifo</item>
+        <item>immediate</item>
+        <item>relaxed</item>
+    </string-array>
+    <string-array name="compositor_present_mode_entries">
+        <item>fifo</item>
+        <item>mailbox</item>
+        <item>immediate</item>
+    </string-array>
+    <string-array name="resource_type_entries">
+        <item>ऑटो</item>
+        <item>dmabuf</item>
+        <item>ahb</item>
+        <item>opaque</item>
+    </string-array>
+    <string-array name="vulkan_version_entries">
+        <item>1.1</item>
+        <item>1.2</item>
+        <item>1.3</item>
+    </string-array>
+    <string-array name="bcn_emulation_entries">
+        <item>none</item>
+        <item>partial</item>
+        <item>full</item>
+        <item>ऑटो</item>
+    </string-array>
+    <string-array name="bcn_emulation_type_entries">
+        <item>software</item>
+        <item>compute</item>
+    </string-array>
+    <string-array name="bcn_emulation_cache_entries">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+    <string-array name="video_memory_size_entries">
+        <item>32 MB</item>
+        <item>64 MB</item>
+        <item>128 MB</item>
+        <item>256 MB</item>
+        <item>512 MB</item>
+        <item>1024 MB</item>
+        <item>2048 MB</item>
+        <item>4096 MB</item>
+    </string-array>
+    <string-array name="wincomponent_entries">
+        <item>बिल्ट-इन (Wine)</item>
+        <item>नेटिव (Windows)</item>
+    </string-array>
+    <string-array name="box64_version_entries">
+    </string-array>
+    <string-array name="wowbox64_version_entries">
+    </string-array>
+    <string-array name="fexcore_version_entries">
+    </string-array>
+    <string-array name="steam_type_entries">
+        <item>सामान्य - कोई ऑप्टिमाइज़ेशन नहीं</item>
+        <item>हल्का - ओवरले, शेडर, UI अतिरिक्त बंद करता है</item>
+        <item>अल्ट्रालाइट - अधिकतम प्रदर्शन, न्यूनतम सुविधाएँ</item>
+    </string-array>
+    <string-array name="dinput_mapper_type_entries">
+        <item>@string/container_config_dinput_legacy</item>
+        <item>@string/container_config_dinput_modern</item>
+    </string-array>
+    <string-array name="desktop_theme_entries">
+        <item>हल्का</item>
+        <item>गहरा</item>
+    </string-array>
+    <string-array name="desktop_background_type_entries">
+        <item>छवि</item>
+        <item>ठोस रंग</item>
+    </string-array>
+    <string-array name="startup_selection_entries">
+        <item>सामान्य (सभी सेवाएँ लोड करें)</item>
+        <item>आवश्यक (केवल आवश्यक सेवाएँ लोड करें)</item>
+        <item>आक्रामक (स्टार्टअप पर सेवाएँ रोकें)</item>
+    </string-array>
+    <string-array name="vkd3d_version_entries">
+        <item>कोई नहीं</item>
+    </string-array>
+    <string-array name="some_lc_all">
+        <item>ar_EG</item>
+        <item>ar_SA</item>
+        <item>da_DK</item>
+        <item>de_AT</item>
+        <item>de_CH</item>
+        <item>de_DE</item>
+        <item>de_LU</item>
+        <item>en_AU</item>
+        <item>en_CA</item>
+        <item>en_GB</item>
+        <item>en_IN</item>
+        <item>en_US</item>
+        <item>es_AR</item>
+        <item>es_ES</item>
+        <item>es_MX</item>
+        <item>fr_BE</item>
+        <item>fr_CA</item>
+        <item>fr_CH</item>
+        <item>fr_FR</item>
+        <item>it_CH</item>
+        <item>it_IT</item>
+        <item>ja_JP</item>
+        <item>ko_KR</item>
+        <item>pl_PL</item>
+        <item>pt_BR</item>
+        <item>pt_PT</item>
+        <item>ro_RO</item>
+        <item>ru_RU</item>
+        <item>ru_UA</item>
+        <item>uk_UA</item>
+        <item>zh_CN</item>
+        <item>zh_HK</item>
+        <item>zh_SG</item>
+        <item>zh_TW</item>
+    </string-array>
+    <string-array name="button_options">
+        <item>A</item>
+        <item>B</item>
+        <item>X</item>
+        <item>Y</item>
+        <item>R1 (दायाँ बंपर)</item>
+        <item>R2 (दायाँ ट्रिगर)</item>
+        <item>L1 (बायाँ बंपर)</item>
+        <item>L2 (बायाँ ट्रिगर)</item>
+        <item>Start</item>
+        <item>Select</item>
+        <item>R3 (दायाँ स्टिक बटन)</item>
+        <item>L3 (बायाँ स्टिक बटन)</item>
+        <item>D-pad ऊपर</item>
+        <item>D-pad नीचे</item>
+        <item>D-pad बाएँ</item>
+        <item>D-pad दाएँ</item>
+    </string-array>
+    <integer-array name="button_keycodes">
+        <item>@integer/keycode_button_a</item>
+        <item>@integer/keycode_button_b</item>
+        <item>@integer/keycode_button_x</item>
+        <item>@integer/keycode_button_y</item>
+        <item>@integer/keycode_button_r1</item>
+        <item>@integer/keycode_button_r2</item>
+        <item>@integer/keycode_button_l1</item>
+        <item>@integer/keycode_button_l2</item>
+        <item>@integer/keycode_button_start</item>
+        <item>@integer/keycode_button_select</item>
+        <item>@integer/keycode_button_r3</item>
+        <item>@integer/keycode_button_l3</item>
+        <item>@integer/keycode_dpad_up</item>
+        <item>@integer/keycode_dpad_down</item>
+        <item>@integer/keycode_dpad_left</item>
+        <item>@integer/keycode_dpad_right</item>
+    </integer-array>
+    <string-array name="emulator_entries">
+        <item>FEXCore</item>
+        <item>Box64</item>
+        <item>Wowbox64</item>
+    </string-array>
+    <string-array name="num_controllers_entries">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="wine_entries">
+    </string-array>
+</resources>

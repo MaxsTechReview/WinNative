@@ -101,7 +101,7 @@ android {
             abiFilters 'arm64-v8a'
         }
 
-        resConfigs "en", "da", "de", "es", "fr", "it", "ko", "pl", "pt-rBR", "ro", "uk", "zh-rCN", "zh-rTW"
+        resConfigs "en", "da", "de", "es", "fr", "hi", "it", "ko", "pl", "pt-rBR", "ro", "ru", "uk", "zh-rCN", "zh-rTW"
 
         buildConfigField("boolean", "GOLD", "false")
         buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
