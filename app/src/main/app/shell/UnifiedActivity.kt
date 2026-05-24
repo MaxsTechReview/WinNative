@@ -5270,6 +5270,7 @@ class UnifiedActivity :
                                                         context,
                                                         detailGameSource,
                                                         detailGameId,
+                                                        detailShortcut,
                                                     )
                                                 withContext(Dispatchers.Main) {
                                                     isWorking = false

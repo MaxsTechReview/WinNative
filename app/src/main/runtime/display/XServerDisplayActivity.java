@@ -2337,6 +2337,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         new Thread(() -> {
             performForcedEpicCloudUpload("forced cleanup (" + trigger + ")");
+            performForcedGogCloudUpload("forced cleanup (" + trigger + ")");
 
             try {
                 AppTerminationHelper.stopManagedServices(getApplicationContext(), "xserver_forced_cleanup_" + trigger);
@@ -2817,27 +2818,61 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void syncGogCloudOnExit(Runnable onComplete) {
+        if (shortcut != null && !shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "GOG cloud sync skipped because a container-swap download is pending");
+            onComplete.run();
+            return;
+        }
+
         String gogId = shortcut.getExtra("gog_id");
         if (gogId == null || gogId.isEmpty()) {
             onComplete.run();
             return;
         }
+        final String appId = "GOG_" + gogId;
+        final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+
+        if (!com.winlator.cmod.feature.stores.gog.service.GOGService
+                .canAttemptExitUpload(this, appId, targetContainerId)) {
+            Log.i("XServerDisplayActivity",
+                    "GOG cloud sync skipped for " + appId
+                            + " (no cloud-save locations, user signed out, or no local save files)");
+            onComplete.run();
+            return;
+        }
 
         Log.d("XServerDisplayActivity", "Syncing GOG cloud saves for gogId=" + gogId);
-        preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud));
+        preloaderDialog.showOnUiThread(getString(R.string.preloader_checking_cloud));
 
         runExitUploadWithRetries(
                 "GOG cloud sync for gogId=" + gogId,
-                getString(R.string.preloader_uploading_cloud),
+                getString(R.string.preloader_checking_cloud),
                 callback -> runBlockingExitUpload(
                         "GogExitCloudSync",
                         () -> {
+                            Object pendingAction = kotlinx.coroutines.BuildersKt.runBlocking(
+                                    kotlinx.coroutines.Dispatchers.getIO(),
+                                    (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion
+                                            .getPendingExitSyncAction(
+                                                    this,
+                                                    appId,
+                                                    targetContainerId,
+                                                    continuation
+                                            )
+                            );
+                            if (pendingAction == com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager.SyncAction.UPLOAD) {
+                                runOnUiThread(() -> preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud)));
+                            }
+
+                            // "exit_upload" only pushes files strictly newer than cloud.
                             Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
                                     kotlinx.coroutines.Dispatchers.getIO(),
                                     (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
                                             this,
-                                            "GOG_" + gogId,
-                                            "upload",
+                                            appId,
+                                            "exit_upload",
+                                            targetContainerId,
                                             continuation
                                     )
                             );
@@ -2851,6 +2886,44 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         },
                         callback),
                 onComplete);
+    }
+
+    private void performForcedGogCloudUpload(String reason) {
+        if (shortcut == null || !"GOG".equals(shortcut.getExtra("game_source"))) return;
+        if (!isCloudSyncEnabledForShortcut() || CloudSyncHelper.isOfflineMode(shortcut)) return;
+        if (!shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Forced GOG cloud upload skipped because a container-swap download is pending during " + reason);
+            return;
+        }
+
+        String gogId = shortcut.getExtra("gog_id");
+        if (gogId == null || gogId.isEmpty()) return;
+        final String appId = "GOG_" + gogId;
+
+        try {
+            final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+            if (!com.winlator.cmod.feature.stores.gog.service.GOGService
+                    .canAttemptExitUpload(this, appId, targetContainerId)) {
+                Log.i("XServerDisplayActivity", "Forced GOG cloud upload skipped for " + appId + " during " + reason);
+                return;
+            }
+
+            Log.i("XServerDisplayActivity", "Attempting forced GOG cloud upload for " + appId + " during " + reason);
+            Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                    kotlinx.coroutines.Dispatchers.getIO(),
+                    (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
+                            this,
+                            appId,
+                            "exit_upload",
+                            targetContainerId,
+                            continuation
+                    )
+            );
+            Log.i("XServerDisplayActivity", "Forced GOG cloud upload result for " + appId + ": " + syncSuccess);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Forced GOG cloud upload failed during " + reason, e);
+        }
     }
 
     private void showLaunchPreloader(String text) {

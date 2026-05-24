@@ -1525,6 +1525,7 @@ class GOGManager
             context: Context,
             appId: String,
             gameTitle: String,
+            targetContainerId: Int? = null,
         ): List<GOGCloudSavesLocation>? =
             withContext(Dispatchers.IO) {
                 try {
@@ -1586,20 +1587,15 @@ class GOGManager
                         var resolvedPath = PathType.resolveGOGPathVariables(locationTemplate.location, installPath)
                         Timber.tag("GOG").d("[Cloud Saves] After GOG variable resolution: $resolvedPath")
 
-                        // Map GOG Windows path to device path using PathType
-                        // Pass appId to ensure we use the correct container-specific wine prefix
-                        resolvedPath = PathType.toAbsPathForGOG(context, resolvedPath, appId)
+                        resolvedPath = PathType.toAbsPathForGOG(context, resolvedPath, appId, targetContainerId)
                         Timber.tag("GOG").d("[Cloud Saves] After path mapping to Wine prefix: $resolvedPath")
 
-                        // Normalize path to resolve any '..' or '.' components
-                        try {
-                            val normalizedPath = File(resolvedPath).canonicalPath
-                            // Ensure trailing slash for directories
-                            resolvedPath = if (!normalizedPath.endsWith("/")) "$normalizedPath/" else normalizedPath
-                            Timber.tag("GOG").d("[Cloud Saves] After normalization: $resolvedPath")
-                        } catch (e: Exception) {
-                            Timber.tag("GOG").w(e, "[Cloud Saves] Failed to normalize path, using as-is: $resolvedPath")
-                        }
+                        // Manual normalization — File.canonicalPath would follow symlinks
+                        // and bail on missing intermediates.
+                        resolvedPath = normalizeGogPathSegments(resolvedPath)
+                        resolvedPath = resolveExistingPathCaseInsensitive(File(resolvedPath)).absolutePath
+                        if (!resolvedPath.endsWith("/")) resolvedPath = "$resolvedPath/"
+                        Timber.tag("GOG").d("[Cloud Saves] After normalization: $resolvedPath")
 
                         resolvedLocations.add(
                             GOGCloudSavesLocation(
@@ -1725,4 +1721,51 @@ class GOGManager
             gameId: String,
             gameTitle: String,
         ): String = GOGConstants.getGameInstallPath(gameTitle)
+
+        private fun normalizeGogPathSegments(path: String): String {
+            val unified = path.replace('\\', '/')
+            val absolute = unified.startsWith('/')
+            val parts = unified.split('/').filter { it.isNotEmpty() }
+            val stack = ArrayDeque<String>()
+            for (part in parts) {
+                when (part) {
+                    "." -> Unit
+                    ".." ->
+                        if (stack.isNotEmpty() && stack.last() != "..") {
+                            stack.removeLast()
+                        } else if (!absolute) {
+                            stack.addLast("..")
+                        }
+                    else -> stack.addLast(part)
+                }
+            }
+            val joined = stack.joinToString("/")
+            return if (absolute) "/$joined" else joined
+        }
+
+        private fun resolveExistingPathCaseInsensitive(path: File): File {
+            if (path.exists()) return path
+            val absolute = path.absoluteFile
+            val parts = absolute.path.split(File.separatorChar, '/', '\\').filter { it.isNotEmpty() }
+            if (parts.isEmpty()) return path
+            var current =
+                if (absolute.path.startsWith(File.separator)) {
+                    File(File.separator)
+                } else {
+                    File(parts.first()).also { if (it.exists()) return@also }
+                }
+            val startIndex = if (absolute.path.startsWith(File.separator)) 0 else 1
+            for (index in startIndex until parts.size) {
+                val part = parts[index]
+                val direct = File(current, part)
+                current =
+                    if (direct.exists()) {
+                        direct
+                    } else {
+                        current.listFiles()?.firstOrNull { it.name.equals(part, ignoreCase = true) }
+                            ?: direct
+                    }
+            }
+            return current
+        }
     }

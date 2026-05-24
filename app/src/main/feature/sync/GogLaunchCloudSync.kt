@@ -5,6 +5,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager
 import com.winlator.cmod.runtime.container.Shortcut
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
@@ -35,7 +36,24 @@ object GogLaunchCloudSync {
             return
         }
 
-        if (!CloudSyncHelper.cloudSavesDiffer(activity, shortcut)) return
+        when (CloudSyncHelper.getGogPendingSyncAction(activity, shortcut)) {
+            GOGCloudSavesManager.SyncAction.NONE -> return
+            GOGCloudSavesManager.SyncAction.DOWNLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
+                CloudSyncHelper.downloadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            GOGCloudSavesManager.SyncAction.UPLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
+                CloudSyncHelper.uploadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            GOGCloudSavesManager.SyncAction.CONFLICT -> {
+                // Fall through to the conflict dialog below.
+            }
+        }
 
         val dialogLatch = CountDownLatch(1)
         var useCloud = false

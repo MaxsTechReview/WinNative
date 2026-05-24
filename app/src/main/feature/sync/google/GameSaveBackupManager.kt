@@ -129,6 +129,8 @@ object GameSaveBackupManager {
          * timestamped manifest plus chunk files; selecting a row restores that manifest.
          */
         EPIC_CLOUD,
+        /** GOG cloud's live file listing. Restore pulls full cloud state down. */
+        GOG_CLOUD,
     }
 
     /** Origin of a history backup — identifies which side of a conflict it came from. */

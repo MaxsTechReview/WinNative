@@ -129,12 +129,18 @@ class GOGService : Service() {
         suspend fun getResolvedSaveDirectories(
             context: Context,
             appId: String,
+        ): List<File> = getResolvedSaveDirectories(context, appId, null)
+
+        suspend fun getResolvedSaveDirectories(
+            context: Context,
+            appId: String,
+            targetContainerId: Int?,
         ): List<File> {
             val activeInstance = getInstance() ?: return emptyList()
             val gameId = ContainerUtils.extractGameIdFromContainerId(appId).toString()
             val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return emptyList()
             return activeInstance.gogManager
-                .getSaveDirectoryPath(context, appId, game.title)
+                .getSaveDirectoryPath(context, appId, game.title, targetContainerId)
                 ?.map { File(it.location) }
                 ?.filter { it.exists() || !it.path.isNullOrEmpty() }
                 ?: emptyList()
@@ -143,14 +149,134 @@ class GOGService : Service() {
         suspend fun hasActualLocalCloudSaves(
             context: Context,
             appId: String,
+        ): Boolean = hasActualLocalCloudSaves(context, appId, null)
+
+        suspend fun hasActualLocalCloudSaves(
+            context: Context,
+            appId: String,
+            targetContainerId: Int?,
         ): Boolean =
-            getResolvedSaveDirectories(context, appId).any { dir ->
+            getResolvedSaveDirectories(context, appId, targetContainerId).any { dir ->
                 dir.exists() && dir.walkTopDown().any { it.isFile }
+            }
+
+        // Non-suspend so the Java exit-path (XServerDisplayActivity) can call it directly.
+        @JvmStatic
+        @JvmOverloads
+        fun canAttemptExitUpload(
+            context: Context,
+            appId: String,
+            targetContainerId: Int? = null,
+        ): Boolean =
+            runBlocking(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@runBlocking false
+                    if (!GOGAuthManager.hasStoredCredentials(context)) {
+                        Timber.tag("GOG").i("[Cloud Saves] Skip exit upload: not signed in to GOG")
+                        return@runBlocking false
+                    }
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: run {
+                        Timber.tag("GOG").i("[Cloud Saves] Skip exit upload: game $appId not in DB")
+                        return@runBlocking false
+                    }
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
+                    if (saveLocations.isNullOrEmpty()) {
+                        Timber.tag("GOG").i("[Cloud Saves] Skip exit upload: no cloud-save locations for ${game.title}")
+                        return@runBlocking false
+                    }
+                    val hasLocalFile =
+                        saveLocations.any { loc ->
+                            val dir = File(loc.location)
+                            dir.exists() && dir.walkTopDown().any { it.isFile }
+                        }
+                    if (!hasLocalFile) {
+                        Timber.tag("GOG").i("[Cloud Saves] Skip exit upload: save directory empty for ${game.title}")
+                        return@runBlocking false
+                    }
+                    true
+                } catch (e: Exception) {
+                    Timber.tag("GOG").w(e, "[Cloud Saves] canAttemptExitUpload threw, skipping")
+                    false
+                }
+            }
+
+        suspend fun getPendingSyncAction(
+            context: Context,
+            appId: String,
+            targetContainerId: Int? = null,
+        ): GOGCloudSavesManager.SyncAction =
+            determinePendingAction(context, appId, "auto", targetContainerId)
+
+        suspend fun getPendingExitSyncAction(
+            context: Context,
+            appId: String,
+            targetContainerId: Int? = null,
+        ): GOGCloudSavesManager.SyncAction =
+            determinePendingAction(context, appId, "exit_upload", targetContainerId)
+
+        // Conflict-wins precedence across multiple save locations.
+        private suspend fun determinePendingAction(
+            context: Context,
+            appId: String,
+            preferredAction: String,
+            targetContainerId: Int?,
+        ): GOGCloudSavesManager.SyncAction =
+            withContext(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@withContext GOGCloudSavesManager.SyncAction.NONE
+                    if (!GOGAuthManager.hasStoredCredentials(context)) return@withContext GOGCloudSavesManager.SyncAction.NONE
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game =
+                        activeInstance.gogManager.getGameFromDbById(gameId)
+                            ?: return@withContext GOGCloudSavesManager.SyncAction.NONE
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
+                            ?: return@withContext GOGCloudSavesManager.SyncAction.NONE
+                    val cloudSavesManager = GOGCloudSavesManager(context)
+                    val perLocationActions =
+                        saveLocations.map { location ->
+                            val timestamp =
+                                activeInstance.gogManager
+                                    .getCloudSaveSyncTimestamp(normalizedAppId, location.name)
+                                    .toLongOrNull()
+                                    ?: 0L
+                            cloudSavesManager.determineSyncAction(
+                                localPath = location.location,
+                                dirname = location.name,
+                                clientId = location.clientId,
+                                clientSecret = location.clientSecret,
+                                lastSyncTimestamp = timestamp,
+                                preferredAction = preferredAction,
+                            )
+                        }
+                    when {
+                        perLocationActions.any { it == GOGCloudSavesManager.SyncAction.CONFLICT } ->
+                            GOGCloudSavesManager.SyncAction.CONFLICT
+                        perLocationActions.any { it == GOGCloudSavesManager.SyncAction.UPLOAD } ->
+                            GOGCloudSavesManager.SyncAction.UPLOAD
+                        perLocationActions.any { it == GOGCloudSavesManager.SyncAction.DOWNLOAD } ->
+                            GOGCloudSavesManager.SyncAction.DOWNLOAD
+                        else -> GOGCloudSavesManager.SyncAction.NONE
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("GOG").w(e, "[Cloud Saves] determinePendingAction failed for $appId")
+                    GOGCloudSavesManager.SyncAction.NONE
+                }
             }
 
         suspend fun cloudSavesDiffer(
             context: Context,
             appId: String,
+        ): Boolean? = cloudSavesDiffer(context, appId, null)
+
+        suspend fun cloudSavesDiffer(
+            context: Context,
+            appId: String,
+            targetContainerId: Int?,
         ): Boolean? =
             withContext(Dispatchers.IO) {
                 try {
@@ -160,7 +286,7 @@ class GOGService : Service() {
                     val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
                     val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return@withContext false
                     val saveLocations =
-                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title)
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
                             ?: return@withContext false
                     val cloudSavesManager = GOGCloudSavesManager(context)
                     saveLocations.any { location ->
@@ -186,6 +312,12 @@ class GOGService : Service() {
         suspend fun getNewestCloudSaveSyncTimestamp(
             context: Context,
             appId: String,
+        ): Long? = getNewestCloudSaveSyncTimestamp(context, appId, null)
+
+        suspend fun getNewestCloudSaveSyncTimestamp(
+            context: Context,
+            appId: String,
+            targetContainerId: Int?,
         ): Long? =
             withContext(Dispatchers.IO) {
                 try {
@@ -194,7 +326,7 @@ class GOGService : Service() {
                     val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
                     val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return@withContext null
                     val saveLocations =
-                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title)
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
                             ?: return@withContext null
                     saveLocations
                         .mapNotNull { location ->
@@ -208,6 +340,56 @@ class GOGService : Service() {
                     null
                 }
             }
+
+        suspend fun listCloudSaveHistory(
+            context: Context,
+            appId: String,
+            targetContainerId: Int? = null,
+        ): List<CloudSaveEntry> =
+            withContext(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@withContext emptyList()
+                    if (!GOGAuthManager.hasStoredCredentials(context)) return@withContext emptyList()
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game = activeInstance.gogManager.getGameFromDbById(gameId) ?: return@withContext emptyList()
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
+                            ?: return@withContext emptyList()
+                    val cloudSavesManager = GOGCloudSavesManager(context)
+                    saveLocations.flatMap { location ->
+                        if (location.clientSecret.isEmpty()) {
+                            Timber.tag("GOG").w("[Cloud Saves] Skipping history list for '${location.name}': missing clientSecret")
+                            emptyList()
+                        } else {
+                            cloudSavesManager
+                                .listCloudSaveFiles(
+                                    dirname = location.name,
+                                    clientId = location.clientId,
+                                    clientSecret = location.clientSecret,
+                                )
+                                .map { file ->
+                                    CloudSaveEntry(
+                                        locationName = location.name,
+                                        relativePath = file.relativePath,
+                                        md5Hash = file.md5Hash,
+                                        timestampMs = (file.updateTimestamp ?: 0L) * 1000L,
+                                    )
+                                }
+                        }
+                    }.sortedByDescending { it.timestampMs }
+                } catch (e: Exception) {
+                    Timber.tag("GOG").e(e, "[Cloud Saves] Failed to list cloud save history for $appId")
+                    emptyList()
+                }
+            }
+
+        data class CloudSaveEntry(
+            val locationName: String,
+            val relativePath: String,
+            val md5Hash: String,
+            val timestampMs: Long,
+        )
 
         suspend fun validateCredentials(context: Context): Result<Boolean> = GOGAuthManager.validateCredentials(context)
 
@@ -1034,6 +1216,13 @@ class GOGService : Service() {
             context: Context,
             appId: String,
             preferredAction: String = "none",
+        ): Boolean = syncCloudSaves(context, appId, preferredAction, null)
+
+        suspend fun syncCloudSaves(
+            context: Context,
+            appId: String,
+            preferredAction: String,
+            targetContainerId: Int?,
         ): Boolean =
             withContext(Dispatchers.IO) {
                 try {
@@ -1077,9 +1266,11 @@ class GOGService : Service() {
                         }
                         Timber.tag("GOG").d("[Cloud Saves] Found game: ${game.title}")
 
-                        // Get save directory paths (Android runs games through Wine, so always Windows)
-                        Timber.tag("GOG").d("[Cloud Saves] Resolving save directory paths for $appId")
-                        val saveLocations = instance.gogManager.getSaveDirectoryPath(context, appId, game.title)
+                        Timber.tag("GOG").d(
+                            "[Cloud Saves] Resolving save directory paths for $appId (container: ${targetContainerId ?: "auto"})",
+                        )
+                        val saveLocations =
+                            instance.gogManager.getSaveDirectoryPath(context, appId, game.title, targetContainerId)
 
                         if (saveLocations == null || saveLocations.isEmpty()) {
                             Timber.tag("GOG").w("[Cloud Saves] No save locations found for game $appId (cloud saves may not be enabled)")

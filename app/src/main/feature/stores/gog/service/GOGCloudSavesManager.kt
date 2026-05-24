@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.stores.gog.service
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -62,20 +63,11 @@ class GOGCloudSavesManager(
                     updateTime = DateTimeFormatter.ISO_INSTANT.format(instant)
                     updateTimestamp = timestamp / 1000
 
-                    FileInputStream(file).use { fis ->
-                        val digest = MessageDigest.getInstance("MD5")
-                        val buffer = java.io.ByteArrayOutputStream()
-
-                        GZIPOutputStream(buffer).use { gzipOut ->
-                            val fileBuffer = ByteArray(8192)
-                            var bytesRead: Int
-                            while (fis.read(fileBuffer).also { bytesRead = it } != -1) {
-                                gzipOut.write(fileBuffer, 0, bytesRead)
-                            }
-                        }
-
-                        md5Hash = digest.digest(buffer.toByteArray()).joinToString("") { "%02x".format(it) }
-                    }
+                    // Hash matches the Etag GOG stores: md5 of gzip(raw, level=6, mtime=0).
+                    val gzipped = gzipWithZeroMtime(file.readBytes())
+                    md5Hash = MessageDigest.getInstance("MD5")
+                        .digest(gzipped)
+                        .joinToString("") { "%02x".format(it) }
 
                     Timber.d("Calculated metadata for $relativePath: md5=$md5Hash, timestamp=$updateTimestamp")
                 } catch (e: Exception) {
@@ -109,17 +101,45 @@ class GOGCloudSavesManager(
             }
     }
 
+    suspend fun listCloudSaveFiles(
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+    ): List<CloudFile> =
+        withContext(Dispatchers.IO) {
+            if (clientSecret.isEmpty()) {
+                Timber.tag("GOG-CloudSaves").w("Cannot list cloud files for '$dirname': missing clientSecret")
+                return@withContext emptyList()
+            }
+            val credentials =
+                GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
+                    Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for cloud listing")
+                    return@withContext emptyList()
+                }
+            getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
+                .filter { !it.isDeleted }
+        }
+
     suspend fun needsSync(
         localPath: String,
         dirname: String,
         clientId: String,
         clientSecret: String,
         lastSyncTimestamp: Long = 0,
-    ): Boolean =
+    ): Boolean = determineSyncAction(localPath, dirname, clientId, clientSecret, lastSyncTimestamp) != SyncAction.NONE
+
+    suspend fun determineSyncAction(
+        localPath: String,
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+        lastSyncTimestamp: Long = 0,
+        preferredAction: String = "auto",
+    ): SyncAction =
         withContext(Dispatchers.IO) {
             if (clientSecret.isEmpty()) {
                 Timber.tag("GOG-CloudSaves").w("Cannot probe cloud sync for '$dirname': missing clientSecret")
-                return@withContext false
+                return@withContext SyncAction.NONE
             }
 
             val syncDir = File(localPath)
@@ -127,16 +147,32 @@ class GOGCloudSavesManager(
             val credentials =
                 GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
                     Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for sync probe")
-                    return@withContext false
+                    return@withContext SyncAction.NONE
                 }
             val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
             val downloadableCloud = cloudFiles.filter { !it.isDeleted }
 
+            if (preferredAction.equals("exit_upload", ignoreCase = true)) {
+                if (localFiles.isEmpty()) return@withContext SyncAction.NONE
+                if (cloudFiles.isEmpty()) return@withContext SyncAction.UPLOAD
+                val classifier = classifyFiles(localFiles, cloudFiles, lastSyncTimestamp)
+                val cloudByPath = cloudFiles.associateBy { it.relativePath }
+                val anyLocalNewer =
+                    classifier.notExistingRemotely.isNotEmpty() ||
+                        localFiles.any { local ->
+                            val cloud = cloudByPath[local.relativePath]
+                            cloud != null &&
+                                !cloud.isDeleted &&
+                                (local.updateTimestamp ?: 0L) > (cloud.updateTimestamp ?: 0L)
+                        }
+                return@withContext if (anyLocalNewer) SyncAction.UPLOAD else SyncAction.NONE
+            }
+
             when {
-                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> true
-                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> true
-                localFiles.isEmpty() && cloudFiles.isEmpty() -> false
-                else -> classifyFiles(localFiles, cloudFiles, lastSyncTimestamp).determineAction() != SyncAction.NONE
+                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> SyncAction.UPLOAD
+                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> SyncAction.DOWNLOAD
+                localFiles.isEmpty() && cloudFiles.isEmpty() -> SyncAction.NONE
+                else -> classifyFiles(localFiles, cloudFiles, lastSyncTimestamp).determineAction()
             }
         }
 
@@ -187,6 +223,45 @@ class GOGCloudSavesManager(
                             "[Cloud Saves]   - Cloud file: ${file.relativePath} (md5: ${file.md5Hash}, modified: ${file.updateTime})",
                         )
                     }
+                }
+
+                // Exit-time upload: never download — must not overwrite a newer cloud save
+                // made on another device with stale local data from this session.
+                if (preferredAction.equals("exit_upload", ignoreCase = true)) {
+                    if (localFiles.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i("[exit_upload] No local files for '$dirname'; skipping")
+                        return@withContext currentTimestamp()
+                    }
+                    if (cloudFiles.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i(
+                            "[exit_upload] Cloud empty for '$dirname'; uploading ${localFiles.size} file(s)",
+                        )
+                        localFiles.forEach { file ->
+                            uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                        }
+                        return@withContext currentTimestamp()
+                    }
+                    val cloudByPath = cloudFiles.associateBy { it.relativePath }
+                    val toUpload =
+                        localFiles.filter { local ->
+                            val cloud = cloudByPath[local.relativePath]
+                            when {
+                                cloud == null -> true
+                                cloud.isDeleted -> true
+                                else -> (local.updateTimestamp ?: 0L) > (cloud.updateTimestamp ?: 0L)
+                            }
+                        }
+                    if (toUpload.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i("[exit_upload] Nothing local is newer; skipping")
+                        return@withContext currentTimestamp()
+                    }
+                    Timber.tag("GOG-CloudSaves").i(
+                        "[exit_upload] Uploading ${toUpload.size} newer/new local file(s) for '$dirname'",
+                    )
+                    toUpload.forEach { file ->
+                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                    }
+                    return@withContext currentTimestamp()
                 }
 
                 when {
@@ -460,9 +535,15 @@ class GOGCloudSavesManager(
 
             Timber.tag("GOG-CloudSaves").i("Uploading: ${file.relativePath} ($fileSize bytes)")
 
-            val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
-            val requestBody = localFile.readBytes().toRequestBody("application/octet-stream".toMediaType())
+            // GOG/Heroic wire format: gzip body (mtime=0), Etag = md5(gzipped), Content-Encoding: gzip.
+            val gzipped = gzipWithZeroMtime(localFile.readBytes())
+            val etag =
+                MessageDigest.getInstance("MD5")
+                    .digest(gzipped)
+                    .joinToString("") { "%02x".format(it) }
+            val requestBody = gzipped.toRequestBody("application/octet-stream".toMediaType())
 
+            val url = buildObjectUrl(userId, clientId, dirname, file.relativePath)
             val requestBuilder =
                 Request
                     .Builder()
@@ -472,6 +553,8 @@ class GOGCloudSavesManager(
                     .header("User-Agent", USER_AGENT)
                     .header("X-Object-Meta-User-Agent", USER_AGENT)
                     .header("Content-Type", "application/octet-stream")
+                    .header("Content-Encoding", "gzip")
+                    .header("Etag", etag)
 
             file.updateTime?.let { timestamp ->
                 requestBuilder.header("X-Object-Meta-LocalLastModified", timestamp)
@@ -480,7 +563,9 @@ class GOGCloudSavesManager(
             val response = httpClient.newCall(requestBuilder.build()).execute()
             response.use {
                 if (response.isSuccessful) {
-                    Timber.tag("GOG-CloudSaves").i("Successfully uploaded: ${file.relativePath}")
+                    Timber.tag("GOG-CloudSaves").i(
+                        "Successfully uploaded: ${file.relativePath} (gzipped ${gzipped.size}B, etag=$etag)",
+                    )
                 } else {
                     val errorBody = response.body?.string() ?: "No response body"
                     Timber.tag("GOG-CloudSaves").e("Failed to upload ${file.relativePath}: HTTP ${response.code}")
@@ -503,7 +588,7 @@ class GOGCloudSavesManager(
         try {
             Timber.tag("GOG-CloudSaves").i("Downloading: ${file.relativePath}")
 
-            val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
+            val url = buildObjectUrl(userId, clientId, dirname, file.relativePath)
 
             val request =
                 Request
@@ -583,4 +668,36 @@ class GOGCloudSavesManager(
     }
 
     private fun currentTimestamp(): Long = System.currentTimeMillis() / 1000
+
+    private fun buildObjectUrl(
+        userId: String,
+        clientId: String,
+        dirname: String,
+        relativePath: String,
+    ): okhttp3.HttpUrl {
+        val builder =
+            "$CLOUD_STORAGE_BASE_URL/v1"
+                .toHttpUrl()
+                .newBuilder()
+                .addPathSegment(userId)
+                .addPathSegment(clientId)
+        // Split on "/" so addPathSegment percent-encodes each segment; passing the whole
+        // relativePath would encode the "/" itself and the server returns 404.
+        dirname.split('/').filter { it.isNotEmpty() }.forEach { builder.addPathSegment(it) }
+        relativePath.replace('\\', '/').split('/').filter { it.isNotEmpty() }.forEach {
+            builder.addPathSegment(it)
+        }
+        return builder.build()
+    }
+}
+
+// Zero the gzip mtime bytes so the digest matches gogdl's `gzip.compress(raw, 6, mtime=0)`.
+private fun gzipWithZeroMtime(raw: ByteArray): ByteArray {
+    val sink = java.io.ByteArrayOutputStream()
+    GZIPOutputStream(sink).use { it.write(raw) }
+    val out = sink.toByteArray()
+    if (out.size >= 8) {
+        out[4] = 0; out[5] = 0; out[6] = 0; out[7] = 0
+    }
+    return out
 }
