@@ -1601,39 +1601,19 @@ class ShortcutSettingsComposeDialog private constructor(
         when (target) {
             LibraryArtworkTarget.GAME_CARD -> {
                 state.gameCardArtworkSelected.value = file != null
-                state.gameCardArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.gameCardArtworkSummary.value = ""
             }
             LibraryArtworkTarget.GRID -> {
                 state.gridArtworkSelected.value = file != null
-                state.gridArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.gridArtworkSummary.value = ""
             }
             LibraryArtworkTarget.CAROUSEL -> {
                 state.carouselArtworkSelected.value = file != null
-                state.carouselArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.carouselArtworkSummary.value = ""
             }
             LibraryArtworkTarget.LIST -> {
                 state.listArtworkSelected.value = file != null
-                state.listArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.listArtworkSummary.value = ""
             }
         }
     }

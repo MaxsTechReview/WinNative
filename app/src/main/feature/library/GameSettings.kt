@@ -841,7 +841,7 @@ private fun GeneralSection(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    if (summary.isNotBlank()) {
+                    if (!selected && summary.isNotBlank()) {
                         Spacer(Modifier.height(2.dp))
 
                         Text(
@@ -858,18 +858,13 @@ private fun GeneralSection(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ActionButton(
-                        text =
-                            stringResource(
-                                if (selected) {
-                                    R.string.shortcuts_library_artwork_change
-                                } else {
-                                    R.string.shortcuts_library_artwork_set
-                                }
-                            ),
-                        tint = AccentBlue,
-                        onClick = onPick
-                    )
+                    if (!selected) {
+                        ActionButton(
+                            text = stringResource(R.string.shortcuts_library_artwork_set),
+                            tint = AccentBlue,
+                            onClick = onPick
+                        )
+                    }
 
                     if (selected) {
                         ActionButton(
