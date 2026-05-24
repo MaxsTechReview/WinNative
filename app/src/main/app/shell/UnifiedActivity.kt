@@ -3860,6 +3860,7 @@ class UnifiedActivity :
                                             context,
                                             gameSource,
                                             gameIdStr,
+                                            shortcut,
                                         )
                                     withContext(Dispatchers.Main) {
                                         isWorking = false
@@ -4197,6 +4198,7 @@ class UnifiedActivity :
                                             context,
                                             GameSaveBackupManager.GameSource.GOG,
                                             app.id,
+                                            shortcut,
                                         )
                                     withContext(Dispatchers.Main) {
                                         isWorking = false
@@ -5481,6 +5483,7 @@ class UnifiedActivity :
                                                             context,
                                                             detailGameSource,
                                                             detailGameId,
+                                                            detailShortcut,
                                                         )
                                                     withContext(Dispatchers.Main) {
                                                         isWorking = false

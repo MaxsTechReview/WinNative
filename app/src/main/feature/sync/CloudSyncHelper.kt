@@ -25,6 +25,16 @@ object CloudSyncHelper {
     private fun normalizeGogAppId(appId: String): String =
         if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
 
+    private fun gogGameId(shortcut: Shortcut): String =
+        shortcut.getExtra("gog_id").ifEmpty { shortcut.getExtra("app_id") }
+
+    private fun storeGameId(shortcut: Shortcut): String =
+        if (shortcut.getExtra("game_source") == "GOG") {
+            gogGameId(shortcut)
+        } else {
+            shortcut.getExtra("app_id")
+        }
+
     private fun epicTargetContainerId(shortcut: Shortcut): Int? =
         shortcut
             .getExtra("container_id")
@@ -75,7 +85,7 @@ object CloudSyncHelper {
         context: Context,
         shortcut: Shortcut,
     ): Boolean {
-        val rawAppId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+        val rawAppId = gogGameId(shortcut)
         if (rawAppId.isEmpty()) return false
         return forceGogDownloadById(context, rawAppId, gogTargetContainerId(shortcut))
     }
@@ -144,7 +154,7 @@ object CloudSyncHelper {
         shortcut: Shortcut,
     ): Boolean {
         val gameSource = shortcut.getExtra("game_source")
-        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+        val appId = storeGameId(shortcut)
         if (gameSource.isEmpty() || appId.isEmpty()) return false
 
         val prefs = context.getSharedPreferences("cloud_sync_state", Context.MODE_PRIVATE)
@@ -172,7 +182,7 @@ object CloudSyncHelper {
         shortcut: Shortcut,
     ) {
         val gameSource = shortcut.getExtra("game_source")
-        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+        val appId = storeGameId(shortcut)
         if (gameSource.isEmpty() || appId.isEmpty()) return
 
         val prefs = context.getSharedPreferences("cloud_sync_state", Context.MODE_PRIVATE)
@@ -215,7 +225,7 @@ object CloudSyncHelper {
 
                     // GOG probe fetches metadata only; it does not download or upload save files.
                     "GOG" -> {
-                        val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                        val appId = gogGameId(shortcut)
                         GOGService.cloudSavesDiffer(context, normalizeGogAppId(appId), gogTargetContainerId(shortcut)) ?: true
                     }
 
@@ -255,7 +265,7 @@ object CloudSyncHelper {
     ): GOGCloudSavesManager.SyncAction =
         runBlocking {
             try {
-                val rawAppId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                val rawAppId = gogGameId(shortcut)
                 if (rawAppId.isEmpty()) return@runBlocking GOGCloudSavesManager.SyncAction.NONE
                 GOGService.getPendingSyncAction(context, normalizeGogAppId(rawAppId), gogTargetContainerId(shortcut))
             } catch (e: Exception) {
@@ -304,7 +314,7 @@ object CloudSyncHelper {
     ): GogCloudConflictTimestamps =
         runBlocking {
             try {
-                val appId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+                val appId = gogGameId(shortcut)
                 val gogContainer = gogTargetContainerId(shortcut)
                 val localNewest =
                     GOGService
@@ -388,7 +398,7 @@ object CloudSyncHelper {
         context: Context,
         shortcut: Shortcut,
     ): Boolean {
-        val rawAppId = shortcut.getExtra("app_id").ifEmpty { shortcut.getExtra("gog_id") }
+        val rawAppId = gogGameId(shortcut)
         if (rawAppId.isEmpty()) return false
         return try {
             GOGService.syncCloudSaves(context, normalizeGogAppId(rawAppId), "upload", gogTargetContainerId(shortcut))

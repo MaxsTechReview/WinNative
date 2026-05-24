@@ -1166,6 +1166,14 @@ Installed path:
     <string name="cloud_saves_syncing_from_provider">Downloading save from %1$s\u2026</string>
     <string name="cloud_saves_sync_from_provider_success">%1$s cloud save downloaded.</string>
     <string name="cloud_saves_sync_from_provider_failed">Could not download save from %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Manage GOG Cloud Saves</string>
+    <string name="cloud_saves_gog_manage_helper">Opens the Official GOG Website</string>
+    <string name="cloud_saves_gog_manage_no_browser">No browser available to open the GOG cloud saves page</string>
+    <string name="cloud_saves_gog_zip_label">Download GOG Cloud Zip</string>
+    <string name="cloud_saves_gog_zip_helper">Save current cloud files</string>
+    <string name="cloud_saves_gog_zip_success">GOG cloud saves zip saved.</string>
+    <string name="cloud_saves_gog_zip_failed">Could not save GOG cloud saves zip.</string>
+    <string name="cloud_saves_gog_zip_empty">No GOG cloud save files found.</string>
     <string name="cloud_saves_history_title">Save History</string>
     <string name="cloud_saves_history_empty">No previous saves backed up yet. Replaced saves and manual backups will appear here for 30 days.</string>
     <string name="cloud_saves_history_loading">Loading save history\u2026</string>

@@ -18,13 +18,14 @@ object GOGCloudHistoryProvider {
     suspend fun listCloudSaveGroups(
         context: Context,
         gameId: String,
+        targetContainerId: Int? = null,
     ): List<BackupHistoryEntry> =
         withContext(Dispatchers.IO) {
             try {
                 val labelPrefs = context.getSharedPreferences(LABEL_PREFS, Context.MODE_PRIVATE)
                 val normalizedAppId = if (gameId.startsWith("GOG_", ignoreCase = true)) gameId else "GOG_$gameId"
                 GOGService
-                    .listCloudSaveHistory(context, normalizedAppId)
+                    .listCloudSaveHistory(context, normalizedAppId, targetContainerId)
                     .map { entry ->
                         val fileId = encodeFileId(normalizedAppId, entry.locationName, entry.relativePath)
                         val displayName =
@@ -53,11 +54,12 @@ object GOGCloudHistoryProvider {
     suspend fun restoreSaveGroup(
         context: Context,
         gameId: String,
+        targetContainerId: Int? = null,
     ): BackupResult =
         withContext(Dispatchers.IO) {
             try {
                 val normalizedAppId = if (gameId.startsWith("GOG_", ignoreCase = true)) gameId else "GOG_$gameId"
-                val ok = GOGService.syncCloudSaves(context, normalizedAppId, "download")
+                val ok = GOGService.syncCloudSaves(context, normalizedAppId, "download", targetContainerId)
                 if (ok) {
                     BackupResult(true, "Restored GOG cloud saves.")
                 } else {

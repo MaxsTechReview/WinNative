@@ -18,6 +18,7 @@ import com.winlator.cmod.feature.stores.steam.enums.Marker
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager.BackupResult
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.shared.android.AppTerminationHelper
@@ -25,9 +26,12 @@ import com.winlator.cmod.shared.android.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import timber.log.Timber
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.OutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 
 /**
@@ -381,6 +385,58 @@ class GOGService : Service() {
                 } catch (e: Exception) {
                     Timber.tag("GOG").e(e, "[Cloud Saves] Failed to list cloud save history for $appId")
                     emptyList()
+                }
+            }
+
+        suspend fun exportCloudSavesZip(
+            context: Context,
+            appId: String,
+            outputStream: OutputStream,
+            targetContainerId: Int? = null,
+        ): BackupResult =
+            withContext(Dispatchers.IO) {
+                try {
+                    val activeInstance = getInstance() ?: return@withContext BackupResult(false, "GOG service is not running.")
+                    if (!GOGAuthManager.hasStoredCredentials(context)) {
+                        return@withContext BackupResult(false, "Sign in to GOG before exporting cloud saves.")
+                    }
+                    val normalizedAppId = if (appId.startsWith("GOG_", ignoreCase = true)) appId else "GOG_$appId"
+                    val gameId = ContainerUtils.extractGameIdFromContainerId(normalizedAppId).toString()
+                    val game =
+                        activeInstance.gogManager.getGameFromDbById(gameId)
+                            ?: return@withContext BackupResult(false, "GOG game not found.")
+                    val saveLocations =
+                        activeInstance.gogManager.getSaveDirectoryPath(context, normalizedAppId, game.title, targetContainerId)
+                            ?: return@withContext BackupResult(false, "No GOG cloud-save locations found.")
+
+                    val cloudSavesManager = GOGCloudSavesManager(context)
+                    var exportedFiles = 0
+                    ZipOutputStream(BufferedOutputStream(outputStream)).use { zip ->
+                        for (location in saveLocations) {
+                            if (location.clientSecret.isEmpty()) {
+                                Timber.tag("GOG").w("[Cloud Saves] Skipping zip export for '${location.name}': missing clientSecret")
+                                continue
+                            }
+                            val prefix = location.name.ifBlank { "__default" }
+                            exportedFiles +=
+                                cloudSavesManager.addCloudSaveFilesToZip(
+                                    zip = zip,
+                                    zipPrefix = prefix,
+                                    dirname = location.name,
+                                    clientId = location.clientId,
+                                    clientSecret = location.clientSecret,
+                                )
+                        }
+                    }
+
+                    if (exportedFiles == 0) {
+                        BackupResult(false, "No GOG cloud save files found.")
+                    } else {
+                        BackupResult(true, "Exported $exportedFiles GOG cloud save file(s).")
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("GOG").e(e, "[Cloud Saves] Failed to export cloud saves zip for $appId")
+                    BackupResult(false, "Export failed: ${e.message}")
                 }
             }
 

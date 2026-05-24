@@ -27,16 +27,20 @@ object GogLaunchCloudSync {
         if (shortcut.getExtra("game_source") != "GOG") return
         if (!cloudSyncEnabled || CloudSyncHelper.isOfflineMode(shortcut)) return
 
+        Timber.tag("GogLaunchCloudSync").i("Checking GOG cloud saves before launch for ${shortcut.name}")
         CloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
 
         if (!CloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
+            Timber.tag("GogLaunchCloudSync").i("No local GOG cloud-save files found; downloading before launch")
             statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
             CloudSyncHelper.downloadCloudSaves(activity, shortcut)
             statusSink.show(activity.getString(R.string.preloader_initializing))
             return
         }
 
-        when (CloudSyncHelper.getGogPendingSyncAction(activity, shortcut)) {
+        val pendingAction = CloudSyncHelper.getGogPendingSyncAction(activity, shortcut)
+        Timber.tag("GogLaunchCloudSync").i("Pending GOG cloud action before launch: $pendingAction")
+        when (pendingAction) {
             GOGCloudSavesManager.SyncAction.NONE -> return
             GOGCloudSavesManager.SyncAction.DOWNLOAD -> {
                 statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
@@ -45,9 +49,9 @@ object GogLaunchCloudSync {
                 return
             }
             GOGCloudSavesManager.SyncAction.UPLOAD -> {
-                statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
-                CloudSyncHelper.uploadCloudSaves(activity, shortcut)
-                statusSink.show(activity.getString(R.string.preloader_initializing))
+                Timber.tag("GogLaunchCloudSync").i(
+                    "Local GOG cloud saves are newer before launch; deferring upload until exit",
+                )
                 return
             }
             GOGCloudSavesManager.SyncAction.CONFLICT -> {
