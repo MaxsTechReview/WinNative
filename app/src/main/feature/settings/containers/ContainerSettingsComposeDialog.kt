@@ -1554,6 +1554,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                             zos.closeEntry()
                             zipDir(usersDir, usersDir.name, zos)
                         }
+
+                        val programDataDir = File(container.getRootDir(), ".wine/drive_c/ProgramData")
+                        if (programDataDir.exists()) {
+                            zos.putNextEntry(java.util.zip.ZipEntry("${programDataDir.name}/"))
+                            zos.closeEntry()
+                            zipDir(programDataDir, programDataDir.name, zos)
+                        }
                     }
                 }
 
@@ -1569,6 +1576,22 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
     }
 
+    private fun isExcluded(name: String): Boolean {
+        if (name.isEmpty()) return false
+        val excludedFolders = setOf(
+            "Contacts", "Desktop", "Downloads", "Favorites", "Links",
+            "Music", "Pictures", "Searches", "Temp", "Videos"
+        )
+        if (excludedFolders.any { it.equals(name, ignoreCase = true) }) return true
+        if (name.contains("Microsoft", ignoreCase = true)) return true
+        if (name.contains("Windows", ignoreCase = true)) return true
+        return false
+    }
+
+    private fun isPathExcluded(path: String): Boolean {
+        return path.split('/').any { isExcluded(it) }
+    }
+
     private fun zipDir(
         dir: File,
         baseName: String,
@@ -1576,6 +1599,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     ) {
         val children = dir.listFiles() ?: return
         for (child in children) {
+            if (isExcluded(child.name)) continue
             val name = if (baseName.isEmpty()) child.name else "$baseName/${child.name}"
             if (child.isDirectory) {
                 zos.putNextEntry(java.util.zip.ZipEntry("$name/"))
@@ -1621,9 +1645,17 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                         while (zis.nextEntry.also { ze = it } != null) {
                             val entry = ze!!
                             val name = entry.name
+
+                            if (isPathExcluded(name)) {
+                                zis.closeEntry()
+                                continue
+                            }
+
                             var destFile: File? = null
 
                             if (name.startsWith("users/")) {
+                                destFile = File(usersDir.parentFile, name)
+                            } else if (name.startsWith("ProgramData/")) {
                                 destFile = File(usersDir.parentFile, name)
                             } else if (name.startsWith("xuser/")) {
                                 destFile = File(usersDir, name)
