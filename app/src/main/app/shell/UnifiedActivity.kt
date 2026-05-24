@@ -173,6 +173,7 @@ import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.gog.service.GOGConstants
 import com.winlator.cmod.feature.stores.gog.service.GOGManifestSizes
 import com.winlator.cmod.feature.stores.gog.service.GOGService
+import com.winlator.cmod.feature.stores.gog.service.GOGUpdateInfo
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
@@ -424,6 +425,62 @@ class UnifiedActivity :
                     taskDoneMessage = getString(R.string.store_game_no_updates_notice)
                 }
             }
+            } finally {
+                updateCheckInProgress = false
+            }
+        }
+    }
+
+    private fun startGogUpdateCheck(gameId: String, gameName: String) {
+        if (updateCheckInProgress) return
+        if (!com.winlator.cmod.app.service.NetworkMonitor.hasInternet.value) {
+            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                this,
+                getString(R.string.downloads_no_internet),
+                android.widget.Toast.LENGTH_SHORT,
+            )
+            return
+        }
+        updateCheckInProgress = true
+        taskCheckingGameName = gameName
+        taskCheckingLabel = getString(R.string.store_game_check_for_update)
+        taskCheckingShown = true
+        taskDoneMessage = null
+        lifecycleScope.launch {
+            val result =
+                runCatching {
+                    withContext(Dispatchers.IO) { GOGService.checkForGameUpdate(this@UnifiedActivity, gameId) }
+                }.getOrNull()
+            try {
+                when {
+                    result == null || result.message != null -> {
+                        taskCheckingShown = false
+                        taskDoneFailed = true
+                        taskDoneMessage = getString(R.string.store_game_update_check_failed_notice)
+                    }
+                    result.hasUpdate -> {
+                        val started =
+                            withContext(Dispatchers.IO) {
+                                GOGService.updateGameFiles(this@UnifiedActivity, gameId)
+                            }
+                        if (started != null) {
+                            showTaskProgressPopup(
+                                started,
+                                gameName,
+                                getString(R.string.store_game_update),
+                                getString(R.string.store_game_update_complete),
+                                getString(R.string.store_game_update_failed_notice),
+                            )
+                        } else {
+                            taskCheckingShown = false
+                        }
+                    }
+                    else -> {
+                        taskCheckingShown = false
+                        taskDoneFailed = false
+                        taskDoneMessage = getString(R.string.store_game_no_updates_notice)
+                    }
+                }
             } finally {
                 updateCheckInProgress = false
             }
@@ -2431,7 +2488,9 @@ class UnifiedActivity :
 
                 val epicInstalled = epicApps.filter { it.isInstalled }
 
-                val gogInstalled = gogApps.filter { GOGService.isGameInstalled(it.id) }
+                // Match Epic's filter: read DB.isInstalled directly so verify/update (which flip
+                // disk markers) don't transiently drop the game out of the library list.
+                val gogInstalled = gogApps.filter { it.isInstalled }
 
                 val gogMap = gogInstalled.associateBy { gogPseudoId(it.id) }
                 val epicMap = epicInstalled.associateBy { 2000000000 + it.id }
@@ -4254,6 +4313,18 @@ class UnifiedActivity :
                             com.winlator.cmod.app.db.download.DownloadRecord.STATUS_FAILED,
                         )
                 }
+        val hasBlockingGogDownloadForLibrary =
+            isGog &&
+                libraryDownloadRecords.any {
+                    it.store == com.winlator.cmod.app.db.download.DownloadRecord.STORE_GOG &&
+                        it.storeGameId == gogGame?.id &&
+                        it.status in setOf(
+                            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_QUEUED,
+                            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_DOWNLOADING,
+                            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_PAUSED,
+                            com.winlator.cmod.app.db.download.DownloadRecord.STATUS_FAILED,
+                        )
+                }
 
         val epicGame by produceState<EpicGame?>(initialValue = null, key1 = epicId) {
             value = if (isEpic) db.epicGameDao().getById(epicId) else null
@@ -4742,8 +4813,26 @@ class UnifiedActivity :
                                 // Lock Play while VERIFY / UPDATE is rewriting depots in place
                                 // for this game — launching mid-write can corrupt the install.
                                 val activePlayBlockingTask =
-                                    if (isCustom || isGog) {
+                                    if (isCustom) {
                                         null
+                                    } else if (isGog) {
+                                        val gogIdStr = gogGame!!.id
+                                        libraryDownloadRecords.firstOrNull { rec ->
+                                            rec.store == com.winlator.cmod.app.db.download
+                                                .DownloadRecord.STORE_GOG &&
+                                                rec.storeGameId == gogIdStr &&
+                                                rec.status ==
+                                                com.winlator.cmod.app.db.download
+                                                    .DownloadRecord.STATUS_DOWNLOADING &&
+                                                (
+                                                    rec.taskType ==
+                                                        com.winlator.cmod.app.db.download
+                                                            .DownloadRecord.TASK_VERIFY ||
+                                                        rec.taskType ==
+                                                            com.winlator.cmod.app.db.download
+                                                                .DownloadRecord.TASK_UPDATE
+                                                )
+                                        }?.taskType
                                     } else if (isEpic) {
                                         val appIdStr = epicId.toString()
                                         libraryDownloadRecords.firstOrNull { rec ->
@@ -4906,26 +4995,32 @@ class UnifiedActivity :
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
                                     onUninstall = uninstallGame,
                                     // Store source tag actions. Steam exposes verify/update/workshop;
-                                    // Epic exposes verify/update for installed games.
-                                    steamMenuEnabled = !isCustom && !isGog && (!isEpic || epicGame?.isInstalled == true),
-                                    showVerifyFiles = !isCustom && !isGog && (!isEpic || epicGame?.isInstalled == true),
-                                    showCheckForUpdate = !isCustom && !isGog && (!isEpic || epicGame?.isInstalled == true),
-                                    showWorkshop = !isEpic,
+                                    // Epic and GOG expose verify/update for installed games.
+                                    steamMenuEnabled = !isCustom &&
+                                        (!isEpic || epicGame?.isInstalled == true) &&
+                                        (!isGog || gogGame?.isInstalled == true),
+                                    showVerifyFiles = !isCustom &&
+                                        (!isEpic || epicGame?.isInstalled == true) &&
+                                        (!isGog || gogGame?.isInstalled == true),
+                                    showCheckForUpdate = !isCustom &&
+                                        (!isEpic || epicGame?.isInstalled == true) &&
+                                        (!isGog || gogGame?.isInstalled == true),
+                                    showWorkshop = !isEpic && !isGog,
                                     areSteamActionsEnabled =
-                                        if (isEpic) {
-                                            !hasBlockingEpicDownloadForLibrary
-                                        } else {
-                                            !hasBlockingSteamDownloadForLibrary
+                                        when {
+                                            isEpic -> !hasBlockingEpicDownloadForLibrary
+                                            isGog -> !hasBlockingGogDownloadForLibrary
+                                            else -> !hasBlockingSteamDownloadForLibrary
                                         },
                                     onVerifyFiles = {
                                         context.runIfOnlineOrToast {
                                             scope.launch {
                                                 val started =
                                                     withContext(Dispatchers.IO) {
-                                                        if (isEpic) {
-                                                            EpicService.verifyGameFiles(context, epicId)
-                                                        } else {
-                                                            SteamService.downloadAppForVerify(app.id)
+                                                        when {
+                                                            isEpic -> EpicService.verifyGameFiles(context, epicId)
+                                                            isGog -> GOGService.verifyGameFiles(context, gogGame!!.id)
+                                                            else -> SteamService.downloadAppForVerify(app.id)
                                                         }
                                                     }
                                                 if (started != null) {
@@ -4933,7 +5028,7 @@ class UnifiedActivity :
                                                     // pop-up + completion notice outlive this dialog.
                                                     showTaskProgressPopup(
                                                         started,
-                                                        app.name,
+                                                        if (isGog) gogGame!!.title else app.name,
                                                         getString(R.string.store_game_verify_files),
                                                         getString(R.string.store_game_verify_complete),
                                                         getString(R.string.store_game_verify_failed_notice),
@@ -4951,13 +5046,13 @@ class UnifiedActivity :
                                         }
                                     },
                                     onCheckForUpdate = {
-                                        if (isEpic) {
-                                            startEpicUpdateCheck(epicId, app.name)
-                                        } else {
-                                            startUpdateCheck(app.id, app.name)
+                                        when {
+                                            isEpic -> startEpicUpdateCheck(epicId, app.name)
+                                            isGog -> startGogUpdateCheck(gogGame!!.id, gogGame.title)
+                                            else -> startUpdateCheck(app.id, app.name)
                                         }
                                     },
-                                    onWorkshop = { if (!isEpic) showWorkshopDialog = true },
+                                    onWorkshop = { if (!isEpic && !isGog) showWorkshopDialog = true },
                                 )
                             }
 
@@ -6271,8 +6366,8 @@ class UnifiedActivity :
                     isDownloadActionEnabled = installActionEnabled,
                     customPathLabel = customPathLabel,
                     showCustomPath = true,
-                    showCloudSync = app.cloudSaveEnabled,
-                    showUninstall = true,
+                    showCloudSync = false,
+                    showUninstall = false,
                     showUpdateCheck = installed,
                     isCheckingForUpdate = isCheckingForUpdate,
                     isUpdateAvailable = updateInfo?.hasUpdate == true,
@@ -6682,6 +6777,9 @@ class UnifiedActivity :
         var showCustomPathWarning by remember { mutableStateOf(false) }
         var dlcApps by remember(app.id) { mutableStateOf<List<GOGDlcInfo>>(emptyList()) }
         val selectedDlcIds = remember(app.id) { mutableStateListOf<Int>() }
+        var isCheckingForGogUpdate by remember(app.id) { mutableStateOf(false) }
+        var gogUpdateInfo by remember(app.id) { mutableStateOf<GOGUpdateInfo?>(null) }
+        var gogUpdateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
         val gogDownloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
             initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
         )
@@ -6696,6 +6794,11 @@ class UnifiedActivity :
                         com.winlator.cmod.app.db.download.DownloadRecord.STATUS_FAILED,
                     )
             }
+        val gogUpdateActionEnabled = !hasBlockingGogDownload
+        val activeGogDownloadText = stringResource(R.string.store_game_download_already_active)
+        val gogNoUpdateAvailableText = stringResource(R.string.store_game_no_update_available)
+        val gogUpdateAvailableText = stringResource(R.string.store_game_update_available)
+        val gogUpdateFailedText = stringResource(R.string.store_game_update_check_failed)
 
         if (showCustomPathWarning) {
             CustomPathWarningDialog(
@@ -6874,8 +6977,16 @@ class UnifiedActivity :
                     isDownloadActionEnabled = installActionEnabled,
                     customPathLabel = customPathLabel,
                     showCustomPath = true,
-                    showCloudSync = true,
-                    showUninstall = true,
+                    showCloudSync = false,
+                    showUninstall = false,
+                    showUpdateCheck = installed,
+                    isCheckingForUpdate = isCheckingForGogUpdate,
+                    isUpdateAvailable = gogUpdateInfo?.hasUpdate == true,
+                    updateDownloadSize = gogUpdateInfo?.downloadSize ?: 0L,
+                    updateStatusText = gogUpdateStatusText,
+                    isUpdateActionEnabled = gogUpdateActionEnabled,
+                    showVerifyFiles = installed,
+                    areSteamActionsEnabled = !hasBlockingGogDownload,
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     isDlcSelectionEnabled = installActionEnabled,
@@ -6910,6 +7021,95 @@ class UnifiedActivity :
                             context.getString(R.string.google_cloud_sync_started),
                             android.widget.Toast.LENGTH_SHORT,
                         )
+                    },
+                    onVerifyFiles = {
+                        if (hasBlockingGogDownload) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                activeGogDownloadText,
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@StoreGameDetailScreen
+                        }
+                        context.runIfOnlineOrToast {
+                            scope.launch {
+                                val started =
+                                    withContext(Dispatchers.IO) {
+                                        GOGService.verifyGameFiles(context, app.id)
+                                    }
+                                if (started != null) {
+                                    showTaskProgressPopup(
+                                        started,
+                                        app.title,
+                                        getString(R.string.store_game_verify_files),
+                                        getString(R.string.store_game_verify_complete),
+                                        getString(R.string.store_game_verify_failed_notice),
+                                        completeAsToast = true,
+                                    )
+                                } else {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        activeGogDownloadText,
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onCheckForUpdate = {
+                        if (hasBlockingGogDownload) {
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                activeGogDownloadText,
+                                android.widget.Toast.LENGTH_SHORT,
+                            )
+                            return@StoreGameDetailScreen
+                        }
+                        context.runIfOnlineOrToast {
+                            scope.launch {
+                                isCheckingForGogUpdate = true
+                                gogUpdateStatusText = null
+                                val latest =
+                                    withContext(Dispatchers.IO) {
+                                        GOGService.checkForGameUpdate(context, app.id)
+                                    }
+                                gogUpdateInfo = latest
+                                gogUpdateStatusText =
+                                    when {
+                                        latest.hasUpdate -> gogUpdateAvailableText
+                                        latest.message != null -> gogUpdateFailedText
+                                        else -> null
+                                    }
+                                isCheckingForGogUpdate = false
+                                if (!latest.hasUpdate && latest.message == null) {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        gogNoUpdateAvailableText,
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onDownloadUpdate = {
+                        if (!gogUpdateActionEnabled || gogUpdateInfo?.hasUpdate != true) return@StoreGameDetailScreen
+                        context.runIfOnlineOrToast {
+                            scope.launch {
+                                val started =
+                                    withContext(Dispatchers.IO) {
+                                        GOGService.updateGameFiles(context, app.id)
+                                    }
+                                if (started != null) {
+                                    onDismissRequest()
+                                } else {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        activeGogDownloadText,
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                            }
+                        }
                     },
                     onUninstall = {
                         scope.launch(Dispatchers.IO) {

@@ -946,6 +946,13 @@ class GOGManager
                     game?.installPath?.takeIf { it.isNotBlank() }
                         ?: getGameInstallPath(gameId, libraryItem.name)
 
+                // Trust DB.isInstalled when set, only verify the install directory still exists.
+                // Avoids flipping isInstalled=false during verify/update when DOWNLOAD_IN_PROGRESS
+                // is temporarily set on an already-installed game.
+                if (game != null && game.isInstalled && game.installPath.isNotBlank()) {
+                    return File(game.installPath).isDirectory
+                }
+
                 // Use marker-based approach
                 val isDownloadComplete = MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                 val isDownloadInProgress = MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)

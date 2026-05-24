@@ -19,6 +19,7 @@ import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.MarkerUtils
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.android.NotificationHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -351,6 +352,15 @@ class GOGService : Service() {
                 val game = getInstance()?.gogManager?.getGameFromDbById(gameId)
                     ?: return@runBlocking false
 
+                // If the DB already says the game is installed, trust it and just verify the
+                // install dir still exists. Avoids the verify/update race where the IN_PROGRESS
+                // marker is briefly present and this method would otherwise flip isInstalled=false
+                // and clear installPath in the DB — making the game vanish from the library.
+                // Mirrors EpicService.isGameInstalled's early-return.
+                if (game.isInstalled && game.installPath.isNotBlank()) {
+                    return@runBlocking File(game.installPath).isDirectory
+                }
+
                 val candidatePaths =
                     linkedSetOf<String>().apply {
                         if (game.installPath.isNotBlank()) add(game.installPath)
@@ -550,6 +560,13 @@ class GOGService : Service() {
             // Launch download in service scope so it runs independently
             val job =
                 activeInstance.scope.launch {
+                    val keepAliveTag = "gog-download-$gameId"
+                    val keepAliveCtx = activeInstance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for GOG download $gameId")
+                    }
                     try {
                         Timber.d("[Download] Starting download for game $gameId")
                         val commonRedistDir = File(effectiveInstallPath, "_CommonRedist")
@@ -640,6 +657,11 @@ class GOGService : Service() {
                         Timber.d(
                             "[Download] Finished for game $gameId, progress: ${downloadInfo.getProgress()}, active: ${downloadInfo.isActive()}",
                         )
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for GOG download $gameId")
+                        }
                     }
                 }
             downloadInfo.setDownloadJob(job)
@@ -653,6 +675,314 @@ class GOGService : Service() {
         ): Result<GOGGame?> =
             getInstance()?.gogManager?.refreshSingleGame(gameId, context)
                 ?: Result.failure(Exception("Service not available"))
+
+        /**
+         * Probe GOG for whether a newer build for [gameId] is available than what's installed.
+         * Returns a populated [GOGUpdateInfo] (with [GOGUpdateInfo.message] set on failure) so
+         * callers can render a status string without surfacing exceptions.
+         */
+        suspend fun checkForGameUpdate(
+            context: Context,
+            gameId: String,
+        ): GOGUpdateInfo {
+            val instance = getInstance()
+                ?: return GOGUpdateInfo(message = "GOG service is not active")
+            val game =
+                runBlocking(Dispatchers.IO) { instance.gogManager.getGameFromDbById(gameId) }
+                    ?: return GOGUpdateInfo(message = "Game not found: $gameId")
+            val installPath =
+                game.installPath.ifEmpty { GOGConstants.getGameInstallPath(game.title) }
+            if (installPath.isBlank() || !File(installPath).isDirectory) {
+                return GOGUpdateInfo(message = "Game is not installed")
+            }
+            return instance.gogUpdateManager.checkForGameUpdate(
+                gameId = gameId,
+                installPath = File(installPath),
+                language = com.winlator.cmod.feature.stores.steam.utils.PrefManager.containerLanguage,
+            )
+        }
+
+        /**
+         * Kick off a Heroic-style verify (repair) of [gameId]'s installed files. Returns the
+         * [DownloadInfo] tracking progress, or null if the verify cannot start (game missing,
+         * another download already active, etc).
+         */
+        fun verifyGameFiles(
+            context: Context,
+            gameId: String,
+        ): DownloadInfo? {
+            val instance = getInstance() ?: return null
+            val game =
+                runBlocking(Dispatchers.IO) { instance.gogManager.getGameFromDbById(gameId) }
+                    ?: return null
+            val installPath =
+                game.installPath.ifEmpty { GOGConstants.getGameInstallPath(game.title) }
+            if (installPath.isBlank() || !File(installPath).isDirectory) return null
+
+            val activeOther =
+                DownloadCoordinator
+                    .snapshotRecords()
+                    .filter {
+                        it.status == DownloadRecord.STATUS_DOWNLOADING ||
+                            it.status == DownloadRecord.STATUS_QUEUED
+                    }.any {
+                        it.store != DownloadRecord.STORE_GOG || it.storeGameId != gameId
+                    }
+            if (activeOther) return null
+
+            val existing = instance.activeDownloads[gameId]
+            if (existing?.isActive() == true) return null
+            instance.activeDownloads.remove(gameId)
+
+            val downloadInfo =
+                DownloadInfo(
+                    jobCount = 1,
+                    gameId = gameId.toIntOrNull() ?: 0,
+                    downloadingAppIds = CopyOnWriteArrayList<Int>(),
+                )
+            instance.activeDownloads[gameId] = downloadInfo
+
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_GOG,
+                        storeGameId = gameId,
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = installPath,
+                        language = com.winlator.cmod.feature.stores.steam.utils.PrefManager.containerLanguage,
+                        taskType = DownloadRecord.TASK_VERIFY,
+                    )
+                }
+            if (decision is DownloadCoordinator.Decision.Queue) {
+                downloadInfo.setActive(false)
+                downloadInfo.isCancelling = false
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true))
+                return downloadInfo
+            }
+
+            downloadInfo.setActive(true)
+            downloadInfo.isCancelling = false
+            downloadInfo.updateStatus(DownloadPhase.VERIFYING)
+
+            val job =
+                instance.scope.launch {
+                    val keepAliveTag = "gog-verify-$gameId"
+                    val keepAliveCtx = instance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for GOG verify $gameId")
+                    }
+                    try {
+                        val result =
+                            instance.gogVerifyManager.verifyGameFiles(
+                                gameId = gameId,
+                                installPath = File(installPath),
+                                downloadInfo = downloadInfo,
+                                language = com.winlator.cmod.feature.stores.steam.utils.PrefManager.containerLanguage,
+                            )
+                        if (result.isFailure) {
+                            val error = result.exceptionOrNull()
+                            when {
+                                downloadInfo.isCancelling -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                                }
+                                !downloadInfo.isActive() -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                                }
+                                else -> {
+                                    Timber.tag("GOG").e(error, "[Verify] Failed for GOG game $gameId")
+                                    downloadInfo.setProgress(-1.0f)
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(
+                                        DownloadPhase.FAILED,
+                                        error?.message ?: "Unknown error",
+                                    )
+                                    SnackbarManager.show("Verify failed: ${error?.message ?: "Unknown error"}")
+                                }
+                            }
+                        } else {
+                            downloadInfo.setProgress(1.0f)
+                            downloadInfo.setActive(false)
+                            downloadInfo.updateStatus(DownloadPhase.COMPLETE)
+                            SnackbarManager.show("Verify files complete")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag("GOG").e(e, "[Verify] Exception for GOG game $gameId")
+                        downloadInfo.setProgress(-1.0f)
+                        downloadInfo.setActive(false)
+                        downloadInfo.updateStatus(DownloadPhase.FAILED, e.message ?: "Unknown error")
+                        SnackbarManager.show("Verify failed: ${e.message ?: "Unknown error"}")
+                    } finally {
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_GOG,
+                            gameId,
+                            finalCoordStatus,
+                        )
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, false))
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for GOG verify $gameId")
+                        }
+                    }
+                }
+            downloadInfo.setDownloadJob(job)
+            return downloadInfo
+        }
+
+        /**
+         * Kick off a download of the GOG update for [gameId]. Mirrors [verifyGameFiles] but
+         * targets the latest build's manifest and surfaces UPDATE-phase status to the UI.
+         * Returns null if the update cannot start (game missing, blocking download active, etc).
+         */
+        fun updateGameFiles(
+            context: Context,
+            gameId: String,
+        ): DownloadInfo? {
+            val instance = getInstance() ?: return null
+            val game =
+                runBlocking(Dispatchers.IO) { instance.gogManager.getGameFromDbById(gameId) }
+                    ?: return null
+            val installPath =
+                game.installPath.ifEmpty { GOGConstants.getGameInstallPath(game.title) }
+            if (installPath.isBlank() || !File(installPath).isDirectory) return null
+
+            val activeOther =
+                DownloadCoordinator
+                    .snapshotRecords()
+                    .filter {
+                        it.status == DownloadRecord.STATUS_DOWNLOADING ||
+                            it.status == DownloadRecord.STATUS_QUEUED
+                    }.any {
+                        it.store != DownloadRecord.STORE_GOG || it.storeGameId != gameId
+                    }
+            if (activeOther) return null
+
+            val existing = instance.activeDownloads[gameId]
+            if (existing?.isActive() == true) return null
+            instance.activeDownloads.remove(gameId)
+
+            val downloadInfo =
+                DownloadInfo(
+                    jobCount = 1,
+                    gameId = gameId.toIntOrNull() ?: 0,
+                    downloadingAppIds = CopyOnWriteArrayList<Int>(),
+                )
+            instance.activeDownloads[gameId] = downloadInfo
+
+            val decision =
+                runBlocking {
+                    DownloadCoordinator.requestSlot(
+                        store = DownloadRecord.STORE_GOG,
+                        storeGameId = gameId,
+                        title = game.title,
+                        artUrl = game.iconUrl,
+                        installPath = installPath,
+                        language = com.winlator.cmod.feature.stores.steam.utils.PrefManager.containerLanguage,
+                        taskType = DownloadRecord.TASK_UPDATE,
+                    )
+                }
+            if (decision is DownloadCoordinator.Decision.Queue) {
+                downloadInfo.setActive(false)
+                downloadInfo.isCancelling = false
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true))
+                return downloadInfo
+            }
+
+            downloadInfo.setActive(true)
+            downloadInfo.isCancelling = false
+            downloadInfo.updateStatus(DownloadPhase.DOWNLOADING)
+
+            val job =
+                instance.scope.launch {
+                    val keepAliveTag = "gog-update-$gameId"
+                    val keepAliveCtx = instance.applicationContext
+                    runCatching {
+                        SessionKeepAliveService.startDownload(keepAliveCtx, keepAliveTag)
+                    }.onFailure { e ->
+                        Timber.w(e, "Failed to acquire keep-alive for GOG update $gameId")
+                    }
+                    try {
+                        val result =
+                            instance.gogUpdateManager.updateGameFiles(
+                                gameId = gameId,
+                                installPath = File(installPath),
+                                downloadInfo = downloadInfo,
+                                language = com.winlator.cmod.feature.stores.steam.utils.PrefManager.containerLanguage,
+                            )
+                        if (result.isFailure) {
+                            val error = result.exceptionOrNull()
+                            when {
+                                downloadInfo.isCancelling -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.CANCELLED)
+                                }
+                                !downloadInfo.isActive() -> {
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(DownloadPhase.PAUSED)
+                                }
+                                else -> {
+                                    Timber.tag("GOG").e(error, "[Update] Failed for GOG game $gameId")
+                                    downloadInfo.setProgress(-1.0f)
+                                    downloadInfo.setActive(false)
+                                    downloadInfo.updateStatus(
+                                        DownloadPhase.FAILED,
+                                        error?.message ?: "Unknown error",
+                                    )
+                                    SnackbarManager.show("Update failed: ${error?.message ?: "Unknown error"}")
+                                }
+                            }
+                        } else {
+                            downloadInfo.setProgress(1.0f)
+                            downloadInfo.setActive(false)
+                            downloadInfo.updateStatus(DownloadPhase.COMPLETE)
+                            SnackbarManager.show("Update complete")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag("GOG").e(e, "[Update] Exception for GOG game $gameId")
+                        downloadInfo.setProgress(-1.0f)
+                        downloadInfo.setActive(false)
+                        downloadInfo.updateStatus(DownloadPhase.FAILED, e.message ?: "Unknown error")
+                        SnackbarManager.show("Update failed: ${e.message ?: "Unknown error"}")
+                    } finally {
+                        val finalCoordStatus =
+                            when (downloadInfo.getStatusFlow().value) {
+                                DownloadPhase.COMPLETE -> DownloadRecord.STATUS_COMPLETE
+                                DownloadPhase.PAUSED -> DownloadRecord.STATUS_PAUSED
+                                DownloadPhase.CANCELLED -> DownloadRecord.STATUS_CANCELLED
+                                DownloadPhase.FAILED -> DownloadRecord.STATUS_FAILED
+                                else -> DownloadRecord.STATUS_FAILED
+                            }
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_GOG,
+                            gameId,
+                            finalCoordStatus,
+                        )
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, false))
+                        runCatching {
+                            SessionKeepAliveService.stopDownload(keepAliveCtx, keepAliveTag)
+                        }.onFailure { e ->
+                            Timber.w(e, "Failed to release keep-alive for GOG update $gameId")
+                        }
+                    }
+                }
+            downloadInfo.setDownloadJob(job)
+            return downloadInfo
+        }
 
         /**
          * Delete/uninstall a GOG game
@@ -885,6 +1215,12 @@ class GOGService : Service() {
     @Inject
     lateinit var gogDownloadManager: GOGDownloadManager
 
+    @Inject
+    lateinit var gogVerifyManager: GOGVerifyManager
+
+    @Inject
+    lateinit var gogUpdateManager: GOGUpdateManager
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Track active downloads by game ID
@@ -921,7 +1257,11 @@ class GOGService : Service() {
                 // "already downloading" — it will recreate the DownloadInfo and launch.
                 activeDownloads.remove(gameId)
 
-                downloadGame(context, gameId, installPath, containerLanguage, dlcGameIds)
+                when (record.taskType) {
+                    DownloadRecord.TASK_VERIFY -> verifyGameFiles(context, gameId)
+                    DownloadRecord.TASK_UPDATE -> updateGameFiles(context, gameId)
+                    else -> downloadGame(context, gameId, installPath, containerLanguage, dlcGameIds)
+                }
             }
 
             override fun pauseRunning(record: DownloadRecord) {
@@ -959,6 +1299,22 @@ class GOGService : Service() {
                                 ""
                             }
                         }
+                    // VERIFY/UPDATE operate in-place on an already-installed game. Cancelling them
+                    // must NEVER wipe the install dir — only the fresh-install task gets the rollback
+                    // delete. Restore the COMPLETE marker so the library and launcher still treat
+                    // the game as installed (any half-written files will be caught on next verify).
+                    if (record.taskType == DownloadRecord.TASK_UPDATE ||
+                        record.taskType == DownloadRecord.TASK_VERIFY
+                    ) {
+                        if (pathToDelete.isNotEmpty()) {
+                            MarkerUtils.removeMarker(pathToDelete, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                            MarkerUtils.addMarker(pathToDelete, Marker.DOWNLOAD_COMPLETE_MARKER)
+                        }
+                        info?.updateStatus(DownloadPhase.CANCELLED)
+                        val numericIdEarly = gameId.toIntOrNull() ?: 0
+                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericIdEarly, false))
+                        return@launch
+                    }
                     if (pathToDelete.isNotEmpty()) {
                         val dirFile = File(pathToDelete)
                         if (dirFile.exists() && dirFile.isDirectory) {

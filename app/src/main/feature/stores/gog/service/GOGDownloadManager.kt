@@ -106,6 +106,9 @@ class GOGDownloadManager
          * @param language Container language name (e.g. "english", "german"). Used to resolve GOG manifest language codes when filtering depots. See [GOGConstants.containerLanguageToGogCodes].
          * @param withDlcs Whether to include DLC content
          * @param supportDir Optional directory for support files (redistributables)
+         * @param buildIdOverride If non-null, pin to this specific build instead of latest (used by verify to re-check against the installed build's manifest).
+         * @param verifyMode When true, file equivalence uses Heroic-style chunk-level MD5 instead of size-only. Mismatched/missing files are re-downloaded. Used by verify/update to catch corrupt or content-changed files where size alone is unreliable.
+         * @param verifyProgressSink Optional `(bytesDone, totalBytes) -> Unit` invoked during verify mode whenever scan or download progress advances. Verify/Update managers use this to sync the global [DownloadCoordinator] DB row so the Downloads tab stays accurate on restart.
          * @return Result indicating success or failure
          */
         suspend fun downloadGame(
@@ -116,6 +119,9 @@ class GOGDownloadManager
             withDlcs: Boolean = false,
             supportDir: File? = null,
             selectedDlcIds: Set<String> = emptySet(),
+            buildIdOverride: String? = null,
+            verifyMode: Boolean = false,
+            verifyProgressSink: ((bytesDone: Long, total: Long) -> Unit)? = null,
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
@@ -144,7 +150,9 @@ class GOGDownloadManager
 
                     downloadInfo.updateStatusMessage("Fetching builds...")
 
-                    // Step 1: Get available builds — prefer Gen 2, fall back to Gen 1 (legacy)
+                    // Step 1: Get available builds — prefer Gen 2, fall back to Gen 1 (legacy).
+                    // When buildIdOverride is set (verify against the installed build), prefer that
+                    // exact build across the returned list before falling back to the latest.
                     val selectedBuild =
                         run {
                             val gen2Result = apiClient.getBuildsForGame(gameId, WINDOWS_OS_VERSION, generation = 2)
@@ -153,8 +161,13 @@ class GOGDownloadManager
                                     gen2Result.exceptionOrNull() ?: Exception("Failed to fetch Gen 2 builds"),
                                 )
                             }
+                            val gen2Items = gen2Result.getOrThrow().items
+                            if (buildIdOverride != null) {
+                                gen2Items.firstOrNull { it.buildId == buildIdOverride && it.platform.equals(WINDOWS_OS_VERSION, ignoreCase = true) }
+                                    ?.let { return@run it }
+                            }
                             parser
-                                .selectBuild(gen2Result.getOrThrow().items, preferredGeneration = 2, platform = WINDOWS_OS_VERSION)
+                                .selectBuild(gen2Items, preferredGeneration = 2, platform = WINDOWS_OS_VERSION)
                                 ?.let { return@run it }
                             val gen1Result = apiClient.getBuildsForGame(gameId, WINDOWS_OS_VERSION, generation = 1)
                             if (gen1Result.isFailure) {
@@ -163,6 +176,10 @@ class GOGDownloadManager
                                 )
                             }
                             val builds = gen1Result.getOrThrow()
+                            if (buildIdOverride != null) {
+                                builds.items.firstOrNull { it.buildId == buildIdOverride && it.platform.equals(WINDOWS_OS_VERSION, ignoreCase = true) }
+                                    ?.let { return@run it }
+                            }
                             parser.selectBuild(builds.items, preferredGeneration = 1, platform = WINDOWS_OS_VERSION)
                                 ?: run {
                                     val hint =
@@ -224,6 +241,7 @@ class GOGDownloadManager
                             withDlcs = withDlcs,
                             supportDir = supportDir,
                             selectedDlcIds = selectedDlcIds,
+                            verifyMode = verifyMode,
                         )
                     }
 
@@ -338,19 +356,68 @@ class GOGDownloadManager
                             }.map { it.file }
                     var (gameFiles, supportFiles) = parser.separateSupportFiles(requestedFilesWithDepots.map { it.file })
 
-                    // Filter out files that already exist with correct size (incremental download).
-                    // We trust size-only here: fresh writes are MD5-verified per-chunk during
-                    // download/assembly, and re-hashing already-installed gigabytes on every resume is
-                    // prohibitive. Users who suspect corruption can re-install to force a rebuild.
+                    // Filter out files that already exist (incremental download).
+                    // - Normal mode: trust size-only — fresh writes are MD5-verified per-chunk during
+                    //   download/assembly, and re-hashing already-installed gigabytes on every resume is
+                    //   prohibitive.
+                    // - Verify mode (Heroic-style repair): stream each existing file chunk-by-chunk and
+                    //   compare MD5 against the manifest's per-chunk md5; any mismatch (or missing file)
+                    //   triggers a full re-download. Mirrors heroic-gogdl's repair flow in v2.py.
                     val gameInstallDir = installPath
                     val beforeCount = gameFiles.size
-                    gameFiles =
-                        gameFiles.filter { file ->
+                    // Bytes accounted for during the verify scan phase. Carries forward into the
+                    // download phase as "work already done" so the combined verify+repair progress
+                    // bar advances monotonically (mirrors heroic-gogdl's two-phase reporting).
+                    var verifyScannedBytes = 0L
+                    var verifyScanTotalBytes = 0L
+                    if (verifyMode) {
+                        verifyScanTotalBytes = gameFiles.sumOf { f -> f.chunks.sumOf { it.size } }
+                        downloadInfo.updateStatus(
+                            com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.VERIFYING,
+                            "Verifying installed files (0/$beforeCount)...",
+                        )
+                        downloadInfo.setTotalExpectedBytes(verifyScanTotalBytes)
+                        downloadInfo.setDisplayTotalExpectedBytes(verifyScanTotalBytes)
+                        downloadInfo.initializeBytesDownloaded(0L)
+                        downloadInfo.emitProgressChange()
+                        verifyProgressSink?.invoke(0L, verifyScanTotalBytes)
+
+                        val verified = mutableListOf<DepotFile>()
+                        var lastEmitMs = 0L
+                        gameFiles.forEachIndexed { idx, file ->
+                            if (!downloadInfo.isActive()) {
+                                return@withContext Result.failure(
+                                    kotlinx.coroutines.CancellationException("Verify cancelled"),
+                                )
+                            }
                             val outputFile = File(gameInstallDir, file.path)
-                            val expectedSize = file.chunks.sumOf { it.size }
-                            !fileExistsWithCorrectSize(outputFile, expectedSize)
+                            if (!isInstalledFileValidByChunkMd5(outputFile, file)) {
+                                verified.add(file)
+                            }
+                            verifyScannedBytes += file.chunks.sumOf { it.size }
+                            downloadInfo.setBytesDownloaded(verifyScannedBytes)
+
+                            val now = System.currentTimeMillis()
+                            val isLastFile = idx == beforeCount - 1
+                            if (isLastFile || now - lastEmitMs >= PROGRESS_EMIT_INTERVAL_MS) {
+                                lastEmitMs = now
+                                downloadInfo.updateStatusMessage("Verifying installed files (${idx + 1}/$beforeCount)...")
+                                downloadInfo.emitProgressChange()
+                                verifyProgressSink?.invoke(verifyScannedBytes, verifyScanTotalBytes)
+                            }
                         }
-                    Timber.tag("GOG").d("Skipping ${beforeCount - gameFiles.size} existing file(s), downloading ${gameFiles.size}")
+                        gameFiles = verified
+                    } else {
+                        gameFiles =
+                            gameFiles.filter { file ->
+                                val outputFile = File(gameInstallDir, file.path)
+                                val expectedSize = file.chunks.sumOf { it.size }
+                                !fileExistsWithCorrectSize(outputFile, expectedSize)
+                            }
+                    }
+                    Timber.tag("GOG").d(
+                        "${if (verifyMode) "Verify" else "Size"} check kept ${gameFiles.size}/$beforeCount file(s) for (re)download",
+                    )
 
                     // Calculate sizes separately for transparency
                     val (baseGameFiles, _) = parser.separateSupportFiles(baseFiles)
@@ -389,7 +456,23 @@ class GOGDownloadManager
                         """.trimMargin(),
                     )
 
-                    downloadInfo.setTotalExpectedBytes(totalSize)
+                    // In verify mode we already counted scanned bytes toward the work total. Extend the
+                    // total to (scan bytes + redownload bytes) and carry verifyScannedBytes forward as
+                    // bytes-done, so the progress bar continues from where verification left off and
+                    // ends at 100% when chunk download completes.
+                    val combinedWorkTotal =
+                        if (verifyMode) verifyScanTotalBytes + totalSize else totalSize
+                    downloadInfo.setTotalExpectedBytes(combinedWorkTotal)
+                    if (verifyMode) {
+                        downloadInfo.setDisplayTotalExpectedBytes(combinedWorkTotal)
+                        downloadInfo.setBytesDownloaded(verifyScannedBytes)
+                        downloadInfo.updateStatus(
+                            com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.DOWNLOADING,
+                            if (gameFiles.isEmpty()) "All files verified" else "Re-downloading ${gameFiles.size} changed file(s)...",
+                        )
+                        downloadInfo.emitProgressChange()
+                        verifyProgressSink?.invoke(verifyScannedBytes, combinedWorkTotal)
+                    }
 
                     // Step 7: Get secure CDN links for chunks
                     downloadInfo.updateStatusMessage("Getting secure download links...")
@@ -485,6 +568,7 @@ class GOGDownloadManager
                             chunkHashes = chunkHashes,
                             secureLinkContext = secureLinkContext,
                             chunkToProductMap = chunkToProductMap,
+                            progressSink = verifyProgressSink,
                         )
 
                     if (downloadResult.isFailure) {
@@ -654,6 +738,7 @@ class GOGDownloadManager
             withDlcs: Boolean,
             supportDir: File?,
             selectedDlcIds: Set<String>,
+            verifyMode: Boolean = false,
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
@@ -753,18 +838,21 @@ class GOGDownloadManager
 
                     var gameFiles = allV1Files.filter { !it.file.isSupport }
                     var supportFiles = allV1Files.filter { it.file.isSupport }
-                    // Size-only resume check — see comment in Gen 2 path for rationale.
-                    gameFiles =
-                        gameFiles.filter { f ->
-                            val outFile = File(installPath, f.file.path)
-                            !fileExistsWithCorrectSize(outFile, f.file.size)
+                    // Resume check — size-only by default. In verify mode, use the file's full MD5
+                    // (Gen 1 manifests store a per-file hash, not per-chunk hashes like Gen 2).
+                    fun v1IsValid(f: FileWithProduct, baseDir: File): Boolean {
+                        val outFile = File(baseDir, f.file.path)
+                        return if (verifyMode) {
+                            val expectedHash = f.file.hash.takeIf { it.isNotBlank() }
+                            fileExistsWithCorrectSize(outFile, f.file.size, expectedHash)
+                        } else {
+                            fileExistsWithCorrectSize(outFile, f.file.size)
                         }
+                    }
+                    if (verifyMode) downloadInfo.updateStatusMessage("Verifying installed files...")
+                    gameFiles = gameFiles.filterNot { v1IsValid(it, installPath) }
                     if (supportDir != null) {
-                        supportFiles =
-                            supportFiles.filter { f ->
-                                val outFile = File(supportDir, f.file.path)
-                                !fileExistsWithCorrectSize(outFile, f.file.size)
-                            }
+                        supportFiles = supportFiles.filterNot { v1IsValid(it, supportDir) }
                     }
                     val totalSize =
                         gameFiles.sumOf { it.file.size } +
@@ -942,6 +1030,7 @@ class GOGDownloadManager
             chunkHashes: List<String>,
             secureLinkContext: SecureLinkContext,
             chunkToProductMap: Map<String, String>,
+            progressSink: ((bytesDone: Long, total: Long) -> Unit)? = null,
         ): Result<Unit> =
             withContext(Dispatchers.IO) {
                 try {
@@ -1021,6 +1110,10 @@ class GOGDownloadManager
                                         downloadInfo.setProgress(progress)
                                         downloadInfo.updateStatusMessage("Downloading chunks ($completed/$totalChunks)")
                                         downloadInfo.emitProgressChange()
+                                        progressSink?.invoke(
+                                            downloadInfo.getBytesDownloaded(),
+                                            downloadInfo.getTotalExpectedBytes(),
+                                        )
 
                                         Timber.tag("GOG").d("Progress: ${(progress * 100).toInt()}% ($completed/$totalChunks chunks)")
                                     }
@@ -1661,6 +1754,62 @@ class GOGDownloadManager
             if (!outputFile.exists()) return false
             if (outputFile.length() != expectedSize) return false
             return expectedMd5.isNullOrBlank() || calculateMd5File(outputFile).equals(expectedMd5, ignoreCase = true)
+        }
+
+        /**
+         * Heroic-style chunk-level MD5 validator. Streams [outputFile] in chunk-sized blocks and compares
+         * each chunk's MD5 against the manifest's expected chunk.md5. Bails on the first mismatch.
+         *
+         * Returns true if the file is fully valid (or has no chunk hashes to compare). False if the file
+         * is missing, the wrong size, or any chunk hash differs. Mirrors gogdl/dl/managers/v2.py repair.
+         */
+        internal fun isInstalledFileValidByChunkMd5(
+            outputFile: File,
+            file: DepotFile,
+        ): Boolean {
+            if (!outputFile.exists() || !outputFile.isFile) return false
+            val expectedSize = file.chunks.sumOf { it.size }
+            if (outputFile.length() != expectedSize) return false
+            if (file.chunks.isEmpty()) return true
+
+            return try {
+                BufferedInputStream(outputFile.inputStream()).use { input ->
+                    for (chunk in file.chunks) {
+                        val expectedMd5 = chunk.md5
+                        if (expectedMd5.isBlank()) {
+                            // No chunk hash to compare — skip past this chunk's bytes and trust size.
+                            var remaining = chunk.size
+                            val skipBuffer = ByteArray(STREAM_BUFFER_SIZE)
+                            while (remaining > 0) {
+                                val toRead = minOf(skipBuffer.size.toLong(), remaining).toInt()
+                                val read = input.read(skipBuffer, 0, toRead)
+                                if (read < 0) return false
+                                remaining -= read
+                            }
+                            continue
+                        }
+                        val digest = MessageDigest.getInstance("MD5")
+                        var remaining = chunk.size
+                        val buffer = ByteArray(STREAM_BUFFER_SIZE)
+                        while (remaining > 0) {
+                            val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                            val read = input.read(buffer, 0, toRead)
+                            if (read < 0) return false
+                            digest.update(buffer, 0, read)
+                            remaining -= read
+                        }
+                        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+                        if (!actual.equals(expectedMd5, ignoreCase = true)) {
+                            Timber.tag("GOG").d("Chunk MD5 mismatch for ${file.path}: expected $expectedMd5, got $actual")
+                            return false
+                        }
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                Timber.tag("GOG").w(e, "Error verifying chunks for ${outputFile.absolutePath}")
+                false
+            }
         }
 
         /**
