@@ -1,5 +1,6 @@
 package com.winlator.cmod.feature.stores.gog.service
 import android.content.Context
+import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.gog.api.DepotFile
 import com.winlator.cmod.feature.stores.gog.api.FileChunk
 import com.winlator.cmod.feature.stores.gog.api.GOGApiClient
@@ -356,18 +357,9 @@ class GOGDownloadManager
                             }.map { it.file }
                     var (gameFiles, supportFiles) = parser.separateSupportFiles(requestedFilesWithDepots.map { it.file })
 
-                    // Filter out files that already exist (incremental download).
-                    // - Normal mode: trust size-only — fresh writes are MD5-verified per-chunk during
-                    //   download/assembly, and re-hashing already-installed gigabytes on every resume is
-                    //   prohibitive.
-                    // - Verify mode (Heroic-style repair): stream each existing file chunk-by-chunk and
-                    //   compare MD5 against the manifest's per-chunk md5; any mismatch (or missing file)
-                    //   triggers a full re-download. Mirrors heroic-gogdl's repair flow in v2.py.
                     val gameInstallDir = installPath
                     val beforeCount = gameFiles.size
-                    // Bytes accounted for during the verify scan phase. Carries forward into the
-                    // download phase as "work already done" so the combined verify+repair progress
-                    // bar advances monotonically (mirrors heroic-gogdl's two-phase reporting).
+                    val originalGameFiles = gameFiles
                     var verifyScannedBytes = 0L
                     var verifyScanTotalBytes = 0L
                     if (verifyMode) {
@@ -456,12 +448,10 @@ class GOGDownloadManager
                         """.trimMargin(),
                     )
 
-                    // In verify mode we already counted scanned bytes toward the work total. Extend the
-                    // total to (scan bytes + redownload bytes) and carry verifyScannedBytes forward as
-                    // bytes-done, so the progress bar continues from where verification left off and
-                    // ends at 100% when chunk download completes.
+                    val fullCompressedSize = parser.calculateTotalSize(originalGameFiles)
+
                     val combinedWorkTotal =
-                        if (verifyMode) verifyScanTotalBytes + totalSize else totalSize
+                        if (verifyMode) verifyScanTotalBytes + totalSize else fullCompressedSize
                     downloadInfo.setTotalExpectedBytes(combinedWorkTotal)
                     if (verifyMode) {
                         downloadInfo.setDisplayTotalExpectedBytes(combinedWorkTotal)
@@ -472,6 +462,34 @@ class GOGDownloadManager
                         )
                         downloadInfo.emitProgressChange()
                         verifyProgressSink?.invoke(verifyScannedBytes, combinedWorkTotal)
+                    } else {
+                        val skippedCompressedSize = (fullCompressedSize - totalSize).coerceAtLeast(0L)
+                        val cacheDirForBookkeeping = File(installPath, ".gog_chunks")
+                        val cachedCompressedSize =
+                            if (cacheDirForBookkeeping.exists()) {
+                                val sizeByHash = HashMap<String, Long>(chunkHashes.size)
+                                for (file in gameFiles) {
+                                    for (chunk in file.chunks) {
+                                        sizeByHash.putIfAbsent(
+                                            chunk.compressedMd5,
+                                            (chunk.compressedSize ?: chunk.size).coerceAtLeast(0L),
+                                        )
+                                    }
+                                }
+                                sizeByHash.entries.sumOf { (hash, size) ->
+                                    if (File(cacheDirForBookkeeping, "$hash.chunk").exists()) size else 0L
+                                }
+                            } else {
+                                0L
+                            }
+                        val alreadyDoneBytes = skippedCompressedSize + cachedCompressedSize
+                        downloadInfo.setDisplayTotalExpectedBytes(fullCompressedSize)
+                        downloadInfo.initializeBytesDownloaded(alreadyDoneBytes)
+                        // No statusMessage tweak here on purpose — the chip text comes from the
+                        // DownloadPhase enum (existing downloads_queue_phase_* strings), and the
+                        // bar already reflects alreadyDoneBytes/fullCompressedSize.
+                        downloadInfo.emitProgressChange()
+                        verifyProgressSink?.invoke(alreadyDoneBytes, fullCompressedSize)
                     }
 
                     // Step 7: Get secure CDN links for chunks
@@ -576,8 +594,12 @@ class GOGDownloadManager
                         return@withContext downloadResult
                     }
 
-                    // Step 9: Assemble game files
-                    downloadInfo.updateStatusMessage("Assembling files...")
+                    // Step 9: Assemble game files (decompress zlib chunks and write to disk).
+                    downloadInfo.updateStatus(
+                        com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.UNPACKING,
+                        context.getString(R.string.downloads_queue_phase_unpacking),
+                    )
+                    downloadInfo.emitProgressChange()
 
                     // Use installPath directly since it already includes the game-specific folder
                     gameInstallDir.mkdirs()
@@ -590,7 +612,10 @@ class GOGDownloadManager
 
                     // Download Dependencies (They will either go to root or supportDir depending on )
                     if (supportDir != null && dependencies.isNotEmpty()) {
-                        downloadInfo.updateStatusMessage("Downloading dependencies...")
+                        downloadInfo.updateStatus(
+                            com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.DOWNLOADING,
+                            context.getString(R.string.downloads_queue_phase_downloading),
+                        )
                         supportDir.mkdirs()
 
                         val dependencyResult = downloadDependencies(gameId, dependencies, installPath, supportDir, downloadInfo)
@@ -599,7 +624,12 @@ class GOGDownloadManager
                         }
                     }
 
-                    // Step 11: Cleanup
+                    // Step 11: Cleanup + write the local manifest.
+                    downloadInfo.updateStatus(
+                        com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FINALIZING,
+                        context.getString(R.string.downloads_queue_phase_finalizing),
+                    )
+                    downloadInfo.emitProgressChange()
                     chunkCacheDir.deleteRecursively()
 
                     saveManifestToGameDir(
@@ -634,11 +664,6 @@ class GOGDownloadManager
                 }
             }
 
-        /**
-         * Saves manifest data needed for post-install setup (scriptinterpreter or temp_executable) to
-         * installPath/_gog_manifest.json. Used on first launch to create registry keys etc.
-         * @param language Language used for the download (from the selected language depots).
-         */
         private fun saveManifestToGameDir(
             installPath: File,
             gameManifest: GOGManifestMeta,
@@ -685,10 +710,6 @@ class GOGDownloadManager
             }
         }
 
-        /**
-         * Shared finalization after a successful install: update DB, set download complete, emit events.
-         * Used by both Gen 2 and Gen 1 success paths.
-         */
         private suspend fun finalizeInstallSuccess(
             gameId: String,
             installPath: File,
@@ -986,6 +1007,11 @@ class GOGDownloadManager
                         }
                     }
 
+                    downloadInfo.updateStatus(
+                        com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FINALIZING,
+                        context.getString(R.string.downloads_queue_phase_finalizing),
+                    )
+                    downloadInfo.emitProgressChange()
                     saveManifestToGameDir(
                         installPath,
                         gameManifest,
@@ -1638,8 +1664,11 @@ class GOGDownloadManager
                         if (!downloadInfo.isActive()) {
                             return@withContext Result.failure(Exception("Download cancelled"))
                         }
-
-                        downloadInfo.updateStatusMessage("Assembling ${index + 1}/$totalFiles: ${file.path}")
+                      
+                        downloadInfo.updateStatusMessage(
+                            context.getString(R.string.downloads_queue_phase_unpacking) +
+                                " ${index + 1}/$totalFiles: ${file.path}",
+                        )
 
                         val assembleResult = assembleFile(file, chunkCacheDir, installDir)
                         if (assembleResult.isFailure) {
@@ -1756,13 +1785,6 @@ class GOGDownloadManager
             return expectedMd5.isNullOrBlank() || calculateMd5File(outputFile).equals(expectedMd5, ignoreCase = true)
         }
 
-        /**
-         * Heroic-style chunk-level MD5 validator. Streams [outputFile] in chunk-sized blocks and compares
-         * each chunk's MD5 against the manifest's expected chunk.md5. Bails on the first mismatch.
-         *
-         * Returns true if the file is fully valid (or has no chunk hashes to compare). False if the file
-         * is missing, the wrong size, or any chunk hash differs. Mirrors gogdl/dl/managers/v2.py repair.
-         */
         internal fun isInstalledFileValidByChunkMd5(
             outputFile: File,
             file: DepotFile,
@@ -1827,12 +1849,6 @@ class GOGDownloadManager
             return digest.digest().joinToString("") { "%02x".format(it) }
         }
 
-        /**
-         * Calculate the total size of a directory recursively
-         *
-         * @param directory The directory to calculate size for
-         * @return Total size in bytes
-         */
         private fun calculateDirectorySize(directory: File): Long {
             var size = 0L
             try {

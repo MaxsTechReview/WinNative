@@ -525,6 +525,18 @@ class GOGService : Service() {
             // Track in activeDownloads first
             activeInstance.activeDownloads[gameId] = downloadInfo
 
+            // Pre-seed from the persisted record so a resumed download shows its prior
+            // byte/percent immediately instead of flashing 0% while manifests refetch.
+            val priorRecord =
+                runBlocking {
+                    DownloadCoordinator.findRecord(DownloadRecord.STORE_GOG, gameId)
+                }
+            if (priorRecord != null && priorRecord.bytesTotal > 0L) {
+                downloadInfo.setTotalExpectedBytes(priorRecord.bytesTotal)
+                downloadInfo.setDisplayTotalExpectedBytes(priorRecord.bytesTotal)
+                downloadInfo.initializeBytesDownloaded(priorRecord.bytesDownloaded)
+            }
+
             // Ask the global coordinator whether to start now or queue. The coordinator
             // persists a DownloadRecord either way so the download survives an app restart.
             val decision =
@@ -581,6 +593,15 @@ class GOGService : Service() {
                                 withDlcs = dlcGameIds.isNotEmpty(),
                                 supportDir = commonRedistDir,
                                 selectedDlcIds = dlcGameIds.map { it.toString() }.toSet(),
+
+                                verifyProgressSink = { bytesDone, total ->
+                                    DownloadCoordinator.updateProgress(
+                                        DownloadRecord.STORE_GOG,
+                                        gameId,
+                                        bytesDone,
+                                        total,
+                                    )
+                                },
                             )
 
                         if (result.isFailure) {
@@ -742,6 +763,14 @@ class GOGService : Service() {
                 )
             instance.activeDownloads[gameId] = downloadInfo
 
+            val priorVerifyRecord =
+                runBlocking { DownloadCoordinator.findRecord(DownloadRecord.STORE_GOG, gameId) }
+            if (priorVerifyRecord != null && priorVerifyRecord.bytesTotal > 0L) {
+                downloadInfo.setTotalExpectedBytes(priorVerifyRecord.bytesTotal)
+                downloadInfo.setDisplayTotalExpectedBytes(priorVerifyRecord.bytesTotal)
+                downloadInfo.initializeBytesDownloaded(priorVerifyRecord.bytesDownloaded)
+            }
+
             val decision =
                 runBlocking {
                     DownloadCoordinator.requestSlot(
@@ -843,11 +872,6 @@ class GOGService : Service() {
             return downloadInfo
         }
 
-        /**
-         * Kick off a download of the GOG update for [gameId]. Mirrors [verifyGameFiles] but
-         * targets the latest build's manifest and surfaces UPDATE-phase status to the UI.
-         * Returns null if the update cannot start (game missing, blocking download active, etc).
-         */
         fun updateGameFiles(
             context: Context,
             gameId: String,
@@ -882,6 +906,14 @@ class GOGService : Service() {
                     downloadingAppIds = CopyOnWriteArrayList<Int>(),
                 )
             instance.activeDownloads[gameId] = downloadInfo
+
+            val priorUpdateRecord =
+                runBlocking { DownloadCoordinator.findRecord(DownloadRecord.STORE_GOG, gameId) }
+            if (priorUpdateRecord != null && priorUpdateRecord.bytesTotal > 0L) {
+                downloadInfo.setTotalExpectedBytes(priorUpdateRecord.bytesTotal)
+                downloadInfo.setDisplayTotalExpectedBytes(priorUpdateRecord.bytesTotal)
+                downloadInfo.initializeBytesDownloaded(priorUpdateRecord.bytesDownloaded)
+            }
 
             val decision =
                 runBlocking {
@@ -984,10 +1016,6 @@ class GOGService : Service() {
             return downloadInfo
         }
 
-        /**
-         * Delete/uninstall a GOG game
-         * Delegates to GOGManager.deleteGame
-         */
         suspend fun deleteGame(
             context: Context,
             libraryItem: LibraryItem,
