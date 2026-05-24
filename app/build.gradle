@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
+/*
 abstract class InstallVulkanValidationLayerTask extends DefaultTask {
     @Input
     abstract Property<String> getLayerVersion()
@@ -42,6 +43,7 @@ abstract class InstallVulkanValidationLayerTask extends DefaultTask {
         }
     }
 }
+*/
 
 task checkSubmodules {
     // Keep the execution closure configuration-cache friendly.
@@ -103,12 +105,7 @@ android {
 
         resConfigs "en", "da", "de", "es", "fr", "hi", "it", "ko", "pl", "pt-rBR", "ro", "ru", "uk", "zh-rCN", "zh-rTW"
 
-        buildConfigField("boolean", "GOLD", "false")
         buildConfigField("String", "COLD_CLIENT_VERSION", "\"${coldClientVersion}\"")
-        buildConfigField("String", "POSTHOG_API_KEY", "\"\"")
-        buildConfigField("String", "POSTHOG_HOST", "\"\"")
-        buildConfigField("String", "SUPABASE_URL", "\"\"")
-        buildConfigField("String", "SUPABASE_KEY", "\"\"")
     }
 
     androidResources {
@@ -237,14 +234,12 @@ dependencies {
 
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps
-    implementation libs.okhttpLoggingInterceptor
     implementation libs.serializationJson
 
     implementation libs.jwtDecode
     implementation libs.securityCrypto
 
     implementation libs.hiltAndroid
-    implementation libs.hiltNavigationCompose
     ksp libs.hiltCompiler
 
     implementation libs.roomKtx
@@ -259,7 +254,6 @@ dependencies {
     implementation libs.composeMaterialIconsExtended
     implementation libs.activityCompose
     implementation libs.navigationCompose
-    implementation libs.lifecycleRuntimeCompose
     implementation libs.lifecycleViewmodelCompose
     implementation libs.composeUiTextGoogleFonts
     implementation libs.coilCompose
@@ -269,7 +263,6 @@ dependencies {
     implementation libs.zxingCore
     implementation libs.commonsIo
     implementation libs.commonsLang3
-    implementation libs.protobufJava
     implementation("com.github.luben:zstd-jni:${libs.versions.zstdJni.get()}@aar")
     implementation libs.bouncyCastle
     implementation libs.flexbox
@@ -290,7 +283,6 @@ dependencies {
     implementation 'com.android.ndk.thirdparty:curl:7.85.0-beta-1'
 
     implementation libs.playServicesGamesV2
-    implementation libs.playServicesAuth
 
     implementation libs.workRuntimeKtx
 }
