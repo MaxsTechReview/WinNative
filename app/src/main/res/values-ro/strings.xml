@@ -1143,6 +1143,14 @@ Cale instalata:
     <string name="cloud_saves_offline_mode_summary">Oprește toată activitatea cloud automată pentru acest joc.</string>
     <string name="cloud_saves_sync_from_provider">Sincronizare din cloud %1$s</string>
     <string name="cloud_saves_sync_from_provider_failed">Imposibil de descărcat salvarea de la %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Gestionează salvările în cloud GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Deschide site-ul oficial GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Nu există niciun browser disponibil pentru a deschide pagina salvărilor în cloud GOG</string>
+    <string name="cloud_saves_gog_zip_label">Descarcă ZIP-ul din cloud GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Salvează fișierele cloud curente</string>
+    <string name="cloud_saves_gog_zip_success">ZIP-ul salvărilor în cloud GOG a fost salvat.</string>
+    <string name="cloud_saves_gog_zip_failed">Nu s-a putut salva ZIP-ul salvărilor în cloud GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Nu s-au găsit fișiere de salvare în cloud GOG.</string>
     <string name="cloud_saves_sync_from_provider_generic">Sincronizare din cloud</string>
     <string name="cloud_saves_sync_from_provider_success">Salvare cloud %1$s descărcată.</string>
     <string name="cloud_saves_syncing_from_provider">Se descarcă salvarea de la %1$s\u2026</string>

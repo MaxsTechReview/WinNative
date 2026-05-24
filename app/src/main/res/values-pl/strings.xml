@@ -1149,6 +1149,14 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_offline_mode_summary">Zatrzymuje całą automatyczną aktywność w chmurze dla tej gry.</string>
     <string name="cloud_saves_sync_from_provider">Synchronizuj z chmury %1$s</string>
     <string name="cloud_saves_sync_from_provider_failed">Nie udało się pobrać zapisu z %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Zarządzaj zapisami w chmurze GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Otwiera oficjalną stronę GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Brak przeglądarki do otwarcia strony zapisów w chmurze GOG</string>
+    <string name="cloud_saves_gog_zip_label">Pobierz ZIP z chmury GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Zapisz bieżące pliki z chmury</string>
+    <string name="cloud_saves_gog_zip_success">Zapisano ZIP zapisów w chmurze GOG.</string>
+    <string name="cloud_saves_gog_zip_failed">Nie udało się zapisać ZIP-a zapisów w chmurze GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Nie znaleziono plików zapisów w chmurze GOG.</string>
     <string name="cloud_saves_sync_from_provider_generic">Synchronizuj z chmury</string>
     <string name="cloud_saves_sync_from_provider_success">Zapis w chmurze %1$s pobrany.</string>
     <string name="cloud_saves_syncing_from_provider">Pobieranie zapisu z %1$s\u2026</string>

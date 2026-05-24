@@ -1143,6 +1143,14 @@ Installierter Pfad:
     <string name="cloud_saves_offline_mode_summary">Stoppt alle automatischen Cloud-Aktivitäten für dieses Spiel.</string>
     <string name="cloud_saves_sync_from_provider">Von %1$s Cloud synchronisieren</string>
     <string name="cloud_saves_sync_from_provider_failed">Spielstand konnte nicht von %1$s heruntergeladen werden.</string>
+    <string name="cloud_saves_gog_manage_label">GOG-Cloud-Spielstände verwalten</string>
+    <string name="cloud_saves_gog_manage_helper">Öffnet die offizielle GOG-Website</string>
+    <string name="cloud_saves_gog_manage_no_browser">Kein Browser verfügbar, um die GOG-Cloud-Spielstände-Seite zu öffnen</string>
+    <string name="cloud_saves_gog_zip_label">GOG-Cloud-ZIP herunterladen</string>
+    <string name="cloud_saves_gog_zip_helper">Aktuelle Cloud-Dateien speichern</string>
+    <string name="cloud_saves_gog_zip_success">GOG-Cloud-Spielstände-ZIP gespeichert.</string>
+    <string name="cloud_saves_gog_zip_failed">GOG-Cloud-Spielstände-ZIP konnte nicht gespeichert werden.</string>
+    <string name="cloud_saves_gog_zip_empty">Keine GOG-Cloud-Spielstandsdateien gefunden.</string>
     <string name="cloud_saves_sync_from_provider_generic">Von Cloud synchronisieren</string>
     <string name="cloud_saves_sync_from_provider_success">%1$s Cloud-Spielstand heruntergeladen.</string>
     <string name="cloud_saves_syncing_from_provider">Spielstand wird von %1$s heruntergeladen\u2026</string>

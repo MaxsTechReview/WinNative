@@ -1143,6 +1143,14 @@ Ruta instalada:
     <string name="cloud_saves_offline_mode_summary">Detiene toda la actividad automática en la nube para este juego.</string>
     <string name="cloud_saves_sync_from_provider">Sincronizar desde %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">No se pudo descargar la partida de %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Gestionar guardados en la nube de GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Abre el sitio web oficial de GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">No hay ningún navegador disponible para abrir la página de guardados en la nube de GOG</string>
+    <string name="cloud_saves_gog_zip_label">Descargar ZIP de la nube de GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Guardar archivos actuales de la nube</string>
+    <string name="cloud_saves_gog_zip_success">ZIP de guardados en la nube de GOG guardado.</string>
+    <string name="cloud_saves_gog_zip_failed">No se pudo guardar el ZIP de guardados en la nube de GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">No se encontraron archivos de guardado en la nube de GOG.</string>
     <string name="cloud_saves_sync_from_provider_generic">Sincronizar desde la nube</string>
     <string name="cloud_saves_sync_from_provider_success">Partida en la nube de %1$s descargada.</string>
     <string name="cloud_saves_syncing_from_provider">Descargando partida de %1$s\u2026</string>

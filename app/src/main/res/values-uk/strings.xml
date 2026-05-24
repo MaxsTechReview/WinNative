@@ -1149,6 +1149,14 @@
     <string name="cloud_saves_offline_mode_summary">Вимикає будь-яку автоматичну хмарну активність для цієї гри.</string>
     <string name="cloud_saves_sync_from_provider">Синхронізувати з %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">Не вдалося завантажити збереження від %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Керувати хмарними збереженнями GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Відкриває офіційний сайт GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Немає доступного браузера, щоб відкрити сторінку хмарних збережень GOG</string>
+    <string name="cloud_saves_gog_zip_label">Завантажити ZIP хмарних збережень GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Зберегти поточні хмарні файли</string>
+    <string name="cloud_saves_gog_zip_success">ZIP хмарних збережень GOG збережено.</string>
+    <string name="cloud_saves_gog_zip_failed">Не вдалося зберегти ZIP хмарних збережень GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Файли хмарних збережень GOG не знайдено.</string>
     <string name="cloud_saves_sync_from_provider_generic">Синхронізувати з хмари</string>
     <string name="cloud_saves_sync_from_provider_success">Хмарне збереження %1$s завантажено.</string>
     <string name="cloud_saves_syncing_from_provider">Завантаження збереження від %1$s\u2026</string>

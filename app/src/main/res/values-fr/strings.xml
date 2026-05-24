@@ -1143,6 +1143,14 @@ Chemin installé :
     <string name="cloud_saves_offline_mode_summary">Désactive toute activité cloud automatique pour ce jeu.</string>
     <string name="cloud_saves_sync_from_provider">Synchroniser depuis %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">Impossible de télécharger la sauvegarde depuis %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Gérer les sauvegardes cloud GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Ouvre le site officiel de GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Aucun navigateur disponible pour ouvrir la page des sauvegardes cloud GOG</string>
+    <string name="cloud_saves_gog_zip_label">Télécharger le ZIP cloud GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Enregistrer les fichiers cloud actuels</string>
+    <string name="cloud_saves_gog_zip_success">ZIP des sauvegardes cloud GOG enregistré.</string>
+    <string name="cloud_saves_gog_zip_failed">Impossible d’enregistrer le ZIP des sauvegardes cloud GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Aucun fichier de sauvegarde cloud GOG trouvé.</string>
     <string name="cloud_saves_sync_from_provider_generic">Synchroniser depuis le Cloud</string>
     <string name="cloud_saves_sync_from_provider_success">Sauvegarde cloud %1$s téléchargée.</string>
     <string name="cloud_saves_syncing_from_provider">Téléchargement de la sauvegarde depuis %1$s\u2026</string>

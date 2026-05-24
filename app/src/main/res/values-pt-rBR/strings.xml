@@ -1143,6 +1143,14 @@ Caminho instalado:
     <string name="cloud_saves_offline_mode_summary">Interrompe toda atividade automática na nuvem para este jogo.</string>
     <string name="cloud_saves_sync_from_provider">Sincronizar da Nuvem %1$s</string>
     <string name="cloud_saves_sync_from_provider_failed">Não foi possível baixar o save de %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Gerenciar saves na nuvem GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Abre o site oficial da GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Nenhum navegador disponível para abrir a página de saves na nuvem GOG</string>
+    <string name="cloud_saves_gog_zip_label">Baixar ZIP da nuvem GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Salvar arquivos atuais da nuvem</string>
+    <string name="cloud_saves_gog_zip_success">ZIP dos saves na nuvem GOG salvo.</string>
+    <string name="cloud_saves_gog_zip_failed">Não foi possível salvar o ZIP dos saves na nuvem GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Nenhum arquivo de save na nuvem GOG encontrado.</string>
     <string name="cloud_saves_sync_from_provider_generic">Sincronizar da Nuvem</string>
     <string name="cloud_saves_sync_from_provider_success">Save na nuvem do %1$s baixado.</string>
     <string name="cloud_saves_syncing_from_provider">Baixando save de %1$s\u2026</string>

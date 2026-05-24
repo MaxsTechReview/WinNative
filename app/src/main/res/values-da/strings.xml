@@ -1143,6 +1143,14 @@ Installeret sti:
     <string name="cloud_saves_offline_mode_summary">Stopper al automatisk cloud-aktivitet for dette spil.</string>
     <string name="cloud_saves_sync_from_provider">Synkroniser fra %1$s Cloud</string>
     <string name="cloud_saves_sync_from_provider_failed">Kunne ikke downloade save fra %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Administrer GOG-cloudlagringer</string>
+    <string name="cloud_saves_gog_manage_helper">Åbner det officielle GOG-websted</string>
+    <string name="cloud_saves_gog_manage_no_browser">Ingen browser tilgængelig til at åbne siden med GOG-cloudlagringer</string>
+    <string name="cloud_saves_gog_zip_label">Download GOG-cloud-zip</string>
+    <string name="cloud_saves_gog_zip_helper">Gem aktuelle cloudfiler</string>
+    <string name="cloud_saves_gog_zip_success">GOG-cloudlagringer zip-fil gemt.</string>
+    <string name="cloud_saves_gog_zip_failed">Kunne ikke gemme zip-filen med GOG-cloudlagringer.</string>
+    <string name="cloud_saves_gog_zip_empty">Ingen GOG-cloudlagringsfiler fundet.</string>
     <string name="cloud_saves_sync_from_provider_generic">Synkroniser fra Cloud</string>
     <string name="cloud_saves_sync_from_provider_success">%1$s cloud-save downloadet.</string>
     <string name="cloud_saves_syncing_from_provider">Downloader save fra %1$s\u2026</string>

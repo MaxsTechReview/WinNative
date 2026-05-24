@@ -1143,6 +1143,14 @@
     <string name="cloud_saves_offline_mode_summary">停止此遊戲的所有自動雲端活動。</string>
     <string name="cloud_saves_sync_from_provider">從 %1$s 雲端同步</string>
     <string name="cloud_saves_sync_from_provider_failed">無法從 %1$s 下載存檔。</string>
+    <string name="cloud_saves_gog_manage_label">管理 GOG 雲端存檔</string>
+    <string name="cloud_saves_gog_manage_helper">開啟 GOG 官方網站</string>
+    <string name="cloud_saves_gog_manage_no_browser">沒有可用的瀏覽器可開啟 GOG 雲端存檔頁面</string>
+    <string name="cloud_saves_gog_zip_label">下載 GOG 雲端 Zip</string>
+    <string name="cloud_saves_gog_zip_helper">儲存目前的雲端檔案</string>
+    <string name="cloud_saves_gog_zip_success">GOG 雲端存檔 zip 已儲存。</string>
+    <string name="cloud_saves_gog_zip_failed">無法儲存 GOG 雲端存檔 zip。</string>
+    <string name="cloud_saves_gog_zip_empty">找不到 GOG 雲端存檔檔案。</string>
     <string name="cloud_saves_sync_from_provider_generic">從雲端同步</string>
     <string name="cloud_saves_sync_from_provider_success">%1$s 雲端存檔已下載。</string>
     <string name="cloud_saves_syncing_from_provider">正在從 %1$s 下載存檔\u2026</string>
