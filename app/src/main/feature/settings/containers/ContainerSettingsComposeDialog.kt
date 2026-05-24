@@ -294,7 +294,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             }
 
             override fun onExportSaves() {
-                exportSaves()
+                showExportSavesConfirmation()
             }
 
             override fun onImportSaves() {
@@ -1610,6 +1610,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 child.inputStream().use { it.copyTo(zos) }
                 zos.closeEntry()
             }
+        }
+    }
+
+    private fun showExportSavesConfirmation() {
+        WinNativeComposeDialogs.showConfirm(
+            context,
+            context.getString(R.string.saves_export_warning_title) + "\n\n" + context.getString(R.string.saves_export_warning_body),
+        ) {
+            exportSaves()
         }
     }
 
