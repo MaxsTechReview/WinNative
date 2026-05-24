@@ -64,7 +64,34 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.util.Callback
 import androidx.compose.ui.window.Dialog as ComposeDialog
 
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.MutableState
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.window.DialogProperties as ComposeDialogProperties
+
 object WinNativeComposeDialogs {
+    @JvmStatic
+    fun showLoading(
+        context: Context,
+        message: String,
+    ): AppCompatDialog? {
+        val activity = context.findActivity() ?: return null
+        val dialog = AppCompatDialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+            setCancelable(false)
+            setCanceledOnTouchOutside(false)
+        }
+        dialog.setContentView(
+            composeView(activity) {
+                WinNativeTheme {
+                    WinNativeLoadingDialog(message = message)
+                }
+            },
+        )
+        dialog.show()
+        return dialog
+    }
+
     @JvmStatic
     fun showAlert(
         context: Context,
@@ -491,5 +518,52 @@ private fun WinNativeShortcutPropertiesDialog(
             borderColor = WinNativeDanger.copy(alpha = 0.3f),
             onClick = onReset,
         )
+    }
+}
+
+@Composable
+private fun WinNativeLoadingDialog(message: String) {
+    ComposeDialog(
+        onDismissRequest = {},
+        properties = ComposeDialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 40.dp)
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(WinNativeSurface)
+                    .border(1.dp, WinNativeOutline, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = WinNativeAccent,
+                        strokeWidth = 2.5.dp,
+                        strokeCap = StrokeCap.Round
+                    )
+                    Text(
+                        text = message,
+                        color = WinNativeTextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 }

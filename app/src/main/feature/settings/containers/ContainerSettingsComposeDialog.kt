@@ -1545,6 +1545,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val zipFile = File(exportDir, zipName)
 
         scope.launch(Dispatchers.IO) {
+            val loadingDialog = withContext(Dispatchers.Main) {
+                WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_exporting))
+            }
             try {
                 zipFile.outputStream().use { os ->
                     java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os)).use { zos ->
@@ -1565,11 +1568,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 }
 
                 withContext(Dispatchers.Main) {
+                    loadingDialog?.dismiss()
                     WinToast.show(context, context.getString(R.string.saves_export_success_path, "/WinNative/saves"), dialog.window?.decorView)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
+                    loadingDialog?.dismiss()
                     WinToast.show(context, context.getString(R.string.saves_import_export_exported_failed, e.message), dialog.window?.decorView)
                 }
             }
@@ -1580,7 +1585,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (name.isEmpty()) return false
         val excludedFolders = setOf(
             "Contacts", "Desktop", "Downloads", "Favorites", "Links",
-            "Music", "Pictures", "Searches", "Temp", "Videos"
+            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache"
         )
         if (excludedFolders.any { it.equals(name, ignoreCase = true) }) return true
         if (name.contains("Microsoft", ignoreCase = true)) return true
@@ -1640,11 +1645,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private fun importSaves(zipFile: File) {
         val container = this.container ?: return
         scope.launch(Dispatchers.IO) {
+            val loadingDialog = withContext(Dispatchers.Main) {
+                WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_loading))
+            }
             try {
-                withContext(Dispatchers.Main) {
-                    preloaderDialog.show(R.string.preloader_initializing)
-                }
-
                 zipFile.inputStream().use { isStream ->
                     java.util.zip.ZipInputStream(java.io.BufferedInputStream(isStream)).use { zis ->
                         val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
@@ -1686,13 +1690,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 }
 
                 withContext(Dispatchers.Main) {
-                    preloaderDialog.close()
+                    loadingDialog?.dismiss()
                     WinToast.show(context, R.string.saves_import_export_imported, dialog.window?.decorView)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    preloaderDialog.close()
+                    loadingDialog?.dismiss()
                     WinToast.show(context, context.getString(R.string.saves_import_export_imported_failed, e.message), dialog.window?.decorView)
                 }
             }
