@@ -322,13 +322,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
-    private boolean isActivityPaused = false;
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
-        return isPaused || (isActivityPaused && !isInPictureInPictureMode());
+        return isPaused;
     }
     private boolean isNativeRenderingEnabled = true;
 
@@ -1781,7 +1780,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onResume() {
-        isActivityPaused = false;
         super.onResume();
         applyPreferredRefreshRate();
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
@@ -1821,7 +1819,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onPause() {
-        isActivityPaused = true;
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
@@ -2004,7 +2001,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         && !activityDestroyed.get()
                         && (System.currentTimeMillis() - startTime) < STEAM_TERMINATION_TIMEOUT_MS) {
                     
-                    if (isPaused || isActivityPaused) {
+                    if (isPaused) {
                         startTime += STEAM_TERMINATION_POLL_MS;
                         if (lastNonCoreSeenAt > 0) lastNonCoreSeenAt += STEAM_TERMINATION_POLL_MS;
                         Thread.sleep(STEAM_TERMINATION_POLL_MS);
