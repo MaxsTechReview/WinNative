@@ -290,7 +290,7 @@ internal fun CloudSavesContent(
         }
 
         if (!steamManagedCloud) {
-            var customSavePath by remember(shortcut?.file?.absolutePath, historyRefreshKey) {
+            var customSavePath by remember(shortcut?.file?.absolutePath, targetContainerId, historyRefreshKey) {
                 mutableStateOf(shortcut?.let { GameSaveBackupManager.getCustomGameSaveWindowsPath(it) })
             }
             val customNoContainer = stringResource(R.string.cloud_saves_custom_no_container)
@@ -321,7 +321,7 @@ internal fun CloudSavesContent(
                         enabled = !isWorking,
                         onClick = {
                             val sc = shortcut
-                            val container = sc?.container
+                            val container = sc?.let { GameSaveBackupManager.getCustomGameSaveContainer(context, it) }
                             if (sc == null || container == null) {
                                 WinToast.show(
                                     context,

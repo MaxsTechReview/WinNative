@@ -42,6 +42,7 @@ import com.winlator.cmod.feature.settings.GraphicsDriverConfigUtils
 import com.winlator.cmod.feature.settings.WineD3DConfigUtils
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -1324,6 +1325,9 @@ class ShortcutSettingsComposeDialog private constructor(
             val originalContainer = shortcut.container
             if (container.id != originalContainer.id) {
                 shortcut.putExtra("container_id", container.id.toString())
+                if (shortcut.getExtra(GameSaveBackupManager.CUSTOM_SAVE_WINDOWS_PATH_KEY).isNotEmpty()) {
+                    shortcut.putExtra(GameSaveBackupManager.CUSTOM_SAVE_CONTAINER_ID_KEY, container.id.toString())
+                }
                 shortcut.putExtra("cloud_force_download", "1")
                 shortcut.saveData()
 

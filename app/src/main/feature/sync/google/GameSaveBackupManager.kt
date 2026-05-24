@@ -320,9 +320,24 @@ object GameSaveBackupManager {
     fun getCustomGameSaveWindowsPath(shortcut: Shortcut): String? =
         shortcut.getExtra(CUSTOM_SAVE_WINDOWS_PATH_KEY)?.takeIf { it.isNotEmpty() }
 
+    fun getCustomGameSaveContainer(context: Context, shortcut: Shortcut): Container? =
+        resolveCustomShortcutContainer(context, shortcut)
+
     /** Build the `gameId` token used for custom games when calling the public backup API. */
     fun customGameId(shortcut: Shortcut): String {
-        val containerId = shortcut.container?.id?.toString() ?: "0"
+        val containerId =
+            shortcut
+                .getExtra("container_id")
+                .toIntOrNull()
+                ?.takeIf { it > 0 }
+                ?.toString()
+                ?: shortcut
+                    .getExtra(CUSTOM_SAVE_CONTAINER_ID_KEY)
+                    .toIntOrNull()
+                    ?.takeIf { it > 0 }
+                    ?.toString()
+                ?: shortcut.container?.id?.toString()
+                ?: "0"
         val shortcutName = shortcut.file?.name ?: shortcut.name ?: "shortcut"
         return "$containerId:$shortcutName"
     }
@@ -330,8 +345,10 @@ object GameSaveBackupManager {
     private fun customSaveWindowsPathFor(context: Context, gameId: String): String? {
         // Try our customGameId-encoded form first.
         parseCustomGameId(gameId)?.let { (cid, file) ->
-            return findCustomShortcutByContainerAndFile(context, cid, file)
-                ?.let(::getCustomGameSaveWindowsPath)
+            val shortcut =
+                findCustomShortcutByContainerAndFile(context, cid, file)
+                    ?: findCustomShortcutByFile(context, file)
+            return shortcut?.let(::getCustomGameSaveWindowsPath)
         }
         // Fall back to upstream's gameId conventions (app_id / custom_name / shortcut.name).
         return findCustomShortcutByGameId(context, gameId)
@@ -347,16 +364,14 @@ object GameSaveBackupManager {
             ?: (null to null)
 
         val shortcut = if (containerIdOrNull != null && file != null) {
-            findCustomShortcutByContainerAndFile(context, containerIdOrNull, file)
+            findCustomShortcutByContainerAndFile(context, containerIdOrNull, file) ?: findCustomShortcutByFile(context, file)
         } else {
             findCustomShortcutByGameId(context, gameId)
         }
 
         val container =
-            shortcut?.container
-                ?: containerIdOrNull?.let { id ->
-                    ContainerManager(context).getContainers().firstOrNull { it.id == id }
-                }
+            shortcut?.let { resolveCustomShortcutContainer(context, it, containerIdOrNull) }
+                ?: containerIdOrNull?.let { findContainerById(context, it) }
                 ?: return null
 
         val winPath =
@@ -384,6 +399,19 @@ object GameSaveBackupManager {
                 .firstOrNull { it.container?.id == containerId && (it.file?.name == shortcutFile) }
         }.getOrNull()
 
+    private fun findCustomShortcutByFile(
+        context: Context,
+        shortcutFile: String,
+    ): Shortcut? =
+        runCatching {
+            ContainerManager(context)
+                .loadShortcuts()
+                .firstOrNull {
+                    it.file?.name == shortcutFile &&
+                        (it.getExtra("game_source") == "CUSTOM" || it.getExtra("custom_name").isNotEmpty())
+                }
+        }.getOrNull()
+
     /** Mirrors upstream's lookup-by-gameId logic for backwards compatibility. */
     private fun findCustomShortcutByGameId(context: Context, gameId: String): Shortcut? =
         runCatching {
@@ -396,6 +424,22 @@ object GameSaveBackupManager {
                     )
             }
         }.getOrNull()
+
+    private fun findContainerById(context: Context, containerId: Int): Container? =
+        ContainerManager(context).getContainers().firstOrNull { it.id == containerId }
+
+    private fun resolveCustomShortcutContainer(
+        context: Context,
+        shortcut: Shortcut,
+        fallbackContainerId: Int? = null,
+    ): Container? {
+        val targetContainerId =
+            shortcut.getExtra("container_id").toIntOrNull()?.takeIf { it > 0 }
+                ?: shortcut.getExtra(CUSTOM_SAVE_CONTAINER_ID_KEY).toIntOrNull()?.takeIf { it > 0 }
+                ?: fallbackContainerId?.takeIf { it > 0 }
+
+        return targetContainerId?.let { findContainerById(context, it) } ?: shortcut.container
+    }
 
     // ── Save-source resolution ──
 
@@ -464,13 +508,17 @@ object GameSaveBackupManager {
         }
 
         // Fall back to upstream's custom_game_folder + xuser dirs lookup.
+        val parsedCustomGameId = parseCustomGameId(gameId)
         val shortcut =
-            parseCustomGameId(gameId)?.let { (cid, f) ->
-                findCustomShortcutByContainerAndFile(context, cid, f)
+            parsedCustomGameId?.let { (cid, f) ->
+                findCustomShortcutByContainerAndFile(context, cid, f) ?: findCustomShortcutByFile(context, f)
             } ?: findCustomShortcutByGameId(context, gameId)
             ?: return emptyList()
+        val container =
+            resolveCustomShortcutContainer(context, shortcut, parsedCustomGameId?.first)
+                ?: return emptyList()
 
-        val prefixDir = File(shortcut.container.rootDir, ".wine/drive_c/users/xuser")
+        val prefixDir = File(container.rootDir, ".wine/drive_c/users/xuser")
         listOf("Documents", "Saved Games", "AppData").forEach { dirName ->
             val dir = File(prefixDir, dirName)
             if (forRestore || (dir.exists() && !dir.listFiles().isNullOrEmpty())) {
