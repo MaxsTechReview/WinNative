@@ -2,8 +2,10 @@ package com.winlator.cmod.feature.stores.steam.enums
 import android.content.Context
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import timber.log.Timber
+import java.io.File
 import java.nio.file.Paths
 
 enum class PathType {
@@ -183,48 +185,77 @@ enum class PathType {
             context: Context,
             gogWindowsPath: String,
             appId: String? = null,
+            targetContainerId: Int? = null,
         ): String {
             val imageFs = ImageFs.find(context)
-            val user = ImageFs.USER
+            val explicitContainer =
+                targetContainerId
+                    ?.takeIf { it > 0 }
+                    ?.let { runCatching { ContainerManager(context).getContainerById(it) }.getOrNull() }
             val rootDir =
-                if (appId != null) {
-                    ContainerUtils.getUsableContainerOrNull(context, appId)?.rootDir?.absolutePath
-                        ?: imageFs.rootDir.absolutePath
-                } else {
-                    imageFs.rootDir.absolutePath
+                when {
+                    explicitContainer != null -> explicitContainer.rootDir.absolutePath
+                    appId != null ->
+                        ContainerUtils.getUsableContainerOrNull(context, appId)?.rootDir?.absolutePath
+                            ?: imageFs.rootDir.absolutePath
+                    else -> imageFs.rootDir.absolutePath
                 }
-            val winePrefix = if (appId != null) ".wine" else ImageFs.WINEPREFIX
+            val winePrefix = if (explicitContainer != null || appId != null) ".wine" else ImageFs.WINEPREFIX
 
+            // Walk the on-disk prefix case-insensitively — older Wine prefixes use
+            // lowercase `appdata`, and scripts can create non-`xuser` profile dirs.
+            val usersDir = resolveChildIgnoreCase(File(Paths.get(rootDir, winePrefix, "drive_c").toString()), "users")
+            val userDir = resolveUserProfileDir(usersDir)
+            val userProfile = userDir.absolutePath
+            val appDataDir = resolveChildIgnoreCase(userDir, "AppData").absolutePath
+            val savedGames = resolveChildIgnoreCase(userDir, "Saved Games").absolutePath
+            val documents = resolveChildIgnoreCase(userDir, "Documents").absolutePath
+            val localAppData = resolveChildIgnoreCase(File(appDataDir), "Local").absolutePath
+            val roamingAppData = resolveChildIgnoreCase(File(appDataDir), "Roaming").absolutePath
+            val publicDir = resolveChildIgnoreCase(usersDir, "Public").absolutePath
+
+            // Longer keys first so `%USERPROFILE%\Saved Games` isn't chopped by `%USERPROFILE%`.
             var mappedPath = gogWindowsPath
-            mappedPath =
-                mappedPath
-                    .replace(
-                        "%USERPROFILE%/Saved Games",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "Saved Games/").toString(),
-                    ).replace(
-                        "%USERPROFILE%\\Saved Games",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "Saved Games/").toString(),
-                    ).replace(
-                        "%USERPROFILE%/Documents",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "Documents/").toString(),
-                    ).replace(
-                        "%USERPROFILE%\\Documents",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "Documents/").toString(),
-                    )
-            mappedPath =
-                mappedPath
-                    .replace(
-                        "%LOCALAPPDATA%",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "AppData/Local/").toString(),
-                    ).replace(
-                        "%APPDATA%",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "AppData/Roaming/").toString(),
-                    ).replace(
-                        "%USERPROFILE%",
-                        Paths.get(rootDir, winePrefix, "drive_c/users/", user, "").toString(),
-                    )
+            val replacements =
+                listOf(
+                    "%USERPROFILE%/Saved Games" to "$savedGames/",
+                    "%USERPROFILE%\\Saved Games" to "$savedGames/",
+                    "%USERPROFILE%/Documents" to "$documents/",
+                    "%USERPROFILE%\\Documents" to "$documents/",
+                    "%PUBLIC%" to "$publicDir/",
+                    "%LOCALAPPDATA%" to "$localAppData/",
+                    "%APPDATA%" to "$roamingAppData/",
+                    "%USERPROFILE%" to "$userProfile/",
+                )
+            for ((token, value) in replacements) {
+                mappedPath = mappedPath.replace(token, value, ignoreCase = true)
+            }
 
             return mappedPath.replace("\\", "/")
+        }
+
+        private fun resolveChildIgnoreCase(
+            parent: File,
+            name: String,
+        ): File =
+            parent
+                .listFiles()
+                ?.firstOrNull { it.name.equals(name, ignoreCase = true) }
+                ?: File(parent, name)
+
+        private fun resolveUserProfileDir(usersDir: File): File {
+            val direct = File(usersDir, ImageFs.USER)
+            if (direct.exists()) return direct
+            val caseInsensitive =
+                usersDir
+                    .listFiles { f -> f.isDirectory }
+                    ?.firstOrNull { it.name.equals(ImageFs.USER, ignoreCase = true) }
+            if (caseInsensitive != null) return caseInsensitive
+            val firstNonSystem =
+                usersDir
+                    .listFiles { f -> f.isDirectory }
+                    ?.firstOrNull { it.name.lowercase() !in setOf("public", "all users", "default", "default user") }
+            return firstNonSystem ?: direct
         }
 
         fun from(keyValue: String?): PathType =

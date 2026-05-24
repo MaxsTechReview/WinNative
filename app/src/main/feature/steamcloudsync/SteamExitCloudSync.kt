@@ -1,6 +1,7 @@
 package com.winlator.cmod.feature.steamcloudsync
 
 import android.app.Activity
+import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.runtime.container.Shortcut
@@ -43,7 +44,7 @@ object SteamExitCloudSync {
         }
 
         Timber.tag("SteamExitCloudSync").d("Syncing Steam cloud saves for appId=%d", appId)
-        statusSink.show("Cloud Sync Uploading...")
+        statusSink.show(activity.getString(R.string.preloader_uploading_cloud))
 
         try {
             SteamService.syncCloudOnExit(

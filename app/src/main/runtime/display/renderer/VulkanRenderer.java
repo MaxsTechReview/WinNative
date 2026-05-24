@@ -133,9 +133,6 @@ public class VulkanRenderer
         this.xServer = xServer;
         this.effectComposer = new EffectComposer(this);
         this.rootCursorDrawable = createRootCursorDrawable();
-
-        xServer.windowManager.addOnWindowModificationListener(this);
-        xServer.pointer.addOnPointerMotionListener(this);
     }
 
     public void destroy() {
@@ -208,6 +205,9 @@ public class VulkanRenderer
             if (requestedPresentMode != PRESENT_MODE_FIFO) {
                 nativeSetPresentMode(nativeHandle, requestedPresentMode);
             }
+            destroyed.set(false);
+            xServer.windowManager.addOnWindowModificationListener(this);
+            xServer.pointer.addOnPointerMotionListener(this);
         }
         nativeSurfaceCreated(nativeHandle, surface);
     }

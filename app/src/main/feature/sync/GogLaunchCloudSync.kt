@@ -5,6 +5,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager
 import com.winlator.cmod.runtime.container.Shortcut
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
@@ -26,16 +27,37 @@ object GogLaunchCloudSync {
         if (shortcut.getExtra("game_source") != "GOG") return
         if (!cloudSyncEnabled || CloudSyncHelper.isOfflineMode(shortcut)) return
 
+        Timber.tag("GogLaunchCloudSync").i("Checking GOG cloud saves before launch for ${shortcut.name}")
         CloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
 
         if (!CloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
+            Timber.tag("GogLaunchCloudSync").i("No local GOG cloud-save files found; downloading before launch")
             statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
             CloudSyncHelper.downloadCloudSaves(activity, shortcut)
             statusSink.show(activity.getString(R.string.preloader_initializing))
             return
         }
 
-        if (!CloudSyncHelper.cloudSavesDiffer(activity, shortcut)) return
+        val pendingAction = CloudSyncHelper.getGogPendingSyncAction(activity, shortcut)
+        Timber.tag("GogLaunchCloudSync").i("Pending GOG cloud action before launch: $pendingAction")
+        when (pendingAction) {
+            GOGCloudSavesManager.SyncAction.NONE -> return
+            GOGCloudSavesManager.SyncAction.DOWNLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
+                CloudSyncHelper.downloadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            GOGCloudSavesManager.SyncAction.UPLOAD -> {
+                Timber.tag("GogLaunchCloudSync").i(
+                    "Local GOG cloud saves are newer before launch; deferring upload until exit",
+                )
+                return
+            }
+            GOGCloudSavesManager.SyncAction.CONFLICT -> {
+                // Fall through to the conflict dialog below.
+            }
+        }
 
         val dialogLatch = CountDownLatch(1)
         var useCloud = false

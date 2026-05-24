@@ -322,13 +322,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
-    private boolean isActivityPaused = false;
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
-        return isPaused || (isActivityPaused && !isInPictureInPictureMode());
+        return isPaused;
     }
     private boolean isNativeRenderingEnabled = true;
 
@@ -1781,7 +1780,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onResume() {
-        isActivityPaused = false;
         super.onResume();
         applyPreferredRefreshRate();
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
@@ -1821,7 +1819,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public void onPause() {
-        isActivityPaused = true;
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
@@ -2004,7 +2001,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         && !activityDestroyed.get()
                         && (System.currentTimeMillis() - startTime) < STEAM_TERMINATION_TIMEOUT_MS) {
                     
-                    if (isPaused || isActivityPaused) {
+                    if (isPaused) {
                         startTime += STEAM_TERMINATION_POLL_MS;
                         if (lastNonCoreSeenAt > 0) lastNonCoreSeenAt += STEAM_TERMINATION_POLL_MS;
                         Thread.sleep(STEAM_TERMINATION_POLL_MS);
@@ -2336,6 +2333,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         new Thread(() -> {
+            performForcedEpicCloudUpload("forced cleanup (" + trigger + ")");
+            performForcedGogCloudUpload("forced cleanup (" + trigger + ")");
+
             try {
                 AppTerminationHelper.stopManagedServices(getApplicationContext(), "xserver_forced_cleanup_" + trigger);
             } catch (Exception e) {
@@ -2405,9 +2405,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (shortcutName != null && !shortcutName.isEmpty()) {
-            preloaderDialog.showOnUiThread("Closing " + shortcutName + "...");
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_closing, shortcutName));
         } else {
-            preloaderDialog.showOnUiThread("Closing Container...");
+            preloaderDialog.showOnUiThread(
+                    getString(R.string.preloader_closing, getString(R.string.preloader_default_name)));
         }
         
         // Sync store cloud saves before shutting down
@@ -2592,7 +2593,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     + "ms.");
                     if (preloaderDialog != null && retryStatusMessage != null && !retryStatusMessage.isEmpty()) {
                         preloaderDialog.showOnUiThread(
-                                retryStatusMessage + " Retry " + nextAttempt + "/" + EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS + "...");
+                                getString(
+                                        R.string.preloader_cloud_sync_retry,
+                                        retryStatusMessage,
+                                        nextAttempt,
+                                        EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS));
                     }
                     Handler activeHandler = handler != null ? handler : new Handler(Looper.getMainLooper());
                     activeHandler.postDelayed(
@@ -2661,7 +2666,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         runExitUploadWithRetries(
                 "Steam cloud sync for appId=" + appId,
-                "Cloud Sync Uploading...",
+                getString(R.string.preloader_uploading_cloud),
                 callback ->
                         SteamExitCloudSync.syncOnExit(
                                 this,
@@ -2677,6 +2682,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void syncEpicCloudOnExit(Runnable onComplete) {
+        if (shortcut != null && !shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Epic cloud sync skipped because a container-swap download is pending");
+            onComplete.run();
+            return;
+        }
+
         String appIdStr = shortcut.getExtra("app_id");
         if (appIdStr == null || appIdStr.isEmpty()) {
             onComplete.run();
@@ -2692,13 +2704,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return;
         }
 
-        // Skip silently when an upload can't possibly succeed — the game doesn't opt
+        final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+
+        // Skip silently when a sync can't possibly succeed — the game doesn't opt
         // into Epic cloud saves (most don't), the user isn't signed in, or there are
         // no local save files yet. Otherwise the retry-with-backoff loop below would
-        // run three full rounds showing "Cloud Sync Uploading… Retry 3/3" for a
+        // run three full rounds showing the cloud-check retry status for a
         // permanent no-op.
         if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
-                .canAttemptExitUpload(this, appId)) {
+                .canAttemptExitUpload(this, appId, targetContainerId)) {
             Log.i("XServerDisplayActivity",
                     "Epic cloud sync skipped for appId=" + appId
                             + " (game does not support cloud saves, user signed out, or no local save files)");
@@ -2708,20 +2722,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         try {
             Log.d("XServerDisplayActivity", "Syncing Epic cloud saves for appId=" + appId);
-            preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+            preloaderDialog.showOnUiThread(getString(R.string.preloader_checking_cloud));
 
             runExitUploadWithRetries(
                     "Epic cloud sync for appId=" + appId,
-                    "Cloud Sync Uploading...",
+                    getString(R.string.preloader_checking_cloud),
                     callback -> runBlockingExitUpload(
                             "EpicExitCloudSync",
                             () -> {
+                                Object pendingAction = kotlinx.coroutines.BuildersKt.runBlocking(
+                                        kotlinx.coroutines.Dispatchers.getIO(),
+                                        (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.getPendingExitSyncAction(
+                                                this,
+                                                appId,
+                                                targetContainerId,
+                                                continuation
+                                        )
+                                );
+                                if (pendingAction == com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.SyncAction.UPLOAD) {
+                                    runOnUiThread(() -> preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud)));
+                                }
+
                                 Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
                                         kotlinx.coroutines.Dispatchers.getIO(),
                                         (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
                                                 this,
                                                 appId,
-                                                "upload",
+                                                "exit_upload",
+                                                targetContainerId,
                                                 continuation
                                         )
                                 );
@@ -2729,8 +2757,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 return new ExitUploadResult(
                                         success,
                                         success
-                                                ? "Epic cloud upload completed."
-                                                : "Epic cloud upload reported failure.",
+                                                ? "Epic cloud sync completed."
+                                                : "Epic cloud sync reported failure.",
                                         true);
                             },
                             callback),
@@ -2741,28 +2769,107 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void performForcedEpicCloudUpload(String reason) {
+        if (shortcut == null || !"EPIC".equals(shortcut.getExtra("game_source"))) return;
+        if (!isCloudSyncEnabledForShortcut() || CloudSyncHelper.isOfflineMode(shortcut)) return;
+        if (!shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Forced Epic cloud upload skipped because a container-swap download is pending during " + reason);
+            return;
+        }
+
+        String appIdStr = shortcut.getExtra("app_id");
+        if (appIdStr == null || appIdStr.isEmpty()) return;
+
+        final int appId;
+        try {
+            appId = Integer.parseInt(appIdStr);
+        } catch (NumberFormatException e) {
+            Log.w("XServerDisplayActivity", "Failed to parse Epic app_id for forced cloud sync", e);
+            return;
+        }
+
+        try {
+            final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+            if (!com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
+                    .canAttemptExitUpload(this, appId, targetContainerId)) {
+                Log.i("XServerDisplayActivity", "Forced Epic cloud upload skipped for appId=" + appId + " during " + reason);
+                return;
+            }
+
+            Log.i("XServerDisplayActivity", "Attempting forced Epic cloud upload for appId=" + appId + " during " + reason);
+            Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                    kotlinx.coroutines.Dispatchers.getIO(),
+                    (scope, continuation) -> com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager.INSTANCE.syncCloudSaves(
+                            this,
+                            appId,
+                            "exit_upload",
+                            targetContainerId,
+                            continuation
+                    )
+            );
+            Log.i("XServerDisplayActivity", "Forced Epic cloud upload result for appId=" + appId + ": " + syncSuccess);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Forced Epic cloud upload failed during " + reason, e);
+        }
+    }
+
     private void syncGogCloudOnExit(Runnable onComplete) {
+        if (shortcut != null && !shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "GOG cloud sync skipped because a container-swap download is pending");
+            onComplete.run();
+            return;
+        }
+
         String gogId = shortcut.getExtra("gog_id");
         if (gogId == null || gogId.isEmpty()) {
             onComplete.run();
             return;
         }
+        final String appId = "GOG_" + gogId;
+        final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+
+        if (!com.winlator.cmod.feature.stores.gog.service.GOGService
+                .canAttemptExitUpload(this, appId, targetContainerId)) {
+            Log.i("XServerDisplayActivity",
+                    "GOG cloud sync skipped for " + appId
+                            + " (no cloud-save locations, user signed out, or no local save files)");
+            onComplete.run();
+            return;
+        }
 
         Log.d("XServerDisplayActivity", "Syncing GOG cloud saves for gogId=" + gogId);
-        preloaderDialog.showOnUiThread("Cloud Sync Uploading...");
+        preloaderDialog.showOnUiThread(getString(R.string.preloader_checking_cloud));
 
         runExitUploadWithRetries(
                 "GOG cloud sync for gogId=" + gogId,
-                "Cloud Sync Uploading...",
+                getString(R.string.preloader_checking_cloud),
                 callback -> runBlockingExitUpload(
                         "GogExitCloudSync",
                         () -> {
+                            Object pendingAction = kotlinx.coroutines.BuildersKt.runBlocking(
+                                    kotlinx.coroutines.Dispatchers.getIO(),
+                                    (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion
+                                            .getPendingExitSyncAction(
+                                                    this,
+                                                    appId,
+                                                    targetContainerId,
+                                                    continuation
+                                            )
+                            );
+                            if (pendingAction == com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager.SyncAction.UPLOAD) {
+                                runOnUiThread(() -> preloaderDialog.showOnUiThread(getString(R.string.preloader_uploading_cloud)));
+                            }
+
+                            // "exit_upload" only pushes files strictly newer than cloud.
                             Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
                                     kotlinx.coroutines.Dispatchers.getIO(),
                                     (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
                                             this,
-                                            "GOG_" + gogId,
-                                            "upload",
+                                            appId,
+                                            "exit_upload",
+                                            targetContainerId,
                                             continuation
                                     )
                             );
@@ -2776,6 +2883,44 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         },
                         callback),
                 onComplete);
+    }
+
+    private void performForcedGogCloudUpload(String reason) {
+        if (shortcut == null || !"GOG".equals(shortcut.getExtra("game_source"))) return;
+        if (!isCloudSyncEnabledForShortcut() || CloudSyncHelper.isOfflineMode(shortcut)) return;
+        if (!shortcut.getExtra("cloud_force_download").isEmpty()) {
+            Log.i("XServerDisplayActivity",
+                    "Forced GOG cloud upload skipped because a container-swap download is pending during " + reason);
+            return;
+        }
+
+        String gogId = shortcut.getExtra("gog_id");
+        if (gogId == null || gogId.isEmpty()) return;
+        final String appId = "GOG_" + gogId;
+
+        try {
+            final Integer targetContainerId = container != null ? Integer.valueOf(container.id) : null;
+            if (!com.winlator.cmod.feature.stores.gog.service.GOGService
+                    .canAttemptExitUpload(this, appId, targetContainerId)) {
+                Log.i("XServerDisplayActivity", "Forced GOG cloud upload skipped for " + appId + " during " + reason);
+                return;
+            }
+
+            Log.i("XServerDisplayActivity", "Attempting forced GOG cloud upload for " + appId + " during " + reason);
+            Boolean syncSuccess = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
+                    kotlinx.coroutines.Dispatchers.getIO(),
+                    (scope, continuation) -> com.winlator.cmod.feature.stores.gog.service.GOGService.Companion.syncCloudSaves(
+                            this,
+                            appId,
+                            "exit_upload",
+                            targetContainerId,
+                            continuation
+                    )
+            );
+            Log.i("XServerDisplayActivity", "Forced GOG cloud upload result for " + appId + ": " + syncSuccess);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Forced GOG cloud upload failed during " + reason, e);
+        }
     }
 
     private void showLaunchPreloader(String text) {
@@ -4106,7 +4251,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         closeLaunchAttempt();
                         return;
                     }
-                    preloaderDialog.showOnUiThread("Retrying Steam client download...");
+                    preloaderDialog.showOnUiThread(getString(R.string.preloader_retrying_steam_client_download));
                 }
             }
 
@@ -6144,13 +6289,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.d("XServerDisplayActivity", "Set native working dir for store process: " + nativeDir.getPath());
                 }
 
-                if (wineInfo != null && wineInfo.isArm64EC()) {
-                    String epicCommand = dir + (dir.endsWith("\\") ? "" : "\\") + filename;
-                    args = "\"" + epicCommand + "\"" + extraArgs;
-                } else {
-                    // Avoid StringUtils.escapeDOSPath here as it might double-escape
-                    args = "/dir \"" + dir + "\" \"" + filename + "\"" + extraArgs;
-                }
+                String storeCommand = dir + (dir.endsWith("\\") ? "" : "\\") + filename;
+                args = "\"" + storeCommand + "\"" + extraArgs;
                 Log.d("XServerDisplayActivity", gameSource + " game launch: " + args);
             } else {
                 // Custom shortcut

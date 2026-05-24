@@ -223,6 +223,7 @@ object DownloadCoordinator {
                 if (safeTotal > 0L) next.coerceAtMost(safeTotal) else next
             }
             daoRef.updateProgress(record.id, safeDownloaded, safeTotal)
+            refreshState(daoRef)
         }
     }
 

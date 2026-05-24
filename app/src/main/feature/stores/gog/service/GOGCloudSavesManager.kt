@@ -2,20 +2,26 @@ package com.winlator.cmod.feature.stores.gog.service
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import timber.log.Timber
+import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class GOGCloudSavesManager(
     private val context: Context,
@@ -32,6 +38,7 @@ class GOGCloudSavesManager(
         private const val USER_AGENT =
             "GOGGalaxyCommunicationService/2.0.13.27 (Windows_32bit) dont_sync_marker/true installation_source/gog"
         private const val DELETION_MD5 = "aadd86936a80ee8a369579c3926f1b3c"
+        private val GOG_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx")
     }
 
     enum class SyncAction {
@@ -58,24 +65,18 @@ class GOGCloudSavesManager(
                     }
 
                     val timestamp = file.lastModified()
-                    val instant = Instant.ofEpochMilli(timestamp)
-                    updateTime = DateTimeFormatter.ISO_INSTANT.format(instant)
                     updateTimestamp = timestamp / 1000
+                    updateTime =
+                        Instant
+                            .ofEpochSecond(updateTimestamp ?: 0L)
+                            .atOffset(ZoneOffset.UTC)
+                            .format(GOG_TIMESTAMP_FORMATTER)
 
-                    FileInputStream(file).use { fis ->
-                        val digest = MessageDigest.getInstance("MD5")
-                        val buffer = java.io.ByteArrayOutputStream()
-
-                        GZIPOutputStream(buffer).use { gzipOut ->
-                            val fileBuffer = ByteArray(8192)
-                            var bytesRead: Int
-                            while (fis.read(fileBuffer).also { bytesRead = it } != -1) {
-                                gzipOut.write(fileBuffer, 0, bytesRead)
-                            }
-                        }
-
-                        md5Hash = digest.digest(buffer.toByteArray()).joinToString("") { "%02x".format(it) }
-                    }
+                    // Hash matches the Etag GOG stores: md5 of gzip(raw, level=6, mtime=0).
+                    val gzipped = gzipWithZeroMtime(file.readBytes())
+                    md5Hash = MessageDigest.getInstance("MD5")
+                        .digest(gzipped)
+                        .joinToString("") { "%02x".format(it) }
 
                     Timber.d("Calculated metadata for $relativePath: md5=$md5Hash, timestamp=$updateTimestamp")
                 } catch (e: Exception) {
@@ -94,20 +95,81 @@ class GOGCloudSavesManager(
             get() = md5Hash == DELETION_MD5
     }
 
+    private data class DownloadedObject(
+        val bytes: ByteArray,
+        val localLastModifiedMs: Long?,
+    )
+
     data class SyncClassifier(
         val updatedLocal: List<SyncFile> = emptyList(),
         val updatedCloud: List<CloudFile> = emptyList(),
         val notExistingLocally: List<CloudFile> = emptyList(),
         val notExistingRemotely: List<SyncFile> = emptyList(),
     ) {
-        fun determineAction(): SyncAction =
-            when {
-                updatedLocal.isEmpty() && updatedCloud.isNotEmpty() -> SyncAction.DOWNLOAD
-                updatedLocal.isNotEmpty() && updatedCloud.isEmpty() -> SyncAction.UPLOAD
-                updatedLocal.isEmpty() && updatedCloud.isEmpty() -> SyncAction.NONE
+        fun determineAction(): SyncAction {
+            val hasLocalChanges = updatedLocal.isNotEmpty() || notExistingRemotely.isNotEmpty()
+            val hasCloudChanges = updatedCloud.isNotEmpty() || notExistingLocally.isNotEmpty()
+            return when {
+                !hasLocalChanges && hasCloudChanges -> SyncAction.DOWNLOAD
+                hasLocalChanges && !hasCloudChanges -> SyncAction.UPLOAD
+                !hasLocalChanges && !hasCloudChanges -> SyncAction.NONE
                 else -> SyncAction.CONFLICT
             }
+        }
     }
+
+    suspend fun listCloudSaveFiles(
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+    ): List<CloudFile> =
+        withContext(Dispatchers.IO) {
+            if (clientSecret.isEmpty()) {
+                Timber.tag("GOG-CloudSaves").w("Cannot list cloud files for '$dirname': missing clientSecret")
+                return@withContext emptyList()
+            }
+            val credentials =
+                GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
+                    Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for cloud listing")
+                    return@withContext emptyList()
+                }
+            getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
+                .filter { !it.isDeleted }
+        }
+
+    suspend fun addCloudSaveFilesToZip(
+        zip: ZipOutputStream,
+        zipPrefix: String,
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+    ): Int =
+        withContext(Dispatchers.IO) {
+            if (clientSecret.isEmpty()) {
+                Timber.tag("GOG-CloudSaves").w("Cannot export cloud files for '$dirname': missing clientSecret")
+                return@withContext 0
+            }
+            val credentials =
+                GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
+                    Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for cloud export")
+                    return@withContext 0
+                }
+            val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken).filter { !it.isDeleted }
+            var exported = 0
+            for (file in cloudFiles) {
+                val downloaded = downloadObject(credentials.userId, clientId, dirname, file, credentials.accessToken) ?: continue
+                val entryName = safeZipEntryName(zipPrefix, file.relativePath) ?: continue
+                val entry =
+                    ZipEntry(entryName).apply {
+                        time = downloaded.localLastModifiedMs ?: file.updateTimestamp?.times(1000L) ?: System.currentTimeMillis()
+                    }
+                zip.putNextEntry(entry)
+                zip.write(downloaded.bytes)
+                zip.closeEntry()
+                exported++
+            }
+            exported
+        }
 
     suspend fun needsSync(
         localPath: String,
@@ -115,11 +177,20 @@ class GOGCloudSavesManager(
         clientId: String,
         clientSecret: String,
         lastSyncTimestamp: Long = 0,
-    ): Boolean =
+    ): Boolean = determineSyncAction(localPath, dirname, clientId, clientSecret, lastSyncTimestamp) != SyncAction.NONE
+
+    suspend fun determineSyncAction(
+        localPath: String,
+        dirname: String,
+        clientId: String,
+        clientSecret: String,
+        lastSyncTimestamp: Long = 0,
+        preferredAction: String = "auto",
+    ): SyncAction =
         withContext(Dispatchers.IO) {
             if (clientSecret.isEmpty()) {
                 Timber.tag("GOG-CloudSaves").w("Cannot probe cloud sync for '$dirname': missing clientSecret")
-                return@withContext false
+                return@withContext SyncAction.NONE
             }
 
             val syncDir = File(localPath)
@@ -127,16 +198,44 @@ class GOGCloudSavesManager(
             val credentials =
                 GOGAuthManager.getGameCredentials(context, clientId, clientSecret).getOrNull() ?: run {
                     Timber.tag("GOG-CloudSaves").e("Failed to get game-specific credentials for sync probe")
-                    return@withContext false
+                    return@withContext SyncAction.NONE
                 }
             val cloudFiles = getCloudFiles(credentials.userId, clientId, dirname, credentials.accessToken)
             val downloadableCloud = cloudFiles.filter { !it.isDeleted }
 
+            if (preferredAction.equals("exit_upload", ignoreCase = true)) {
+                if (localFiles.isEmpty()) return@withContext SyncAction.NONE
+                if (cloudFiles.isEmpty()) return@withContext SyncAction.UPLOAD
+                val cloudByPath = cloudFiles.associateBy { it.relativePath }
+                val localPaths = localFiles.map { it.relativePath }.toSet()
+                val staleCloudFilesMissingLocally =
+                    cloudFiles.filter {
+                        !it.isDeleted &&
+                            it.relativePath !in localPaths &&
+                            (it.updateTimestamp ?: Long.MAX_VALUE) <= lastSyncTimestamp
+                    }
+                val anyLocalNewer =
+                        localFiles.any { local ->
+                            val cloud = cloudByPath[local.relativePath]
+                            val localTimestamp = local.updateTimestamp ?: 0L
+                            when {
+                                cloud == null -> localTimestamp > lastSyncTimestamp
+                                cloud.isDeleted -> localTimestamp > (cloud.updateTimestamp ?: lastSyncTimestamp)
+                                else -> localTimestamp > (cloud.updateTimestamp ?: 0L)
+                            }
+                        }
+                return@withContext if (anyLocalNewer || staleCloudFilesMissingLocally.isNotEmpty()) {
+                    SyncAction.UPLOAD
+                } else {
+                    SyncAction.NONE
+                }
+            }
+
             when {
-                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> true
-                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> true
-                localFiles.isEmpty() && cloudFiles.isEmpty() -> false
-                else -> classifyFiles(localFiles, cloudFiles, lastSyncTimestamp).determineAction() != SyncAction.NONE
+                localFiles.isNotEmpty() && cloudFiles.isEmpty() -> SyncAction.UPLOAD
+                localFiles.isEmpty() && downloadableCloud.isNotEmpty() -> SyncAction.DOWNLOAD
+                localFiles.isEmpty() && cloudFiles.isEmpty() -> SyncAction.NONE
+                else -> classifyFiles(localFiles, cloudFiles, lastSyncTimestamp).determineAction()
             }
         }
 
@@ -189,6 +288,58 @@ class GOGCloudSavesManager(
                     }
                 }
 
+                // Exit-time upload: never download — must not overwrite a newer cloud save
+                // made on another device with stale local data from this session.
+                if (preferredAction.equals("exit_upload", ignoreCase = true)) {
+                    if (localFiles.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i("[exit_upload] No local files for '$dirname'; skipping")
+                        return@withContext currentTimestamp()
+                    }
+                    if (cloudFiles.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i(
+                            "[exit_upload] Cloud empty for '$dirname'; uploading ${localFiles.size} file(s)",
+                        )
+                        localFiles.forEach { file ->
+                            uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                        }
+                        return@withContext currentTimestamp()
+                    }
+                    val cloudByPath = cloudFiles.associateBy { it.relativePath }
+                    val localPaths = localFiles.map { it.relativePath }.toSet()
+                    val toUpload =
+                        localFiles.filter { local ->
+                            val cloud = cloudByPath[local.relativePath]
+                            val localTimestamp = local.updateTimestamp ?: 0L
+                            when {
+                                cloud == null -> localTimestamp > lastSyncTimestamp
+                                cloud.isDeleted -> localTimestamp > (cloud.updateTimestamp ?: lastSyncTimestamp)
+                                else -> localTimestamp > (cloud.updateTimestamp ?: 0L)
+                            }
+                        }
+                    val toDelete =
+                        cloudFiles.filter {
+                            !it.isDeleted &&
+                                it.relativePath !in localPaths &&
+                                (it.updateTimestamp ?: Long.MAX_VALUE) <= lastSyncTimestamp
+                        }
+                    if (toUpload.isEmpty() && toDelete.isEmpty()) {
+                        Timber.tag("GOG-CloudSaves").i(
+                            "[exit_upload] Nothing local is newer; preserving last sync timestamp so newer cloud data is still detected",
+                        )
+                        return@withContext lastSyncTimestamp.coerceAtLeast(1L)
+                    }
+                    Timber.tag("GOG-CloudSaves").i(
+                        "[exit_upload] Uploading ${toUpload.size} newer/new local file(s) and deleting ${toDelete.size} stale cloud file(s) for '$dirname'",
+                    )
+                    toUpload.forEach { file ->
+                        uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                    }
+                    toDelete.forEach { file ->
+                        deleteCloudFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                    }
+                    return@withContext currentTimestamp()
+                }
+
                 when {
                     localFiles.isNotEmpty() && cloudFiles.isEmpty() -> {
                         Timber.tag("GOG-CloudSaves").i("No files in cloud, uploading ${localFiles.size} file(s)")
@@ -219,6 +370,8 @@ class GOGCloudSavesManager(
                     downloadableCloud.forEach { file ->
                         downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
                     }
+                    deleteLocalFilesMissingFromCloud(localFiles, downloadableCloud)
+                    pruneEmptyDirectories(syncDir)
                     return@withContext currentTimestamp()
                 }
 
@@ -227,6 +380,9 @@ class GOGCloudSavesManager(
                     localFiles.forEach { file ->
                         uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
                     }
+                    cloudFiles
+                        .filter { !it.isDeleted && localFiles.none { local -> local.relativePath == it.relativePath } }
+                        .forEach { file -> deleteCloudFile(credentials.userId, clientId, dirname, file, credentials.accessToken) }
                     return@withContext currentTimestamp()
                 }
 
@@ -237,13 +393,17 @@ class GOGCloudSavesManager(
                             "Downloading ${classifier.updatedCloud.size} updated cloud file(s)",
                         )
                         classifier.updatedCloud.forEach { file ->
-                            downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
+                            if (!file.isDeleted) {
+                                downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
+                            }
                         }
                         classifier.notExistingLocally.forEach { file ->
                             if (!file.isDeleted) {
                                 downloadFile(credentials.userId, clientId, dirname, file, syncDir, credentials.accessToken)
                             }
                         }
+                        deleteLocalFilesMissingFromCloud(classifier.notExistingRemotely, downloadableCloud)
+                        pruneEmptyDirectories(syncDir)
                     }
 
                     SyncAction.UPLOAD -> {
@@ -255,6 +415,11 @@ class GOGCloudSavesManager(
                         }
                         classifier.notExistingRemotely.forEach { file ->
                             uploadFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                        }
+                        classifier.notExistingLocally.forEach { file ->
+                            if (!file.isDeleted) {
+                                deleteCloudFile(credentials.userId, clientId, dirname, file, credentials.accessToken)
+                            }
                         }
                     }
 
@@ -423,15 +588,8 @@ class GOGCloudSavesManager(
                         Timber.tag("GOG").d("[Cloud Saves]   Examining item $i: name='$name', dirname='$dirname'")
 
                         if (name.isNotEmpty() && hash.isNotEmpty() && name.startsWith("$dirname/")) {
-                            val timestamp =
-                                try {
-                                    Instant.parse(lastModified).epochSecond
-                                } catch (_: Exception) {
-                                    null
-                                }
-
                             val relativePath = name.removePrefix("$dirname/")
-                            files.add(CloudFile(relativePath, hash, lastModified, timestamp))
+                            files.add(CloudFile(relativePath, hash, lastModified, parseGogTimestampMillis(lastModified)?.div(1000L)))
                             Timber.tag("GOG").d("[Cloud Saves]     Matched: relativePath='$relativePath'")
                         } else {
                             Timber.tag("GOG").d("[Cloud Saves]     Skipped (doesn't match dirname or missing data)")
@@ -460,9 +618,15 @@ class GOGCloudSavesManager(
 
             Timber.tag("GOG-CloudSaves").i("Uploading: ${file.relativePath} ($fileSize bytes)")
 
-            val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
-            val requestBody = localFile.readBytes().toRequestBody("application/octet-stream".toMediaType())
+            // GOG/Heroic wire format: gzip body (mtime=0), Etag = md5(gzipped), Content-Encoding: gzip.
+            val gzipped = gzipWithZeroMtime(localFile.readBytes())
+            val etag =
+                MessageDigest.getInstance("MD5")
+                    .digest(gzipped)
+                    .joinToString("") { "%02x".format(it) }
+            val requestBody = gzipped.toRequestBody("application/octet-stream".toMediaType())
 
+            val url = buildObjectUrl(userId, clientId, dirname, file.relativePath)
             val requestBuilder =
                 Request
                     .Builder()
@@ -472,6 +636,8 @@ class GOGCloudSavesManager(
                     .header("User-Agent", USER_AGENT)
                     .header("X-Object-Meta-User-Agent", USER_AGENT)
                     .header("Content-Type", "application/octet-stream")
+                    .header("Content-Encoding", "gzip")
+                    .header("Etag", etag)
 
             file.updateTime?.let { timestamp ->
                 requestBuilder.header("X-Object-Meta-LocalLastModified", timestamp)
@@ -480,7 +646,9 @@ class GOGCloudSavesManager(
             val response = httpClient.newCall(requestBuilder.build()).execute()
             response.use {
                 if (response.isSuccessful) {
-                    Timber.tag("GOG-CloudSaves").i("Successfully uploaded: ${file.relativePath}")
+                    Timber.tag("GOG-CloudSaves").i(
+                        "Successfully uploaded: ${file.relativePath} (gzipped ${gzipped.size}B, etag=$etag)",
+                    )
                 } else {
                     val errorBody = response.body?.string() ?: "No response body"
                     Timber.tag("GOG-CloudSaves").e("Failed to upload ${file.relativePath}: HTTP ${response.code}")
@@ -503,42 +671,18 @@ class GOGCloudSavesManager(
         try {
             Timber.tag("GOG-CloudSaves").i("Downloading: ${file.relativePath}")
 
-            val url = "$CLOUD_STORAGE_BASE_URL/v1/$userId/$clientId/$dirname/${file.relativePath}"
+            val downloaded = downloadObject(userId, clientId, dirname, file, authToken) ?: return@withContext
 
-            val request =
-                Request
-                    .Builder()
-                    .url(url)
-                    .header("Authorization", "Bearer $authToken")
-                    .header("User-Agent", USER_AGENT)
-                    .header("X-Object-Meta-User-Agent", USER_AGENT)
-                    .build()
+            val localFile = File(syncDir, file.relativePath)
+            localFile.parentFile?.mkdirs()
 
-            val response = httpClient.newCall(request).execute()
-            response.use {
-                if (!response.isSuccessful) {
-                    val errorBody = response.body?.string() ?: "No response body"
-                    Timber.tag("GOG-CloudSaves").e("Failed to download ${file.relativePath}: HTTP ${response.code}")
-                    Timber.tag("GOG-CloudSaves").e("Download error body: $errorBody")
-                    return@withContext
-                }
-
-                val bytes = response.body?.bytes() ?: return@withContext
-                Timber.tag("GOG-CloudSaves").d("Downloaded ${bytes.size} bytes for ${file.relativePath}")
-
-                val localFile = File(syncDir, file.relativePath)
-                localFile.parentFile?.mkdirs()
-
-                FileOutputStream(localFile).use { fos ->
-                    fos.write(bytes)
-                }
-
-                file.updateTimestamp?.let { timestamp ->
-                    localFile.setLastModified(timestamp * 1000)
-                }
-
-                Timber.tag("GOG-CloudSaves").i("Successfully downloaded: ${file.relativePath}")
+            FileOutputStream(localFile).use { fos ->
+                fos.write(downloaded.bytes)
             }
+
+            localFile.setLastModified(downloaded.localLastModifiedMs ?: file.updateTimestamp?.times(1000L) ?: localFile.lastModified())
+
+            Timber.tag("GOG-CloudSaves").i("Successfully downloaded: ${file.relativePath}")
         } catch (e: Exception) {
             Timber.tag("GOG-CloudSaves").e(e, "Failed to download ${file.relativePath}")
         }
@@ -554,10 +698,40 @@ class GOGCloudSavesManager(
         val notExistingLocally = mutableListOf<CloudFile>()
         val notExistingRemotely = mutableListOf<SyncFile>()
 
-        val localPaths = localFiles.map { it.relativePath }.toSet()
-        val cloudPaths = cloudFiles.map { it.relativePath }.toSet()
+        val localByPath = localFiles.associateBy { it.relativePath }
+        val cloudByPath = cloudFiles.associateBy { it.relativePath }
+        val localPaths = localByPath.keys
+        val cloudPaths = cloudByPath.keys
 
         localFiles.forEach { file ->
+            val cloudFile = cloudByPath[file.relativePath]
+
+            if (cloudFile != null) {
+                val localTimestamp = file.updateTimestamp ?: 0L
+                val cloudTimestamp = cloudFile.updateTimestamp ?: 0L
+
+                if (cloudFile.isDeleted) {
+                    if (localTimestamp > cloudTimestamp) {
+                        notExistingRemotely.add(file)
+                    } else {
+                        updatedCloud.add(cloudFile)
+                    }
+                    return@forEach
+                }
+
+                if (cloudFile.md5Hash.equals(file.md5Hash.orEmpty(), ignoreCase = true)) return@forEach
+
+                when {
+                    localTimestamp > cloudTimestamp -> updatedLocal.add(file)
+                    cloudTimestamp > localTimestamp -> updatedCloud.add(cloudFile)
+                    else -> {
+                        updatedLocal.add(file)
+                        updatedCloud.add(cloudFile)
+                    }
+                }
+                return@forEach
+            }
+
             if (file.relativePath !in cloudPaths) {
                 notExistingRemotely.add(file)
             }
@@ -568,7 +742,17 @@ class GOGCloudSavesManager(
         }
 
         cloudFiles.forEach { file ->
-            if (file.isDeleted) return@forEach
+            if (file.isDeleted) {
+                val fileTimestamp = file.updateTimestamp
+                if (file.relativePath in localPaths && fileTimestamp != null && fileTimestamp > timestamp) {
+                    updatedCloud.add(file)
+                }
+                return@forEach
+            }
+
+            val localFile = localByPath[file.relativePath]
+            val hashesMatch = localFile != null && file.md5Hash.equals(localFile.md5Hash.orEmpty(), ignoreCase = true)
+            if (localFile != null || hashesMatch) return@forEach
 
             if (file.relativePath !in localPaths) {
                 notExistingLocally.add(file)
@@ -583,4 +767,170 @@ class GOGCloudSavesManager(
     }
 
     private fun currentTimestamp(): Long = System.currentTimeMillis() / 1000
+
+    private fun buildObjectUrl(
+        userId: String,
+        clientId: String,
+        dirname: String,
+        relativePath: String,
+    ): okhttp3.HttpUrl {
+        val builder =
+            "$CLOUD_STORAGE_BASE_URL/v1"
+                .toHttpUrl()
+                .newBuilder()
+                .addPathSegment(userId)
+                .addPathSegment(clientId)
+        // Split on "/" so addPathSegment percent-encodes each segment; passing the whole
+        // relativePath would encode the "/" itself and the server returns 404.
+        dirname.split('/').filter { it.isNotEmpty() }.forEach { builder.addPathSegment(it) }
+        relativePath.replace('\\', '/').split('/').filter { it.isNotEmpty() }.forEach {
+            builder.addPathSegment(it)
+        }
+        return builder.build()
+    }
+
+    private suspend fun downloadObject(
+        userId: String,
+        clientId: String,
+        dirname: String,
+        file: CloudFile,
+        authToken: String,
+    ): DownloadedObject? =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = buildObjectUrl(userId, clientId, dirname, file.relativePath)
+
+                val request =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer $authToken")
+                        .header("User-Agent", USER_AGENT)
+                        .header("X-Object-Meta-User-Agent", USER_AGENT)
+                        .build()
+
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        val errorBody = response.body?.string() ?: "No response body"
+                        Timber.tag("GOG-CloudSaves").e("Failed to download ${file.relativePath}: HTTP ${response.code}")
+                        Timber.tag("GOG-CloudSaves").e("Download error body: $errorBody")
+                        return@withContext null
+                    }
+
+                    val bytes = response.body?.bytes() ?: return@withContext null
+                    Timber.tag("GOG-CloudSaves").d("Downloaded ${bytes.size} bytes for ${file.relativePath}")
+                    DownloadedObject(
+                        bytes = gunzipIfNeeded(bytes),
+                        localLastModifiedMs = parseGogTimestampMillis(response.header("X-Object-Meta-LocalLastModified")),
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.tag("GOG-CloudSaves").e(e, "Failed to download ${file.relativePath}")
+                null
+            }
+        }
+
+    private suspend fun deleteCloudFile(
+        userId: String,
+        clientId: String,
+        dirname: String,
+        file: CloudFile,
+        authToken: String,
+    ) = withContext(Dispatchers.IO) {
+        try {
+            Timber.tag("GOG-CloudSaves").i("Deleting cloud file: ${file.relativePath}")
+            val request =
+                Request
+                    .Builder()
+                    .url(buildObjectUrl(userId, clientId, dirname, file.relativePath))
+                    .delete()
+                    .header("Authorization", "Bearer $authToken")
+                    .header("User-Agent", USER_AGENT)
+                    .header("X-Object-Meta-User-Agent", USER_AGENT)
+                    .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = response.body?.string() ?: "No response body"
+                    Timber.tag("GOG-CloudSaves").e("Failed to delete cloud file ${file.relativePath}: HTTP ${response.code}")
+                    Timber.tag("GOG-CloudSaves").e("Delete error body: $errorBody")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.tag("GOG-CloudSaves").e(e, "Failed to delete cloud file ${file.relativePath}")
+        }
+    }
+
+    private fun deleteLocalFilesMissingFromCloud(
+        localFiles: List<SyncFile>,
+        downloadableCloud: List<CloudFile>,
+    ) {
+        val cloudPaths = downloadableCloud.map { it.relativePath }.toSet()
+        localFiles
+            .filter { it.relativePath !in cloudPaths }
+            .forEach { file ->
+                runCatching {
+                    val localFile = File(file.absolutePath)
+                    if (localFile.exists() && localFile.isFile) {
+                        Timber.tag("GOG-CloudSaves").i("Deleting local file missing from cloud: ${file.relativePath}")
+                        localFile.delete()
+                    }
+                }.onFailure {
+                    Timber.tag("GOG-CloudSaves").e(it, "Failed to delete local file ${file.relativePath}")
+                }
+            }
+    }
+
+    private fun pruneEmptyDirectories(root: File) {
+        if (!root.exists() || !root.isDirectory) return
+        root
+            .walkBottomUp()
+            .filter { it != root && it.isDirectory && it.listFiles()?.isEmpty() == true }
+            .forEach { directory ->
+                runCatching {
+                    Timber.tag("GOG-CloudSaves").i("Deleting empty local cloud-save directory: ${directory.absolutePath}")
+                    directory.delete()
+                }.onFailure {
+                    Timber.tag("GOG-CloudSaves").e(it, "Failed to delete empty directory ${directory.absolutePath}")
+                }
+            }
+    }
+
+    private fun safeZipEntryName(
+        prefix: String,
+        relativePath: String,
+    ): String? {
+        val parts =
+            "$prefix/$relativePath"
+                .replace('\\', '/')
+                .split('/')
+                .filter { it.isNotBlank() && it != "." && it != ".." }
+        return parts.takeIf { it.isNotEmpty() }?.joinToString("/")
+    }
+}
+
+// Zero the gzip mtime bytes so the digest matches gogdl's `gzip.compress(raw, 6, mtime=0)`.
+private fun gzipWithZeroMtime(raw: ByteArray): ByteArray {
+    val sink = java.io.ByteArrayOutputStream()
+    GZIPOutputStream(sink).use { it.write(raw) }
+    val out = sink.toByteArray()
+    if (out.size >= 8) {
+        out[4] = 0; out[5] = 0; out[6] = 0; out[7] = 0
+    }
+    return out
+}
+
+private fun gunzipIfNeeded(bytes: ByteArray): ByteArray {
+    val isGzipped =
+        bytes.size >= 2 &&
+            bytes[0] == 0x1f.toByte() &&
+            bytes[1] == 0x8b.toByte()
+    if (!isGzipped) return bytes
+    return GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readBytes() }
+}
+
+private fun parseGogTimestampMillis(value: String?): Long? {
+    if (value.isNullOrBlank()) return null
+    return runCatching { Instant.parse(value).toEpochMilli() }
+        .recoverCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
+        .getOrNull()
 }

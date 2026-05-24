@@ -77,6 +77,11 @@ data class RawGogApiResponse(
     )
 }
 
+data class GOGCloudCredentials(
+    val clientId: String,
+    val clientSecret: String,
+)
+
 /**
  * Direct HTTP client for GOG API operations.
  * Uses GOGAuthManager for authentication tokens.
@@ -250,16 +255,16 @@ object GOGApiClient {
         }
 
     /**
-     * Fetch client secret from GOG build metadata API
-     * @param gameId GOG game ID
-     * @param installPath Game install path (for platform detection, defaults to "windows")
-     * @return Client secret string, or null if not found
+     * Fetch Galaxy cloud-save credentials from GOG build metadata.
+     *
+     * Newer game info files can omit clientId, so both clientId and clientSecret
+     * are read from the content-system manifest when available.
      */
-    suspend fun getClientSecret(
+    suspend fun getCloudCredentials(
         context: Context,
         gameId: String,
         installPath: String?,
-    ): String? =
+    ): GOGCloudCredentials? =
         withContext(Dispatchers.IO) {
             try {
                 val platform = "windows" // For now, assume Windows (proton)
@@ -389,21 +394,63 @@ object GOGApiClient {
                     Timber.tag("GOG").d("[Cloud Saves] Parsing manifest JSON (${manifestStr.take(100)}...)")
                     val manifestJson = JSONObject(manifestStr)
 
-                    // Extract clientSecret from manifest
-                    val clientSecret = manifestJson.optString("clientSecret", "")
+                    val clientId = manifestJson.findStringValue("clientId", "client_id")
+                    val clientSecret = manifestJson.findStringValue("clientSecret", "client_secret")
+                    if (clientId.isEmpty()) {
+                        Timber.tag("GOG").w("[Cloud Saves] No clientId in manifest for game $gameId")
+                    }
                     if (clientSecret.isEmpty()) {
                         Timber.tag("GOG").w("[Cloud Saves] No clientSecret in manifest for game $gameId")
+                    }
+                    if (clientId.isEmpty() && clientSecret.isEmpty()) {
                         return@withContext null
                     }
 
-                    Timber.tag("GOG").d("[Cloud Saves] Successfully retrieved clientSecret for game $gameId")
-                    return@withContext clientSecret
+                    Timber.tag("GOG").d("[Cloud Saves] Successfully retrieved cloud credentials for game $gameId")
+                    return@withContext GOGCloudCredentials(clientId, clientSecret)
                 }
             } catch (e: Exception) {
-                Timber.tag("GOG").e(e, "[Cloud Saves] Failed to get clientSecret for game $gameId")
+                Timber.tag("GOG").e(e, "[Cloud Saves] Failed to get cloud credentials for game $gameId")
                 return@withContext null
             }
         }
+
+    /**
+     * Fetch client secret from GOG build metadata API.
+     */
+    suspend fun getClientSecret(
+        context: Context,
+        gameId: String,
+        installPath: String?,
+    ): String? =
+        getCloudCredentials(context, gameId, installPath)
+            ?.clientSecret
+            ?.takeIf { it.isNotEmpty() }
+
+    private fun JSONObject.findStringValue(vararg names: String): String {
+        for (name in names) {
+            optString(name, "").takeIf { it.isNotEmpty() }?.let { return it }
+        }
+
+        val iterator = keys()
+        while (iterator.hasNext()) {
+            when (val value = opt(iterator.next())) {
+                is JSONObject -> value.findStringValue(*names).takeIf { it.isNotEmpty() }?.let { return it }
+                is JSONArray -> value.findStringValue(*names).takeIf { it.isNotEmpty() }?.let { return it }
+            }
+        }
+        return ""
+    }
+
+    private fun JSONArray.findStringValue(vararg names: String): String {
+        for (i in 0 until length()) {
+            when (val value = opt(i)) {
+                is JSONObject -> value.findStringValue(*names).takeIf { it.isNotEmpty() }?.let { return it }
+                is JSONArray -> value.findStringValue(*names).takeIf { it.isNotEmpty() }?.let { return it }
+            }
+        }
+        return ""
+    }
 
     /**
      * Transform raw GOG API response into better format. Based on GOGDL implementation
