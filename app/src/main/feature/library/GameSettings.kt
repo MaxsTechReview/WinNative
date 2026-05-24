@@ -53,7 +53,10 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inventory
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
@@ -433,6 +436,8 @@ interface GameSettingsCallbacks {
     fun onRemoveDrive(index: Int) {}
     fun onPickDrivePath(index: Int) {}
     fun onPickWallpaper() {}
+    fun onExportSaves() {}
+    fun onImportSaves() {}
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +487,7 @@ private const val SEC_VARIABLES = 6
 private const val SEC_INPUT = 7
 private const val SEC_ADVANCED = 8
 private const val SEC_DRIVES = 9
+private const val SEC_SAVES = 10
 
 private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int, SidebarSection>> {
     val list = mutableListOf<Pair<Int, SidebarSection>>()
@@ -490,10 +496,15 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     list += SEC_DISPLAY to SidebarSection(Icons.Outlined.Monitor, R.string.common_ui_graphics)
     list += SEC_ADVANCED to SidebarSection(Icons.Outlined.Settings, R.string.common_ui_advanced)
     list += SEC_INPUT to SidebarSection(Icons.Outlined.SportsEsports, R.string.common_ui_input_controls)
-    if (isContainer) list += SEC_DRIVES to SidebarSection(Icons.Outlined.Storage, R.string.container_config_drives)
+    if (isContainer) {
+        list += SEC_DRIVES to SidebarSection(Icons.Outlined.Storage, R.string.container_config_drives)
+    }
     list += SEC_VARIABLES to SidebarSection(Icons.Outlined.Code, R.string.container_config_variables)
     list += SEC_WINE to SidebarSection(Icons.Outlined.Science, R.string.container_wine_title)
     list += SEC_COMPONENTS to SidebarSection(Icons.Outlined.Extension, R.string.settings_content_components)
+    if (isContainer) {
+        list += SEC_SAVES to SidebarSection(Icons.Outlined.Inventory, R.string.saves_import_export_title)
+    }
     return list
 }
 
@@ -589,6 +600,7 @@ private fun SectionContent(
                 SEC_INPUT -> InputSection(state)
                 SEC_ADVANCED -> AdvancedSection(state, callbacks)
                 SEC_DRIVES -> DrivesSection(state, callbacks)
+                SEC_SAVES -> SavesSection(state, callbacks)
             }
             Spacer(Modifier.height(SettingSectionGap))
         }
@@ -841,7 +853,7 @@ private fun GeneralSection(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    if (summary.isNotBlank()) {
+                    if (!selected && summary.isNotBlank()) {
                         Spacer(Modifier.height(2.dp))
 
                         Text(
@@ -858,18 +870,13 @@ private fun GeneralSection(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ActionButton(
-                        text =
-                            stringResource(
-                                if (selected) {
-                                    R.string.shortcuts_library_artwork_change
-                                } else {
-                                    R.string.shortcuts_library_artwork_set
-                                }
-                            ),
-                        tint = AccentBlue,
-                        onClick = onPick
-                    )
+                    if (!selected) {
+                        ActionButton(
+                            text = stringResource(R.string.shortcuts_library_artwork_set),
+                            tint = AccentBlue,
+                            onClick = onPick
+                        )
+                    }
 
                     if (selected) {
                         ActionButton(
@@ -3999,5 +4006,89 @@ private fun SettingSlider(
                 )
             }
         )
+    }
+}
+
+// ===================================================================
+// Section 10: Saves
+// ===================================================================
+@Composable
+private fun SavesSection(
+    state: GameSettingsStateHolder,
+    callbacks: GameSettingsCallbacks
+) {
+    Column {
+        SavesActionCard(
+            title = stringResource(R.string.common_ui_export),
+            description = stringResource(R.string.saves_export_path_summary),
+            icon = Icons.Outlined.Upload,
+            accentColor = AccentBlue,
+            onClick = { callbacks.onExportSaves() }
+        )
+
+        Spacer(Modifier.height(SettingItemGap))
+
+        SavesActionCard(
+            title = stringResource(R.string.common_ui_import),
+            description = stringResource(R.string.saves_import_warning_title),
+            icon = Icons.Outlined.Download,
+            accentColor = WarningAmber,
+            onClick = { callbacks.onImportSaves() }
+        )
+    }
+}
+
+@Composable
+private fun SavesActionCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(SettingGroupCorner))
+            .background(InputSurface)
+            .border(1.dp, InputBorder, RoundedCornerShape(SettingGroupCorner))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(accentColor.copy(alpha = 0.1f))
+                    .border(1.dp, accentColor.copy(alpha = 0.2f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = SettingValueSize,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
     }
 }

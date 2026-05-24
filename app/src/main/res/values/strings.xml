@@ -1262,4 +1262,11 @@ Installed path:
     <string name="settings_hud_record_to_file_title">Record performance to file</string>
     <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
     <string name="settings_leaderboard_category">Performance</string>
+    <string name="saves_import_warning_title">Warning: This will Overwrite all saves in this container.</string>
+    <string name="saves_import_warning_body">If restoring to a pervious save and you have multiple games it\'s recommended to manually copy the newer saves to this zip file in your file manager</string>
+    <string name="saves_export_path_summary">Saves will be exported to /WinNative/saves</string>
+    <string name="saves_export_success_path">Exported to %1$s</string>
+    <string name="saves_export_warning_title">Warning: This feature should only be used for Custom games.</string>
+    <string name="saves_export_warning_body">It is possible to effect other Store and Cloud Save games.</string>
+    <string name="common_ui_exporting">Exporting…</string>
 </resources>

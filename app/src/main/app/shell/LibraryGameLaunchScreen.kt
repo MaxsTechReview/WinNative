@@ -126,7 +126,6 @@ internal fun LibraryGameLaunchScreen(
     installSizeText: String?,
     isCustom: Boolean,
     hasPinnedShortcut: Boolean,
-    showSavesAction: Boolean,
     steamMenuEnabled: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     showVerifyFiles: Boolean = true,
@@ -138,7 +137,6 @@ internal fun LibraryGameLaunchScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onShortcut: () -> Unit,
-    onSaves: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
     onVerifyFiles: () -> Unit = {},
@@ -393,14 +391,6 @@ internal fun LibraryGameLaunchScreen(
                             size = actionIconSize,
                             onClick = onShortcut,
                         )
-                        if (showSavesAction) {
-                            LaunchIconActionButton(
-                                icon = Icons.Outlined.Save,
-                                contentDescription = stringResource(R.string.saves_import_export_title),
-                                size = actionIconSize,
-                                onClick = onSaves,
-                            )
-                        }
                         LaunchIconActionButton(
                             icon = Icons.Outlined.CloudSync,
                             contentDescription = stringResource(R.string.cloud_saves_title),

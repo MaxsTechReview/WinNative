@@ -3091,7 +3091,6 @@ class UnifiedActivity :
     private enum class GameSettingsScreen {
         Menu,
         Shortcut,
-        Saves,
         CloudSaves,
         Uninstall,
     }
@@ -3772,15 +3771,11 @@ class UnifiedActivity :
                                 },
                             ),
                             GameSettingsActionItem(
-                                title = stringResource(R.string.saves_import_export_title),
-                                icon = Icons.Outlined.Save,
-                                onClick = { currentTab = GameSettingsScreen.Saves },
-                            ),
-                            GameSettingsActionItem(
                                 title = stringResource(R.string.cloud_saves_title),
                                 icon = Icons.Outlined.CloudSync,
                                 onClick = { currentTab = GameSettingsScreen.CloudSaves },
                             ),
+
                             GameSettingsActionItem(
                                 title =
                                     if (isCustom) {
@@ -3824,33 +3819,6 @@ class UnifiedActivity :
                             }
                         },
                         onCancel = { currentTab = GameSettingsScreen.Menu },
-                    )
-                }
-
-                GameSettingsScreen.Saves -> {
-                    GameSettingsActionGrid(
-                        actions =
-                            listOf(
-                                GameSettingsActionItem(
-                                    title = stringResource(R.string.common_ui_export),
-                                    icon = Icons.Outlined.Upload,
-                                    onClick = {
-                                        exportLauncher.launch(
-                                            "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
-                                        )
-                                    },
-                                ),
-                                GameSettingsActionItem(
-                                    title = stringResource(R.string.common_ui_import),
-                                    icon = Icons.Outlined.Download,
-                                    onClick = { importLauncher.launch(arrayOf("application/zip")) },
-                                ),
-                                GameSettingsActionItem(
-                                    title = stringResource(R.string.common_ui_back),
-                                    icon = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    onClick = { currentTab = GameSettingsScreen.Menu },
-                                ),
-                            ),
                     )
                 }
 
@@ -4135,11 +4103,6 @@ class UnifiedActivity :
                                     },
                                 ),
                                 GameSettingsActionItem(
-                                    title = stringResource(R.string.saves_import_export_title),
-                                    icon = Icons.Outlined.Save,
-                                    onClick = { currentTab = GameSettingsScreen.Saves },
-                                ),
-                                GameSettingsActionItem(
                                     title = stringResource(R.string.cloud_saves_title),
                                     icon = Icons.Outlined.CloudSync,
                                     onClick = { currentTab = GameSettingsScreen.CloudSaves },
@@ -4180,33 +4143,6 @@ class UnifiedActivity :
                             }
                         },
                         onCancel = { currentTab = GameSettingsScreen.Menu },
-                    )
-                }
-
-                GameSettingsScreen.Saves -> {
-                    GameSettingsActionGrid(
-                        actions =
-                            listOf(
-                                GameSettingsActionItem(
-                                    title = stringResource(R.string.common_ui_sync),
-                                    icon = Icons.Outlined.Cloud,
-                                    onClick = {
-                                        scope.launch(Dispatchers.IO) {
-                                            GOGService.syncCloudSaves(context, "GOG_${app.id}", "auto")
-                                        }
-                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                            context,
-                                            getString(R.string.google_cloud_sync_started),
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        )
-                                    },
-                                ),
-                                GameSettingsActionItem(
-                                    title = stringResource(R.string.common_ui_back),
-                                    icon = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    onClick = { currentTab = GameSettingsScreen.Menu },
-                                ),
-                            ),
                     )
                 }
 
@@ -4329,9 +4265,9 @@ class UnifiedActivity :
 
     // Library Game Detail Dialog
 
-    private enum class LibraryDetailScreen { Main, Shortcut, Saves, CloudSaves, Uninstall }
+    private enum class LibraryDetailScreen { Main, Shortcut, CloudSaves, Uninstall }
 
-    private enum class LibraryDetailPopup { Saves, CloudSaves }
+    private enum class LibraryDetailPopup { CloudSaves }
 
     @Composable
     private fun LibraryGameDetailDialog(
@@ -4965,7 +4901,6 @@ class UnifiedActivity :
                                     installSizeText = installSizeText,
                                     isCustom = isCustom,
                                     hasPinnedShortcut = hasPinnedShortcut,
-                                    showSavesAction = isCustom || isEpic || isGog,
                                     playEnabled = playEnabled,
                                     playDisabledLabel = playDisabledLabel,
                                     onBack = onDismissRequest,
@@ -5058,7 +4993,6 @@ class UnifiedActivity :
                                             }
                                         }
                                     },
-                                    onSaves = { activePopup = LibraryDetailPopup.Saves },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
                                     onUninstall = uninstallGame,
                                     // Store source tag actions. Steam exposes verify/update/workshop;
@@ -5170,80 +5104,6 @@ class UnifiedActivity :
                                         },
                                         onCancel = { currentScreen = LibraryDetailScreen.Main },
                                     )
-                                }
-                            }
-
-                            LibraryDetailScreen.Saves -> {
-                                Column(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 24.dp, vertical = 20.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    Text(
-                                        stringResource(R.string.library_games_save_management),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = TextSecondary,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.1.sp,
-                                    )
-
-                                    if (isGog) {
-                                        GameSettingsActionGrid(
-                                            actions =
-                                                listOf(
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_sync),
-                                                        icon = Icons.Outlined.Cloud,
-                                                        onClick = {
-                                                            scope.launch(Dispatchers.IO) {
-                                                                GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
-                                                            }
-                                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                context,
-                                                                getString(R.string.google_cloud_sync_started),
-                                                                android.widget.Toast.LENGTH_SHORT,
-                                                            )
-                                                        },
-                                                    ),
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_export),
-                                                        icon = Icons.Outlined.Upload,
-                                                        onClick = {
-                                                            exportLauncher.launch(
-                                                                "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
-                                                            )
-                                                        },
-                                                    ),
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_import),
-                                                        icon = Icons.Outlined.Download,
-                                                        onClick = { importLauncher.launch(arrayOf("application/zip")) },
-                                                    ),
-                                                ),
-                                        )
-                                    } else {
-                                        GameSettingsActionGrid(
-                                            actions =
-                                                listOf(
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_export),
-                                                        icon = Icons.Outlined.Upload,
-                                                        onClick = {
-                                                            exportLauncher.launch(
-                                                                "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
-                                                            )
-                                                        },
-                                                    ),
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_import),
-                                                        icon = Icons.Outlined.Download,
-                                                        onClick = { importLauncher.launch(arrayOf("application/zip")) },
-                                                    ),
-                                                ),
-                                        )
-                                    }
                                 }
                             }
 
@@ -5409,57 +5269,12 @@ class UnifiedActivity :
                         LibraryDetailPopupFrame(
                             title =
                                 when (popup) {
-                                    LibraryDetailPopup.Saves -> stringResource(R.string.saves_import_export_title)
                                     LibraryDetailPopup.CloudSaves -> stringResource(R.string.cloud_saves_title)
                                 },
                             wide = popup == LibraryDetailPopup.CloudSaves,
                             onDismissRequest = { activePopup = null },
                         ) {
                             when (popup) {
-                                LibraryDetailPopup.Saves -> {
-                                    GameSettingsActionGrid(
-                                        actions =
-                                            buildList {
-                                                if (isGog) {
-                                                    add(
-                                                        GameSettingsActionItem(
-                                                            title = stringResource(R.string.common_ui_sync),
-                                                            icon = Icons.Outlined.Cloud,
-                                                            onClick = {
-                                                                scope.launch(Dispatchers.IO) {
-                                                                    GOGService.syncCloudSaves(context, "GOG_${gogGame!!.id}", "auto")
-                                                                }
-                                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                                    context,
-                                                                    getString(R.string.google_cloud_sync_started),
-                                                                    android.widget.Toast.LENGTH_SHORT,
-                                                                )
-                                                            },
-                                                        ),
-                                                    )
-                                                }
-                                                add(
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_export),
-                                                        icon = Icons.Outlined.Upload,
-                                                        onClick = {
-                                                            exportLauncher.launch(
-                                                                "${app.name.replace(" ", "_").replace(":", "")}_Saves.zip",
-                                                            )
-                                                        },
-                                                    ),
-                                                )
-                                                add(
-                                                    GameSettingsActionItem(
-                                                        title = stringResource(R.string.common_ui_import),
-                                                        icon = Icons.Outlined.Download,
-                                                        onClick = { importLauncher.launch(arrayOf("application/zip")) },
-                                                    ),
-                                                )
-                                            },
-                                    )
-                                }
-
                                 LibraryDetailPopup.CloudSaves -> {
                                     var isWorking by remember { mutableStateOf(false) }
 
@@ -5582,7 +5397,6 @@ class UnifiedActivity :
 
                     if (
                         currentScreen != LibraryDetailScreen.Main &&
-                        currentScreen != LibraryDetailScreen.Saves &&
                         currentScreen != LibraryDetailScreen.CloudSaves
                     ) {
                         // Close button overlay
