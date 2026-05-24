@@ -54,6 +54,7 @@ import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
 import com.auth0.android.jwt.JWT
 import com.winlator.cmod.feature.stores.common.StoreAuthStatus
+import com.winlator.cmod.feature.stores.common.StoreArtworkCache
 import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.events.SteamEvent
@@ -579,6 +580,7 @@ class SteamService : Service() {
         }
 
         private fun cleanupSteamAppCacheDirs(appId: Int) {
+            StoreArtworkCache.deleteGame(PluviaApp.instance, "steam", appId.toString())
             steamAppCacheDirs(appId).forEach { dir ->
                 if (!dir.exists()) return@forEach
                 Timber.i("Deleting Steam cache folder for appId $appId: ${dir.absolutePath}")

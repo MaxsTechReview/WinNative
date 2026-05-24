@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
+import com.winlator.cmod.feature.stores.common.StoreArtworkCache
 import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocation
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocationTemplate
@@ -593,15 +594,26 @@ class GOGManager
 
                     val ignoredGameId = "1801418160" // Hidden ID for GOG Galaxy that we should ignore.
 
-                    // Get existing game IDs from database to avoid re-fetching
+                    // Get existing game IDs from database to avoid re-fetching, except when
+                    // older rows are missing the dedicated hero artwork added in DB v7.
+                    val existingGamesMissingHero =
+                        gogGameDao
+                            .getAllAsList()
+                            .filter { it.heroImageUrl.isBlank() }
+                            .map { it.id }
+                            .toSet()
                     val existingGameIds = gogGameDao.getAllGameIdsIncludingExcluded().toMutableSet()
                     existingGameIds.add(ignoredGameId)
 
                     Timber.tag("GOG").d("Found ${existingGameIds.size} games already in database")
 
-                    // Filter to only new games that need details fetched
-                    val newGameIds = gameIds.filter { it !in existingGameIds }
-                    Timber.tag("GOG").d("${newGameIds.size} new games need details fetched")
+                    // Filter to games that need details fetched
+                    val newGameIds =
+                        (
+                            gameIds.filter { it !in existingGameIds } +
+                                gameIds.filter { it in existingGamesMissingHero }
+                        ).distinct()
+                    Timber.tag("GOG").d("${newGameIds.size} games need details fetched")
 
                     if (newGameIds.isEmpty()) {
                         val detectedCount = detectAndUpdateExistingInstallations()
@@ -678,6 +690,7 @@ class GOGManager
                 exclude = exclude,
                 slug = parsedGame.slug,
                 imageUrl = parsedGame.imageUrl,
+                heroImageUrl = parsedGame.heroImageUrl,
                 iconUrl = parsedGame.iconUrl,
                 description = parsedGame.description,
                 releaseDate = parsedGame.releaseDate,
@@ -926,6 +939,7 @@ class GOGManager
                             Timber.d("Updated database: game marked as not installed")
                         }
                     }
+                    StoreArtworkCache.deleteGame(context, "gog", gameId)
 
                     // Trigger library refresh event
                     com.winlator.cmod.app.PluviaApp.events.emitJava(

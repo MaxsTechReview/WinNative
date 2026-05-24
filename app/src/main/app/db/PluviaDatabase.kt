@@ -2,6 +2,8 @@ package com.winlator.cmod.app.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.winlator.cmod.feature.stores.steam.data.AppInfo
 import com.winlator.cmod.feature.stores.steam.data.CachedLicense
 import com.winlator.cmod.feature.stores.steam.data.ChangeNumbers
@@ -43,7 +45,7 @@ const val DATABASE_NAME = "pluvia_database"
         DownloadingAppInfo::class,
         DownloadRecord::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(
@@ -89,7 +91,8 @@ abstract class PluviaDatabase : RoomDatabase() {
                         context.applicationContext,
                         PluviaDatabase::class.java,
                         DATABASE_NAME,
-                    ).fallbackToDestructiveMigration()
+                    ).addMigrations(MIGRATION_6_7)
+                    .fallbackToDestructiveMigration()
                     .build()
                     .also { instance = it }
             }
@@ -97,5 +100,12 @@ abstract class PluviaDatabase : RoomDatabase() {
         fun getInstance(context: android.content.Context): PluviaDatabase = init(context)
 
         fun getInstance(): PluviaDatabase = instance ?: throw IllegalStateException("PluviaDatabase not initialized")
+
+        private val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE gog_games ADD COLUMN hero_image_url TEXT NOT NULL DEFAULT ''")
+                }
+            }
     }
 }

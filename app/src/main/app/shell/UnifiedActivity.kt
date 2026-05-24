@@ -154,6 +154,7 @@ import com.winlator.cmod.feature.shortcuts.LibraryShortcutArtwork
 import com.winlator.cmod.feature.shortcuts.ShortcutBroadcastReceiver
 import com.winlator.cmod.feature.shortcuts.ShortcutSettingsComposeDialog
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
+import com.winlator.cmod.feature.stores.common.StoreArtworkCache
 import com.winlator.cmod.feature.stores.epic.data.EpicCredentials
 import com.winlator.cmod.feature.stores.epic.data.EpicGame
 import com.winlator.cmod.feature.stores.epic.data.EpicGameToken
@@ -2474,6 +2475,7 @@ class UnifiedActivity :
         var stableCustomCarouselArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var stableCustomListArtworkPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
         var stableCustomIconPathByAppId by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+        var artworkCacheRefreshKey by remember { mutableIntStateOf(0) }
         var libraryLoaded by remember { mutableStateOf(false) }
         // Track whether a new source snapshot is awaiting recomputation. The token
         // changes during composition as soon as any input list changes, so we can
@@ -2727,6 +2729,60 @@ class UnifiedActivity :
                 }
             }
 
+        LaunchedEffect(
+            visibleInstalledApps,
+            visibleGogByPseudoId,
+            visibleEpicByPseudoId,
+            visibleCustomArtworkPathByAppId,
+            visibleCustomGridArtworkPathByAppId,
+            visibleCustomCarouselArtworkPathByAppId,
+            visibleCustomListArtworkPathByAppId,
+            cachedShortcuts,
+        ) {
+            var deletedCustomOverrides = false
+            val refs =
+                visibleInstalledApps.flatMap { app ->
+                    val gogGame = visibleGogByPseudoId[app.id]
+                    val epicGame = visibleEpicByPseudoId[app.id]
+                    val overriddenSlots =
+                        customArtworkOverrideSlots(
+                            app = app,
+                            gogGame = gogGame,
+                            epicGame = epicGame,
+                            hasDefaultCustomArt = visibleCustomArtworkPathByAppId[app.id] != null,
+                            hasGridCustomArt = visibleCustomGridArtworkPathByAppId[app.id] != null,
+                            hasCarouselCustomArt = visibleCustomCarouselArtworkPathByAppId[app.id] != null,
+                            hasListCustomArt = visibleCustomListArtworkPathByAppId[app.id] != null,
+                            hasHeroCustomArt =
+                                findLibraryArtworkShortcut(cachedShortcuts, app, gogGame, epicGame)
+                                    ?.hasExistingArtwork(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey) == true,
+                        )
+
+                    if (overriddenSlots.isNotEmpty()) {
+                        val cacheId = artworkCacheId(app, gogGame, epicGame)
+                        if (cacheId != null) {
+                            val deleted =
+                                withContext(Dispatchers.IO) {
+                                    StoreArtworkCache.deleteSlots(context, cacheId.store, cacheId.gameId, overriddenSlots)
+                                }
+                            deletedCustomOverrides = deletedCustomOverrides || deleted
+                        }
+                    }
+
+                    StoreArtworkCache
+                        .libraryRefs(
+                            app = app,
+                            gogGame = gogGame,
+                            epicGame = epicGame,
+                        ).filterNot { it.slot in overriddenSlots }
+                }
+            val cachedAny =
+                withContext(Dispatchers.IO) {
+                    StoreArtworkCache.cacheAll(context, refs)
+                }
+            if (cachedAny || deletedCustomOverrides) artworkCacheRefreshKey++
+        }
+
         // The startup bootstrap screen already masks the first frame. Do not
         // force an extra minimum spinner duration here or the library visibly
         // bounces through two loading states on launch.
@@ -2890,6 +2946,7 @@ class UnifiedActivity :
                         gogGame = visibleGogByPseudoId[app.id],
                         epicGame = visibleEpicByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
+                        artworkCacheRefreshKey = artworkCacheRefreshKey,
                         isFocusedOverride = index == focusIndex,
                         isControllerActive = isControllerConnected,
                         customArtworkPath = visibleCustomGridArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
@@ -2932,6 +2989,7 @@ class UnifiedActivity :
                         gogGame = visibleGogByPseudoId[app.id],
                         epicGame = visibleEpicByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
+                        artworkCacheRefreshKey = artworkCacheRefreshKey,
                         isFocusedOverride = isSelected,
                         isControllerActive = isControllerConnected,
                         customArtworkPath = visibleCustomCarouselArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
@@ -2974,6 +3032,7 @@ class UnifiedActivity :
                         gogGame = visibleGogByPseudoId[app.id],
                         epicGame = visibleEpicByPseudoId[app.id],
                         iconRefreshKey = iconRefreshKey,
+                        artworkCacheRefreshKey = artworkCacheRefreshKey,
                         isFocusedOverride = isSelected,
                         isControllerActive = isControllerConnected,
                         customArtworkPath = visibleCustomListArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
@@ -3040,6 +3099,11 @@ class UnifiedActivity :
     private data class HomeShortcutUiState(
         val shortcut: Shortcut? = null,
         val isPinned: Boolean = false,
+    )
+
+    private data class ArtworkCacheId(
+        val store: String,
+        val gameId: String,
     )
 
     private data class GameSettingsActionItem(
@@ -4409,11 +4473,11 @@ class UnifiedActivity :
         val heroImageUrl: Any? =
             customHeroImageFile ?: when {
                 isGog -> {
-                    gogGame!!.imageUrl.ifEmpty { gogGame.iconUrl }
+                    StoreArtworkCache.imageModel(context, StoreArtworkCache.gogHeroRef(gogGame!!))
                 }
 
                 isEpic -> {
-                    epicGame?.primaryImageUrl ?: epicGame?.iconUrl
+                    epicGame?.let { StoreArtworkCache.imageModel(context, StoreArtworkCache.epicHeroRef(it)) }
                 }
 
                 isCustom -> {
@@ -4431,7 +4495,8 @@ class UnifiedActivity :
                 }
 
                 else -> {
-                    app.getHeroUrl()
+                    val heroUrl = app.getHeroUrl()
+                    StoreArtworkCache.imageModel(context, StoreArtworkCache.steamRef(app, "hero", heroUrl))
                 }
             }
 
@@ -5616,6 +5681,7 @@ class UnifiedActivity :
         gogGame: GOGGame? = null,
         epicGame: EpicGame? = null,
         iconRefreshKey: Int = 0,
+        artworkCacheRefreshKey: Int = 0,
         isFocusedOverride: Boolean = false,
         isControllerActive: Boolean = false,
         customArtworkPath: String? = null,
@@ -5722,42 +5788,19 @@ class UnifiedActivity :
                         )
                     }
                 }
-            } else if (gogGame != null) {
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(context)
-                            .data(gogGame.imageUrl.ifEmpty { gogGame.iconUrl })
-                            .crossfade(300)
-                            .build(),
-                    contentDescription = app.name,
-                    modifier = artModifier,
-                    contentScale = ContentScale.Crop,
-                )
-            } else if (isEpic) {
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(context)
-                            .data(epicGame?.primaryImageUrl ?: epicGame?.iconUrl)
-                            .crossfade(300)
-                            .build(),
-                    contentDescription = app.name,
-                    modifier = artModifier,
-                    contentScale = ContentScale.Crop,
-                )
             } else {
-                val imageUrl =
-                    when {
-                        listMode -> app.getSmallCapsuleUrl()
-                        useLibraryCapsule -> app.getLibraryCapsuleUrl()
-                        else -> app.getCapsuleUrl()
+                val imageModel =
+                    remember(app.id, gogGame, epicGame, useLibraryCapsule, listMode, artworkCacheRefreshKey) {
+                        StoreArtworkCache.imageModel(
+                            context,
+                            StoreArtworkCache.primaryRef(app, gogGame, epicGame, useLibraryCapsule, listMode),
+                        )
                     }
                 AsyncImage(
                     model =
                         ImageRequest
                             .Builder(context)
-                            .data(imageUrl)
+                            .data(imageModel)
                             .crossfade(300)
                             .build(),
                     contentDescription = app.name,
@@ -5769,7 +5812,11 @@ class UnifiedActivity :
 
         if (listMode) {
             // Horizontal row card with hero background
-            val heroUrl = if (!isCustom && gogGame == null && !isEpic) app.getHeroUrl() else null
+            val heroRef = if (!isCustom && gogGame == null && !isEpic) StoreArtworkCache.heroRef(app, null, null) else null
+            val heroModel =
+                remember(app.id, heroRef, artworkCacheRefreshKey) {
+                    StoreArtworkCache.imageModel(context, heroRef)
+                }
 
             Box(
                 modifier =
@@ -5786,12 +5833,12 @@ class UnifiedActivity :
                         .then(clickModifier),
             ) {
                 // Hero background layer (falls back to CardDark if image fails)
-                if (heroUrl != null) {
+                if (heroRef != null) {
                     AsyncImage(
                         model =
                             ImageRequest
                                 .Builder(context)
-                                .data(heroUrl)
+                                .data(heroModel)
                                 .crossfade(300)
                                 .build(),
                         contentDescription = null,
@@ -6359,7 +6406,7 @@ class UnifiedActivity :
                             app.publisher.takeIf { it.isNotBlank() },
                         ).joinToString(" • "),
                     sourceLabel = "Epic Games",
-                    heroImageUrl = app.artPortrait.ifEmpty { app.primaryImageUrl },
+                    heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.epicHeroRef(app)),
                     isLoading = isLoading,
                     isInstalled = installed,
                     installPathDisplay = installPathDisplay,
@@ -6970,7 +7017,7 @@ class UnifiedActivity :
                             app.publisher.takeIf { it.isNotBlank() },
                         ).joinToString(" • "),
                     sourceLabel = "GOG",
-                    heroImageUrl = app.imageUrl.ifEmpty { app.iconUrl },
+                    heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.gogHeroRef(app)),
                     isLoading = isLoading,
                     isInstalled = installed,
                     installPathDisplay = installPathDisplay,
@@ -8892,7 +8939,7 @@ class UnifiedActivity :
                             app.publisher.takeIf { it.isNotBlank() },
                         ).joinToString(" • "),
                     sourceLabel = "Steam",
-                    heroImageUrl = app.getHeroUrl(),
+                    heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.steamRef(app, "hero", app.getHeroUrl())),
                     isLoading = isLoading,
                     isInstalled = isReallyInstalled,
                     installPathDisplay = installPathDisplay,
@@ -9236,6 +9283,101 @@ class UnifiedActivity :
                 }
             }
         }
+
+    private fun findLibraryArtworkShortcut(
+        shortcuts: List<Shortcut>,
+        app: SteamApp,
+        gogGame: GOGGame?,
+        epicGame: EpicGame?,
+    ): Shortcut? =
+        when {
+            gogGame != null -> {
+                shortcuts.find {
+                    it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
+                }
+            }
+
+            epicGame != null -> {
+                shortcuts.find {
+                    it.getExtra("game_source") == "EPIC" && it.getExtra("app_id") == epicGame.id.toString()
+                }
+            }
+
+            else -> {
+                findShortcutForGame(
+                    shortcuts = shortcuts,
+                    app = app,
+                    isCustom = app.id < 0,
+                    isEpic = app.id >= 2000000000,
+                    epicId = if (app.id >= 2000000000) app.id - 2000000000 else 0,
+                )
+            }
+        }
+
+    private fun Shortcut.hasExistingArtwork(extraKey: String): Boolean =
+        (getExtra(extraKey)
+            .takeIf { it.isNotBlank() }
+            ?.let { java.io.File(it).isFile } == true)
+
+    private fun artworkCacheId(
+        app: SteamApp,
+        gogGame: GOGGame?,
+        epicGame: EpicGame?,
+    ): ArtworkCacheId? =
+        when {
+            gogGame != null -> ArtworkCacheId("gog", gogGame.id)
+            epicGame != null -> ArtworkCacheId("epic", epicGame.id.toString())
+            app.id >= 0 -> ArtworkCacheId("steam", app.id.toString())
+            else -> null
+        }
+
+    private fun customArtworkOverrideSlots(
+        app: SteamApp,
+        gogGame: GOGGame?,
+        epicGame: EpicGame?,
+        hasDefaultCustomArt: Boolean,
+        hasGridCustomArt: Boolean,
+        hasCarouselCustomArt: Boolean,
+        hasListCustomArt: Boolean,
+        hasHeroCustomArt: Boolean,
+    ): Set<String> {
+        val overridesPrimary = hasDefaultCustomArt || hasGridCustomArt || hasCarouselCustomArt || hasListCustomArt
+        if (!overridesPrimary && !hasHeroCustomArt) return emptySet()
+
+        return when {
+            gogGame != null -> {
+                buildSet {
+                    if (overridesPrimary) {
+                        add("cover")
+                        add("icon")
+                    }
+                    if (hasHeroCustomArt) add("hero")
+                }
+            }
+
+            epicGame != null -> {
+                buildSet {
+                    if (overridesPrimary) {
+                        add("cover")
+                        add("square")
+                        add("logo")
+                    }
+                    if (hasHeroCustomArt) add("hero")
+                }
+            }
+
+            app.id >= 0 -> {
+                buildSet {
+                    if (hasDefaultCustomArt || hasGridCustomArt) add("capsule")
+                    if (hasDefaultCustomArt || hasCarouselCustomArt) add("library_capsule")
+                    if (hasDefaultCustomArt || hasListCustomArt) add("small_capsule")
+                    if (hasHeroCustomArt) add("hero")
+                }
+            }
+
+            else -> emptySet()
+        }
+    }
 
     private fun isShortcutCloudSyncEnabled(shortcut: Shortcut?): Boolean =
         shortcut == null || shortcut.getExtra("cloud_sync_disabled", "0") != "1"

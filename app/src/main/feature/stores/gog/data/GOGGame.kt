@@ -27,6 +27,8 @@ data class GOGGame(
     val installPath: String = "",
     @ColumnInfo("image_url")
     val imageUrl: String = "",
+    @ColumnInfo("hero_image_url")
+    val heroImageUrl: String = "",
     @ColumnInfo("icon_url")
     val iconUrl: String = "",
     @ColumnInfo("description")

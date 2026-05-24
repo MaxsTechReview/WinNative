@@ -18,6 +18,7 @@ data class ParsedGogGame(
     val title: String,
     val slug: String,
     val imageUrl: String,
+    val heroImageUrl: String,
     val iconUrl: String,
     val developer: String,
     val publisher: String,
@@ -47,6 +48,7 @@ data class RawGogApiResponse(
     val downloads: Downloads?,
 ) {
     data class Images(
+        val background: String?,
         val logo2x: String?,
         val logo: String?,
         val icon: String?,
@@ -465,15 +467,13 @@ object GOGApiClient {
     ): ParsedGogGame {
         // Extract image URLs and add https: protocol if missing
         val images = rawResponse.optJSONObject("images")
-        var logo2x = images?.optString("logo2x", "") ?: ""
-        var logo = images?.optString("logo", "") ?: ""
-        var icon = images?.optString("icon", "") ?: ""
-
-        if (logo2x.startsWith("//")) logo2x = "https:$logo2x"
-        if (logo.startsWith("//")) logo = "https:$logo"
-        if (icon.startsWith("//")) icon = "https:$icon"
+        val background = normalizeImageUrl(images?.optString("background", "") ?: "")
+        val logo2x = normalizeImageUrl(images?.optString("logo2x", "") ?: "")
+        val logo = normalizeImageUrl(images?.optString("logo", "") ?: "")
+        val icon = normalizeImageUrl(images?.optString("icon", "") ?: "")
 
         val imageUrl = logo2x.ifEmpty { logo }
+        val heroImageUrl = background.ifEmpty { getScreenshotHeroUrl(rawResponse) }
 
         // Extract developer (first from array)
         val developers = rawResponse.optJSONArray("developers")
@@ -551,6 +551,7 @@ object GOGApiClient {
             title = rawResponse.optString("title", "Unknown"),
             slug = rawResponse.optString("slug", ""),
             imageUrl = imageUrl,
+            heroImageUrl = heroImageUrl,
             iconUrl = icon,
             developer = developer,
             publisher = publisher,
@@ -562,5 +563,29 @@ object GOGApiClient {
             isSecret = isSecret,
             isDlc = isDlc,
         )
+    }
+
+    private fun normalizeImageUrl(url: String): String =
+        when {
+            url.startsWith("//") -> "https:$url"
+            else -> url
+        }
+
+    private fun getScreenshotHeroUrl(rawResponse: JSONObject): String {
+        val screenshots = rawResponse.optJSONArray("screenshots") ?: return ""
+        for (i in 0 until screenshots.length()) {
+            val screenshot = screenshots.optJSONObject(i) ?: continue
+            val formattedImages = screenshot.optJSONArray("formatted_images") ?: continue
+            val preferredNames = listOf("ggvgl_2x", "ggvgl", "ggvgm_2x", "ggvgm")
+            for (preferredName in preferredNames) {
+                for (j in 0 until formattedImages.length()) {
+                    val image = formattedImages.optJSONObject(j) ?: continue
+                    if (image.optString("formatter_name") == preferredName) {
+                        return normalizeImageUrl(image.optString("image_url", ""))
+                    }
+                }
+            }
+        }
+        return ""
     }
 }

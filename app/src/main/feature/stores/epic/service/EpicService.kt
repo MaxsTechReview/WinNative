@@ -10,6 +10,7 @@ import com.winlator.cmod.app.db.download.DownloadRecord
 import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
+import com.winlator.cmod.feature.stores.common.StoreArtworkCache
 import com.winlator.cmod.feature.stores.epic.data.EpicCredentials
 import com.winlator.cmod.feature.stores.epic.data.EpicGame
 import com.winlator.cmod.feature.stores.epic.data.EpicGameToken
@@ -264,6 +265,7 @@ class EpicService : Service() {
                 // Uninstall from database (keeps the entry but marks as not installed)
                 Timber.tag("Epic").d("Updating database: marking game $appId as uninstalled")
                 instance.epicManager.uninstall(appId)
+                StoreArtworkCache.deleteGame(context, "epic", appId.toString())
 
                 // Delete game shortcuts but preserve the created containers
                 withContext(Dispatchers.IO) {
