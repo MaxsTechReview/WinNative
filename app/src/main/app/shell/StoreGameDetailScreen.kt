@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
@@ -54,7 +55,6 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -837,7 +837,7 @@ private fun StoreSourceTag(
             ) {
                 if (showVerifyFiles) {
                     StoreSourceMenuItem(
-                        icon = Icons.Outlined.FactCheck,
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
                         label = stringResource(R.string.store_game_verify_files),
                         enabled = areSteamActionsEnabled && !isCheckingForUpdate,
                     ) { menuOpen = false; onVerifyFiles() }

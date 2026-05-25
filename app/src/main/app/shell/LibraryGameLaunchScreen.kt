@@ -41,11 +41,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
@@ -819,7 +819,7 @@ private fun SourceTag(
             ) {
                 if (showVerifyFiles) {
                     LaunchSourceMenuItem(
-                        icon = Icons.Outlined.FactCheck,
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
                         label = stringResource(R.string.store_game_verify_files),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onVerifyFiles() }
