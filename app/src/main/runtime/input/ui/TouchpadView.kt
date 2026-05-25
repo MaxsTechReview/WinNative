@@ -37,8 +37,8 @@ class TouchpadView(
         private const val MAX_TWO_FINGERS_SCROLL_DISTANCE: Short = 350
         const val MAX_TAP_TRAVEL_DISTANCE: Byte = 10
         const val MAX_TAP_MILLISECONDS: Short = 200
-        const val CURSOR_ACCELERATION = 1.25f
-        const val CURSOR_ACCELERATION_THRESHOLD: Byte = 6
+        const val CURSOR_ACCELERATION = 1.5f
+        const val CURSOR_ACCELERATION_THRESHOLD: Byte = 4
         private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
@@ -54,12 +54,14 @@ class TouchpadView(
     private var fingerPointerButtonLeft: Finger? = null
     private var fingerPointerButtonRight: Finger? = null
     private var scrollAccumY = 0f
+    private var cursorAccumX = 0f
+    private var cursorAccumY = 0f
     private var scrolling = false
     private val xform = XForm.getInstance()
     private var simTouchScreen = false
     private var continueClick = true
-    private var lastTouchedPosX = 0
-    private var lastTouchedPosY = 0
+    private var lastTouchedPosX = 0f
+    private var lastTouchedPosY = 0f
     private var resolutionScale = 0f
     private var mouseEnabled = true
     var tapToClickEnabled = true
@@ -144,18 +146,18 @@ class TouchpadView(
         x: Float,
         y: Float,
     ) {
-        var x: Int
-        var y: Int
-        val startX: Int
-        val startY: Int
-        var lastX: Int
-        var lastY: Int
+        var x: Float
+        var y: Float
+        val startX: Float
+        val startY: Float
+        var lastX: Float
+        var lastY: Float
         val touchTime: Long = System.currentTimeMillis()
 
         init {
             val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0].toInt().also { this.lastX = it }.also { this.startX = it }
-            this.y = transformedPoint[1].toInt().also { this.lastY = it }.also { this.startY = it }
+            this.x = transformedPoint[0].also { this.lastX = it }.also { this.startX = it }
+            this.y = transformedPoint[1].also { this.lastY = it }.also { this.startY = it }
         }
         var isFlick = false
 
@@ -168,8 +170,8 @@ class TouchpadView(
             lastX = this.x
             lastY = this.y
             val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0].toInt()
-            this.y = transformedPoint[1].toInt()
+            this.x = transformedPoint[0]
+            this.y = transformedPoint[1]
             
             // FIX: Detect rapid flick movement (>50 pixels between updates)
             if (Math.abs(this.x - oldX) > 50 || Math.abs(this.y - oldY) > 50) {
@@ -180,16 +182,16 @@ class TouchpadView(
             }
         }
 
-        fun deltaX(): Int {
+        fun deltaX(): Float {
             var dx = (x - lastX) * sensitivity
             if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
-            return Mathf.roundPoint(dx)
+            return dx
         }
 
-        fun deltaY(): Int {
+        fun deltaY(): Float {
             var dy = (y - lastY) * sensitivity
             if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
-            return Mathf.roundPoint(dy)
+            return dy
         }
 
         fun isTap(): Boolean = (System.currentTimeMillis() - touchTime) < MAX_TAP_MILLISECONDS && travelDistance() < MAX_TAP_TRAVEL_DISTANCE
@@ -315,7 +317,7 @@ class TouchpadView(
                     val clickDelay =
                         Runnable {
                             if (continueClick) {
-                                xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
+                                xServer.injectPointerMove(lastTouchedPosX.toInt(), lastTouchedPosY.toInt())
                                 xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
                             }
                         }
@@ -579,7 +581,7 @@ class TouchpadView(
                 Math.hypot((finger1.x - finger2.x).toDouble(), (finger1.y - finger2.y).toDouble()).toFloat() * resolutionScale
             if (currDistance < MAX_TWO_FINGERS_SCROLL_DISTANCE) {
                 scrollAccumY += ((finger1.y + finger2.y) * 0.5f) - (finger1.lastY + finger2.lastY) * 0.5f
-                if (Math.abs(scrollAccumY) > 100) {
+                if (Math.abs(scrollAccumY) > 10) {
                     val button = if (scrollAccumY < 0) Pointer.Button.BUTTON_SCROLL_DOWN else Pointer.Button.BUTTON_SCROLL_UP
                     xServer.injectPointerButtonPress(button)
                     xServer.injectPointerButtonRelease(button)
@@ -596,18 +598,25 @@ class TouchpadView(
 
         if (!scrolling && numFingers <= 2 && !skipPointerMove) {
             // FIX: Allow finger2 to drive movement if finger1 is held still (for drag-to-resize/move)
-            val drivingFinger = if (finger2 != null && (finger2.deltaX() != 0 || finger2.deltaY() != 0) && finger1.deltaX() == 0 && finger1.deltaY() == 0) finger2 else finger1
-            val dx = drivingFinger.deltaX()
-            val dy = drivingFinger.deltaY()
+            val drivingFinger = if (finger2 != null && (finger2.deltaX() != 0f || finger2.deltaY() != 0f) && finger1.deltaX() == 0f && finger1.deltaY() == 0f) finger2 else finger1
+            cursorAccumX += drivingFinger.deltaX()
+            cursorAccumY += drivingFinger.deltaY()
 
-            if (simTouchScreen) {
-                if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x, finger1.y)
-            } else if (xServer.isRelativeMouseMovement) {
-                xServer.updatePointerForDisplayDelta(dx, dy)
-                xServer.winHandler.mouseMoveDelta(dx, dy)
-            } else {
-                // Centralized Fix: Every move now automatically includes button flags
-                xServer.injectPointerMoveDelta(dx, dy)
+            val idx = Mathf.roundPoint(cursorAccumX)
+            val idy = Mathf.roundPoint(cursorAccumY)
+
+            if (idx != 0 || idy != 0) {
+                cursorAccumX -= idx
+                cursorAccumY -= idy
+
+                if (simTouchScreen) {
+                    if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x.toInt(), finger1.y.toInt())
+                } else if (xServer.isRelativeMouseMovement) {
+                    xServer.updatePointerForDisplayDelta(idx, idy)
+                    xServer.winHandler.mouseMoveDelta(idx, idy)
+                } else {
+                    xServer.injectPointerMoveDelta(idx, idy)
+                }
             }
         }
     }
@@ -666,6 +675,8 @@ class TouchpadView(
         continueClick = false
         scrolling = false
         scrollAccumY = 0f
+        cursorAccumX = 0f
+        cursorAccumY = 0f
         for (i in 0 until MAX_FINGERS.toInt()) {
             fingers[i] = null
         }
@@ -767,15 +778,21 @@ class TouchpadView(
         var dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y)
         if (dx == 0f && dy == 0f) {
             val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-            return intArrayOf(
-                (transformedPoint[0] - xServer.pointer.x).toInt(),
-                (transformedPoint[1] - xServer.pointer.y).toInt(),
-            )
+            dx = transformedPoint[0] - xServer.pointer.x
+            dy = transformedPoint[1] - xServer.pointer.y
+        } else {
+            val rawDx = dx
+            dx = xform[0] * rawDx + xform[2] * dy
+            dy = xform[1] * rawDx + xform[3] * dy
         }
-        return intArrayOf(
-            (xform[0] * dx + xform[2] * dy).toInt(),
-            (xform[1] * dx + xform[3] * dy).toInt(),
-        )
+
+        dx *= sensitivity
+        dy *= sensitivity
+
+        if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
+        if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
+
+        return intArrayOf(Mathf.roundPoint(dx), Mathf.roundPoint(dy))
     }
 
     fun computeDeltaPoint(

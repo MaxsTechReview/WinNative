@@ -108,6 +108,8 @@ public class ControlElement {
   private PointF currentPosition;
   private int customColor = -1;
   private RangeScroller scroller;
+  private float cursorAccumX = 0;
+  private float cursorAccumY = 0;
   private CubicBezierInterpolator interpolator;
   private Object touchTime;
 
@@ -1423,6 +1425,8 @@ return boundingBox;
         if (type == Type.TRACKPAD) {
           if (currentPosition == null) currentPosition = new PointF();
           currentPosition.set(x, y);
+          cursorAccumX = 0;
+          cursorAccumY = 0;
         }
         return handleTouchMove(pointerId, x, y);
       }
@@ -1576,8 +1580,9 @@ return boundingBox;
             deltaY >= TRACKPAD_MIN_SPEED,
             deltaX <= -TRACKPAD_MIN_SPEED
           };
-          int cursorDx = 0;
-          int cursorDy = 0;
+
+          float fCursorDx = 0;
+          float fCursorDy = 0;
 
           for (byte i = 0; i < 4; i++) {
             float value = (i == 1 || i == 3 ? deltaX : deltaY);
@@ -1585,21 +1590,30 @@ return boundingBox;
             if (Math.abs(value) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD)
               value *= TouchpadView.CURSOR_ACCELERATION;
             if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
-              cursorDx = Mathf.roundPoint(value);
+              fCursorDx = value;
             } else if (binding == Binding.MOUSE_MOVE_UP || binding == Binding.MOUSE_MOVE_DOWN) {
-              cursorDy = Mathf.roundPoint(value);
+              fCursorDy = value;
             } else {
               inputControlsView.handleInputEvent(binding, states[i], value);
               this.states[i] = states[i];
             }
           }
 
-          if (cursorDx != 0 || cursorDy != 0) {
+          cursorAccumX += fCursorDx;
+          cursorAccumY += fCursorDy;
+
+          int idx = Mathf.roundPoint(cursorAccumX);
+          int idy = Mathf.roundPoint(cursorAccumY);
+
+          if (idx != 0 || idy != 0) {
+            cursorAccumX -= idx;
+            cursorAccumY -= idy;
+
             XServer xServer = inputControlsView.getXServer();
             if (xServer.isRelativeMouseMovement()) {
-              xServer.updatePointerForDisplayDelta(cursorDx, cursorDy);
-              xServer.getWinHandler().mouseMoveDelta(cursorDx, cursorDy);
-            } else inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
+              xServer.updatePointerForDisplayDelta(idx, idy);
+              xServer.getWinHandler().mouseMoveDelta(idx, idy);
+            } else inputControlsView.getXServer().injectPointerMoveDelta(idx, idy);
           }
         }
       } else {

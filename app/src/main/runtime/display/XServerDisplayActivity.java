@@ -283,6 +283,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
     private float globalCursorSpeed = 1.0f;
+    private float capturedCursorAccumX = 0.0f;
+    private float capturedCursorAccumY = 0.0f;
     private MagnifierView magnifierView;
     private Callback<String> logStreamSink;
     private BufferedWriter logStreamWriter;
@@ -1741,13 +1743,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                int[] delta = getCapturedPointerDelta(event);
-                if (delta[0] == 0 && delta[1] == 0) break;
-                if (xServer.isRelativeMouseMovement()) {
-                    xServer.updatePointerForDisplayDelta(delta[0], delta[1]);
-                    xServer.getWinHandler().mouseMoveDelta(delta[0], delta[1]);
-                } else {
-                    xServer.injectPointerMoveDelta(delta[0], delta[1]);
+                float[] fDelta = getCapturedPointerDelta(event);
+                capturedCursorAccumX += fDelta[0];
+                capturedCursorAccumY += fDelta[1];
+
+                int idx = Math.round(capturedCursorAccumX);
+                int idy = Math.round(capturedCursorAccumY);
+
+                if (idx != 0 || idy != 0) {
+                    capturedCursorAccumX -= idx;
+                    capturedCursorAccumY -= idy;
+
+                    if (xServer.isRelativeMouseMovement()) {
+                        xServer.updatePointerForDisplayDelta(idx, idy);
+                        xServer.getWinHandler().mouseMoveDelta(idx, idy);
+                    } else {
+                        xServer.injectPointerMoveDelta(idx, idy);
+                    }
                 }
                 handled = true;
                 break;
@@ -1765,16 +1777,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private int[] getCapturedPointerDelta(MotionEvent event) {
+    private float[] getCapturedPointerDelta(MotionEvent event) {
         float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
         float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
         if (dx == 0.0f && dy == 0.0f) {
             dx = event.getX();
             dy = event.getY();
         }
-        return new int[]{
-                (int)(xform[0] * dx + xform[2] * dy),
-                (int)(xform[1] * dx + xform[3] * dy)
+
+        dx *= globalCursorSpeed;
+        dy *= globalCursorSpeed;
+
+        return new float[]{
+                xform[0] * dx + xform[2] * dy,
+                xform[1] * dx + xform[3] * dy
         };
     }
 
@@ -4124,6 +4140,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void releasePointerCapture() {
         boolean hadPointerCapture = touchpadView != null && touchpadView.hasPointerCapture();
+        capturedCursorAccumX = 0;
+        capturedCursorAccumY = 0;
         if (touchpadView != null) {
             if (hadPointerCapture) {
                 touchpadView.resetInputState();
