@@ -1034,15 +1034,57 @@ private fun StoreCtaButton(
         animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
         label = "storeCtaScale",
     )
-    val shape = remember { RoundedCornerShape(12.dp) }
+    val flare by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
+        label = "storeCtaFlare",
+    )
+    val shape = remember { RoundedCornerShape(14.dp) }
     val activeBrush =
         Brush.horizontalGradient(
-            colors = listOf(Color(0xFF00B4D8), StoreAccent, Color(0xFF7B2FF7)),
+            colors =
+                listOf(
+                    Color(0xFF00B4D8).copy(alpha = 0.38f),
+                    StoreAccent.copy(alpha = 0.38f),
+                    Color(0xFF7B2FF7).copy(alpha = 0.38f),
+                ),
         )
     val disabledBrush =
         Brush.horizontalGradient(
-            colors = listOf(Color(0xFF3A3A4A), Color(0xFF2A2A36)),
+            colors =
+                listOf(
+                    Color(0xFF3A3A4A).copy(alpha = 0.35f),
+                    Color(0xFF2A2A36).copy(alpha = 0.35f),
+                ),
         )
+    val glassSheenBrush =
+        if (enabled) {
+            Brush.verticalGradient(
+                0.00f to Color.White.copy(alpha = 0.28f),
+                0.35f to Color.White.copy(alpha = 0.06f),
+                0.55f to Color.Transparent,
+                1.00f to Color.Black.copy(alpha = 0.12f),
+            )
+        } else {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.10f),
+                0.6f to Color.Transparent,
+                1.0f to Color.Black.copy(alpha = 0.08f),
+            )
+        }
+    val glassRimBrush =
+        if (enabled) {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.55f + 0.35f * flare),
+                0.5f to Color.White.copy(alpha = 0.08f + 0.18f * flare),
+                1.0f to Color.White.copy(alpha = 0.22f + 0.22f * flare),
+            )
+        } else {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.16f),
+                1.0f to Color.White.copy(alpha = 0.04f),
+            )
+        }
     Box(
         modifier =
             Modifier
@@ -1053,6 +1095,8 @@ private fun StoreCtaButton(
                     scaleY = scale
                 }.clip(shape)
                 .background(if (enabled) activeBrush else disabledBrush)
+                .background(glassSheenBrush)
+                .border(1.dp, glassRimBrush, shape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
