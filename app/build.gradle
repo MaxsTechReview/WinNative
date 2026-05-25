@@ -264,7 +264,6 @@ dependencies {
     implementation libs.commonsIo
     implementation libs.commonsLang3
     implementation("com.github.luben:zstd-jni:${libs.versions.zstdJni.get()}@aar")
-    implementation libs.bouncyCastle
     implementation libs.flexbox
 
     implementation libs.appcompat

@@ -19,7 +19,6 @@ zxing = "3.5.4"
 commonsIo = "2.22.0"
 commonsLang3 = "3.20.0"
 zstdJni = "1.5.7-9"
-bouncycastle = "1.84"
 flexbox = "3.0.0"
 appcompat = "1.7.1"
 material = "1.14.0"
@@ -61,7 +60,6 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 zxingCore = { module = "com.google.zxing:core", version.ref = "zxing" }
 commonsIo = { module = "commons-io:commons-io", version.ref = "commonsIo" }
 commonsLang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commonsLang3" }
-bouncyCastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 flexbox = { module = "com.google.android.flexbox:flexbox", version.ref = "flexbox" }
 commonsCompress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }

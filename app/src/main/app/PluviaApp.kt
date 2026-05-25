@@ -18,9 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.io.File
-import java.security.Security
 
 @HiltAndroidApp
 class PluviaApp : Application() {
@@ -30,30 +28,17 @@ class PluviaApp : Application() {
         super.onCreate()
         instance = this
 
-        // Some devices (notably several Xiaomi/HyperOS builds) don't expose
-        // libjpeg.so on the default Bionic dlopen search path, which causes
-        // any downstream native lib that calls dlopen("libjpeg.so") to fail
-        // with "library not found". Eagerly pin the system copy into the
-        // global namespace at startup so subsequent dlopens resolve it.
+        // Cached probe for devices whose native stack still needs system libjpeg preloaded.
         preloadSystemLibraries()
 
         registerRefreshRateLifecycleCallbacks()
 
-        // Replace Android's limited BouncyCastle provider with the full one
-        // so that JavaSteam can use SHA-1 (and other algorithms) via the "BC" provider.
-        Security.removeProvider("BC")
-        Security.addProvider(BouncyCastleProvider())
-
-        // Register application context so secure Steam prefs can initialize lazily.
         PrefManager.install(this)
         GOGConstants.init(this)
 
-        // Eagerly initialize the Play Games SDK so store-login sync can rehydrate its
-        // silent auth state before the Google settings screen asks for remote state.
-        // The call itself is synchronous-fast; the real auth work happens off-thread.
+        // Let Play Games restore silent auth before Google settings query remote state.
         com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
 
-        // Initialize process-wide reactive network state
         com.winlator.cmod.app.service.NetworkMonitor
             .init(this)
         scheduleColdStartWarmups()
@@ -64,6 +49,13 @@ class PluviaApp : Application() {
     }
 
     companion object {
+        private const val STARTUP_PROBES_PREFS = "startup_probes"
+        private const val KEY_SYSTEM_JPEG_PRELOAD_STATE = "system_jpeg_preload_state"
+        private const val KEY_SYSTEM_JPEG_PRELOAD_VERSION = "system_jpeg_preload_version"
+        private const val SYSTEM_JPEG_PRELOAD_UNKNOWN = 0
+        private const val SYSTEM_JPEG_PRELOAD_SUCCESS = 1
+        private const val SYSTEM_JPEG_PRELOAD_UNSUPPORTED = 2
+
         lateinit var instance: PluviaApp
             private set
 
@@ -74,21 +66,29 @@ class PluviaApp : Application() {
         @JvmField
         val events = EventDispatcher()
 
-        // Count of started (visible) activities — the app is in the
-        // foreground while this is > 0. Mutated only on the main thread.
+        // Visible activity count; mutated only on the main thread.
         @Volatile
         private var startedActivityCount = 0
 
-        // Count of live XServerDisplayActivity instances (created and not yet
-        // destroyed) — i.e. a game session exists, possibly backgrounded.
+        // Live game windows, including backgrounded sessions.
         @Volatile
         private var gameActivityCount = 0
 
-        /** True while a game window exists — keeps the Steam session awake. */
         fun isGameSessionActive(): Boolean = gameActivityCount > 0
     }
 
     private fun preloadSystemLibraries() {
+        val prefs = getSharedPreferences(STARTUP_PROBES_PREFS, MODE_PRIVATE)
+        val currentVersion = currentVersionCode()
+        val state =
+            if (prefs.getLong(KEY_SYSTEM_JPEG_PRELOAD_VERSION, -1L) == currentVersion) {
+                prefs.getInt(KEY_SYSTEM_JPEG_PRELOAD_STATE, SYSTEM_JPEG_PRELOAD_UNKNOWN)
+            } else {
+                SYSTEM_JPEG_PRELOAD_UNKNOWN
+            }
+
+        if (state == SYSTEM_JPEG_PRELOAD_UNSUPPORTED) return
+
         val is64 = android.os.Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
         val candidates = if (is64) {
             listOf("/system/lib64/libjpeg.so", "/system/lib/libjpeg.so")
@@ -99,12 +99,42 @@ class PluviaApp : Application() {
             if (!File(path).exists()) continue
             try {
                 System.load(path)
+                prefs.edit()
+                    .putInt(KEY_SYSTEM_JPEG_PRELOAD_STATE, SYSTEM_JPEG_PRELOAD_SUCCESS)
+                    .putLong(KEY_SYSTEM_JPEG_PRELOAD_VERSION, currentVersion)
+                    .apply()
                 Log.i("PluviaApp", "Preloaded $path")
                 return
             } catch (t: Throwable) {
+                if (isPermanentSystemLibraryPreloadFailure(t)) {
+                    prefs.edit()
+                        .putInt(KEY_SYSTEM_JPEG_PRELOAD_STATE, SYSTEM_JPEG_PRELOAD_UNSUPPORTED)
+                        .putLong(KEY_SYSTEM_JPEG_PRELOAD_VERSION, currentVersion)
+                        .apply()
+                    Log.i("PluviaApp", "Skipping future system libjpeg preload attempts: ${t.message}")
+                    return
+                }
                 Log.w("PluviaApp", "Preload $path failed: ${t.message}")
             }
         }
+    }
+
+    private fun isPermanentSystemLibraryPreloadFailure(error: Throwable): Boolean {
+        val message = error.message.orEmpty()
+        return message.contains("not accessible for the namespace", ignoreCase = true) ||
+            message.contains("is not accessible", ignoreCase = true)
+    }
+
+    private fun currentVersionCode(): Long {
+        return runCatching {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                info.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toLong()
+            }
+        }.getOrDefault(0L)
     }
 
     private fun registerRefreshRateLifecycleCallbacks() {
@@ -130,7 +160,6 @@ class PluviaApp : Application() {
                 }
 
                 override fun onActivityStarted(activity: Activity) {
-                    // 0 -> 1 means the app just entered the foreground.
                     if (startedActivityCount++ == 0) {
                         SteamService.onAppForegrounded()
                     }
@@ -143,7 +172,6 @@ class PluviaApp : Application() {
                 }
 
                 override fun onActivityStopped(activity: Activity) {
-                    // 1 -> 0 means the app just went to the background.
                     startedActivityCount = (startedActivityCount - 1).coerceAtLeast(0)
                     if (startedActivityCount == 0) {
                         SteamService.onAppBackgrounded()
@@ -164,9 +192,7 @@ class PluviaApp : Application() {
                     }
                     if (activity is XServerDisplayActivity) {
                         gameActivityCount = (gameActivityCount - 1).coerceAtLeast(0)
-                        // A game session ending while the app is already
-                        // backgrounded should let the Steam session sleep —
-                        // re-evaluate the suspend decision now.
+                        // If the last game window ends while backgrounded, let Steam sleep.
                         if (gameActivityCount == 0 && startedActivityCount == 0) {
                             SteamService.onAppBackgrounded()
                         }
@@ -177,7 +203,7 @@ class PluviaApp : Application() {
     }
 
     private fun shouldManageAppRefreshRate(activity: Activity): Boolean {
-        // Game windows own per-title refresh policy and should not inherit the global app override.
+        // Game windows own per-title refresh policy.
         return activity !is XServerDisplayActivity
     }
 
@@ -187,8 +213,7 @@ class PluviaApp : Application() {
             withContext(Dispatchers.IO) {
                 GOGAuthManager.updateLoginStatus(this@PluviaApp)
 
-                // Pre-warm encrypted preferences off the UI thread so launcher auth checks
-                // are less likely to pay MasterKey/EncryptedSharedPreferences startup cost.
+                // Keep encrypted prefs setup off launcher auth checks.
                 val steamLogsEnabled =
                     runCatching {
                         PrefManager.init(this@PluviaApp)
@@ -206,10 +231,7 @@ class PluviaApp : Application() {
                 runCatching { PluviaDatabase.init(this@PluviaApp) }
                     .onFailure { Log.e("PluviaApp", "Database warmup failed", it) }
 
-                // Initialize the cross-store DownloadCoordinator and auto-resume any
-                // downloads that were running when the app was killed. PAUSED downloads
-                // stay PAUSED; DOWNLOADING ones are demoted to QUEUED and dispatched as
-                // store services start.
+                // Restore interrupted downloads after DB/coordinator startup.
                 runCatching {
                     val db = PluviaDatabase.getInstance(this@PluviaApp)
                     com.winlator.cmod.app.service.download.DownloadCoordinator.init(db)
