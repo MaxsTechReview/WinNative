@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">BIBLIOTEKSLAYOUTS</string>
     <string name="library_games_layout_carousel">Karrusel</string>
     <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_view_options_header">VISNINGSINDSTILLINGER</string>
+    <string name="library_games_immersive_mode">Fordybende tilstand</string>
+    <string name="library_games_immersive_mode_description">Brug det fokuserede spils grafik som baggrund</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>
     <string name="library_games_play">Spil</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>

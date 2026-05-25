@@ -189,6 +189,9 @@
     <string name="library_games_layouts_header">UKŁADY BIBLIOTEKI</string>
     <string name="library_games_layout_carousel">Karuzela</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPCJE WIDOKU</string>
+    <string name="library_games_immersive_mode">Tryb immersyjny</string>
+    <string name="library_games_immersive_mode_description">Użyj grafiki wybranej gry jako tła</string>
     <string name="library_games_custom_game">Własna gra</string>
     <string name="library_games_play">Graj</string>
     <string name="library_games_add_custom_game">Dodaj własną grę</string>

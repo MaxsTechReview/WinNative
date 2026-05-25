@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">DISEÑOS DE BIBLIOTECA</string>
     <string name="library_games_layout_carousel">Carrusel</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPCIONES DE VISTA</string>
+    <string name="library_games_immersive_mode">Modo inmersivo</string>
+    <string name="library_games_immersive_mode_description">Usar el arte del juego enfocado como fondo</string>
     <string name="library_games_custom_game">Juego personalizado</string>
     <string name="library_games_play">Jugar</string>
     <string name="library_games_add_custom_game">Añadir juego personalizado</string>

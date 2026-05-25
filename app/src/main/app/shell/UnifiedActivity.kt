@@ -571,6 +571,22 @@ class UnifiedActivity :
     var libraryItemCount: Int = 0
     private var currentLibraryLayoutMode: LibraryLayoutMode = LibraryLayoutMode.GRID_4
 
+    // Immersive Mode: hero/cover artwork of the currently focused library item, used as a
+    // full-bleed background behind the library grid/carousel/list views when enabled.
+    // Value is an arbitrary Coil image model — typically a java.io.File for custom Game Card
+    // uploads, a cached File for the store hero, or a URL String when no cache exists yet.
+    val immersiveBackgroundRef = kotlinx.coroutines.flow.MutableStateFlow<Any?>(null)
+
+    private val defaultNavigationBarColor: Int = 0xFF141B24.toInt()
+
+    fun applyImmersiveSystemBars(enabled: Boolean) {
+        window.navigationBarColor =
+            if (enabled) android.graphics.Color.TRANSPARENT else defaultNavigationBarColor
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = !enabled
+        }
+    }
+
     // Store grid focus: same pattern for store/steam/epic/gog tabs
     val storeFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var storeItemCount: Int = 0
@@ -1432,6 +1448,7 @@ class UnifiedActivity :
                 initialLibraryLayoutMode,
             )
         }
+        var immersiveMode by remember { mutableStateOf(PrefManager.libraryImmersiveMode) }
         val tabs = remember(storeVisible.toMap()) { buildTabs(storeVisible) }
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
@@ -1686,6 +1703,7 @@ class UnifiedActivity :
                     storeVisible = storeVisible,
                     contentFilters = contentFilters,
                     libraryLayoutMode = libraryLayoutMode,
+                    immersiveMode = immersiveMode,
                     onLibraryLayoutSelected = {
                         libraryLayoutMode = it
                         PrefManager.libraryLayoutMode = it.name
@@ -1697,6 +1715,10 @@ class UnifiedActivity :
                     onContentFiltersChanged = { key, value ->
                         contentFilters[key] = value
                         PrefManager.libraryContentFilters = contentFilters.entries.filter { it.value }.joinToString(",") { it.key }
+                    },
+                    onImmersiveModeChanged = {
+                        immersiveMode = it
+                        PrefManager.libraryImmersiveMode = it
                     },
                     onExitApp = {
                         AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_drawer_exit")
@@ -1712,8 +1734,57 @@ class UnifiedActivity :
                     .background(BgDark)
                     .windowInsetsPadding(horizontalNavigationInsets),
             ) {
+                // Immersive Mode: focused game's hero/cover image fills the entire shell behind
+                // the top bar + library content, dimmed so text/cards remain legible.
+                val currentTabKeyForImmersive = tabs.getOrNull(selectedIdx)?.key ?: "library"
+                val immersiveActive = immersiveMode && currentTabKeyForImmersive == "library"
+                DisposableEffect(immersiveActive) {
+                    applyImmersiveSystemBars(immersiveActive)
+                    onDispose { applyImmersiveSystemBars(false) }
+                }
+                if (immersiveMode && currentTabKeyForImmersive == "library") {
+                    val immersiveModel by immersiveBackgroundRef.collectAsState()
+                    val immersiveRequest =
+                        remember(immersiveModel, context) {
+                            val builder = ImageRequest.Builder(context).data(immersiveModel)
+                            (immersiveModel as? java.io.File)?.takeIf { it.isFile }?.let { file ->
+                                // Custom uploads can be overwritten in place — bind cache keys to
+                                // lastModified so Coil reloads instead of serving the stale bitmap.
+                                val key = "library_immersive_bg:${file.absolutePath}:${file.lastModified()}"
+                                builder.memoryCacheKey(key).diskCacheKey(key)
+                            }
+                            builder.crossfade(400).build()
+                        }
+                    AnimatedVisibility(
+                        visible = immersiveModel != null,
+                        enter = fadeIn(tween(400)),
+                        exit = fadeOut(tween(400)),
+                        modifier = Modifier.matchParentSize(),
+                    ) {
+                        Box(Modifier.matchParentSize()) {
+                            AsyncImage(
+                                model = immersiveRequest,
+                                contentDescription = null,
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to BgDark.copy(alpha = 0.62f),
+                                            0.55f to BgDark.copy(alpha = 0.78f),
+                                            1f to BgDark.copy(alpha = 0.92f),
+                                        ),
+                                    ),
+                            )
+                        }
+                    }
+                }
+                val scaffoldContainer = if (immersiveMode && currentTabKeyForImmersive == "library") Color.Transparent else BgDark
                 Scaffold(
-                    containerColor = BgDark,
+                    containerColor = scaffoldContainer,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {
                         TopBar(tabs, selectedIdx, {
@@ -1759,8 +1830,10 @@ class UnifiedActivity :
                         storeItemClickCallback = null
                     }
 
-                    Box(Modifier.padding(padding).fillMaxSize().background(BgDark)) {
-                        val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
+                    val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
+                    val innerBoxBg = if (immersiveMode && key == "library") Color.Transparent else BgDark
+
+                    Box(Modifier.padding(padding).fillMaxSize().background(innerBoxBg)) {
 
                         LaunchedEffect(key) { libraryTabActive.value = (key == "library") }
 
@@ -2908,6 +2981,62 @@ class UnifiedActivity :
                     else -> "STEAM"
                 }
             selectedGogGameId = gogGame?.id.orEmpty()
+        }
+
+        // Publish the focused game's hero artwork to drive the immersive background.
+        // Prefers a custom Game Card upload (LibraryArtworkSlot.GAME_CARD), then the
+        // store-supplied hero, then the regular grid capsule as a last resort.
+        // Reloads shortcuts via IO on every refresh signal so freshly uploaded artwork
+        // shows up immediately, mirroring LibraryGameLaunchScreen's lookup pattern.
+        LaunchedEffect(
+            focusIndex,
+            displayedApps,
+            shortcutRefreshKey,
+            libraryRefreshKey,
+            artworkCacheRefreshKey,
+        ) {
+            val app = displayedApps.getOrNull(focusIndex) ?: displayedApps.firstOrNull()
+            if (app == null) {
+                activity?.immersiveBackgroundRef?.value = null
+                return@LaunchedEffect
+            }
+            val gogGame = visibleGogByPseudoId[app.id]
+            val epicGame = visibleEpicByPseudoId[app.id]
+            val isCustom = app.id < 0
+            val isEpic = app.id >= 2000000000
+            val epicId = if (isEpic) app.id - 2000000000 else 0
+
+            val customHeroFile =
+                withContext(Dispatchers.IO) {
+                    val shortcut =
+                        when {
+                            gogGame != null ->
+                                ContainerManager(context).loadShortcuts().find {
+                                    it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
+                                }
+                            else -> findLibraryShortcutForGame(ContainerManager(context), app, isCustom, isEpic, epicId)
+                        }
+                    shortcut
+                        ?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { java.io.File(it) }
+                        ?.takeIf { it.isFile }
+                }
+
+            activity?.immersiveBackgroundRef?.value =
+                customHeroFile
+                    ?: run {
+                        val ref =
+                            StoreArtworkCache.heroRef(app, gogGame, epicGame)
+                                ?: StoreArtworkCache.primaryRef(
+                                    app,
+                                    gogGame,
+                                    epicGame,
+                                    useLibraryCapsule = false,
+                                    listMode = false,
+                                )
+                        StoreArtworkCache.imageModel(context, ref)
+                    }
         }
 
         val openSettingsForApp: (Int, SteamApp) -> Unit = { index, app ->
@@ -10341,9 +10470,11 @@ class UnifiedActivity :
         storeVisible: SnapshotStateMap<String, Boolean>,
         contentFilters: SnapshotStateMap<String, Boolean>,
         libraryLayoutMode: LibraryLayoutMode,
+        immersiveMode: Boolean,
         onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
         onStoreVisibleChanged: (String, Boolean) -> Unit,
         onContentFiltersChanged: (String, Boolean) -> Unit,
+        onImmersiveModeChanged: (Boolean) -> Unit,
         onExitApp: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
@@ -10565,6 +10696,26 @@ class UnifiedActivity :
 
                 Spacer(Modifier.height(16.dp))
 
+                // ── View Options ──
+                Text(
+                    stringResource(R.string.library_games_view_options_header),
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.4.sp,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+
+                DrawerSwitchCard(
+                    label = stringResource(R.string.library_games_immersive_mode),
+                    description = stringResource(R.string.library_games_immersive_mode_description),
+                    checked = immersiveMode,
+                    onCheckedChange = onImmersiveModeChanged,
+                )
+
+                Spacer(Modifier.height(16.dp))
+
                 // ── Stores ──
                 Text(
                     stringResource(R.string.stores_accounts_stores_header),
@@ -10727,6 +10878,90 @@ class UnifiedActivity :
                 color = textColor,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
+            )
+        }
+    }
+
+    @Composable
+    private fun DrawerSwitchCard(
+        label: String,
+        description: String?,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+
+        val bgColor by animateColorAsState(
+            targetValue = if (checked) Accent.copy(alpha = 0.18f) else CardDark,
+            animationSpec = tween(200),
+            label = "switchCardBg",
+        )
+        val borderColor by animateColorAsState(
+            targetValue = if (checked) Accent else CardBorder,
+            animationSpec = tween(200),
+            label = "switchCardBorder",
+        )
+        val labelColor by animateColorAsState(
+            targetValue = if (checked) Accent else TextPrimary,
+            animationSpec = tween(200),
+            label = "switchCardLabel",
+        )
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.97f else 1f,
+            animationSpec = tween(120),
+            label = "switchCardScale",
+        )
+
+        Row(
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }.clip(RoundedCornerShape(10.dp))
+                    .background(bgColor)
+                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { onCheckedChange(!checked) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = labelColor,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                if (!description.isNullOrBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        maxLines = 2,
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Accent,
+                        checkedBorderColor = Accent,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = CardDark,
+                        uncheckedBorderColor = CardBorder,
+                    ),
             )
         }
     }

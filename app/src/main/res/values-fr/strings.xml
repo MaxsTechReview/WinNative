@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">DISPOSITIONS DE LA BIBLIOTHÈQUE</string>
     <string name="library_games_layout_carousel">Carrousel</string>
     <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_view_options_header">OPTIONS D’AFFICHAGE</string>
+    <string name="library_games_immersive_mode">Mode immersif</string>
+    <string name="library_games_immersive_mode_description">Utiliser l’illustration du jeu sélectionné comme arrière-plan</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>
     <string name="library_games_play">Jouer</string>
     <string name="library_games_add_custom_game">Ajouter un jeu personnalisé</string>

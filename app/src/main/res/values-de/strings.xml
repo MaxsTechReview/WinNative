@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">BIBLIOTHEKSLAYOUTS</string>
     <string name="library_games_layout_carousel">Karussell</string>
     <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_view_options_header">ANSICHTSOPTIONEN</string>
+    <string name="library_games_immersive_mode">Immersiver Modus</string>
+    <string name="library_games_immersive_mode_description">Grafik des fokussierten Spiels als Hintergrund verwenden</string>
     <string name="library_games_custom_game">Benutzerdefiniertes Spiel</string>
     <string name="library_games_play">Spielen</string>
     <string name="library_games_add_custom_game">Benutzerdefiniertes Spiel hinzufügen</string>

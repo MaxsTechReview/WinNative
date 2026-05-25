@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">ASPECTE ALE BIBLIOTECII</string>
     <string name="library_games_layout_carousel">Carusel</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPȚIUNI DE VIZUALIZARE</string>
+    <string name="library_games_immersive_mode">Mod imersiv</string>
+    <string name="library_games_immersive_mode_description">Folosește grafica jocului focalizat ca fundal</string>
     <string name="library_games_custom_game">Joc personalizat</string>
     <string name="library_games_play">Joaca</string>
     <string name="library_games_add_custom_game">Adauga joc personalizat</string>

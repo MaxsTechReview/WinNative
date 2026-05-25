@@ -187,6 +187,9 @@
     <string name="library_games_layouts_header">LIBRARY LAYOUTS</string>
     <string name="library_games_layout_carousel">Carousel</string>
     <string name="library_games_layout_list">List</string>
+    <string name="library_games_view_options_header">VIEW OPTIONS</string>
+    <string name="library_games_immersive_mode">Immersive Mode</string>
+    <string name="library_games_immersive_mode_description">Use focused game art as background</string>
     <string name="library_games_custom_game">Custom Game</string>
     <string name="library_games_play">Play</string>
     <string name="library_games_add_custom_game">Add Custom Game</string>

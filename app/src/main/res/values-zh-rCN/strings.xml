@@ -185,6 +185,9 @@
     <string name="library_games_layouts_header">游戏库布局</string>
     <string name="library_games_layout_carousel">轮播</string>
     <string name="library_games_layout_list">列表</string>
+    <string name="library_games_view_options_header">视图选项</string>
+    <string name="library_games_immersive_mode">沉浸模式</string>
+    <string name="library_games_immersive_mode_description">将当前聚焦游戏的美术图用作背景</string>
     <string name="library_games_custom_game">自定义游戏</string>
     <string name="library_games_play">开始游戏</string>
     <string name="library_games_add_custom_game">添加自定义游戏</string>

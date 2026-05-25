@@ -190,6 +190,9 @@
     <string name="library_games_layouts_header">СХЕМЫ БИБЛИОТЕКИ</string>
     <string name="library_games_layout_carousel">Карусель</string>
     <string name="library_games_layout_list">Список</string>
+    <string name="library_games_view_options_header">ПАРАМЕТРЫ ВИДА</string>
+    <string name="library_games_immersive_mode">Режим погружения</string>
+    <string name="library_games_immersive_mode_description">Использовать изображение выбранной игры как фон</string>
     <string name="library_games_custom_game">Пользовательская игра</string>
     <string name="library_games_play">Играть</string>
     <string name="library_games_add_custom_game">Добавить пользовательскую игру</string>

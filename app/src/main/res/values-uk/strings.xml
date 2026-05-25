@@ -189,6 +189,9 @@
     <string name="library_games_layouts_header">МАКЕТИ БІБЛІОТЕКИ</string>
     <string name="library_games_layout_carousel">Карусель</string>
     <string name="library_games_layout_list">Список</string>
+    <string name="library_games_view_options_header">ПАРАМЕТРИ ВИГЛЯДУ</string>
+    <string name="library_games_immersive_mode">Режим занурення</string>
+    <string name="library_games_immersive_mode_description">Використовувати зображення вибраної гри як фон</string>
     <string name="library_games_custom_game">Користувацька гра</string>
     <string name="library_games_play">Грати</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>
