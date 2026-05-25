@@ -56,6 +56,8 @@ class TouchpadView(
     private var scrollAccumY = 0f
     private var cursorAccumX = 0f
     private var cursorAccumY = 0f
+    private var mouseAccumX = 0f
+    private var mouseAccumY = 0f
     private var scrolling = false
     private val xform = XForm.getInstance()
     private var simTouchScreen = false
@@ -348,27 +350,48 @@ class TouchpadView(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                val historySize = event.historySize
                 if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                    for (h in 0..historySize) {
+                        if (xServer.isRelativeMouseMovement) {
+                            val delta = if (h < historySize) getExternalMouseDelta(event, h) else getExternalMouseDelta(event)
+                            mouseAccumX += delta[0]
+                            mouseAccumY += delta[1]
+                        } else {
+                            val transformedPoint = if (h < historySize) XForm.transformPoint(xform, event.getHistoricalX(h), event.getHistoricalY(h))
+                                                   else XForm.transformPoint(xform, event.x, event.y)
+                            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                        }
+                    }
+
                     if (xServer.isRelativeMouseMovement) {
-                        val delta = getExternalMouseDelta(event)
-                        xServer.updatePointerForDisplayDelta(delta[0], delta[1])
-                        xServer.winHandler.mouseMoveDelta(delta[0], delta[1])
-                    } else {
-                        val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-                        xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                        val idx = Mathf.roundPoint(mouseAccumX)
+                        val idy = Mathf.roundPoint(mouseAccumY)
+                        if (idx != 0 || idy != 0) {
+                            mouseAccumX -= idx.toFloat()
+                            mouseAccumY -= idy.toFloat()
+                            xServer.updatePointerForDisplayDelta(idx, idy)
+                            xServer.winHandler.mouseMoveDelta(idx, idy)
+                        }
                     }
                 } else {
-                    for (i in 0 until MAX_FINGERS.toInt()) {
-                        val finger = fingers[i] ?: continue
-                        if (pointerIdsToIgnore.contains(i)) {
-                            fingers[i] = null
-                            numFingers--
-                            continue
-                        }
-                        val pointerIndex = event.findPointerIndex(i)
-                        if (pointerIndex >= 0) {
-                            finger.update(event.getX(pointerIndex), event.getY(pointerIndex))
-                            handleFingerMove(finger)
+                    for (h in 0..historySize) {
+                        for (i in 0 until MAX_FINGERS.toInt()) {
+                            val finger = fingers[i] ?: continue
+                            if (pointerIdsToIgnore.contains(i)) {
+                                fingers[i] = null
+                                numFingers--
+                                continue
+                            }
+                            val pointerIndex = event.findPointerIndex(i)
+                            if (pointerIndex >= 0) {
+                                if (h < historySize) {
+                                    finger.update(event.getHistoricalX(pointerIndex, h), event.getHistoricalY(pointerIndex, h))
+                                } else {
+                                    finger.update(event.getX(pointerIndex), event.getY(pointerIndex))
+                                }
+                                handleFingerMove(finger)
+                            }
                         }
                     }
                 }
@@ -742,13 +765,29 @@ class TouchpadView(
             }
 
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_HOVER_MOVE -> {
+                val historySize = event.historySize
                 if (xServer.isRelativeMouseMovement) {
-                    val delta = getExternalMouseDelta(event)
-                    xServer.updatePointerForDisplayDelta(delta[0], delta[1])
-                    xServer.winHandler.mouseMoveDelta(delta[0], delta[1])
+                    for (h in 0..historySize) {
+                        val delta = if (h < historySize) getExternalMouseDelta(event, h) else getExternalMouseDelta(event)
+                        mouseAccumX += delta[0]
+                        mouseAccumY += delta[1]
+                    }
+
+                    val idx = Mathf.roundPoint(mouseAccumX)
+                    val idy = Mathf.roundPoint(mouseAccumY)
+                    if (idx != 0 || idy != 0) {
+                        mouseAccumX -= idx.toFloat()
+                        mouseAccumY -= idy.toFloat()
+                        xServer.updatePointerForDisplayDelta(idx, idy)
+                        xServer.winHandler.mouseMoveDelta(idx, idy)
+                    }
                 } else {
-                    val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-                    xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                    for (h in 0..historySize) {
+                        val x = if (h < historySize) event.getHistoricalX(h) else event.x
+                        val y = if (h < historySize) event.getHistoricalY(h) else event.y
+                        val transformedPoint = XForm.transformPoint(xform, x, y)
+                        xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+                    }
                 }
                 true
             }
@@ -773,11 +812,13 @@ class TouchpadView(
         }
     }
 
-    private fun getExternalMouseDelta(event: MotionEvent): IntArray {
-        var dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X)
-        var dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y)
+    private fun getExternalMouseDelta(event: MotionEvent, historyPos: Int = -1): FloatArray {
+        var dx = if (historyPos < 0) event.getAxisValue(MotionEvent.AXIS_RELATIVE_X) else event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, historyPos)
+        var dy = if (historyPos < 0) event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y) else event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, historyPos)
         if (dx == 0f && dy == 0f) {
-            val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
+            val x = if (historyPos < 0) event.x else event.getHistoricalX(historyPos)
+            val y = if (historyPos < 0) event.y else event.getHistoricalY(historyPos)
+            val transformedPoint = XForm.transformPoint(xform, x, y)
             dx = transformedPoint[0] - xServer.pointer.x
             dy = transformedPoint[1] - xServer.pointer.y
         } else {
@@ -792,7 +833,7 @@ class TouchpadView(
         if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
         if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
 
-        return intArrayOf(Mathf.roundPoint(dx), Mathf.roundPoint(dy))
+        return floatArrayOf(dx, dy)
     }
 
     fun computeDeltaPoint(

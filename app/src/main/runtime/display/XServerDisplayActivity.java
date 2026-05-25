@@ -1753,12 +1753,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                float[] fDelta = getCapturedPointerDelta(event);
-                capturedCursorAccumX += fDelta[0];
-                capturedCursorAccumY += fDelta[1];
+                int historySize = event.getHistorySize();
+                for (int i = 0; i <= historySize; i++) {
+                    float rawDx, rawDy;
+                    if (i < historySize) {
+                        rawDx = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+                        rawDy = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+                    } else {
+                        rawDx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+                        rawDy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+                    }
 
-                int idx = Math.round(capturedCursorAccumX);
-                int idy = Math.round(capturedCursorAccumY);
+                    if (rawDx == 0.0f && rawDy == 0.0f) {
+                        if (i == historySize) {
+                            rawDx = event.getX();
+                            rawDy = event.getY();
+                        } else continue;
+                    }
+
+                    float[] fDelta = getCapturedPointerDelta(rawDx, rawDy);
+                    capturedCursorAccumX += fDelta[0];
+                    capturedCursorAccumY += fDelta[1];
+                }
+
+                int idx = Mathf.roundPoint(capturedCursorAccumX);
+                int idy = Mathf.roundPoint(capturedCursorAccumY);
 
                 if (idx != 0 || idy != 0) {
                     capturedCursorAccumX -= idx;
@@ -1787,14 +1806,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private float[] getCapturedPointerDelta(MotionEvent event) {
-        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-        if (dx == 0.0f && dy == 0.0f) {
-            dx = event.getX();
-            dy = event.getY();
-        }
-
+    private float[] getCapturedPointerDelta(float dx, float dy) {
         float profileSpeed = 1.0f;
         if (inputControlsView != null) {
             ControlsProfile profile = inputControlsView.getProfile();
