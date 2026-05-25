@@ -3219,6 +3219,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false),
+                globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
@@ -3516,6 +3517,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
                         preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onCursorSpeedChanged(float speed) {
+                        globalCursorSpeed = speed;
+                        preferences.edit().putFloat("cursor_speed", speed).apply();
+                        if (touchpadView != null) {
+                            float profileSpeed = 1.0f;
+                            if (inputControlsView != null) {
+                                ControlsProfile profile = inputControlsView.getProfile();
+                                if (profile != null) profileSpeed = profile.getCursorSpeed();
+                            }
+                            touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+                        }
                         renderDrawerMenu();
                     }
 

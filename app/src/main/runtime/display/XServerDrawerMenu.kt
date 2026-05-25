@@ -327,6 +327,7 @@ data class XServerDrawerState(
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = false,
+    val cursorSpeed: Float = 1.0f,
 )
 
 class XServerDrawerStateHolder(
@@ -514,6 +515,8 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsGamepadVibrationChanged(enabled: Boolean)
 
+    fun onCursorSpeedChanged(speed: Float)
+
     fun onInputControlsEditClick()
 
     fun onTaskManagerVisibilityChanged(visible: Boolean)
@@ -584,6 +587,7 @@ fun buildXServerDrawerState(
     inputControlsOverlayOpacity: Float = 0.4f,
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = false,
+    cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
 ): XServerDrawerState {
     val items =
@@ -745,6 +749,7 @@ fun buildXServerDrawerState(
         inputControlsOverlayOpacity = inputControlsOverlayOpacity,
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
+        cursorSpeed = cursorSpeed,
     )
 }
 
@@ -1795,6 +1800,15 @@ private fun InputControlsPaneContent(
                     title = stringResource(R.string.session_gamepad_enable_vibration),
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
+                )
+
+                DrawerSliderRow(
+                    label = "Mouse sensitivity scale",
+                    valueText = "${(state.cursorSpeed * 100).toInt()}%",
+                    value = state.cursorSpeed,
+                    valueRange = 0.1f..3.0f,
+                    steps = 28,
+                    onValueChange = listener::onCursorSpeedChanged,
                 )
             }
         }
