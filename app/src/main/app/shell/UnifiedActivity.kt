@@ -577,13 +577,12 @@ class UnifiedActivity :
     // uploads, a cached File for the store hero, or a URL String when no cache exists yet.
     val immersiveBackgroundRef = kotlinx.coroutines.flow.MutableStateFlow<Any?>(null)
 
-    private val defaultNavigationBarColor: Int = 0xFF141B24.toInt()
+    private val defaultNavigationBarColor: Int = android.graphics.Color.TRANSPARENT
 
     fun applyImmersiveSystemBars(enabled: Boolean) {
-        window.navigationBarColor =
-            if (enabled) android.graphics.Color.TRANSPARENT else defaultNavigationBarColor
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = !enabled
+            window.isNavigationBarContrastEnforced = false
         }
     }
 
@@ -1075,8 +1074,11 @@ class UnifiedActivity :
         }
 
         enableEdgeToEdge(
-            navigationBarStyle = SystemBarStyle.dark(0xFF141B24.toInt()),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         val initialSettingsNavigation = extractSettingsNavigation(intent)
         if (initialSettingsNavigation != null) {
             consumeSettingsIntent(intent)
@@ -6346,7 +6348,9 @@ class UnifiedActivity :
                     subtitle =
                         listOfNotNull(
                             app.developer.takeIf { it.isNotBlank() },
-                            app.publisher.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf {
+                                it.isNotBlank() && !it.equals(app.developer, ignoreCase = true)
+                            },
                         ).joinToString(" • "),
                     sourceLabel = "Epic Games",
                     heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.epicHeroRef(app)),
@@ -6957,7 +6961,9 @@ class UnifiedActivity :
                     subtitle =
                         listOfNotNull(
                             app.developer.takeIf { it.isNotBlank() },
-                            app.publisher.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf {
+                                it.isNotBlank() && !it.equals(app.developer, ignoreCase = true)
+                            },
                         ).joinToString(" • "),
                     sourceLabel = "GOG",
                     heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.gogHeroRef(app)),
@@ -8879,7 +8885,9 @@ class UnifiedActivity :
                     subtitle =
                         listOfNotNull(
                             app.developer.takeIf { it.isNotBlank() },
-                            app.publisher.takeIf { it.isNotBlank() },
+                            app.publisher.takeIf {
+                                it.isNotBlank() && !it.equals(app.developer, ignoreCase = true)
+                            },
                         ).joinToString(" • "),
                     sourceLabel = "Steam",
                     heroImageUrl = StoreArtworkCache.imageModel(context, StoreArtworkCache.steamRef(app, "hero", app.getHeroUrl())),

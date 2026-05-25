@@ -156,6 +156,9 @@ class ShortcutSettingsComposeDialog private constructor(
                 setDimAmount(0.5f)
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    isNavigationBarContrastEnforced = false
+                }
                 // Blur-behind is applied in show() post-attach to avoid flicker.
             }
         }

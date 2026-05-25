@@ -1132,8 +1132,26 @@ private fun StoreScreenCutoutMode() {
         val originalCutoutMode = window.attributes.layoutInDisplayCutoutMode
         val originalWidth = window.attributes.width
         val originalHeight = window.attributes.height
+        val originalNavigationBarColor = window.navigationBarColor
+        val originalNavBarContrastEnforced =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced
+            } else {
+                false
+            }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.clearFlags(
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
+        )
+        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor to take effect.
+        // Compose Dialog windows use Theme.DeviceDefault.Dialog which doesn't set it by default,
+        // so the system would otherwise draw its own opaque navbar over our transparent request.
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+        )
         window.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -1142,12 +1160,24 @@ private fun StoreScreenCutoutMode() {
             window.attributes.apply {
                 layoutInDisplayCutoutMode = storeCutoutMode()
             }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         onDispose {
             window.attributes =
                 window.attributes.apply {
                     layoutInDisplayCutoutMode = originalCutoutMode
                 }
+            window.navigationBarColor = originalNavigationBarColor
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = originalNavBarContrastEnforced
+            }
+            window.clearFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+            )
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.setLayout(originalWidth, originalHeight)
         }

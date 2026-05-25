@@ -145,6 +145,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 setDimAmount(0.5f)
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    isNavigationBarContrastEnforced = false
+                }
             }
             // Centralize cleanup so back-button dismissal follows the same
             // path as Save/Cancel and still fires onFinished (important for
