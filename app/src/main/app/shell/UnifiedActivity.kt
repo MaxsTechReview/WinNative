@@ -1771,8 +1771,9 @@ class UnifiedActivity :
                         modifier = Modifier.matchParentSize(),
                     ) {
                         Box(Modifier.matchParentSize()) {
+                            val immersiveBlurRadius = with(LocalDensity.current) { 8f.toDp() }
                             val blurModifier =
-                                if (immersiveBlur) Modifier.blur(8.dp) else Modifier
+                                if (immersiveBlur) Modifier.blur(immersiveBlurRadius) else Modifier
                             AsyncImage(
                                 model = immersiveRequest,
                                 contentDescription = null,
