@@ -1775,13 +1775,7 @@ class UnifiedActivity :
                             Box(
                                 Modifier
                                     .matchParentSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            0f to BgDark.copy(alpha = 0.62f),
-                                            0.55f to BgDark.copy(alpha = 0.78f),
-                                            1f to BgDark.copy(alpha = 0.92f),
-                                        ),
-                                    ),
+                                    .background(BgDark.copy(alpha = 0.5f)),
                             )
                         }
                     }

@@ -156,7 +156,7 @@ fun <T> CarouselView(
                     label = "carouselRise",
                 )
                 val itemAlpha by animateFloatAsState(
-                    targetValue = 1f - (0.35f * distanceFraction),
+                    targetValue = 1f - (0.15f * distanceFraction),
                     animationSpec =
                         spring(
                             dampingRatio = Spring.DampingRatioNoBouncy,
