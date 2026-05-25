@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.SweepGradient
@@ -44,15 +43,17 @@ class ChasingBorderDrawable
         private val cornerRadius = cornerRadiusDp * density
         private val borderWidth = borderWidthDp * density
         private val drawRect = RectF()
-        private val borderPath = Path()
         private val rotationMatrix = Matrix()
+        private var strokeCornerRadius = 0f
 
         // Current rotation angle in degrees, driven by the animator
         private var rotationDegrees = 0f
 
         // Stroke paint — shader is set in rebuildShader()
         private val borderPaint =
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
+                isAntiAlias = true
+                isDither = true
                 style = Paint.Style.STROKE
                 strokeWidth = borderWidth
                 strokeCap = Paint.Cap.ROUND
@@ -87,15 +88,13 @@ class ChasingBorderDrawable
             rotationMatrix.setRotate(rotationDegrees, cx, cy)
             borderPaint.shader?.setLocalMatrix(rotationMatrix)
 
-            canvas.drawPath(borderPath, borderPaint)
+            canvas.drawRoundRect(drawRect, strokeCornerRadius, strokeCornerRadius, borderPaint)
         }
 
-        // Build the rounded-rectangle stroke path
         private fun rebuildPath() {
             drawRect.set(bounds)
             drawRect.inset(borderWidth / 2f, borderWidth / 2f)
-            borderPath.reset()
-            borderPath.addRoundRect(drawRect, cornerRadius, cornerRadius, Path.Direction.CW)
+            strokeCornerRadius = (cornerRadius - borderWidth / 2f).coerceAtLeast(0f)
         }
 
         // Create the SweepGradient centered on the drawable

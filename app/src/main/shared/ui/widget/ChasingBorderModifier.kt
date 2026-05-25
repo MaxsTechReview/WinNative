@@ -2,7 +2,6 @@ package com.winlator.cmod.shared.ui.widget
 
 import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.SweepGradient
 import androidx.compose.animation.core.LinearEasing
@@ -70,17 +69,12 @@ fun Modifier.chasingBorder(
             if (w <= 0f || h <= 0f) {
                 onDrawWithContent { drawContent() }
             } else {
+                // Draw with the native round-rect primitive instead of a filled ring or path.
+                // That keeps the corner curve in Skia's optimized AA pipeline and avoids path
+                // flattening artifacts at small radii.
                 val inset = borderWidthPx / 2f
                 val rect = RectF(inset, inset, w - inset, h - inset)
-                val path =
-                    Path().apply {
-                        addRoundRect(
-                            rect,
-                            cornerRadiusPx,
-                            cornerRadiusPx,
-                            Path.Direction.CW,
-                        )
-                    }
+                val strokeCornerRadius = (cornerRadiusPx - inset).coerceAtLeast(0f)
                 val shader =
                     SweepGradient(
                         w / 2f,
@@ -90,7 +84,9 @@ fun Modifier.chasingBorder(
                     )
                 val matrix = Matrix()
                 val paint =
-                    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
+                        isAntiAlias = true
+                        isDither = true
                         style = Paint.Style.STROKE
                         strokeWidth = borderWidthPx
                         strokeCap = Paint.Cap.ROUND
@@ -107,7 +103,12 @@ fun Modifier.chasingBorder(
                     matrix.setRotate(rotationDegrees, w / 2f, h / 2f)
                     shader.setLocalMatrix(matrix)
 
-                    drawContext.canvas.nativeCanvas.drawPath(path, paint)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(
+                        rect,
+                        strokeCornerRadius,
+                        strokeCornerRadius,
+                        paint,
+                    )
                 }
             }
         }

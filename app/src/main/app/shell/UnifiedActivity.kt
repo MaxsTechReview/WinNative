@@ -5777,8 +5777,13 @@ class UnifiedActivity :
                     modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .border(1.dp, if (isControllerActive) CardBorder else Color.Transparent, RoundedCornerShape(14.dp))
-                        .chasingBorder(
+                        .then(
+                            if (isControllerActive && !isFocused) {
+                                Modifier.border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                            } else {
+                                Modifier
+                            },
+                        ).chasingBorder(
                             isFocused = isFocused,
                             paused = chasingBordersPaused.value || !libraryTabActive.value,
                             cornerRadius = 14.dp,
@@ -5846,8 +5851,13 @@ class UnifiedActivity :
                 modifier =
                     modifier
                         .fillMaxWidth()
-                        .border(1.dp, CardDark, RoundedCornerShape(12.dp))
-                        .chasingBorder(
+                        .then(
+                            if (isFocused) {
+                                Modifier
+                            } else {
+                                Modifier.border(1.dp, CardDark, RoundedCornerShape(12.dp))
+                            },
+                        ).chasingBorder(
                             isFocused = isFocused,
                             paused = chasingBordersPaused.value || !libraryTabActive.value,
                             cornerRadius = 12.dp,
