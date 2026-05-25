@@ -434,6 +434,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             } else {
                 sensorManager.unregisterListener(gyroListener);
             }
+        } else if ("cursor_speed".equals(key)) {
+            globalCursorSpeed = sharedPreferences.getFloat("cursor_speed", 1.0f);
+            if (touchpadView != null) {
+                float profileSpeed = 1.0f;
+                if (inputControlsView != null) {
+                    ControlsProfile profile = inputControlsView.getProfile();
+                    if (profile != null) profileSpeed = profile.getCursorSpeed();
+                }
+                touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+            }
         }
     };
 
@@ -1785,8 +1795,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             dy = event.getY();
         }
 
-        dx *= globalCursorSpeed;
-        dy *= globalCursorSpeed;
+        float profileSpeed = 1.0f;
+        if (inputControlsView != null) {
+            ControlsProfile profile = inputControlsView.getProfile();
+            if (profile != null) profileSpeed = profile.getCursorSpeed();
+        }
+
+        dx *= globalCursorSpeed * profileSpeed;
+        dy *= globalCursorSpeed * profileSpeed;
+
+        if (Math.abs(dx) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dx *= TouchpadView.CURSOR_ACCELERATION;
+        if (Math.abs(dy) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dy *= TouchpadView.CURSOR_ACCELERATION;
 
         return new float[]{
                 xform[0] * dx + xform[2] * dy,
