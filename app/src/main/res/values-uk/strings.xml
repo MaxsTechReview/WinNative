@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Дублювати</string>
     <string name="common_ui_credits_and_third_party_apps">Подяки та сторонні додатки</string>
     <string name="common_ui_loading">Завантаження…</string>
+    <string name="common_ui_exporting">Експорт…</string>
     <string name="common_ui_enable">Увімкнути</string>
     <string name="common_ui_disable">Вимкнути</string>
     <string name="common_ui_force">Примусово</string>
@@ -866,7 +867,7 @@
     <string name="settings_content_cannot_be_trusted">Контент не можна довіряти.</string>
     <string name="settings_content_is_incomplete">Контент неповний.</string>
     <string name="settings_content_untrusted_files_warning">Попередження: додатковий контент містить ненадійні файли. Зазвичай наступні файли не повинні змінюватися. Вирішіть, чи продовжувати встановлення.</string>
-    <string name="settings_content_confirm_remove">Ви хочете видалити цей контент?</string>
+    <string name="settings_content_confirm_remove">Це видалить компонент з вашого пристрою.</string>
     <string name="settings_content_unable_to_remove_in_use">Неможливо видалити цей контент, тому що контейнер наразі використовує цю версію Wine.</string>
     <string name="settings_content_download_in_components">Нічого не завантажено. Будь ласка, завантажте в розділі Компоненти.</string>
     <string name="settings_content_types_header">ТИПИ КОНТЕНТУ</string>
@@ -878,7 +879,10 @@
     <string name="settings_drivers_install">Встановити драйвери</string>
     <string name="settings_drivers_installed_success">Драйвер успішно встановлено.</string>
     <string name="settings_drivers_install_failed">Не вдалося встановити драйвер.</string>
-    <string name="settings_drivers_confirm_remove">Ви хочете видалити цей драйвер?</string>
+    <string name="settings_drivers_remove_title">Видалити драйвер?</string>
+    <string name="settings_drivers_confirm_remove">Це видалить драйвер з вашого пристрою.</string>
+    <string name="settings_drivers_remove_repo_title">Видалити репозиторій?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s буде видалено зі списку репозиторіїв.</string>
     <string name="settings_drivers_repo_tap_to_load">Натисніть для завантаження релізів</string>
     <string name="settings_drivers_repo_loading_releases">Завантаження релізів…</string>
     <string name="settings_drivers_repo_release_count">%1$d релізів завантажено</string>
@@ -1017,6 +1021,12 @@
     <string name="saves_import_export_exported_failed">Не вдалося експортувати збереження: %1$s</string>
     <string name="saves_import_export_imported">Збереження успішно імпортовано</string>
     <string name="saves_import_export_imported_failed">Не вдалося імпортувати збереження: %1$s</string>
+    <string name="saves_export_path_summary">Збереження буде експортовано до /WinNative/saves</string>
+    <string name="saves_export_success_path">Експортовано до %1$s</string>
+    <string name="saves_export_warning_title">Використовуйте це лише з користувацькими іграми</string>
+    <string name="saves_export_warning_body">Експорт може містити збереження з ігор, встановлених із магазинів, або ігор із хмарною синхронізацією.</string>
+    <string name="saves_import_warning_title">Це перезапише всі збереження в цьому контейнері</string>
+    <string name="saves_import_warning_body">Під час відновлення старішої резервної копії з кількома іграми спочатку скопіюйте новіші збереження в zip-файл за допомогою файлового менеджера.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Контейнер</string>

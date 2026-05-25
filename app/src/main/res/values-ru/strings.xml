@@ -929,7 +929,7 @@
     <string name="settings_content_cannot_be_trusted">Этому контенту нельзя доверять.</string>
     <string name="settings_content_is_incomplete">Контент неполный.</string>
     <string name="settings_content_untrusted_files_warning">Внимание: дополнительный контент содержит ненадежные файлы. Как правило, следующие файлы не следует изменять. Пожалуйста, решите, продолжать ли установку.</string>
-    <string name="settings_content_confirm_remove">Вы хотите удалить этот контент?</string>
+    <string name="settings_content_confirm_remove">Это удалит компонент с вашего устройства.</string>
     <string name="settings_content_unable_to_remove_in_use">Невозможно удалить это содержимое, поскольку контейнер сейчас использует этот Wine.</string>
     <string name="settings_content_download_in_components">Ничего не скачано. Загрузите один из компонентов.</string>
     <string name="settings_content_types_header">ТИПЫ КОНТЕНТА</string>
@@ -940,7 +940,10 @@
     <string name="settings_drivers_install">Установить драйверы</string>
     <string name="settings_drivers_installed_success">Драйвер успешно установлен.</string>
     <string name="settings_drivers_install_failed">Не удалось установить драйвер.</string>
-    <string name="settings_drivers_confirm_remove">Вы хотите удалить этот драйвер?</string>
+    <string name="settings_drivers_remove_title">Удалить драйвер?</string>
+    <string name="settings_drivers_confirm_remove">Это удалит драйвер с вашего устройства.</string>
+    <string name="settings_drivers_remove_repo_title">Удалить репозиторий?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s будет удален из списка репозиториев.</string>
     <string name="settings_drivers_repo_tap_to_load">Нажмите, чтобы загрузить выпуски</string>
     <string name="settings_drivers_repo_loading_releases">Загрузка выпусков…</string>
     <string name="settings_drivers_repo_release_count">Загружено релизов: %1$d</string>
@@ -1174,11 +1177,11 @@
     <string name="settings_hud_record_to_file_title">Записывать производительность в файл</string>
     <string name="settings_hud_record_to_file_summary">Записывать ежесекундные показатели FPS, CPU, GPU, температуры и батареи в /WinNative/logs/ во время игры.</string>
     <string name="settings_leaderboard_category">Производительность</string>
-    <string name="saves_import_warning_title">Предупреждение: это приведет к перезаписи всех сохранений в этом контейнере.</string>
-    <string name="saves_import_warning_body">При восстановлении предыдущего сохранения, если у вас несколько игр, рекомендуется вручную скопировать более новые сохранения в этот ZIP-файл через файловый менеджер.</string>
-    <string name="saves_export_path_summary">Сохранения будут экспортированы в /WinNative/saves.</string>
+    <string name="saves_import_warning_title">Это перезапишет все сохранения в этом контейнере</string>
+    <string name="saves_import_warning_body">При восстановлении старой резервной копии с несколькими играми сначала скопируйте более новые сохранения в zip-файл с помощью файлового менеджера.</string>
+    <string name="saves_export_path_summary">Сохранения будут экспортированы в /WinNative/saves</string>
     <string name="saves_export_success_path">Экспортировано в %1$s</string>
-    <string name="saves_export_warning_title">Предупреждение. Эту функцию следует использовать только для пользовательских игр.</string>
-    <string name="saves_export_warning_body">Это может затронуть другие игры из магазинов и игры с облачными сохранениями.</string>
+    <string name="saves_export_warning_title">Используйте только для пользовательских игр</string>
+    <string name="saves_export_warning_body">Экспорт может включать сохранения из игр, установленных из магазинов, или игр с облачной синхронизацией.</string>
     <string name="common_ui_exporting">Экспорт…</string>
 </resources>

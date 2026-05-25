@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplicar</string>
     <string name="common_ui_credits_and_third_party_apps">Créditos y aplicaciones de terceros</string>
     <string name="common_ui_loading">Cargando…</string>
+    <string name="common_ui_exporting">Exportando…</string>
     <string name="common_ui_enable">Activar</string>
     <string name="common_ui_disable">Desactivar</string>
     <string name="common_ui_force">Forzar</string>
@@ -860,7 +861,7 @@ Ruta instalada:
     <string name="settings_content_cannot_be_trusted">No se puede confiar en el contenido.</string>
     <string name="settings_content_is_incomplete">El contenido está incompleto.</string>
     <string name="settings_content_untrusted_files_warning">Advertencia: El contenido adicional contiene archivos no confiables. Generalmente, los siguientes archivos no deberían modificarse. Por favor, decide si deseas proceder con la instalación.</string>
-    <string name="settings_content_confirm_remove">¿Deseas eliminar este contenido?</string>
+    <string name="settings_content_confirm_remove">Esto eliminará el componente de tu dispositivo.</string>
     <string name="settings_content_unable_to_remove_in_use">No se puede eliminar este contenido, porque un contenedor está usando actualmente este Wine.</string>
     <string name="settings_content_download_in_components">Ninguno descargado. Por favor, descarga uno en Componentes.</string>
     <string name="settings_content_types_header">TIPOS DE CONTENIDO</string>
@@ -872,7 +873,10 @@ Ruta instalada:
     <string name="settings_drivers_install">Instalar controladores</string>
     <string name="settings_drivers_installed_success">Controlador instalado correctamente.</string>
     <string name="settings_drivers_install_failed">Error al instalar el controlador.</string>
-    <string name="settings_drivers_confirm_remove">¿Deseas eliminar este controlador?</string>
+    <string name="settings_drivers_remove_title">¿Eliminar controlador?</string>
+    <string name="settings_drivers_confirm_remove">Esto eliminará el controlador de tu dispositivo.</string>
+    <string name="settings_drivers_remove_repo_title">¿Eliminar repositorio?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s se eliminará de tu lista de repositorios.</string>
     <string name="settings_drivers_repo_tap_to_load">Toca para cargar versiones</string>
     <string name="settings_drivers_repo_loading_releases">Cargando versiones…</string>
     <string name="settings_drivers_repo_release_count">%1$d versiones cargadas</string>
@@ -1011,6 +1015,12 @@ Ruta instalada:
     <string name="saves_import_export_exported_failed">Error al exportar guardados: %1$s</string>
     <string name="saves_import_export_imported">Guardados importados correctamente</string>
     <string name="saves_import_export_imported_failed">Error al importar guardados: %1$s</string>
+    <string name="saves_export_path_summary">Las partidas guardadas se exportarán a /WinNative/saves</string>
+    <string name="saves_export_success_path">Exportado a %1$s</string>
+    <string name="saves_export_warning_title">Usa esto solo con juegos personalizados</string>
+    <string name="saves_export_warning_body">La exportación puede incluir partidas guardadas de juegos instalados desde tiendas o con sincronización en la nube.</string>
+    <string name="saves_import_warning_title">Esto sobrescribirá todas las partidas guardadas de este contenedor</string>
+    <string name="saves_import_warning_body">Al restaurar una copia de seguridad antigua con varios juegos, copia primero cualquier partida guardada más reciente en el zip con tu administrador de archivos.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contenedor</string>

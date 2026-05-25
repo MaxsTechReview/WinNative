@@ -971,7 +971,7 @@
     <string name="settings_content_cannot_be_trusted">इस कंटेंट पर भरोसा नहीं किया जा सकता।</string>
     <string name="settings_content_is_incomplete">कंटेंट अधूरा है।</string>
     <string name="settings_content_untrusted_files_warning">चेतावनी: अतिरिक्त कंटेंट में अविश्वसनीय फ़ाइलें हैं। आम तौर पर, नीचे दी गई फ़ाइलों को बदला नहीं जाना चाहिए। कृपया तय करें कि इंस्टॉलेशन जारी रखना है या नहीं।</string>
-    <string name="settings_content_confirm_remove">क्या आप यह कंटेंट हटाना चाहते हैं?</string>
+    <string name="settings_content_confirm_remove">यह आपके डिवाइस से घटक को हटा देगा।</string>
     <string name="settings_content_unable_to_remove_in_use">यह कंटेंट हटाया नहीं जा सकता, क्योंकि कोई कंटेनर अभी इस Wine का उपयोग कर रहा है।</string>
     <string name="settings_content_download_in_components">कुछ भी डाउनलोड नहीं हुआ। कृपया Components में जाकर कोई एक डाउनलोड करें।</string>
     <string name="settings_content_types_header">कंटेंट प्रकार</string>
@@ -981,7 +981,10 @@
     <string name="settings_drivers_install">ड्राइवर इंस्टॉल करें</string>
     <string name="settings_drivers_installed_success">ड्राइवर सफलतापूर्वक इंस्टॉल हुआ।</string>
     <string name="settings_drivers_install_failed">ड्राइवर इंस्टॉल करने में विफल।</string>
-    <string name="settings_drivers_confirm_remove">क्या आप इस ड्राइवर को हटाना चाहते हैं?</string>
+    <string name="settings_drivers_remove_title">ड्राइवर हटाएं?</string>
+    <string name="settings_drivers_confirm_remove">यह आपके डिवाइस से ड्राइवर को हटा देगा।</string>
+    <string name="settings_drivers_remove_repo_title">रिपॉज़िटरी हटाएं?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s को आपकी रिपॉज़िटरी सूची से हटा दिया जाएगा।</string>
     <string name="settings_drivers_repo_tap_to_load">रिलीज़ लोड करने के लिए टैप करें</string>
     <string name="settings_drivers_repo_loading_releases">रिलीज़ लोड हो रही हैं…</string>
     <string name="settings_drivers_repo_release_count">%1$d रिलीज़ लोड हो गई हैं</string>
@@ -1205,11 +1208,11 @@
     <string name="settings_hud_record_to_file_title">प्रदर्शन को फ़ाइल में रिकॉर्ड करें</string>
     <string name="settings_hud_record_to_file_summary">गेमप्ले के दौरान प्रति सेकंड FPS, CPU, GPU, तापमान और बैटरी मेट्रिक्स को /WinNative/logs/ पर लिखें।</string>
     <string name="settings_leaderboard_category">प्रदर्शन</string>
-    <string name="saves_import_warning_title">चेतावनी: यह इस कंटेनर में सभी सहेजे गए को अधिलेखित कर देगा।</string>
-    <string name="saves_import_warning_body">यदि किसी पुराने सेव को पुनर्स्थापित किया जा रहा है और आपके पास कई गेम हैं तो यह अनुशंसा की जाती है कि आप नए सेव को अपने फ़ाइल प्रबंधक में इस ज़िप फ़ाइल में मैन्युअल रूप से कॉपी करें।</string>
-    <string name="saves_export_path_summary">सेव को /WinNative/saves पर निर्यात किया जाएगा</string>
-    <string name="saves_export_success_path">%1$s को निर्यात किया गया</string>
-    <string name="saves_export_warning_title">चेतावनी: इस सुविधा का उपयोग केवल कस्टम गेम के लिए किया जाना चाहिए।</string>
-    <string name="saves_export_warning_body">अन्य स्टोर और क्लाउड सेव गेम्स को प्रभावित करना संभव है।</string>
+    <string name="saves_import_warning_title">यह इस कंटेनर में सभी सेव को ओवरराइट कर देगा</string>
+    <string name="saves_import_warning_body">कई गेम वाली पुरानी बैकअप को पुनर्स्थापित करते समय, पहले अपने फ़ाइल मैनेजर से किसी भी नए सेव को zip में कॉपी करें।</string>
+    <string name="saves_export_path_summary">सेव /WinNative/saves में निर्यात किए जाएंगे</string>
+    <string name="saves_export_success_path">%1$s में निर्यात किया गया</string>
+    <string name="saves_export_warning_title">इसे केवल कस्टम गेम के साथ उपयोग करें</string>
+    <string name="saves_export_warning_body">निर्यात में स्टोर से इंस्टॉल किए गए या क्लाउड-सिंक गेम के सेव शामिल हो सकते हैं।</string>
     <string name="common_ui_exporting">निर्यात हो रहा है…</string>
 </resources>

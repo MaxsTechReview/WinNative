@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplicare</string>
     <string name="common_ui_credits_and_third_party_apps">Credite si aplicatii terte</string>
     <string name="common_ui_loading">Se incarca…</string>
+    <string name="common_ui_exporting">Se exporta…</string>
     <string name="common_ui_enable">Activare</string>
     <string name="common_ui_disable">Dezactivare</string>
     <string name="common_ui_force">Fortare</string>
@@ -860,7 +861,7 @@ Cale instalata:
     <string name="settings_content_cannot_be_trusted">Continutul nu poate fi considerat de incredere.</string>
     <string name="settings_content_is_incomplete">Continutul este incomplet.</string>
     <string name="settings_content_untrusted_files_warning">Avertisment: Continutul suplimentar contine fisiere nesigure. In general, urmatoarele fisiere nu ar trebui modificate. Decide daca doresti sa continui instalarea.</string>
-    <string name="settings_content_confirm_remove">Doresti sa elimini acest continut?</string>
+    <string name="settings_content_confirm_remove">Aceasta va sterge componenta de pe dispozitiv.</string>
     <string name="settings_content_unable_to_remove_in_use">Nu se poate elimina acest continut, deoarece un container foloseste in prezent acest Wine.</string>
     <string name="settings_content_download_in_components">Nimic descarcat. Descarca unul din Componente.</string>
     <string name="settings_content_types_header">TIPURI DE CONTINUT</string>
@@ -872,7 +873,10 @@ Cale instalata:
     <string name="settings_drivers_install">Instaleaza drivere</string>
     <string name="settings_drivers_installed_success">Driver instalat cu succes.</string>
     <string name="settings_drivers_install_failed">Instalarea driverului a esuat.</string>
-    <string name="settings_drivers_confirm_remove">Doresti sa elimini acest driver?</string>
+    <string name="settings_drivers_remove_title">Elimini driverul?</string>
+    <string name="settings_drivers_confirm_remove">Aceasta va sterge driverul de pe dispozitiv.</string>
+    <string name="settings_drivers_remove_repo_title">Elimini depozitul?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s va fi eliminat din lista ta de depozite.</string>
     <string name="settings_drivers_repo_tap_to_load">Apasa pentru a incarca versiunile</string>
     <string name="settings_drivers_repo_loading_releases">Se incarca versiunile…</string>
     <string name="settings_drivers_repo_release_count">%1$d versiuni incarcate</string>
@@ -1011,6 +1015,12 @@ Cale instalata:
     <string name="saves_import_export_exported_failed">Exportul salvarilor a esuat: %1$s</string>
     <string name="saves_import_export_imported">Salvarile au fost importate cu succes</string>
     <string name="saves_import_export_imported_failed">Importul salvarilor a esuat: %1$s</string>
+    <string name="saves_export_path_summary">Salvarile vor fi exportate in /WinNative/saves</string>
+    <string name="saves_export_success_path">Exportat in %1$s</string>
+    <string name="saves_export_warning_title">Foloseste aceasta optiune doar cu jocuri personalizate</string>
+    <string name="saves_export_warning_body">Exportul poate include salvari din jocuri instalate din magazine sau sincronizate in cloud.</string>
+    <string name="saves_import_warning_title">Aceasta va suprascrie toate salvarile din acest container</string>
+    <string name="saves_import_warning_body">Cand restaurezi o copie de rezerva mai veche cu mai multe jocuri, copiaza mai intai salvarile mai noi in fisierul zip cu managerul de fisiere.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

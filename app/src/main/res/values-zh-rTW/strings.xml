@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">複製</string>
     <string name="common_ui_credits_and_third_party_apps">致謝與第三方應用程式</string>
     <string name="common_ui_loading">載入中\u2026</string>
+    <string name="common_ui_exporting">正在匯出…</string>
     <string name="common_ui_enable">啟用</string>
     <string name="common_ui_disable">停用</string>
     <string name="common_ui_force">強制</string>
@@ -860,7 +861,7 @@
     <string name="settings_content_cannot_be_trusted">內容無法被信任。</string>
     <string name="settings_content_is_incomplete">內容不完整。</string>
     <string name="settings_content_untrusted_files_warning">警告：附加內容包含不受信任的檔案。通常以下檔案不應被修改。請決定是否繼續安裝。</string>
-    <string name="settings_content_confirm_remove">您要移除此內容嗎？</string>
+    <string name="settings_content_confirm_remove">這會從您的裝置中刪除此元件。</string>
     <string name="settings_content_unable_to_remove_in_use">無法移除此內容，因為有容器正在使用此 Wine。</string>
     <string name="settings_content_download_in_components">尚未下載。請在元件中下載一個。</string>
     <string name="settings_content_types_header">內容類型</string>
@@ -872,7 +873,10 @@
     <string name="settings_drivers_install">安裝驅動程式</string>
     <string name="settings_drivers_installed_success">驅動程式已成功安裝。</string>
     <string name="settings_drivers_install_failed">驅動程式安裝失敗。</string>
-    <string name="settings_drivers_confirm_remove">您要移除此驅動程式嗎？</string>
+    <string name="settings_drivers_remove_title">移除驅動程式？</string>
+    <string name="settings_drivers_confirm_remove">這會從您的裝置中刪除此驅動程式。</string>
+    <string name="settings_drivers_remove_repo_title">移除儲存庫？</string>
+    <string name="settings_drivers_remove_repo_message">%1$s 將從您的儲存庫清單中移除。</string>
     <string name="settings_drivers_repo_tap_to_load">點擊以載入版本</string>
     <string name="settings_drivers_repo_loading_releases">正在載入版本\u2026</string>
     <string name="settings_drivers_repo_release_count">已載入 %1$d 個版本</string>
@@ -1011,6 +1015,12 @@
     <string name="saves_import_export_exported_failed">匯出存檔失敗：%1$s</string>
     <string name="saves_import_export_imported">存檔已成功匯入</string>
     <string name="saves_import_export_imported_failed">匯入存檔失敗：%1$s</string>
+    <string name="saves_export_path_summary">存檔將匯出到 /WinNative/saves</string>
+    <string name="saves_export_success_path">已匯出到 %1$s</string>
+    <string name="saves_export_warning_title">僅用於自訂遊戲</string>
+    <string name="saves_export_warning_body">匯出可能包含從商店安裝或啟用雲端同步的遊戲存檔。</string>
+    <string name="saves_import_warning_title">這將覆寫此容器中的所有存檔</string>
+    <string name="saves_import_warning_body">還原包含多個遊戲的舊備份時，請先使用檔案管理員將較新的存檔複製到該 zip 檔案中。</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">容器</string>

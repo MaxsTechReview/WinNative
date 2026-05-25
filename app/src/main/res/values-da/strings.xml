@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Dupliker</string>
     <string name="common_ui_credits_and_third_party_apps">Credits og tredjepartsapps</string>
     <string name="common_ui_loading">Indlæser…</string>
+    <string name="common_ui_exporting">Eksporterer…</string>
     <string name="common_ui_enable">Aktiver</string>
     <string name="common_ui_disable">Deaktiver</string>
     <string name="common_ui_force">Tving</string>
@@ -860,7 +861,7 @@ Installeret sti:
     <string name="settings_content_cannot_be_trusted">Indholdet kan ikke betros.</string>
     <string name="settings_content_is_incomplete">Indholdet er ufuldstændigt.</string>
     <string name="settings_content_untrusted_files_warning">Advarsel: Det ekstra indhold indeholder upålidelige filer. Generelt bør følgende filer ikke ændres. Beslut venligst om du vil fortsætte med installationen.</string>
-    <string name="settings_content_confirm_remove">Vil du fjerne dette indhold?</string>
+    <string name="settings_content_confirm_remove">Dette sletter komponenten fra din enhed.</string>
     <string name="settings_content_unable_to_remove_in_use">Kan ikke fjerne dette indhold, fordi en container bruger denne Wine.</string>
     <string name="settings_content_download_in_components">Ingen downloadet. Download venligst en i Komponenter.</string>
     <string name="settings_content_types_header">INDHOLDSTYPER</string>
@@ -872,7 +873,10 @@ Installeret sti:
     <string name="settings_drivers_install">Installer drivere</string>
     <string name="settings_drivers_installed_success">Driver installeret.</string>
     <string name="settings_drivers_install_failed">Kunne ikke installere driver.</string>
-    <string name="settings_drivers_confirm_remove">Vil du fjerne denne driver?</string>
+    <string name="settings_drivers_remove_title">Fjern driver?</string>
+    <string name="settings_drivers_confirm_remove">Dette sletter driveren fra din enhed.</string>
+    <string name="settings_drivers_remove_repo_title">Fjern lager?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s fjernes fra din lagerliste.</string>
     <string name="settings_drivers_repo_tap_to_load">Tryk for at indlæse udgivelser</string>
     <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser…</string>
     <string name="settings_drivers_repo_release_count">%1$d udgivelser indlæst</string>
@@ -1011,6 +1015,12 @@ Installeret sti:
     <string name="saves_import_export_exported_failed">Kunne ikke eksportere gemmedata: %1$s</string>
     <string name="saves_import_export_imported">Gemmedata importeret</string>
     <string name="saves_import_export_imported_failed">Kunne ikke importere gemmedata: %1$s</string>
+    <string name="saves_export_path_summary">Gemte spil eksporteres til /WinNative/saves</string>
+    <string name="saves_export_success_path">Eksporteret til %1$s</string>
+    <string name="saves_export_warning_title">Brug kun dette med brugerdefinerede spil</string>
+    <string name="saves_export_warning_body">Eksporten kan indeholde gemte spil fra butiksinstallerede spil eller spil med cloud-synkronisering.</string>
+    <string name="saves_import_warning_title">Dette overskriver alle gemte spil i denne container</string>
+    <string name="saves_import_warning_body">Når du gendanner en ældre sikkerhedskopi med flere spil, skal du først kopiere nyere gemte spil ind i zip-filen med din filhåndtering.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

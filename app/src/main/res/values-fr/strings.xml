@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Dupliquer</string>
     <string name="common_ui_credits_and_third_party_apps">Crédits et applications tierces</string>
     <string name="common_ui_loading">Chargement…</string>
+    <string name="common_ui_exporting">Exportation…</string>
     <string name="common_ui_enable">Activer</string>
     <string name="common_ui_disable">Désactiver</string>
     <string name="common_ui_force">Forcer</string>
@@ -860,7 +861,7 @@ Chemin installé :
     <string name="settings_content_cannot_be_trusted">Le contenu ne peut pas être vérifié.</string>
     <string name="settings_content_is_incomplete">Le contenu est incomplet.</string>
     <string name="settings_content_untrusted_files_warning">Avertissement : le contenu additionnel contient des fichiers non vérifiés. En général, les fichiers suivants ne devraient pas être modifiés. Veuillez décider si vous souhaitez poursuivre l\'installation.</string>
-    <string name="settings_content_confirm_remove">Voulez-vous supprimer ce contenu ?</string>
+    <string name="settings_content_confirm_remove">Cette action supprimera le composant de votre appareil.</string>
     <string name="settings_content_unable_to_remove_in_use">Impossible de supprimer ce contenu, car un conteneur utilise actuellement cette version de Wine.</string>
     <string name="settings_content_download_in_components">Aucun téléchargé. Veuillez en télécharger un dans Composants.</string>
     <string name="settings_content_types_header">TYPES DE CONTENU</string>
@@ -872,7 +873,10 @@ Chemin installé :
     <string name="settings_drivers_install">Installer des pilotes</string>
     <string name="settings_drivers_installed_success">Pilote installé avec succès.</string>
     <string name="settings_drivers_install_failed">Échec de l\'installation du pilote.</string>
-    <string name="settings_drivers_confirm_remove">Voulez-vous supprimer ce pilote ?</string>
+    <string name="settings_drivers_remove_title">Supprimer le pilote ?</string>
+    <string name="settings_drivers_confirm_remove">Cette action supprimera le pilote de votre appareil.</string>
+    <string name="settings_drivers_remove_repo_title">Supprimer le dépôt ?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s sera retiré de votre liste de dépôts.</string>
     <string name="settings_drivers_repo_tap_to_load">Appuyez pour charger les versions</string>
     <string name="settings_drivers_repo_loading_releases">Chargement des versions…</string>
     <string name="settings_drivers_repo_release_count">%1$d versions chargées</string>
@@ -1011,6 +1015,12 @@ Chemin installé :
     <string name="saves_import_export_exported_failed">Échec de l\'exportation des sauvegardes : %1$s</string>
     <string name="saves_import_export_imported">Sauvegardes importées avec succès</string>
     <string name="saves_import_export_imported_failed">Échec de l\'importation des sauvegardes : %1$s</string>
+    <string name="saves_export_path_summary">Les sauvegardes seront exportées vers /WinNative/saves</string>
+    <string name="saves_export_success_path">Exporté vers %1$s</string>
+    <string name="saves_export_warning_title">À utiliser uniquement avec les jeux personnalisés</string>
+    <string name="saves_export_warning_body">Les sauvegardes exportées peuvent inclure celles de jeux installés depuis une boutique ou synchronisés avec le cloud.</string>
+    <string name="saves_import_warning_title">Cette action écrasera toutes les sauvegardes dans ce conteneur</string>
+    <string name="saves_import_warning_body">Pour restaurer une ancienne sauvegarde contenant plusieurs jeux, copiez au préalable les sauvegardes plus récentes dans le fichier zip avec votre gestionnaire de fichiers.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Conteneur</string>

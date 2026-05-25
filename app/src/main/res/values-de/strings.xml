@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplizieren</string>
     <string name="common_ui_credits_and_third_party_apps">Danksagungen und Drittanbieter-Apps</string>
     <string name="common_ui_loading">Laden…</string>
+    <string name="common_ui_exporting">Exportieren…</string>
     <string name="common_ui_enable">Aktivieren</string>
     <string name="common_ui_disable">Deaktivieren</string>
     <string name="common_ui_force">Erzwingen</string>
@@ -860,7 +861,7 @@ Installierter Pfad:
     <string name="settings_content_cannot_be_trusted">Inhalt ist nicht vertrauenswürdig.</string>
     <string name="settings_content_is_incomplete">Inhalt ist unvollständig.</string>
     <string name="settings_content_untrusted_files_warning">Warnung: Der zusätzliche Inhalt enthält nicht vertrauenswürdige Dateien. Im Allgemeinen sollten die folgenden Dateien nicht geändert werden. Bitte entscheide, ob du mit der Installation fortfahren möchtest.</string>
-    <string name="settings_content_confirm_remove">Möchtest du diesen Inhalt entfernen?</string>
+    <string name="settings_content_confirm_remove">Dadurch wird die Komponente von deinem Gerät gelöscht.</string>
     <string name="settings_content_unable_to_remove_in_use">Dieser Inhalt kann nicht entfernt werden, da ein Container dieses Wine derzeit verwendet.</string>
     <string name="settings_content_download_in_components">Nichts heruntergeladen. Bitte lade eines unter Komponenten herunter.</string>
     <string name="settings_content_types_header">INHALTSTYPEN</string>
@@ -872,7 +873,10 @@ Installierter Pfad:
     <string name="settings_drivers_install">Treiber installieren</string>
     <string name="settings_drivers_installed_success">Treiber erfolgreich installiert.</string>
     <string name="settings_drivers_install_failed">Treiber konnte nicht installiert werden.</string>
-    <string name="settings_drivers_confirm_remove">Möchtest du diesen Treiber entfernen?</string>
+    <string name="settings_drivers_remove_title">Treiber entfernen?</string>
+    <string name="settings_drivers_confirm_remove">Dadurch wird der Treiber von deinem Gerät gelöscht.</string>
+    <string name="settings_drivers_remove_repo_title">Repository entfernen?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s wird aus deiner Repository-Liste entfernt.</string>
     <string name="settings_drivers_repo_tap_to_load">Tippen, um Veröffentlichungen zu laden</string>
     <string name="settings_drivers_repo_loading_releases">Veröffentlichungen werden geladen…</string>
     <string name="settings_drivers_repo_release_count">%1$d Veröffentlichungen geladen</string>
@@ -1011,6 +1015,12 @@ Installierter Pfad:
     <string name="saves_import_export_exported_failed">Spielstände konnten nicht exportiert werden: %1$s</string>
     <string name="saves_import_export_imported">Spielstände erfolgreich importiert</string>
     <string name="saves_import_export_imported_failed">Spielstände konnten nicht importiert werden: %1$s</string>
+    <string name="saves_export_path_summary">Spielstände werden nach /WinNative/saves exportiert</string>
+    <string name="saves_export_success_path">Exportiert nach %1$s</string>
+    <string name="saves_export_warning_title">Nur mit benutzerdefinierten Spielen verwenden</string>
+    <string name="saves_export_warning_body">Der Export kann Spielstände von über Stores installierten Spielen oder Spielen mit Cloud-Synchronisierung enthalten.</string>
+    <string name="saves_import_warning_title">Dadurch werden alle Spielstände in diesem Container überschrieben</string>
+    <string name="saves_import_warning_body">Wenn du eine ältere Sicherung mit mehreren Spielen wiederherstellst, kopiere zuerst alle neueren Spielstände mit deinem Dateimanager in die ZIP-Datei.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,7 +47,6 @@ import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -71,6 +69,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 
 // ============================================================================
 // Palette (unified with Drivers / Stores / Other / Debug)
@@ -157,17 +156,25 @@ fun ComponentsScreen(
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
 
     itemPendingRemoval?.let { item ->
-        ConfirmDialog(
-            title = stringResource(R.string.settings_content_remove_title),
-            message = stringResource(R.string.settings_content_confirm_remove),
-            confirmLabel = stringResource(R.string.common_ui_remove),
-            confirmColor = DangerRed,
-            onDismiss = { itemPendingRemoval = null },
-            onConfirm = {
-                onRemoveItem(item)
-                itemPendingRemoval = null
-            },
-        )
+        Dialog(onDismissRequest = { itemPendingRemoval = null }) {
+            PopupDialog(
+                title = stringResource(R.string.settings_content_remove_title),
+                message = stringResource(R.string.settings_content_confirm_remove),
+                confirmLabel = stringResource(R.string.common_ui_remove),
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                icon = Icons.Outlined.Delete,
+                accentColor = DangerRed,
+                cardColor = CardDark,
+                borderColor = CardBorder,
+                textPrimaryColor = TextPrimary,
+                textSecondaryColor = TextSecondary,
+                onCancel = { itemPendingRemoval = null },
+                onConfirm = {
+                    onRemoveItem(item)
+                    itemPendingRemoval = null
+                },
+            )
+        }
     }
 
     state.downloadProgress?.let { progress ->
@@ -175,11 +182,21 @@ fun ComponentsScreen(
     }
 
     state.conflict?.let { conflict ->
-        ConflictDialog(
-            title = stringResource(R.string.settings_content_already_installed_title),
-            message = stringResource(R.string.settings_content_already_installed_message, conflict.path),
-            onDismiss = onDismissConflict,
-        )
+        Dialog(onDismissRequest = onDismissConflict) {
+            PopupDialog(
+                title = stringResource(R.string.settings_content_already_installed_title),
+                message = stringResource(R.string.settings_content_already_installed_message, conflict.path),
+                confirmLabel = stringResource(R.string.common_ui_ok),
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                icon = Icons.Outlined.Warning,
+                accentColor = WarningAmber,
+                cardColor = CardDark,
+                borderColor = CardBorder,
+                textPrimaryColor = TextPrimary,
+                textSecondaryColor = TextSecondary,
+                onConfirm = onDismissConflict,
+            )
+        }
     }
 
     LazyColumn(
@@ -659,31 +676,6 @@ private fun SmallPillButton(
     }
 }
 
-@Composable
-private fun DialogActionButton(
-    label: String,
-    textColor: Color,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(CardDarker)
-                .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .noRippleClickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
 // ============================================================================
 // Empty state
 // ============================================================================
@@ -739,215 +731,21 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                 usePlatformDefaultWidth = false,
             ),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .widthIn(max = 360.dp)
-                    .fillMaxWidth(0.88f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = progress.title.uppercase(),
-                    color = TextSecondary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = progress.message,
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(14.dp))
-
-                val barHeight = 5.dp
-                val barShape = RoundedCornerShape(3.dp)
-                if (progress.indeterminate) {
-                    LinearProgressIndicator(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(barHeight)
-                                .clip(barShape),
-                        color = Accent,
-                        trackColor = CardDarker,
-                    )
-                } else {
-                    val smoothed by animateFloatAsState(
-                        targetValue = progress.progress.coerceIn(0f, 1f),
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                        label = "dlProgress",
-                    )
-                    LinearProgressIndicator(
-                        progress = { smoothed },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(barHeight)
-                                .clip(barShape),
-                        color = Accent,
-                        trackColor = CardDarker,
-                        drawStopIndicator = {},
-                        gapSize = 0.dp,
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    val percentText =
-                        if (progress.indeterminate) {
-                            stringResource(R.string.common_ui_working)
-                        } else {
-                            "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
-                        }
-                    Text(
-                        text = percentText,
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    confirmColor: Color,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(22.dp),
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = message,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.height(22.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                ) {
-                    DialogActionButton(label = stringResource(R.string.common_ui_cancel), textColor = TextSecondary, onClick = onDismiss)
-                    DialogActionButton(label = confirmLabel, textColor = confirmColor, onClick = onConfirm)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConflictDialog(
-    title: String,
-    message: String,
-    onDismiss: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.46f))
-                    .noRippleClickable(onClick = onDismiss),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .width(286.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(CardDark)
-                        .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
-                        .noRippleClickable(onClick = {})
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Warning,
-                            contentDescription = null,
-                            tint = WarningAmber,
-                            modifier =
-                                Modifier
-                                    .align(Alignment.CenterStart)
-                                    .size(18.dp),
-                        )
-                        Text(
-                            text = title,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 28.dp),
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                    Text(
-                        text = message,
-                        modifier = Modifier.fillMaxWidth(),
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        DialogActionButton(
-                            label = stringResource(R.string.common_ui_ok),
-                            textColor = WarningAmber,
-                            onClick = onDismiss,
-                        )
-                    }
-                }
-            }
-        }
+        PopupDialog(
+            title = progress.title,
+            message = progress.message,
+            modifier = Modifier
+                .widthIn(max = 360.dp)
+                .fillMaxWidth(0.88f),
+            icon = Icons.Outlined.Download,
+            accentColor = Accent,
+            cardColor = CardDark,
+            trackColor = CardDarker,
+            borderColor = CardBorder,
+            textPrimaryColor = TextPrimary,
+            textSecondaryColor = TextSecondary,
+            progress = if (progress.indeterminate) Float.NaN else progress.progress,
+        )
     }
 }
 

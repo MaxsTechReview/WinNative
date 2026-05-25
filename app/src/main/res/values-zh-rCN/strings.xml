@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">复制</string>
     <string name="common_ui_credits_and_third_party_apps">鸣谢与第三方应用</string>
     <string name="common_ui_loading">加载中…</string>
+    <string name="common_ui_exporting">正在导出…</string>
     <string name="common_ui_enable">启用</string>
     <string name="common_ui_disable">禁用</string>
     <string name="common_ui_force">强制</string>
@@ -860,7 +861,7 @@
     <string name="settings_content_cannot_be_trusted">内容不可信。</string>
     <string name="settings_content_is_incomplete">内容不完整。</string>
     <string name="settings_content_untrusted_files_warning">警告：附加内容包含不可信的文件。通常以下文件不应被修改。请决定是否继续安装。</string>
-    <string name="settings_content_confirm_remove">您要移除此内容吗？</string>
+    <string name="settings_content_confirm_remove">这会从您的设备中删除该组件。</string>
     <string name="settings_content_unable_to_remove_in_use">无法移除此内容，因为有容器正在使用此 Wine。</string>
     <string name="settings_content_download_in_components">未下载任何内容。请在组件中下载。</string>
     <string name="settings_content_types_header">内容类型</string>
@@ -872,7 +873,10 @@
     <string name="settings_drivers_install">安装驱动</string>
     <string name="settings_drivers_installed_success">驱动安装成功。</string>
     <string name="settings_drivers_install_failed">驱动安装失败。</string>
-    <string name="settings_drivers_confirm_remove">您要移除此驱动吗？</string>
+    <string name="settings_drivers_remove_title">移除驱动？</string>
+    <string name="settings_drivers_confirm_remove">这会从您的设备中删除该驱动。</string>
+    <string name="settings_drivers_remove_repo_title">移除仓库？</string>
+    <string name="settings_drivers_remove_repo_message">%1$s 将从您的仓库列表中移除。</string>
     <string name="settings_drivers_repo_tap_to_load">点击加载版本</string>
     <string name="settings_drivers_repo_loading_releases">正在加载版本…</string>
     <string name="settings_drivers_repo_release_count">已加载 %1$d 个版本</string>
@@ -1011,6 +1015,12 @@
     <string name="saves_import_export_exported_failed">存档导出失败：%1$s</string>
     <string name="saves_import_export_imported">存档导入成功</string>
     <string name="saves_import_export_imported_failed">存档导入失败：%1$s</string>
+    <string name="saves_export_path_summary">存档将导出到 /WinNative/saves</string>
+    <string name="saves_export_success_path">已导出到 %1$s</string>
+    <string name="saves_export_warning_title">仅用于自定义游戏</string>
+    <string name="saves_export_warning_body">导出可能包含从商店安装或启用云同步的游戏存档。</string>
+    <string name="saves_import_warning_title">这将覆盖此容器中的所有存档</string>
+    <string name="saves_import_warning_body">还原包含多个游戏的旧备份时，请先使用文件管理器将较新的存档复制到该 zip 文件中。</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">容器</string>
