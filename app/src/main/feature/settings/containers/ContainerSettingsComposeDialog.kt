@@ -1594,7 +1594,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (name.isEmpty()) return false
         val excludedFolders = setOf(
             "Contacts", "Desktop", "Downloads", "Favorites", "Links",
-            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache"
+            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache", "Templates"
         )
         if (excludedFolders.any { it.equals(name, ignoreCase = true) }) return true
         if (name.contains("Microsoft", ignoreCase = true)) return true
