@@ -277,6 +277,8 @@
     <string name="containers_list_creating">Создание контейнера…</string>
     <string name="containers_list_removing">Удаление контейнера…</string>
     <string name="containers_list_duplicating">Дублирование контейнера…</string>
+    <string name="containers_list_remove_title">Удалить контейнер</string>
+    <string name="containers_list_duplicate_title">Дублировать контейнер</string>
     <string name="containers_list_confirm_remove">Вы хотите удалить этот контейнер?</string>
     <string name="containers_list_confirm_duplicate">Вы хотите продублировать этот контейнер?</string>
     <!-- Shortcuts > List -->

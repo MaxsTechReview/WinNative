@@ -164,10 +164,6 @@ fun ComponentsScreen(
                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                 icon = Icons.Outlined.Delete,
                 accentColor = DangerRed,
-                cardColor = CardDark,
-                borderColor = CardBorder,
-                textPrimaryColor = TextPrimary,
-                textSecondaryColor = TextSecondary,
                 onCancel = { itemPendingRemoval = null },
                 onConfirm = {
                     onRemoveItem(item)
@@ -190,10 +186,6 @@ fun ComponentsScreen(
                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                 icon = Icons.Outlined.Warning,
                 accentColor = WarningAmber,
-                cardColor = CardDark,
-                borderColor = CardBorder,
-                textPrimaryColor = TextPrimary,
-                textSecondaryColor = TextSecondary,
                 onConfirm = onDismissConflict,
             )
         }
@@ -739,11 +731,6 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
                 .fillMaxWidth(0.88f),
             icon = Icons.Outlined.Download,
             accentColor = Accent,
-            cardColor = CardDark,
-            trackColor = CardDarker,
-            borderColor = CardBorder,
-            textPrimaryColor = TextPrimary,
-            textSecondaryColor = TextSecondary,
             progress = if (progress.indeterminate) Float.NaN else progress.progress,
         )
     }

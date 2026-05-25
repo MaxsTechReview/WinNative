@@ -260,6 +260,8 @@
     <string name="containers_list_creating">Creazione contenitore…</string>
     <string name="containers_list_removing">Rimozione contenitore…</string>
     <string name="containers_list_duplicating">Duplicazione contenitore…</string>
+    <string name="containers_list_remove_title">Rimuovi contenitore</string>
+    <string name="containers_list_duplicate_title">Duplica contenitore</string>
     <string name="containers_list_confirm_remove">Vuoi rimuovere questo contenitore?</string>
     <string name="containers_list_confirm_duplicate">Vuoi duplicare questo contenitore?</string>
 

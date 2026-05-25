@@ -1677,7 +1677,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                         message = message,
                         confirmLabel = confirmLabel,
                         progressLabel = progressLabel,
-                        modifier = Modifier.widthIn(min = 300.dp, max = 360.dp),
+                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                         onConfirm = { onConfirm(dismiss) },
                         onCancel = dismiss,
                     )

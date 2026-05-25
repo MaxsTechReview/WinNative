@@ -224,10 +224,6 @@ fun DriversScreen(
                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                 icon = Icons.Outlined.Delete,
                 accentColor = DangerRed,
-                cardColor = CardDark,
-                borderColor = CardBorder,
-                textPrimaryColor = TextPrimary,
-                textSecondaryColor = TextSecondary,
                 onCancel = { driverPendingRemoval = null },
                 onConfirm = {
                     onRemoveDriver(driver)
@@ -246,10 +242,6 @@ fun DriversScreen(
                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
                 icon = Icons.Outlined.Delete,
                 accentColor = DangerRed,
-                cardColor = CardDark,
-                borderColor = CardBorder,
-                textPrimaryColor = TextPrimary,
-                textSecondaryColor = TextSecondary,
                 onCancel = { repoPendingRemoval = null },
                 onConfirm = {
                     onRepoDeleted(index)
@@ -1401,11 +1393,6 @@ private fun DownloadProgressDialog(progress: DownloadProgress) {
                 .fillMaxWidth(0.88f),
             icon = Icons.Outlined.Download,
             accentColor = Accent,
-            cardColor = CardDark,
-            trackColor = CardDarker,
-            borderColor = CardBorder,
-            textPrimaryColor = TextPrimary,
-            textSecondaryColor = TextSecondary,
             progress = if (progress.indeterminate) Float.NaN else progress.progress,
         )
     }

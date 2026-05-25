@@ -260,6 +260,8 @@
     <string name="containers_list_creating">컨테이너 생성 중…</string>
     <string name="containers_list_removing">컨테이너 제거 중…</string>
     <string name="containers_list_duplicating">컨테이너 복제 중…</string>
+    <string name="containers_list_remove_title">컨테이너 제거</string>
+    <string name="containers_list_duplicate_title">컨테이너 복제</string>
     <string name="containers_list_confirm_remove">이 컨테이너를 제거하시겠습니까?</string>
     <string name="containers_list_confirm_duplicate">이 컨테이너를 복제하시겠습니까?</string>
 

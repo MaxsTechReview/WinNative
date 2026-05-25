@@ -260,6 +260,8 @@
     <string name="containers_list_creating">Opretter container…</string>
     <string name="containers_list_removing">Fjerner container…</string>
     <string name="containers_list_duplicating">Duplikerer container…</string>
+    <string name="containers_list_remove_title">Fjern container</string>
+    <string name="containers_list_duplicate_title">Dupliker container</string>
     <string name="containers_list_confirm_remove">Vil du fjerne denne container?</string>
     <string name="containers_list_confirm_duplicate">Vil du duplikere denne container?</string>
 

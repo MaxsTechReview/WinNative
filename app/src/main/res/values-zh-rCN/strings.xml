@@ -260,6 +260,8 @@
     <string name="containers_list_creating">正在创建容器…</string>
     <string name="containers_list_removing">正在移除容器…</string>
     <string name="containers_list_duplicating">正在复制容器…</string>
+    <string name="containers_list_remove_title">移除容器</string>
+    <string name="containers_list_duplicate_title">复制容器</string>
     <string name="containers_list_confirm_remove">您要移除此容器吗？</string>
     <string name="containers_list_confirm_duplicate">您要复制此容器吗？</string>
 

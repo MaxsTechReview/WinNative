@@ -260,6 +260,8 @@
     <string name="containers_list_creating">Se creeaza containerul…</string>
     <string name="containers_list_removing">Se elimina containerul…</string>
     <string name="containers_list_duplicating">Se duplica containerul…</string>
+    <string name="containers_list_remove_title">Elimina containerul</string>
+    <string name="containers_list_duplicate_title">Duplica containerul</string>
     <string name="containers_list_confirm_remove">Doresti sa elimini acest container?</string>
     <string name="containers_list_confirm_duplicate">Doresti sa duplici acest container?</string>
 

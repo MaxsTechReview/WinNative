@@ -264,6 +264,8 @@
     <string name="containers_list_creating">Створення контейнера…</string>
     <string name="containers_list_removing">Видалення контейнера…</string>
     <string name="containers_list_duplicating">Дублювання контейнера…</string>
+    <string name="containers_list_remove_title">Видалити контейнер</string>
+    <string name="containers_list_duplicate_title">Дублювати контейнер</string>
     <string name="containers_list_confirm_remove">Ви хочете видалити цей контейнер?</string>
     <string name="containers_list_confirm_duplicate">Ви хочете дублювати цей контейнер?</string>
 

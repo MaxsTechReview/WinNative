@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 private val BgDark = Color(0xFF18181D)
@@ -232,31 +233,63 @@ fun PresetsScreen(
     }
 
     if (showRemoveConfirm) {
-        ConfirmDialog(
-            title = stringResource(R.string.container_presets_title),
-            message = stringResource(R.string.container_presets_confirm_remove),
-            confirmLabel = stringResource(R.string.common_ui_remove),
-            confirmColor = DangerRed,
-            onDismiss = { showRemoveConfirm = false },
-            onConfirm = {
-                showRemoveConfirm = false
-                onRemovePreset()
-            },
-        )
+        Dialog(
+            onDismissRequest = { showRemoveConfirm = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                PopupDialog(
+                    title = stringResource(R.string.container_presets_title),
+                    message = stringResource(R.string.container_presets_confirm_remove),
+                    icon = Icons.Outlined.Delete,
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    onConfirm = {
+                        showRemoveConfirm = false
+                        onRemovePreset()
+                    },
+                    onCancel = { showRemoveConfirm = false },
+                    accentColor = DangerRed,
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                )
+            }
+        }
     }
 
     if (showDuplicateConfirm) {
-        ConfirmDialog(
-            title = stringResource(R.string.container_presets_title),
-            message = stringResource(R.string.container_presets_confirm_duplicate),
-            confirmLabel = stringResource(R.string.common_ui_duplicate),
-            confirmColor = Accent,
-            onDismiss = { showDuplicateConfirm = false },
-            onConfirm = {
-                showDuplicateConfirm = false
-                onDuplicatePreset()
-            },
-        )
+        Dialog(
+            onDismissRequest = { showDuplicateConfirm = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                PopupDialog(
+                    title = stringResource(R.string.container_presets_title),
+                    message = stringResource(R.string.container_presets_confirm_duplicate),
+                    icon = Icons.Outlined.ContentCopy,
+                    confirmLabel = stringResource(R.string.common_ui_duplicate),
+                    onConfirm = {
+                        showDuplicateConfirm = false
+                        onDuplicatePreset()
+                    },
+                    onCancel = { showDuplicateConfirm = false },
+                    accentColor = Accent,
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                )
+            }
+        }
     }
 
     val currentData = state.current
@@ -1218,59 +1251,6 @@ private fun DialogActionButton(
 // ============================================================================
 // Dialogs
 // ============================================================================
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    confirmColor: Color,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(22.dp),
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = message,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.height(22.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                ) {
-                    DialogActionButton(
-                        label = stringResource(R.string.common_ui_cancel),
-                        textColor = TextSecondary,
-                        onClick = onDismiss,
-                    )
-                    DialogActionButton(
-                        label = confirmLabel,
-                        textColor = confirmColor,
-                        onClick = onConfirm,
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun PromptDialog(

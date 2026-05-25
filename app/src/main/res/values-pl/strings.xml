@@ -264,6 +264,8 @@
     <string name="containers_list_creating">Tworzenie kontenera…</string>
     <string name="containers_list_removing">Usuwanie kontenera…</string>
     <string name="containers_list_duplicating">Duplikowanie kontenera…</string>
+    <string name="containers_list_remove_title">Usuń kontener</string>
+    <string name="containers_list_duplicate_title">Zduplikuj kontener</string>
     <string name="containers_list_confirm_remove">Czy chcesz usunąć ten kontener?</string>
     <string name="containers_list_confirm_duplicate">Czy chcesz zduplikować ten kontener?</string>
 

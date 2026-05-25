@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,12 +51,14 @@ private val DefaultBorder = Color.White.copy(alpha = 0.14f)
  * - Confirm: [confirmLabel] + [onConfirm] + [onCancel] → Cancel/Confirm row (swaps to spinner + [progressLabel] mid-flight).
  * - Progress: [progress] in 0f..1f → linear bar + %; `Float.NaN` / negative → indeterminate bar + [progressLabel] or "Working…".
  *
- * [icon] is any Material 3 outline icon (or `null`).
+ * [icon] is any Material 3 outline icon (or `null`). Pass [content] to render a custom body between the
+ * message and the footer; pass [footer] to override the auto-picked footer entirely (e.g. for dialogs
+ * that need bespoke action rows like "Clear Cache" + "OK").
  */
 @Composable
 fun PopupDialog(
     title: String,
-    message: String,
+    message: String? = null,
     modifier: Modifier = Modifier,
     icon: ImageVector? = Icons.Outlined.Warning,
     confirmLabel: String? = null,
@@ -70,6 +73,8 @@ fun PopupDialog(
     borderColor: Color = DefaultBorder,
     textPrimaryColor: Color = DefaultTextPrimary,
     textSecondaryColor: Color = DefaultTextSecondary,
+    content: (@Composable ColumnScope.() -> Unit)? = null,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     var isConfirming by remember { mutableStateOf(false) }
 
@@ -102,14 +107,21 @@ fun PopupDialog(
             )
         }
 
-        Text(
-            text = message,
-            color = textSecondaryColor,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-        )
+        if (!message.isNullOrEmpty()) {
+            Text(
+                text = message,
+                color = textSecondaryColor,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+
+        content?.invoke(this)
 
         when {
+            footer != null ->
+                footer()
+
             progress != null ->
                 ProgressBarFooter(
                     progress = progress,
@@ -254,7 +266,7 @@ private fun ConfirmFooter(
 }
 
 @Composable
-private fun PopupTextAction(
+fun PopupTextAction(
     label: String,
     textColor: Color,
     onClick: () -> Unit,

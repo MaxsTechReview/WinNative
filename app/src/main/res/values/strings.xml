@@ -278,6 +278,8 @@
     <string name="containers_list_creating">Creating Container…</string>
     <string name="containers_list_removing">Removing Container…</string>
     <string name="containers_list_duplicating">Duplicating Container…</string>
+    <string name="containers_list_remove_title">Remove container</string>
+    <string name="containers_list_duplicate_title">Duplicate container</string>
     <string name="containers_list_confirm_remove">Do you want to remove this container?</string>
     <string name="containers_list_confirm_duplicate">Do you want to duplicate this container?</string>
 
