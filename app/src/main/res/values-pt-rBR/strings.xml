@@ -188,6 +188,8 @@
     <string name="library_games_view_options_header">OPÇÕES DE VISUALIZAÇÃO</string>
     <string name="library_games_immersive_mode">Modo imersivo</string>
     <string name="library_games_immersive_mode_description">Usar a arte do jogo em foco como plano de fundo</string>
+    <string name="library_games_immersive_blur">Desfocar o plano de fundo</string>
+    <string name="library_games_immersive_blur_description">Aplicar um efeito de desfoque ao plano de fundo imersivo</string>
     <string name="library_games_custom_game">Jogo Personalizado</string>
     <string name="library_games_play">Jogar</string>
     <string name="library_games_add_custom_game">Adicionar Jogo Personalizado</string>

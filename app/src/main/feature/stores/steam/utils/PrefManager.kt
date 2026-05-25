@@ -264,6 +264,12 @@ object PrefManager {
             setBoolean("library_immersive_mode", value)
         }
 
+    var libraryImmersiveBlur: Boolean
+        get() = getBoolean("library_immersive_blur", false)
+        set(value) {
+            setBoolean("library_immersive_blur", value)
+        }
+
     var enableSteamLogs: Boolean
         get() = getBoolean("enable_steam_logs", false)
         set(value) {

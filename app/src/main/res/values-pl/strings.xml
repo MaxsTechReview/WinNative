@@ -192,6 +192,8 @@
     <string name="library_games_view_options_header">OPCJE WIDOKU</string>
     <string name="library_games_immersive_mode">Tryb immersyjny</string>
     <string name="library_games_immersive_mode_description">Użyj grafiki wybranej gry jako tła</string>
+    <string name="library_games_immersive_blur">Rozmyj tło</string>
+    <string name="library_games_immersive_blur_description">Zastosuj efekt rozmycia do tła immersyjnego</string>
     <string name="library_games_custom_game">Własna gra</string>
     <string name="library_games_play">Graj</string>
     <string name="library_games_add_custom_game">Dodaj własną grę</string>

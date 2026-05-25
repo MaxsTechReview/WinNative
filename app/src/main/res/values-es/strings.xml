@@ -188,6 +188,8 @@
     <string name="library_games_view_options_header">OPCIONES DE VISTA</string>
     <string name="library_games_immersive_mode">Modo inmersivo</string>
     <string name="library_games_immersive_mode_description">Usar el arte del juego enfocado como fondo</string>
+    <string name="library_games_immersive_blur">Desenfocar el fondo</string>
+    <string name="library_games_immersive_blur_description">Aplicar un efecto de desenfoque al fondo inmersivo</string>
     <string name="library_games_custom_game">Juego personalizado</string>
     <string name="library_games_play">Jugar</string>
     <string name="library_games_add_custom_game">Añadir juego personalizado</string>

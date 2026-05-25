@@ -188,6 +188,8 @@
     <string name="library_games_view_options_header">OPTIONS D’AFFICHAGE</string>
     <string name="library_games_immersive_mode">Mode immersif</string>
     <string name="library_games_immersive_mode_description">Utiliser l’illustration du jeu sélectionné comme arrière-plan</string>
+    <string name="library_games_immersive_blur">Flouter l’arrière-plan</string>
+    <string name="library_games_immersive_blur_description">Appliquer un effet de flou à l’arrière-plan immersif</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>
     <string name="library_games_play">Jouer</string>
     <string name="library_games_add_custom_game">Ajouter un jeu personnalisé</string>

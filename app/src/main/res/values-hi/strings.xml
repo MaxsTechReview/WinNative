@@ -187,6 +187,8 @@
     <string name="library_games_view_options_header">दृश्य विकल्प</string>
     <string name="library_games_immersive_mode">इमर्सिव मोड</string>
     <string name="library_games_immersive_mode_description">फोकस किए गए गेम की आर्ट को बैकग्राउंड के रूप में उपयोग करें</string>
+    <string name="library_games_immersive_blur">बैकग्राउंड धुंधला करें</string>
+    <string name="library_games_immersive_blur_description">इमर्सिव बैकग्राउंड पर धुंधला प्रभाव लागू करें</string>
     <string name="library_games_custom_game">कस्टम गेम</string>
     <string name="library_games_play">खेलें</string>
     <string name="library_games_add_custom_game">कस्टम गेम जोड़ें</string>

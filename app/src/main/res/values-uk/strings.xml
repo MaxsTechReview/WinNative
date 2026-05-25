@@ -192,6 +192,8 @@
     <string name="library_games_view_options_header">ПАРАМЕТРИ ВИГЛЯДУ</string>
     <string name="library_games_immersive_mode">Режим занурення</string>
     <string name="library_games_immersive_mode_description">Використовувати зображення вибраної гри як фон</string>
+    <string name="library_games_immersive_blur">Розмити фон</string>
+    <string name="library_games_immersive_blur_description">Застосувати ефект розмиття до фону режиму занурення</string>
     <string name="library_games_custom_game">Користувацька гра</string>
     <string name="library_games_play">Грати</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>

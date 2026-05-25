@@ -90,6 +90,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
@@ -1451,6 +1452,7 @@ class UnifiedActivity :
             )
         }
         var immersiveMode by remember { mutableStateOf(PrefManager.libraryImmersiveMode) }
+        var immersiveBlur by remember { mutableStateOf(PrefManager.libraryImmersiveBlur) }
         val tabs = remember(storeVisible.toMap()) { buildTabs(storeVisible) }
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
@@ -1706,6 +1708,7 @@ class UnifiedActivity :
                     contentFilters = contentFilters,
                     libraryLayoutMode = libraryLayoutMode,
                     immersiveMode = immersiveMode,
+                    immersiveBlur = immersiveBlur,
                     onLibraryLayoutSelected = {
                         libraryLayoutMode = it
                         PrefManager.libraryLayoutMode = it.name
@@ -1721,6 +1724,10 @@ class UnifiedActivity :
                     onImmersiveModeChanged = {
                         immersiveMode = it
                         PrefManager.libraryImmersiveMode = it
+                    },
+                    onImmersiveBlurChanged = {
+                        immersiveBlur = it
+                        PrefManager.libraryImmersiveBlur = it
                     },
                     onExitApp = {
                         AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_drawer_exit")
@@ -1764,10 +1771,12 @@ class UnifiedActivity :
                         modifier = Modifier.matchParentSize(),
                     ) {
                         Box(Modifier.matchParentSize()) {
+                            val blurModifier =
+                                if (immersiveBlur) Modifier.blur(8.dp) else Modifier
                             AsyncImage(
                                 model = immersiveRequest,
                                 contentDescription = null,
-                                modifier = Modifier.matchParentSize(),
+                                modifier = Modifier.matchParentSize().then(blurModifier),
                                 contentScale = ContentScale.Crop,
                             )
                             Box(
@@ -10479,10 +10488,12 @@ class UnifiedActivity :
         contentFilters: SnapshotStateMap<String, Boolean>,
         libraryLayoutMode: LibraryLayoutMode,
         immersiveMode: Boolean,
+        immersiveBlur: Boolean,
         onLibraryLayoutSelected: (LibraryLayoutMode) -> Unit,
         onStoreVisibleChanged: (String, Boolean) -> Unit,
         onContentFiltersChanged: (String, Boolean) -> Unit,
         onImmersiveModeChanged: (Boolean) -> Unit,
+        onImmersiveBlurChanged: (Boolean) -> Unit,
         onExitApp: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
@@ -10721,6 +10732,18 @@ class UnifiedActivity :
                     checked = immersiveMode,
                     onCheckedChange = onImmersiveModeChanged,
                 )
+
+                AnimatedVisibility(visible = immersiveMode) {
+                    Column {
+                        Spacer(Modifier.height(8.dp))
+                        DrawerSwitchCard(
+                            label = stringResource(R.string.library_games_immersive_blur),
+                            description = stringResource(R.string.library_games_immersive_blur_description),
+                            checked = immersiveBlur,
+                            onCheckedChange = onImmersiveBlurChanged,
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(16.dp))
 

@@ -188,6 +188,8 @@
     <string name="library_games_view_options_header">VISNINGSINDSTILLINGER</string>
     <string name="library_games_immersive_mode">Fordybende tilstand</string>
     <string name="library_games_immersive_mode_description">Brug det fokuserede spils grafik som baggrund</string>
+    <string name="library_games_immersive_blur">Slør baggrunden</string>
+    <string name="library_games_immersive_blur_description">Anvend en sløringseffekt på den fordybende baggrund</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>
     <string name="library_games_play">Spil</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
