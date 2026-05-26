@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.gog.api
+
 import android.content.Context
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
 import com.winlator.cmod.feature.stores.steam.utils.Net
@@ -11,11 +12,7 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Native Kotlin API client for GOG Content System
- *
- * Replaces Python GOGDL API calls with direct HTTP requests
- */
+// Native HTTP client for the GOG content system.
 @Singleton
 class GOGApiClient
     @Inject
@@ -29,8 +26,6 @@ class GOGApiClient
         }
 
         private val httpClient = Net.http
-
-        // TODO: Compose any functions to reduce DRYNESS.
 
         /**
          * Get available builds for a game.
@@ -462,7 +457,6 @@ class GOGApiClient
                         return@withContext Result.failure(Exception("Not authenticated"))
                     }
 
-                    // Build secure link URL based on generation
                     var url =
                         if (generation == 2) {
                             "$GOG_CONTENT_SYSTEM/products/$productId/secure_link?_version=2&generation=2&path=$path"
@@ -470,7 +464,6 @@ class GOGApiClient
                             "$GOG_CONTENT_SYSTEM/products/$productId/secure_link?_version=2&type=depot&path=$path"
                         }
 
-                    // Add root parameter if provided (for patches)
                     if (root != null) {
                         url += "&root=$root"
                     }

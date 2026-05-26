@@ -196,7 +196,6 @@ class ShortcutSettingsComposeDialog private constructor(
             }
         })
 
-        // Load content-dependent data on background thread
         loadContentsAsync()
     }
 
@@ -288,7 +287,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
             override fun onGfxDriverVersionChanged(versionIndex: Int) {
                 loadExtensionsForVersion(versionIndex)
-                // Update version display
                 val versions = state.gfxDriverVersionEntries.value
                 state.graphicsDriverVersion.value = versions.getOrElse(versionIndex) { "" }
             }
@@ -340,20 +338,15 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
-    // Data Loading
-    // ------------------------------------------------------------------
 
     private fun loadInitialData() {
         val container = shortcut.container
 
-        // General
         state.name.value = shortcut.name
         state.launchExePath.value = resolveInitialLaunchExePath()
         state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
         syncLibraryArtworkState()
 
-        // Input
         val inputType = Integer.parseInt(
             getShortcutSetting("inputType", container.getInputType().toString())
         )
@@ -668,9 +661,7 @@ class ShortcutSettingsComposeDialog private constructor(
         loadWineD3DConfigState()
     }
 
-    // ------------------------------------------------------------------
     // Helper load methods
-    // ------------------------------------------------------------------
 
     private fun loadMidiSoundFonts() {
         // Use a temporary Spinner to leverage MidiManager.loadSFSpinner
@@ -973,9 +964,6 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
-    // Save Settings
-    // ------------------------------------------------------------------
 
     private fun saveSettings() {
         // Compare against the target container (post-switch) so unchanged
@@ -1351,9 +1339,7 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
     // Helper methods
-    // ------------------------------------------------------------------
 
     private fun addShortcutToScreen(shortcut: Shortcut): ShortcutsFragment.PinShortcutResult {
         if (shortcut.getExtra("uuid").isEmpty()) shortcut.genUUID()
@@ -1860,7 +1846,6 @@ class ShortcutSettingsComposeDialog private constructor(
             container.getGraphicsDriverConfig()
         val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
 
-        // Load dropdown entries from resource arrays
         state.gfxVulkanVersionEntries.value = context.resources.getStringArray(R.array.vulkan_version_entries).toList()
         state.gfxMaxDeviceMemoryEntries.value = context.resources.getStringArray(R.array.device_memory_entries).toList()
         state.gfxPresentModeEntries.value = context.resources.getStringArray(R.array.present_mode_entries).toList()
@@ -1870,7 +1855,6 @@ class ShortcutSettingsComposeDialog private constructor(
         state.gfxBcnEmulationTypeEntries.value = context.resources.getStringArray(R.array.bcn_emulation_type_entries).toList()
         state.gfxBcnEmulationCacheEntries.value = context.resources.getStringArray(R.array.bcn_emulation_cache_entries).toList()
 
-        // Load GPU names
         val gpuNames = mutableListOf("Device")
         try {
             val gpuNameList = FileUtils.readString(context, AssetPaths.GPU_CARDS)
@@ -1888,7 +1872,6 @@ class ShortcutSettingsComposeDialog private constructor(
         // Load driver versions (will be populated after contents sync)
         loadGraphicsDriverVersions(container)
 
-        // Set selections from config
         selectByValue(state.gfxVulkanVersionEntries.value, config["vulkanVersion"] ?: "1.3", state.gfxSelectedVulkanVersion)
         selectByValue(state.gfxGpuNameEntries.value, config["gpuName"] ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config["maxDeviceMemory"] ?: "0", state.gfxSelectedMaxDeviceMemory)
@@ -1902,7 +1885,6 @@ class ShortcutSettingsComposeDialog private constructor(
         state.gfxSyncFrame.value = config["syncFrame"] == "1"
         state.gfxDisablePresentWait.value = config["disablePresentWait"] == "1"
 
-        // Update version display
         state.graphicsDriverVersion.value = config["version"] ?: ""
     }
 
@@ -1932,7 +1914,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.gfxDriverVersionEntries.value = versions
 
-        // Set initial selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
         else
@@ -1944,7 +1925,6 @@ class ShortcutSettingsComposeDialog private constructor(
             if (idx >= 0) state.gfxSelectedDriverVersion.intValue = idx
         }
 
-        // Load extensions for the currently selected version
         loadExtensionsForVersion(state.gfxSelectedDriverVersion.intValue)
     }
 
@@ -1990,13 +1970,10 @@ class ShortcutSettingsComposeDialog private constructor(
         // DDraw wrapper from resources
         state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
 
-        // Load DXVK versions
         loadDxvkVersions(container)
 
-        // Load VKD3D versions
         loadVkd3dVersions(container)
 
-        // Set selections from config
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
 
@@ -2013,14 +1990,12 @@ class ShortcutSettingsComposeDialog private constructor(
             originalItems.add(entryName.substring(firstDash + 1))
         }
 
-        // Remove arm64ec items if not applicable
         if (!isArm64EC) {
             originalItems.removeAll { it.contains("arm64ec") }
         }
 
         state.dxvkVersionEntries.value = originalItems
 
-        // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
@@ -2042,7 +2017,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.dxvkVkd3dVersionEntries.value = items
 
-        // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
@@ -2067,7 +2041,6 @@ class ShortcutSettingsComposeDialog private constructor(
         val selectedVkd3d = if (versionIndex in vkd3dEntries.indices) vkd3dEntries[versionIndex] else "None"
 
         if (selectedVkd3d != "None") {
-            // Filter DXVK versions to major >= 2
             val allVersions = state.dxvkVersionEntries.value
             val semver = Regex("(\\d+)\\.(\\d+)(?:\\.(\\d+))?")
             val filtered = allVersions.filter { v ->
@@ -2279,7 +2252,6 @@ class ShortcutSettingsComposeDialog private constructor(
         }
         state.wined3dGpuNameEntries.value = gpuNames
 
-        // Set selections from config
         state.wined3dSelectedCsmt.intValue = if (config.get("csmt") == "3") 0 else 1
         state.wined3dSelectedStrictShaderMath.intValue = if (config.get("strict_shader_math") == "1") 0 else 1
         selectByValue(state.wined3dOffscreenRenderingModeEntries.value, config.get("OffscreenRenderingMode"), state.wined3dSelectedOffscreenRenderingMode)
@@ -2306,9 +2278,7 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
 
-    // ------------------------------------------------------------------
     // Show / Dismiss
-    // ------------------------------------------------------------------
 
     fun show() {
         dialog.show()

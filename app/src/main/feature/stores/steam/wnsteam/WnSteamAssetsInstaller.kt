@@ -7,37 +7,7 @@ import com.winlator.cmod.shared.io.TarCompressorUtils
 import timber.log.Timber
 import java.io.File
 
-/**
- * Stages the bundled Wine/Steam IPC binaries into the right places on disk
- * the first time we launch a Steam game (or whenever the Wine version
- * changes). Idempotent: each extract is gated on a sentinel file so we
- * don't blow CPU re-decompressing on every launch.
- *
- * Assets (shipped at app/src/main/assets/wnsteam/):
- *
- *   steam-androidarm64.tzst        Linux/Android side of the Steam Runtime.
- *                                  Extracts into <imageFs.rootDir>, dropping
- *                                  libsteamclient.so + libsteamnetworkingsockets.so
- *                                  + steamservice.so + libtier0_s.so +
- *                                  libvstdlib_s.so under usr/lib/. The JNI
- *                                  bootstrap (WnSteamBootstrap) dlopens
- *                                  libsteamclient.so from this path.
- *
- *   lsteamclient-arm64ec.tzst      Wine-side bridge for ARM64EC Proton.
- *                                  aarch64-windows/lsteamclient.dll  -> drive_c/windows/system32
- *                                  i386-windows/lsteamclient.dll     -> drive_c/windows/syswow64
- *                                  aarch64-unix/lsteamclient.so      -> wine lib (Wine loader picks it up automatically)
- *
- *   lsteamclient-x86_64.tzst       Same shape for x86_64 Proton:
- *                                  x86_64-windows/lsteamclient.dll   -> drive_c/windows/system32
- *                                  i386-windows/lsteamclient.dll     -> drive_c/windows/syswow64
- *                                  x86_64-unix/lsteamclient.so       -> wine lib
- *
- * Container.wineVersion is sniffed to pick the right lsteamclient archive
- * (matches the convention: substring "arm64ec" → ARM64EC build, otherwise
- * x86_64). Containers with a non-Proton Wine variant get neither (the
- * caller should check [isSupportedFor] before calling).
- */
+// Installs bundled Steam IPC assets into the imagefs and Wine prefix.
 object WnSteamAssetsInstaller {
 
     private const val TAG = "WnSteamAssets"
@@ -47,18 +17,14 @@ object WnSteamAssetsInstaller {
     private const val LSC_ARM64EC   = "lsteamclient-arm64ec.tzst"
     private const val LSC_X86_64    = "lsteamclient-x86_64.tzst"
 
-    /** True if we have any bundled IPC binaries that apply to this container. */
     fun isSupportedFor(container: Container): Boolean =
         lsteamclientArchive(container) != null
 
-    /**
-     * Run the install pass for [container]. Safe to call on every launch;
-     * idempotent via the sentinel files written under [stamp].
-     */
+    // Idempotent install pass for a Steam-supported container.
     fun install(context: Context, container: Container): Boolean {
         val imageFs = ImageFs.find(context)
 
-        // 1) Linux/Android side — usr/lib/ libsteamclient.so + friends.
+        // Linux/Android side: usr/lib/libsteamclient.so and dependencies.
         val steamStamp = File(imageFs.libDir, ".wnsteam-androidarm64.stamp")
         if (!steamStamp.exists()) {
             Timber.tag(TAG).i("Installing $STEAM_TZST → ${imageFs.rootDir}")
@@ -75,20 +41,19 @@ object WnSteamAssetsInstaller {
             steamStamp.writeText(STEAM_TZST)
         }
 
-        // 2) Wine-side bridge (arm64ec or x86_64 lsteamclient.dll).
+        // Wine-side bridge: arm64ec or x86_64 lsteamclient.dll.
         val lscArchive = lsteamclientArchive(container)
         if (lscArchive == null) {
             Timber.tag(TAG).w(
                 "No lsteamclient archive for wineVersion=%s; skipping Wine bridge install",
                 container.wineVersion,
             )
-            return true   // .so side is fine; just no Wine bridge
+            return true
         }
         val wineStamp = File(imageFs.libDir, ".wnsteam-${lscArchive}.stamp")
         if (wineStamp.exists()) return true
 
-        // Stage into a per-arch tmp dir, then copy the .dlls into the prefix
-        // and (optionally) the .so onto the Wine lib path.
+        // Stage per-arch files, then copy DLLs into the prefix.
         val stagingRoot = File(imageFs.tmpDir, "wnsteam-stage").apply {
             deleteRecursively(); mkdirs()
         }
@@ -120,9 +85,7 @@ object WnSteamAssetsInstaller {
         systemSrc.copyTo(File(system32, "lsteamclient.dll"), overwrite = true)
         syswowSrc.copyTo(File(syswow64, "lsteamclient.dll"), overwrite = true)
 
-        // The .so side is dropped on the Wine lib dir so the loader picks
-        // it up. Path resolution mirrors winlator's existing convention:
-        // {imageFs.libDir}/wine/{arch}/lsteamclient.so.
+        // Drop the Unix .so where Wine's loader already expects it.
         val unixSoSrc = File(stagingRoot, "$unixSide/lsteamclient.so")
         if (unixSoSrc.exists()) {
             val unixSoDest = File(imageFs.libDir, "wine/$unixSide/lsteamclient.so").apply {
@@ -137,11 +100,7 @@ object WnSteamAssetsInstaller {
         return true
     }
 
-    /**
-     * Wipe stamps + installed files so the next [install] re-extracts.
-     * Useful when the container's wine version changes (caller is expected
-     * to detect this).
-     */
+    // Wipe stamps so the next [install] re-extracts assets.
     fun reset(context: Context) {
         val imageFs = ImageFs.find(context)
         listOf(

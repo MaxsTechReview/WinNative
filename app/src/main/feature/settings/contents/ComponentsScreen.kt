@@ -71,9 +71,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 
-// ============================================================================
 // Palette (unified with Drivers / Stores / Other / Debug)
-// ============================================================================
 private val BgDark = Color(0xFF18181D)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
@@ -101,9 +99,7 @@ private fun Modifier.noRippleClickable(
     )
 }
 
-// ============================================================================
 // State
-// ============================================================================
 
 data class ComponentItem(
     val key: String,
@@ -134,9 +130,7 @@ data class ComponentsState(
     val autoCreateContainer: Boolean = true,
 )
 
-// ============================================================================
 // Root
-// ============================================================================
 
 @Composable
 fun ComponentsScreen(
@@ -269,9 +263,7 @@ fun ComponentsScreen(
     }
 }
 
-// ============================================================================
 // Hero header
-// ============================================================================
 
 @Composable
 private fun HeroHeader(
@@ -404,9 +396,7 @@ private fun CountPill(
     }
 }
 
-// ============================================================================
 // Content type tabs
-// ============================================================================
 
 @Composable
 private fun TypeTabsContent(
@@ -494,9 +484,7 @@ private fun TypeTabChip(
     }
 }
 
-// ============================================================================
 // Section label
-// ============================================================================
 
 @Composable
 private fun SectionLabel(
@@ -513,9 +501,7 @@ private fun SectionLabel(
     )
 }
 
-// ============================================================================
 // Component item card
-// ============================================================================
 
 @Composable
 private fun ComponentItemCard(
@@ -601,9 +587,7 @@ private fun ComponentItemCard(
     }
 }
 
-// ============================================================================
 // Generic small controls
-// ============================================================================
 
 @Composable
 private fun IconTapButton(
@@ -668,9 +652,7 @@ private fun SmallPillButton(
     }
 }
 
-// ============================================================================
 // Empty state
-// ============================================================================
 
 @Composable
 private fun EmptyState() {
@@ -708,9 +690,7 @@ private fun EmptyState() {
     }
 }
 
-// ============================================================================
 // Confirm dialog
-// ============================================================================
 
 @Composable
 private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
@@ -736,9 +716,7 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
     }
 }
 
-// ============================================================================
 // Helpers
-// ============================================================================
 
 @Composable
 private fun formatSizeLabel(item: ComponentItem): String? {

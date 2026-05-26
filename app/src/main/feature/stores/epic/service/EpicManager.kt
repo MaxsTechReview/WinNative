@@ -200,7 +200,6 @@ class EpicManager
 
                     Timber.tag("Epic").i("Refreshing Epic library from Epic API...")
 
-                    // Get a list of basic info for each game.
                     val listResult = fetchLibrary(context)
 
                     if (listResult.isFailure) {
@@ -328,7 +327,6 @@ class EpicManager
         suspend fun fetchLibrary(context: Context): Result<List<ParsedLibraryItem>> =
             withContext(Dispatchers.IO) {
                 try {
-                    // Get Credentials and restore them
                     val credentials = EpicAuthManager.getStoredCredentials(context)
                     if (credentials.isFailure) {
                         return@withContext Result.failure(credentials.exceptionOrNull() ?: Exception("No credentials"))
@@ -382,7 +380,6 @@ class EpicManager
 
                         Timber.tag("Epic").d("Received ${records.length()} library items in this page")
 
-                        // Process records and fetch game info for each
                         for (i in 0 until records.length()) {
                             val record = records.getJSONObject(i)
 
@@ -421,7 +418,6 @@ class EpicManager
                                 continue
                             }
 
-                            // Add the basic game to the gameList.
                             val gameInfo = ParsedLibraryItem(appName, namespace, catalogItemId, sandboxType, country)
                             gameList.add(gameInfo)
                         }
@@ -504,7 +500,6 @@ class EpicManager
         ): Result<EpicGame> =
             withContext(Dispatchers.IO) {
                 try {
-                    // Get Credentials and restore them
                     val credentials = EpicAuthManager.getStoredCredentials(context)
                     if (credentials.isFailure) {
                         return@withContext Result.failure(credentials.exceptionOrNull() ?: Exception("No credentials"))
@@ -646,7 +641,6 @@ class EpicManager
                 }
             }
 
-            // Check if this is DLC
             val isDLC = data.has("mainGameItem")
             val baseGameAppName =
                 if (isDLC) {
@@ -655,10 +649,8 @@ class EpicManager
                     ""
                 }
 
-            // Get developer/publisher
             val developer = data.optString("developer", "")
 
-            // Get categories to check for mods
             val categories = data.optJSONArray("categories")
             var isMod = false
             if (categories != null) {
@@ -678,7 +670,6 @@ class EpicManager
                 val release = releaseInfo.getJSONObject(0)
                 releaseDate = release.optString("dateAdded", "")
             }
-            // Parse genres/tags from categories
             val genresList = mutableListOf<String>()
             val tagsList = mutableListOf<String>()
             if (categories != null) {
@@ -907,7 +898,6 @@ class EpicManager
         ): Result<ManifestResult> =
             withContext(Dispatchers.IO) {
                 try {
-                    // Get credentials
                     val credentials = EpicAuthManager.getStoredCredentials(context)
                     if (credentials.isFailure) {
                         return@withContext Result.failure(credentials.exceptionOrNull() ?: Exception("No credentials"))
@@ -968,13 +958,11 @@ class EpicManager
                         val manifest = manifests.getJSONObject(i)
                         val uri = manifest.getString("uri")
 
-                        // Extract base URL (e.g., "https://fastly-download.epicgames.com")
                         val baseUrl = uri.substringBefore("/Builds")
                         if (baseUrl.isEmpty() || !baseUrl.startsWith("http")) {
                             continue
                         }
 
-                        // Extract CloudDir (build path) from URI
                         // Example: https://fastly-download.epicgames.com/Builds/Org/{org}/{build}/default/...
                         // CloudDir: /Builds/Org/{org}/{build}/default
                         val cloudDir =
@@ -1110,7 +1098,6 @@ class EpicManager
         ): ManifestSizes =
             withContext(Dispatchers.IO) {
                 try {
-                    // Get the game info to get namespace and catalogItemId
                     val game = getGameById(appId)
 
                     if (game == null) {
@@ -1129,7 +1116,6 @@ class EpicManager
 
                     val manifestData = manifestResult.getOrNull()!!
 
-                    // Parse with Kotlin parser
                     val manifest =
                         com.winlator.cmod.feature.stores.epic.service.manifest.EpicManifest
                             .readAll(manifestData.manifestBytes)

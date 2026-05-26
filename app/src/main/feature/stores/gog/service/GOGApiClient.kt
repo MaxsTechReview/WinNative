@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.gog.service
+
 import android.content.Context
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
 import kotlinx.coroutines.Dispatchers
@@ -10,9 +11,7 @@ import org.json.JSONObject
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
-/**
- * Parsed/Formartted details returned by GOGApiClient.
- */
+// Parsed game details returned by GOGApiClient.
 data class ParsedGogGame(
     val id: String,
     val title: String,
@@ -31,9 +30,7 @@ data class ParsedGogGame(
     val isDlc: Boolean,
 )
 
-/**
- * Raw API Response details from gameDetails endpoint (Used for reference)
- */
+// Raw gameDetails API response shape.
 data class RawGogApiResponse(
     val id: String?,
     val title: String?,
@@ -111,7 +108,6 @@ object GOGApiClient {
             try {
                 Timber.tag("GOG").d("Fetching GOG game IDs...")
 
-                // Get credentials from AuthManager
                 val credentialsResult = GOGAuthManager.getStoredCredentials(context)
                 if (credentialsResult.isFailure) {
                     val error = credentialsResult.exceptionOrNull()
@@ -152,7 +148,6 @@ object GOGApiClient {
                         return@withContext Result.failure(Exception("Empty response from GOG"))
                     }
 
-                    // Parse JSON response
                     val userData = JSONObject(responseBody)
                     val ownedGames = userData.optJSONArray("owned") ?: JSONArray()
 
@@ -192,7 +187,6 @@ object GOGApiClient {
             try {
                 Timber.tag("GOG").d("Fetching game details for gameId: $gameId")
 
-                // Get credentials from AuthManager
                 val credentialsResult = GOGAuthManager.getStoredCredentials(context)
                 if (credentialsResult.isFailure) {
                     val error = credentialsResult.exceptionOrNull()
@@ -206,7 +200,6 @@ object GOGApiClient {
                     return@withContext Result.failure(Exception("No valid credentials found"))
                 }
 
-                // Build URL with expanded fields
                 val expandedParam =
                     if (expanded.isNotEmpty()) {
                         "?expand=${expanded.joinToString(",")}"
@@ -269,12 +262,11 @@ object GOGApiClient {
     ): GOGCloudCredentials? =
         withContext(Dispatchers.IO) {
             try {
-                val platform = "windows" // For now, assume Windows (proton)
+                val platform = "windows"
                 val buildsUrl = "https://content-system.gog.com/products/$gameId/os/$platform/builds?generation=2"
 
                 Timber.tag("GOG").d("[Cloud Saves] Fetching build metadata from: $buildsUrl")
 
-                // Get credentials for API authentication
                 val credentials = GOGAuthManager.getStoredCredentials(context).getOrNull()
                 if (credentials == null) {
                     Timber.tag("GOG").w("[Cloud Saves] No credentials available for build metadata fetch")
@@ -299,7 +291,6 @@ object GOGApiClient {
                         val jsonStr = response.body?.string() ?: ""
                         val buildsJson = JSONObject(jsonStr)
 
-                        // Get first build
                         val items = buildsJson.optJSONArray("items")
                         if (items == null || items.length() == 0) {
                             Timber.tag("GOG").w("[Cloud Saves] No builds found for game $gameId")
@@ -465,7 +456,6 @@ object GOGApiClient {
         rawResponse: JSONObject,
         gameId: String,
     ): ParsedGogGame {
-        // Extract image URLs and add https: protocol if missing
         val images = rawResponse.optJSONObject("images")
         val background = normalizeImageUrl(images?.optString("background", "") ?: "")
         val logo2x = normalizeImageUrl(images?.optString("logo2x", "") ?: "")
@@ -475,7 +465,6 @@ object GOGApiClient {
         val imageUrl = logo2x.ifEmpty { logo }
         val heroImageUrl = background.ifEmpty { getScreenshotHeroUrl(rawResponse) }
 
-        // Extract developer (first from array)
         val developers = rawResponse.optJSONArray("developers")
         val developer =
             if (developers != null && developers.length() > 0) {
@@ -484,7 +473,6 @@ object GOGApiClient {
                 ""
             }
 
-        // Extract publisher (can be object or string)
         val publisherObj = rawResponse.opt("publisher")
         val publisher =
             when (publisherObj) {
@@ -493,7 +481,6 @@ object GOGApiClient {
                 else -> ""
             }
 
-        // Extract genres (array of objects with name field)
         val genresArray = rawResponse.optJSONArray("genres")
         val genres = mutableListOf<String>()
         if (genresArray != null) {
@@ -511,7 +498,6 @@ object GOGApiClient {
             }
         }
 
-        // Extract language codes (keys from object)
         val languages = mutableListOf<String>()
         val langObj = rawResponse.optJSONObject("languages")
         if (langObj != null) {
@@ -521,7 +507,6 @@ object GOGApiClient {
             }
         }
 
-        // Extract description from nested structure
         val descriptionObj = rawResponse.opt("description")
         val description =
             when (descriptionObj) {
@@ -530,7 +515,6 @@ object GOGApiClient {
                 else -> ""
             }
 
-        // Extract download size from first installer
         val downloads = rawResponse.optJSONObject("downloads")
         // Used in GOG Galaxy to hide specific entitlements
         val isSecret = rawResponse.optBoolean("is_secret", false)

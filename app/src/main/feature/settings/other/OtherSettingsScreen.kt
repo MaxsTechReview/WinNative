@@ -445,7 +445,6 @@ private fun SettingsToggleCard(
     }
 }
 
-// Check for Updates card: switch + "Check Now" inline button
 @Composable
 private fun UpdatesCard(
     checked: Boolean,

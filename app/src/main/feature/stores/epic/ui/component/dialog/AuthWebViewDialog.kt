@@ -106,7 +106,6 @@ fun AuthWebViewDialog(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
                                     )
 
-                                // OAuth WebView settings (secure defaults for GOG/Epic etc.)
                                 settings.apply {
                                     javaScriptEnabled = true
                                     domStorageEnabled = true
@@ -115,13 +114,11 @@ fun AuthWebViewDialog(
                                     builtInZoomControls = true
                                     displayZoomControls = false
                                     setSupportZoom(true)
-                                    // Secure defaults: no file/content access to limit OAuth surface
                                     allowFileAccess = false
                                     allowContentAccess = false
                                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                 }
 
-                                // Use custom WebViewClient if provided, otherwise use default
                                 webViewClient = customWebViewClient ?: object : WebViewClient() {
                                     private fun handleUrl(url: String?) {
                                         Timber.d("Auth WebView navigating to: ${redactUrlForLogging(url)}")

@@ -39,21 +39,17 @@ object UpdateChecker {
     private const val PREF_INSTALL_TIMESTAMP = "app_install_timestamp"
     private const val PREF_LAST_UPDATE_CHECK = "last_update_check_time"
 
-    private const val CHECK_INTERVAL_MS = 60 * 60 * 1000L // 1 hour
-    private const val MANUAL_CHECK_COOLDOWN_MS = 30 * 1000L // 30 seconds
-    private const val POST_GAME_CHECK_DELAY_MS = 10 * 1000L // 10 seconds
+    private const val CHECK_INTERVAL_MS = 60 * 60 * 1000L
+    private const val MANUAL_CHECK_COOLDOWN_MS = 30 * 1000L
+    private const val POST_GAME_CHECK_DELAY_MS = 10 * 1000L
 
-    /** Tracks the last manual check time for 30s cooldown. */
     private val lastManualCheckTime = AtomicLong(0L)
 
-    /** Prevents overlapping background checks. */
     private val isChecking = AtomicBoolean(false)
 
-    /** Background handler for periodic checks. */
     private var backgroundHandler: Handler? = null
     private var backgroundRunnable: Runnable? = null
 
-    /** Post-game exit handler. */
     private var postGameHandler: Handler? = null
     private var postGameRunnable: Runnable? = null
 
@@ -67,20 +63,12 @@ object UpdateChecker {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // ── Public API ────────────────────────────────────────────────────
-
-    /**
-     * Returns true if the user has the "Check for Updates" toggle enabled.
-     */
     fun isEnabled(context: Context): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return prefs.getBoolean(PREF_CHECK_FOR_UPDATES, false)
     }
 
-    /**
-     * Records the app install/update timestamp from PackageManager.
-     * Should be called once during Application.onCreate().
-     */
+    // Record the app install/update timestamp from PackageManager.
     fun refreshInstallTimestamp(context: Context) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         try {
@@ -94,19 +82,13 @@ object UpdateChecker {
         }
     }
 
-    /**
-     * Returns true if enough time has passed since the last check.
-     */
     fun isDueForCheck(context: Context): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val lastCheck = prefs.getLong(PREF_LAST_UPDATE_CHECK, 0L)
         return System.currentTimeMillis() - lastCheck >= CHECK_INTERVAL_MS
     }
 
-    /**
-     * Starts the hourly background loop when auto-update is enabled.
-     * Call from the main Activity's onResume/onCreate.
-     */
+    // Start the hourly background loop when auto-update is enabled.
     fun startBackgroundLoop(context: Context) {
         stopBackgroundLoop()
         if (!isEnabled(context)) return
@@ -123,24 +105,16 @@ object UpdateChecker {
                     }
                 }
             }
-        // First tick after 5 seconds (give the app time to finish initialising)
         backgroundHandler?.postDelayed(backgroundRunnable!!, 5_000L)
     }
 
-    /**
-     * Stops the hourly background loop.  Call from onDestroy or when the
-     * toggle is turned off.
-     */
     fun stopBackgroundLoop() {
         backgroundRunnable?.let { backgroundHandler?.removeCallbacks(it) }
         backgroundHandler = null
         backgroundRunnable = null
     }
 
-    /**
-     * Perform an automatic update check. Skipped if not due or already running.
-     * @param force If true, bypasses the interval timer (first app open).
-     */
+    // Perform an automatic update check.
     fun checkForUpdate(
         context: Context,
         force: Boolean = false,
@@ -151,10 +125,7 @@ object UpdateChecker {
         launchCheck(context)
     }
 
-    /**
-     * Manual "Check" button — respects a 30-second cooldown.
-     * @return `true` if the check was started, `false` if still in cooldown.
-     */
+    // Manual check; returns false while in cooldown.
     fun checkForUpdateManual(context: Context): Boolean {
         val now = System.currentTimeMillis()
         val last = lastManualCheckTime.get()
@@ -164,21 +135,13 @@ object UpdateChecker {
         return true
     }
 
-    /**
-     * Returns the remaining cooldown in seconds for the manual check button.
-     * Returns 0 if the button is ready.
-     */
     fun manualCheckCooldownSeconds(): Int {
         val elapsed = System.currentTimeMillis() - lastManualCheckTime.get()
         val remaining = MANUAL_CHECK_COOLDOWN_MS - elapsed
         return if (remaining > 0) ((remaining + 999) / 1000).toInt() else 0
     }
 
-    /**
-     * Schedule a deferred update check after a game exits.
-     * If another game is launched before the delay, cancel the pending check
-     * via [cancelPostGameCheck].
-     */
+    // Schedule a deferred update check after a game exits.
     fun schedulePostGameCheck(context: Context) {
         cancelPostGameCheck()
         if (!isEnabled(context)) return
@@ -194,18 +157,12 @@ object UpdateChecker {
         postGameHandler?.postDelayed(postGameRunnable!!, POST_GAME_CHECK_DELAY_MS)
     }
 
-    /**
-     * Cancel the pending post-game check (e.g. user launched another game).
-     */
     fun cancelPostGameCheck() {
         postGameRunnable?.let { postGameHandler?.removeCallbacks(it) }
         postGameHandler = null
         postGameRunnable = null
     }
 
-    /**
-     * Resets the last-check timer so the next periodic tick runs immediately.
-     */
     fun resetCheckTimer(context: Context) {
         PreferenceManager
             .getDefaultSharedPreferences(context)
@@ -213,8 +170,6 @@ object UpdateChecker {
             .putLong(PREF_LAST_UPDATE_CHECK, 0L)
             .apply()
     }
-
-    // ── Internal ──────────────────────────────────────────────────────
 
     private fun isAutoCheckAllowed(): Boolean {
         val activity = PluviaApp.currentForegroundActivity ?: return false
@@ -233,7 +188,6 @@ object UpdateChecker {
                         showUpdateDialog(context, result)
                     }
                 }
-                // Record that we checked
                 PreferenceManager
                     .getDefaultSharedPreferences(context)
                     .edit()
@@ -255,15 +209,8 @@ object UpdateChecker {
         val releaseNotes: String?,
     )
 
-    /**
-     * Fetches the Downloads page HTML, parses the "Last Updated:" line,
-     * and compares it against the app's install timestamp.
-     *
-     * This is the fastest approach — a single lightweight GET of the HTML
-     * page rather than HEAD requests through the download.php redirector.
-     */
+    // Fetch the downloads page and compare its "Last Updated" date.
     private fun fetchUpdateInfo(context: Context): UpdateInfo? {
-        // 1.  Fetch the HTML page
         val pageRequest =
             Request
                 .Builder()
@@ -280,7 +227,6 @@ object UpdateChecker {
                 pageResponse.body?.string() ?: return null
             }
 
-        // 2.  Parse "Last Updated: March 29, 2026, 5:46 am EDT"
         val pattern =
             Pattern.compile(
                 """Last\s+Updated:\s*(.+?)(?:\r?\n|<)""",
@@ -299,15 +245,13 @@ object UpdateChecker {
                 return null
             }
 
-        // 3.  Compare with install timestamp
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val installTimestamp = prefs.getLong(PREF_INSTALL_TIMESTAMP, System.currentTimeMillis())
 
         if (serverDate.time <= installTimestamp) {
-            return null // No update available
+            return null
         }
 
-        // 4.  Build download URL based on package name
         val apkType =
             when (context.packageName) {
                 "com.ludashi.benchmark" -> "ludashi"
@@ -316,7 +260,6 @@ object UpdateChecker {
             } ?: return null
         val downloadUrl = "${DOWNLOADS_PAGE_URL}download.php?type=$apkType"
 
-        // 5.  Fetch optional release notes
         val releaseNotes = fetchReleaseNotes()
 
         val dateFormat = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.US)
@@ -331,9 +274,6 @@ object UpdateChecker {
         )
     }
 
-    /**
-     * Parses date strings like "March 29, 2026, 5:46 am EDT".
-     */
     private fun parseLastUpdatedDate(dateStr: String): Date? {
         val formats =
             arrayOf(
@@ -394,7 +334,6 @@ object UpdateChecker {
                 setPadding(padding, padding, padding, padding)
             }
 
-        // Released date
         val releasedLabel =
             TextView(context).apply {
                 text = "Released: ${info.serverModifiedFormatted}"
@@ -403,7 +342,6 @@ object UpdateChecker {
             }
         container.addView(releasedLabel)
 
-        // Release notes
         if (!info.releaseNotes.isNullOrBlank()) {
             val divider =
                 android.view.View(context).apply {

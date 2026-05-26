@@ -27,35 +27,21 @@ constexpr const char* kLogTag = "WnSteamDepotWriter";
 constexpr uint32_t kFlagExecutable = 32;
 constexpr uint32_t kFlagDirectory  = 64;
 
-// A failing chunk fetch is retried this many times (with backoff, rotating
-// CDN servers) before the depot is declared failed. A transient network
-// blip or a flaky CDN edge therefore no longer aborts a whole download.
+// Retry failing chunk fetches across CDN servers before failing the depot.
 constexpr unsigned kMaxChunkAttempts = 5;
 
-// Chunks are <2MB and finish in 1–2s on a healthy edge; longer than this
-// flags the worker to rotate edges on its next chunk so it doesn't stay
-// stuck on a throttled one for the whole run (visible as post-resume
-// throughput drop when workers re-pick their pre-pause edges).
+// Rotate CDN edges after repeated slow chunks.
 constexpr std::chrono::seconds kSlowChunkRotateThreshold{8};
 constexpr unsigned kSlowChunkRotateConsecutiveLimit = 3;
 
-// Backoff before chunk retry `attempt` (attempt is >= 1): 300ms, 600ms,
-// 1200ms, 2400ms — capped so a long stall doesn't wedge a worker forever.
+// Retry backoff: 300ms, 600ms, 1200ms, 2400ms, then capped.
 std::chrono::milliseconds retry_backoff(unsigned attempt) {
     unsigned ms = 300u << (attempt - 1);
     if (ms > 4000u) ms = 4000u;
     return std::chrono::milliseconds(ms);
 }
 
-// Steam's chunk checksum (ContentManifest ChunkData.crc) — an Adler-32
-// variant seeded with a=0 (NOT zlib's a=1). Matches steam_adler_hash in
-// depot_chunk.cpp / SteamKit2 Util.AdlerHash. Used by the resume path to
-// check whether a chunk's bytes are already correct on disk.
-//
-// Uses the standard deferred-modulo form (one modulo per 5552-byte block
-// instead of two per byte) — mathematically identical to the naive loop
-// because modulo distributes over the additions, but several times faster.
-// This is the verify hot path, so it matters on multi-GB games.
+// Steam's chunk checksum: Adler-32 seeded with a=0, using deferred modulo.
 uint32_t depot_adler_hash(std::span<const uint8_t> data) {
     constexpr size_t kBlock = 5552;   // zlib NMAX — largest overflow-safe run
     uint32_t a = 0, b = 0;
@@ -82,8 +68,7 @@ DepotWriteResult fail(std::string msg, bool resume_trust_safe = false) {
     return r;
 }
 
-// A manifest filename is server-controlled. Reject any path that could
-// escape target_dir (absolute, or a ".." component) before touching disk.
+// Reject server-controlled paths that could escape target_dir.
 bool path_is_safe(std::string_view rel) {
     if (rel.empty()) return false;
     if (rel.front() == '/') return false;
@@ -100,8 +85,7 @@ bool path_is_safe(std::string_view rel) {
     return true;
 }
 
-// mkdir -p for the directory portion of `path` (everything before the last
-// '/'). Existing directories are fine.
+// mkdir -p for the directory portion of `path`.
 bool make_parent_dirs(const std::string& path) {
     size_t slash = path.rfind('/');
     if (slash == std::string::npos || slash == 0) return true;
@@ -122,10 +106,7 @@ bool make_parent_dirs(const std::string& path) {
     return true;
 }
 
-// Return false when the filesystem can prove this byte range is an unallocated
-// sparse hole. Older WinNative builds pre-sized every manifest file before any
-// chunks landed, so resume validation could waste minutes checksumming zeroed
-// holes for chunks that were never downloaded.
+// Return false when this range is provably an unallocated sparse hole.
 bool range_may_have_data(int fd, uint64_t offset, uint32_t size,
                          off_t file_size) {
     if (size == 0) return false;
@@ -138,8 +119,7 @@ bool range_may_have_data(int fd, uint64_t offset, uint32_t size,
     off_t data = ::lseek(fd, static_cast<off_t>(offset), SEEK_DATA);
     if (data < 0) {
         if (errno == ENXIO) return false;
-        // Filesystem does not support SEEK_DATA or returned an unexpected
-        // error. Fall back to reading and checksumming the range.
+        // Fall back to reading and checksumming the range.
         return true;
     }
     return static_cast<uint64_t>(data) < end;
@@ -199,27 +179,19 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
 
     DepotWriteResult result;
 
-    // One outstanding chunk to download: indices into manifest.files and
-    // that file's chunk list (zero-copy — the manifest outlives this call).
+    // One chunk to download: file index plus chunk index.
     struct ChunkJob {
         uint32_t file_idx;
         uint32_t chunk_idx;
     };
     std::vector<std::string> file_paths(manifest.files.size());
     std::vector<ChunkJob>    jobs;            // chunks that need a CDN download
-    std::vector<uint32_t>    validate_files;  // regular files with on-disk
-                                              // content whose chunks must be
-                                              // Adler-checked (Phase A2)
-    // Decompressed bytes confirmed present: advanced by the parallel
-    // validation in Phase A2 and the download workers in Phase B.
+    std::vector<uint32_t>    validate_files;
+    // Decompressed bytes confirmed present.
     std::atomic<uint64_t> bytes_done{0};
-    std::mutex            jobs_mtx;           // guards `jobs` appends from A2
+    std::mutex            jobs_mtx;
 
-    // ── Phase A — single-threaded prep ──────────────────────────────────
-    // Create directories / symlinks and create regular files without
-    // pre-sizing them. Pre-sizing every file makes a partially downloaded
-    // depot look fully present on resume, so validation has to read sparse
-    // placeholders for chunks that were never downloaded.
+    // Create directories/symlinks and regular files without pre-sizing them.
     for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {
         const auto& f = manifest.files[fi];
         if (cancelled()) return fail("write_depot: cancelled");
@@ -229,7 +201,6 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         const std::string path = target_dir + "/" + f.filename;
         file_paths[fi] = path;
 
-        // Symlink — identified by a non-empty linktarget.
         if (!f.linktarget.empty()) {
             if (!make_parent_dirs(path)) return fail("write_depot: mkdir failed");
             ::unlink(path.c_str());
@@ -241,8 +212,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
             continue;
         }
 
-        // Directory. The manifest file list is not guaranteed parent-first,
-        // so create any missing ancestors before the directory itself.
+        // Manifest directories are not guaranteed parent-first.
         if (f.flags & kFlagDirectory) {
             if (!make_parent_dirs(path)) return fail("write_depot: mkdir failed");
             if (::mkdir(path.c_str(), 0755) != 0 && errno != EEXIST) {
@@ -252,12 +222,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
             continue;
         }
 
-        // Resume fast-path: this file was recorded fully written + fdatasync'd
-        // (and ftruncate'd to f.size) on an earlier run. Skip it outright —
-        // no re-open, no chunk re-hash. A size check guards against a file
-        // the user deleted or that is the wrong size: those fall through and
-        // rebuild. (Only regular files are ever recorded, so this never
-        // matches a directory or symlink.)
+        // Resume fast-path for files previously written and synced.
         if (progress_store && progress_store->is_file_done(fi)) {
             struct stat done_st {};
             if (::stat(path.c_str(), &done_st) == 0 &&
@@ -268,10 +233,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
             }
         }
 
-        // Regular file: create if missing, but don't pre-size. A pre-existing
-        // file with content may already hold this depot's chunks (resume, or a
-        // verify pass), and successful completion truncates to the exact
-        // manifest size below.
+        // Regular files are created without pre-sizing.
         if (!make_parent_dirs(path)) return fail("write_depot: mkdir failed");
         const mode_t mode = (f.flags & kFlagExecutable) ? 0755 : 0644;
         struct stat prev_st {};
@@ -286,7 +248,6 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         ++result.files_written;
 
         if (f.chunks.empty()) {
-            // Nothing to download — the file is complete the moment it exists.
             if (progress_store) progress_store->mark_file_done(fi);
             continue;
         }
@@ -303,11 +264,8 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         progress(bytes_done.load(std::memory_order_relaxed), total_bytes, true);
     }
 
-    // ── Phase A2 — parallel on-disk validation ──────────────────────────
-    // The verify hot path. Each worker takes whole files (open once, O_RDONLY)
-    // and Adler-checks every chunk: chunks already correct on disk are counted
-    // done, the rest become download jobs. Single-threaded this ran at
-    // ~20 MB/s; parallel it is bounded by storage read bandwidth.
+    // Parallel on-disk validation: existing chunks are checked, missing chunks
+    // become download jobs.
     if (!validate_files.empty() && !cancelled()) {
         unsigned vn = max_workers == 0 ? 1u : max_workers;
         vn = std::min<unsigned>(vn, 64u);
@@ -330,7 +288,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
 
                 int fd = ::open(file_paths[fi].c_str(), O_RDONLY);
                 if (fd < 0) {
-                    // Cannot read it back — every chunk needs a download.
+                    // Cannot read it back; every chunk needs a download.
                     for (uint32_t ci = 0; ci < f.chunks.size(); ++ci)
                         local.push_back({fi, ci});
                 } else {
@@ -365,11 +323,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                             local.push_back({fi, ci});
                         }
                     }
-                    // Every chunk verified present → the file is about to be
-                    // recorded done. The sidecar promises durability, but
-                    // these bytes may still be un-synced page cache from an
-                    // earlier interrupted run — flush before we trust them.
-                    // (fsync on an O_RDONLY fd is valid and flushes the file.)
+                    // Flush before trusting bytes from an earlier interrupted run.
                     if (local.empty()) ::fdatasync(fd);
                     ::close(fd);
                 }
@@ -377,9 +331,6 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                     std::lock_guard<std::mutex> lk(jobs_mtx);
                     jobs.insert(jobs.end(), local.begin(), local.end());
                 } else if (progress_store) {
-                    // Every chunk verified present on disk — the file is
-                    // complete and durable. Record it so the next resume
-                    // skips it entirely instead of re-hashing it again.
                     progress_store->mark_file_done(fi);
                 }
             }
@@ -395,8 +346,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                 progress(bytes_done.load(std::memory_order_relaxed),
                          total_bytes, true);
             }
-            // Persist newly-validated files every ~3s so an interruption
-            // mid-verify doesn't throw away the validation work.
+            // Persist newly validated files every ~3s.
             if (progress_store && ++vtick % 20 == 0) progress_store->flush();
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
         }
@@ -407,23 +357,13 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
     result.resume_trust_safe = true;
 
     const bool any_download = !jobs.empty();
-    // The validation→download boundary should flip the UI out of verifying as
-    // soon as missing chunks are known. Waiting for the worker progress loop
-    // makes resume look stuck if connection setup or the first CDN chunk takes
-    // a while after a long validation pass.
+    // Flip the UI out of verifying as soon as missing chunks are known.
     if (progress) {
         progress(bytes_done.load(std::memory_order_relaxed), total_bytes,
                  !any_download);
     }
 
-    // ── Phase B — parallel chunk download ───────────────────────────────
-    // N workers, each with its own keep-alive CdnConnection, pull jobs off a
-    // shared atomic cursor. pwrite() is positional, so concurrent writes to
-    // distinct offsets — even within one file — need no file locking.
-    //
-    // file_remaining[fi] counts how many of file `fi`'s chunks still need a
-    // download. The worker that lands the last one fdatasync's the file and
-    // records it done in the progress store — so a later resume skips it.
+    // Parallel chunk download. Positional pwrite avoids per-file locking.
     std::vector<std::atomic<uint32_t>> file_remaining(manifest.files.size());
     for (const auto& j : jobs) {
         file_remaining[j.file_idx].fetch_add(1, std::memory_order_relaxed);
@@ -453,9 +393,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
 
         auto worker = [&](unsigned worker_index) {
             CdnConnection conn;   // one reused TCP+TLS connection per worker
-            // Spread workers across the CDN server list; rotation is
-            // triggered on fetch failure or after multiple consecutive
-            // slow-but-successful chunks (see kSlowChunkRotateThreshold).
+            // Spread workers across CDN servers and rotate on trouble.
             unsigned srv_idx = worker_index % server_count;
             unsigned consecutive_slow_chunks = 0;
             while (true) {
@@ -476,9 +414,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                     consecutive_slow_chunks = 0;
                 }
 
-                // Fetch + decode the chunk, retrying transient failures with
-                // backoff and rotating CDN servers. Only after every attempt
-                // is exhausted does the depot fail.
+                // Fetch and decode with retry/backoff across CDN servers.
                 CdnChunkResult   fetched;
                 DepotChunkResult processed;
                 std::string      last_err;
@@ -495,8 +431,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                             cancelled()) {
                             break;
                         }
-                        // Move to the next server; a keep-alive handle is
-                        // bound to its host, so start a fresh connection.
+                        // Keep-alive handles are host-bound.
                         if (server_count > 1) {
                             srv_idx = (srv_idx + 1) % server_count;
                         }
@@ -556,13 +491,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
                 }
                 bytes_done.fetch_add(processed.data.size(),
                                      std::memory_order_relaxed);
-                // Last outstanding chunk of this file just landed — bring the
-                // file to its exact manifest size now (the depot-end ftruncate
-                // loop only runs on a fully-successful depot, so a pause/kill
-                // before that point would leave this file at max-chunk-offset
-                // size and the resume fast-path's stat guard would reject it),
-                // flush it to stable storage, then record it done so a kill
-                // or a pause/resume can't lose it or force a re-verify.
+                // Final chunk: size, sync, and record the file for resume.
                 if (file_remaining[job.file_idx].fetch_sub(
                         1, std::memory_order_acq_rel) == 1) {
                     int sfd = ::open(path.c_str(), O_WRONLY);
@@ -583,18 +512,14 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
         pool.reserve(n);
         for (unsigned w = 0; w < n; ++w) pool.emplace_back(worker, w);
 
-        // The calling thread owns progress reporting: write_depot's progress
-        // callback ends up calling into the JVM, which is only legal on the
-        // thread that owns its JNIEnv (this one). Workers never touch it.
+        // Progress callbacks call into the JVM, so workers never invoke them.
         unsigned btick = 0;
         while (active.load(std::memory_order_acquire) > 0) {
             if (progress) {
                 progress(bytes_done.load(std::memory_order_relaxed),
                          total_bytes, /*verifying=*/false);
             }
-            // Persist completed-file records every ~3s so an interruption
-            // loses at most a few seconds of "file done" markers (those
-            // files are merely re-verified — never re-downloaded — on resume).
+            // Persist completed-file records every ~3s.
             if (progress_store && ++btick % 20 == 0) progress_store->flush();
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
         }
@@ -605,12 +530,7 @@ DepotWriteResult write_depot(const ContentManifest& manifest,
             return fail(err.empty() ? "write_depot: download failed" : err);
         }
         if (cancelled()) {
-            // fdatasync partial files (file_remaining > 0) so the next
-            // resume's Phase A2 SEEK_DATA fast-path sees the chunks; without
-            // this, those bytes sit only in the page cache and resume falls
-            // back to Adler-hashing every chunk — slow on big pauses.
-            // Files with file_remaining == 0 were already synced at
-            // mark_file_done. Parallelized; per-file fds are independent.
+            // Sync partial files so resume can find written chunks quickly.
             std::vector<uint32_t> to_sync;
             to_sync.reserve(manifest.files.size());
             for (uint32_t fi = 0; fi < manifest.files.size(); ++fi) {

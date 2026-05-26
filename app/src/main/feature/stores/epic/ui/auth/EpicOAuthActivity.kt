@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.epic.ui.auth
+
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -14,12 +15,7 @@ import com.winlator.cmod.shared.android.FixedFontScaleComponentActivity
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import timber.log.Timber
 
-/**
- * Epic OAuth Activity that hosts a WebView and automatically captures
- * the authorization code. Epic returns the code in the redirect page body as JSON
- * ({"authorizationCode":"...", ...}), not in the URL – so we read the body via JS.
- * Uses a per-session state parameter for CSRF protection.
- */
+// Captures Epic OAuth codes from redirect URLs or the JSON redirect body.
 class EpicOAuthActivity : FixedFontScaleComponentActivity() {
     companion object {
         const val EXTRA_AUTH_CODE = "auth_code"
@@ -42,7 +38,6 @@ class EpicOAuthActivity : FixedFontScaleComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if URL was passed from intent (e.g., from WineRequestComponent)
         val gameAuthUrl = intent.getStringExtra(EXTRA_GAME_AUTH_URL)
 
         val (authUrl, state) =
@@ -55,7 +50,6 @@ class EpicOAuthActivity : FixedFontScaleComponentActivity() {
                     EpicConstants.LoginUrlWithState()
                 }
             } else if (gameAuthUrl != null) {
-                // Use the URL passed from intent (e.g., from WineRequestComponent)
                 gameAuthUrl to ""
             } else {
                 EpicConstants.LoginUrlWithState()
@@ -80,7 +74,6 @@ class EpicOAuthActivity : FixedFontScaleComponentActivity() {
                             }
                             val code = extractAuthCode(currentUrl)
                             if (code != null) finishWithCode(code)
-                            // else: URL has no code param; we'll get it from page body in onPageFinished
                         }
                     },
                     onPageFinished = { url, webView ->
@@ -138,7 +131,7 @@ class EpicOAuthActivity : FixedFontScaleComponentActivity() {
             null
         }
 
-    /** evaluateJavascript returns a JSON-encoded string (e.g. "\"ef444d3a...\""). Strip quotes and unescape. */
+    // evaluateJavascript returns a JSON-encoded string.
     private fun unquoteJsonString(jsResult: String?): String? {
         if (jsResult.isNullOrBlank()) return null
         val raw = jsResult.trim()

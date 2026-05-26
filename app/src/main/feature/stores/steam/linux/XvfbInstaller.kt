@@ -12,19 +12,15 @@ import java.security.MessageDigest
 // rootfs so Steam's chromehtml.so / CEF host can connect to a "real" X
 // server with all extensions Chromium probes (RENDER, GLX, XKEYBOARD,
 // XInputExtension, XFIXES, GenericEventExtension, DAMAGE, COMPOSITE).
-//
 // Round-21 Path C (Codex round-20 ranked highest, ~80% likelihood): spawn
 // Xvfb inside proot before Steam exec; Steam connects to that display,
 // and the Proton wrapper resets DISPLAY=:0 for the GAME so the game
 // window surfaces to our Java X server. Display number is dynamic in
 // round-21d (Xvfb -displayfd picks the first free number).
-//
 // Sniper-arm64 doesn't ship Xvfb. We bundle the Debian bullseye arm64
-// build of Xvfb 1.20.11 plus its missing transitive deps (libpixman-1,
 // libXfont2, libfontenc, libxkbfile) plus xkbcomp (Xvfb fork+execs it on
 // every client XKB request). xkb data files (/usr/share/X11/xkb/...)
 // already exist in sniper. Total bundle: ~2.9 MB.
-//
 // Sources: Debian 11 (bullseye) arm64:
 //   xvfb_1.20.11-1+deb11u13_arm64.deb
 //   x11-xkb-utils_7.7+5_arm64.deb

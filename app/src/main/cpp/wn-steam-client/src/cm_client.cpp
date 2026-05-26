@@ -28,10 +28,7 @@ void safe_invoke(Cb& cb, Args&&... args) {
     catch (...) { WN_LOGE("client callback threw unknown"); }
 }
 
-// CMsgMulti envelope. Steam wraps almost all responses in this even when
-// there's only one inner message. Fields:
-//   1 uint32 size_unzipped (varint) — non-zero ⇒ message_body is gzip'd
-//   2 bytes  message_body  — sequence of [u32 LE length][message bytes] records
+// CMsgMulti wraps length-prefixed records, optionally compressed.
 struct CMsgMulti {
     uint32_t              size_unzipped = 0;
     std::vector<uint8_t>  message_body;
@@ -59,9 +56,6 @@ bool parse_cmsg_multi(std::span<const uint8_t> body, CMsgMulti& out) {
     return true;
 }
 
-// Inflate a gzip-wrapped buffer using zlib (already linked for CRC32).
-// `expected_size` is a hint; the loop grows the buffer as needed if zero
-// or if Steam under-estimated.
 std::vector<uint8_t> gunzip(std::span<const uint8_t> compressed,
                             size_t expected_size) {
     std::vector<uint8_t> out;
@@ -171,7 +165,6 @@ void CMClient::call_service_method(std::string_view method_name,
     if (!channel_->send(wire)) {
         WN_LOGE("channel->send failed for service method \"%.*s\"",
                 static_cast<int>(method_name.size()), method_name.data());
-        // Synthetically fail this job so the continuation fires.
         jobs_.deliver(job_id, -1, "channel send failed", {});
     }
 }
@@ -182,12 +175,7 @@ bool CMClient::send_proto_message(EMsg emsg, std::span<const uint8_t> body,
     hdr.steamid          = steam_id_.load();
     hdr.client_sessionid = session_id_.load();
     hdr.routing_appid    = routing_appid;
-    // Pre-logon, the steam_id_ atomic is 0. For ClientLogon Steam rejects a
-    // zero header steamid with EResult.InvalidPassword (5) regardless of how
-    // valid the refresh token is. JavaSteam/SteamKit send the placeholder
-    // "anonymous Individual desktop" SteamID (universe=Public, type=Individual,
-    // instance=Desktop=1, accountId=0) → 0x0110000100000000. Steam echoes the
-    // real SteamID back in ClientLogonResponse.client_supplied_steamid.
+    // Pre-logon ClientLogon needs SteamKit's anonymous desktop placeholder ID.
     if (emsg == EMsg::ClientLogon && hdr.steamid == 0) {
         hdr.steamid = 0x0110000100000000ULL;
     }
@@ -202,19 +190,14 @@ bool CMClient::logon_with_refresh_token(const std::string& refresh_token,
 
     pb::CMsgClientLogon msg;
     msg.access_token             = refresh_token;
-    msg.client_supplied_steam_id = client_supplied_steam_id;  // 0 → omitted on wire
-    msg.account_name             = account_name;             // REQUIRED — see field 50 note
-    // Steam dislikes empty machine_id on user logon. JavaSteam HardwareUtils
-    // falls back to the literal ASCII "JavaSteam-SerialNumber" when no OS
-    // serial is available; we send our own constant marker.
+    msg.client_supplied_steam_id = client_supplied_steam_id;
+    msg.account_name             = account_name;
+    // Steam rejects user logon with an empty machine_id.
     static constexpr const char kMachineIdMarker[] = "WN-Steam-Client";
     msg.machine_id.assign(kMachineIdMarker,
                           kMachineIdMarker + sizeof(kMachineIdMarker) - 1);
 
-    // client_instance_id + obfuscated_private_ip (LoginID): random per
-    // session so concurrent same-account logons (e.g. our session alongside
-    // a JavaSteam session, or two of our own) don't collide and boot each
-    // other. Steam keys duplicate-session detection on the LoginID.
+    // Random LoginID prevents same-account session collisions.
     auto k = generate_session_key();
     if (k) {
         const auto& b = k->bytes;
@@ -226,15 +209,11 @@ bool CMClient::logon_with_refresh_token(const std::string& refresh_token,
         uint32_t login_id = 0;
         for (int i = 8; i < 12; ++i)
             login_id |= static_cast<uint32_t>(b[i]) << ((i - 8) * 8);
-        if (login_id == 0) login_id = 0x57'4E'53'01;  // "WNS\x01" fallback
+        if (login_id == 0) login_id = 0x57'4E'53'01;
         msg.obfuscated_private_ip = login_id;
     }
     return send_proto_message(EMsg::ClientLogon, msg.serialize());
 }
-
-// ---------------------------------------------------------------------------
-// PICS
-// ---------------------------------------------------------------------------
 
 void CMClient::pics_get_access_tokens(std::vector<uint32_t> packageids,
                                       std::vector<uint32_t> appids,
@@ -333,17 +312,15 @@ void CMClient::pics_get_product_info(std::vector<pb::PicsPackageInfoReq> package
 
     const uint64_t job_id = jobs_.next_job_id();
 
-    // Register the accumulator BEFORE sending — response can race the return.
+    // Response can race send completion.
     {
         std::lock_guard<std::mutex> lk(pics_mu_);
         pics_pending_[job_id] = PicsAggregate{{}, std::move(cb)};
     }
 
-    // Also track in JobManager purely so that timeout / disconnect can
-    // synthetically deliver a failure. The continuation here just clears
-    // the accumulator entry and fires the user callback with nullopt.
+    // JobManager only handles timeout/disconnect here.
     jobs_.track(job_id, [this, job_id](JobResult r) {
-        if (!r.synthetic_failure) return;  // real responses come via route_inbound_
+        if (!r.synthetic_failure) return;
         PicsProductInfoCallback cb;
         {
             std::lock_guard<std::mutex> lk(pics_mu_);
@@ -368,7 +345,6 @@ void CMClient::pics_get_product_info(std::vector<pb::PicsPackageInfoReq> package
             meta_data_only ? 1 : 0);
     if (!channel_->send(wire)) {
         WN_LOGE("PICS product-info send failed");
-        // Drain the entry and fire user callback synchronously.
         PicsProductInfoCallback cb_local;
         {
             std::lock_guard<std::mutex> lk(pics_mu_);
@@ -405,9 +381,7 @@ void CMClient::get_app_ownership_ticket(uint32_t app_id,
             if (cb) cb(std::nullopt);
             return;
         }
-        // Cache on success. eresult 1 = OK; anything else (2=Fail, etc.) we
-        // still surface to the caller, but don't pollute the cache with
-        // empty tickets.
+        // Cache only successful, non-empty tickets.
         if (resp->eresult == 1 && !resp->ticket.empty()) {
             tickets_.store(resp->app_id, resp->eresult, resp->ticket);
             WN_LOGI("ownership ticket: cached %u bytes for app %u",
@@ -571,9 +545,6 @@ void CMClient::get_depot_decryption_key(uint32_t depot_id, uint32_t app_id,
             if (cb) cb(std::nullopt);
             return;
         }
-        // eresult 1 = OK; the AES-256 key is 32 bytes. A non-OK result is
-        // still surfaced (e.g. 15 = AccessDenied for an unowned depot) so
-        // the caller can tell "not entitled" from "transport failure".
         WN_LOGI("depot key: depot %u eresult=%u key=%zu bytes",
                 resp->depot_id, resp->eresult, resp->depot_encryption_key.size());
         if (cb) cb(std::move(resp));
@@ -606,8 +577,7 @@ void CMClient::get_manifest_request_code(uint32_t app_id, uint32_t depot_id,
     req.app_id      = app_id;
     req.depot_id    = depot_id;
     req.manifest_id = manifest_id;
-    // JavaSteam (SteamContent.getManifestRequestCode) sends app_branch only
-    // for a non-public branch. Lowercase-compare; empty == public.
+    // JavaSteam omits app_branch for public/empty branches.
     std::string lower;
     lower.reserve(branch.size());
     for (char c : branch) lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
@@ -762,7 +732,7 @@ void CMClient::published_file_get_subscribed(uint32_t app_id, uint32_t page,
     req.page       = page;
     req.numperpage = num_per_page;
     req.type       = "mysubscriptions";
-    req.filetype   = 0xFFFFFFFFu;  // any Workshop file type
+    req.filetype   = 0xFFFFFFFFu;
 
     call_service_method(
         "PublishedFile.GetUserFiles#1",
@@ -801,8 +771,7 @@ void CMClient::cloud_get_file_download_info(uint32_t app_id, std::string filenam
     pb::CCloud_ClientFileDownload_Request req;
     req.appid    = app_id;
     req.filename = std::move(filename);
-    req.realm    = 1;   // global Steam realm — set explicitly, not via the
-                        // struct initializer, so a future refactor can't drop it.
+    req.realm    = 1;
 
     call_service_method(
         "Cloud.ClientFileDownload#1",
@@ -1011,8 +980,6 @@ void CMClient::cloud_signal_app_exit_sync_done(uint32_t app_id, uint64_t client_
     req.client_id         = client_id;
     req.uploads_completed = uploads_completed;
     req.uploads_required  = uploads_required;
-    // Notification — no meaningful response; the tracked job simply times
-    // out harmlessly.
     call_service_method(
         "Cloud.SignalAppExitSyncDone#1", /*authed=*/true, req.serialize(),
         [app_id](JobResult /*r*/) {
@@ -1157,7 +1124,6 @@ void CMClient::prepare_app(uint32_t app_id,
         return;
     }
 
-    // Assemble the full appid set: parent + DLC, de-duplicated.
     std::vector<uint32_t> all_ids;
     all_ids.reserve(1 + dlc_app_ids.size());
     if (app_id != 0) all_ids.push_back(app_id);
@@ -1174,10 +1140,7 @@ void CMClient::prepare_app(uint32_t app_id,
     WN_LOGI("prepare_app(%u): pre-warming %zu app(s) (1 parent + %zu DLC)",
             app_id, all_ids.size(), all_ids.size() - 1);
 
-    // Two-phase: ensure access tokens first (anything PICS told us was
-    // restricted), then fetch product info. We don't trust whatever's
-    // already in the store for these specific ids — force a refresh so
-    // the data Wine reads is as fresh as possible right before launch.
+    // Force a fresh PICS read for the app and DLC right before launch.
     auto missing_tokens = std::vector<uint32_t>{};
     for (uint32_t id : all_ids) {
         auto entry = library_.find_app(id);
@@ -1186,9 +1149,6 @@ void CMClient::prepare_app(uint32_t app_id,
         }
     }
 
-    // Step B: request product info with whatever tokens we have, then
-    // ingest the result. Lambda captures the full id list so we can verify
-    // each is now cached before reporting success.
     auto do_product_info = [this, all_ids, app_id, cb = std::move(cb), timeout]() mutable {
         std::vector<pb::PicsAppInfoReq> req;
         req.reserve(all_ids.size());
@@ -1216,11 +1176,7 @@ void CMClient::prepare_app(uint32_t app_id,
                         "fetching ownership tickets",
                         app_id, ready, all_ids.size());
 
-                // Step C — fetch an ownership ticket per id. We issue them
-                // concurrently (each is an independent request/response pair
-                // via JobManager); a shared counter fires the final user cb
-                // when all are done (success or failure — partial caches are
-                // still useful for the games that need them).
+                // Fetch tickets concurrently; partial caches are still useful.
                 struct Counter {
                     std::atomic<size_t> remaining;
                     std::atomic<size_t> ok{0};
@@ -1279,10 +1235,6 @@ void CMClient::set_on_client_message(ClientMessageCallback cb) {
     on_client_message_ = std::move(cb);
 }
 
-// ---------------------------------------------------------------------------
-// Channel callbacks
-// ---------------------------------------------------------------------------
-
 void CMClient::on_channel_connected() {
     set_state_locked_(ClientState::Connected);
     WN_LOGI("encrypted channel up; sending ClientHello");
@@ -1302,20 +1254,13 @@ void CMClient::on_channel_disconnected(ChannelDisconnectReason r, const std::str
 }
 
 void CMClient::on_channel_message(std::span<const uint8_t> bytes) {
-    // Most application-layer messages on WSS are protobuf-flagged. Try
-    // that path first.
     auto env = decode_proto_envelope(bytes);
     if (env) {
         route_inbound_(env->emsg, env->header, env->body);
         return;
     }
 
-    // Non-proto fallback: Steam still ships some legacy struct messages
-    // over WSS even though the official clients don't need them. The most
-    // common is `ChannelEncryptRequest` (sent right after the WS opens
-    // alongside our `ClientHello`). The modern SteamKit / JavaSteam /
-    // steam-vent clients silently ignore these because the actual app-
-    // layer encryption is handled by TLS. We do the same.
+    // WSS sometimes sends legacy ChannelEncrypt* frames; TLS already handles it.
     if (bytes.size() >= 4) {
         const uint32_t raw_emsg = wire::read_u32_le(bytes.data());
         if (!emsg_has_proto_flag(raw_emsg)) {
@@ -1340,10 +1285,6 @@ void CMClient::on_channel_message(std::span<const uint8_t> bytes) {
     WN_LOGE("decode_proto_envelope failed (size=%zu)", bytes.size());
 }
 
-// ---------------------------------------------------------------------------
-// Inbound routing
-// ---------------------------------------------------------------------------
-
 void CMClient::route_inbound_(EMsg emsg,
                               const CMsgProtoBufHeader& header,
                               std::span<const uint8_t> body) {
@@ -1355,9 +1296,6 @@ void CMClient::route_inbound_(EMsg emsg,
             header.target_job_name.c_str(),
             body.size());
 
-    // Diagnostic: dump first 32 bytes of EVERY inbound body — small cost
-    // for the visibility, lets us decode ClientLogonResponse rejections,
-    // post-logon pushes, anything else without a code rebuild.
     if (!body.empty()) {
         char hex[3 * 32 + 1];
         size_t n = std::min<size_t>(body.size(), 32);
@@ -1371,12 +1309,7 @@ void CMClient::route_inbound_(EMsg emsg,
 
     switch (emsg) {
         case EMsg::Multi: {
-            // Steam wraps virtually every response in a CMsgMulti envelope,
-            // even when there is only a single inner message. The body is
-            // a `[u32 length][message bytes]` record stream, optionally
-            // gzip-compressed when size_unzipped > 0. We must inflate,
-            // split, and recursively re-dispatch each inner message
-            // through this same router.
+            // Re-dispatch inner CMsgMulti records through the same router.
             CMsgMulti multi;
             if (!parse_cmsg_multi(body, multi)) {
                 WN_LOGE("CMsgMulti parse failed");
@@ -1428,7 +1361,6 @@ void CMClient::route_inbound_(EMsg emsg,
         case EMsg::ClientRequestEncryptedAppTicketResponse:
         case EMsg::ClientGetUserStatsResponse:
         case EMsg::ClientGetDepotDecryptionKeyResponse:
-            // Single-shot response — JobManager handles routing + parse.
             jobs_.deliver(header.jobid_target,
                           header.eresult,
                           header.error_message,
@@ -1436,12 +1368,10 @@ void CMClient::route_inbound_(EMsg emsg,
             break;
 
         case EMsg::ClientPICSProductInfoResponse: {
-            // Multi-part: merge into the per-job accumulator; only fire the
-            // user callback when response_pending is false/absent.
+            // Merge multi-part PICS replies before firing the callback.
             auto resp = pb::CMsgClientPICSProductInfoResponse::deserialize(body);
             if (!resp) {
                 WN_LOGE("PICS product-info parse failed (%zu bytes)", body.size());
-                // Drain the entry and fire failure.
                 PicsProductInfoCallback cb;
                 {
                     std::lock_guard<std::mutex> lk(pics_mu_);
@@ -1460,7 +1390,6 @@ void CMClient::route_inbound_(EMsg emsg,
                 std::lock_guard<std::mutex> lk(pics_mu_);
                 auto it = pics_pending_.find(header.jobid_target);
                 if (it == pics_pending_.end()) {
-                    // Late response after timeout — silently drop.
                     WN_LOGI("PICS product-info: unknown jobid_target=0x%llx (timed out?)",
                             static_cast<unsigned long long>(header.jobid_target));
                     break;
@@ -1489,8 +1418,7 @@ void CMClient::route_inbound_(EMsg emsg,
                             resp->apps.size(), resp->packages.size());
                     break;
                 }
-                // Final part — move callback + merged accumulator out, drop entry,
-                // then fire outside the lock to avoid re-entrancy hazards.
+                // Fire outside the lock to avoid re-entrancy hazards.
                 final_cb = std::move(it->second.cb);
                 merged   = std::move(it->second.acc);
                 pics_pending_.erase(it);
@@ -1533,8 +1461,7 @@ void CMClient::route_inbound_(EMsg emsg,
 
         case EMsg::ClientLoggedOff:
         case EMsg::ClientServerUnavailable: {
-            // Surface the server-supplied EResult so a mid-session logoff is
-            // diagnosable (6 = LoggedInElsewhere, 84 = TryAnotherCM, etc.).
+            // Keep server EResult visible for mid-session logoff diagnosis.
             if (auto off = pb::CMsgClientLoggedOff::deserialize(body)) {
                 WN_LOGE("ClientLoggedOff: emsg=%d eresult=%d — session ended",
                         static_cast<int>(emsg), off->eresult);
@@ -1553,14 +1480,7 @@ void CMClient::route_inbound_(EMsg emsg,
             break;
         }
 
-        // Server-pushed post-logon messages — Phase 3a decodes them as
-        // opaque protobuf bodies (logs above already printed the EMsg +
-        // size + first 32 bytes for ServiceMethodResponse). For other
-        // pushes the upstream Kotlin observer logs them generically. We
-        // tag them here so the log explicitly names them.
         case EMsg::ClientPersonaState: {
-            // Server-pushed persona updates; cache the entry for our own
-            // SteamID so self_persona() can surface name/avatar/game.
             auto resp = pb::CMsgClientPersonaState::deserialize(body);
             if (resp) {
                 const uint64_t self = steam_id_.load();
@@ -1589,11 +1509,6 @@ void CMClient::route_inbound_(EMsg emsg,
                     license_list_ = msg->licenses;
                 }
                 library_.ingest_license_list(*msg);
-                // Kick off the populate pipeline. Each PICS response feeds the
-                // next batch via library_populate_step_ until the store is
-                // saturated. Skipped on download-only sessions, where the
-                // crawl is wasted work and floods the CM right when the
-                // download needs the channel for depot keys.
                 if (auto_populate_library_.load()) {
                     library_populate_step_();
                 } else {
@@ -1608,8 +1523,6 @@ void CMClient::route_inbound_(EMsg emsg,
         }
 
         case EMsg::ClientPlayingSessionState: {
-            // Server-pushed: cache whether playing is currently blocked so
-            // is_playing_blocked() / kickPlayingSession can read it back.
             auto msg = pb::CMsgClientPlayingSessionState::deserialize(body);
             if (msg) {
                 playing_blocked_.store(msg->playing_blocked);
@@ -1657,29 +1570,8 @@ void CMClient::set_state_locked_(ClientState s) {
     safe_invoke(cb, s);
 }
 
-// ---------------------------------------------------------------------------
-// Library populate orchestrator
-//
-// State machine driven by polling the store between PICS round-trips:
-//   1. Packages without pics_fetched=true → batch ClientPICSProductInfo.
-//      Response feeds ingest_package_pics_response, which extracts appids
-//      and creates app stubs. We then recurse → step 2.
-//   2. Apps with missing_token=true and access_token=0 → batch
-//      ClientPICSAccessToken. Response feeds ingest_app_access_tokens,
-//      which clears missing_token. Recurse → step 3.
-//   3. Apps without pics_fetched=true → batch ClientPICSProductInfo for
-//      apps. Response feeds ingest_app_pics_response which fills the
-//      name/type/parent/dlc fields. Recurse — picks up any DLC apps the
-//      game declared via extended.listofdlc.
-//   4. Nothing pending — log a summary and stop.
-//
-// Batches are capped at 256 items per request so multi-part responses are
-// occasional rather than the norm. Each PICS round-trip schedules the next
-// step from inside its callback, so the orchestrator is fully event-driven
-// — no polling thread, no condvars.
-// ---------------------------------------------------------------------------
+// Event-driven PICS crawl: packages, access tokens, then apps.
 void CMClient::library_populate_step_() {
-    // Step 1: packages
     auto pkg_batch = library_.get_pending_package_pics_request();
     if (!pkg_batch.empty()) {
         WN_LOGI("library populate: requesting PICS for %zu packages "
@@ -1692,12 +1584,11 @@ void CMClient::library_populate_step_() {
                     return;
                 }
                 library_.ingest_package_pics_response(*resp);
-                library_populate_step_();   // chain
+                library_populate_step_();
             });
         return;
     }
 
-    // Step 2: app access tokens
     auto tok_batch = library_.get_apps_needing_access_token();
     if (!tok_batch.empty()) {
         WN_LOGI("library populate: requesting access tokens for %zu apps",
@@ -1714,7 +1605,6 @@ void CMClient::library_populate_step_() {
         return;
     }
 
-    // Step 3: apps
     auto app_batch = library_.get_pending_app_pics_request();
     if (!app_batch.empty()) {
         WN_LOGI("library populate: requesting PICS for %zu apps", app_batch.size());
@@ -1730,12 +1620,6 @@ void CMClient::library_populate_step_() {
         return;
     }
 
-    // Step 4: done.
-    //   Total apps  = everything we've tracked (incl. parent stubs added to
-    //                 anchor DLC the user owns of games they don't).
-    //   Owned apps  = apps with at least one source_package_id — i.e. some
-    //                 license the user holds grants this app. This is the
-    //                 "real library" the UI should display.
     size_t packages   = library_.package_count();
     size_t apps_total = library_.app_count();
     size_t apps_owned = library_.owned_app_count();
@@ -1743,8 +1627,6 @@ void CMClient::library_populate_step_() {
             "%zu parent-stubs for owned-DLC)",
             packages, apps_total, apps_owned, apps_total - apps_owned);
 
-    // Counts by type, OWNED only — so the breakdown reflects what the user
-    // would actually see in a library UI.
     auto owned = library_.owned_apps();
     size_t games = 0, dlc = 0, demo = 0, tool = 0, other = 0;
     for (const auto& a : owned) {
@@ -1757,7 +1639,6 @@ void CMClient::library_populate_step_() {
     WN_LOGI("  owned breakdown: games=%zu dlc=%zu demo=%zu tool=%zu other=%zu",
             games, dlc, demo, tool, other);
 
-    // Sample: first 10 OWNED games (type=Game) with their source package(s).
     auto pkgs_snap = library_.packages();
     std::unordered_map<uint32_t, OwnedPackage> pkg_by_id;
     pkg_by_id.reserve(pkgs_snap.size());

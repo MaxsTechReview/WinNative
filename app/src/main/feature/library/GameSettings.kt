@@ -107,9 +107,6 @@ import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-// ---------------------------------------------------------------------------
-// Black / gray color scheme
-// ---------------------------------------------------------------------------
 private val BgDeep = Color(0xFF18181D)
 private val SidebarBg = Color(0xFF18181D)
 private val ContentBg = Color(0xFF18181D)
@@ -188,9 +185,6 @@ private fun Modifier.smartDropdownAnchor(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Data classes
-// ---------------------------------------------------------------------------
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
 data class EnvVarItem(val key: String, val value: String)
 data class ExtraArgGroup(val header: String, val args: List<String>)
@@ -200,19 +194,13 @@ data class DriveItem(
     val canChangeLetter: Boolean = false,
 )
 
-// ---------------------------------------------------------------------------
-// State holder
-// ---------------------------------------------------------------------------
 class GameSettingsStateHolder {
     val currentSection = mutableIntStateOf(0)
 
-    // True when editing a Container directly; hides shortcut-only fields
-    // and exposes wine version / mouse warp / drives / desktop background.
+    // Container edits expose container-only fields and hide shortcut fields.
     val isContainerEditMode = mutableStateOf(false)
-    // Wine version dropdown is editable only when creating a new container.
     val wineVersionEditable = mutableStateOf(false)
 
-    // General
     val name = mutableStateOf("")
     val launchExePath = mutableStateOf("")
     val launchExeDisplayPath = mutableStateOf("")
@@ -356,7 +344,6 @@ class GameSettingsStateHolder {
     // Variables
     val envVars = mutableStateOf<List<EnvVarItem>>(emptyList())
 
-    // Input
     val controlsProfileEntries = mutableStateOf<List<String>>(emptyList())
     val selectedControlsProfile = mutableIntStateOf(0)
     val numControllersEntries = mutableStateOf<List<String>>(emptyList())
@@ -401,13 +388,9 @@ class GameSettingsStateHolder {
     // Advanced - Drives
     val drives = mutableStateOf("")
 
-    // Loading state
     val isLoaded = mutableStateOf(false)
 }
 
-// ---------------------------------------------------------------------------
-// Callbacks
-// ---------------------------------------------------------------------------
 interface GameSettingsCallbacks {
     fun onConfirm()
     fun onDismiss()
@@ -440,9 +423,6 @@ interface GameSettingsCallbacks {
     fun onImportSaves() {}
 }
 
-// ---------------------------------------------------------------------------
-// Preset exec args
-// ---------------------------------------------------------------------------
 private val ExtraArgPresets = listOf(
     ExtraArgGroup(
         "Unity", listOf(
@@ -469,15 +449,11 @@ private val ExtraArgPresets = listOf(
     )
 )
 
-// ---------------------------------------------------------------------------
-// Sidebar section definitions
-// ---------------------------------------------------------------------------
 private data class SidebarSection(
     val icon: ImageVector,
     val labelResId: Int
 )
 
-// Section IDs (stable across dynamic lists)
 private const val SEC_GENERAL = 0
 private const val SEC_STEAM = 1
 private const val SEC_DISPLAY = 2
@@ -508,9 +484,7 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     return list
 }
 
-// ===================================================================
 // Main Content Composable
-// ===================================================================
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
@@ -607,9 +581,7 @@ private fun SectionContent(
     }
 }
 
-// ===================================================================
 // Sidebar
-// ===================================================================
 @Composable
 private fun Sidebar(
     title: String,
@@ -789,9 +761,7 @@ private fun SidebarItem(
     }
 }
 
-// ===================================================================
 // Section 0: General
-// ===================================================================
 @Composable
 private fun GeneralSection(
     state: GameSettingsStateHolder,
@@ -1193,9 +1163,7 @@ private fun GeneralSection(
     }
 }
 
-// ===================================================================
 // Section 1: Display
-// ===================================================================
 @Composable
 private fun DisplaySection(
     state: GameSettingsStateHolder,
@@ -1273,9 +1241,7 @@ private fun DisplaySection(
 
 }
 
-// ===================================================================
 // Graphics Driver Configuration Card
-// ===================================================================
 @Composable
 private fun GraphicsDriverConfigCard(
     state: GameSettingsStateHolder,
@@ -1476,9 +1442,7 @@ private fun GraphicsDriverConfigCard(
     }
 }
 
-// ===================================================================
 // Extensions multi-select
-// ===================================================================
 @Composable
 private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
     val extensions = state.gfxAvailableExtensions.value
@@ -1652,9 +1616,7 @@ private fun ExtensionsPickerDialog(
     }
 }
 
-// ===================================================================
 // DXVK Configuration Card
-// ===================================================================
 @Composable
 private fun DXVKConfigCard(
     state: GameSettingsStateHolder,
@@ -1662,7 +1624,6 @@ private fun DXVKConfigCard(
 ) {
     val expanded by state.dxvkConfigExpanded
 
-    // Determine DXVK async support based on currently selected version
     val dxvkVersions = state.dxvkVersionEntries.value
     val selectedIdx = state.dxvkSelectedVersion.intValue
     val selectedVersion = if (selectedIdx in dxvkVersions.indices) dxvkVersions[selectedIdx] else ""
@@ -1791,9 +1752,7 @@ private fun DXVKConfigCard(
     }
 }
 
-// ===================================================================
 // WineD3D Configuration Card
-// ===================================================================
 @Composable
 private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
@@ -1914,9 +1873,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     }
 }
 
-// ===================================================================
 // Section: Steam (conditional)
-// ===================================================================
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
 
@@ -2050,9 +2007,7 @@ private fun SteamSection(state: GameSettingsStateHolder) {
     }
 }
 
-// ===================================================================
 // Section 3: Wine
-// ===================================================================
 @Composable
 private fun WineSection(
     state: GameSettingsStateHolder,
@@ -2221,9 +2176,7 @@ private fun WineSection(
     }
 }
 
-// ===================================================================
 // Section 4: Components
-// ===================================================================
 @Composable
 private fun ComponentsSection(
     state: GameSettingsStateHolder,
@@ -2288,9 +2241,7 @@ private fun ComponentsSection(
     }
 }
 
-// ===================================================================
 // Section 5: Variables
-// ===================================================================
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
@@ -2419,7 +2370,6 @@ private fun VariablesSection(
 
         Spacer(Modifier.height(SettingItemGap))
 
-        // Add button
         if (!hasDraftEnvVar) {
             Box(
                 modifier = Modifier
@@ -2641,9 +2591,7 @@ private fun DriveLetterSelector(
     }
 }
 
-// ===================================================================
 // Env Var row: name dropdown + type-aware value editor
-// ===================================================================
 @Composable
 private fun EnvVarRow(
     name: String,
@@ -2763,7 +2711,6 @@ private fun EnvVarRow(
                 // Divider after Custom
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-                // Sort: unselected vars in ABC order, then selected vars in ABC order
                 val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
                 val unselected = allKnown
                     .filter { it !in excludeOtherNames && it != name }
@@ -3052,9 +2999,7 @@ private fun EnvValueTextField(
     )
 }
 
-// ===================================================================
 // Section 6: Input
-// ===================================================================
 @Composable
 private fun InputSection(state: GameSettingsStateHolder) {
     val isContainer = state.isContainerEditMode.value
@@ -3256,9 +3201,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
     }
 }
 
-// ===================================================================
 // Section 7: Advanced
-// ===================================================================
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AdvancedSection(
@@ -3494,9 +3437,7 @@ private fun AdvancedSection(
     }
 }
 
-// ===================================================================
 // Exec Args Helper Dropdown
-// ===================================================================
 @Composable
 private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -3565,9 +3506,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     }
 }
 
-// ===================================================================
 // CPU Chip
-// ===================================================================
 @Composable
 private fun CpuChip(
     index: Int,
@@ -3596,9 +3535,7 @@ private fun CpuChip(
     }
 }
 
-// ===================================================================
 // Reusable Components
-// ===================================================================
 
 @Composable
 private fun HtmlText(
@@ -4009,9 +3946,7 @@ private fun SettingSlider(
     }
 }
 
-// ===================================================================
 // Section 10: Saves
-// ===================================================================
 @Composable
 private fun SavesSection(
     state: GameSettingsStateHolder,

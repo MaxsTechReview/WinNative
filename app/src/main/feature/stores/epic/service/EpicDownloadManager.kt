@@ -35,14 +35,7 @@ import java.util.zip.Inflater
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * EpicDownloadManager handles downloading Epic games
- *
- * Manifest structure (from legendary.models.manifest):
- * - meta: App metadata (app_name, build_version, etc.)
- * - chunk_data_list: List of chunks to download
- * - file_manifest_list: List of files and their chunk composition
- */
+// Downloads Epic games from chunked Epic manifests.
 @Singleton
 class EpicDownloadManager
     @Inject
@@ -55,30 +48,18 @@ class EpicDownloadManager
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
-                // Connection pool optimization for parallel downloads
                 .connectionPool(okhttp3.ConnectionPool(32, 5, TimeUnit.MINUTES))
                 .build()
 
         companion object {
             private const val MAX_PARALLEL_DOWNLOADS = 12
-            private const val CHUNK_BUFFER_SIZE = 1024 * 1024 // 1MB buffer for decompression
-            private const val MAX_CHUNK_RETRIES = 5 // Maximum retries per chunk
-            private const val RETRY_DELAY_MS = 1000L // Initial retry delay in milliseconds
+            private const val CHUNK_BUFFER_SIZE = 1024 * 1024
+            private const val MAX_CHUNK_RETRIES = 5
+            private const val RETRY_DELAY_MS = 1000L
             private const val RESUME_STATE_FILE = "epic_applied_chunks.txt"
         }
 
-        /**
-         * Download and install an Epic game
-         *
-         * @param context Android context
-         * @param game Epic game to download
-         * @param installPath Directory where game will be installed
-         * @param downloadInfo Progress tracker
-         * @param containerLanguage Container language (e.g. "english", "german"). Same as GOG/Steam; used to select install tags so the correct language files are downloaded.
-         * @param dlcIds Optional DLC game IDs to include
-         * @param commonRedistDir Optional directory for common redistributables
-         * @return Result indicating success or failure
-         */
+        // Downloads and installs an Epic game.
         suspend fun downloadGame(
             context: Context,
             game: EpicGame,
@@ -95,14 +76,12 @@ class EpicDownloadManager
                     File(installPath).mkdirs()
                     MarkerUtils.addMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
 
-                    // Emit download started event so UI can attach progress listeners
                     val gameId = game.id
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .DownloadStatusChanged(gameId, true),
                     )
 
-                    // Check for DLCs early to calculate total download size
                     val dlcsToDownload =
                         if (dlcIds.size > 0) {
                             try {
@@ -122,7 +101,6 @@ class EpicDownloadManager
 
                     Timber.tag("Epic").i("Filtered to ${dlcsToDownload.size} DLC(s) for ${game.title}")
 
-                    // Fetch manifest binary and CDN URLs from Epic
                     val manifestResult =
                         epicManager.fetchManifestFromEpic(
                             context,
@@ -145,10 +123,8 @@ class EpicDownloadManager
 
                     Timber.tag("Epic").d("Manifest fetched with ${cdnUrls.size} CDN URLs, parsing...")
 
-                    // Parse manifest binary to get chunks and files
                     val manifest = EpicManifest.readAll(manifestData.manifestBytes)
 
-                    // Use container language (same as GOG) to select install tags: required + optional language files.
                     val selectedTags = EpicConstants.containerLanguageToEpicInstallTags(containerLanguage)
                     val files = ManifestUtils.getFilesForSelectedInstallTags(manifest, selectedTags)
                     val chunks = ManifestUtils.getRequiredChunksForFileList(manifest, files)
@@ -172,13 +148,11 @@ class EpicDownloadManager
                         return@withContext Result.failure(Exception(msg))
                     }
 
-                    // Calculate total download size including DLCs
                     var totalDownloadSize = chunks.sumOf { it.fileSize }
                     var totalInstalledSize = files.sumOf { it.fileSize }
                     val baseGameSize = totalDownloadSize
                     val baseGameInstalledSize = totalInstalledSize
 
-                    // Fetch DLC manifests to get their sizes for accurate progress tracking
                     val dlcManifestData = mutableListOf<Pair<EpicGame, EpicManager.ManifestResult>>()
                     if (dlcsToDownload.isNotEmpty()) {
                         downloadInfo.updateStatusMessage("Calculating DLC sizes...")
@@ -248,7 +222,6 @@ class EpicDownloadManager
                         """.trimMargin(),
                     )
 
-                    // Initialize progress tracking
                     downloadInfo.setProgress(0.0f)
                     downloadInfo.emitProgressChange()
                     syncCoordinatorProgress(gameId, downloadInfo)
@@ -288,7 +261,6 @@ class EpicDownloadManager
                     }
                     EpicInstalledManifestStore.saveManifest(installDir, game.appName, manifestData.manifestBytes)
 
-                    // Cleanup chunk directory
                     chunkCacheDir.deleteRecursively()
 
                     // Log final directory structure
@@ -355,7 +327,6 @@ class EpicDownloadManager
                         // Don't fail the entire download for DB issues
                     }
 
-                    // Clean up and update UI
                     downloadInfo.updateStatusMessage("Complete")
                     // Ensure bytes-based progress shows 100% completion
                     downloadInfo.updateBytesDownloaded(downloadInfo.getTotalExpectedBytes() - downloadInfo.getBytesDownloaded())
@@ -364,7 +335,6 @@ class EpicDownloadManager
                     downloadInfo.emitProgressChange()
                     syncCoordinatorProgress(gameId, downloadInfo)
 
-                    // Notify UI that installation status changed
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .LibraryInstallStatusChanged(gameId),
@@ -446,10 +416,8 @@ class EpicDownloadManager
                     }
                     EpicInstalledManifestStore.saveManifest(installDir, game.appName, manifestData.manifestBytes)
 
-                    // Cleanup
                     chunkCacheDir.deleteRecursively()
 
-                    // Update database
                     try {
                         epicManager.updateGame(
                             game.copy(
@@ -1113,7 +1081,6 @@ class EpicDownloadManager
                         }
                     }
 
-                    // Get chunk path for downloading
                     val chunkPath = chunk.getPath(chunkDir)
 
                     // Try each CDN base URL until one succeeds
@@ -1247,14 +1214,12 @@ class EpicDownloadManager
             // Skip GUID (16 bytes), hash (8 bytes)
             buffer.position(buffer.position() + 24)
 
-            // Read stored_as flag
             val storedAs = buffer.get().toInt() and 0xFF
             val isCompressed = (storedAs and 0x1) == 0x1
 
             // Skip SHA hash (20 bytes), hash type (1 byte)
             buffer.position(buffer.position() + 21)
 
-            // Read uncompressed size (4 bytes)
             val uncompressedSize = buffer.int
 
             // Read chunk data starting from header end
@@ -1508,14 +1473,12 @@ class EpicDownloadManager
                 // Skip GUID (16 bytes), hash (8 bytes)
                 buffer.position(buffer.position() + 24)
 
-                // Read stored_as flag
                 val storedAs = buffer.get().toInt() and 0xFF
                 val isCompressed = (storedAs and 0x1) == 0x1
 
                 // Skip SHA hash (20 bytes), hash type (1 byte)
                 buffer.position(buffer.position() + 21)
 
-                // Read uncompressed size (4 bytes)
                 val uncompressedSize = buffer.int
 
                 // Skip to data start if header is larger than 66 bytes
@@ -1643,7 +1606,6 @@ class EpicDownloadManager
                                 return@withContext Result.failure(Exception("Chunk file missing: ${chunkPart.guidStr}"))
                             }
 
-                            // Read chunk data at specified offset
                             chunkFile.inputStream().use { input ->
                                 input.skip(chunkPart.offset.toLong())
 

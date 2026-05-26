@@ -120,9 +120,7 @@ private fun Modifier.noRippleClickable(
     )
 }
 
-// ============================================================================
 // State
-// ============================================================================
 
 /**
  * Which preset flavor is currently being edited. Matches the two [PresetEngine]
@@ -175,9 +173,7 @@ data class PresetsState(
         get() = engines[currentEngine] ?: PresetEngineData()
 }
 
-// ============================================================================
 // Root
-// ============================================================================
 
 @Composable
 fun PresetsScreen(
@@ -499,9 +495,7 @@ private fun PresetSelectorHeader(
     }
 }
 
-// ============================================================================
 // Engine tabs (Box64 / FEXCore)
-// ============================================================================
 
 @Composable
 private fun EngineTabs(
@@ -560,9 +554,7 @@ private fun EngineTab(
     }
 }
 
-// ============================================================================
 // Combined engine-tabs + preset selector card
-// ============================================================================
 
 @Composable
 private fun PresetSelectorCard(
@@ -851,9 +843,7 @@ private fun MenuRow(
     )
 }
 
-// ============================================================================
 // Section label
-// ============================================================================
 
 @Composable
 private fun SectionLabel(
@@ -870,9 +860,7 @@ private fun SectionLabel(
     )
 }
 
-// ============================================================================
 // Env var list — compact cards with expandable help
-// ============================================================================
 
 @Composable
 private fun EnvVarCard(
@@ -1171,9 +1159,7 @@ private fun EnvVarTextControl(
     }
 }
 
-// ============================================================================
 // Empty state for env vars
-// ============================================================================
 
 @Composable
 private fun EmptyEnvVarsCard() {
@@ -1195,9 +1181,7 @@ private fun EmptyEnvVarsCard() {
     }
 }
 
-// ============================================================================
 // Small shared controls
-// ============================================================================
 
 @Composable
 private fun IconTapButton(
@@ -1248,9 +1232,7 @@ private fun DialogActionButton(
     }
 }
 
-// ============================================================================
 // Dialogs
-// ============================================================================
 
 @Composable
 private fun PromptDialog(

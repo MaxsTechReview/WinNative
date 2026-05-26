@@ -63,7 +63,6 @@ object PeIconExtractor {
         val resSize = readInt(raf)
         if (resRva == 0 || resSize == 0) return null
 
-        // Read section headers to find the one containing the resource RVA
         val sectionStart = optHeaderPos + optHeaderSize
         raf.seek(sectionStart)
         var resFileOffset = 0L
@@ -82,18 +81,15 @@ object PeIconExtractor {
         }
         if (resFileOffset == 0L) return null
 
-        // Read entire resource section into a buffer for easier navigation
         raf.seek(resFileOffset)
         val resBuf = ByteArray(resSize)
         raf.readFully(resBuf)
         val bb = ByteBuffer.wrap(resBuf).order(ByteOrder.LITTLE_ENDIAN)
 
-        // Parse root resource directory to find RT_GROUP_ICON (14) and RT_ICON (3)
         val groupIconEntries = findResourceType(bb, 0, 14) // RT_GROUP_ICON
         val iconEntries = findResourceType(bb, 0, 3) // RT_ICON
         if (groupIconEntries.isEmpty()) return null
 
-        // Read the first GROUP_ICON resource
         val grpDataRva = resolveToDataEntry(bb, groupIconEntries[0])
         if (grpDataRva == null) return null
 
@@ -101,14 +97,12 @@ object PeIconExtractor {
         val grpSize = grpDataRva.second
         if (grpFileOff < 0 || grpFileOff + grpSize > resBuf.size) return null
 
-        // Parse GRPICONDIR
         bb.position(grpFileOff)
         bb.short // reserved
         bb.short // type
         val count = bb.short.toInt() and 0xFFFF
         if (count == 0) return null
 
-        // Find the largest icon entry
         data class GrpEntry(
             val w: Int,
             val h: Int,

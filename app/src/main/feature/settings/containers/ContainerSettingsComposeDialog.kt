@@ -1538,7 +1538,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     fun dismiss() {
-        // Cleanup (launcher unregister, keyboard hide, onFinished) runs in
         // the Dialog.OnDismissListener so back-button dismissal takes the
         // same path as Save/Cancel.
         dialog.dismiss()

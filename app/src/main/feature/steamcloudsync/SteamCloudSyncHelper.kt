@@ -76,10 +76,8 @@ object SteamCloudSyncHelper {
                         overrideLocalChangeNumber = -1,
                     ).await()
 
-            // Intentionally no snapshot capture here. The user-facing "Sync from Steam Cloud"
-            // button and launch-time auto-downloads should just place files locally; an
-            // automatic rollback snapshot on every download bloats local storage and isn't
-            // what the user asked for. Exit-sync still snapshots via SteamExitCloudSync.
+            // Downloads should only place files locally. Exit-sync is responsible for
+            // snapshot creation, so manual and launch-time pulls do not bloat storage.
             syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
         } catch (e: Exception) {
             Timber.e(e, "Failed to force Steam cloud download for appId=%d", appId)
@@ -194,11 +192,7 @@ object SteamCloudSyncHelper {
         }
     }
 
-    /**
-     * Holds both the diff result and the newest remote timestamp from a single
-     * `getAppFileListChange` call so the launch-time prompt doesn't need to
-     * round-trip Steam separately for each.
-     */
+    /** Result of one conflict probe for the launch-time sync prompt. */
     data class CloudConflictProbe(
         val differs: Boolean,
         val timestamps: SteamCloudConflictTimestamps,
@@ -216,16 +210,12 @@ object SteamCloudSyncHelper {
                 timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
             )
         }
-        // hasLocalCloudSaves can short-circuit on a `synced_STEAM_$appId` pref entry
-        // without going through steamPrefixResolver, so the symlink may still be stale
-        // when fetchCloudConflictSnapshot reads local files for the SHA comparison.
-        // Activate this shortcut's container explicitly so the SHA check sees the
-        // correct per-game wineprefix.
+        // hasLocalCloudSaves can return from prefs before resolving the Steam prefix.
+        // Activate the shortcut's container so local SHA checks read the right wineprefix.
         activateContainer(context, shortcut.container)
         return runBlocking {
             try {
-                // Pass context so the snapshot can do a SHA-aware content check (not CN-only)
-                // and avoid spurious conflict dialogs when local matches cloud after a pull.
+                // Context enables SHA-aware local checks, avoiding false conflicts after pulls.
                 val snapshot = SteamService.fetchCloudConflictSnapshot(appId, context)
                 val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId)
                 val localTracked =
@@ -288,13 +278,10 @@ object SteamCloudSyncHelper {
     }
 
     /**
-     * Force-upload the on-disk Steam save files for [appId] to overwrite Steam Cloud.
+     * Uploads local Steam save files for [appId] so they overwrite Steam Cloud.
      *
-     * Used after the launch-time conflict dialog when the user picks "Use Local" — without
-     * a push here, the conflict recurs on every subsequent sync because Steam's
-     * `changeNumber` for the local side never bumps past the cloud side's. Per Steam
-     * protocol (`ClientConflictResolution_Notification.chose_local_files=true`), the
-     * canonical "my local wins" resolution is an explicit upload batch.
+     * Used after "Use Local" in the launch-time conflict dialog. The explicit upload bumps
+     * Steam's local change number and prevents the same conflict from recurring.
      */
     suspend fun uploadLocalSaves(
         context: Context,
@@ -313,7 +300,7 @@ object SteamCloudSyncHelper {
                     ).await()
             val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
             if (ok) {
-                // Detached snapshot capture so the upload caller isn't held waiting on disk I/O.
+                // Record the post-upload snapshot without blocking the caller on disk I/O.
                 CoroutineScope(Dispatchers.IO).launch {
                     runCatching {
                         SteamSaveSnapshotManager.recordSnapshot(
@@ -366,20 +353,12 @@ object SteamCloudSyncHelper {
         appId: Int,
         containerHint: Container? = null,
     ): (String) -> String {
-        // PathType.toAbsPath resolves Windows-side prefixes like WinSavedGames against the
-        // GLOBAL `imagefs/home/xuser/.wine` path — `home/xuser` is a symlink that
-        // ContainerManager.activateContainer flips to point at the active container's
-        // per-game home (`home/xuser-N`). If a Steam cloud read/write fires before the
-        // game's container is activated (Save History restore from the launcher, "Sync
-        // from Cloud" button, launch-time pre-flight before XServerDisplayActivity runs),
-        // the symlink still points at whatever container was last active — files land in
-        // the wrong game's wineprefix.
+        // PathType resolves Windows-side save roots through the active `home/xuser`
+        // symlink. Activate the game's container first so launcher restores, manual syncs,
+        // and pre-launch checks do not read or write another game's wineprefix.
         //
-        // Prefer the caller-provided container (taken straight from the shortcut), since
-        // ContainerUtils.getUsableContainerOrNull falls through to the global "default
-        // x86 container" preference — that's appId-agnostic and would activate the
-        // wrong container for any Steam game configured with its own non-default
-        // container. The appId-based fallback only runs when no shortcut is available.
+        // Prefer the shortcut container when available. The appId fallback is only for
+        // callers that do not have shortcut context.
         activateContainerForCloudOp(context, appId, containerHint)
 
         val accountId =

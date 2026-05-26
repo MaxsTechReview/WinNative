@@ -97,8 +97,7 @@ data class DependencyDepot(
     val size: Long,
 )
 
-// repository Manifest is a URL that will give back a compressed zlib JSON
-// generation is always 2 since we always use Generation 2 in the URL
+// GOG dependency manifests are zlib-compressed JSON from the generation 2 repository.
 data class GOGDependencyManifestMeta(
     val depots: List<DependencyDepot>,
 ) {
@@ -111,7 +110,6 @@ data class GOGDependencyManifestMeta(
                 for (i in 0 until depotsArray.length()) {
                     val depotObj = depotsArray.getJSONObject(i)
 
-                    // Parse Languages for this depot
                     val languagesArray = depotObj.optJSONArray("languages")
                     val languages = mutableListOf<String>()
                     if (languagesArray != null) {
@@ -120,7 +118,6 @@ data class GOGDependencyManifestMeta(
                         }
                     }
 
-                    // Parse bitness for this depot
                     val bitnessArray = depotObj.optJSONArray("osBitness")
                     val osBitness =
                         if (bitnessArray != null) {
@@ -133,7 +130,6 @@ data class GOGDependencyManifestMeta(
                             null
                         }
 
-                    // Parse executable for this depot
                     val executableObj = depotObj.optJSONObject("executable")
                     val executable =
                         if (executableObj != null) {
@@ -479,13 +475,10 @@ data class SecureLinksResponse(
                 for (i in 0 until urlsArray.length()) {
                     val urlObj = urlsArray.optJSONObject(i)
                     if (urlObj != null) {
-                        // GOG returns URL objects with url_format template and parameters
-                        // We need to merge them: {base_url}/token=nva={expires_at}... etc.
                         val urlFormat = urlObj.optString("url_format", "")
                         val paramsObj = urlObj.optJSONObject("parameters")
 
                         if (urlFormat.isNotEmpty() && paramsObj != null) {
-                            // Replace all {param} placeholders with actual values
                             var constructedUrl = urlFormat
                             val keys = paramsObj.keys()
                             while (keys.hasNext()) {
@@ -494,7 +487,6 @@ data class SecureLinksResponse(
                                 constructedUrl = constructedUrl.replace("{$key}", value)
                             }
 
-                            // Clean up escaped slashes from JSON
                             constructedUrl = constructedUrl.replace("\\/", "/")
 
                             if (constructedUrl.isNotEmpty()) {

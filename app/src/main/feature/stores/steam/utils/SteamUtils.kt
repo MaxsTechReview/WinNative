@@ -99,9 +99,7 @@ object SteamUtils {
         }
     }
 
-    /**
-     * Backup steamclient artifacts before any DRM/Steamless manipulation.
-     */
+    // Back up steamclient artifacts before DRM/Steamless manipulation.
     @JvmStatic
     @JvmOverloads
     fun backupSteamclientFiles(
@@ -117,10 +115,7 @@ object SteamUtils {
             val dll = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam/$file")
             val backupFile = File(backupDir, "$file.orig")
             if (dll.exists()) {
-                // Guard against stub-over-real contamination: if the existing backup is
-                // significantly larger than the current file, the current file must be
-                // a Goldberg stub (~200 KB) and overwriting the real-DLL backup (~13 MB)
-                // would permanently lose the pristine copy. Refuse the overwrite.
+                // Refuse to replace a real-DLL backup with a small Goldberg stub.
                 if (backupFile.exists() && backupFile.length() > dll.length() * 2 &&
                     backupFile.length() > 1_000_000) {
                     Timber.w(
@@ -139,14 +134,7 @@ object SteamUtils {
         Timber.i("backupSteamclientFiles complete (appId=$idLog, count=$backupCount)")
     }
 
-    /**
-     * Checks whether the shared Steam client store still contains the real
-     * Valve-signed DLLs, as opposed to Goldberg stubs left behind by an old
-     * ColdClient contamination. Real `steamclient64.dll` is ~13 MB; the Goldberg
-     * stub is ~200 KB. A generous 2 MB floor catches all known stubs.
-     *
-     * Returns true if the core files exist AND look like real Valve DLLs.
-     */
+    // True when the shared Steam store still has real DLLs, not stubs.
     @JvmStatic
     fun isSharedSteamStorePristine(context: Context): Boolean {
         val imageFs = ImageFs.find(context)
@@ -168,9 +156,7 @@ object SteamUtils {
         return true
     }
 
-    /**
-     * Restore steamclient artifacts and clean injected extras if needed.
-     */
+    // Restore steamclient artifacts and clean injected extras if needed.
     @JvmStatic
     @JvmOverloads
     fun restoreSteamclientFiles(
