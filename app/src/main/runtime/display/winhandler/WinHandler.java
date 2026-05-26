@@ -476,12 +476,7 @@ public class WinHandler {
   private void addMouseMoveAction(int dx, int dy) {
     synchronized (this.actions) {
       if (!this.running) return;
-      Runnable last = this.actions.peekLast();
-      if (last instanceof MouseMoveAction) {
-        ((MouseMoveAction) last).addDelta(dx, dy);
-      } else {
-        this.actions.add(new MouseMoveAction(dx, dy));
-      }
+      this.actions.add(new MouseMoveAction(dx, dy));
       this.actions.notifyAll();
     }
   }

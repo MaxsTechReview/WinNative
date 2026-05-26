@@ -1804,11 +1804,11 @@ private fun InputControlsPaneContent(
 
                 DrawerSliderRow(
                     label = "Mouse sensitivity scale",
-                    valueText = "${(state.cursorSpeed * 100).toInt()}%",
-                    value = state.cursorSpeed,
-                    valueRange = 0.1f..3.0f,
-                    steps = 28,
-                    onValueChange = listener::onCursorSpeedChanged,
+                    valueText = "${Math.round(state.cursorSpeed * 100)}%",
+                    value = state.cursorSpeed * 100f,
+                    valueRange = 10f..300f,
+                    steps = 0,
+                    onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
                 )
             }
         }

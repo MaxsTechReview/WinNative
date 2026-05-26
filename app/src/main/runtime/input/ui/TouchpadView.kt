@@ -37,7 +37,7 @@ class TouchpadView(
         private const val MAX_TWO_FINGERS_SCROLL_DISTANCE: Short = 350
         const val MAX_TAP_TRAVEL_DISTANCE: Byte = 10
         const val MAX_TAP_MILLISECONDS: Short = 200
-        const val CURSOR_ACCELERATION = 1.2f
+        const val CURSOR_ACCELERATION = 1.25f
         const val CURSOR_ACCELERATION_THRESHOLD: Byte = 8
         private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
@@ -148,55 +148,48 @@ class TouchpadView(
         x: Float,
         y: Float,
     ) {
-        var x: Float
-        var y: Float
-        val startX: Float
-        val startY: Float
-        var lastX: Float
-        var lastY: Float
+        var x: Float = x
+        var y: Float = y
+        val startX: Float = x
+        val startY: Float = y
+        var lastX: Float = x
+        var lastY: Float = y
         val touchTime: Long = System.currentTimeMillis()
-
-        init {
-            val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0].also { this.lastX = it }.also { this.startX = it }
-            this.y = transformedPoint[1].also { this.lastY = it }.also { this.startY = it }
-        }
         var isFlick = false
 
         fun update(
-            x: Float,
-            y: Float,
+            newX: Float,
+            newRawY: Float,
         ) {
             val oldX = this.x
             val oldY = this.y
             lastX = this.x
             lastY = this.y
-            val transformedPoint = XForm.transformPoint(xform, x, y)
-            this.x = transformedPoint[0]
-            this.y = transformedPoint[1]
+            this.x = newX
+            this.y = newRawY
             
-            // FIX: Detect rapid flick movement (>50 pixels between updates)
-            if (Math.abs(this.x - oldX) > 50 || Math.abs(this.y - oldY) > 50) {
+            if (Math.abs(this.x - oldX) > 100 || Math.abs(this.y - oldY) > 100) {
                 isFlick = true
-            } else if (travelDistance() > MAX_TAP_TRAVEL_DISTANCE) {
-                // Reset isFlick if we moved significantly but slowly
+            } else if (travelDistance() > MAX_TAP_TRAVEL_DISTANCE * 4) {
                 isFlick = false
             }
         }
 
         fun deltaX(): Float {
-            var dx = (x - lastX) * sensitivity
-            if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
-            return dx
+            var rDx = x - lastX
+            var rDy = y - lastY
+            if (Math.abs(rDx) > CURSOR_ACCELERATION_THRESHOLD) rDx *= CURSOR_ACCELERATION
+            return (xform[0] * rDx + xform[2] * rDy) * sensitivity
         }
 
         fun deltaY(): Float {
-            var dy = (y - lastY) * sensitivity
-            if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
-            return dy
+            var rDx = x - lastX
+            var rDy = y - lastY
+            if (Math.abs(rDy) > CURSOR_ACCELERATION_THRESHOLD) rDy *= CURSOR_ACCELERATION
+            return (xform[1] * rDx + xform[3] * rDy) * sensitivity
         }
 
-        fun isTap(): Boolean = (System.currentTimeMillis() - touchTime) < MAX_TAP_MILLISECONDS && travelDistance() < MAX_TAP_TRAVEL_DISTANCE
+        fun isTap(): Boolean = (System.currentTimeMillis() - touchTime) < MAX_TAP_MILLISECONDS && travelDistance() < MAX_TAP_TRAVEL_DISTANCE * 4
 
         fun travelDistance(): Float = Math.hypot((x - startX).toDouble(), (y - startY).toDouble()).toFloat()
     }
@@ -357,21 +350,19 @@ class TouchpadView(
                             val delta = if (h < historySize) getExternalMouseDelta(event, h) else getExternalMouseDelta(event)
                             mouseAccumX += delta[0]
                             mouseAccumY += delta[1]
+
+                            val idx = mouseAccumX.toInt()
+                            val idy = mouseAccumY.toInt()
+                            if (idx != 0 || idy != 0) {
+                                mouseAccumX -= idx.toFloat()
+                                mouseAccumY -= idy.toFloat()
+                                xServer.updatePointerForDisplayDelta(idx, idy)
+                                xServer.winHandler.mouseMoveDelta(idx, idy)
+                            }
                         } else {
                             val transformedPoint = if (h < historySize) XForm.transformPoint(xform, event.getHistoricalX(h), event.getHistoricalY(h))
                                                    else XForm.transformPoint(xform, event.x, event.y)
                             xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-                        }
-                    }
-
-                    if (xServer.isRelativeMouseMovement) {
-                        val idx = Mathf.roundPoint(mouseAccumX)
-                        val idy = Mathf.roundPoint(mouseAccumY)
-                        if (idx != 0 || idy != 0) {
-                            mouseAccumX -= idx.toFloat()
-                            mouseAccumY -= idy.toFloat()
-                            xServer.updatePointerForDisplayDelta(idx, idy)
-                            xServer.winHandler.mouseMoveDelta(idx, idy)
                         }
                     }
                 } else {
@@ -390,7 +381,8 @@ class TouchpadView(
                                 } else {
                                     finger.update(event.getX(pointerIndex), event.getY(pointerIndex))
                                 }
-                                handleFingerMove(finger)
+                                updateFingerDeltas(finger)
+                                applyCursorMovement()
                             }
                         }
                     }
@@ -592,7 +584,7 @@ class TouchpadView(
         releasePointerButtonRight(finger1)
     }
 
-    private fun handleFingerMove(finger1: Finger) {
+    private fun updateFingerDeltas(finger1: Finger) {
         if (finger1.travelDistance() >= MAX_TAP_TRAVEL_DISTANCE) {
             longPressHandler.removeCallbacks(longPressRunnable)
         }
@@ -620,26 +612,28 @@ class TouchpadView(
         }
 
         if (!scrolling && numFingers <= 2 && !skipPointerMove) {
-            // FIX: Allow finger2 to drive movement if finger1 is held still (for drag-to-resize/move)
             val drivingFinger = if (finger2 != null && (finger2.deltaX() != 0f || finger2.deltaY() != 0f) && finger1.deltaX() == 0f && finger1.deltaY() == 0f) finger2 else finger1
             cursorAccumX += drivingFinger.deltaX()
             cursorAccumY += drivingFinger.deltaY()
+        }
+    }
 
-            val idx = Mathf.roundPoint(cursorAccumX)
-            val idy = Mathf.roundPoint(cursorAccumY)
+    private fun applyCursorMovement() {
+        val idx = cursorAccumX.toInt()
+        val idy = cursorAccumY.toInt()
 
-            if (idx != 0 || idy != 0) {
-                cursorAccumX -= idx
-                cursorAccumY -= idy
+        if (idx != 0 || idy != 0) {
+            cursorAccumX -= idx.toFloat()
+            cursorAccumY -= idy.toFloat()
 
-                if (simTouchScreen) {
-                    if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger1.x.toInt(), finger1.y.toInt())
-                } else if (xServer.isRelativeMouseMovement) {
-                    xServer.updatePointerForDisplayDelta(idx, idy)
-                    xServer.winHandler.mouseMoveDelta(idx, idy)
-                } else {
-                    xServer.injectPointerMoveDelta(idx, idy)
-                }
+            val finger = fingers.firstOrNull { it != null } ?: return
+            if (simTouchScreen) {
+                if (System.currentTimeMillis() - finger.touchTime > CLICK_DELAYED_TIME) xServer.injectPointerMove(finger.x.toInt(), finger.y.toInt())
+            } else if (xServer.isRelativeMouseMovement) {
+                xServer.updatePointerForDisplayDelta(idx, idy)
+                xServer.winHandler.mouseMoveDelta(idx, idy)
+            } else {
+                xServer.injectPointerMoveDelta(idx, idy)
             }
         }
     }
@@ -773,8 +767,8 @@ class TouchpadView(
                         mouseAccumY += delta[1]
                     }
 
-                    val idx = Mathf.roundPoint(mouseAccumX)
-                    val idy = Mathf.roundPoint(mouseAccumY)
+                    val idx = mouseAccumX.toInt()
+                    val idy = mouseAccumY.toInt()
                     if (idx != 0 || idy != 0) {
                         mouseAccumX -= idx.toFloat()
                         mouseAccumY -= idy.toFloat()
@@ -822,6 +816,9 @@ class TouchpadView(
             dx = transformedPoint[0] - xServer.pointer.x
             dy = transformedPoint[1] - xServer.pointer.y
         } else {
+            if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
+            if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
+
             val rawDx = dx
             dx = xform[0] * rawDx + xform[2] * dy
             dy = xform[1] * rawDx + xform[3] * dy
@@ -829,9 +826,6 @@ class TouchpadView(
 
         dx *= sensitivity
         dy *= sensitivity
-
-        if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
-        if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
 
         return floatArrayOf(dx, dy)
     }

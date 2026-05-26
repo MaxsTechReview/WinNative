@@ -1774,20 +1774,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     float[] fDelta = getCapturedPointerDelta(rawDx, rawDy);
                     capturedCursorAccumX += fDelta[0];
                     capturedCursorAccumY += fDelta[1];
-                }
 
-                int idx = Mathf.roundPoint(capturedCursorAccumX);
-                int idy = Mathf.roundPoint(capturedCursorAccumY);
+                    int idx = (int)capturedCursorAccumX;
+                    int idy = (int)capturedCursorAccumY;
 
-                if (idx != 0 || idy != 0) {
-                    capturedCursorAccumX -= idx;
-                    capturedCursorAccumY -= idy;
+                    if (idx != 0 || idy != 0) {
+                        capturedCursorAccumX -= idx;
+                        capturedCursorAccumY -= idy;
 
-                    if (xServer.isRelativeMouseMovement()) {
-                        xServer.updatePointerForDisplayDelta(idx, idy);
-                        xServer.getWinHandler().mouseMoveDelta(idx, idy);
-                    } else {
-                        xServer.injectPointerMoveDelta(idx, idy);
+                        if (xServer.isRelativeMouseMovement()) {
+                            xServer.updatePointerForDisplayDelta(idx, idy);
+                            xServer.getWinHandler().mouseMoveDelta(idx, idy);
+                        } else {
+                            xServer.injectPointerMoveDelta(idx, idy);
+                        }
                     }
                 }
                 handled = true;
@@ -1813,11 +1813,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (profile != null) profileSpeed = profile.getCursorSpeed();
         }
 
-        dx *= globalCursorSpeed * profileSpeed;
-        dy *= globalCursorSpeed * profileSpeed;
-
         if (Math.abs(dx) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dx *= TouchpadView.CURSOR_ACCELERATION;
         if (Math.abs(dy) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dy *= TouchpadView.CURSOR_ACCELERATION;
+
+        dx *= globalCursorSpeed * profileSpeed;
+        dy *= globalCursorSpeed * profileSpeed;
 
         return new float[]{
                 xform[0] * dx + xform[2] * dy,
