@@ -56,7 +56,6 @@ object GOGAuthManager {
         return try {
             Timber.tag("GOG").i("Starting GOG authentication with authorization code...")
 
-            // Extract the actual authorization code from URL if needed
             val actualCode = extractCodeFromInput(authorizationCode)
             if (actualCode.isEmpty()) {
                 return Result.failure(Exception("Invalid authorization URL: no code parameter found"))
@@ -110,14 +109,12 @@ object GOGAuthManager {
                     JSONObject(responseBody)
                 }
 
-            // Check for error in response
             if (tokenJson.has("error")) {
                 val errorMsg = tokenJson.optString("error_description", "Authentication failed")
                 Timber.tag("GOG").e("GOG authentication failed: $errorMsg")
                 return Result.failure(Exception("Authentication failed: $errorMsg"))
             }
 
-            // Extract credentials from response
             val accessToken = tokenJson.optString("access_token", "")
             val refreshToken = tokenJson.optString("refresh_token", "")
             val userId = tokenJson.optString("user_id", "")
@@ -128,7 +125,6 @@ object GOGAuthManager {
                 return Result.failure(Exception("Authentication incomplete: missing required data"))
             }
 
-            // Create credentials object
             val credentials =
                 GOGCredentials(
                     accessToken = accessToken,
@@ -178,19 +174,16 @@ object GOGAuthManager {
                 return Result.failure(Exception("No stored credentials found"))
             }
 
-            // Read credentials from file (IO dispatcher)
             val authFile = File(authConfigPath)
             val authContent = withContext(Dispatchers.IO) { authFile.readText() }
             val authJson = JSONObject(authContent)
 
-            // Get Galaxy app credentials
             if (!authJson.has(GOGConstants.GOG_CLIENT_ID)) {
                 return Result.failure(Exception("No Galaxy credentials found"))
             }
 
             val credentialsJson = authJson.getJSONObject(GOGConstants.GOG_CLIENT_ID)
 
-            // Check if expired
             val loginTime = credentialsJson.optDouble("loginTime", 0.0)
             val expiresIn = credentialsJson.optInt("expires_in", 0)
             val isExpired = System.currentTimeMillis() / 1000.0 >= loginTime + expiresIn
@@ -206,7 +199,6 @@ object GOGAuthManager {
                 return getStoredCredentials(context)
             }
 
-            // Return valid credentials
             val credentials =
                 GOGCredentials(
                     accessToken = credentialsJson.getString("access_token"),
@@ -247,17 +239,14 @@ object GOGAuthManager {
             val authContent = withContext(Dispatchers.IO) { authFile.readText() }
             val authJson = JSONObject(authContent)
 
-            // Check if we already have credentials for this game
             if (authJson.has(clientId)) {
                 val gameCredentials = authJson.getJSONObject(clientId)
 
-                // Check if expired
                 val loginTime = gameCredentials.optDouble("loginTime", 0.0)
                 val expiresIn = gameCredentials.optInt("expires_in", 0)
                 val isExpired = System.currentTimeMillis() / 1000.0 >= loginTime + expiresIn
 
                 if (!isExpired) {
-                    // Return existing valid credentials
                     return Result.success(
                         GOGCredentials(
                             accessToken = gameCredentials.getString("access_token"),
@@ -401,7 +390,6 @@ object GOGAuthManager {
                 return Result.failure(Exception("No stored credentials found"))
             }
 
-            // Read current credentials
             val authContent = withContext(Dispatchers.IO) { authFile.readText() }
             val authJson = JSONObject(authContent)
 
@@ -472,7 +460,6 @@ object GOGAuthManager {
      */
     fun extractCodeFromInput(input: String): String =
         if (input.startsWith("http")) {
-            // Extract code parameter from URL
             val codeParam = input.substringAfter("code=", "")
             if (codeParam.isEmpty()) {
                 ""

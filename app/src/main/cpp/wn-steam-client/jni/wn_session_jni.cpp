@@ -1,6 +1,4 @@
-// JNI bridge for WnSteamSession — the production-facing handle that wraps
-// CMClient + CredentialsAuthSession + QrAuthSession. Kotlin
-// SteamLoginViewModel drives this in Phase 2E.
+// JNI bridge for WnSteamSession.
 
 #include <jni.h>
 #include <android/log.h>
@@ -29,56 +27,48 @@
 #define WN_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  WN_LOG_TAG, __VA_ARGS__)
 #define WN_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, WN_LOG_TAG, __VA_ARGS__)
 
-// g_vm is defined (no anonymous namespace) in wn_steam_jni.cpp, captured
-// at JNI_OnLoad. Must stay outside our anonymous namespace below — if it
-// were inside, the extern declaration would have internal linkage and
-// would never resolve to the symbol in the other TU.
+// Defined in wn_steam_jni.cpp at JNI_OnLoad.
 extern JavaVM* g_vm;
 
 namespace {
 
-// ---------------------------------------------------------------------------
-// Cached class refs and method IDs for the Kotlin types this file touches.
-// Initialized lazily by init_jni_session_globals() on first WnSteamSession
-// creation. Globals here (rather than at JNI_OnLoad) so that adding this
-// file doesn't churn the existing JNI_OnLoad symbol management.
-// ---------------------------------------------------------------------------
+// Cached Kotlin class refs and method IDs, initialized on first use.
 
 std::once_flag g_session_init_once;
 struct SessionGlobals {
     jclass    auth_result_cls    = nullptr;
     jmethodID auth_result_ctor   = nullptr;
 
-    jclass    auth_callback_cls  = nullptr;   // WnAuthCallback
+    jclass    auth_callback_cls  = nullptr;
     jmethodID auth_callback_on   = nullptr;
 
-    jclass    qr_callback_cls    = nullptr;   // WnQrCallback
+    jclass    qr_callback_cls    = nullptr;
     jmethodID qr_callback_on     = nullptr;
 
-    jclass    state_observer_cls = nullptr;   // WnSteamStateObserver
+    jclass    state_observer_cls = nullptr;
     jmethodID state_obs_changed  = nullptr;
     jmethodID state_obs_message  = nullptr;
 
-    jclass    authenticator_cls  = nullptr;   // WnAuthenticator
-    jmethodID auth_dev_confirm   = nullptr;   // acceptDeviceConfirmation() : CompletableFuture<Boolean>
-    jmethodID auth_dev_code      = nullptr;   // getDeviceCode(Boolean) : CompletableFuture<String>
-    jmethodID auth_email_code    = nullptr;   // getEmailCode(String, Boolean) : CompletableFuture<String>
+    jclass    authenticator_cls  = nullptr;
+    jmethodID auth_dev_confirm   = nullptr;
+    jmethodID auth_dev_code      = nullptr;
+    jmethodID auth_email_code    = nullptr;
 
-    jclass    prepare_cb_cls     = nullptr;   // WnPrepareAppCallback
-    jmethodID prepare_cb_on      = nullptr;   // onPrepareResult(boolean, String)
+    jclass    prepare_cb_cls     = nullptr;
+    jmethodID prepare_cb_on      = nullptr;
 
-    jclass    download_lis_cls   = nullptr;   // WnDownloadListener
-    jmethodID download_progress  = nullptr;   // onProgress(IJJIIZ)V
-    jmethodID download_complete  = nullptr;   // onComplete(ZLjava/lang/String;JII)V
+    jclass    download_lis_cls   = nullptr;
+    jmethodID download_progress  = nullptr;
+    jmethodID download_complete  = nullptr;
 
-    jclass    library_obs_cls    = nullptr;   // WnLibraryObserver
-    jmethodID library_obs_changed = nullptr;  // onLibraryChanged()
+    jclass    library_obs_cls    = nullptr;
+    jmethodID library_obs_changed = nullptr;
 
-    jclass    future_cls         = nullptr;   // java/util/concurrent/CompletableFuture
-    jmethodID future_get         = nullptr;   // get() : Object
+    jclass    future_cls         = nullptr;
+    jmethodID future_get         = nullptr;
 
     jclass    boolean_cls        = nullptr;
-    jmethodID boolean_value      = nullptr;   // booleanValue()
+    jmethodID boolean_value      = nullptr;
 };
 SessionGlobals g_sess;
 
@@ -114,7 +104,6 @@ void init_jni_session_globals_locked(JNIEnv* env) {
 
     g_sess.auth_result_cls = new_global_class(env, AUTH_RESULT);
     if (g_sess.auth_result_cls) {
-        // ctor signature: (ZILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZLjava/lang/String;)V
         g_sess.auth_result_ctor = env->GetMethodID(
             g_sess.auth_result_cls, "<init>",
             "(ZILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZLjava/lang/String;)V");
@@ -188,8 +177,6 @@ void init_jni_session_globals(JNIEnv* env) {
     std::call_once(g_session_init_once, init_jni_session_globals_locked, env);
 }
 
-// AttachScope mirrors the one in wn_steam_jni.cpp. Duplicated here to keep
-// the file self-contained.
 struct AttachScope {
     JNIEnv* env = nullptr;
     bool    attached = false;
@@ -203,11 +190,7 @@ struct AttachScope {
     }
 };
 
-// ---------------------------------------------------------------------------
-// JNIAuthenticator — bridges native Authenticator to a Kotlin WnAuthenticator.
-// All callbacks block in a detached worker thread so the channel-worker
-// thread never waits on a Kotlin coroutine.
-// ---------------------------------------------------------------------------
+// Bridges native Authenticator callbacks to Kotlin on detached workers.
 
 class JNIAuthenticator : public wn_steam::Authenticator {
 public:
@@ -304,24 +287,14 @@ private:
     jobject global_auth_ = nullptr;
 };
 
-// ---------------------------------------------------------------------------
-// SessionHandle — owns the CMClient + auth/QR session pair + observer refs.
-// ---------------------------------------------------------------------------
-
 struct SessionHandle {
-    // shared_ptr — not unique_ptr — so detached poll threads in
-    // CredentialsAuthSession / QrAuthSession can keep CMClient alive past
-    // the handle's destruction. The previous unique_ptr design caused
-    // use-after-free in nativeDestroy when an in-flight poll thread
-    // dereferenced a dangling raw pointer.
+    // Auth poll threads may outlive this handle, so they share CMClient.
     std::shared_ptr<wn_steam::CMClient>                       client;
     std::shared_ptr<wn_steam::CredentialsAuthSession>         creds_session;
     std::shared_ptr<wn_steam::QrAuthSession>                  qr_session;
-    jobject                                                   state_observer = nullptr;  // global ref
+    jobject                                                   state_observer = nullptr;
     std::mutex                                                mu;
-    // Cancel flag for an in-flight depot download (nativeDownloadApp).
-    // shared_ptr so the detached download worker keeps it alive even if the
-    // session handle is destroyed mid-download (mirrors `client`).
+    // Shared with detached download workers.
     std::shared_ptr<std::atomic<bool>>                        download_cancel =
         std::make_shared<std::atomic<bool>>(false);
 
@@ -330,39 +303,16 @@ struct SessionHandle {
     }
 
     ~SessionHandle() {
-        // ORDER MATTERS — see the destroyed-mutex SIGABRT we caught the
-        // first time around.
-        //
-        // The state/message callbacks set on `client` capture a raw `this`
-        // pointer and access `mu` + `state_observer`. Members destruct in
-        // REVERSE declaration order, which means `mu` is destroyed BEFORE
-        // `client`. If a transport-worker callback fires after `mu` is
-        // gone but before `client` is gone (or as part of ~CMClient calling
-        // disconnect() which re-fires the state callback), it locks a
-        // destroyed mutex → FORTIFY SIGABRT.
-        //
-        // Fix: synchronously disconnect the client FIRST inside this body
-        // (joins the transport worker, waiting for any in-flight callback),
-        // then clear the callbacks so the eventual ~CMClient triggered by
-        // shared_ptr refcount-drop fires no further callbacks. After that
-        // the member destructors can run safely.
-
-        // 1. Synchronously disconnect — joins the transport worker thread.
-        //    After this, no transport callback can be in flight.
+        // Disconnect before members destruct; callbacks capture `this`.
         if (client) client->disconnect();
 
-        // 2. Clear callbacks so any later ~CMClient teardown (when the
-        //    last poll-thread ref releases) emits no further state/message
-        //    callbacks that would access our (about-to-be-destroyed)
-        //    state_observer / mu members.
+        // Later CMClient teardown must not call back into this handle.
         if (client) {
             client->set_on_state({});
             client->set_on_client_message({});
         }
 
-        // 3. Cancel auth sessions so detached poll threads see cancelled_
-        //    and exit. shared_ptr<CMClient> in those threads keeps the
-        //    client alive until they unwind.
+        // Let detached auth pollers unwind.
         std::shared_ptr<wn_steam::CredentialsAuthSession> cs;
         std::shared_ptr<wn_steam::QrAuthSession>          qs;
         {
@@ -373,10 +323,6 @@ struct SessionHandle {
         if (cs) cs->cancel();
         if (qs) qs->cancel();
 
-        // 4. Drop the Kotlin state-observer ref. Step 1 already disconnected
-        //    the client, so it can no longer be invoked. (The library
-        //    observer owns its global ref via a shared_ptr deleter — see
-        //    nativeSetLibraryObserver — so it needs no teardown here.)
         if (state_observer && g_vm) {
             AttachScope a(g_vm);
             if (a.env) a.env->DeleteGlobalRef(state_observer);
@@ -392,7 +338,6 @@ jlong to_handle(SessionHandle* p) noexcept {
     return static_cast<jlong>(reinterpret_cast<uintptr_t>(p));
 }
 
-// Build a Kotlin WnAuthResult from the C++ AuthSessionResult.
 jobject build_auth_result(JNIEnv* env, const wn_steam::AuthSessionResult& r) {
     auto make_str = [&](const std::string& s) -> jstring {
         return env->NewStringUTF(s.c_str());
@@ -404,9 +349,7 @@ jobject build_auth_result(JNIEnv* env, const wn_steam::AuthSessionResult& r) {
     jstring jguard    = make_str(r.new_guard_data);
     jstring jagree    = make_str(r.agreement_session_url);
 
-    // A NewStringUTF OOM leaves a pending exception; calling NewObject (or any
-    // further JNI call) with one pending is undefined behaviour. Clear it —
-    // the null jstrings simply become null fields on the result object.
+    // NewStringUTF can leave a pending OOM; null strings are acceptable here.
     if (env->ExceptionCheck()) env->ExceptionClear();
 
     jobject obj = env->NewObject(
@@ -430,10 +373,6 @@ jobject build_auth_result(JNIEnv* env, const wn_steam::AuthSessionResult& r) {
 }
 
 }  // namespace
-
-// ---------------------------------------------------------------------------
-// JNI exports
-// ---------------------------------------------------------------------------
 
 extern "C" {
 

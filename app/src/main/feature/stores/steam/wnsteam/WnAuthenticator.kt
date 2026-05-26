@@ -5,7 +5,7 @@ import java.util.concurrent.CompletableFuture
 /**
  * Mirrors JavaSteam's `in.dragonbra.javasteam.steam.authentication.IAuthenticator`
  * shape exactly. SteamLoginViewModel's existing `object : IAuthenticator { ... }`
- * block becomes `object : WnAuthenticator { ... }` in Phase 2 with zero
+ * block becomes `object : WnAuthenticator { ... }` with zero
  * method-signature changes.
  *
  * The native client invokes these via JNI when Steam asks for a Steam Guard

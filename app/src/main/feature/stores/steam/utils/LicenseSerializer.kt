@@ -8,7 +8,7 @@ import timber.log.Timber
  * Serializes a Steam license to the JSON stored in the `cached_license`
  * Room table.
  *
- * Phase 9: the license now comes from the C++ WN-Steam-Client as plain field
+ * the license now comes from the C++ WN-Steam-Client as plain field
  * values (see `processLicenseList`), so the only entry point is
  * [serializeLicenseFields]. The old JavaSteam `License`-object /
  * `DepotManifest` round-trips were dead code and were removed with the

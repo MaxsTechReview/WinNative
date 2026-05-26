@@ -3,18 +3,12 @@ package com.winlator.cmod.feature.stores.steam.utils
 import org.json.JSONObject
 
 /**
- * In-house KeyValues node — the receiver type for [generateSteamApp] and the
- * other decoders in KeyValueUtils.kt. It replaces JavaSteam's `KeyValue` so
- * PICS appinfo fetched by the C++ wn-steam-client can be turned into a
- * [com.winlator.cmod.feature.stores.steam.data.SteamApp] without the
- * JavaSteam dependency (Phase 9).
+ * Lightweight KeyValues node used by [generateSteamApp] and the other Steam appinfo decoders.
  *
- * Backed by a nested `Map<String, Any>` where a value is either a leaf
- * (`String` / `Int` / `Long` / `Float`) or a nested `Map` (a subsection).
- * The C++ side parses the PICS appinfo VDF (text or binary — `vdf::parse_auto`)
- * and hands Kotlin a JSON object; [fromJsonObject] turns that into this IR.
- * A missing key yields the shared [INVALID] node, mirroring JavaSteam's
- * `KeyValue.Invalid` sentinel — so `kv["a"]["b"]["c"]` never NPEs and the
+ * This wraps the appinfo tree parsed by the C++ wn-steam-client without depending on
+ * JavaSteam's `KeyValue`. Values are either scalar leaves or nested maps.
+ *
+ * Missing keys return the shared [INVALID] node, so chained lookups stay null-safe and
  * `asX()` getters fall back to their defaults.
  */
 class WnKeyValue private constructor(
@@ -25,14 +19,10 @@ class WnKeyValue private constructor(
     companion object {
         private val INVALID = WnKeyValue(null, null, null)
 
-        /** Wrap an already-parsed KeyValues map as the (unnamed) root node. */
+        /** Wraps an already-parsed KeyValues map as an unnamed root node. */
         fun fromMap(map: Map<String, Any>): WnKeyValue = WnKeyValue(null, null, map)
 
-        /**
-         * Build a node from a JSON object — the form the C++ wn-steam-client
-         * emits for a parsed PICS appinfo VDF tree (nested objects for
-         * subsections, string leaves for values).
-         */
+        /** Builds a node from the JSON tree emitted by the C++ appinfo parser. */
         fun fromJsonObject(obj: JSONObject): WnKeyValue = WnKeyValue(null, null, jsonObjectToMap(obj))
 
         private fun jsonObjectToMap(obj: JSONObject): Map<String, Any> {
@@ -47,7 +37,7 @@ class WnKeyValue private constructor(
         }
     }
 
-    /** Sub-node lookup; returns [INVALID] (never null) when absent. */
+    /** Looks up a child node, returning [INVALID] when absent. */
     operator fun get(key: String): WnKeyValue {
         val m = map ?: return INVALID
         return when (val v = m[key]) {
@@ -60,7 +50,7 @@ class WnKeyValue private constructor(
         }
     }
 
-    /** Child nodes, in insertion order; empty for a leaf / invalid node. */
+    /** Child nodes in insertion order, or empty for leaf and invalid nodes. */
     val children: List<WnKeyValue>
         get() {
             val m = map ?: return emptyList()
@@ -74,7 +64,7 @@ class WnKeyValue private constructor(
             }
         }
 
-    /** Leaf value as a string (numbers stringified); null for a subsection. */
+    /** Leaf value as a string, or null for subsection and invalid nodes. */
     val value: String?
         get() = when (leaf) {
             null -> null

@@ -15,13 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Queries Android's {@link ConnectivityManager} for the active network's
- * interface addresses. {@link NetworkInfoUpdateComponent} writes the result
- * into the Wine prefix so Wine's iphlpapi/ws2_32 (which on Android cannot
- * enumerate interfaces directly) reports a live network — without this,
- * steam.exe's Network List Manager check returns "offline" and Steam aborts
- * with "Could not connect to Steam network" before ever attempting a CM
- * connection. Ported from the GameNative reference (com.winlator.core).
+ * Exposes Android's active network addresses to Wine. Wine cannot enumerate
+ * Android interfaces directly, so NetworkInfoUpdateComponent writes these
+ * values into the prefix for iphlpapi/ws2_32.
  */
 public class NetworkHelper {
     private final ConnectivityManager connectivityManager;

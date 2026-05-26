@@ -92,7 +92,7 @@ abstract class PluviaDatabase : RoomDatabase() {
                         PluviaDatabase::class.java,
                         DATABASE_NAME,
                     ).addMigrations(MIGRATION_6_7)
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(true)
                     .build()
                     .also { instance = it }
             }

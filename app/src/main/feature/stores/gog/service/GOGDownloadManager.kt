@@ -38,32 +38,13 @@ import java.util.zip.InflaterInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Custom exception for HTTP status errors with typed status code
- */
+// HTTP status failure with its typed status code.
 class HttpStatusException(
     val statusCode: Int,
     message: String,
 ) : Exception(message)
 
-/**
- * GOGDownloadManager handles downloading GOG games
- *
- * GOG's CDN structure (Gen 2):
- * 1. Fetch build manifest (contains depots and product metadata)
- * 2. Fetch depot manifests (contains file lists with chunks)
- * 3. Get secure CDN links (time-limited URLs for chunks) -> We have issues here
- * 4. Download chunks from CDN (zlib compressed data) -> We have issues here
- * 5. Decompress and verify chunks (MD5)
- * 6. Assemble files from chunks
- *
- * GOG Chunk Format (Gen 2):
- * - Chunks are identified by compressedMd5 hash
- * - Downloaded from secure CDN URLs (time-limited)
- * - Compressed using zlib
- * - Verified using MD5 hash after decompression
- * - Multiple chunks assemble into single files
- */
+// Downloads GOG games from Gen 1/Gen 2 CDN manifests.
 @Singleton
 class GOGDownloadManager
     @Inject
@@ -76,9 +57,7 @@ class GOGDownloadManager
         private val WINDOWS_OS_VERSION = "windows"
         private val httpClient = Net.http
 
-        /**
-         * Context needed to refresh secure CDN links when they expire
-         */
+        // Context needed to refresh secure CDN links when they expire.
         private data class SecureLinkContext(
             val gameId: String,
             val generation: Int,
@@ -90,28 +69,15 @@ class GOGDownloadManager
             private const val MAX_PARALLEL_DOWNLOADS = 10
             private const val MAX_PARALLEL_MANIFEST_FETCHES = 8
             private val EXPIRED_LINK_STATUS_CODES = setOf(401, 403, 404)
-            private const val CHUNK_BUFFER_SIZE = 1024 * 1024 // 1MB buffer
-            private const val STREAM_BUFFER_SIZE = 64 * 1024 // 64KB per-read buffer for streaming I/O
+            private const val CHUNK_BUFFER_SIZE = 1024 * 1024
+            private const val STREAM_BUFFER_SIZE = 64 * 1024
             private const val PROGRESS_EMIT_INTERVAL_MS = 250L
-            private const val MAX_CHUNK_RETRIES = 3 // Maximum retries per chunk
-            private const val RETRY_DELAY_MS = 1000L // Initial retry delay in milliseconds
+            private const val MAX_CHUNK_RETRIES = 3
+            private const val RETRY_DELAY_MS = 1000L
             private const val DEPENDENCY_URL = "https://content-system.gog.com/dependencies/repository?generation=2"
         }
 
-        /**
-         * Download and install a GOG game
-         *
-         * @param gameId GOG game ID (numeric)
-         * @param installPath Directory where game will be installed
-         * @param downloadInfo Progress tracker
-         * @param language Container language name (e.g. "english", "german"). Used to resolve GOG manifest language codes when filtering depots. See [GOGConstants.containerLanguageToGogCodes].
-         * @param withDlcs Whether to include DLC content
-         * @param supportDir Optional directory for support files (redistributables)
-         * @param buildIdOverride If non-null, pin to this specific build instead of latest (used by verify to re-check against the installed build's manifest).
-         * @param verifyMode When true, file equivalence uses Heroic-style chunk-level MD5 instead of size-only. Mismatched/missing files are re-downloaded. Used by verify/update to catch corrupt or content-changed files where size alone is unreliable.
-         * @param verifyProgressSink Optional `(bytesDone, totalBytes) -> Unit` invoked during verify mode whenever scan or download progress advances. Verify/Update managers use this to sync the global [DownloadCoordinator] DB row so the Downloads tab stays accurate on restart.
-         * @return Result indicating success or failure
-         */
+        // Downloads, verifies, or updates a GOG game.
         suspend fun downloadGame(
             gameId: String,
             installPath: File,
@@ -132,7 +98,6 @@ class GOGDownloadManager
                         Timber.tag("GOG").i("Will also put dependencies into ${supportDir.absolutePath}")
                     }
 
-                    // Get the actual game from database to check what ID we have stored
                     val dbGame = gogManager.getGameFromDbById(gameId)
 
                     if (dbGame == null) {
@@ -143,7 +108,6 @@ class GOGDownloadManager
 
                     Timber.tag("GOG").d("Database game ID: ${dbGame.id}, title: ${dbGame.title}")
 
-                    // Emit download started event so UI can attach progress listeners
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true),
@@ -151,9 +115,7 @@ class GOGDownloadManager
 
                     downloadInfo.updateStatusMessage("Fetching builds...")
 
-                    // Step 1: Get available builds — prefer Gen 2, fall back to Gen 1 (legacy).
-                    // When buildIdOverride is set (verify against the installed build), prefer that
-                    // exact build across the returned list before falling back to the latest.
+                    // Prefer Gen 2 builds, falling back to Gen 1 legacy builds.
                     val selectedBuild =
                         run {
                             val gen2Result = apiClient.getBuildsForGame(gameId, WINDOWS_OS_VERSION, generation = 2)
@@ -213,7 +175,6 @@ class GOGDownloadManager
 
                     downloadInfo.updateStatusMessage("Fetching manifest...")
 
-                    // Step 2: Fetch main manifest
                     val gameManifestResult = apiClient.fetchManifest(selectedBuild.link)
                     if (gameManifestResult.isFailure) {
                         return@withContext Result.failure(
@@ -229,7 +190,6 @@ class GOGDownloadManager
                         Timber.tag("GOG").d("Manifest products: ${products.joinToString { "name=${it.name}, id=${it.productId}" }}")
                     }
 
-                    // Gen 1 (legacy): different manifest format and download flow (direct file URLs, no chunks)
                     if (selectedBuild.generation == 1 && gameManifest.productTimestamp != null) {
                         Timber.tag("GOG").i("Using Gen 1 (legacy) downloader for game $gameId")
                         return@withContext downloadGameGen1(
@@ -248,12 +208,10 @@ class GOGDownloadManager
 
                     Timber.tag("GOG").i("Using Gen 2 downloader for game $gameId")
 
-                    // Grab Dependencies from the gameManifest for later.
                     val dependencies = gameManifest.dependencies
 
                     downloadInfo.updateStatusMessage("Filtering depots...")
 
-                    // Step 3: Filter depots by container language (parser resolves to GOG codes and tries English fallback)
                     val (languageDepots, effectiveLang) = parser.filterDepotsByLanguage(gameManifest, language)
                     if (languageDepots.isEmpty()) {
                         return@withContext Result.failure(
@@ -286,8 +244,7 @@ class GOGDownloadManager
                             )
                     }
 
-                    // Step 4: Fetch depot manifests to get file lists
-                    // Track which depot each file came from for proper productId mapping
+                    // Retain source depot IDs so shared files inherit the correct product ownership.
                     data class FileWithDepot(
                         val file: DepotFile,
                         val depotProductId: String,
@@ -344,7 +301,6 @@ class GOGDownloadManager
                         }
                     Timber.tag("GOG").d("Total files from all depots: ${allFilesWithDepots.size}")
 
-                    // Step 5: Separate base game, DLC, and support files
                     val baseFiles =
                         requestedFilesWithDepots
                             .filter { (file, depotProductId) ->
@@ -411,7 +367,6 @@ class GOGDownloadManager
                         "${if (verifyMode) "Verify" else "Size"} check kept ${gameFiles.size}/$beforeCount file(s) for (re)download",
                     )
 
-                    // Calculate sizes separately for transparency
                     val (baseGameFiles, _) = parser.separateSupportFiles(baseFiles)
                     val baseGameSize = parser.calculateTotalSize(baseGameFiles)
                     val dlcSize =
@@ -435,7 +390,6 @@ class GOGDownloadManager
                         """.trimMargin(),
                     )
 
-                    // Step 6: Calculate sizes and extract chunk hashes
                     val totalSize = parser.calculateTotalSize(gameFiles)
                     val chunkHashes = parser.extractChunkHashes(gameFiles)
 
@@ -492,10 +446,8 @@ class GOGDownloadManager
                         verifyProgressSink?.invoke(alreadyDoneBytes, fullCompressedSize)
                     }
 
-                    // Step 7: Get secure CDN links for chunks
                     downloadInfo.updateStatusMessage("Getting secure download links...")
 
-                    // Build mapping of product ID to secure URLs and chunk to product ID
                     val productUrlMap = mutableMapOf<String, List<String>>()
                     val chunkToProductMap = mutableMapOf<String, String>()
 
@@ -507,14 +459,11 @@ class GOGDownloadManager
                         )
 
                     val filesToDownloadPaths = gameFiles.map { it.path }.toSet()
-                    // Map each chunk to its product ID using depot info
                     allFilesWithDepots.forEach { (file, depotProductId) ->
                         if (file.path !in filesToDownloadPaths) return@forEach
-                        // Use depot's productId as fallback when file has null/placeholder productId
 
                         val productId = effectiveProductId(file.productId, depotProductId)
 
-                        // Only include files from products the user owns
                         if (productId in ownedGameIds && productId in requestedProductIds) {
                             file.chunks.forEach { chunk ->
                                 chunkToProductMap[chunk.compressedMd5] = productId
@@ -524,7 +473,6 @@ class GOGDownloadManager
                         }
                     }
 
-                    // Get unique product IDs we need to fetch secure links for
                     val productIds = chunkToProductMap.values.toSet()
                     Timber.tag("GOG").d("Need secure links for ${productIds.size} owned product(s): ${productIds.joinToString()}")
                     Timber.tag("GOG").d("Mapped ${chunkToProductMap.size} chunks to products")
@@ -554,10 +502,8 @@ class GOGDownloadManager
                         }
                     }
 
-                    // Build chunk URL map using the correct product URL for each chunk
                     val chunkUrlMap = parser.buildChunkUrlMapWithProducts(chunkHashes, chunkToProductMap, productUrlMap)
 
-                    // Store context for refreshing secure links if they expire
                     val secureLinkContext =
                         SecureLinkContext(
                             gameId = realGameId,
@@ -566,10 +512,8 @@ class GOGDownloadManager
                             chunkToProductMap = chunkToProductMap,
                         )
 
-                    // Step 8: Download chunks
-                    Timber.tag("GOG").i("Downoading Chunks for game $gameId")
+                    Timber.tag("GOG").i("Downloading chunks for game $gameId")
 
-                    // Mark download as in-progress so UI and install checks can detect partial installs
                     installPath.mkdirs()
                     MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
 
@@ -594,14 +538,12 @@ class GOGDownloadManager
                         return@withContext downloadResult
                     }
 
-                    // Step 9: Assemble game files (decompress zlib chunks and write to disk).
                     downloadInfo.updateStatus(
                         com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.UNPACKING,
                         context.getString(R.string.downloads_queue_phase_unpacking),
                     )
                     downloadInfo.emitProgressChange()
 
-                    // Use installPath directly since it already includes the game-specific folder
                     gameInstallDir.mkdirs()
 
                     val assembleResult = assembleFiles(gameFiles, chunkCacheDir, gameInstallDir, downloadInfo)
@@ -610,7 +552,6 @@ class GOGDownloadManager
                         return@withContext assembleResult
                     }
 
-                    // Download Dependencies (They will either go to root or supportDir depending on )
                     if (supportDir != null && dependencies.isNotEmpty()) {
                         downloadInfo.updateStatus(
                             com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.DOWNLOADING,
@@ -624,7 +565,6 @@ class GOGDownloadManager
                         }
                     }
 
-                    // Step 11: Cleanup + write the local manifest.
                     downloadInfo.updateStatus(
                         com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.FINALIZING,
                         context.getString(R.string.downloads_queue_phase_finalizing),
@@ -1073,7 +1013,6 @@ class GOGDownloadManager
                         return@withContext Result.success(Unit)
                     }
 
-                    // Initialize download progress
                     downloadInfo.setProgress(0.0f)
                     downloadInfo.setActive(true)
                     downloadInfo.emitProgressChange()
@@ -1176,7 +1115,6 @@ class GOGDownloadManager
 
                     Timber.tag("GOG").i("Downloading ${dependencies.size} dependencies: ${dependencies.joinToString()}")
 
-                    // Get dependency repository
                     val dependencyRepositoryResult = apiClient.fetchDependencyRepository(DEPENDENCY_URL)
                     if (dependencyRepositoryResult.isFailure) {
                         return@withContext Result.failure(
@@ -1212,7 +1150,6 @@ class GOGDownloadManager
 
                     Timber.tag("GOG").d("Found ${filteredDepots.size} dependency depot(s) to download")
 
-                    // Get open link URLs for dependencies
                     val openLinkResult = apiClient.getDependencyOpenLink()
                     if (openLinkResult.isFailure) {
                         return@withContext Result.failure(
@@ -1235,7 +1172,6 @@ class GOGDownloadManager
 
                         Timber.tag("GOG").i("Downloading dependency: ${depot.readableName} (${depot.dependencyId})")
 
-                        // Determine install directory based on executable path
                         // If path starts with __redist, install to supportDir, otherwise install to gameDir
                         val installBaseDir =
                             if (depot.executable?.path?.startsWith("__redist") == true) {
@@ -1266,10 +1202,8 @@ class GOGDownloadManager
                             continue
                         }
 
-                        // Extract chunk hashes
                         val chunkHashes = parser.extractChunkHashes(depotFiles)
 
-                        // Build chunk URL map using dependency base URLs
                         val chunkUrlMap = buildChunkUrlMap(chunkHashes, dependencyBaseUrls)
 
                         // Create cache directory for this dependency

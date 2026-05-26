@@ -3,17 +3,13 @@ package com.winlator.cmod.feature.stores.steam.utils
 import java.io.File
 
 /**
- * In-house Valve KeyValues (text VDF) node + parser/serializer — the Phase 9
- * replacement for `in.dragonbra.javasteam.types.KeyValue` (text-VDF subset).
+ * Valve KeyValues node with text VDF parsing and serialization.
  *
- * Used for the Steam config files WinNative reads/edits: `localconfig.vdf`,
- * `appmanifest_*.acf`, `config.vdf` / `local.vdf`, and the Steam Input
- * controller-config manifest. Mirrors the JavaSteam `KeyValue` API the app
- * relied on: [name]/[value]/[children], `kv["key"]` lookup with the
- * [INVALID] sentinel, [asString], [loadFromString] and [saveToFile].
+ * Used for Steam config files such as `localconfig.vdf`, `appmanifest_*.acf`,
+ * `config.vdf`, `local.vdf`, and Steam Input controller manifests. The API mirrors
+ * the JavaSteam `KeyValue` surface used by the app.
  *
- * Only the TEXT VDF form is handled (every caller uses text); the binary
- * KeyValues format is not needed here.
+ * Only text VDF is supported because all current callers use text files.
  */
 class KeyValue(
     var name: String? = null,
@@ -21,24 +17,24 @@ class KeyValue(
 ) {
     val children: MutableList<KeyValue> = mutableListOf()
 
-    /** True when this node is a `{ }` section rather than a `"k" "v"` leaf.
-     *  Set by the parser and implied once children are added. */
+    /** True for `{ }` sections rather than `"key" "value"` leaves. */
     var isSection: Boolean = false
 
     /**
-     * Child lookup by case-insensitive name. Returns the [INVALID] sentinel
-     * (never null) when absent, so `kv["a"]["b"]["c"]` chains safely. Also
-     * callable as `kv.get("a")`.
+     * Looks up a child by case-insensitive name.
+     *
+     * Missing children return [INVALID], so chained lookups stay null-safe.
      */
     operator fun get(key: String): KeyValue =
         children.firstOrNull { it.name.equals(key, ignoreCase = true) } ?: INVALID
 
-    /** The node's value as a string — null for a section or a missing node. */
+    /** The node value, or null for sections and missing nodes. */
     fun asString(): String? = value
 
     /**
-     * Serialize this node as text VDF to [file]. [asBinary] is accepted for
-     * call-site compatibility but ignored — only the text form is written.
+     * Serializes this node as text VDF to [file].
+     *
+     * [asBinary] is accepted for call-site compatibility but ignored.
      */
     fun saveToFile(
         file: File,
@@ -47,7 +43,7 @@ class KeyValue(
         file.writeText(serialize())
     }
 
-    /** Serialize this node (and its subtree) to a text-VDF string. */
+    /** Serializes this node and its subtree to a text VDF string. */
     fun serialize(): String = StringBuilder().also { writeNode(it, this, 0) }.toString()
 
     private fun writeNode(
@@ -68,7 +64,7 @@ class KeyValue(
     }
 
     companion object {
-        /** Sentinel returned by [get] for a missing child — compare with `===`. */
+        /** Sentinel returned by [get] for missing children. Compare with `===`. */
         val INVALID = KeyValue()
 
         private fun quote(s: String): String {
@@ -87,7 +83,7 @@ class KeyValue(
             return sb.toString()
         }
 
-        /** Parse a text-VDF document; returns the root node, or null on failure. */
+        /** Parses a text VDF document, returning null on failure. */
         fun loadFromString(text: String): KeyValue? =
             try {
                 Parser(text).parseRoot()
@@ -96,7 +92,7 @@ class KeyValue(
             }
     }
 
-    /** Text-VDF tokenizer + recursive-descent parser. */
+    /** Text VDF tokenizer and recursive-descent parser. */
     private class Parser(
         private val s: String,
     ) {
@@ -111,7 +107,7 @@ class KeyValue(
                 i++
                 parseChildren(root)
             } else {
-                // Degenerate "name" "value" document.
+                // Support a degenerate `"name" "value"` document.
                 root.value = nextToken()
             }
             return root
@@ -134,7 +130,7 @@ class KeyValue(
                     parseChildren(node)
                 } else {
                     node.value = nextToken()
-                    // An optional [$CONDITIONAL] platform tag may follow a value.
+                    // Optional platform conditions may follow values.
                     skipWhitespaceAndComments()
                     if (i < s.length && s[i] == '[') skipConditional()
                 }
@@ -144,7 +140,7 @@ class KeyValue(
 
         private fun skipConditional() {
             while (i < s.length && s[i] != ']') i++
-            if (i < s.length) i++ // consume ']'
+            if (i < s.length) i++
         }
 
         private fun skipWhitespaceAndComments() {
@@ -160,7 +156,7 @@ class KeyValue(
             }
         }
 
-        /** Read the next quoted or unquoted token, or null at EOF / a brace. */
+        /** Reads the next quoted or unquoted token, or null at EOF or a brace. */
         private fun nextToken(): String? {
             skipWhitespaceAndComments()
             if (i >= s.length) return null
@@ -170,7 +166,7 @@ class KeyValue(
         }
 
         private fun readQuoted(): String {
-            i++ // opening quote
+            i++
             val sb = StringBuilder()
             while (i < s.length) {
                 val c = s[i]

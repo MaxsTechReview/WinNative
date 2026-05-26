@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplicar</string>
     <string name="common_ui_credits_and_third_party_apps">Creditos e aplicativos de terceiros</string>
     <string name="common_ui_loading">Carregando…</string>
+    <string name="common_ui_exporting">Exportando…</string>
     <string name="common_ui_enable">Ativar</string>
     <string name="common_ui_disable">Desativar</string>
     <string name="common_ui_force">Forcar</string>
@@ -185,6 +186,11 @@
     <string name="library_games_layouts_header">LAYOUTS DA BIBLIOTECA</string>
     <string name="library_games_layout_carousel">Carrossel</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPÇÕES DE VISUALIZAÇÃO</string>
+    <string name="library_games_immersive_mode">Modo imersivo</string>
+    <string name="library_games_immersive_mode_description">Usar a arte do jogo em foco como plano de fundo</string>
+    <string name="library_games_immersive_blur">Desfocar o plano de fundo</string>
+    <string name="library_games_immersive_blur_description">Aplicar um efeito de desfoque ao plano de fundo imersivo</string>
     <string name="library_games_custom_game">Jogo Personalizado</string>
     <string name="library_games_play">Jogar</string>
     <string name="library_games_add_custom_game">Adicionar Jogo Personalizado</string>
@@ -254,6 +260,8 @@
     <string name="containers_list_creating">Criando Container…</string>
     <string name="containers_list_removing">Removendo Container…</string>
     <string name="containers_list_duplicating">Duplicando Container…</string>
+    <string name="containers_list_remove_title">Remover container</string>
+    <string name="containers_list_duplicate_title">Duplicar container</string>
     <string name="containers_list_confirm_remove">Deseja remover este container?</string>
     <string name="containers_list_confirm_duplicate">Deseja duplicar este container?</string>
 
@@ -855,7 +863,7 @@ Caminho instalado:
     <string name="settings_content_cannot_be_trusted">O conteudo nao e confiavel.</string>
     <string name="settings_content_is_incomplete">O conteudo esta incompleto.</string>
     <string name="settings_content_untrusted_files_warning">Aviso: O conteudo adicional contem arquivos nao confiaveis. Geralmente, os seguintes arquivos nao devem ser modificados. Por favor, decida se deseja prosseguir com a instalacao.</string>
-    <string name="settings_content_confirm_remove">Deseja remover este conteudo?</string>
+    <string name="settings_content_confirm_remove">Isso excluirá o componente do seu dispositivo.</string>
     <string name="settings_content_unable_to_remove_in_use">Nao e possivel remover este conteudo, porque um container esta usando este Wine atualmente.</string>
     <string name="settings_content_download_in_components">Nenhum baixado. Por favor, baixe um em Componentes.</string>
     <string name="settings_content_types_header">TIPOS DE CONTEUDO</string>
@@ -867,7 +875,10 @@ Caminho instalado:
     <string name="settings_drivers_install">Instalar Drivers</string>
     <string name="settings_drivers_installed_success">Driver instalado com sucesso.</string>
     <string name="settings_drivers_install_failed">Falha ao instalar driver.</string>
-    <string name="settings_drivers_confirm_remove">Deseja remover este driver?</string>
+    <string name="settings_drivers_remove_title">Remover driver?</string>
+    <string name="settings_drivers_confirm_remove">Isso excluirá o driver do seu dispositivo.</string>
+    <string name="settings_drivers_remove_repo_title">Remover repositório?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s será removido da sua lista de repositórios.</string>
     <string name="settings_drivers_repo_tap_to_load">Toque para carregar versoes</string>
     <string name="settings_drivers_repo_loading_releases">Carregando versoes…</string>
     <string name="settings_drivers_repo_release_count">%1$d versoes carregadas</string>
@@ -1006,6 +1017,12 @@ Caminho instalado:
     <string name="saves_import_export_exported_failed">Falha ao exportar saves: %1$s</string>
     <string name="saves_import_export_imported">Saves importados com sucesso</string>
     <string name="saves_import_export_imported_failed">Falha ao importar saves: %1$s</string>
+    <string name="saves_export_path_summary">Os saves serão exportados para /WinNative/saves</string>
+    <string name="saves_export_success_path">Exportado para %1$s</string>
+    <string name="saves_export_warning_title">Use isto apenas com jogos personalizados</string>
+    <string name="saves_export_warning_body">A exportação pode incluir saves de jogos instalados por lojas ou com sincronização em nuvem.</string>
+    <string name="saves_import_warning_title">Isso substituirá todos os saves neste contêiner</string>
+    <string name="saves_import_warning_body">Ao restaurar um backup antigo com vários jogos, copie primeiro os saves mais recentes para o zip com seu gerenciador de arquivos.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contêiner</string>

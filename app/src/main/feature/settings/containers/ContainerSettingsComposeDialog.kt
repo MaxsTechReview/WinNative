@@ -12,10 +12,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDialog
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -64,6 +69,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import kotlinx.coroutines.*
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
 import android.os.Environment
 
@@ -145,6 +151,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 setDimAmount(0.5f)
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    isNavigationBarContrastEnforced = false
+                }
             }
             // Centralize cleanup so back-button dismissal follows the same
             // path as Save/Cancel and still fires onFinished (important for
@@ -1529,14 +1538,16 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     fun dismiss() {
-        // Cleanup (launcher unregister, keyboard hide, onFinished) runs in
         // the Dialog.OnDismissListener so back-button dismissal takes the
         // same path as Save/Cancel.
         dialog.dismiss()
     }
 
-    private fun exportSaves() {
-        val container = this.container ?: return
+    private fun exportSaves(onComplete: () -> Unit) {
+        val container = this.container ?: run {
+            onComplete()
+            return
+        }
         val sanitizedName = container.name.replace(" ", "_")
         val date = SimpleDateFormat("MMddyyyy_HHmmss", Locale.US).format(Date())
         val zipName = "${sanitizedName}_${date}.zip"
@@ -1545,9 +1556,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val zipFile = File(exportDir, zipName)
 
         scope.launch(Dispatchers.IO) {
-            val loadingDialog = withContext(Dispatchers.Main) {
-                WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_exporting))
-            }
             try {
                 zipFile.outputStream().use { os ->
                     java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os)).use { zos ->
@@ -1568,13 +1576,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 }
 
                 withContext(Dispatchers.Main) {
-                    loadingDialog?.dismiss()
+                    onComplete()
                     WinToast.show(context, context.getString(R.string.saves_export_success_path, "/WinNative/saves"), dialog.window?.decorView)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    loadingDialog?.dismiss()
+                    onComplete()
                     WinToast.show(context, context.getString(R.string.saves_import_export_exported_failed, e.message), dialog.window?.decorView)
                 }
             }
@@ -1585,7 +1593,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         if (name.isEmpty()) return false
         val excludedFolders = setOf(
             "Contacts", "Desktop", "Downloads", "Favorites", "Links",
-            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache"
+            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache", "Templates"
         )
         if (excludedFolders.any { it.equals(name, ignoreCase = true) }) return true
         if (name.contains("Microsoft", ignoreCase = true)) return true
@@ -1619,19 +1627,23 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     private fun showExportSavesConfirmation() {
-        WinNativeComposeDialogs.showConfirm(
-            context,
-            context.getString(R.string.saves_export_warning_title) + "\n\n" + context.getString(R.string.saves_export_warning_body),
-        ) {
-            exportSaves()
+        showSavesPopupConfirmation(
+            title = context.getString(R.string.saves_export_warning_title),
+            message = context.getString(R.string.saves_export_warning_body),
+            confirmLabel = context.getString(R.string.common_ui_export),
+            progressLabel = context.getString(R.string.common_ui_exporting),
+        ) { dismiss ->
+            exportSaves(onComplete = dismiss)
         }
     }
 
     private fun showImportSavesConfirmation() {
-        WinNativeComposeDialogs.showConfirm(
-            context,
-            context.getString(R.string.saves_import_warning_title) + "\n\n" + context.getString(R.string.saves_import_warning_body),
-        ) {
+        showSavesPopupConfirmation(
+            title = context.getString(R.string.saves_import_warning_title),
+            message = context.getString(R.string.saves_import_warning_body),
+            confirmLabel = context.getString(R.string.common_ui_import),
+        ) { dismiss ->
+            dismiss()
             DirectoryPickerDialog.showFile(
                 activity,
                 title = context.getString(R.string.common_ui_import),
@@ -1640,6 +1652,39 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 importSaves(File(pickedPath))
             }
         }
+    }
+
+    private fun showSavesPopupConfirmation(
+        title: String,
+        message: String,
+        confirmLabel: String,
+        progressLabel: String? = null,
+        onConfirm: (dismiss: () -> Unit) -> Unit,
+    ) {
+        val dialog = AppCompatDialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+            setCancelable(true)
+            setCanceledOnTouchOutside(true)
+            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        }
+        val dismiss = { dialog.dismiss() }
+        val composeView = ComposeView(activity).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent {
+                WinNativeTheme {
+                    PopupDialog(
+                        title = title,
+                        message = message,
+                        confirmLabel = confirmLabel,
+                        progressLabel = progressLabel,
+                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                        onConfirm = { onConfirm(dismiss) },
+                        onCancel = dismiss,
+                    )
+                }
+            }
+        }
+        dialog.setContentView(composeView)
+        dialog.show()
     }
 
     private fun importSaves(zipFile: File) {

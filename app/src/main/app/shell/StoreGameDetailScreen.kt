@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
@@ -54,7 +55,6 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -837,7 +837,7 @@ private fun StoreSourceTag(
             ) {
                 if (showVerifyFiles) {
                     StoreSourceMenuItem(
-                        icon = Icons.Outlined.FactCheck,
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
                         label = stringResource(R.string.store_game_verify_files),
                         enabled = areSteamActionsEnabled && !isCheckingForUpdate,
                     ) { menuOpen = false; onVerifyFiles() }
@@ -1034,15 +1034,57 @@ private fun StoreCtaButton(
         animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
         label = "storeCtaScale",
     )
-    val shape = remember { RoundedCornerShape(12.dp) }
+    val flare by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
+        label = "storeCtaFlare",
+    )
+    val shape = remember { RoundedCornerShape(14.dp) }
     val activeBrush =
         Brush.horizontalGradient(
-            colors = listOf(Color(0xFF00B4D8), StoreAccent, Color(0xFF7B2FF7)),
+            colors =
+                listOf(
+                    Color(0xFF00B4D8).copy(alpha = 0.38f),
+                    StoreAccent.copy(alpha = 0.38f),
+                    Color(0xFF7B2FF7).copy(alpha = 0.38f),
+                ),
         )
     val disabledBrush =
         Brush.horizontalGradient(
-            colors = listOf(Color(0xFF3A3A4A), Color(0xFF2A2A36)),
+            colors =
+                listOf(
+                    Color(0xFF3A3A4A).copy(alpha = 0.35f),
+                    Color(0xFF2A2A36).copy(alpha = 0.35f),
+                ),
         )
+    val glassSheenBrush =
+        if (enabled) {
+            Brush.verticalGradient(
+                0.00f to Color.White.copy(alpha = 0.28f),
+                0.35f to Color.White.copy(alpha = 0.06f),
+                0.55f to Color.Transparent,
+                1.00f to Color.Black.copy(alpha = 0.12f),
+            )
+        } else {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.10f),
+                0.6f to Color.Transparent,
+                1.0f to Color.Black.copy(alpha = 0.08f),
+            )
+        }
+    val glassRimBrush =
+        if (enabled) {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.55f + 0.35f * flare),
+                0.5f to Color.White.copy(alpha = 0.08f + 0.18f * flare),
+                1.0f to Color.White.copy(alpha = 0.22f + 0.22f * flare),
+            )
+        } else {
+            Brush.verticalGradient(
+                0.0f to Color.White.copy(alpha = 0.16f),
+                1.0f to Color.White.copy(alpha = 0.04f),
+            )
+        }
     Box(
         modifier =
             Modifier
@@ -1053,6 +1095,8 @@ private fun StoreCtaButton(
                     scaleY = scale
                 }.clip(shape)
                 .background(if (enabled) activeBrush else disabledBrush)
+                .background(glassSheenBrush)
+                .border(1.dp, glassRimBrush, shape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -1132,8 +1176,26 @@ private fun StoreScreenCutoutMode() {
         val originalCutoutMode = window.attributes.layoutInDisplayCutoutMode
         val originalWidth = window.attributes.width
         val originalHeight = window.attributes.height
+        val originalNavigationBarColor = window.navigationBarColor
+        val originalNavBarContrastEnforced =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced
+            } else {
+                false
+            }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.clearFlags(
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
+        )
+        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor to take effect.
+        // Compose Dialog windows use Theme.DeviceDefault.Dialog which doesn't set it by default,
+        // so the system would otherwise draw its own opaque navbar over our transparent request.
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+        )
         window.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -1142,12 +1204,24 @@ private fun StoreScreenCutoutMode() {
             window.attributes.apply {
                 layoutInDisplayCutoutMode = storeCutoutMode()
             }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         onDispose {
             window.attributes =
                 window.attributes.apply {
                     layoutInDisplayCutoutMode = originalCutoutMode
                 }
+            window.navigationBarColor = originalNavigationBarColor
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = originalNavBarContrastEnforced
+            }
+            window.clearFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+            )
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.setLayout(originalWidth, originalHeight)
         }

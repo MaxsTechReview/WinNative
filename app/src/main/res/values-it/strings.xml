@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplica</string>
     <string name="common_ui_credits_and_third_party_apps">Crediti e app di terze parti</string>
     <string name="common_ui_loading">Caricamento…</string>
+    <string name="common_ui_exporting">Esportazione…</string>
     <string name="common_ui_enable">Abilita</string>
     <string name="common_ui_disable">Disabilita</string>
     <string name="common_ui_force">Forza</string>
@@ -185,6 +186,11 @@
     <string name="library_games_layouts_header">LAYOUT DELLA LIBRERIA</string>
     <string name="library_games_layout_carousel">Carosello</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPZIONI DI VISUALIZZAZIONE</string>
+    <string name="library_games_immersive_mode">Modalità immersiva</string>
+    <string name="library_games_immersive_mode_description">Usa l’immagine del gioco selezionato come sfondo</string>
+    <string name="library_games_immersive_blur">Sfoca lo sfondo</string>
+    <string name="library_games_immersive_blur_description">Applica un effetto sfocatura allo sfondo immersivo</string>
     <string name="library_games_custom_game">Gioco personalizzato</string>
     <string name="library_games_play">Gioca</string>
     <string name="library_games_add_custom_game">Aggiungi gioco personalizzato</string>
@@ -254,6 +260,8 @@
     <string name="containers_list_creating">Creazione contenitore…</string>
     <string name="containers_list_removing">Rimozione contenitore…</string>
     <string name="containers_list_duplicating">Duplicazione contenitore…</string>
+    <string name="containers_list_remove_title">Rimuovi contenitore</string>
+    <string name="containers_list_duplicate_title">Duplica contenitore</string>
     <string name="containers_list_confirm_remove">Vuoi rimuovere questo contenitore?</string>
     <string name="containers_list_confirm_duplicate">Vuoi duplicare questo contenitore?</string>
 
@@ -855,7 +863,7 @@ Percorso installato:
     <string name="settings_content_cannot_be_trusted">Il contenuto non è attendibile.</string>
     <string name="settings_content_is_incomplete">Il contenuto è incompleto.</string>
     <string name="settings_content_untrusted_files_warning">Avviso: il contenuto aggiuntivo contiene file non attendibili. In genere, i seguenti file non dovrebbero essere modificati. Decidi se procedere con l\'installazione.</string>
-    <string name="settings_content_confirm_remove">Vuoi rimuovere questo contenuto?</string>
+    <string name="settings_content_confirm_remove">Questo eliminerà il componente dal dispositivo.</string>
     <string name="settings_content_unable_to_remove_in_use">Impossibile rimuovere questo contenuto, perché un contenitore sta attualmente usando questo Wine.</string>
     <string name="settings_content_download_in_components">Nessuno scaricato. Scaricane uno in Componenti.</string>
     <string name="settings_content_types_header">TIPI DI CONTENUTO</string>
@@ -867,7 +875,10 @@ Percorso installato:
     <string name="settings_drivers_install">Installa driver</string>
     <string name="settings_drivers_installed_success">Driver installato con successo.</string>
     <string name="settings_drivers_install_failed">Installazione driver fallita.</string>
-    <string name="settings_drivers_confirm_remove">Vuoi rimuovere questo driver?</string>
+    <string name="settings_drivers_remove_title">Rimuovere il driver?</string>
+    <string name="settings_drivers_confirm_remove">Questo eliminerà il driver dal dispositivo.</string>
+    <string name="settings_drivers_remove_repo_title">Rimuovere il repository?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s verrà rimosso dalla lista dei repository.</string>
     <string name="settings_drivers_repo_tap_to_load">Tocca per caricare le release</string>
     <string name="settings_drivers_repo_loading_releases">Caricamento release…</string>
     <string name="settings_drivers_repo_release_count">%1$d release caricate</string>
@@ -1006,6 +1017,12 @@ Percorso installato:
     <string name="saves_import_export_exported_failed">Impossibile esportare i salvataggi: %1$s</string>
     <string name="saves_import_export_imported">Salvataggi importati con successo</string>
     <string name="saves_import_export_imported_failed">Impossibile importare i salvataggi: %1$s</string>
+    <string name="saves_export_path_summary">I salvataggi saranno esportati in /WinNative/saves</string>
+    <string name="saves_export_success_path">Esportato in %1$s</string>
+    <string name="saves_export_warning_title">Usa questa funzione solo con giochi personalizzati</string>
+    <string name="saves_export_warning_body">Il file esportato può includere salvataggi di giochi installati dagli store o sincronizzati nel cloud.</string>
+    <string name="saves_import_warning_title">Questo sovrascriverà tutti i salvataggi in questo contenitore</string>
+    <string name="saves_import_warning_body">Quando ripristini un backup precedente con più giochi, copia prima i salvataggi più recenti nel file zip con il tuo file manager.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contenitore</string>

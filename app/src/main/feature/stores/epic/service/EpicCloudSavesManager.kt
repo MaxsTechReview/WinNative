@@ -19,16 +19,8 @@ import java.io.File
 import java.time.Instant
 import java.util.zip.GZIPInputStream
 
-/**
- * Manages Epic Cloud Saves - downloading and uploading save files
- *
- * Epic uses a manifest-based chunked format (similar to game downloads):
- * - Manifest files contain metadata and chunk references
- * - Save files are split into compressed chunks
- * - Chunks are deduplicated via GUID/hash
- */
+// Manages Epic Cloud Saves using Epic's chunked manifest format.
 object EpicCloudSavesManager {
-    // Synchronization to prevent duplicate concurrent syncs
     private val syncMutex = Mutex()
     private data class SyncScope(
         val appId: Int,
@@ -41,7 +33,6 @@ object EpicCloudSavesManager {
     private const val DUPLICATE_UPLOAD_SUPPRESSION_MS = 120_000L
     private const val ANDROID_LOG_TAG = "EpicCloudSaves"
 
-    // Data classes for API responses
     data class CloudSaveFiles(
         val files: Map<String, CloudFileInfo>,
     )
@@ -71,13 +62,7 @@ object EpicCloudSavesManager {
         NONE,
     }
 
-    /**
-     * Lightweight probe: checks whether cloud saves need syncing for [appId]
-     * without downloading or uploading any files.
-     *
-     * @return `true` if a sync (download, upload, or conflict resolution) is
-     *         needed, `false` if saves are already up-to-date.
-     */
+    // Checks whether cloud saves need syncing without transferring files.
     suspend fun needsSync(
         context: Context,
         appId: Int,
@@ -144,11 +129,7 @@ object EpicCloudSavesManager {
             resolveSaveDirectory(context, game, creds.accountId, targetContainerId)
         }
 
-    /**
-     * Startup restore pass: if an installed Epic game has cloud saves enabled and
-     * no local files in the resolved save directory, pull the latest cloud save
-     * before the user launches it.
-     */
+    // Restores the latest cloud save when no local save files exist.
     suspend fun restoreCloudSavesIfLocalMissing(
         context: Context,
         appId: Int,
@@ -308,7 +289,6 @@ object EpicCloudSavesManager {
         targetContainerId: Int?,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            // Check if sync is already in progress for this appId
             val forceUpload = preferredAction.equals("upload", ignoreCase = true)
             val uploadRequest =
                 forceUpload || preferredAction.equals("exit_upload", ignoreCase = true)
@@ -328,20 +308,17 @@ object EpicCloudSavesManager {
             try {
                 Timber.tag("Epic").i("[Cloud Saves] Starting sync for $appId (action: $preferredAction, container: ${syncScope.containerId ?: "auto"})")
 
-                // Get game info to retrieve appName
                 val game = getEpicGame(context, appId)
                 if (game == null) {
                     Timber.tag("Epic").e("[Cloud Saves] Game not found: $appId")
                     return@withContext false
                 }
 
-                // Check if game supports cloud saves
                 if (!game.cloudSaveEnabled) {
                     Timber.tag("Epic").w("[Cloud Saves] Game does not support cloud saves: ${game.title}")
                     return@withContext false
                 }
 
-                // Get credentials and validate.
                 val credentials = EpicAuthManager.getStoredCredentials(context)
                 if (credentials.isFailure) {
                     Timber.tag("Epic").e("[Cloud Saves] Not logged in to Epic: ${credentials.exceptionOrNull()?.message}")
@@ -351,7 +328,6 @@ object EpicCloudSavesManager {
                 val creds = credentials.getOrNull()!!
                 Timber.tag("Epic").d("[Cloud Saves] Using account: ${creds.accountId} (${creds.displayName})")
 
-                //  Determine sync action - Upload,Download, Conflict or none
                 val action = determineSyncAction(context, creds.accountId, game, preferredAction, targetContainerId)
 
                 Timber.tag("Epic").i("[Cloud Saves] Sync action determined: $action")
@@ -413,7 +389,6 @@ object EpicCloudSavesManager {
                 if (preferredAction.equals("download", ignoreCase = true)) return@withContext SyncAction.DOWNLOAD
                 if (preferredAction.equals("upload", ignoreCase = true)) return@withContext SyncAction.UPLOAD
 
-                // Check local save directory
                 val saveDir = resolveSaveDirectory(context, game, accountId, targetContainerId)
                 val hasLocalFiles = saveDir.hasAnySaveFile()
 
@@ -447,7 +422,6 @@ object EpicCloudSavesManager {
                 val lastSyncTimestamp = getSyncTimestamp(context, game.id)
                 val lastSyncTimestampMillis = lastSyncTimestamp?.let { parseTimestamp(it) }?.takeIf { it > 0L }
 
-                // Get local newest file timestamp
                 val localNewestTimestamp =
                     newestLocalSaveTimestamp(saveDir)
 
@@ -983,7 +957,6 @@ object EpicCloudSavesManager {
                 var missingChunks = 0
                 manifest.chunkDataList?.elements?.forEach { chunkInfo ->
                     try {
-                        // Get chunk path using ChunkInfo's getPath method
                         val chunkPath = "$pathPrefix/${chunkInfo.getPath()}"
                         val chunkFile = cloudSaves.files[chunkPath]
 
@@ -1162,7 +1135,6 @@ object EpicCloudSavesManager {
                     return@withContext false
                 }
 
-                // Filter out empty files (just log them, don't fail the upload)
                 val emptyFiles = packagedFiles.filter { it.value.isEmpty() }
                 if (emptyFiles.isNotEmpty()) {
                     Timber
@@ -1234,7 +1206,6 @@ object EpicCloudSavesManager {
                                 "Epic",
                             ).i("[Cloud Saves] Uploaded manifest: ${manifestEntry.key} (${manifestEntry.value.size} bytes)")
 
-                        // Update sync timestamp
                         val timestamp =
                             java.time.Instant
                                 .now()
@@ -1422,7 +1393,6 @@ object EpicCloudSavesManager {
                     .toList()
             Timber.tag("Epic").i("[Cloud Saves] Found ${allFiles.size} file(s) under resolved save root before filters")
 
-            // Filter to only requested files if fileList is provided
             val filteredFiles =
                 allFiles.filter { file ->
                         val relativePath = file.relativeTo(saveDir).path.replace("\\", "/")
@@ -1469,7 +1439,6 @@ object EpicCloudSavesManager {
             var currentChunkGuid = generateGuid()
             val chunkSize = 1024 * 1024 // 1 MB chunks
 
-            // Process each file
             files.forEach { file ->
                 try {
                     val relativePath = file.relativeTo(saveDir).path.replace("\\", "/")
@@ -1499,7 +1468,6 @@ object EpicCloudSavesManager {
 
                     // Split file into chunk parts
                     while (fileOffset < fileData.size) {
-                        // Check if we need to finalize current chunk
                         if (currentChunkData.size >= chunkSize) {
                             val chunk = finalizeChunk(currentChunkData.toByteArray(), currentChunkGuid, chunkNum++, packagedFiles)
                             chunks.add(chunk)
@@ -1514,7 +1482,6 @@ object EpicCloudSavesManager {
                         val remainingInChunk = (chunkSize - currentChunkData.size).coerceAtMost((fileData.size - fileOffset).toInt())
                         val size = remainingInChunk
 
-                        // Add data to current chunk
                         currentChunkData.addAll(
                             fileData.sliceArray(fileOffset.toInt() until (fileOffset + remainingInChunk).toInt()).toList(),
                         )

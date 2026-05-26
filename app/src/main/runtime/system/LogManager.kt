@@ -61,7 +61,6 @@ object LogManager {
     fun rotateLogsOnAppStart(context: Context) {
         if (!isAnyLoggingEnabled(context)) return
         val logsDir = getLogsDir(context)
-        // Delete any existing .old.log files first
         logsDir.listFiles()?.filter { it.name.endsWith(".old.log") }?.forEach { it.delete() }
         // Rename current .log → .old.log
         logsDir.listFiles()?.filter { it.name.endsWith(".log") && !it.name.endsWith(".old.log") }?.forEach { file ->
@@ -78,9 +77,7 @@ object LogManager {
     @JvmStatic
     fun prepareForNewSession(context: Context) {
         val logsDir = getLogsDir(context)
-        // Remove .old.log files
         logsDir.listFiles()?.filter { it.name.endsWith(".old.log") }?.forEach { it.delete() }
-        // Remove current .log files (new session will create fresh ones)
         logsDir.listFiles()?.filter { it.name.endsWith(".log") }?.forEach { it.delete() }
     }
 
@@ -145,7 +142,6 @@ object LogManager {
         try {
             stopAppLogging()
             val pid = android.os.Process.myPid()
-            // Filter by PID and capture warnings, errors, and fatal messages
             appLogProcess =
                 Runtime.getRuntime().exec(
                     arrayOf("logcat", "-f", logFile.absolutePath, "--pid=$pid", "*:W"),

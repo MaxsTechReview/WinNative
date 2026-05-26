@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 import com.winlator.cmod.feature.stores.steam.enums.ELicenseFlags
 import com.winlator.cmod.feature.stores.steam.enums.ELicenseType
 import com.winlator.cmod.feature.stores.steam.enums.EPaymentMethod
-// (Phase 9) License is now an in-house plain type — no JavaSteam import
+// License is now an in-house plain type — no JavaSteam import
 import java.util.Date
 import java.util.EnumSet
 

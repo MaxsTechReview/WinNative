@@ -32,6 +32,7 @@
     <string name="common_ui_duplicate">Duplikuj</string>
     <string name="common_ui_credits_and_third_party_apps">Autorzy i aplikacje zewnętrzne</string>
     <string name="common_ui_loading">Ładowanie…</string>
+    <string name="common_ui_exporting">Eksportowanie…</string>
     <string name="common_ui_enable">Włącz</string>
     <string name="common_ui_disable">Wyłącz</string>
     <string name="common_ui_force">Wymuś</string>
@@ -189,6 +190,11 @@
     <string name="library_games_layouts_header">UKŁADY BIBLIOTEKI</string>
     <string name="library_games_layout_carousel">Karuzela</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPCJE WIDOKU</string>
+    <string name="library_games_immersive_mode">Tryb immersyjny</string>
+    <string name="library_games_immersive_mode_description">Użyj grafiki wybranej gry jako tła</string>
+    <string name="library_games_immersive_blur">Rozmyj tło</string>
+    <string name="library_games_immersive_blur_description">Zastosuj efekt rozmycia do tła immersyjnego</string>
     <string name="library_games_custom_game">Własna gra</string>
     <string name="library_games_play">Graj</string>
     <string name="library_games_add_custom_game">Dodaj własną grę</string>
@@ -258,6 +264,8 @@
     <string name="containers_list_creating">Tworzenie kontenera…</string>
     <string name="containers_list_removing">Usuwanie kontenera…</string>
     <string name="containers_list_duplicating">Duplikowanie kontenera…</string>
+    <string name="containers_list_remove_title">Usuń kontener</string>
+    <string name="containers_list_duplicate_title">Zduplikuj kontener</string>
     <string name="containers_list_confirm_remove">Czy chcesz usunąć ten kontener?</string>
     <string name="containers_list_confirm_duplicate">Czy chcesz zduplikować ten kontener?</string>
 
@@ -861,7 +869,7 @@ Zainstalowana ścieżka:
     <string name="settings_content_cannot_be_trusted">Nie można zaufać zawartości.</string>
     <string name="settings_content_is_incomplete">Zawartość jest niekompletna.</string>
     <string name="settings_content_untrusted_files_warning">Ostrzeżenie: Dodatkowa zawartość zawiera niezaufane pliki. Ogólnie, następujące pliki nie powinny być modyfikowane. Zdecyduj, czy kontynuować instalację.</string>
-    <string name="settings_content_confirm_remove">Czy chcesz usunąć tę zawartość?</string>
+    <string name="settings_content_confirm_remove">Spowoduje to usunięcie komponentu z urządzenia.</string>
     <string name="settings_content_unable_to_remove_in_use">Nie można usunąć tej zawartości, ponieważ kontener aktualnie używa tego Wine.</string>
     <string name="settings_content_download_in_components">Nic nie pobrano. Pobierz coś w Komponentach.</string>
     <string name="settings_content_types_header">TYPY ZAWARTOŚCI</string>
@@ -873,7 +881,10 @@ Zainstalowana ścieżka:
     <string name="settings_drivers_install">Zainstaluj sterowniki</string>
     <string name="settings_drivers_installed_success">Sterownik zainstalowany pomyślnie.</string>
     <string name="settings_drivers_install_failed">Nie udało się zainstalować sterownika.</string>
-    <string name="settings_drivers_confirm_remove">Czy chcesz usunąć ten sterownik?</string>
+    <string name="settings_drivers_remove_title">Usunąć sterownik?</string>
+    <string name="settings_drivers_confirm_remove">Spowoduje to usunięcie sterownika z urządzenia.</string>
+    <string name="settings_drivers_remove_repo_title">Usunąć repozytorium?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s zostanie usunięte z listy repozytoriów.</string>
     <string name="settings_drivers_repo_tap_to_load">Dotknij, aby wczytać wydania</string>
     <string name="settings_drivers_repo_loading_releases">Wczytywanie wydań…</string>
     <string name="settings_drivers_repo_release_count">Wczytano %1$d wydań</string>
@@ -1012,6 +1023,12 @@ Zainstalowana ścieżka:
     <string name="saves_import_export_exported_failed">Nie udało się wyeksportować zapisów: %1$s</string>
     <string name="saves_import_export_imported">Zapisy zaimportowane pomyślnie</string>
     <string name="saves_import_export_imported_failed">Nie udało się zaimportować zapisów: %1$s</string>
+    <string name="saves_export_path_summary">Zapisy zostaną wyeksportowane do /WinNative/saves</string>
+    <string name="saves_export_success_path">Wyeksportowano do %1$s</string>
+    <string name="saves_export_warning_title">Używaj tylko z grami niestandardowymi</string>
+    <string name="saves_export_warning_body">Eksport może zawierać zapisy z gier zainstalowanych ze sklepów lub synchronizowanych z chmurą.</string>
+    <string name="saves_import_warning_title">Spowoduje to nadpisanie wszystkich zapisów w tym kontenerze</string>
+    <string name="saves_import_warning_body">Podczas przywracania starszej kopii zapasowej z wieloma grami najpierw skopiuj nowsze zapisy do pliku zip za pomocą menedżera plików.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Kontener</string>

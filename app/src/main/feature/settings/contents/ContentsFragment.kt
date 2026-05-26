@@ -141,9 +141,7 @@ class ContentsFragment : Fragment() {
         super.onDestroy()
     }
 
-    // ------------------------------------------------------------------
     // State management
-    // ------------------------------------------------------------------
 
     private fun selectContentType(type: ContentProfile.ContentType) {
         if (type == currentContentType) return
@@ -303,9 +301,7 @@ class ContentsFragment : Fragment() {
         }
     }
 
-    // ------------------------------------------------------------------
     // Actions
-    // ------------------------------------------------------------------
 
     private fun promptInstallFromFile() {
         val activity = activity ?: return

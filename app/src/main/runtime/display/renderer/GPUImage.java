@@ -5,17 +5,13 @@ import androidx.annotation.Keep;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import java.nio.ByteBuffer;
 
-/**
+/*
  * Vulkan-backed AHardwareBuffer texture.
  *
- * <p>Two creation paths:
- * <ul>
- *   <li><b>Local</b>: {@link #GPUImage(short, short)} allocates a CPU-mappable BGRA AHB,
- *       locks it for CPU read+write (so the X server can push pixels), and lazily imports it
- *       as a sampleable VkImage on first {@link #allocateTexture}.</li>
- *   <li><b>Imported</b>: {@link #GPUImage(int)} reads an existing AHB handle from a Unix
- *       socket (DRI3 zero-copy path); no CPU mapping.</li>
- * </ul>
+ * Local images create a CPU-mappable BGRA buffer for X server pixel writes,
+ * then import it as a sampleable Vulkan image on demand.
+ *
+ * Imported images use an existing DRI3 buffer from a Unix socket without CPU mapping.
  */
 public class GPUImage extends Texture {
     private static final String TAG = "GPUImage";
@@ -94,7 +90,7 @@ public class GPUImage extends Texture {
     @Override
     public void updateFromDrawable(Drawable drawable) {
         if (!isAllocated()) allocateTexture(drawable.width, drawable.height, null);
-        // AHB-backed image is GPU-shared with the producer; no upload needed.
+        // The producer already shares this AHB with the GPU, so there is no CPU upload.
         needsUpdate = false;
     }
 

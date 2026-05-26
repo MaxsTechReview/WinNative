@@ -260,9 +260,7 @@ class SteamLoginActivity : FixedFontScaleComponentActivity() {
         val showLoginError = hasAttemptedLogin && !state.isLoggingIn && state.loginResult == LoginResult.Failed
         val spacing = if (compact) 10.dp else 14.dp
         val passwordFocus = remember { FocusRequester() }
-        // Phase 9: the C++ WN-Steam-Client connects on demand inside
-        // startLoginWithCredentials — there is no pre-login connection to
-        // wait on, so submission only needs non-empty credentials.
+        // Credentials login connects on demand; no pre-login connection is needed.
         val canSubmit =
             state.username.isNotEmpty() && state.password.isNotEmpty() &&
                 !state.isLoggingIn
