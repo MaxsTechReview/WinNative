@@ -37,8 +37,8 @@ class TouchpadView(
         private const val MAX_TWO_FINGERS_SCROLL_DISTANCE: Short = 350
         const val MAX_TAP_TRAVEL_DISTANCE: Byte = 10
         const val MAX_TAP_MILLISECONDS: Short = 200
-        const val CURSOR_ACCELERATION = 1.5f
-        const val CURSOR_ACCELERATION_THRESHOLD: Byte = 4
+        const val CURSOR_ACCELERATION = 1.2f
+        const val CURSOR_ACCELERATION_THRESHOLD: Byte = 8
         private const val MIN_SENSITIVITY = 0.1f
         private const val CLICK_DELAYED_TIME: Byte = 50
         private const val EFFECTIVE_TOUCH_DISTANCE: Byte = 20
