@@ -420,10 +420,7 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeInit(
 
     // ---- setenv pass BEFORE dlopen ----
     // applied_env_keys accumulates every key we setenv() in this init so
-    // nativeShutdown can unsetenv() them on teardown. Without this, switching
-    // from Bionic to Launch Steam Client mode within a single process leaks
-    // WINESTEAMCLIENTPATH / Steam3Master / SteamUser etc. into the real-Steam
-    // wine subprocess and confuses steam.exe.
+    // nativeShutdown can unsetenv() them on teardown.
     g_state.applied_env_keys.clear();
     apply_extra_env(env, jextraEnv);
     if (!home.empty()) {

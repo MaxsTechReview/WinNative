@@ -117,11 +117,6 @@
     </string-array>
     <string-array name="fexcore_version_entries">
     </string-array>
-    <string-array name="steam_type_entries">
-        <item>सामान्य - कोई ऑप्टिमाइज़ेशन नहीं</item>
-        <item>हल्का - ओवरले, शेडर, UI अतिरिक्त बंद करता है</item>
-        <item>अल्ट्रालाइट - अधिकतम प्रदर्शन, न्यूनतम सुविधाएँ</item>
-    </string-array>
     <string-array name="dinput_mapper_type_entries">
         <item>@string/container_config_dinput_legacy</item>
         <item>@string/container_config_dinput_modern</item>

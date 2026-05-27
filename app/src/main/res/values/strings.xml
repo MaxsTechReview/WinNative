@@ -327,12 +327,8 @@
     <string name="shortcuts_properties_runtime_patcher_description">Injects a DRM patcher DLL at launch. Reduces FPS — only use if Unpack Files alone fails.</string>
     <string name="shortcuts_properties_force_dlc">Force DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Enable if DLCs aren\'t detected or DLC saves don\'t work.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Launch Steam Client (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Runs the real Steam client in Wine. Requires an account. May reduce performance; not all games work.</string>
-    <string name="shortcuts_properties_steam_type">Steam Client Performance</string>
     <string name="steam_section_title">Steam</string>
     <string name="steam_section_emulator">Steam Emulator (Goldberg)</string>
-    <string name="steam_section_real_client">Real Steam Client</string>
     <string name="shortcuts_properties_use_steam_input">Use Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam Offline Mode</string>
     <string name="shortcuts_properties_reset">Reset Properties</string>
@@ -1172,7 +1168,6 @@ Installed path:
     <string name="cloud_saves_steam_push_success">Save pushed to Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Could not push save to Steam Cloud.</string>
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud is unreachable right now. Reconnecting in the background… tap refresh once you’re back online.</string>
-    <string name="steam_real_session_expired_toast">Steam session expired — please sign in again before launching Real Steam Client</string>
     <string name="steam_session_refused_event">Steam refused the cached session (EResult=%1$d). Please sign in again.</string>
     <string name="cloud_sync_enabled_summary">Download on launch, push on exit.</string>
     <string name="cloud_sync_disabled_summary">Launch without cloud save download or exit sync.</string>

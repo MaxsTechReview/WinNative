@@ -311,12 +311,8 @@
     <string name="shortcuts_properties_runtime_patcher_description">लॉन्च के समय एक DRM पैचर DLL इंजेक्ट करता है। FPS को कम करता है - केवल तभी उपयोग करें जब फ़ाइलें अनपैक करना विफल हो जाए।</string>
     <string name="shortcuts_properties_force_dlc">DLC बाध्य करें</string>
     <string name="shortcuts_properties_force_dlc_description">यदि DLCs का पता नहीं चलता है या DLC सेव काम नहीं करता है तो सक्षम करें।</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Steam Client लॉन्च करें (बीटा)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Wine में वास्तविक Steam क्लाइंट चलाता है। एक खाते की आवश्यकता है. प्रदर्शन कम हो सकता है; सभी गेम काम नहीं करते.</string>
-    <string name="shortcuts_properties_steam_type">Steam Client प्रदर्शन</string>
     <string name="steam_section_title">Steam</string>
     <string name="steam_section_emulator">Steam एम्यूलेटर (Goldberg)</string>
-    <string name="steam_section_real_client">असली Steam Client</string>
     <string name="shortcuts_properties_use_steam_input">Steam Input उपयोग करें</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam ऑफ़लाइन मोड</string>
     <string name="shortcuts_properties_reset">गुण रीसेट करें</string>

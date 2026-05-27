@@ -293,11 +293,7 @@
     <string name="shortcuts_properties_unpack_files_description">Fjerner SteamStub DRM fra exe-filen. Engangshandling. Deaktiver kun hvis et spil går i stykker.</string>
     <string name="shortcuts_properties_force_dlc">Tving DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Aktiver hvis DLC\'er ikke bliver fundet, eller gemmedata med DLC ikke virker.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Kører den rigtige Steam-klient i Wine. Kræver en konto. Kan reducere ydeevnen; ikke alle spil virker.</string>
-    <string name="shortcuts_properties_steam_type">Steam-klient ydeevne</string>
     <string name="steam_section_emulator">Steam-emulator (Goldberg)</string>
-    <string name="steam_section_real_client">Rigtig Steam-klient</string>
     <string name="shortcuts_properties_use_steam_input">Brug Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam offlinetilstand</string>
     <string name="shortcuts_properties_reset">Nulstil egenskaber</string>

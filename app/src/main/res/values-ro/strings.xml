@@ -293,11 +293,7 @@
     <string name="shortcuts_properties_unpack_files_description">Elimina DRM SteamStub din exe. Operatiune unica. Dezactiveaza doar daca un joc nu mai functioneaza.</string>
     <string name="shortcuts_properties_force_dlc">Forteaza DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Activeaza daca DLC-urile nu sunt detectate sau salvarile cu DLC nu functioneaza.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Lanseaza clientul Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Ruleaza clientul real Steam in Wine. Necesita un cont. Poate reduce performanta; nu toate jocurile functioneaza.</string>
-    <string name="shortcuts_properties_steam_type">Performanta client Steam</string>
     <string name="steam_section_emulator">Emulator Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Client Steam real</string>
     <string name="shortcuts_properties_use_steam_input">Foloseste Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Mod offline Steam</string>
     <string name="shortcuts_properties_reset">Reseteaza proprietatile</string>

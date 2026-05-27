@@ -293,11 +293,7 @@
     <string name="shortcuts_properties_unpack_files_description">從 exe 中移除 SteamStub DRM。一次性操作。僅在遊戲出問題時停用。</string>
     <string name="shortcuts_properties_force_dlc">強制 DLC</string>
     <string name="shortcuts_properties_force_dlc_description">如果 DLC 未被偵測到或 DLC 存檔無法正常運作，請啟用。</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">啟動 Steam 用戶端（測試版）</string>
-    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中執行真實 Steam 客戶端。需要帳號。可能會降低效能；並非所有遊戲都適用。</string>
-    <string name="shortcuts_properties_steam_type">Steam 客戶端效能</string>
     <string name="steam_section_emulator">Steam 模擬器 (Goldberg)</string>
-    <string name="steam_section_real_client">真實 Steam 客戶端</string>
     <string name="shortcuts_properties_use_steam_input">使用 Steam 輸入</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 離線模式</string>
     <string name="shortcuts_properties_reset">重設屬性</string>

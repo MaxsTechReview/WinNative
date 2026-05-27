@@ -297,11 +297,7 @@
     <string name="shortcuts_properties_unpack_files_description">Видаляє SteamStub DRM з exe. Одноразова операція. Вимикайте лише якщо гра перестає працювати.</string>
     <string name="shortcuts_properties_force_dlc">Примусово увімкнути DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Увімкніть, якщо DLC не виявлено або збереження з DLC не працюють.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Запустити клієнт Steam (бета)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Запускає справжній клієнт Steam у Wine. Потрібен обліковий запис. Може знизити продуктивність; працює не з усіма іграми.</string>
-    <string name="shortcuts_properties_steam_type">Продуктивність клієнта Steam</string>
     <string name="steam_section_emulator">Емулятор Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Справжній клієнт Steam</string>
     <string name="shortcuts_properties_use_steam_input">Використовувати Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Скинути властивості</string>

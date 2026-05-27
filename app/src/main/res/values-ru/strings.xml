@@ -322,12 +322,8 @@
     <string name="shortcuts_properties_runtime_patcher_description">Внедряет DLL DRM-патчера при запуске. Снижает FPS — используйте только если распаковка файлов не помогает.</string>
     <string name="shortcuts_properties_force_dlc">Принудительно включить DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Включите, если DLC не обнаруживаются или сохранения DLC не работают.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Запустить клиент Steam (бета)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Запускает настоящий клиент Steam в Wine. Требуется учетная запись. Может снизить производительность; не все игры работают.</string>
-    <string name="shortcuts_properties_steam_type">Производительность клиента Steam</string>
     <string name="steam_section_title">Steam</string>
     <string name="steam_section_emulator">Эмулятор Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Настоящий клиент Steam</string>
     <string name="shortcuts_properties_use_steam_input">Использовать Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Сбросить свойства</string>

@@ -48,7 +48,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private Container container;
   private final Shortcut shortcut;
   private File workingDir;
-  private String steamType = Container.STEAM_TYPE_NORMAL;
   private Runnable preUnpackCallback;
 
   public static File ensureImageFsNativeLibrary(
@@ -142,28 +141,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
   public void setContainer(Container container) {
     this.container = container;
-  }
-
-  public String getSteamType() {
-    return steamType;
-  }
-
-  public void setSteamType(String steamType) {
-    if (steamType == null) {
-      this.steamType = Container.STEAM_TYPE_NORMAL;
-      return;
-    }
-    String normalized = steamType.toLowerCase();
-    switch (normalized) {
-      case Container.STEAM_TYPE_LIGHT:
-        this.steamType = Container.STEAM_TYPE_LIGHT;
-        break;
-      case Container.STEAM_TYPE_ULTRALIGHT:
-        this.steamType = Container.STEAM_TYPE_ULTRALIGHT;
-        break;
-      default:
-        this.steamType = Container.STEAM_TYPE_NORMAL;
-    }
   }
 
   public String execShellCommand(String command) {
@@ -534,18 +511,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     Context context = environment.getContext();
     ImageFs imageFs = ImageFs.find(context);
     File rootDir = imageFs.getRootDir();
-    String assetPath;
-    switch (steamType) {
-      case Container.STEAM_TYPE_LIGHT:
-        assetPath = "box86_64/lightsteam.box64rc";
-        break;
-      case Container.STEAM_TYPE_ULTRALIGHT:
-        assetPath = "box86_64/ultralightsteam.box64rc";
-        break;
-      default:
-        assetPath = "box86_64/default.box64rc";
-        break;
-    }
+    String assetPath = "box86_64/default.box64rc";
     FileUtils.copy(context, assetPath, new File(rootDir, "/etc/config.box64rc"));
   }
 

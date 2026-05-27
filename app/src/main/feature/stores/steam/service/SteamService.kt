@@ -2196,7 +2196,6 @@ class SteamService : Service() {
             appId: String,
             container: Container,
         ): String {
-            if (container.isLaunchRealSteam) return "steam"
             val gameId = ContainerUtils.extractGameIdFromContainerId(appId)
             return container.executablePath.ifEmpty { getInstalledExe(gameId) }
         }
@@ -2688,17 +2687,6 @@ class SteamService : Service() {
             val dest = File(context.filesDir, fileName)
             Timber.d("Downloading $fileName to " + dest.toString())
             fetchFileWithFallback(fileName, dest, context, onDownloadProgress)
-        }
-
-        fun downloadSteam(
-            onDownloadProgress: (Float) -> Unit,
-            parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-            context: Context,
-        ) = parentScope.async {
-            Timber.i("imagefs will be downloaded")
-            val dest = File(context.filesDir, "steam.tzst")
-            Timber.d("Downloading steam.tzst to " + dest.toString())
-            fetchFileWithFallback("steam.tzst", dest, context, onDownloadProgress)
         }
 
         private fun selectSteamControllerConfig(details: List<SteamControllerConfigDetail>): SteamControllerConfigDetail? {

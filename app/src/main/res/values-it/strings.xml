@@ -293,11 +293,7 @@
     <string name="shortcuts_properties_unpack_files_description">Rimuove il DRM SteamStub dall\'exe. Operazione unica. Disattiva solo se un gioco si rompe.</string>
     <string name="shortcuts_properties_force_dlc">Forza DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Abilita se i DLC non vengono rilevati o i salvataggi con DLC non funzionano.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Avvia client Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Esegue il vero client Steam in Wine. Richiede un account. Può ridurre le prestazioni; non tutti i giochi funzionano.</string>
-    <string name="shortcuts_properties_steam_type">Prestazioni client Steam</string>
     <string name="steam_section_emulator">Emulatore Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Client Steam reale</string>
     <string name="shortcuts_properties_use_steam_input">Usa Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Modalità offline Steam</string>
     <string name="shortcuts_properties_reset">Ripristina proprietà</string>

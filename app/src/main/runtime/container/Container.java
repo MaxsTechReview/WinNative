@@ -68,20 +68,14 @@ public class Container {
     private String emulator64 = DEFAULT_EMULATOR64;
     private String executablePath = "";
     private String execArgs = "";
-    private boolean launchRealSteam;
     private boolean launchBionicSteam;
     private boolean useColdClient = false;
-    private String steamType = "normal";
     private boolean allowSteamUpdates;
     private boolean needsUnpacking = true;
     private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
     private boolean unpackFiles = false;
     private boolean runtimePatcher = false;
-
-    public static final String STEAM_TYPE_NORMAL = "normal";
-    public static final String STEAM_TYPE_LIGHT = "light";
-    public static final String STEAM_TYPE_ULTRALIGHT = "ultralight";
 
     private ContainerManager containerManager;
 
@@ -432,11 +426,9 @@ public class Container {
             data.put("extraData", extraData);
             data.put("midiSoundFont", midiSoundFont);
             data.put("lc_all", lc_all);
-            data.put("launchRealSteam", launchRealSteam);
             data.put("launchBionicSteam", launchBionicSteam);
             data.put("useColdClient", useColdClient);
             data.put("coldClientMigrated", true);
-            data.put("steamType", steamType);
             data.put("allowSteamUpdates", allowSteamUpdates);
             data.put("needsUnpacking", needsUnpacking);
             data.put("forceDlc", forceDlc);
@@ -547,9 +539,6 @@ public class Container {
                 case "lc_all" :
                     setLC_ALL(data.getString(key));
                     break;
-                case "launchRealSteam" :
-                    setLaunchRealSteam(data.getBoolean(key));
-                    break;
                 case "launchBionicSteam" :
                     setLaunchBionicSteam(data.getBoolean(key));
                     break;
@@ -562,9 +551,6 @@ public class Container {
                     break;
                 case "useLegacyDRM" :
                     // Old field — always default to ColdClient on
-                    break;
-                case "steamType" :
-                    setSteamType(data.getString(key));
                     break;
                 case "allowSteamUpdates" :
                     setAllowSteamUpdates(data.getBoolean(key));
@@ -709,28 +695,14 @@ public class Container {
         return false;
     }
 
-    public boolean isLaunchRealSteam() {
-        return launchRealSteam;
-    }
-
-    public void setLaunchRealSteam(boolean launchRealSteam) {
-        this.launchRealSteam = launchRealSteam;
-        // The two Steam launch modes are mutually exclusive — keep the
-        // setters honest so a stale "both on" state can't sneak in via
-        // legacy import paths.
-        if (launchRealSteam) this.launchBionicSteam = false;
-    }
-
     /** Bionic Steam mode: wine launches steam.exe + game.exe and our embedded
-     *  libsteamclient.so via wn-steam-bootstrap handles the SteamWorks IPC.
-     *  Mutually exclusive with {@link #isLaunchRealSteam()}. */
+     *  libsteamclient.so via wn-steam-bootstrap handles the SteamWorks IPC. */
     public boolean isLaunchBionicSteam() {
         return launchBionicSteam;
     }
 
     public void setLaunchBionicSteam(boolean launchBionicSteam) {
         this.launchBionicSteam = launchBionicSteam;
-        if (launchBionicSteam) this.launchRealSteam = false;
     }
 
     public boolean isUseColdClient() {
@@ -739,24 +711,6 @@ public class Container {
 
     public void setUseColdClient(boolean useColdClient) {
         this.useColdClient = useColdClient;
-    }
-
-    public String getSteamType() {
-        return steamType;
-    }
-
-    public void setSteamType(String steamType) {
-        String normalized = (steamType == null) ? "" : steamType.toLowerCase();
-        switch (normalized) {
-            case STEAM_TYPE_LIGHT:
-                this.steamType = STEAM_TYPE_LIGHT;
-                break;
-            case STEAM_TYPE_ULTRALIGHT:
-                this.steamType = STEAM_TYPE_ULTRALIGHT;
-                break;
-            default:
-                this.steamType = STEAM_TYPE_NORMAL;
-        }
     }
 
     public boolean isAllowSteamUpdates() {

@@ -293,11 +293,7 @@
     <string name="shortcuts_properties_unpack_files_description">Remove o DRM SteamStub do exe. Operação única. Desative apenas se um jogo quebrar.</string>
     <string name="shortcuts_properties_force_dlc">Forcar DLC</string>
     <string name="shortcuts_properties_force_dlc_description">Ative se as DLCs nao forem detectadas ou saves com DLC nao funcionarem.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Iniciar Cliente Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Executa o cliente real do Steam no Wine. Requer uma conta. Pode reduzir o desempenho; nem todos os jogos funcionam.</string>
-    <string name="shortcuts_properties_steam_type">Desempenho do cliente Steam</string>
     <string name="steam_section_emulator">Emulador Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Cliente Steam real</string>
     <string name="shortcuts_properties_use_steam_input">Usar Entrada Steam</string>
     <string name="shortcuts_properties_steam_offline_mode">Modo Offline do Steam</string>
     <string name="shortcuts_properties_reset">Redefinir Propriedades</string>

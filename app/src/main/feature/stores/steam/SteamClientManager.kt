@@ -17,39 +17,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.concurrent.thread
 
-// Manages Steam client download, extraction, and Steamless patching.
+// Manages ColdClient and Steamless support assets.
 object SteamClientManager {
     private const val TAG = "SteamClientManager"
     private const val COMPONENTS_BASE_URL = "https://github.com/maxjivi05/Components/releases/download/Components"
 
-    interface DownloadProgressListener {
-        fun onProgress(progress: Float)
-
-        fun onComplete(
-            success: Boolean,
-            error: String?,
-        )
-    }
-
     interface ShellCommandRunner {
         fun exec(command: String): String
-    }
-
-    @JvmStatic
-    fun isSteamDownloaded(context: Context): Boolean {
-        val steamFile = File(context.filesDir, "steam.tzst")
-        return steamFile.exists() && steamFile.length() > 0
-    }
-
-    @JvmStatic
-    fun isSteamInstalled(context: Context): Boolean {
-        val imageFs = ImageFs.find(context)
-        val steamExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steam.exe")
-        val steamClient = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient.dll")
-        val steamClient64 = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient64.dll")
-        return steamExe.exists() && steamClient.exists() && steamClient64.exists()
     }
 
     @JvmStatic
@@ -60,58 +35,9 @@ object SteamClientManager {
         return loaderExe.exists() && loaderExe.length() > 0 && extraDll.exists() && extraDll.length() > 0
     }
 
-    @JvmStatic
-    fun downloadSteam(
-        context: Context,
-        listener: DownloadProgressListener?,
-    ) {
-        thread(name = "SteamDownloader") {
-            val dest = File(context.filesDir, "steam.tzst")
-            val tmp = File("${dest.absolutePath}.part")
-            var success = false
-            var error: String? = null
-
-            val urls = downloadUrlsFor("steam.tzst")
-            for (urlStr in urls) {
-                try {
-                    Log.d(TAG, "Attempting download from: $urlStr")
-                    downloadFile(urlStr, tmp, listener)
-
-                    if (tmp.exists() && tmp.length() > 0) {
-                        if (!tmp.renameTo(dest)) {
-                            Files.copy(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                            tmp.delete()
-                        }
-                        success = true
-                        Log.d(TAG, "Steam download completed: ${dest.length()} bytes")
-                        break
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Download failed from $urlStr: ${e.message}")
-                    error = e.message
-                    tmp.delete()
-                }
-            }
-
-            if (!success) {
-                val finalError = error ?: "All download sources failed"
-                Handler(Looper.getMainLooper()).post {
-                    WinToast.show(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG)
-                }
-            }
-
-            listener?.let { l ->
-                Handler(Looper.getMainLooper()).post {
-                    l.onComplete(success, error)
-                }
-            }
-        }
-    }
-
     private fun downloadFile(
         urlStr: String,
         dest: File,
-        listener: DownloadProgressListener?,
     ) {
         var conn: HttpURLConnection? = null
         try {
@@ -125,24 +51,17 @@ object SteamClientManager {
                 throw Exception("HTTP $responseCode")
             }
 
-            val total = conn.contentLength.toLong()
-            var downloaded = 0L
-
             conn.inputStream.use { input ->
                 FileOutputStream(dest).use { output ->
                     val buf = ByteArray(8192)
                     var bytesRead: Int
                     while (input.read(buf).also { bytesRead = it } >= 0) {
                         output.write(buf, 0, bytesRead)
-                        downloaded += bytesRead
-                        if (listener != null && total > 0) {
-                            val progress = downloaded.toFloat() / total
-                            Handler(Looper.getMainLooper()).post { listener.onProgress(progress) }
-                        }
                     }
                 }
             }
 
+            val total = conn.contentLength.toLong()
             if (total > 0 && dest.length() != total) {
                 dest.delete()
                 throw Exception("Incomplete download: ${dest.length()}/$total")
@@ -180,7 +99,7 @@ object SteamClientManager {
         for (urlStr in downloadUrlsFor(fileName)) {
             try {
                 Log.d(TAG, "Downloading $fileName from: $urlStr")
-                downloadFile(urlStr, tmp, null)
+                downloadFile(urlStr, tmp)
                 if (tmp.exists() && tmp.length() > 0) {
                     if (!tmp.renameTo(dest)) {
                         Files.copy(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
@@ -200,48 +119,6 @@ object SteamClientManager {
             WinToast.show(context, failureMessage, Toast.LENGTH_LONG)
         }
         return false
-    }
-
-    @JvmStatic
-    fun extractSteam(context: Context): Boolean {
-        if (isSteamInstalled(context)) return true
-
-        val steamFile = File(context.filesDir, "steam.tzst")
-        if (!steamFile.exists()) return false
-
-        val imageFs = ImageFs.find(context)
-        return try {
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                steamFile,
-                imageFs.rootDir,
-                null,
-            )
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract steam archive: ${e.message}")
-            false
-        }
-    }
-
-    @JvmStatic
-    fun forceExtractSteam(context: Context): Boolean {
-        val steamFile = File(context.filesDir, "steam.tzst")
-        if (!steamFile.exists()) return false
-
-        val imageFs = ImageFs.find(context)
-        return try {
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                steamFile,
-                imageFs.rootDir,
-                null,
-            )
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to force extract steam archive: ${e.message}")
-            false
-        }
     }
 
     @JvmStatic
@@ -297,42 +174,6 @@ object SteamClientManager {
             false
         }
     }
-
-    // Blocking check/download/extract path for Steam client files.
-    @JvmStatic
-    fun ensureSteamReady(context: Context): Boolean {
-        if (isSteamInstalled(context)) {
-            Log.d(TAG, "Steam client already installed")
-            return true
-        }
-
-        if (!isSteamDownloaded(context)) {
-            Log.d(TAG, "Steam files not found, downloading...")
-            Handler(Looper.getMainLooper()).post {
-                WinToast.show(context, "Downloading Steam client...", Toast.LENGTH_SHORT)
-            }
-
-            if (!ensureArchiveReady(context, "steam.tzst", "Failed to download Steam client")) {
-                return false
-            }
-        }
-
-        Log.d(TAG, "Extracting steam files...")
-        val success = extractSteam(context)
-        if (success) {
-            Log.d(TAG, "Steam client extracted successfully")
-            Handler(Looper.getMainLooper()).post {
-                WinToast.show(context, "Steam client ready", Toast.LENGTH_SHORT)
-            }
-        } else {
-            Log.e(TAG, "Failed to extract steam.tzst")
-        }
-        return success
-    }
-
-    @JvmStatic
-    fun ensureRealSteamSupportReady(context: Context): Boolean =
-        ensureArchiveReady(context, "steam-token.tzst", "Failed to download Steam token helper")
 
     @JvmStatic
     fun ensureColdClientSupportReady(context: Context): Boolean = extractColdClientSupport(context)

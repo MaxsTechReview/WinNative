@@ -333,9 +333,6 @@ class GameSettingsStateHolder {
     val steamOfflineMode = mutableStateOf(false)
     val unpackFiles = mutableStateOf(false)
     val runtimePatcher = mutableStateOf(false)
-    val launchRealSteam = mutableStateOf(false)
-    val steamTypeEntries = mutableStateOf<List<String>>(emptyList())
-    val selectedSteamType = mutableIntStateOf(0)
 
     // Components
     val winComponentEntries = mutableStateOf<List<String>>(emptyList())
@@ -1884,7 +1881,6 @@ private fun SteamSection(state: GameSettingsStateHolder) {
         state.steamLauncher.value = enabled
         if (enabled) {
             state.useColdClient.value = false
-            state.launchRealSteam.value = false
             state.unpackFiles.value = false
             state.runtimePatcher.value = false
             state.forceDlc.value = false
@@ -1919,7 +1915,6 @@ private fun SteamSection(state: GameSettingsStateHolder) {
                 state.useColdClient.value = it
                 if (it) {
                     state.steamLauncher.value = false
-                    state.launchRealSteam.value = false
                 }
             }
         )
@@ -1976,7 +1971,6 @@ private fun SteamSection(state: GameSettingsStateHolder) {
                 state.unpackFiles.value = it
                 if (it) {
                     state.steamLauncher.value = false
-                    state.launchRealSteam.value = false
                 }
             }
         )
@@ -1996,7 +1990,6 @@ private fun SteamSection(state: GameSettingsStateHolder) {
                 state.runtimePatcher.value = it
                 if (it) {
                     state.steamLauncher.value = false
-                    state.launchRealSteam.value = false
                 }
             }
         )
@@ -2007,44 +2000,6 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             fontSize = 11.sp,
             lineHeight = 16.sp
         )
-    }
-
-    Spacer(Modifier.height(SettingItemGap))
-
-    SubsectionLabel(stringResource(R.string.steam_section_real_client))
-    Spacer(Modifier.height(8.dp))
-    SettingGroup {
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_launch_steam_client_beta),
-            checked = state.launchRealSteam.value,
-            onCheckedChange = {
-                state.launchRealSteam.value = it
-                if (it) {
-                    state.steamLauncher.value = false
-                    state.useColdClient.value = false
-                    state.unpackFiles.value = false
-                    state.runtimePatcher.value = false
-                }
-            }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.shortcuts_properties_launch_steam_client_description),
-            color = TextDim,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
-
-        Spacer(Modifier.height(SettingItemGap))
-
-        if (state.steamTypeEntries.value.isNotEmpty()) {
-            SettingDropdown(
-                label = stringResource(R.string.shortcuts_properties_steam_type),
-                entries = state.steamTypeEntries.value,
-                selectedIndex = state.selectedSteamType.intValue,
-                onSelected = { state.selectedSteamType.intValue = it }
-            )
-        }
     }
 }
 
