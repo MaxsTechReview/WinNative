@@ -123,8 +123,6 @@ class WnLauncherStatusTailer(
         line.contains("redist scan: ") && line.contains(" of ") -> "Redistributables ready"
         line.contains("redist scan: 0 *.exe installers") -> "No redistributables to install"
         line.contains("redist scan: no _CommonRedist") -> "No redistributables to install"
-        line.contains("RunInstallScript(appId=") -> "Installing redistributables…"
-        line.contains("install script finished") -> "Redistributables installed"
         line.contains("steamservice: post-start state=4") -> "Steam service running"
         line.contains("IClientAppManager.LaunchApp(appId=") -> "Launching $gameDisplayName…"
         else -> null

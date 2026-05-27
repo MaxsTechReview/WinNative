@@ -4332,7 +4332,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             : container.isRuntimePatcher();
 
                     String ticketBase64 = null;
-                    if (!launchRealSteamSetup) {
+                    // Skip ticket fetch in Steam Launcher mode — the in-Wine
+                    // steam.exe hosts Valve's real steamclient64.dll which mints
+                    // tickets on demand, so Goldberg's configs.user.ini ticket is
+                    // unused. This avoids a multi-second blocking CM round-trip.
+                    boolean wnPlanWActive = com.winlator.cmod.feature.stores.steam.utils
+                            .PrefManager.INSTANCE.getWnPlanW();
+                    if (!launchRealSteamSetup && !wnPlanWActive) {
                         try {
                             ticketBase64 = SteamBridge.getEncryptedAppTicketBase64(appId);
                         } catch (Exception e) {

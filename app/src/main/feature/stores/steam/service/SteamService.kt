@@ -6642,13 +6642,16 @@ class SteamService : Service() {
                         recordLogonFailure(2)
                         return@withLock null
                     }
+                    // 12s logon wait — long enough for a slow CM round-trip but
+                    // bounded so the game-launch sequence isn't blocked 30s on a
+                    // session that won't recover.
                     var wait = 0
-                    while (brought.state() != 3 && wait < 30) {
-                        delay(1000L)
+                    while (brought.state() != 3 && wait < 24) {
+                        delay(500L)
                         wait++
                     }
                     if (brought.state() != 3) {
-                        Timber.w("withWnSession: session never reached LoggedOn")
+                        Timber.w("withWnSession: session never reached LoggedOn after 12s")
                         if (lastLogonFailureEresult == 0) recordLogonFailure(16)
                         return@withLock null
                     }
@@ -8487,6 +8490,8 @@ class SteamService : Service() {
                 return cachedTicket.encryptedTicket
             }
 
+            // Cold Client needs this ticket for Capcom DRM titles; tolerate a
+            // slow wn-session cold-start by waiting up to 15s.
             var wnTicket: ByteArray? = null
             val ticketWaitDeadlineMs = System.currentTimeMillis() + 15_000L
             while (wnTicket == null && System.currentTimeMillis() < ticketWaitDeadlineMs) {
@@ -8497,9 +8502,7 @@ class SteamService : Service() {
                 kotlinx.coroutines.delay(500L)
             }
             if (wnTicket == null) {
-                Timber.w("encrypted app ticket: 15s wait elapsed without success for app $appId — " +
-                    "game launches that need this ticket (Capcom DRM titles, online auth) will fail. " +
-                    "Verify wn-session is logged on (state-dump op).")
+                Timber.w("encrypted app ticket: 15s wait elapsed without success for app $appId")
             }
             if (wnTicket != null && wnTicket.isNotEmpty()) {
                 runCatching {

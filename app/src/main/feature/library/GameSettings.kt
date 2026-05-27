@@ -326,6 +326,7 @@ class GameSettingsStateHolder {
 
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
+    val steamLauncher = mutableStateOf(true)
     val useColdClient = mutableStateOf(false)
     val useSteamInput = mutableStateOf(false)
     val forceDlc = mutableStateOf(false)
@@ -1877,6 +1878,37 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
 
+    // Steam Launcher is the default Steam path; toggling it on auto-uncheck
+    // every other Steam mode (they're all mutually exclusive launch paths).
+    val onSteamLauncherChange: (Boolean) -> Unit = { enabled ->
+        state.steamLauncher.value = enabled
+        if (enabled) {
+            state.useColdClient.value = false
+            state.launchRealSteam.value = false
+            state.unpackFiles.value = false
+            state.runtimePatcher.value = false
+            state.forceDlc.value = false
+            state.steamOfflineMode.value = false
+        }
+    }
+
+    SettingGroup {
+        SettingCheckbox(
+            label = "Steam Launcher",
+            checked = state.steamLauncher.value,
+            onCheckedChange = onSteamLauncherChange
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Run the game through the in-Wine Steam Launcher (recommended). Disables other Steam launch modes.",
+            color = TextDim,
+            fontSize = 11.sp,
+            lineHeight = 16.sp
+        )
+    }
+
+    Spacer(Modifier.height(SettingItemGap))
+
     SubsectionLabel(stringResource(R.string.steam_section_emulator))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -1885,9 +1917,10 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             checked = state.useColdClient.value,
             onCheckedChange = {
                 state.useColdClient.value = it
-                // Cold Client and Launch Steam Client are mutually exclusive —
-                // they use different Steam DLL setups that can't coexist at runtime.
-                if (it) state.launchRealSteam.value = false
+                if (it) {
+                    state.steamLauncher.value = false
+                    state.launchRealSteam.value = false
+                }
             }
         )
         Spacer(Modifier.height(4.dp))
@@ -1902,14 +1935,20 @@ private fun SteamSection(state: GameSettingsStateHolder) {
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_use_steam_input),
             checked = state.useSteamInput.value,
-            onCheckedChange = { state.useSteamInput.value = it }
+            onCheckedChange = {
+                state.useSteamInput.value = it
+                if (it) state.steamLauncher.value = false
+            }
         )
         Spacer(Modifier.height(SettingItemGap))
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_force_dlc),
             checked = state.forceDlc.value,
-            onCheckedChange = { state.forceDlc.value = it }
+            onCheckedChange = {
+                state.forceDlc.value = it
+                if (it) state.steamLauncher.value = false
+            }
         )
         Spacer(Modifier.height(4.dp))
         Text(
@@ -1923,7 +1962,10 @@ private fun SteamSection(state: GameSettingsStateHolder) {
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_steam_offline_mode),
             checked = state.steamOfflineMode.value,
-            onCheckedChange = { state.steamOfflineMode.value = it }
+            onCheckedChange = {
+                state.steamOfflineMode.value = it
+                if (it) state.steamLauncher.value = false
+            }
         )
         Spacer(Modifier.height(SettingItemGap))
 
@@ -1932,9 +1974,10 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             checked = state.unpackFiles.value,
             onCheckedChange = {
                 state.unpackFiles.value = it
-                // Unpack Files swaps the on-disk exe with a Steamless-stripped copy —
-                // incompatible with the original-exe launch Real Steam does via -applaunch.
-                if (it) state.launchRealSteam.value = false
+                if (it) {
+                    state.steamLauncher.value = false
+                    state.launchRealSteam.value = false
+                }
             }
         )
         Spacer(Modifier.height(4.dp))
@@ -1951,10 +1994,10 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             checked = state.runtimePatcher.value,
             onCheckedChange = {
                 state.runtimePatcher.value = it
-                // Runtime DRM Patcher injects Goldberg DLLs into the game at launch —
-                // Real Steam talks to the actual Steam client and doesn't want emulated
-                // steamclient DLLs poking around in its address space.
-                if (it) state.launchRealSteam.value = false
+                if (it) {
+                    state.steamLauncher.value = false
+                    state.launchRealSteam.value = false
+                }
             }
         )
         Spacer(Modifier.height(4.dp))
@@ -1976,10 +2019,8 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             checked = state.launchRealSteam.value,
             onCheckedChange = {
                 state.launchRealSteam.value = it
-                // Launch Steam Client runs the game through the real Steam client's
-                // -applaunch pipeline. Cold Client, Unpack Files, and Runtime DRM
-                // Patcher all conflict with that path — disable when this one is on.
                 if (it) {
+                    state.steamLauncher.value = false
                     state.useColdClient.value = false
                     state.unpackFiles.value = false
                     state.runtimePatcher.value = false

@@ -37,10 +37,6 @@ static const int kVtUser_GetSteamID         = 0x50;  // slot 10: CSteamID& GetSt
 static const int kVtUser_BHasCachedCreds    = 0x188; // slot 49: bool BHasCachedCredentials(const char*)
 static const int kVtUser_SetLoginToken      = 0x1C0; // slot 56: EResult SetLoginToken(const char* token, const char* account)
 
-static const int kVtUser_RunInstallScript       = 0x310; // slot 98: bool RunInstallScript(AppId_t, int flags)
-static const int kVtUser_IsInstallScriptRunning = 0x318; // slot 99: int  IsInstallScriptRunning()
-static const int kVtUser_GetInstallScriptState  = 0x320; // slot 100: bool GetInstallScriptState(char*, uint32, int*, int*)
-
 static const int kVtEngine_GetIClientAppManager = 0x158; // IClientEngine slot 43
 static const int kVtAppMgr_LaunchApp            = 0x10;  // IClientAppManager slot 2
 static const int kVtAppMgr_RefreshAppInfo       = 0x298; // void RefreshAppInfo()
@@ -499,6 +495,7 @@ static bool redist_already_installed(const std::string& name, uint64_t size) {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\0') continue;
         char* tab1 = strchr(line, '\t');
         if (!tab1) continue;
+        *tab1 = '\0';  // terminate name at first tab so name == line compares only the filename
         char* tab2 = strchr(tab1 + 1, '\t');
         if (!tab2) continue;
         uint64_t lineSize = _strtoui64(tab1 + 1, nullptr, 10);
@@ -1116,87 +1113,6 @@ int main(int argc, char** argv) {
     }
 
     scan_and_install_redists(gameExe);
-
-    constexpr bool kRunSteamInstallScript = false;
-    if (kRunSteamInstallScript && loggedOn && engine && appId != 0) {
-        void** engine_vt = *(void***) engine;
-        typedef void* (WN_THISCALL *GetIClientUserFn)(void* self, int hUser, int hPipe);
-        GetIClientUserFn getUser = (GetIClientUserFn)
-            engine_vt[kVtEngine_GetIClientUser / 8];
-        void* iUser = getUser(engine, hUser, pipe);
-        log_line("[wn-launcher] install script: IClientUser -> %p", iUser);
-        if (iUser) {
-            void** user_vt = *(void***) iUser;
-            void* runP   = user_vt[kVtUser_RunInstallScript / 8];
-            void* progP  = user_vt[kVtUser_IsInstallScriptRunning / 8];
-            void* stateP = user_vt[kVtUser_GetInstallScriptState / 8];
-            if (!is_exec_ptr(runP) || !is_exec_ptr(progP) || !is_exec_ptr(stateP)) {
-                log_line("[wn-launcher] install script: a vtable slot is not "
-                         "executable — skipping (offsets may not match this "
-                         "steamclient build)");
-            } else {
-                typedef bool (WN_THISCALL *RunInstallScriptFn)(void* self,
-                                               uint32_t app, int flags);
-                typedef int  (WN_THISCALL *IsInstallScriptRunningFn)(void* self);
-                typedef bool (WN_THISCALL *GetInstallScriptStateFn)(void* self,
-                                               char* buf, uint32_t cb,
-                                               int* outA, int* outB);
-                bool started = ((RunInstallScriptFn) runP)(iUser, appId, 0);
-                log_line("[wn-launcher] RunInstallScript(appId=%u) -> %d",
-                         appId, started ? 1 : 0);
-                if (started) {
-                    IsInstallScriptRunningFn isRunning =
-                        (IsInstallScriptRunningFn) progP;
-                    GetInstallScriptStateFn getState =
-                        (GetInstallScriptStateFn) stateP;
-                    const int kMaxWaitMs = 180000;
-                    const int kEmptyScriptGraceMs = 3000;
-                    const int kNoProgressMs = 30000;
-                    int waited = 0, lastStep = -1, lastTotal = -1;
-                    int lastProgressAtMs = 0;
-                    const char* breakReason = "complete";
-                    while (waited < kMaxWaitMs) {
-                        if (isRunning(iUser) == 0) {
-                            breakReason = "complete";
-                            break;
-                        }
-                        char buf[1024];
-                        int stepNo = 0, stepCount = 0;
-                        if (getState(iUser, buf, sizeof(buf),
-                                     &stepNo, &stepCount)) {
-                            if (stepNo != lastStep || stepCount != lastTotal) {
-                                lastStep = stepNo;
-                                lastTotal = stepCount;
-                                lastProgressAtMs = waited;
-                                log_line("[wn-launcher] install script: step %d/%d",
-                                         stepNo, stepCount);
-                            }
-                            if (stepCount == 0
-                                    && waited >= kEmptyScriptGraceMs) {
-                                breakReason = "empty (total_steps=0)";
-                                break;
-                            }
-                            if (waited - lastProgressAtMs >= kNoProgressMs) {
-                                breakReason = "no-progress timeout";
-                                break;
-                            }
-                        }
-                        if (bGetCallback && freeLastCallback) {
-                            char cb[64];
-                            while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
-                        }
-                        Sleep(200);
-                        waited += 200;
-                    }
-                    log_line("[wn-launcher] install script finished in %dms (%s)",
-                             waited,
-                             waited >= kMaxWaitMs ? "hard-timeout"
-                                                  : breakReason);
-                }
-            }
-        }
-    }
-
 
     bool svcRunning = start_steam_client_service();
     log_line("[wn-launcher] steamservice running: %d", svcRunning ? 1 : 0);

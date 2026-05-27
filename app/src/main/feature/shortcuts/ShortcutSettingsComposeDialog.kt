@@ -363,6 +363,8 @@ class ShortcutSettingsComposeDialog private constructor(
         val gameSource = shortcut.getExtra("game_source", "")
         state.isSteamGame.value = gameSource == "STEAM" || gameSource == "steam"
         if (state.isSteamGame.value) {
+            state.steamLauncher.value =
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW
             state.useColdClient.value = getShortcutSetting(
                 "useColdClient", if (container.isUseColdClient) "1" else "0") == "1"
             state.launchRealSteam.value = getShortcutSetting(
@@ -1237,6 +1239,8 @@ class ShortcutSettingsComposeDialog private constructor(
 
             // Steam options
             if (state.isSteamGame.value) {
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW =
+                    state.steamLauncher.value
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     "useColdClient",
                     if (state.useColdClient.value) "1" else "0",
@@ -2200,6 +2204,8 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         if (state.isSteamGame.value) {
+            state.steamLauncher.value =
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW
             state.useColdClient.value = container.isUseColdClient
             state.launchRealSteam.value = container.isLaunchRealSteam
             state.forceDlc.value = container.isForceDlc
