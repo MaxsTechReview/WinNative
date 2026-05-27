@@ -1221,6 +1221,26 @@ class SteamService : Service() {
                 }
             }
 
+        // Fire-and-skip variant: use the already-logged-on wn-session if one
+        // exists, otherwise return false WITHOUT bringing up a new session.
+        // Used on Steam-game termination to clear server-side "playing" state
+        // without blocking teardown 5-15s on a cold session bring-up.
+        @JvmStatic
+        suspend fun kickPlayingSessionIfReady(onlyGame: Boolean = true): Boolean =
+            withContext(Dispatchers.IO) {
+                try {
+                    val session = wnSession?.takeIf { it.state() == 3 } ?: return@withContext false
+                    session.markPlayingBlocked()
+                    session.kickPlayingSession(onlyGame)
+                    instance?._isPlayingBlocked?.value = true
+                    Timber.i("kickPlayingSessionIfReady: dispatched (onlyGame=$onlyGame)")
+                    true
+                } catch (e: Throwable) {
+                    Timber.w(e, "kickPlayingSessionIfReady failed")
+                    false
+                }
+            }
+
         // The single caller only needs to know whether any licenses exist,
         // so this returns the raw cached rows.
         suspend fun getLicensesFromDb(): List<CachedLicense> =

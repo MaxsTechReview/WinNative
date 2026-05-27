@@ -389,11 +389,13 @@ object WnSteamAssetsInstaller {
     }
 
     fun installPlanWLauncher(context: Context, container: Container): Boolean {
+        // Write THROUGH the Steam dir whether it's a real dir or a symlink to
+        // the shared backing store at <imageFs>/.shared/steam-client-store.
+        // Deleting the symlink (an earlier attempt) stranded the Valve DLLs
+        // there because updateSteamDirectoryVisibility re-creates the symlink
+        // each launch — without that link, steamclient64.dll is invisible to
+        // the launcher and LoadLibrary fails with GLE=126.
         val steamDir = File(container.rootDir, ".wine/drive_c/Program Files (x86)/Steam")
-        val steamPath = steamDir.toPath()
-        if (java.nio.file.Files.isSymbolicLink(steamPath)) {
-            try { java.nio.file.Files.delete(steamPath) } catch (_: Exception) {}
-        }
         steamDir.mkdirs()
         val dst = File(steamDir, "steam.exe")
         File(steamDir, "wn-steam-launcher.exe").let { if (it.exists()) it.delete() }

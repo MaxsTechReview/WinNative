@@ -1070,8 +1070,11 @@ int main(int argc, char** argv) {
                 bool reqRc = reqInfo(iApps, appIds, 1);
                 log_line("[wn-launcher] RequestAppInfoUpdate(appId=%u) -> %d",
                          appId, reqRc ? 1 : 0);
-                // 3s ceiling — purely diagnostic; the launch continues either
-                // way. LaunchApp internally refreshes AppInfo if it needs to.
+                // 3s ceiling. The callback rarely fires in this window, but
+                // steamclient's background PICS fetch needs the wall-clock
+                // time to land — without it LaunchApp returns EAppUpdateError=9
+                // MissingConfig for games like MonsterHunterRise that gate on
+                // fresh appinfo.
                 bool appInfoDone = false;
                 int  waited = 0;
                 for (int i = 0; i < 30 && !appInfoDone; ++i) {
@@ -1172,10 +1175,14 @@ int main(int argc, char** argv) {
             LaunchAppFn launchApp = (LaunchAppFn)
                 appMgr_vt[kVtAppMgr_LaunchApp / 8];
             uint64_t gameId = (uint64_t)(appId & 0xFFFFFFu);
-            uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
-            log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u) "
-                     "-> HSteamAPICall=0x%llx", appId,
-                     (unsigned long long) apiCall);
+
+            const int kMaxLaunchAttempts = 2;
+            for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
+                uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
+                log_line("[wn-launcher] IClientAppManager.LaunchApp(appId=%u) "
+                         "attempt=%d/%d -> HSteamAPICall=0x%llx", appId,
+                         attempt, kMaxLaunchAttempts,
+                         (unsigned long long) apiCall);
 
             if (apiCall != 0) {
                 typedef void* (WN_THISCALL *GetIClientUtilsFn)(void* self, int hPipe);
@@ -1261,7 +1268,11 @@ int main(int argc, char** argv) {
             }
 
             if (apiCall != 0) {
-                for (int i = 0; i < 120 && !launchedViaApp; ++i) {
+                // 30s per attempt — covers normal spawn time. A second LaunchApp
+                // call is issued by the outer for-loop if the game exe never
+                // appears (transient steamservice failure, DRM handshake retry).
+                // CreateProcess fallback only fires after both attempts time out.
+                for (int i = 0; i < 60 && !launchedViaApp; ++i) {
                     if (count_process_by_name(exeName) > 0) {
                         launchedViaApp = true;
                         break;
@@ -1272,14 +1283,26 @@ int main(int argc, char** argv) {
                     }
                     Sleep(500);
                 }
-                if (launchedViaApp)
-                    log_line("[wn-launcher] LaunchApp: \"%s\" is running", exeName);
-                else
+                if (launchedViaApp) {
+                    log_line("[wn-launcher] LaunchApp: \"%s\" is running (attempt %d/%d)",
+                             exeName, attempt, kMaxLaunchAttempts);
+                } else if (attempt < kMaxLaunchAttempts) {
+                    log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" never "
+                             "appeared — retrying LaunchApp", attempt,
+                             kMaxLaunchAttempts, exeName);
+                } else {
                     log_line("[wn-launcher] LaunchApp dispatched but \"%s\" never "
-                             "appeared — falling back to CreateProcess", exeName);
+                             "appeared after %d attempts — falling back to CreateProcess",
+                             exeName, kMaxLaunchAttempts);
+                }
+            } else if (attempt < kMaxLaunchAttempts) {
+                log_line("[wn-launcher] LaunchApp returned a null call handle "
+                         "(attempt %d/%d) — retrying", attempt, kMaxLaunchAttempts);
             } else {
                 log_line("[wn-launcher] LaunchApp returned a null call handle "
-                         "— falling back to CreateProcess");
+                         "after %d attempts — falling back to CreateProcess",
+                         kMaxLaunchAttempts);
+            }
             }
         }
     }

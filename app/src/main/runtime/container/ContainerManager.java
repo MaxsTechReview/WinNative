@@ -70,10 +70,13 @@ public class ContainerManager {
 
               container.setRootDir(new File(homeDir, ImageFs.USER + "-" + container.id));
               String configStr = FileUtils.readString(container.getConfigFile());
-              if (configStr == null) {
+              if (configStr == null || configStr.trim().isEmpty()) {
+                // Empty can transiently happen when another thread is mid-save
+                // (fopen("w") truncates before the new content lands). Skip
+                // without a stack trace — the next loadContainers will pick it up.
                 Log.w(
                     "ContainerManager",
-                    "Skipping container " + container.id + ": missing or unreadable config file");
+                    "Skipping container " + container.id + ": config file empty or unreadable");
                 continue;
               }
               JSONObject data = new JSONObject(configStr);
