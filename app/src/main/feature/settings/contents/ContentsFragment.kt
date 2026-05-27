@@ -443,7 +443,6 @@ class ContentsFragment : Fragment() {
                         return
                     }
 
-                    clearDownloadProgress()
                     runOnMain {
                         if (sourceRemoteUrl != null) {
                             manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
@@ -453,26 +452,27 @@ class ContentsFragment : Fragment() {
                         currentContentType = profile.type
                         publishState()
 
-                        if (autoCreateContainer &&
-                            (
-                                profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                                    profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                        val willAutoCreate = autoCreateContainer && (
+                            profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                                profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                        )
+
+                        if (willAutoCreate) {
+                            // Keep the download/install popup open and swap
+                            // its title — avoids a flash between dialogs.
+                            updateDownloadProgress(
+                                title = getString(R.string.containers_list_creating),
+                                message = profile.verName,
+                                indeterminate = true,
                             )
-                        ) {
                             val containerManager = ContainerManager(requireContext())
-
-                            val preloaderDialog =
-                                com.winlator.cmod.shared.ui.dialog
-                                    .PreloaderDialog(activity)
-                            preloaderDialog.show(R.string.containers_list_creating)
-
                             ContainerCreation.createContainerForProfileAsync(
                                 requireContext(),
                                 containerManager,
                                 manager,
                                 profile,
                             ) { newContainer ->
-                                preloaderDialog.close()
+                                clearDownloadProgress()
                                 if (newContainer != null) {
                                     WinToast.show(
                                         requireContext(),
@@ -480,6 +480,8 @@ class ContentsFragment : Fragment() {
                                     )
                                 }
                             }
+                        } else {
+                            clearDownloadProgress()
                         }
                     }
                 }

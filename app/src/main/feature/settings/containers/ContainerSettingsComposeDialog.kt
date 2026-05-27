@@ -53,7 +53,6 @@ import com.winlator.cmod.runtime.wine.LocaleEnv
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
 import com.winlator.cmod.shared.util.StringUtils
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
@@ -69,6 +68,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 import kotlinx.coroutines.*
+import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
 import android.os.Environment
@@ -97,7 +97,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private val manager = ContainerManager(context)
     private val contentsManager = ContentsManager(context)
     private var isArm64EC = false
-    private val preloaderDialog: PreloaderDialog = PreloaderDialog(activity)
+    private val creatingPopup: ContainerProgressPopup =
+        ContainerProgressPopup(activity, R.string.containers_list_creating)
 
     // Parallel id/display lists for presets and wine versions.
     private var box64PresetIds = mutableListOf<String>()
@@ -834,7 +835,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("lc_all", state.lcAll.value)
                 data.put("execArgs", state.execArgs.value)
 
-                preloaderDialog.show(R.string.containers_list_creating)
+                creatingPopup.show()
                 ImageFs.find(File(context.filesDir, "imagefs"))
 
                 ContainerCreation.createContainerAsync(manager, contentsManager, data) { newContainer ->
@@ -843,12 +844,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     } else {
                         WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
                     }
-                    preloaderDialog.close()
+                    creatingPopup.close()
                     dismiss()
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating container", e)
-                preloaderDialog.close()
+                creatingPopup.close()
                 WinToast.show(
                     context,
                     context.getString(R.string.common_ui_error_with_message, e.message ?: ""),
