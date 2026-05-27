@@ -70,22 +70,27 @@ struct WnConnectionHandle {
 
 // Helper: attach the caller's native thread to the JVM if needed and
 // return a JNIEnv*. We use AsDaemon so the attached thread does not block
-// VM exit. We never explicitly Detach for callback paths — the transport
-// worker thread is short-lived per connection and IXWebSocket joins it
-// during stop(), at which point the JVM cleans up the attachment.
+// VM exit, and detach again when this scope leaves.
 struct AttachScope {
     JNIEnv* env = nullptr;
     bool    attached = false;
+    JavaVM* vm = nullptr;
 
     explicit AttachScope(JavaVM* vm) {
+        this->vm = vm;
         if (!vm) return;
         jint rc = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
         if (rc == JNI_EDETACHED) {
-            vm->AttachCurrentThreadAsDaemon(&env, nullptr);
-            attached = true;
+            if (vm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK) {
+                attached = true;
+            } else {
+                env = nullptr;
+            }
         }
     }
-    // No automatic detach — see note above.
+    ~AttachScope() {
+        if (attached && vm) vm->DetachCurrentThread();
+    }
 };
 
 inline WnConnectionHandle* from_handle(jlong h) noexcept {

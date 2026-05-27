@@ -182,35 +182,155 @@ void init_jni_session_globals(JNIEnv* env) {
 struct AttachScope {
     JNIEnv* env = nullptr;
     bool    attached = false;
+    JavaVM* vm = nullptr;
     explicit AttachScope(JavaVM* vm) {
+        this->vm = vm;
         if (!vm) return;
         jint rc = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
         if (rc == JNI_EDETACHED) {
-            vm->AttachCurrentThreadAsDaemon(&env, nullptr);
-            attached = true;
+            if (vm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK) {
+                attached = true;
+            } else {
+                env = nullptr;
+            }
         }
     }
+    ~AttachScope() {
+        if (attached && vm) vm->DetachCurrentThread();
+    }
 };
+
+class GlobalRef {
+public:
+    GlobalRef(JNIEnv* env, jobject obj) {
+        if (!env || !obj) return;
+        JavaVM* vm = nullptr;
+        if (env->GetJavaVM(&vm) != JNI_OK || !vm) return;
+        vm_ = vm;
+        ref_ = env->NewGlobalRef(obj);
+        if (!ref_ && env->ExceptionCheck()) env->ExceptionClear();
+    }
+
+    ~GlobalRef() { reset(); }
+
+    GlobalRef(const GlobalRef&) = delete;
+    GlobalRef& operator=(const GlobalRef&) = delete;
+
+    explicit operator bool() const {
+        std::lock_guard<std::mutex> lk(mu_);
+        return ref_ != nullptr;
+    }
+
+    jobject new_local(JNIEnv* env) const {
+        if (!env) return nullptr;
+        std::lock_guard<std::mutex> lk(mu_);
+        if (!ref_) return nullptr;
+        jobject local = env->NewLocalRef(ref_);
+        if (!local && env->ExceptionCheck()) env->ExceptionClear();
+        return local;
+    }
+
+    class LockedRef {
+    public:
+        LockedRef() = default;
+        LockedRef(LockedRef&&) noexcept = default;
+        LockedRef& operator=(LockedRef&&) noexcept = default;
+
+        LockedRef(const LockedRef&) = delete;
+        LockedRef& operator=(const LockedRef&) = delete;
+
+        jobject get() const { return ref_; }
+
+    private:
+        friend class GlobalRef;
+        LockedRef(std::unique_lock<std::mutex> lk, jobject ref)
+            : lk_(std::move(lk)), ref_(ref) {}
+
+        std::unique_lock<std::mutex> lk_;
+        jobject ref_ = nullptr;
+    };
+
+    LockedRef lock_raw() const {
+        std::unique_lock<std::mutex> lk(mu_);
+        return LockedRef(std::move(lk), ref_);
+    }
+
+    void reset() {
+        jobject ref = nullptr;
+        JavaVM* vm = nullptr;
+        {
+            std::lock_guard<std::mutex> lk(mu_);
+            ref = ref_;
+            ref_ = nullptr;
+            vm = vm_;
+        }
+        if (ref && vm) {
+            AttachScope scope(vm);
+            if (scope.env) scope.env->DeleteGlobalRef(ref);
+        }
+    }
+
+private:
+    JavaVM* vm_ = nullptr;
+    mutable std::mutex mu_;
+    jobject ref_ = nullptr;
+};
+
+using GlobalRefPtr = std::shared_ptr<GlobalRef>;
+
+GlobalRefPtr make_global_ref(JNIEnv* env, jobject obj) {
+    if (!obj) return {};
+    auto ref = std::make_shared<GlobalRef>(env, obj);
+    return *ref ? ref : GlobalRefPtr{};
+}
+
+struct CallbackTarget {
+    jobject obj = nullptr;
+    bool local = false;
+    GlobalRef::LockedRef locked;
+
+    void release(JNIEnv* env) {
+        if (local && obj && env) env->DeleteLocalRef(obj);
+        obj = nullptr;
+        local = false;
+        locked = {};
+    }
+};
+
+CallbackTarget callback_target(JNIEnv* env, const GlobalRefPtr& ref) {
+    CallbackTarget target;
+    if (!env || !ref) return target;
+    if (jobject local = ref->new_local(env)) {
+        target.obj = local;
+        target.local = true;
+        return target;
+    }
+    // OOM while creating a local ref should not strand a waiting Kotlin
+    // caller. Hold the ref lock while using the global fallback so reset()
+    // cannot delete it mid-call.
+    target.locked = ref->lock_raw();
+    target.obj = target.locked.get();
+    return target;
+}
 
 // Bridges native Authenticator callbacks to Kotlin on detached workers.
 
 class JNIAuthenticator : public wn_steam::Authenticator {
 public:
-    explicit JNIAuthenticator(jobject global_auth) : global_auth_(global_auth) {}
-    ~JNIAuthenticator() override {
-        if (global_auth_ && g_vm) {
-            AttachScope a(g_vm);
-            if (a.env) a.env->DeleteGlobalRef(global_auth_);
-        }
-        global_auth_ = nullptr;
-    }
+    explicit JNIAuthenticator(GlobalRefPtr global_auth)
+        : global_auth_(std::move(global_auth)) {}
+    ~JNIAuthenticator() override = default;
 
     void accept_device_confirmation(std::function<void(bool)> cb) override {
         if (!global_auth_) { cb(false); return; }
-        std::thread([this, cb = std::move(cb)]() {
+        auto auth_ref = global_auth_;
+        std::thread([auth_ref, cb = std::move(cb)]() {
             AttachScope a(g_vm);
             if (!a.env) { cb(false); return; }
-            jobject future = a.env->CallObjectMethod(global_auth_, g_sess.auth_dev_confirm);
+            auto auth = callback_target(a.env, auth_ref);
+            if (!auth.obj) { cb(false); return; }
+            jobject future = a.env->CallObjectMethod(auth.obj, g_sess.auth_dev_confirm);
+            auth.release(a.env);
             if (a.env->ExceptionCheck()) {
                 a.env->ExceptionClear();
                 cb(false); return;
@@ -224,6 +344,10 @@ public:
             bool ok = false;
             if (result) {
                 ok = a.env->CallBooleanMethod(result, g_sess.boolean_value) == JNI_TRUE;
+                if (a.env->ExceptionCheck()) {
+                    a.env->ExceptionClear();
+                    ok = false;
+                }
                 a.env->DeleteLocalRef(result);
             }
             if (future) a.env->DeleteLocalRef(future);
@@ -234,15 +358,23 @@ public:
     void get_device_code(bool prev,
                           std::function<void(std::string)> cb) override {
         if (!global_auth_) { cb({}); return; }
-        std::thread([this, prev, cb = std::move(cb)]() {
+        auto auth_ref = global_auth_;
+        std::thread([auth_ref, prev, cb = std::move(cb)]() {
             AttachScope a(g_vm);
             if (!a.env) { cb({}); return; }
+            auto auth = callback_target(a.env, auth_ref);
+            if (!auth.obj) { cb({}); return; }
             jobject future = a.env->CallObjectMethod(
-                global_auth_, g_sess.auth_dev_code,
+                auth.obj, g_sess.auth_dev_code,
                 prev ? JNI_TRUE : JNI_FALSE);
+            auth.release(a.env);
             if (a.env->ExceptionCheck()) { a.env->ExceptionClear(); cb({}); return; }
             jobject result = future ? a.env->CallObjectMethod(future, g_sess.future_get) : nullptr;
-            if (a.env->ExceptionCheck()) { a.env->ExceptionClear(); cb({}); return; }
+            if (a.env->ExceptionCheck()) {
+                a.env->ExceptionClear();
+                if (future) a.env->DeleteLocalRef(future);
+                cb({}); return;
+            }
             std::string code;
             if (result) {
                 const char* c = a.env->GetStringUTFChars(static_cast<jstring>(result), nullptr);
@@ -260,17 +392,29 @@ public:
     void get_email_code(std::string email, bool prev,
                          std::function<void(std::string)> cb) override {
         if (!global_auth_) { cb({}); return; }
-        std::thread([this, email, prev, cb = std::move(cb)]() {
+        auto auth_ref = global_auth_;
+        std::thread([auth_ref, email, prev, cb = std::move(cb)]() {
             AttachScope a(g_vm);
             if (!a.env) { cb({}); return; }
             jstring jemail = a.env->NewStringUTF(email.c_str());
+            if (!jemail && a.env->ExceptionCheck()) a.env->ExceptionClear();
+            auto auth = callback_target(a.env, auth_ref);
+            if (!auth.obj) {
+                if (jemail) a.env->DeleteLocalRef(jemail);
+                cb({}); return;
+            }
             jobject future = a.env->CallObjectMethod(
-                global_auth_, g_sess.auth_email_code,
+                auth.obj, g_sess.auth_email_code,
                 jemail, prev ? JNI_TRUE : JNI_FALSE);
+            auth.release(a.env);
             if (jemail) a.env->DeleteLocalRef(jemail);
             if (a.env->ExceptionCheck()) { a.env->ExceptionClear(); cb({}); return; }
             jobject result = future ? a.env->CallObjectMethod(future, g_sess.future_get) : nullptr;
-            if (a.env->ExceptionCheck()) { a.env->ExceptionClear(); cb({}); return; }
+            if (a.env->ExceptionCheck()) {
+                a.env->ExceptionClear();
+                if (future) a.env->DeleteLocalRef(future);
+                cb({}); return;
+            }
             std::string code;
             if (result) {
                 const char* c = a.env->GetStringUTFChars(static_cast<jstring>(result), nullptr);
@@ -286,7 +430,7 @@ public:
     }
 
 private:
-    jobject global_auth_ = nullptr;
+    GlobalRefPtr global_auth_;
 };
 
 struct SessionHandle {
@@ -305,6 +449,9 @@ struct SessionHandle {
     }
 
     ~SessionHandle() {
+        // Signal detached download workers before tearing down the CMClient.
+        if (download_cancel) download_cancel->store(true);
+
         // Disconnect before members destruct; callbacks capture `this`.
         if (client) client->disconnect();
 
@@ -520,11 +667,11 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeStartLo
     if (u) env->ReleaseStringUTFChars(juser, u);
     if (p) env->ReleaseStringUTFChars(jpass, p);
 
-    jobject auth_global = jauthenticator ? env->NewGlobalRef(jauthenticator) : nullptr;
-    jobject cb_global   = jresult_cb     ? env->NewGlobalRef(jresult_cb)     : nullptr;
+    auto auth_ref = make_global_ref(env, jauthenticator);
+    auto cb_ref   = make_global_ref(env, jresult_cb);
 
-    auto authenticator = auth_global
-        ? std::make_shared<JNIAuthenticator>(auth_global)
+    auto authenticator = auth_ref
+        ? std::make_shared<JNIAuthenticator>(auth_ref)
         : nullptr;
 
     auto session = std::make_shared<wn_steam::CredentialsAuthSession>(
@@ -534,17 +681,30 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeStartLo
         s->creds_session = session;
     }
 
-    session->start([cb_global](wn_steam::AuthSessionResult r) {
+    session->start([cb_ref](wn_steam::AuthSessionResult r) mutable {
         AttachScope a(g_vm);
-        if (!a.env) return;
-        if (cb_global) {
+        if (a.env && cb_ref) {
+            auto cb = callback_target(a.env, cb_ref);
+            if (!cb.obj) {
+                secure_clear(r.refresh_token);
+                secure_clear(r.access_token);
+                secure_clear(r.new_guard_data);
+                cb_ref->reset();
+                return;
+            }
             jobject result = build_auth_result(a.env, r);
             if (result) {
-                a.env->CallVoidMethod(cb_global, g_sess.auth_callback_on, result);
+                a.env->CallVoidMethod(cb.obj, g_sess.auth_callback_on, result);
                 if (a.env->ExceptionCheck()) a.env->ExceptionClear();
                 a.env->DeleteLocalRef(result);
             }
-            a.env->DeleteGlobalRef(cb_global);
+            cb.release(a.env);
+            cb_ref->reset();
+        } else {
+            secure_clear(r.refresh_token);
+            secure_clear(r.access_token);
+            secure_clear(r.new_guard_data);
+            if (cb_ref) cb_ref->reset();
         }
     });
 }
@@ -556,8 +716,8 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeStartLo
     auto* s = from_handle(h);
     if (!s || !s->client) return;
 
-    jobject qr_global = jqr_cb     ? env->NewGlobalRef(jqr_cb)     : nullptr;
-    jobject cb_global = jresult_cb ? env->NewGlobalRef(jresult_cb) : nullptr;
+    auto qr_ref = make_global_ref(env, jqr_cb);
+    auto cb_ref = make_global_ref(env, jresult_cb);
 
     wn_steam::QrAuthSession::Config cfg;
     auto session = std::make_shared<wn_steam::QrAuthSession>(s->client, cfg);
@@ -567,27 +727,45 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeStartLo
     }
 
     session->start(
-        [qr_global](std::string url) {
+        [qr_ref](std::string url) {
             AttachScope a(g_vm);
-            if (!a.env || !qr_global) return;
+            if (!a.env || !qr_ref) return;
+            auto qr = callback_target(a.env, qr_ref);
+            if (!qr.obj) return;
             jstring jurl = a.env->NewStringUTF(url.c_str());
-            a.env->CallVoidMethod(qr_global, g_sess.qr_callback_on, jurl);
+            if (!jurl && a.env->ExceptionCheck()) a.env->ExceptionClear();
+            a.env->CallVoidMethod(qr.obj, g_sess.qr_callback_on, jurl);
             if (a.env->ExceptionCheck()) a.env->ExceptionClear();
             if (jurl) a.env->DeleteLocalRef(jurl);
+            qr.release(a.env);
         },
-        [qr_global, cb_global](wn_steam::AuthSessionResult r) {
+        [qr_ref, cb_ref](wn_steam::AuthSessionResult r) mutable {
             AttachScope a(g_vm);
-            if (!a.env) return;
-            if (cb_global) {
+            if (a.env && cb_ref) {
+                auto cb = callback_target(a.env, cb_ref);
+                if (!cb.obj) {
+                    secure_clear(r.refresh_token);
+                    secure_clear(r.access_token);
+                    secure_clear(r.new_guard_data);
+                    cb_ref->reset();
+                    if (qr_ref) qr_ref->reset();
+                    return;
+                }
                 jobject result = build_auth_result(a.env, r);
                 if (result) {
-                    a.env->CallVoidMethod(cb_global, g_sess.auth_callback_on, result);
+                    a.env->CallVoidMethod(cb.obj, g_sess.auth_callback_on, result);
                     if (a.env->ExceptionCheck()) a.env->ExceptionClear();
                     a.env->DeleteLocalRef(result);
                 }
-                a.env->DeleteGlobalRef(cb_global);
+                cb.release(a.env);
+                cb_ref->reset();
+            } else {
+                secure_clear(r.refresh_token);
+                secure_clear(r.access_token);
+                secure_clear(r.new_guard_data);
+                if (cb_ref) cb_ref->reset();
             }
-            if (qr_global) a.env->DeleteGlobalRef(qr_global);
+            if (qr_ref) qr_ref->reset();
         });
 }
 
@@ -662,21 +840,24 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativePrepare
     // Promote the callback to a global ref so it outlives this JNI frame —
     // the C++ continuation fires on the channel's worker thread potentially
     // seconds from now.
-    jobject cb_global = cb ? env->NewGlobalRef(cb) : nullptr;
-    JavaVM* vm = nullptr;
-    env->GetJavaVM(&vm);
+    auto cb_ref = make_global_ref(env, cb);
 
     s->client->prepare_app(
         static_cast<uint32_t>(app_id), std::move(dlc),
-        [vm, cb_global](bool ok, std::string error) {
-            if (!cb_global) return;
-            AttachScope scope(vm);
-            if (!scope.env) return;
+        [cb_ref](bool ok, std::string error) mutable {
+            if (!cb_ref) return;
+            AttachScope scope(g_vm);
+            if (!scope.env) { cb_ref->reset(); return; }
+            auto cb = callback_target(scope.env, cb_ref);
+            if (!cb.obj) { cb_ref->reset(); return; }
             jstring jerr = scope.env->NewStringUTF(error.c_str());
-            scope.env->CallVoidMethod(cb_global, g_sess.prepare_cb_on,
+            if (!jerr && scope.env->ExceptionCheck()) scope.env->ExceptionClear();
+            scope.env->CallVoidMethod(cb.obj, g_sess.prepare_cb_on,
                                        ok ? JNI_TRUE : JNI_FALSE, jerr);
-            scope.env->DeleteLocalRef(jerr);
-            scope.env->DeleteGlobalRef(cb_global);
+            if (scope.env->ExceptionCheck()) scope.env->ExceptionClear();
+            if (jerr) scope.env->DeleteLocalRef(jerr);
+            cb.release(scope.env);
+            cb_ref->reset();
         });
 }
 
@@ -747,9 +928,8 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDownloa
     // its own shared_ptr so it survives a nativeDestroy mid-download.
     std::shared_ptr<std::atomic<bool>> cancel_flag = s->download_cancel;
     cancel_flag->store(false);
-    jobject lis_global = env->NewGlobalRef(listener);
-    JavaVM* vm = nullptr;
-    env->GetJavaVM(&vm);
+    auto lis_ref = make_global_ref(env, listener);
+    if (!lis_ref) { fail_now("listener ref failed"); return; }
     const uint32_t appid    = static_cast<uint32_t>(app_id);
     const bool     is_fresh = (fresh == JNI_TRUE);
     // Worker count from the "Download Speed" setting. Guard against a
@@ -757,21 +937,19 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDownloa
     const unsigned workers =
         max_workers > 0 ? static_cast<unsigned>(max_workers) : 8u;
 
-    std::thread([vm, lis_global, client, cancel_flag, depots = std::move(depots),
+    std::thread([lis_ref, client, cancel_flag, depots = std::move(depots),
                  branch = std::move(branch), install_dir = std::move(install_dir),
                  ca_bundle = std::move(ca_bundle), appid, is_fresh, workers]() mutable {
-        AttachScope scope(vm);
-        if (!scope.env) {
-            // Can't attach — nothing we can safely do; leak the global ref
-            // rather than risk a crash. Should never happen in practice.
-            return;
-        }
+        AttachScope scope(g_vm);
+        if (!scope.env) return;
+        auto lis = callback_target(scope.env, lis_ref);
+        if (!lis.obj) { lis_ref->reset(); return; }
         wn_steam::DepotDownloader dl(*client, ca_bundle);
         auto result = dl.download(
             appid, std::move(depots), branch, install_dir, is_fresh,
-            [&scope, lis_global](const wn_steam::DepotDownloadProgress& p) {
+            [&scope, &lis](const wn_steam::DepotDownloadProgress& p) {
                 scope.env->CallVoidMethod(
-                    lis_global, g_sess.download_progress,
+                    lis.obj, g_sess.download_progress,
                     static_cast<jint>(p.depot_id),
                     static_cast<jlong>(p.depot_done),
                     static_cast<jlong>(p.depot_total),
@@ -786,14 +964,17 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDownloa
             cancel_flag.get(), workers);
 
         jstring jerr = scope.env->NewStringUTF(result.error.c_str());
+        if (!jerr && scope.env->ExceptionCheck()) scope.env->ExceptionClear();
         scope.env->CallVoidMethod(
-            lis_global, g_sess.download_complete,
+            lis.obj, g_sess.download_complete,
             result.success ? JNI_TRUE : JNI_FALSE, jerr,
             static_cast<jlong>(result.bytes_written),
             static_cast<jint>(result.depots_completed),
             static_cast<jint>(result.depots_skipped));
-        scope.env->DeleteLocalRef(jerr);
-        scope.env->DeleteGlobalRef(lis_global);
+        if (scope.env->ExceptionCheck()) scope.env->ExceptionClear();
+        if (jerr) scope.env->DeleteLocalRef(jerr);
+        lis.release(scope.env);
+        lis_ref->reset();
     }).detach();
 }
 
