@@ -1372,24 +1372,42 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
                 if (!sessionToReuse) {
-                    SteamLaunchCloudSync.syncBeforeLaunch(
-                            this,
-                            shortcut,
-                            isCloudSyncEnabledForShortcut(),
-                            this::showLaunchPreloader);
-                    EpicLaunchCloudSync.syncBeforeLaunch(
-                            this,
-                            shortcut,
-                            isCloudSyncEnabledForShortcut(),
-                            this::showLaunchPreloader);
-                    GogLaunchCloudSync.syncBeforeLaunch(
-                            this,
-                            shortcut,
-                            isCloudSyncEnabledForShortcut(),
-                            this::showLaunchPreloader);
+                    // Run cloud sync in parallel with the Wine prefix file ops.
+                    // The probe + SHA-1 scan + CDN round-trip have no dependency
+                    // on the local file staging, so overlapping them shaves the
+                    // typical 1-5s probe off the visible launch time. The .get()
+                    // below preserves the existing blocking guarantee (and the
+                    // conflict-dialog modal flow) for the rare divergent case.
+                    java.util.concurrent.ExecutorService cloudExec =
+                            java.util.concurrent.Executors.newSingleThreadExecutor();
+                    java.util.concurrent.Future<?> cloudFuture = cloudExec.submit(() -> {
+                        try {
+                            SteamLaunchCloudSync.syncBeforeLaunch(
+                                    this, shortcut, isCloudSyncEnabledForShortcut(),
+                                    this::showLaunchPreloader);
+                            EpicLaunchCloudSync.syncBeforeLaunch(
+                                    this, shortcut, isCloudSyncEnabledForShortcut(),
+                                    this::showLaunchPreloader);
+                            GogLaunchCloudSync.syncBeforeLaunch(
+                                    this, shortcut, isCloudSyncEnabledForShortcut(),
+                                    this::showLaunchPreloader);
+                        } catch (Throwable t) {
+                            Log.w("XServerDisplayActivity",
+                                    "Pre-launch cloud sync failed", t);
+                        }
+                    });
+                    cloudExec.shutdown();
+
                     setupWineSystemFiles();
                     extractGraphicsDriverFiles();
                     changeWineAudioDriver();
+
+                    try {
+                        cloudFuture.get();
+                    } catch (Throwable t) {
+                        Log.w("XServerDisplayActivity",
+                                "Cloud sync wait interrupted", t);
+                    }
                 } else {
                     Log.i("XServerDisplayActivity", "Skipping pre-game setup for active background session");
                     applyPreferredRefreshRate();
@@ -8230,24 +8248,46 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 FileUtils.writeString(steamworksAcf, steamworksAcfContent);
             }
 
-            try {
-                SteamUtils.autoLoginUserChanges(imageFs);
-                Log.d("XServerDisplayActivity", "autoLoginUserChanges complete");
-            } catch (Exception e) {
-                Log.w("XServerDisplayActivity", "autoLoginUserChanges failed, falling back", e);
-            }
-
-            skipFirstTimeSteamSetup(winePrefix);
-
             long steamIdLong = com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE.getSteamUserSteamId64();
             String steamId64 = steamIdLong > 0 ? String.valueOf(steamIdLong) : "76561198000000000";
             int steamAccountId = com.winlator.cmod.feature.stores.steam.utils.PrefManager.INSTANCE.getSteamUserAccountId();
             String steamUserDataId = steamAccountId > 0 ? String.valueOf(steamAccountId) : steamId64;
-            reconcileSteamUserdata(steamDir, steamUserDataId, steamId64);
 
-            SteamUtils.updateOrModifyLocalConfig(imageFs, container, String.valueOf(appId), steamUserDataId);
+            // Stamp-cache the registry edits + userdata reconcile + local-config
+            // edit so warm launches of the same game in the same container skip
+            // the per-launch file-copy / VDF-parse work. Stamp key is
+            // appId|userDataId — change either and the work re-runs.
+            File steamEnvStamp = new File(winePrefix,
+                    ".wine/drive_c/.wn-steamenv-" + appId + "-" + steamUserDataId + ".stamp");
+            String expectedStamp = "v1|" + appId + "|" + steamUserDataId;
+            String existingStamp = steamEnvStamp.exists()
+                    ? FileUtils.readString(steamEnvStamp).trim() : "";
+            boolean steamEnvWarm = expectedStamp.equals(existingStamp);
 
-            setupLightweightSteamConfig(steamDir, steamUserDataId);
+            if (!steamEnvWarm) {
+                try {
+                    SteamUtils.autoLoginUserChanges(imageFs);
+                    Log.d("XServerDisplayActivity", "autoLoginUserChanges complete");
+                } catch (Exception e) {
+                    Log.w("XServerDisplayActivity", "autoLoginUserChanges failed, falling back", e);
+                }
+
+                skipFirstTimeSteamSetup(winePrefix);
+                reconcileSteamUserdata(steamDir, steamUserDataId, steamId64);
+                SteamUtils.updateOrModifyLocalConfig(imageFs, container, String.valueOf(appId), steamUserDataId);
+                setupLightweightSteamConfig(steamDir, steamUserDataId);
+
+                try {
+                    FileUtils.writeString(steamEnvStamp, expectedStamp);
+                } catch (Exception e) {
+                    Log.w("XServerDisplayActivity",
+                            "Failed to write steam-env stamp at " + steamEnvStamp.getPath(), e);
+                }
+            } else {
+                Log.d("XServerDisplayActivity",
+                        "Steam env warm-cache hit (appId=" + appId
+                                + ", userId=" + steamUserDataId + ") — skipping reconcile + autoLogin");
+            }
 
             boolean planWActiveBootstrapSkip = com.winlator.cmod.feature.stores.steam.utils
                     .PrefManager.INSTANCE.getWnPlanW();
