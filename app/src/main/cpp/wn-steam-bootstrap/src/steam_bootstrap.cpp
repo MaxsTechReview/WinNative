@@ -94,9 +94,15 @@ constexpr const char* kLogTag = "WnSteamBoot";
 //          drain pending callbacks via Steam_BGetCallback/FreeLastCallback
 //          if Steam_BLoggedOn(pipe, user) — DONE
 struct State {
+    ~State() {
+        pump_running.store(false, std::memory_order_release);
+        if (pump_thread.joinable()) pump_thread.join();
+    }
+
     std::mutex   mu;
     void*        lsc_handle  = nullptr;   // libsteamclient.so dlopen handle
     bool         initialized = false;
+    bool         shutting_down = false;
 
     // libsteamclient.so flat C entry points (resolved via dlsym).
     wnsteambs::CreateInterfaceFn fn_CreateInterface = nullptr;
@@ -140,9 +146,10 @@ struct State {
     // later Steam API round-trip the game makes — is message-driven: it
     // only advances while something drains Steam_BGetCallback. start()'s
     // 10s poll does that during init, but the session must keep being
-    // pumped for the whole process lifetime, so a detached thread takes
-    // over once start()'s poll loop finishes.
+    // pumped while initialized. nativeShutdown stops and joins the thread
+    // before clearing the libsteamclient function pointers.
     std::atomic<bool> pump_running{false};
+    std::thread       pump_thread;
 
     std::condition_variable                  cv_callback;
     std::set<int>                            subscribed_ids;
@@ -171,7 +178,7 @@ void callback_pump_loop() {
     bool announced_logon = false;
     int  ticks           = 0;
     int  cb_logged       = 0;
-    while (g_state.pump_running.load(std::memory_order_relaxed)) {
+    while (g_state.pump_running.load(std::memory_order_acquire)) {
         if (g_state.fn_Steam_BGetCallback && g_state.fn_Steam_FreeLastCallback) {
             while (g_state.fn_Steam_BGetCallback(g_state.pipe, cb_buf)) {
                 int   cb_id   = *reinterpret_cast<int*>(cb_buf + 4);
@@ -397,6 +404,10 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeInit(
         jstring jaccountName, jstring jrefreshToken, jlong jsteamId64,
         jint jappId) {
     std::unique_lock<std::mutex> lk(g_state.mu);
+    if (g_state.shutting_down) {
+        LOGW("nativeInit: shutdown in progress");
+        return -6;
+    }
     if (g_state.initialized) {
         LOGI("nativeInit: already initialized (lsc=%p pipe=%d user=%d)",
              g_state.lsc_handle, g_state.pipe, g_state.user);
@@ -706,8 +717,9 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeInit(
     // background thread own Steam_BGetCallback. Without this the logon
     // stalls the moment start() returns — Bionic games launch but never
     // authenticate (online play / DLC stay broken).
-    if (!g_state.pump_running.exchange(true)) {
-        std::thread(callback_pump_loop).detach();
+    if (!g_state.pump_running.exchange(true, std::memory_order_acq_rel)) {
+        if (g_state.pump_thread.joinable()) g_state.pump_thread.join();
+        g_state.pump_thread = std::thread(callback_pump_loop);
         LOGI("callback pump thread started (libsteamclient session kept live)");
         using StartFn = void (*)(void);
         auto start = reinterpret_cast<StartFn>(
@@ -1691,7 +1703,9 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeAwait
     auto deadline = std::chrono::steady_clock::now()
                   + std::chrono::milliseconds(std::max<jint>(0, timeoutMs));
     bool got = g_state.cv_callback.wait_until(lk, deadline, [&] {
-        return g_state.received_callbacks.count(cb_id) > 0;
+        return g_state.received_callbacks.count(cb_id) > 0
+            || !g_state.initialized
+            || g_state.shutting_down;
     });
     if (!got) return nullptr;
     auto it = g_state.received_callbacks.find(cb_id);
@@ -1711,8 +1725,39 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeAwait
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeShutdown(
         JNIEnv* /*env*/, jclass /*cls*/) {
+    std::thread pump_thread;
+    void* lsc_handle = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(g_state.mu);
+        if (!g_state.initialized) return;
+        g_state.shutting_down = true;
+        // Make concurrent JNI entry points fail fast while the pump thread is
+        // being joined outside the global lock.
+        g_state.initialized = false;
+        g_state.pump_running.store(false, std::memory_order_release);
+        lsc_handle = g_state.lsc_handle;
+        if (g_state.pump_thread.joinable()) {
+            pump_thread = std::move(g_state.pump_thread);
+        }
+        g_state.cv_callback.notify_all();
+    }
+    if (pump_thread.joinable()) pump_thread.join();
+    if (lsc_handle) {
+        using StopFn = void (*)(void);
+        ::dlerror();
+        auto stop = reinterpret_cast<StopFn>(
+            ::dlsym(lsc_handle, "wn_cm_bridge_stop_state_sync_poller"));
+        if (stop != nullptr) {
+            stop();
+            LOGI("cross-process state-sync poller stopped");
+        } else {
+            const char* err = ::dlerror();
+            LOGW("wn_cm_bridge_stop_state_sync_poller not found: %s",
+                 err ? err : "symbol missing");
+        }
+    }
+
     std::lock_guard<std::mutex> lk(g_state.mu);
-    if (!g_state.initialized) return;
     // Tear down in reverse order of init: log off the user, drop the
     // pipe. We don't dlclose libsteamclient.so — it leaves background
     // threads that crash on unload (the same pattern every embedded
@@ -1755,7 +1800,7 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeShutd
     g_state.fn_Steam_BGetCallback           = nullptr;
     g_state.fn_Steam_FreeLastCallback       = nullptr;
     g_state.fn_Breakpad_SteamSetAppID       = nullptr;
-    g_state.initialized = false;
+    g_state.shutting_down = false;
     LOGI("nativeShutdown done");
 }
 

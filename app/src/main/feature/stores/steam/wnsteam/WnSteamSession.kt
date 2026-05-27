@@ -344,14 +344,13 @@ class WnSteamSession : AutoCloseable {
                         allOk = false
                         continue
                     }
-                    val slice = fileBytes.copyOfRange(off, off + len)
                     val url = java.net.URL("https://$host${blk.optString("urlPath")}")
                     val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                         requestMethod = "PUT"
                         doOutput = true
                         connectTimeout = 15_000
                         readTimeout = 30_000
-                        setFixedLengthStreamingMode(slice.size)
+                        setFixedLengthStreamingMode(len)
                         blk.optJSONArray("headers")?.let { hs ->
                             for (k in 0 until hs.length()) {
                                 val hd = hs.getJSONObject(k)
@@ -361,7 +360,7 @@ class WnSteamSession : AutoCloseable {
                         setRequestProperty("User-Agent", "Valve/Steam HTTP Client 1.0")
                     }
                     try {
-                        conn.outputStream.use { it.write(slice) }
+                        conn.outputStream.use { it.write(fileBytes, off, len) }
                         val code = conn.responseCode
                         if (code !in 200..299) {
                             allOk = false

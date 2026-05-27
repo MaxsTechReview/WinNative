@@ -533,6 +533,12 @@ object WnSteamAssetsInstaller {
             return 0
         }
         var swapped = 0
+        val assetCache = HashMap<String, ByteArray>()
+        fun bridgeBytes(asset: String): ByteArray =
+            assetCache.getOrPut(asset) {
+                context.assets.open(asset).use { it.readBytes() }
+            }
+
         gameInstallDir.walkTopDown().maxDepth(10).forEach { f ->
             if (!f.isFile) return@forEach
             val n = f.name.lowercase()
@@ -544,19 +550,25 @@ object WnSteamAssetsInstaller {
                 if (!orig.exists()) {
                     f.copyTo(orig, overwrite = false)
                 }
-                java.io.FileOutputStream(f).use { out ->
-                    context.assets.open(asset).use { it.copyTo(out) }
+                val bytes = bridgeBytes(asset)
+                if (!fileContentEquals(f, bytes)) {
+                    java.io.FileOutputStream(f).use { out -> out.write(bytes) }
+                    Timber.tag(TAG).i("steampipe: swapped ${f.path} (orig backed up as ${orig.name})")
+                    swapped++
+                } else {
+                    Timber.tag(TAG).d("steampipe: ${f.path} already matches bridge asset")
                 }
-                swapped++
-                Timber.tag(TAG).i("steampipe: swapped ${f.path} (orig backed up as ${orig.name})")
 
                 if (is64) {
                     val backend = File(f.parentFile, "original_steam_api64.dll")
                     try {
-                        java.io.FileOutputStream(backend).use { out ->
-                            context.assets.open(STEAMPIPE_ORIGINAL_API64).use { it.copyTo(out) }
+                        val backendBytes = bridgeBytes(STEAMPIPE_ORIGINAL_API64)
+                        if (!fileContentEquals(backend, backendBytes)) {
+                            java.io.FileOutputStream(backend).use { out -> out.write(backendBytes) }
+                            Timber.tag(TAG).i("steampipe: staged ${backend.path} as forwarder backend")
+                        } else {
+                            Timber.tag(TAG).d("steampipe: ${backend.path} already staged")
                         }
-                        Timber.tag(TAG).i("steampipe: staged ${backend.path} as forwarder backend")
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "steampipe: backend stage failed for ${backend.path}")
                     }
@@ -567,6 +579,35 @@ object WnSteamAssetsInstaller {
         }
         Timber.tag(TAG).i("steampipe: $swapped steam_api*.dll(s) swapped under ${gameInstallDir.absolutePath}")
         return swapped
+    }
+
+    private fun fileContentEquals(file: File, expected: ByteArray): Boolean {
+        if (!file.isFile || file.length() != expected.size.toLong()) return false
+        return try {
+            var offset = 0
+            var matches = true
+            file.inputStream().use { input ->
+                val buf = ByteArray(8192)
+                while (matches) {
+                    val read = input.read(buf)
+                    if (read < 0) return@use
+                    if (offset + read > expected.size) {
+                        matches = false
+                        return@use
+                    }
+                    for (i in 0 until read) {
+                        if (buf[i] != expected[offset + i]) {
+                            matches = false
+                            return@use
+                        }
+                    }
+                    offset += read
+                }
+            }
+            matches && offset == expected.size
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun lsteamclientArchive(container: Container): String? {

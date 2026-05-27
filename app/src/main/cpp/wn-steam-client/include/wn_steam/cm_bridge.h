@@ -279,4 +279,7 @@ void wn_cm_bridge_register_lobby_membership_observer(WnCmLobbyMembershipObserver
 __attribute__((visibility("default")))
 void wn_cm_bridge_start_state_sync_poller(void);
 
+__attribute__((visibility("default")))
+void wn_cm_bridge_stop_state_sync_poller(void);
+
 }  // extern "C"

@@ -893,6 +893,7 @@ class SteamService : Service() {
          */
         @Volatile var wnLibrary: WnLibraryStore? = null
             private set
+        @Volatile private var wnLibraryMirrorJob: Job? = null
 
         /**
          * Tears down any prior long-lived WnSteamSession. Called at the
@@ -903,6 +904,8 @@ class SteamService : Service() {
             val prior = wnSession
             wnSession = null
             wnLoggedOnHandled = false
+            wnLibraryMirrorJob?.cancel()
+            wnLibraryMirrorJob = null
             wnLibrary?.stopObserving()
             wnLibrary = null
             if (prior != null) {
@@ -6517,6 +6520,7 @@ class SteamService : Service() {
             // Wire the Kotlin library facade now so it's ready to receive the
             // populate-complete observer fire that lands a couple of seconds
             // after the ClientLicenseList push.
+            wnLibraryMirrorJob?.cancel()
             wnLibrary?.stopObserving()
             val library = WnLibraryStore(session)
             wnLibrary = library
@@ -6524,7 +6528,7 @@ class SteamService : Service() {
             // Log every snapshot transition so we can see in logcat when the
             // C++ populate pipeline completes. The flow is hot + replay=1 so
             // late collectors get the latest snapshot.
-            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            wnLibraryMirrorJob = instance?.scope?.launch(Dispatchers.Default) {
                 library.snapshots.collect { snap ->
                     Timber.i(
                         "WnLibrary snapshot: %d packages, %d owned apps (of %d tracked)",
@@ -6880,14 +6884,19 @@ class SteamService : Service() {
                     .setPersonaName("")
             }
 
-            // Tear down the long-lived WnSteam logon session.
+            wnLibraryMirrorJob?.cancel()
+            wnLibraryMirrorJob = null
+            wnLibrary?.stopObserving()
+            wnLibrary = null
+
+            // Tear down the long-lived WnSteam logon session after observers
+            // are quiesced, so delayed library refreshes cannot touch a
+            // closing native handle.
             wnSession?.let { s ->
                 try { s.disconnect() } catch (_: Throwable) {}
                 try { s.close()      } catch (_: Throwable) {}
             }
             wnSession = null
-            wnLibrary?.stopObserving()
-            wnLibrary = null
 
             try {
                 com.winlator.cmod.feature.stores.steam.wnsteam
@@ -7771,6 +7780,10 @@ class SteamService : Service() {
         reconnectJob?.cancel()
         stableConnectionJob?.cancel()
         refreshTokenWatchdogJob?.cancel()
+        wnLibraryMirrorJob?.cancel()
+        wnLibraryMirrorJob = null
+        wnLibrary?.stopObserving()
+        wnLibrary = null
         wnSession?.let { s ->
             runCatching { s.disconnect() }
             runCatching { s.close() }
@@ -7791,6 +7804,8 @@ class SteamService : Service() {
         isWaitingForQRAuth = false
 
         wnLoggedOnHandled = false
+        wnLibraryMirrorJob?.cancel()
+        wnLibraryMirrorJob = null
         wnLibrary?.stopObserving()
         wnLibrary = null
 

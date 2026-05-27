@@ -5,6 +5,7 @@
 #include <android/log.h>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -492,10 +493,14 @@ static void dispatch_lobby_list_to_wnb(uint64_t hCall,
 }
 
 static bool try_lobby_list_from_file(uint64_t hCall,
-                                     uint32_t app_id,
-                                     WnCmLobbyListCb cb) {
+                                      uint32_t app_id,
+                                      WnCmLobbyListCb cb,
+                                      const std::atomic<bool>* keep_running = nullptr) {
     std::string dir = wn_state_dir();
     std::string path = dir + "/wn_lobby_" + std::to_string(app_id) + ".txt";
+    auto should_stop = [keep_running]() {
+        return keep_running && !keep_running->load(std::memory_order_acquire);
+    };
 
     auto try_parse_and_emit = [&]() -> bool {
         int32_t eresult = 0;
@@ -518,10 +523,21 @@ static bool try_lobby_list_from_file(uint64_t hCall,
         }
     }
 
+    if (should_stop()) return false;
     write_lobby_request_file(app_id);
     constexpr int kMaxAttempts = 30;  // 30 * 100ms = 3s
     for (int i = 0; i < kMaxAttempts; ++i) {
+        if (should_stop()) {
+            WN_BRIDGE_LOGI("lobby_get_list(%u): file-fallback cancelled",
+                           app_id);
+            return false;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (should_stop()) {
+            WN_BRIDGE_LOGI("lobby_get_list(%u): file-fallback cancelled",
+                           app_id);
+            return false;
+        }
         if (::stat(path.c_str(), &st) == 0
                 && std::time(nullptr) - st.st_mtime < 30) {
             return try_parse_and_emit();
@@ -534,11 +550,74 @@ static bool try_lobby_list_from_file(uint64_t hCall,
     return true;
 }
 
+static void state_sync_poller_loop();
+static bool wn_cm_lobby_get_list_internal(uint64_t hCall,
+                                          uint32_t app_id,
+                                          int32_t num_lobbies_requested,
+                                          const char* const* filter_keys,
+                                          const char* const* filter_values,
+                                          const int32_t* filter_comparisons,
+                                          const int32_t* filter_types,
+                                          size_t filter_count,
+                                          WnCmLobbyListCb cb,
+                                          const std::atomic<bool>* keep_running);
+
+struct StateSyncPoller {
+    ~StateSyncPoller() { stop(); }
+
+    void start() {
+        std::thread to_join;
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            if (running.exchange(true, std::memory_order_acq_rel)) return;
+            if (worker.joinable()) to_join = std::move(worker);
+        }
+        if (to_join.joinable()) to_join.join();
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            if (running.load(std::memory_order_acquire)) {
+                worker = std::thread(state_sync_poller_loop);
+            }
+        }
+    }
+
+    void stop() {
+        std::thread to_join;
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            const bool was_running = running.exchange(false, std::memory_order_acq_rel);
+            if (!was_running && !worker.joinable()) return;
+            if (worker.joinable()) to_join = std::move(worker);
+        }
+        cv.notify_all();
+        if (to_join.joinable()) to_join.join();
+    }
+
+    std::atomic<bool>        running{false};
+    std::mutex               mu;
+    std::condition_variable  cv;
+    std::thread              worker;
+};
+
+static StateSyncPoller& state_sync_poller() {
+    static StateSyncPoller poller;
+    return poller;
+}
+
 static void state_sync_poller_loop() {
     pthread_setname_np(pthread_self(), "wn-state-sync");
     WN_BRIDGE_LOGI("state-sync poller started");
-    for (;;) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+    StateSyncPoller& poller = state_sync_poller();
+    while (poller.running.load(std::memory_order_acquire)) {
+        {
+            std::unique_lock<std::mutex> lk(poller.mu);
+            if (poller.cv.wait_for(lk, std::chrono::seconds(1), [&poller]() {
+                    return !poller.running.load(std::memory_order_acquire);
+                })) {
+                break;
+            }
+        }
+        if (!poller.running.load(std::memory_order_acquire)) break;
         std::string dir = wn_state_dir();
         DIR* d = ::opendir(dir.c_str());
         if (!d) continue;
@@ -557,10 +636,11 @@ static void state_sync_poller_loop() {
             int unlink_errno = errno;
             WN_BRIDGE_LOGI("state-sync: fulfilling request for app=%u unlink=%d/%d",
                            app_id, unlink_rc, unlink_rc == 0 ? 0 : unlink_errno);
-            bool dispatched = wn_cm_lobby_get_list(
+            bool dispatched = wn_cm_lobby_get_list_internal(
                 /*hCall=*/0, app_id, /*num_lobbies_requested=*/0,
                 nullptr, nullptr, nullptr, nullptr, 0,
-                [](uint64_t, int32_t, const WnCmLobbyEntry*, size_t) {});
+                [](uint64_t, int32_t, const WnCmLobbyEntry*, size_t) {},
+                &poller.running);
             if (!dispatched) {
                 WN_BRIDGE_LOGI("state-sync: dispatch FAILED for app=%u (no active CMClient?)",
                                app_id);
@@ -568,27 +648,31 @@ static void state_sync_poller_loop() {
         }
         ::closedir(d);
     }
+    WN_BRIDGE_LOGI("state-sync poller stopped");
 }
 
 void wn_cm_bridge_start_state_sync_poller(void) {
-    static std::atomic<bool> started{false};
-    if (started.exchange(true)) return;
-    std::thread(state_sync_poller_loop).detach();
+    state_sync_poller().start();
 }
 
-bool wn_cm_lobby_get_list(uint64_t hCall,
-                          uint32_t app_id,
-                          int32_t num_lobbies_requested,
-                          const char* const* filter_keys,
-                          const char* const* filter_values,
-                          const int32_t* filter_comparisons,
-                          const int32_t* filter_types,
-                          size_t filter_count,
-                          WnCmLobbyListCb cb) {
+void wn_cm_bridge_stop_state_sync_poller(void) {
+    state_sync_poller().stop();
+}
+
+static bool wn_cm_lobby_get_list_internal(uint64_t hCall,
+                                          uint32_t app_id,
+                                          int32_t num_lobbies_requested,
+                                          const char* const* filter_keys,
+                                          const char* const* filter_values,
+                                          const int32_t* filter_comparisons,
+                                          const int32_t* filter_types,
+                                          size_t filter_count,
+                                          WnCmLobbyListCb cb,
+                                          const std::atomic<bool>* keep_running) {
     if (app_id == 0 || !cb) return false;
     auto client = snapshot_active();
     if (!client) {
-        if (try_lobby_list_from_file(hCall, app_id, cb)) {
+        if (try_lobby_list_from_file(hCall, app_id, cb, keep_running)) {
             return true;
         }
         WN_BRIDGE_LOGI("lobby_get_list(%u): no active CMClient + no state file",
@@ -671,6 +755,21 @@ bool wn_cm_lobby_get_list(uint64_t hCall,
     WN_BRIDGE_LOGI("lobby_get_list(app=%u, num=%d, filters=%zu): dispatched",
                    app_id, num_lobbies_requested, filter_count);
     return true;
+}
+
+bool wn_cm_lobby_get_list(uint64_t hCall,
+                          uint32_t app_id,
+                          int32_t num_lobbies_requested,
+                          const char* const* filter_keys,
+                          const char* const* filter_values,
+                          const int32_t* filter_comparisons,
+                          const int32_t* filter_types,
+                          size_t filter_count,
+                          WnCmLobbyListCb cb) {
+    return wn_cm_lobby_get_list_internal(
+        hCall, app_id, num_lobbies_requested,
+        filter_keys, filter_values, filter_comparisons, filter_types,
+        filter_count, cb, nullptr);
 }
 
 bool wn_cm_lobby_create(uint64_t hCall,
