@@ -61,6 +61,14 @@ typedef bool  (*Steam_BGetCallback_fn)(int pipe, void* cb);
 typedef void  (*Steam_FreeLastCallback_fn)(int pipe);
 typedef void  (*Breakpad_SteamSetAppID_fn)(unsigned app_id);
 
+static FILE* g_logFile = NULL;
+
+static void open_log(void) {
+    if (g_logFile) return;
+    g_logFile = fopen("C:\\wn-launcher.log", "w");
+    if (g_logFile) setvbuf(g_logFile, NULL, _IONBF, 0);
+}
+
 static void log_line(const char* fmt, ...) {
     char buf[1024];
     va_list ap;
@@ -73,8 +81,13 @@ static void log_line(const char* fmt, ...) {
     buf[n + 1] = '\0';
     fputs(buf, stderr);
     OutputDebugStringA(buf);
-    FILE* lf = fopen("C:\\wn-launcher.log", "a");
-    if (lf) { fputs(buf, lf); fclose(lf); }
+    if (g_logFile) {
+        fputs(buf, g_logFile);
+    } else {
+        // Fallback for any log_line invoked before open_log() (unlikely but safe).
+        FILE* lf = fopen("C:\\wn-launcher.log", "a");
+        if (lf) { fputs(buf, lf); fclose(lf); }
+    }
 }
 
 static uint64_t env_u64(const char* name) {
@@ -704,7 +717,7 @@ static void scan_and_install_redists(const char* gameExePath) {
 int main(int argc, char** argv) {
     setbuf(stderr, NULL);
     setbuf(stdout, NULL);
-    { FILE* lf = fopen("C:\\wn-launcher.log", "w"); if (lf) fclose(lf); }
+    open_log();
     log_line("[wn-launcher] Steam Launcher in-process Steam launcher starting (pid=%lu tid=%lu)",
              (unsigned long) GetCurrentProcessId(),
              (unsigned long) GetCurrentThreadId());
@@ -1057,9 +1070,11 @@ int main(int argc, char** argv) {
                 bool reqRc = reqInfo(iApps, appIds, 1);
                 log_line("[wn-launcher] RequestAppInfoUpdate(appId=%u) -> %d",
                          appId, reqRc ? 1 : 0);
+                // 3s ceiling — purely diagnostic; the launch continues either
+                // way. LaunchApp internally refreshes AppInfo if it needs to.
                 bool appInfoDone = false;
                 int  waited = 0;
-                for (int i = 0; i < 100 && !appInfoDone; ++i) {
+                for (int i = 0; i < 30 && !appInfoDone; ++i) {
                     if (bGetCallback && freeLastCallback) {
                         char cb[64];
                         while (bGetCallback(pipe, cb)) {
@@ -1094,8 +1109,13 @@ int main(int argc, char** argv) {
             if (is_exec_ptr(stateP)) {
                 typedef int (WN_THISCALL *GetAppInstallStateFn)(void* self, uint32_t app);
                 GetAppInstallStateFn getInstallState = (GetAppInstallStateFn) stateP;
+                // 2s ceiling — the launcher itself wrote StateFlags=4 into
+                // the .acf in stage_app_manifest, so RefreshAppInfo() above
+                // should already make this poll return FullyInstalled on the
+                // first iteration. The loop remains only to absorb a slow
+                // appmanifest re-parse on the steamclient side.
                 int st = 0;
-                for (int i = 0; i < 100; ++i) {
+                for (int i = 0; i < 20; ++i) {
                     st = getInstallState(appMgr, appId);
                     if (st & 4) break;
                     if (bGetCallback && freeLastCallback) {

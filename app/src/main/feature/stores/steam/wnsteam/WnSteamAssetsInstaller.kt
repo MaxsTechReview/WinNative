@@ -147,6 +147,21 @@ object WnSteamAssetsInstaller {
         val steamDir = File(container.rootDir, ".wine/drive_c/Program Files (x86)/Steam")
         val binDir = File(steamDir, "bin").apply { mkdirs() }
 
+        val apkId = apkStamp(context)
+        val stageStamp = File(binDir, ".wn-planw-service.stamp")
+        val exeFile    = File(binDir, "steamservice.exe")
+        val dllFile    = File(binDir, "steamservice.dll")
+        val curVdfFile = File(binDir, "service_current_versions.vdf")
+        val minVdfFile = File(binDir, "service_minimum_versions.vdf")
+        if (!stampStale(stageStamp, apkId)
+            && exeFile.isFile && exeFile.length() > 0
+            && dllFile.isFile && dllFile.length() > 0
+            && curVdfFile.isFile && curVdfFile.length() > 0
+            && minVdfFile.isFile && minVdfFile.length() > 0) {
+            Timber.tag(TAG).d("planW: steamservice bundle already staged (apk=%s) — skipping per-launch copy", apkId)
+            return true
+        }
+
         fun stage(asset: String, dstFile: File): Boolean {
             val present = try { context.assets.open(asset).close(); true } catch (_: Exception) { false }
             if (!present) return false
@@ -164,12 +179,17 @@ object WnSteamAssetsInstaller {
         }
 
         return try {
-            val exeOk    = stage(exeAsset,    File(binDir, "steamservice.exe"))
-            val dllOk    = stage(dllAsset,    File(binDir, "steamservice.dll"))
-            val curVdfOk = stage(curVdfAsset, File(binDir, "service_current_versions.vdf"))
-            val minVdfOk = stage(minVdfAsset, File(binDir, "service_minimum_versions.vdf"))
+            val exeOk    = stage(exeAsset,    exeFile)
+            val dllOk    = stage(dllAsset,    dllFile)
+            val curVdfOk = stage(curVdfAsset, curVdfFile)
+            val minVdfOk = stage(minVdfAsset, minVdfFile)
             Timber.tag(TAG).i("planW: steamservice bundle staged exe=%b dll=%b curVdf=%b minVdf=%b",
                 exeOk, dllOk, curVdfOk, minVdfOk)
+            // Stamp only when the full bundle is on disk — a partial copy must
+            // re-run next launch, never get locked in by a fresh stamp.
+            if (exeOk && dllOk && curVdfOk && minVdfOk) {
+                try { stageStamp.writeText(apkId) } catch (_: Exception) {}
+            }
             exeOk
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "planW: failed to stage steamservice bundle")
@@ -377,22 +397,41 @@ object WnSteamAssetsInstaller {
         steamDir.mkdirs()
         val dst = File(steamDir, "steam.exe")
         File(steamDir, "wn-steam-launcher.exe").let { if (it.exists()) it.delete() }
-        if (dst.exists()) { try { dst.delete() } catch (_: Exception) {} }
-        val ok = try {
-            context.assets.open("$ASSET_DIR/bionic/steam.exe").use { input ->
-                dst.outputStream().use { output -> input.copyTo(output) }
+
+        val apkId = apkStamp(context)
+        val stageStamp = File(steamDir, ".wn-planw-launcher.stamp")
+        val staged = !stampStale(stageStamp, apkId) && dst.isFile && dst.length() > 0
+        val ok: Boolean
+        if (staged) {
+            Timber.tag(TAG).d("planW: steam.exe already staged (apk=%s, %d bytes) — skipping per-launch copy",
+                apkId, dst.length())
+            ok = true
+        } else {
+            if (dst.exists()) { try { dst.delete() } catch (_: Exception) {} }
+            ok = try {
+                context.assets.open("$ASSET_DIR/bionic/steam.exe").use { input ->
+                    dst.outputStream().use { output -> input.copyTo(output) }
+                }
+                Timber.tag(TAG).i("planW: installed steam.exe (%d bytes) at %s",
+                    dst.length(), dst.absolutePath)
+                true
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "planW: failed to install steam.exe")
+                false
             }
-            Timber.tag(TAG).i("planW: installed steam.exe (%d bytes) at %s",
-                dst.length(), dst.absolutePath)
-            true
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "planW: failed to install steam.exe")
-            false
+            if (ok) {
+                try { stageStamp.writeText(apkId) } catch (_: Exception) {}
+            }
         }
         try {
             val caSrc = File(context.filesDir, "wnsteam_cacert.pem")
             if (caSrc.exists() && caSrc.length() > 0) {
                 val caDst = File(steamDir, "wnsteam_cacert.pem")
+                // Always copy: the CA bundle source can be refreshed outside
+                // APK updates (e.g., a CA-refresh routine), and a same-size
+                // content change would otherwise leave the launcher TLS-ing
+                // against a stale trust store. The file is small (~few KB);
+                // the per-launch copy cost is negligible.
                 caSrc.copyTo(caDst, overwrite = true)
                 Timber.tag(TAG).i("planW: staged CA bundle (%d bytes) at %s",
                     caDst.length(), caDst.absolutePath)
