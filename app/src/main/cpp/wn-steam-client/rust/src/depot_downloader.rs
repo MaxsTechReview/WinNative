@@ -245,6 +245,8 @@ pub fn map_write_progress(
     }
 }
 
+pub type DepotProgressCallback<'a> = &'a (dyn Fn(&DepotDownloadProgress) + Sync);
+
 pub fn download_resolved_depots(
     install_dir: &str,
     depots: &[ResolvedDepotSpec],
@@ -253,13 +255,14 @@ pub fn download_resolved_depots(
     fresh: bool,
     max_workers: u32,
 ) -> DepotDownloadResult {
-    download_resolved_depots_with_cancel(
+    download_resolved_depots_with_cancel_progress(
         install_dir,
         depots,
         servers,
         ca_bundle_path,
         fresh,
         max_workers,
+        None,
         None,
     )
 }
@@ -272,6 +275,28 @@ pub fn download_resolved_depots_with_cancel(
     fresh: bool,
     max_workers: u32,
     cancel: Option<&AtomicBool>,
+) -> DepotDownloadResult {
+    download_resolved_depots_with_cancel_progress(
+        install_dir,
+        depots,
+        servers,
+        ca_bundle_path,
+        fresh,
+        max_workers,
+        cancel,
+        None,
+    )
+}
+
+pub fn download_resolved_depots_with_cancel_progress(
+    install_dir: &str,
+    depots: &[ResolvedDepotSpec],
+    servers: &[CContentServerDirectoryServerInfo],
+    ca_bundle_path: &str,
+    fresh: bool,
+    max_workers: u32,
+    cancel: Option<&AtomicBool>,
+    on_progress: Option<DepotProgressCallback<'_>>,
 ) -> DepotDownloadResult {
     if let Err(error) = validate_resolved_download_inputs(install_dir, depots, servers) {
         return error;
@@ -304,7 +329,8 @@ pub fn download_resolved_depots_with_cancel(
         ..Default::default()
     };
 
-    for depot in depots {
+    let depots_total = depots.len() as u32;
+    for (depot_index, depot) in depots.iter().enumerate() {
         if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
             return DepotDownloadResult::fail("cancelled");
         }
@@ -371,6 +397,23 @@ pub fn download_resolved_depots_with_cancel(
             ));
         }
 
+        let depot_id = depot.depot_id;
+        let depots_done = depot_index as u32;
+        let chunk_progress = |done: u64, total: u64, verifying: bool| {
+            if let Some(on_progress) = on_progress {
+                let progress = map_write_progress(
+                    depot_id,
+                    depots_done,
+                    depots_total,
+                    done,
+                    total,
+                    verifying,
+                );
+                on_progress(&progress);
+            }
+        };
+        let chunk_progress: crate::depot_writer::DepotChunkProgressCallback =
+            &chunk_progress;
         let write_result = write_depot_sequential(
             &manifest,
             &depot.depot_key,
@@ -380,6 +423,7 @@ pub fn download_resolved_depots_with_cancel(
             DepotWriteOptions {
                 max_workers,
                 cancel,
+                on_progress: Some(chunk_progress),
                 ..Default::default()
             },
         );

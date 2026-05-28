@@ -5,7 +5,8 @@ use crate::pb::ccontentserverdirectory::CContentServerDirectoryServerInfo;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -46,12 +47,15 @@ pub struct DepotWritePlan {
     pub worker_count: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+pub type DepotChunkProgressCallback<'a> = &'a (dyn Fn(u64, u64, bool) + Sync);
+
+#[derive(Clone, Copy)]
 pub struct DepotWriteOptions<'a> {
     pub cdn_auth_token: &'a str,
     pub timeout: Duration,
     pub max_workers: u32,
     pub cancel: Option<&'a AtomicBool>,
+    pub on_progress: Option<DepotChunkProgressCallback<'a>>,
 }
 
 impl Default for DepotWriteOptions<'_> {
@@ -61,6 +65,7 @@ impl Default for DepotWriteOptions<'_> {
             timeout: CdnClient::default_timeout(),
             max_workers: 8,
             cancel: None,
+            on_progress: None,
         }
     }
 }
@@ -249,13 +254,42 @@ pub fn write_depot_sequential(
         return layout;
     }
 
+    if plan.worker_count > 1 && plan.chunk_jobs.len() > 1 && servers.len() > 0 {
+        return write_depot_parallel(
+            manifest,
+            depot_key,
+            cdn,
+            servers,
+            target_dir,
+            &plan,
+            &options,
+        );
+    }
+
     let mut bytes_written = 0u64;
+    let total_bytes = plan.total_bytes;
     for (job_index, job) in plan.chunk_jobs.iter().enumerate() {
         if options
             .cancel
             .is_some_and(|cancel| cancel.load(Ordering::Relaxed))
         {
             return DepotWriteResult::fail("cancelled", true);
+        }
+        let file = match manifest.files.get(job.file_idx as usize) {
+            Some(file) => file,
+            None => return DepotWriteResult::fail("bad file index", true),
+        };
+        let chunk = match file.chunks.get(job.chunk_idx as usize) {
+            Some(chunk) => chunk,
+            None => return DepotWriteResult::fail("bad chunk index", true),
+        };
+        let path = join_target_path(target_dir, &file.filename);
+        if existing_chunk_matches(&path, chunk) {
+            bytes_written += chunk.cb_original as u64;
+            if let Some(on_progress) = options.on_progress {
+                on_progress(bytes_written, total_bytes, false);
+            }
+            continue;
         }
         match fetch_process_write_chunk(
             cdn,
@@ -269,7 +303,12 @@ pub fn write_depot_sequential(
             job_index % servers.len(),
             options.timeout,
         ) {
-            Ok(bytes) => bytes_written += bytes,
+            Ok(bytes) => {
+                bytes_written += bytes;
+                if let Some(on_progress) = options.on_progress {
+                    on_progress(bytes_written, total_bytes, false);
+                }
+            }
             Err(error) => return DepotWriteResult::fail(error, true),
         }
     }
@@ -296,6 +335,146 @@ pub fn write_depot_sequential(
         resume_trust_safe: true,
         error: String::new(),
     }
+}
+
+fn write_depot_parallel(
+    manifest: &ContentManifest,
+    depot_key: &[u8],
+    cdn: &CdnClient,
+    servers: &[CContentServerDirectoryServerInfo],
+    target_dir: &str,
+    plan: &DepotWritePlan,
+    options: &DepotWriteOptions<'_>,
+) -> DepotWriteResult {
+    let total_bytes = plan.total_bytes;
+    let bytes_written = Arc::new(AtomicU64::new(0));
+    let error_slot: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let next_index = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let jobs = Arc::new(plan.chunk_jobs.clone());
+    let worker_count = (plan.worker_count as usize).max(1).min(jobs.len());
+    let cdn_auth_token = options.cdn_auth_token.to_string();
+    let timeout = options.timeout;
+    let cancel_flag = options.cancel.map(|c| {
+        let raw = c as *const AtomicBool;
+        unsafe { raw.as_ref() }.unwrap()
+    });
+    // SAFETY: we only spawn scoped threads so all `'a` references outlive joins.
+    let scope_result = thread::scope(|scope| -> DepotWriteResult {
+        let mut handles = Vec::with_capacity(worker_count);
+        for worker_id in 0..worker_count {
+            let bytes_written = Arc::clone(&bytes_written);
+            let error_slot = Arc::clone(&error_slot);
+            let next_index = Arc::clone(&next_index);
+            let jobs = Arc::clone(&jobs);
+            let cdn_auth_token = cdn_auth_token.clone();
+            let manifest_ref = manifest;
+            let depot_key_ref = depot_key;
+            let target_dir_ref = target_dir;
+            let cdn_ref = cdn;
+            let servers_ref = servers;
+            let progress = options.on_progress;
+            handles.push(scope.spawn(move || {
+                loop {
+                    if cancel_flag.is_some_and(|c| c.load(Ordering::Relaxed)) {
+                        return;
+                    }
+                    if error_slot.lock().expect("err slot poisoned").is_some() {
+                        return;
+                    }
+                    let idx = next_index.fetch_add(1, Ordering::Relaxed);
+                    if idx >= jobs.len() {
+                        return;
+                    }
+                    let job = jobs[idx];
+                    let file = match manifest_ref.files.get(job.file_idx as usize) {
+                        Some(file) => file,
+                        None => {
+                            *error_slot.lock().expect("err slot poisoned") =
+                                Some("bad file index".to_string());
+                            return;
+                        }
+                    };
+                    let chunk = match file.chunks.get(job.chunk_idx as usize) {
+                        Some(chunk) => chunk,
+                        None => {
+                            *error_slot.lock().expect("err slot poisoned") =
+                                Some("bad chunk index".to_string());
+                            return;
+                        }
+                    };
+                    let path = join_target_path(target_dir_ref, &file.filename);
+                    if existing_chunk_matches(&path, chunk) {
+                        let total =
+                            bytes_written.fetch_add(chunk.cb_original as u64, Ordering::Relaxed)
+                                + chunk.cb_original as u64;
+                        if let Some(cb) = progress {
+                            cb(total, total_bytes, false);
+                        }
+                        continue;
+                    }
+                    let start_server = (idx + worker_id) % servers_ref.len();
+                    match fetch_process_write_chunk(
+                        cdn_ref,
+                        servers_ref,
+                        manifest_ref,
+                        job.file_idx as usize,
+                        job.chunk_idx as usize,
+                        depot_key_ref,
+                        target_dir_ref,
+                        &cdn_auth_token,
+                        start_server,
+                        timeout,
+                    ) {
+                        Ok(bytes) => {
+                            let total = bytes_written.fetch_add(bytes, Ordering::Relaxed) + bytes;
+                            if let Some(cb) = progress {
+                                cb(total, total_bytes, false);
+                            }
+                        }
+                        Err(error) => {
+                            *error_slot.lock().expect("err slot poisoned") = Some(error);
+                            return;
+                        }
+                    }
+                }
+            }));
+        }
+        for handle in handles {
+            let _ = handle.join();
+        }
+        if cancel_flag.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return DepotWriteResult::fail("cancelled", true);
+        }
+        if let Some(error) = error_slot.lock().expect("err slot poisoned").take() {
+            return DepotWriteResult::fail(error, true);
+        }
+        DepotWriteResult {
+            files_written: plan.files_written,
+            bytes_written: bytes_written.load(Ordering::Relaxed),
+            resume_trust_safe: true,
+            error: String::new(),
+        }
+    });
+    if !scope_result.ok() {
+        return scope_result;
+    }
+
+    for file in &manifest.files {
+        if options
+            .cancel
+            .is_some_and(|cancel| cancel.load(Ordering::Relaxed))
+        {
+            return DepotWriteResult::fail("cancelled", true);
+        }
+        if !file.linktarget.is_empty() || (file.flags & DEPOT_FILE_FLAG_DIRECTORY) != 0 {
+            continue;
+        }
+        let path = join_target_path(target_dir, &file.filename);
+        if let Err(error) = finalize_regular_file(path, file.size) {
+            return DepotWriteResult::fail(error, true);
+        }
+    }
+    scope_result
 }
 
 pub fn create_depot_layout(plan: &DepotWritePlan) -> DepotWriteResult {

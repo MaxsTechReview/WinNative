@@ -82,8 +82,9 @@ impl CMClientRuntime {
 
     pub fn disconnect(&self) {
         self.heartbeat.lock().expect("heartbeat poisoned").stop();
-        self.jobs.fail_all("CMClient disconnected");
         self.channel.disconnect();
+        self.jobs.fail_all("CMClient disconnected");
+        self.core.reset_session_identity();
         self.core.set_state(ClientState::Disconnected);
         self.notify_state(ClientState::Disconnected);
     }
@@ -235,12 +236,25 @@ impl CMClientRuntime {
     fn on_channel_connected(self: &Arc<Self>) {
         self.core.set_state(ClientState::Connected);
         self.notify_state(ClientState::Connected);
+        // Always send ClientHello first; pre-existing queued wires (e.g. a
+        // logon enqueued before the channel finished negotiating) must come
+        // after the Hello or Steam rejects the conversation as malformed.
+        // If a Hello was already prequeued, do not duplicate it.
         let queued = self.core.take_outbound_wires();
-        if queued.is_empty() {
-            self.core.enqueue_wire(self.core.build_client_hello().wire);
+        let head_is_hello = queued
+            .first()
+            .and_then(|wire| decode_proto_envelope(wire))
+            .is_some_and(|env| env.emsg == EMsg::CLIENT_HELLO);
+        let combined = if head_is_hello {
+            queued
         } else {
-            self.core.restore_outbound_wires_front(queued);
-        }
+            let hello = self.core.build_client_hello().wire;
+            let mut combined = Vec::with_capacity(queued.len() + 1);
+            combined.push(hello);
+            combined.extend(queued);
+            combined
+        };
+        self.core.restore_outbound_wires_front(combined);
         self.flush_outbound();
     }
 
@@ -252,6 +266,7 @@ impl CMClientRuntime {
             .lock()
             .expect("pics product info poisoned")
             .clear();
+        self.core.reset_session_identity();
         self.core.set_state(ClientState::Disconnected);
         self.notify_state(ClientState::Disconnected);
     }

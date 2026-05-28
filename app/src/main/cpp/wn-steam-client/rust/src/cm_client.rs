@@ -18,7 +18,9 @@ use crate::pb::cfamilygroups::CFamilyGroupsGetFamilyGroupRequest;
 use crate::pb::cinventory::CInventoryGetItemDefMetaRequest;
 use crate::pb::cmsg_client_change_status::CMsgClientChangeStatus;
 use crate::pb::cmsg_client_friends_list::CMsgClientFriendsList;
-use crate::pb::cmsg_client_games_played::{CMsgClientGamesPlayed, GamePlayedEntry};
+use crate::pb::cmsg_client_games_played::{
+    CMsgClientGamesPlayed, GamePlayedEntry, GamePlayedProcessInfo,
+};
 use crate::pb::cmsg_client_get_app_ownership_ticket::CMsgClientGetAppOwnershipTicket;
 use crate::pb::cmsg_client_get_depot_decryption_key::CMsgClientGetDepotDecryptionKey;
 use crate::pb::cmsg_client_kick_playing_session::CMsgClientKickPlayingSession;
@@ -70,6 +72,15 @@ pub struct FriendPersonaSnapshot {
     pub persona_state: u32,
     pub game_played_app_id: u32,
     pub avatar_hash: Vec<u8>,
+    pub rich_presence: Vec<(String, String)>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GamesPlayedExtras {
+    pub process_id: u32,
+    pub owner_id: u32,
+    pub launch_source: u32,
+    pub game_build_id: u32,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -171,6 +182,17 @@ impl CMClientCore {
 
     pub fn set_state(&self, state: ClientState) {
         self.state.store(state as u8, Ordering::Relaxed);
+    }
+
+    pub fn reset_session_identity(&self) {
+        self.steam_id.store(0, Ordering::Relaxed);
+        self.session_id.store(0, Ordering::Relaxed);
+        self.family_group_id.store(0, Ordering::Relaxed);
+        self.server_realtime.store(0, Ordering::Relaxed);
+        self.outbound_wires
+            .lock()
+            .expect("outbound queue poisoned")
+            .clear();
     }
 
     pub fn steam_id(&self) -> u64 {
@@ -302,7 +324,7 @@ impl CMClientCore {
         }
         let refresh_token = refresh_token.into();
         let account_name = account_name.into();
-        if refresh_token.is_empty() || account_name.is_empty() {
+        if refresh_token.is_empty() {
             return None;
         }
 
@@ -351,9 +373,10 @@ impl CMClientCore {
         request_body: &[u8],
     ) -> Vec<u8> {
         let header = CMsgProtoBufHeader {
-            steamid: if authed { self.steam_id() } else { 0 },
-            client_sessionid: if authed { self.session_id() } else { 0 },
+            steamid: self.steam_id(),
+            client_sessionid: self.session_id(),
             jobid_source: job_id,
+            jobid_target: INVALID_JOB_ID,
             target_job_name: method_name.to_string(),
             ..Default::default()
         };
@@ -485,14 +508,33 @@ impl CMClientCore {
     }
 
     pub fn build_notify_games_played(&self, app_id: u32) -> Option<OutboundProtoMessage> {
+        self.build_notify_games_played_full(
+            app_id.into(),
+            &GamesPlayedExtras::default(),
+            &[],
+            0,
+        )
+    }
+
+    pub fn build_notify_games_played_full(
+        &self,
+        game_id: u64,
+        extras: &GamesPlayedExtras,
+        processes: &[GamePlayedProcessInfo],
+        client_os_type: u32,
+    ) -> Option<OutboundProtoMessage> {
         let mut msg = CMsgClientGamesPlayed {
             games_played: Vec::new(),
-            client_os_type: 0,
+            client_os_type,
         };
-        if app_id != 0 {
+        if game_id != 0 {
             msg.games_played.push(GamePlayedEntry {
-                game_id: app_id as u64,
-                ..Default::default()
+                game_id,
+                process_id: extras.process_id,
+                owner_id: extras.owner_id,
+                launch_source: extras.launch_source,
+                game_build_id: extras.game_build_id,
+                process_id_list: processes.to_vec(),
             });
         }
         self.build_outbound_proto_message(
@@ -1231,8 +1273,10 @@ impl CMClientCore {
                 }
             }
             EMsg::CLIENT_LOGGED_OFF | EMsg::CLIENT_SERVER_UNAVAILABLE => {
-                self.state
-                    .store(ClientState::Connected as u8, Ordering::Relaxed);
+                if self.state() == ClientState::LoggedOn {
+                    self.state
+                        .store(ClientState::Connected as u8, Ordering::Relaxed);
+                }
                 self.steam_id.store(0, Ordering::Relaxed);
                 self.session_id.store(0, Ordering::Relaxed);
                 self.family_group_id.store(0, Ordering::Relaxed);
@@ -1289,6 +1333,9 @@ impl CMClientCore {
                         slot.game_played_app_id = friend.game_played_app_id;
                         if !friend.avatar_hash.is_empty() {
                             slot.avatar_hash = friend.avatar_hash;
+                        }
+                        if !friend.rich_presence.is_empty() {
+                            slot.rich_presence = friend.rich_presence;
                         }
                     }
                 }
@@ -1459,8 +1506,10 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(non.emsg, EMsg::SERVICE_METHOD_CALL_FROM_CLIENT_NON_AUTHED);
-        assert_eq!(non.header.steamid, 0);
-        assert_eq!(non.header.client_sessionid, 0);
+        // Matches C++: header carries current steamid/session even on non-authed
+        // calls (post-logon pre-existing identity is harmless; pre-logon both are 0).
+        assert_eq!(non.header.steamid, 123);
+        assert_eq!(non.header.client_sessionid, 7);
     }
 
     #[test]
@@ -1522,6 +1571,9 @@ mod tests {
             .body
             .windows("refresh".len())
             .any(|window| window == b"refresh"));
+        assert!(core
+            .build_logon_with_refresh_token("refresh", "", 123)
+            .is_some());
 
         assert!(core.build_logoff().is_none());
         core.set_state(ClientState::LoggedOn);

@@ -1,9 +1,9 @@
 use crate::auth_session::{
-    auth_result_from_poll, build_credentials_begin_request, build_guard_code_request,
-    build_password_rsa_request, build_poll_request, build_qr_begin_request,
-    choose_guard_confirmation, job_error, pending_credentials_from_begin_response,
-    pending_qr_from_begin_response, sleep_slices, AuthSessionResult, CredentialsAuthConfig,
-    QrAuthConfig,
+    apply_account_name_fallback, auth_result_from_poll, build_credentials_begin_request,
+    build_guard_code_request, build_password_rsa_request, build_poll_request,
+    build_qr_begin_request, choose_guard_confirmation,
+    pending_credentials_from_begin_response, pending_qr_from_begin_response, sleep_slices,
+    take_qr_remote_interaction, AuthSessionResult, CredentialsAuthConfig, QrAuthConfig,
 };
 use crate::cm_bridge;
 use crate::cm_client::{CMClientCore, ClientState, OutboundProtoMessage, OutboundServiceCall};
@@ -21,6 +21,8 @@ use jni::sys::{
 };
 use jni::{JNIEnv, JavaVM};
 use serde_json::json;
+#[cfg(target_os = "android")]
+use std::ffi::CString;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -28,6 +30,32 @@ use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+#[cfg(target_os = "android")]
+#[link(name = "log")]
+unsafe extern "C" {
+    fn __android_log_write(prio: i32, tag: *const i8, text: *const i8) -> i32;
+}
+
+fn qr_log(message: &str) {
+    #[cfg(target_os = "android")]
+    {
+        let Ok(tag) = CString::new("WnSteamQr") else {
+            return;
+        };
+        let sanitized = message.replace('\0', " ");
+        let Ok(text) = CString::new(sanitized) else {
+            return;
+        };
+        unsafe {
+            let _ = __android_log_write(4, tag.as_ptr().cast(), text.as_ptr().cast());
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = message;
+    }
+}
 
 struct WnConnectionHandle {
     channel: EncryptedChannel,
@@ -42,9 +70,9 @@ struct WnSteamSessionHandle {
     runtime: Mutex<Option<Arc<CMClientRuntime>>>,
     login_cancel: Mutex<Option<Arc<AtomicBool>>>,
     download_cancel: Arc<AtomicBool>,
-    outbound_wires: Mutex<Vec<Vec<u8>>>,
-    state_observer: Mutex<Option<GlobalRef>>,
-    library_observer: Mutex<Option<GlobalRef>>,
+    state_observer: Arc<Mutex<Option<GlobalRef>>>,
+    library_observer: Arc<Mutex<Option<GlobalRef>>>,
+    library_observer_installed: Mutex<bool>,
 }
 
 impl WnConnectionHandle {
@@ -68,35 +96,9 @@ impl WnSteamSessionHandle {
             runtime: Mutex::new(None),
             login_cancel: Mutex::new(None),
             download_cancel: Arc::new(AtomicBool::new(false)),
-            outbound_wires: Mutex::new(Vec::new()),
-            state_observer: Mutex::new(None),
-            library_observer: Mutex::new(None),
-        }
-    }
-
-    fn set_state(&self, env: &mut JNIEnv, state: ClientState) {
-        self.core.set_state(state);
-        self.notify_state(env, state);
-    }
-
-    fn notify_state(&self, env: &mut JNIEnv, state: ClientState) {
-        let observer = self
-            .state_observer
-            .lock()
-            .expect("session state observer poisoned")
-            .as_ref()
-            .cloned();
-        let Some(observer) = observer else {
-            return;
-        };
-        let _ = env.call_method(
-            observer.as_obj(),
-            "onStateChanged",
-            "(I)V",
-            &[JValue::Int(state as jint)],
-        );
-        if env.exception_check().unwrap_or(false) {
-            let _ = env.exception_clear();
+            state_observer: Arc::new(Mutex::new(None)),
+            library_observer: Arc::new(Mutex::new(None)),
+            library_observer_installed: Mutex::new(false),
         }
     }
 
@@ -111,11 +113,9 @@ impl WnSteamSessionHandle {
         if wire.is_empty() {
             return false;
         }
-        self.core.enqueue_wire(wire.clone());
-        self.outbound_wires
-            .lock()
-            .expect("session outbound queue poisoned")
-            .push(wire);
+        if !self.core.enqueue_wire(wire) {
+            return false;
+        }
         if let Some(runtime) = self
             .runtime
             .lock()
@@ -136,8 +136,32 @@ impl WnSteamSessionHandle {
         if !self.ca_bundle_path.is_empty() {
             runtime.set_ca_bundle_path(&self.ca_bundle_path);
         }
+        let state_observer = Arc::clone(&self.state_observer);
+        runtime.set_on_state(move |state| {
+            dispatch_state_observer(&state_observer, state);
+        });
+        let client_message_observer = Arc::clone(&self.state_observer);
+        runtime.set_on_client_message(move |emsg, header, body| {
+            dispatch_client_message_observer(&client_message_observer, emsg, header.eresult, body);
+        });
+        self.install_library_observer();
         *slot = Some(Arc::clone(&runtime));
         runtime
+    }
+
+    fn install_library_observer(&self) {
+        let mut installed = self
+            .library_observer_installed
+            .lock()
+            .expect("library observer install flag poisoned");
+        if *installed {
+            return;
+        }
+        let observer = Arc::clone(&self.library_observer);
+        self.core.library().set_observer(move || {
+            dispatch_library_observer(&observer);
+        });
+        *installed = true;
     }
 
     fn connected_runtime(&self) -> Option<Arc<CMClientRuntime>> {
@@ -215,6 +239,28 @@ unsafe fn drop_session_handle(handle: jlong) {
 }
 
 static JVM: OnceLock<JavaVM> = OnceLock::new();
+static AUTH_RESULT_CLASS: OnceLock<GlobalRef> = OnceLock::new();
+
+fn ensure_auth_result_class(env: &mut JNIEnv) -> Option<&'static GlobalRef> {
+    if let Some(class) = AUTH_RESULT_CLASS.get() {
+        return Some(class);
+    }
+    let Ok(class) = env.find_class("com/winlator/cmod/feature/stores/steam/wnsteam/WnAuthResult")
+    else {
+        clear_pending_exception(env);
+        return None;
+    };
+    let Ok(class) = env.new_global_ref(class) else {
+        clear_pending_exception(env);
+        return None;
+    };
+    let _ = AUTH_RESULT_CLASS.set(class);
+    AUTH_RESULT_CLASS.get()
+}
+
+fn auth_result_jclass<'a>(class: &'a GlobalRef) -> JClass<'a> {
+    unsafe { JClass::from_raw(class.as_obj().as_raw() as _) }
+}
 
 fn new_string_or_null(env: &mut JNIEnv, value: &str) -> jstring {
     env.new_string(value)
@@ -261,6 +307,87 @@ fn dispatch_connection_disconnected(
         "(ILjava/lang/String;)V",
         &[JValue::Int(reason as jint), JValue::Object(&detail_obj)],
     );
+    clear_pending_exception(&mut env);
+}
+
+fn dispatch_state_observer(observer: &Arc<Mutex<Option<GlobalRef>>>, state: ClientState) {
+    let cloned = observer
+        .lock()
+        .expect("session state observer poisoned")
+        .as_ref()
+        .cloned();
+    let Some(observer) = cloned else {
+        return;
+    };
+    let Some(vm) = JVM.get() else {
+        return;
+    };
+    let Ok(mut env) = vm.attach_current_thread_as_daemon() else {
+        return;
+    };
+    let _ = env.call_method(
+        observer.as_obj(),
+        "onStateChanged",
+        "(I)V",
+        &[JValue::Int(state as jint)],
+    );
+    clear_pending_exception(&mut env);
+}
+
+fn dispatch_client_message_observer(
+    observer: &Arc<Mutex<Option<GlobalRef>>>,
+    emsg: EMsg,
+    eresult: i32,
+    body: &[u8],
+) {
+    let cloned = observer
+        .lock()
+        .expect("session state observer poisoned")
+        .as_ref()
+        .cloned();
+    let Some(observer) = cloned else {
+        return;
+    };
+    let Some(vm) = JVM.get() else {
+        return;
+    };
+    let Ok(mut env) = vm.attach_current_thread_as_daemon() else {
+        return;
+    };
+    let Ok(array) = env.byte_array_from_slice(body) else {
+        clear_pending_exception(&mut env);
+        return;
+    };
+    let array_obj = JObject::from(array);
+    let _ = env.call_method(
+        observer.as_obj(),
+        "onClientMessage",
+        "(II[B)V",
+        &[
+            JValue::Int(emsg.0 as jint),
+            JValue::Int(eresult),
+            JValue::Object(&array_obj),
+        ],
+    );
+    clear_pending_exception(&mut env);
+}
+
+fn dispatch_library_observer(observer: &Arc<Mutex<Option<GlobalRef>>>) {
+    let cloned = observer
+        .lock()
+        .expect("session library observer poisoned")
+        .as_ref()
+        .cloned();
+    let Some(observer) = cloned else {
+        return;
+    };
+    let Some(vm) = JVM.get() else {
+        return;
+    };
+    let Ok(mut env) = vm.attach_current_thread_as_daemon() else {
+        return;
+    };
+    let _ = env.call_method(observer.as_obj(), "onLibraryChanged", "()V", &[]);
     clear_pending_exception(&mut env);
 }
 
@@ -518,6 +645,9 @@ fn call_auth_result_failure(env: &mut JNIEnv, callback: &JObject, code: jint, me
     if callback.is_null() {
         return;
     }
+    let Some(auth_result_class) = ensure_auth_result_class(env) else {
+        return;
+    };
     let Ok(error) = env.new_string(message) else {
         clear_pending_exception(env);
         return;
@@ -528,8 +658,9 @@ fn call_auth_result_failure(env: &mut JNIEnv, callback: &JObject, code: jint, me
     };
     let error_obj = JObject::from(error);
     let empty_obj = JObject::from(empty);
+    let auth_result_class = auth_result_jclass(auth_result_class);
     let Ok(result) = env.new_object(
-        "com/winlator/cmod/feature/stores/steam/wnsteam/WnAuthResult",
+        auth_result_class,
         "(ZILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZLjava/lang/String;)V",
         &[
             JValue::Bool(JNI_FALSE),
@@ -570,6 +701,10 @@ fn call_auth_result(env: &mut JNIEnv, callback: &JObject, result: &AuthSessionRe
     if callback.is_null() {
         return;
     }
+    let Some(auth_result_class) = AUTH_RESULT_CLASS.get() else {
+        qr_log("auth result class missing; dropping auth callback");
+        return;
+    };
     let Ok(error_message) = env.new_string(&result.error_message) else {
         clear_pending_exception(env);
         return;
@@ -600,8 +735,9 @@ fn call_auth_result(env: &mut JNIEnv, callback: &JObject, result: &AuthSessionRe
     let access_token = JObject::from(access_token);
     let new_guard_data = JObject::from(new_guard_data);
     let agreement_session_url = JObject::from(agreement_session_url);
+    let auth_result_class = auth_result_jclass(auth_result_class);
     let Ok(auth_result) = env.new_object(
-        "com/winlator/cmod/feature/stores/steam/wnsteam/WnAuthResult",
+        auth_result_class,
         "(ZILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZLjava/lang/String;)V",
         &[
             JValue::Bool(if result.success { JNI_TRUE } else { JNI_FALSE }),
@@ -769,27 +905,6 @@ fn authenticator_get_email_code(
     value
 }
 
-fn submit_non_authed_service_call<F>(
-    runtime: &Arc<CMClientRuntime>,
-    method: &str,
-    body: Vec<u8>,
-    callback: F,
-) -> bool
-where
-    F: FnOnce(crate::job_manager::JobResult) + Send + 'static,
-{
-    let job_id = runtime.next_job_id();
-    runtime.track_job(job_id, callback, None);
-    let wire = runtime
-        .core()
-        .build_service_method_call(method, false, job_id, &body);
-    if !runtime.core().enqueue_wire(wire) {
-        return false;
-    }
-    runtime.flush_outbound();
-    true
-}
-
 fn request_authed_service_body<F>(
     runtime: &Arc<CMClientRuntime>,
     timeout: Duration,
@@ -849,20 +964,20 @@ where
     rx.recv_timeout(timeout).unwrap_or(false)
 }
 
-fn request_service_method_body(
+fn request_service_method_job(
     runtime: &Arc<CMClientRuntime>,
     method: &str,
     authed: bool,
     body: Vec<u8>,
     timeout: Duration,
-) -> Option<Vec<u8>> {
+    cancel: Option<&AtomicBool>,
+) -> Option<crate::job_manager::JobResult> {
     let job_id = runtime.next_job_id();
     let (tx, rx) = mpsc::channel();
     runtime.track_job(
         job_id,
         move |job| {
-            let body = (!job.synthetic_failure && job.eresult == 1).then_some(job.body);
-            let _ = tx.send(body);
+            let _ = tx.send(job);
         },
         Some(timeout),
     );
@@ -873,7 +988,47 @@ fn request_service_method_body(
         return None;
     }
     runtime.flush_outbound();
-    rx.recv_timeout(timeout).ok().flatten()
+    recv_with_cancel(&rx, timeout, cancel)
+}
+
+fn recv_with_cancel<T>(
+    rx: &mpsc::Receiver<T>,
+    timeout: Duration,
+    cancel: Option<&AtomicBool>,
+) -> Option<T> {
+    let tick = Duration::from_millis(100);
+    let mut remaining = timeout;
+    loop {
+        if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return None;
+        }
+        let wait = remaining.min(tick);
+        match rx.recv_timeout(wait) {
+            Ok(value) => return Some(value),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if remaining <= wait {
+                    return None;
+                }
+                remaining -= wait;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => return None,
+        }
+    }
+}
+
+fn auth_result_from_job(job: &crate::job_manager::JobResult, fallback_label: &str) -> AuthSessionResult {
+    let message = if !job.error_message.is_empty() {
+        job.error_message.clone()
+    } else if job.synthetic_failure {
+        format!("{fallback_label} timed out")
+    } else {
+        format!("{fallback_label} failed (eresult={})", job.eresult)
+    };
+    AuthSessionResult {
+        eresult: job.eresult,
+        error_message: message,
+        ..Default::default()
+    }
 }
 
 fn request_user_stats_response(
@@ -1103,91 +1258,139 @@ struct QrPollState {
 
 fn start_qr_poll_loop(state: QrPollState) {
     thread::spawn(move || {
-        let interval = Duration::from_secs_f32(state.poll_interval_seconds.max(0.25));
-        for slice in sleep_slices(interval, Duration::from_millis(100)) {
-            if state.cancel.load(Ordering::Relaxed) {
+        let QrPollState {
+            runtime,
+            qr_callback,
+            result_callback,
+            cancel,
+            mut client_id,
+            request_id,
+            poll_interval_seconds,
+            last_challenge_url,
+        } = state;
+        let poll_interval = Duration::from_secs_f32(poll_interval_seconds.max(0.25));
+        let timeout = Duration::from_secs(30);
+        let mut reported_remote_interaction = false;
+        qr_log(&format!(
+            "poll loop start client_id={} request_id_len={} interval_s={:.2}",
+            client_id,
+            request_id.len(),
+            poll_interval_seconds
+        ));
+        loop {
+            for slice in sleep_slices(poll_interval, Duration::from_millis(100)) {
+                if cancel.load(Ordering::Relaxed) {
+                    return;
+                }
+                thread::sleep(slice);
+            }
+            if cancel.load(Ordering::Relaxed) {
                 return;
             }
-            thread::sleep(slice);
-        }
-        if state.cancel.load(Ordering::Relaxed) {
-            return;
-        }
 
-        let request = build_poll_request(state.client_id, state.request_id.clone()).serialize();
-        let runtime_for_callback = Arc::clone(&state.runtime);
-        let qr_for_callback = state.qr_callback.clone();
-        let result_for_callback = state.result_callback.clone();
-        let cancel_for_callback = Arc::clone(&state.cancel);
-        let last_url_for_callback = Arc::clone(&state.last_challenge_url);
-        let client_id = state.client_id;
-        let request_id = state.request_id.clone();
-        let poll_interval_seconds = state.poll_interval_seconds;
-        if !submit_non_authed_service_call(
-            &state.runtime,
-            "Authentication.PollAuthSessionStatus#1",
-            request,
-            move |job| {
-                if cancel_for_callback.load(Ordering::Relaxed) {
-                    return;
-                }
-                if job.synthetic_failure || job.eresult != 1 {
+            let request = build_poll_request(client_id, request_id.clone()).serialize();
+            let poll_job = match request_service_method_job(
+                &runtime,
+                "Authentication.PollAuthSessionStatus#1",
+                false,
+                request,
+                timeout,
+                Some(cancel.as_ref()),
+            ) {
+                Some(job) => job,
+                None => {
+                    if cancel.load(Ordering::Relaxed) {
+                        qr_log("poll loop cancelled while waiting for status");
+                        return;
+                    }
+                    qr_log("PollAuthSessionStatus timed out");
                     dispatch_auth_result(
-                        &result_for_callback,
-                        job_error(job, "PollAuthSessionStatus failed"),
-                    );
-                    return;
-                }
-                let Some(resp) =
-                    crate::pb::cauthentication::PollAuthSessionStatusResponse::deserialize(
-                        &job.body,
-                    )
-                else {
-                    dispatch_auth_result(
-                        &result_for_callback,
+                        &result_callback,
                         AuthSessionResult {
-                            error_message: "Poll response parse failed".to_string(),
+                            error_message: "PollAuthSessionStatus timed out".to_string(),
                             ..Default::default()
                         },
                     );
                     return;
-                };
-                let next_client_id = if resp.new_client_id != 0 {
-                    resp.new_client_id
-                } else {
-                    client_id
-                };
-                if let Some(challenge) = {
-                    let mut last = last_url_for_callback
-                        .lock()
-                        .expect("qr challenge url poisoned");
-                    crate::auth_session::take_qr_challenge_update(&mut last, &resp)
-                } {
-                    dispatch_qr_challenge(&qr_for_callback, &challenge);
                 }
-                if let Some(result) = auth_result_from_poll(resp, 0) {
-                    dispatch_auth_result(&result_for_callback, result);
-                    return;
-                }
-                start_qr_poll_loop(QrPollState {
-                    runtime: runtime_for_callback,
-                    qr_callback: qr_for_callback,
-                    result_callback: result_for_callback,
-                    cancel: cancel_for_callback,
-                    client_id: next_client_id,
-                    request_id,
-                    poll_interval_seconds,
-                    last_challenge_url: last_url_for_callback,
-                });
-            },
-        ) {
-            dispatch_auth_result(
-                &state.result_callback,
-                AuthSessionResult {
-                    error_message: "PollAuthSessionStatus enqueue failed".to_string(),
-                    ..Default::default()
-                },
-            );
+            };
+            if poll_job.synthetic_failure || poll_job.eresult != 1 {
+                qr_log(&format!(
+                    "PollAuthSessionStatus failed synthetic={} eresult={} body_len={}",
+                    poll_job.synthetic_failure,
+                    poll_job.eresult,
+                    poll_job.body.len()
+                ));
+                dispatch_auth_result(
+                    &result_callback,
+                    auth_result_from_job(&poll_job, "PollAuthSessionStatus"),
+                );
+                return;
+            }
+            let Some(resp) = crate::pb::cauthentication::PollAuthSessionStatusResponse::deserialize(
+                &poll_job.body,
+            ) else {
+                qr_log(&format!(
+                    "Poll response parse failed body_len={}",
+                    poll_job.body.len()
+                ));
+                dispatch_auth_result(
+                    &result_callback,
+                    AuthSessionResult {
+                        error_message: "Poll response parse failed".to_string(),
+                        ..Default::default()
+                    },
+                );
+                return;
+            };
+            qr_log(&format!(
+                "poll response new_client_id={} remote={} refresh_len={} access_len={} account_len={} agreement_len={} challenge_len={}",
+                resp.new_client_id,
+                resp.had_remote_interaction,
+                resp.refresh_token.len(),
+                resp.access_token.len(),
+                resp.account_name.len(),
+                resp.agreement_session_url.len(),
+                resp.new_challenge_url.len()
+            ));
+            if resp.new_client_id != 0 {
+                client_id = resp.new_client_id;
+            }
+            if let Some(challenge) = {
+                let mut last = last_challenge_url
+                    .lock()
+                    .expect("qr challenge url poisoned");
+                crate::auth_session::take_qr_challenge_update(&mut last, &resp)
+            } {
+                dispatch_qr_challenge(&qr_callback, &challenge);
+            }
+            let remote_interaction =
+                take_qr_remote_interaction(&mut reported_remote_interaction, &resp);
+            let account_name = resp.account_name.clone();
+            let agreement_session_url = resp.agreement_session_url.clone();
+            if let Some(result) = auth_result_from_poll(resp, 0) {
+                qr_log(&format!(
+                    "dispatching final QR auth result success={} refresh_len={} account_len={} remote={}",
+                    result.success,
+                    result.refresh_token.len(),
+                    result.account_name.len(),
+                    result.had_remote_interaction
+                ));
+                dispatch_auth_result(&result_callback, result);
+                return;
+            }
+            if remote_interaction {
+                qr_log("dispatching intermediate remote-interaction QR auth update");
+                dispatch_auth_result(
+                    &result_callback,
+                    AuthSessionResult {
+                        account_name,
+                        agreement_session_url,
+                        had_remote_interaction: true,
+                        ..Default::default()
+                    },
+                );
+            }
         }
     });
 }
@@ -1275,23 +1478,43 @@ fn dispatch_download_complete(
 pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativePickCmUrl(
     mut env: JNIEnv,
     _class: JClass,
-    _ca_bundle_path: JString,
+    ca_bundle_path: JString,
 ) -> jstring {
-    let url = crate::cm_server_list::hardcoded_fallback_servers()
-        .into_iter()
-        .find_map(|server| {
-            let url = server.websocket_url();
-            (!url.is_empty()).then_some(url)
-        })
-        .unwrap_or_default();
+    let ca_bundle_path = jstring_to_string(&mut env, &ca_bundle_path).unwrap_or_default();
+    let directory = crate::steam_directory::SteamDirectoryClient::new(ca_bundle_path);
+    let result = directory.fetch(0, crate::steam_directory::DEFAULT_TIMEOUT);
+    let directory_url = if result.ok() {
+        result
+            .servers
+            .into_iter()
+            .find_map(|server| {
+                let url = server.websocket_url();
+                (!url.is_empty()).then_some(url)
+            })
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    let url = if !directory_url.is_empty() {
+        directory_url
+    } else {
+        crate::cm_server_list::hardcoded_fallback_servers()
+            .into_iter()
+            .find_map(|server| {
+                let url = server.websocket_url();
+                (!url.is_empty()).then_some(url)
+            })
+            .unwrap_or_default()
+    };
     new_string_or_null(&mut env, &url)
 }
 
 #[no_mangle]
 pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeCreate(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
 ) -> jlong {
+    let _ = ensure_auth_result_class(&mut env);
     to_session_handle(Box::new(WnSteamSessionHandle::new()))
 }
 
@@ -1351,15 +1574,12 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     if !runtime.connect(&url) {
         return JNI_FALSE;
     }
-    handle.set_state(&mut env, ClientState::Connected);
-    let hello = handle.core.build_client_hello();
-    handle.enqueue_wire(hello.wire);
     JNI_TRUE
 }
 
 #[no_mangle]
 pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDisconnect(
-    mut env: JNIEnv,
+    _env: JNIEnv,
     _class: JClass,
     handle: jlong,
 ) {
@@ -1371,8 +1591,10 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             .take()
         {
             runtime.disconnect();
+        } else {
+            handle.core.set_state(ClientState::Disconnected);
+            dispatch_state_observer(&handle.state_observer, ClientState::Disconnected);
         }
-        handle.set_state(&mut env, ClientState::Disconnected);
     }
 }
 
@@ -1381,10 +1603,17 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     env: JNIEnv,
     class: JClass,
     handle: jlong,
-    _flush_ms: jint,
+    flush_ms: jint,
 ) {
     if let Some(handle_ref) = unsafe { from_session_handle_mut(handle) } {
-        handle_ref.enqueue_proto(handle_ref.core.build_logoff());
+        if handle_ref.enqueue_proto(handle_ref.core.build_logoff()) {
+            let flush = if flush_ms <= 0 {
+                Duration::from_millis(500)
+            } else {
+                Duration::from_millis(flush_ms as u64)
+            };
+            thread::sleep(flush);
+        }
     }
     Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDisconnect(
         env, class, handle,
@@ -1546,14 +1775,20 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     let value = json!(licenses
         .iter()
         .map(|license| json!({
-            "package_id": license.package_id,
-            "owner_id": license.owner_id,
-            "time_created": license.time_created,
-            "license_type": license.license_type,
+            "packageId": license.package_id,
+            "changeNumber": license.change_number,
+            "timeCreated": license.time_created,
+            "timeNextProcess": license.time_next_process,
+            "minuteLimit": license.minute_limit,
+            "minutesUsed": license.minutes_used,
+            "paymentMethod": license.payment_method,
             "flags": license.flags,
-            "change_number": license.change_number,
-            "minute_limit": license.minute_limit,
-            "minutes_used": license.minutes_used,
+            "purchaseCountryCode": license.purchase_country_code,
+            "licenseType": license.license_type,
+            "territoryCode": license.territory_code,
+            "accessToken": license.access_token as i64,
+            "ownerId": license.owner_id,
+            "masterPackageId": license.master_package_id,
         }))
         .collect::<Vec<_>>())
     .to_string();
@@ -1566,19 +1801,19 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     _class: JClass,
     handle: jlong,
 ) -> jlongArray {
-    let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
-        return ptr::null_mut();
+    let friends = match unsafe { from_session_handle_mut(handle) } {
+        Some(handle) => handle
+            .core
+            .friends_list()
+            .into_iter()
+            .map(|sid| sid as jlong)
+            .collect::<Vec<_>>(),
+        None => Vec::new(),
     };
-    let friends = handle
-        .core
-        .friends_list()
-        .into_iter()
-        .map(|sid| sid as jlong)
-        .collect::<Vec<_>>();
     let Ok(array) = env.new_long_array(friends.len() as i32) else {
         return ptr::null_mut();
     };
-    if env.set_long_array_region(&array, 0, &friends).is_err() {
+    if !friends.is_empty() && env.set_long_array_region(&array, 0, &friends).is_err() {
         return ptr::null_mut();
     }
     array.into_raw()
@@ -1598,11 +1833,11 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
         .friend_personas()
         .iter()
         .map(|persona| json!({
-            "sid": persona.sid.to_string(),
-            "player_name": persona.player_name,
-            "persona_state": persona.persona_state,
-            "game_played_app_id": persona.game_played_app_id,
-            "avatar_hash": crate::cdn_client::hex_encode(&persona.avatar_hash),
+            "sid": persona.sid as i64,
+            "name": persona.player_name,
+            "state": persona.persona_state,
+            "app": persona.game_played_app_id,
+            "avatarHash": crate::cdn_client::hex_encode(&persona.avatar_hash),
         }))
         .collect::<Vec<_>>())
     .to_string();
@@ -1622,11 +1857,12 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
         return ptr::null_mut();
     };
     let value = json!({
-        "sid": persona.friendid.to_string(),
-        "player_name": persona.player_name,
-        "persona_state": persona.persona_state,
-        "game_played_app_id": persona.game_played_app_id,
-        "avatar_hash": crate::cdn_client::hex_encode(&persona.avatar_hash),
+        "personaState": persona.persona_state,
+        "gameAppId": persona.game_played_app_id,
+        "playerName": persona.player_name,
+        "avatarHash": crate::cdn_client::hex_encode(&persona.avatar_hash),
+        "gameName": persona.game_name,
+        "gameId": persona.gameid as i64,
     })
     .to_string();
     new_string_or_null(&mut env, &value)
@@ -1710,7 +1946,7 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     _class: JClass,
     handle: jlong,
     games_json: JString,
-    _client_os_type: jint,
+    client_os_type: jint,
 ) {
     let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
         return;
@@ -1718,13 +1954,67 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     let Ok(games_json) = env.get_string(&games_json) else {
         return;
     };
-    let app_id = serde_json::from_str::<serde_json::Value>(&games_json.to_string_lossy())
-        .ok()
-        .and_then(|value| value.as_array().and_then(|arr| arr.first().cloned()))
-        .and_then(|first| first.get("app_id").or_else(|| first.get("appid")).cloned())
-        .and_then(|value| value.as_u64())
-        .unwrap_or(0) as u32;
-    handle.enqueue_proto(handle.core.build_notify_games_played(app_id));
+    let raw = games_json.to_string_lossy().into_owned();
+    let parsed: Option<serde_json::Value> = serde_json::from_str(&raw).ok();
+    let entry = parsed
+        .as_ref()
+        .and_then(|value| value.as_array().and_then(|arr| arr.first()))
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let pick_u64 = |entry: &serde_json::Value, keys: &[&str]| -> u64 {
+        for key in keys {
+            if let Some(value) = entry.get(*key) {
+                if let Some(v) = value.as_u64() {
+                    return v;
+                }
+                if let Some(s) = value.as_str() {
+                    if let Ok(v) = s.parse::<u64>() {
+                        return v;
+                    }
+                }
+            }
+        }
+        0
+    };
+    let pick_u32 = |entry: &serde_json::Value, keys: &[&str]| -> u32 {
+        pick_u64(entry, keys) as u32
+    };
+    let game_id = pick_u64(&entry, &["gameId", "game_id", "appid", "app_id"]);
+    let extras = crate::cm_client::GamesPlayedExtras {
+        process_id: pick_u32(&entry, &["processId", "process_id"]),
+        owner_id: pick_u32(&entry, &["ownerId", "owner_id"]),
+        launch_source: pick_u32(&entry, &["launchSource", "launch_source"]),
+        game_build_id: pick_u32(&entry, &["gameBuildId", "game_build_id"]),
+    };
+    let processes = entry
+        .get("processes")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|p| crate::pb::cmsg_client_games_played::GamePlayedProcessInfo {
+                    process_id: pick_u32(p, &["pid", "processId", "process_id"]),
+                    process_id_parent: pick_u32(
+                        p,
+                        &["ppid", "processIdParent", "process_id_parent"],
+                    ),
+                    parent_is_steam: p
+                        .get("isSteam")
+                        .or_else(|| p.get("parentIsSteam"))
+                        .or_else(|| p.get("parent_is_steam"))
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let os_type = if client_os_type < 0 {
+        0
+    } else {
+        client_os_type as u32
+    };
+    handle.enqueue_proto(handle.core.build_notify_games_played_full(
+        game_id, &extras, &processes, os_type,
+    ));
 }
 
 #[no_mangle]
@@ -1943,25 +2233,39 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             persistent_session: persistent_session != JNI_FALSE,
             ..Default::default()
         };
-        let Some(key_body) = request_service_method_body(
+        let key_job = match request_service_method_job(
             &runtime,
             "Authentication.GetPasswordRSAPublicKey#1",
             false,
             build_password_rsa_request(&config).serialize(),
             timeout,
-        ) else {
+            Some(cancel.as_ref()),
+        ) {
+            Some(job) => job,
+            None => {
+                if cancel.load(Ordering::Relaxed) {
+                    return;
+                }
+                dispatch_auth_result(
+                    &callback,
+                    AuthSessionResult {
+                        error_message: "GetPasswordRSAPublicKey timed out".to_string(),
+                        ..Default::default()
+                    },
+                );
+                return;
+            }
+        };
+        if key_job.synthetic_failure || key_job.eresult != 1 {
             dispatch_auth_result(
                 &callback,
-                AuthSessionResult {
-                    error_message: "GetPasswordRSAPublicKey failed".to_string(),
-                    ..Default::default()
-                },
+                auth_result_from_job(&key_job, "GetPasswordRSAPublicKey"),
             );
             return;
-        };
-        let Some(key) =
-            crate::pb::cauthentication::GetPasswordRsaPublicKeyResponse::deserialize(&key_body)
-        else {
+        }
+        let Some(key) = crate::pb::cauthentication::GetPasswordRsaPublicKeyResponse::deserialize(
+            &key_job.body,
+        ) else {
             dispatch_auth_result(
                 &callback,
                 AuthSessionResult {
@@ -1978,25 +2282,39 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                 return;
             }
         };
-        let Some(begin_body) = request_service_method_body(
+        let begin_job = match request_service_method_job(
             &runtime,
             "Authentication.BeginAuthSessionViaCredentials#1",
             false,
             begin_request.serialize(),
             timeout,
-        ) else {
+            Some(cancel.as_ref()),
+        ) {
+            Some(job) => job,
+            None => {
+                if cancel.load(Ordering::Relaxed) {
+                    return;
+                }
+                dispatch_auth_result(
+                    &callback,
+                    AuthSessionResult {
+                        error_message: "BeginAuthSessionViaCredentials timed out".to_string(),
+                        ..Default::default()
+                    },
+                );
+                return;
+            }
+        };
+        if begin_job.synthetic_failure || begin_job.eresult != 1 {
             dispatch_auth_result(
                 &callback,
-                AuthSessionResult {
-                    error_message: "BeginAuthSessionViaCredentials failed".to_string(),
-                    ..Default::default()
-                },
+                auth_result_from_job(&begin_job, "BeginAuthSessionViaCredentials"),
             );
             return;
-        };
+        }
         let Some(begin_response) =
             crate::pb::cauthentication::BeginAuthSessionViaCredentialsResponse::deserialize(
-                &begin_body,
+                &begin_job.body,
             )
         else {
             dispatch_auth_result(
@@ -2019,16 +2337,10 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
         match chosen_guard {
             crate::pb::cauthentication::EAuthSessionGuardType::DeviceConfirmation => {
                 if let Some(authenticator) = authenticator.as_ref() {
-                    if !authenticator_accept_device_confirmation(authenticator) {
-                        dispatch_auth_result(
-                            &callback,
-                            AuthSessionResult {
-                                error_message: "device confirmation was not accepted".to_string(),
-                                ..Default::default()
-                            },
-                        );
-                        return;
-                    }
+                    // Mirrors C++: the boolean is informational. The phone tap is
+                    // observed through the poll loop regardless of whether the UI
+                    // dismissed the prompt.
+                    let _ = authenticator_accept_device_confirmation(authenticator);
                 }
             }
             crate::pb::cauthentication::EAuthSessionGuardType::DeviceCode => {
@@ -2043,6 +2355,9 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                     return;
                 };
                 let Some(code) = authenticator_get_device_code(authenticator, false) else {
+                    if cancel.load(Ordering::Relaxed) {
+                        return;
+                    }
                     dispatch_auth_result(
                         &callback,
                         AuthSessionResult {
@@ -2058,21 +2373,36 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                     chosen_guard,
                     code,
                 );
-                if request_service_method_body(
+                let update_job = match request_service_method_job(
                     &runtime,
                     "Authentication.UpdateAuthSessionWithSteamGuardCode#1",
                     false,
                     update.serialize(),
                     timeout,
-                )
-                .is_none()
-                {
+                    Some(cancel.as_ref()),
+                ) {
+                    Some(job) => job,
+                    None => {
+                        if cancel.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        dispatch_auth_result(
+                            &callback,
+                            AuthSessionResult {
+                                error_message: "UpdateAuthSessionWithSteamGuardCode timed out"
+                                    .to_string(),
+                                ..Default::default()
+                            },
+                        );
+                        return;
+                    }
+                };
+                // C++ accepts eresult 1 (OK) or 29 (DuplicateRequest — same code
+                // resubmitted) as a non-fatal "proceed to poll".
+                if !crate::auth_session::guard_update_succeeded(&update_job) {
                     dispatch_auth_result(
                         &callback,
-                        AuthSessionResult {
-                            error_message: "UpdateAuthSessionWithSteamGuardCode failed".to_string(),
-                            ..Default::default()
-                        },
+                        auth_result_from_job(&update_job, "UpdateAuthSessionWithSteamGuardCode"),
                     );
                     return;
                 }
@@ -2095,6 +2425,9 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                     .map(|confirmation| confirmation.associated_message.as_str())
                     .unwrap_or_default();
                 let Some(code) = authenticator_get_email_code(authenticator, email, false) else {
+                    if cancel.load(Ordering::Relaxed) {
+                        return;
+                    }
                     dispatch_auth_result(
                         &callback,
                         AuthSessionResult {
@@ -2110,21 +2443,34 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                     chosen_guard,
                     code,
                 );
-                if request_service_method_body(
+                let update_job = match request_service_method_job(
                     &runtime,
                     "Authentication.UpdateAuthSessionWithSteamGuardCode#1",
                     false,
                     update.serialize(),
                     timeout,
-                )
-                .is_none()
-                {
+                    Some(cancel.as_ref()),
+                ) {
+                    Some(job) => job,
+                    None => {
+                        if cancel.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        dispatch_auth_result(
+                            &callback,
+                            AuthSessionResult {
+                                error_message: "UpdateAuthSessionWithSteamGuardCode timed out"
+                                    .to_string(),
+                                ..Default::default()
+                            },
+                        );
+                        return;
+                    }
+                };
+                if !crate::auth_session::guard_update_succeeded(&update_job) {
                     dispatch_auth_result(
                         &callback,
-                        AuthSessionResult {
-                            error_message: "UpdateAuthSessionWithSteamGuardCode failed".to_string(),
-                            ..Default::default()
-                        },
+                        auth_result_from_job(&update_job, "UpdateAuthSessionWithSteamGuardCode"),
                     );
                     return;
                 }
@@ -2133,6 +2479,8 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
         }
 
         let poll_interval = Duration::from_secs_f32(pending.poll_interval_seconds.max(0.25));
+        let mut client_id = pending.client_id;
+        let fallback_account_name = config.username.clone();
         loop {
             for slice in sleep_slices(poll_interval, Duration::from_millis(100)) {
                 if cancel.load(Ordering::Relaxed) {
@@ -2143,21 +2491,53 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             if cancel.load(Ordering::Relaxed) {
                 return;
             }
-            let Some(poll_body) = request_service_method_body(
+            let poll_job = match request_service_method_job(
                 &runtime,
                 "Authentication.PollAuthSessionStatus#1",
                 false,
-                build_poll_request(pending.client_id, pending.request_id.clone()).serialize(),
+                build_poll_request(client_id, pending.request_id.clone()).serialize(),
                 timeout,
+                Some(cancel.as_ref()),
+            ) {
+                Some(job) => job,
+                None => {
+                    if cancel.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    dispatch_auth_result(
+                        &callback,
+                        AuthSessionResult {
+                            error_message: "PollAuthSessionStatus timed out".to_string(),
+                            ..Default::default()
+                        },
+                    );
+                    return;
+                }
+            };
+            if poll_job.synthetic_failure || poll_job.eresult != 1 {
+                dispatch_auth_result(
+                    &callback,
+                    auth_result_from_job(&poll_job, "PollAuthSessionStatus"),
+                );
+                return;
+            }
+            let Some(resp) = crate::pb::cauthentication::PollAuthSessionStatusResponse::deserialize(
+                &poll_job.body,
             ) else {
-                continue;
+                dispatch_auth_result(
+                    &callback,
+                    AuthSessionResult {
+                        error_message: "Poll response parse failed".to_string(),
+                        ..Default::default()
+                    },
+                );
+                return;
             };
-            let Some(resp) =
-                crate::pb::cauthentication::PollAuthSessionStatusResponse::deserialize(&poll_body)
-            else {
-                continue;
-            };
-            if let Some(result) = auth_result_from_poll(resp, pending.steamid) {
+            if resp.new_client_id != 0 {
+                client_id = resp.new_client_id;
+            }
+            if let Some(mut result) = auth_result_from_poll(resp, pending.steamid) {
+                apply_account_name_fallback(&mut result, &fallback_account_name);
                 dispatch_auth_result(&callback, result);
                 return;
             }
@@ -2196,71 +2576,96 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
         return;
     };
     let cancel = handle.begin_login_cancel();
-    let request = build_qr_begin_request(&QrAuthConfig::default()).serialize();
-    let runtime_for_callback = Arc::clone(&runtime);
-    let qr_for_callback = qr_callback.clone();
-    let result_for_callback = result_callback.clone();
-    let cancel_for_callback = Arc::clone(&cancel);
-    if !submit_non_authed_service_call(
-        &runtime,
-        "Authentication.BeginAuthSessionViaQR#1",
-        request,
-        move |job| {
-            if cancel_for_callback.load(Ordering::Relaxed) {
-                return;
-            }
-            if job.synthetic_failure || job.eresult != 1 {
+    thread::spawn(move || {
+        let timeout = Duration::from_secs(30);
+        let request = build_qr_begin_request(&QrAuthConfig::default()).serialize();
+        qr_log("BeginAuthSessionViaQR request queued");
+        let begin_job = match request_service_method_job(
+            &runtime,
+            "Authentication.BeginAuthSessionViaQR#1",
+            false,
+            request,
+            timeout,
+            Some(cancel.as_ref()),
+        ) {
+            Some(job) => job,
+            None => {
+                if cancel.load(Ordering::Relaxed) {
+                    qr_log("BeginAuthSessionViaQR cancelled before response");
+                    return;
+                }
+                qr_log("BeginAuthSessionViaQR timed out");
                 dispatch_auth_result(
-                    &result_for_callback,
-                    job_error(job, "BeginAuthSessionViaQR failed"),
-                );
-                return;
-            }
-            let Some(resp) =
-                crate::pb::cauthentication::BeginAuthSessionViaQrResponse::deserialize(&job.body)
-            else {
-                dispatch_auth_result(
-                    &result_for_callback,
+                    &result_callback,
                     AuthSessionResult {
-                        error_message: "QR response parse failed".to_string(),
-                        ..Default::default()
-                    },
-                );
-                return;
-            };
-            let pending = pending_qr_from_begin_response(resp);
-            if pending.client_id == 0 || pending.request_id.is_empty() {
-                dispatch_auth_result(
-                    &result_for_callback,
-                    AuthSessionResult {
-                        eresult: 5,
-                        error_message: "Steam rejected the QR auth session".to_string(),
+                        error_message: "BeginAuthSessionViaQR timed out".to_string(),
                         ..Default::default()
                     },
                 );
                 return;
             }
-            dispatch_qr_challenge(&qr_for_callback, &pending.challenge_url);
-            start_qr_poll_loop(QrPollState {
-                runtime: runtime_for_callback,
-                qr_callback: qr_for_callback,
-                result_callback: result_for_callback,
-                cancel: cancel_for_callback,
-                client_id: pending.client_id,
-                request_id: pending.request_id,
-                poll_interval_seconds: pending.poll_interval_seconds,
-                last_challenge_url: Arc::new(Mutex::new(pending.challenge_url)),
-            });
-        },
-    ) {
-        dispatch_auth_result(
-            &result_callback,
-            AuthSessionResult {
-                error_message: "BeginAuthSessionViaQR enqueue failed".to_string(),
-                ..Default::default()
-            },
-        );
-    }
+        };
+        if begin_job.synthetic_failure || begin_job.eresult != 1 {
+            qr_log(&format!(
+                "BeginAuthSessionViaQR failed synthetic={} eresult={} body_len={}",
+                begin_job.synthetic_failure,
+                begin_job.eresult,
+                begin_job.body.len()
+            ));
+            dispatch_auth_result(
+                &result_callback,
+                auth_result_from_job(&begin_job, "BeginAuthSessionViaQR"),
+            );
+            return;
+        }
+        let Some(resp) =
+            crate::pb::cauthentication::BeginAuthSessionViaQrResponse::deserialize(&begin_job.body)
+        else {
+            qr_log(&format!(
+                "BeginAuthSessionViaQR parse failed body_len={}",
+                begin_job.body.len()
+            ));
+            dispatch_auth_result(
+                &result_callback,
+                AuthSessionResult {
+                    error_message: "QR response parse failed".to_string(),
+                    ..Default::default()
+                },
+            );
+            return;
+        };
+        let pending = pending_qr_from_begin_response(resp);
+        qr_log(&format!(
+            "BeginAuthSessionViaQR response client_id={} request_id_len={} interval_s={:.2} challenge_len={}",
+            pending.client_id,
+            pending.request_id.len(),
+            pending.poll_interval_seconds,
+            pending.challenge_url.len()
+        ));
+        if pending.client_id == 0 || pending.request_id.is_empty() {
+            qr_log("Steam rejected QR auth session");
+            dispatch_auth_result(
+                &result_callback,
+                AuthSessionResult {
+                    eresult: 5,
+                    error_message: "Steam rejected the QR auth session".to_string(),
+                    ..Default::default()
+                },
+            );
+            return;
+        }
+        dispatch_qr_challenge(&qr_callback, &pending.challenge_url);
+        start_qr_poll_loop(QrPollState {
+            runtime,
+            qr_callback,
+            result_callback,
+            cancel,
+            client_id: pending.client_id,
+            request_id: pending.request_id,
+            poll_interval_seconds: pending.poll_interval_seconds,
+            last_challenge_url: Arc::new(Mutex::new(pending.challenge_url)),
+        });
+    });
 }
 
 #[no_mangle]
@@ -2289,10 +2694,10 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     let Some(refresh_token) = jstring_to_string(&mut env, &refresh_token) else {
         return JNI_FALSE;
     };
-    let account_name = jstring_to_string(&mut env, &account_name).unwrap_or_default();
-    if refresh_token.is_empty() || account_name.is_empty() {
+    if refresh_token.is_empty() {
         return JNI_FALSE;
     }
+    let account_name = jstring_to_string(&mut env, &account_name).unwrap_or_default();
     if handle.enqueue_proto(handle.core.build_logon_with_refresh_token(
         refresh_token,
         account_name,
@@ -2487,17 +2892,50 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                 manifest_request_code,
             });
         }
-        let result = crate::depot_downloader::download_resolved_depots_with_cancel(
-            &install_dir,
-            &resolved,
-            &servers,
-            &ca_bundle_path,
-            fresh,
-            max_workers,
-            Some(download_cancel.as_ref()),
-        );
+        let progress_listener = listener.clone();
+        let progress = |progress: &crate::depot_downloader::DepotDownloadProgress| {
+            dispatch_download_progress(&progress_listener, progress);
+        };
+        let progress_cb: crate::depot_downloader::DepotProgressCallback = &progress;
+        let result =
+            crate::depot_downloader::download_resolved_depots_with_cancel_progress(
+                &install_dir,
+                &resolved,
+                &servers,
+                &ca_bundle_path,
+                fresh,
+                max_workers,
+                Some(download_cancel.as_ref()),
+                Some(progress_cb),
+            );
         dispatch_download_complete(listener, result);
     });
+}
+
+fn dispatch_download_progress(
+    listener: &GlobalRef,
+    progress: &crate::depot_downloader::DepotDownloadProgress,
+) {
+    let Some(vm) = JVM.get() else {
+        return;
+    };
+    let Ok(mut env) = vm.attach_current_thread_as_daemon() else {
+        return;
+    };
+    let _ = env.call_method(
+        listener.as_obj(),
+        "onProgress",
+        "(IJJIIZ)V",
+        &[
+            JValue::Int(progress.depot_id as jint),
+            JValue::Long(progress.depot_done as jlong),
+            JValue::Long(progress.depot_total as jlong),
+            JValue::Int(progress.depots_done as jint),
+            JValue::Int(progress.depots_total as jint),
+            JValue::Bool(if progress.verifying { JNI_TRUE } else { JNI_FALSE }),
+        ],
+    );
+    clear_pending_exception(&mut env);
 }
 
 #[no_mangle]

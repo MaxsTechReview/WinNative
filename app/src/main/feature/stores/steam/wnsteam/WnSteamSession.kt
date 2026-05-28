@@ -69,6 +69,8 @@ class WnSteamSession : AutoCloseable {
             authenticator, callback)
     }
 
+    // [resultCallback] may receive a remote-approval update before the final
+    // token-bearing success result when the Steam Guard app approves the QR.
     fun startLoginWithQr(
         qrCallback: WnQrCallback,
         resultCallback: WnAuthCallback,
@@ -82,7 +84,8 @@ class WnSteamSession : AutoCloseable {
         nativeCancelLogin(h)
     }
 
-    // Log on with a refresh token. [accountName] is required by Steam.
+    // Log on with a refresh token. [accountName] is preferred when Steam provides it,
+    // but auth polling can omit it after device confirmation.
     fun logonWithRefreshToken(refreshToken: String, accountName: String, steamId: Long = 0L): Boolean {
         val h = nativeHandle.get(); if (h == 0L) return false
         return nativeLogonWithRefreshToken(h, refreshToken, accountName, steamId)

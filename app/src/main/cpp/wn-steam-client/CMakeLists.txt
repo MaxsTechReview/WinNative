@@ -47,6 +47,12 @@ else()
 endif()
 
 set(WNSTEAM_RUST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rust")
+file(GLOB_RECURSE WNSTEAM_RUST_SOURCES CONFIGURE_DEPENDS
+    "${WNSTEAM_RUST_DIR}/src/*.rs")
+set(WNSTEAM_RUST_BUILD_INPUTS
+    "${WNSTEAM_RUST_DIR}/Cargo.toml"
+    "${WNSTEAM_RUST_DIR}/Cargo.lock"
+    ${WNSTEAM_RUST_SOURCES})
 set(WNSTEAM_RUST_LIB
     "${WNSTEAM_RUST_DIR}/target/${WNSTEAM_RUST_TARGET}/release/libwnsteam.so")
 set(WNSTEAM_RUST_OUT "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libwnsteam.so")
@@ -64,6 +70,7 @@ add_custom_command(
         "${WNSTEAM_RUST_LIB}"
         "${WNSTEAM_RUST_OUT}"
     WORKING_DIRECTORY "${WNSTEAM_RUST_DIR}"
+    DEPENDS ${WNSTEAM_RUST_BUILD_INPUTS}
     COMMENT "Building Rust wnsteam for ${WNSTEAM_RUST_TARGET}"
     VERBATIM
 )

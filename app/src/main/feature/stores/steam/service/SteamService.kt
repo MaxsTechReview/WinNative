@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Base64
+import android.util.Log
 import android.widget.Toast
 import androidx.room.withTransaction
 import com.winlator.cmod.BuildConfig
@@ -6758,16 +6759,36 @@ class SteamService : Service() {
             var keepSessionAlive = false
             try {
                 var qrScannedEmitted = false
+                Log.i("WnSteamQr", "startLoginWithQr: session ready")
                 val result = suspendCancellableCoroutine<WnAuthResult> { cont ->
                     session.startLoginWithQr(
                         qrCallback = WnQrCallback { url ->
+                            Log.i("WnSteamQr", "qrCallback: challenge url len=${url.length}")
                             PluviaApp.events.emit(SteamEvent.QrChallengeReceived(url))
                         },
                         resultCallback = WnAuthCallback { r ->
+                            Log.i(
+                                "WnSteamQr",
+                                "resultCallback: success=${r.success} errorCode=${r.errorCode} " +
+                                    "error='${r.errorMessage}' refreshLen=${r.refreshToken.length} " +
+                                    "account='${r.accountName}' remote=${r.hadRemoteInteraction} " +
+                                    "agreementLen=${r.agreementSessionUrl.length}",
+                            )
                             if (!qrScannedEmitted && r.hadRemoteInteraction) {
                                 qrScannedEmitted = true
+                                Log.i("WnSteamQr", "resultCallback: emitting QrCodeScanned")
                                 PluviaApp.events.emit(SteamEvent.QrCodeScanned)
                             }
+                            val isQrApprovalUpdate =
+                                !r.success &&
+                                    r.hadRemoteInteraction &&
+                                    r.refreshToken.isEmpty() &&
+                                    r.errorMessage.isEmpty()
+                            if (isQrApprovalUpdate) {
+                                Log.i("WnSteamQr", "resultCallback: intermediate approval update")
+                                return@WnAuthCallback
+                            }
+                            Log.i("WnSteamQr", "resultCallback: resuming QR coroutine")
                             if (cont.isActive) cont.resume(r)
                         },
                     )
@@ -6775,6 +6796,11 @@ class SteamService : Service() {
                 }
 
                 isWaitingForQRAuth = false
+                Log.i(
+                    "WnSteamQr",
+                    "QR coroutine completed success=${result.success} refreshLen=${result.refreshToken.length} " +
+                        "account='${result.accountName}' steamId=${result.steamId}",
+                )
                 PluviaApp.events.emit(SteamEvent.QrAuthEnded(result.success))
 
                 if (!result.success || result.refreshToken.isEmpty()) {
@@ -6799,6 +6825,9 @@ class SteamService : Service() {
 
                 if (!session.logonWithRefreshToken(result.refreshToken, result.accountName, result.steamId)) {
                     Timber.w("WnSteam QR logon_with_refresh_token returned false")
+                    Log.w("WnSteamQr", "logonWithRefreshToken returned false")
+                } else {
+                    Log.i("WnSteamQr", "logonWithRefreshToken queued")
                 }
 
                 // Watchdog: surface a failure if the CM logon hangs.

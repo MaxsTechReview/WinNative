@@ -361,6 +361,23 @@ impl CmBridge {
 
     pub fn dispatch_persona_snapshot(&self, snapshot: &FriendPersonaSnapshot) {
         let name = CString::new(snapshot.player_name.as_str()).unwrap_or_default();
+        let key_values = snapshot
+            .rich_presence
+            .iter()
+            .map(|(key, value)| {
+                (
+                    CString::new(key.as_str()).unwrap_or_default(),
+                    CString::new(value.as_str()).unwrap_or_default(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let pairs = key_values
+            .iter()
+            .map(|(key, value)| WnCmRichPresenceKV {
+                key: key.as_ptr(),
+                value: value.as_ptr(),
+            })
+            .collect::<Vec<_>>();
         let event = WnCmPersonaEvent {
             sid: snapshot.sid,
             persona_state: snapshot.persona_state,
@@ -372,8 +389,12 @@ impl CmBridge {
             },
             avatar_hash: snapshot.avatar_hash.as_ptr(),
             avatar_hash_len: snapshot.avatar_hash.len(),
-            rp_pairs: ptr::null(),
-            rp_count: 0,
+            rp_pairs: if pairs.is_empty() {
+                ptr::null()
+            } else {
+                pairs.as_ptr()
+            },
+            rp_count: pairs.len(),
         };
         self.observers.dispatch_persona(&event);
     }

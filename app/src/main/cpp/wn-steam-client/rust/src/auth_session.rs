@@ -260,6 +260,17 @@ pub fn auth_result_from_poll(
     })
 }
 
+pub fn apply_account_name_fallback(
+    result: &mut AuthSessionResult,
+    fallback_account_name: &str,
+) -> bool {
+    if result.account_name.is_empty() && !fallback_account_name.is_empty() {
+        result.account_name = fallback_account_name.to_string();
+        return true;
+    }
+    false
+}
+
 pub fn apply_new_client_id(current_client_id: &mut u64, new_client_id: u64) -> bool {
     if new_client_id == 0 {
         return false;
@@ -277,6 +288,17 @@ pub fn take_qr_challenge_update(
     }
     *last_challenge_url = resp.new_challenge_url.clone();
     Some(last_challenge_url.clone())
+}
+
+pub fn take_qr_remote_interaction(
+    reported_remote_interaction: &mut bool,
+    resp: &PollAuthSessionStatusResponse,
+) -> bool {
+    if *reported_remote_interaction || !resp.had_remote_interaction {
+        return false;
+    }
+    *reported_remote_interaction = true;
+    true
 }
 
 pub fn build_qr_begin_request(config: &QrAuthConfig) -> BeginAuthSessionViaQrRequest {
@@ -458,6 +480,24 @@ mod tests {
     }
 
     #[test]
+    fn account_name_fallback_restores_credentials_username() {
+        let mut result = auth_result_from_poll(
+            PollAuthSessionStatusResponse {
+                refresh_token: "refresh".into(),
+                access_token: "access".into(),
+                ..Default::default()
+            },
+            765,
+        )
+        .unwrap();
+
+        assert!(apply_account_name_fallback(&mut result, "ada"));
+        assert_eq!(result.account_name, "ada");
+        assert!(!apply_account_name_fallback(&mut result, "ignored"));
+        assert_eq!(result.account_name, "ada");
+    }
+
+    #[test]
     fn poll_updates_client_id_and_qr_challenge_like_cpp() {
         let mut client_id = 10;
         assert!(!apply_new_client_id(&mut client_id, 0));
@@ -487,6 +527,30 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn poll_reports_remote_interaction_only_once() {
+        let mut reported = false;
+        assert!(!take_qr_remote_interaction(
+            &mut reported,
+            &PollAuthSessionStatusResponse::default()
+        ));
+        assert!(take_qr_remote_interaction(
+            &mut reported,
+            &PollAuthSessionStatusResponse {
+                had_remote_interaction: true,
+                ..Default::default()
+            }
+        ));
+        assert!(reported);
+        assert!(!take_qr_remote_interaction(
+            &mut reported,
+            &PollAuthSessionStatusResponse {
+                had_remote_interaction: true,
+                ..Default::default()
+            }
+        ));
     }
 
     #[test]
