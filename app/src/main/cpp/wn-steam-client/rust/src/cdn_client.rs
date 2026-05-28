@@ -1,0 +1,566 @@
+use crate::pb::ccontentserverdirectory::CContentServerDirectoryServerInfo;
+use flate2::read::DeflateDecoder;
+use std::fs;
+use std::io::Read;
+use std::time::Duration;
+
+pub const USER_AGENT: &str = "Valve/Steam HTTP Client 1.0";
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CdnManifestResult {
+    pub raw_manifest: Vec<u8>,
+    pub error: String,
+    pub http_status: i32,
+}
+
+impl CdnManifestResult {
+    pub fn ok(&self) -> bool {
+        self.error.is_empty() && !self.raw_manifest.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CdnChunkResult {
+    pub data: Vec<u8>,
+    pub error: String,
+    pub http_status: i32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CdnConnection {
+    valid: bool,
+}
+
+impl Default for CdnConnection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CdnConnection {
+    pub fn new() -> Self {
+        Self { valid: true }
+    }
+
+    pub fn invalid() -> Self {
+        Self { valid: false }
+    }
+
+    pub fn valid(&self) -> bool {
+        self.valid
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CdnClient {
+    ca_bundle_path: String,
+}
+
+impl CdnClient {
+    pub fn new(ca_bundle_path: impl Into<String>) -> Self {
+        Self {
+            ca_bundle_path: ca_bundle_path.into(),
+        }
+    }
+
+    pub fn ca_bundle_path(&self) -> &str {
+        &self.ca_bundle_path
+    }
+
+    pub fn build_manifest_url(
+        &self,
+        server: &CContentServerDirectoryServerInfo,
+        depot_id: u32,
+        manifest_id: u64,
+        request_code: u64,
+        cdn_auth_token: &str,
+    ) -> Result<String, String> {
+        let host = preferred_host(server).ok_or_else(|| "cdn server has no host".to_string())?;
+        let mut url = format!(
+            "{}://{}:{}/depot/{}/manifest/{}/5",
+            if server.use_https() { "https" } else { "http" },
+            host,
+            server.port(),
+            depot_id,
+            manifest_id
+        );
+        if request_code != 0 {
+            url.push('/');
+            url.push_str(&request_code.to_string());
+        }
+        append_auth_query(&mut url, cdn_auth_token);
+        Ok(url)
+    }
+
+    pub fn build_chunk_url(
+        &self,
+        server: &CContentServerDirectoryServerInfo,
+        depot_id: u32,
+        chunk_sha: &[u8],
+        cdn_auth_token: &str,
+    ) -> Result<String, String> {
+        if chunk_sha.is_empty() {
+            return Err("empty chunk sha".to_string());
+        }
+        let host = preferred_host(server).ok_or_else(|| "cdn server has no host".to_string())?;
+        let mut url = format!(
+            "{}://{}:{}/depot/{}/chunk/{}",
+            if server.use_https() { "https" } else { "http" },
+            host,
+            server.port(),
+            depot_id,
+            hex_encode(chunk_sha)
+        );
+        append_auth_query(&mut url, cdn_auth_token);
+        Ok(url)
+    }
+
+    pub fn build_item_def_archive_url(app_id: u32, digest: &str) -> String {
+        format!(
+            "https://api.steampowered.com/IGameInventory/GetItemDefArchive/v1/?appid={app_id}&digest={}",
+            percent_encode_query_value(digest)
+        )
+    }
+
+    pub fn fetch_manifest(
+        &self,
+        server: &CContentServerDirectoryServerInfo,
+        depot_id: u32,
+        manifest_id: u64,
+        request_code: u64,
+        cdn_auth_token: &str,
+        timeout: Duration,
+    ) -> CdnManifestResult {
+        let url = match self.build_manifest_url(
+            server,
+            depot_id,
+            manifest_id,
+            request_code,
+            cdn_auth_token,
+        ) {
+            Ok(url) => url,
+            Err(error) => {
+                return CdnManifestResult {
+                    error,
+                    ..Default::default()
+                }
+            }
+        };
+        match self.http_get(&url, timeout) {
+            Ok(response) => CdnClient::validate_manifest_response(
+                response.http_status,
+                response.body,
+                response.content_length,
+            ),
+            Err(error) => CdnManifestResult {
+                error,
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn fetch_chunk(
+        &self,
+        server: &CContentServerDirectoryServerInfo,
+        depot_id: u32,
+        chunk_sha: &[u8],
+        cdn_auth_token: &str,
+        timeout: Duration,
+    ) -> CdnChunkResult {
+        let url = match self.build_chunk_url(server, depot_id, chunk_sha, cdn_auth_token) {
+            Ok(url) => url,
+            Err(error) => {
+                return CdnChunkResult {
+                    error,
+                    ..Default::default()
+                }
+            }
+        };
+        match self.http_get(&url, timeout) {
+            Ok(response) => CdnClient::validate_chunk_response(
+                response.http_status,
+                response.body,
+                response.content_length,
+            ),
+            Err(error) => CdnChunkResult {
+                error,
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn fetch_chunk_with_connection(
+        &self,
+        conn: &CdnConnection,
+        server: &CContentServerDirectoryServerInfo,
+        depot_id: u32,
+        chunk_sha: &[u8],
+        cdn_auth_token: &str,
+        timeout: Duration,
+    ) -> CdnChunkResult {
+        if let Err(result) = CdnClient::validate_connection(conn) {
+            return result;
+        }
+        self.fetch_chunk(server, depot_id, chunk_sha, cdn_auth_token, timeout)
+    }
+
+    pub fn fetch_item_def_archive(
+        &self,
+        app_id: u32,
+        digest: &str,
+        timeout: Duration,
+    ) -> Option<Vec<u8>> {
+        let url = CdnClient::build_item_def_archive_url(app_id, digest);
+        let response = self.http_get(&url, timeout).ok()?;
+        if response.http_status != 200 {
+            return None;
+        }
+        Some(CdnClient::strip_item_def_trailing_nul(response.body))
+    }
+
+    pub fn validate_manifest_response(
+        http_status: i32,
+        body: Vec<u8>,
+        content_length: Option<u64>,
+    ) -> CdnManifestResult {
+        if http_status != 200 {
+            return CdnManifestResult {
+                http_status,
+                error: "non-200 HTTP status".to_string(),
+                ..Default::default()
+            };
+        }
+        if let Some(expected) = content_length {
+            if body.len() as u64 != expected {
+                return CdnManifestResult {
+                    http_status,
+                    error: "manifest body truncated (length mismatch)".to_string(),
+                    ..Default::default()
+                };
+            }
+        }
+        let Some(raw_manifest) = unzip_first_entry(&body) else {
+            return CdnManifestResult {
+                http_status,
+                error: "manifest unzip failed".to_string(),
+                ..Default::default()
+            };
+        };
+        CdnManifestResult {
+            raw_manifest,
+            error: String::new(),
+            http_status,
+        }
+    }
+
+    pub fn validate_chunk_response(
+        http_status: i32,
+        body: Vec<u8>,
+        content_length: Option<u64>,
+    ) -> CdnChunkResult {
+        if http_status != 200 {
+            return CdnChunkResult {
+                http_status,
+                error: "non-200 HTTP status".to_string(),
+                ..Default::default()
+            };
+        }
+        if let Some(expected) = content_length {
+            if body.len() as u64 != expected {
+                return CdnChunkResult {
+                    http_status,
+                    error: "chunk body truncated (length mismatch)".to_string(),
+                    ..Default::default()
+                };
+            }
+        }
+        CdnChunkResult {
+            data: body,
+            error: String::new(),
+            http_status,
+        }
+    }
+
+    pub fn validate_connection(conn: &CdnConnection) -> Result<(), CdnChunkResult> {
+        if conn.valid() {
+            Ok(())
+        } else {
+            Err(CdnChunkResult {
+                error: "cdn connection invalid".to_string(),
+                ..Default::default()
+            })
+        }
+    }
+
+    pub fn strip_item_def_trailing_nul(mut body: Vec<u8>) -> Vec<u8> {
+        if body.last() == Some(&0) {
+            body.pop();
+        }
+        body
+    }
+
+    pub fn default_timeout() -> Duration {
+        Duration::from_secs(30)
+    }
+
+    pub fn connect_timeout() -> Duration {
+        Duration::from_secs(15)
+    }
+
+    fn http_get(&self, url: &str, timeout: Duration) -> Result<HttpResponse, String> {
+        let client = self.http_client(timeout)?;
+        let response = client
+            .get(url)
+            .send()
+            .map_err(|err| format!("http get: {err}"))?;
+        let http_status = response.status().as_u16() as i32;
+        let content_length = response.content_length();
+        let body = response
+            .bytes()
+            .map_err(|err| format!("http body: {err}"))?
+            .to_vec();
+        Ok(HttpResponse {
+            http_status,
+            content_length,
+            body,
+        })
+    }
+
+    fn http_client(&self, timeout: Duration) -> Result<reqwest::blocking::Client, String> {
+        let mut builder = reqwest::blocking::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(timeout)
+            .connect_timeout(CdnClient::connect_timeout());
+        if !self.ca_bundle_path.is_empty() {
+            let pem =
+                fs::read(&self.ca_bundle_path).map_err(|err| format!("read CA bundle: {err}"))?;
+            let certs = reqwest::Certificate::from_pem_bundle(&pem)
+                .map_err(|err| format!("parse CA bundle: {err}"))?;
+            for cert in certs {
+                builder = builder.add_root_certificate(cert);
+            }
+        }
+        builder.build().map_err(|err| format!("http client: {err}"))
+    }
+}
+
+struct HttpResponse {
+    http_status: i32,
+    content_length: Option<u64>,
+    body: Vec<u8>,
+}
+
+impl CdnChunkResult {
+    pub fn ok(&self) -> bool {
+        self.error.is_empty() && !self.data.is_empty()
+    }
+}
+
+pub fn unzip_first_entry(zip: &[u8]) -> Option<Vec<u8>> {
+    if zip.len() < 30 || read_u32(zip, 0)? != 0x0403_4b50 {
+        return None;
+    }
+    let flags = read_u16(zip, 6)?;
+    let method = read_u16(zip, 8)?;
+    let comp_size = read_u32(zip, 18)? as usize;
+    let uncomp_size = read_u32(zip, 22)? as usize;
+    let name_len = read_u16(zip, 26)? as usize;
+    let extra_len = read_u16(zip, 28)? as usize;
+
+    if (flags & 0x08) != 0 {
+        return None;
+    }
+
+    let data_off = 30usize.checked_add(name_len)?.checked_add(extra_len)?;
+    if data_off.checked_add(comp_size)? > zip.len() {
+        return None;
+    }
+    let data = &zip[data_off..data_off + comp_size];
+
+    match method {
+        0 => Some(data.to_vec()),
+        8 => {
+            let mut out = Vec::with_capacity(uncomp_size);
+            DeflateDecoder::new(data).read_to_end(&mut out).ok()?;
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+pub fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+fn preferred_host(server: &CContentServerDirectoryServerInfo) -> Option<&str> {
+    if !server.vhost.is_empty() {
+        Some(&server.vhost)
+    } else if !server.host.is_empty() {
+        Some(&server.host)
+    } else {
+        None
+    }
+}
+
+fn append_auth_query(url: &mut String, cdn_auth_token: &str) {
+    if cdn_auth_token.is_empty() {
+        return;
+    }
+    url.push('?');
+    url.push_str(cdn_auth_token.strip_prefix('?').unwrap_or(cdn_auth_token));
+}
+
+fn percent_encode_query_value(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char);
+            }
+            _ => {
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                out.push('%');
+                out.push(HEX[(byte >> 4) as usize] as char);
+                out.push(HEX[(byte & 0x0f) as usize] as char);
+            }
+        }
+    }
+    out
+}
+
+fn read_u16(buf: &[u8], off: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(buf.get(off..off + 2)?.try_into().ok()?))
+}
+
+fn read_u32(buf: &[u8], off: usize) -> Option<u32> {
+    Some(u32::from_le_bytes(buf.get(off..off + 4)?.try_into().ok()?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::{write::DeflateEncoder, Compression};
+    use std::io::Write;
+
+    #[test]
+    fn extracts_stored_zip_entry() {
+        let zip = zip_with_entry(0, b"manifest bytes");
+        assert_eq!(unzip_first_entry(&zip), Some(b"manifest bytes".to_vec()));
+    }
+
+    #[test]
+    fn extracts_deflated_zip_entry() {
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"manifest bytes").unwrap();
+        let deflated = encoder.finish().unwrap();
+        let zip = zip_with_compressed_entry(8, &deflated, b"manifest bytes".len() as u32);
+        assert_eq!(unzip_first_entry(&zip), Some(b"manifest bytes".to_vec()));
+    }
+
+    #[test]
+    fn rejects_data_descriptor_zip_entry() {
+        let mut zip = zip_with_entry(0, b"x");
+        zip[6] = 0x08;
+        assert_eq!(unzip_first_entry(&zip), None);
+    }
+
+    #[test]
+    fn hex_encodes_lowercase() {
+        assert_eq!(hex_encode(&[0, 1, 0xab, 0xff]), "0001abff");
+    }
+
+    #[test]
+    fn builds_manifest_and_chunk_urls_like_cpp() {
+        let client = CdnClient::new("/cacert.pem");
+        let server = CContentServerDirectoryServerInfo {
+            host: "edge.steamcontent.com".into(),
+            vhost: "cdn.example".into(),
+            https_support: "mandatory".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            client
+                .build_manifest_url(&server, 100, 200, 300, "?token=abc")
+                .unwrap(),
+            "https://cdn.example:443/depot/100/manifest/200/5/300?token=abc"
+        );
+        assert_eq!(
+            client
+                .build_chunk_url(&server, 100, &[0xab, 0xcd], "token=abc")
+                .unwrap(),
+            "https://cdn.example:443/depot/100/chunk/abcd?token=abc"
+        );
+        assert_eq!(client.ca_bundle_path(), "/cacert.pem");
+        assert_eq!(CdnClient::default_timeout(), Duration::from_secs(30));
+        assert_eq!(CdnClient::connect_timeout(), Duration::from_secs(15));
+    }
+
+    #[test]
+    fn validates_http_status_lengths_and_manifest_zip() {
+        let zip = zip_with_entry(0, b"manifest bytes");
+        let ok = CdnClient::validate_manifest_response(200, zip.clone(), Some(zip.len() as u64));
+        assert!(ok.ok());
+        assert_eq!(ok.raw_manifest, b"manifest bytes");
+
+        let short = CdnClient::validate_manifest_response(200, zip, Some(999));
+        assert_eq!(short.error, "manifest body truncated (length mismatch)");
+
+        let chunk = CdnClient::validate_chunk_response(200, vec![1, 2, 3], Some(3));
+        assert!(chunk.ok());
+        assert_eq!(
+            CdnClient::validate_chunk_response(404, vec![], None).error,
+            "non-200 HTTP status"
+        );
+    }
+
+    #[test]
+    fn itemdef_url_escapes_digest_and_strips_nul() {
+        assert_eq!(
+            CdnClient::build_item_def_archive_url(480, "abc+/="),
+            "https://api.steampowered.com/IGameInventory/GetItemDefArchive/v1/?appid=480&digest=abc%2B%2F%3D"
+        );
+        assert_eq!(
+            CdnClient::strip_item_def_trailing_nul(b"[{\"x\":1}]\0".to_vec()),
+            b"[{\"x\":1}]"
+        );
+    }
+
+    #[test]
+    fn persistent_connection_state_matches_cpp_validity_contract() {
+        assert!(CdnClient::validate_connection(&CdnConnection::new()).is_ok());
+        assert_eq!(
+            CdnClient::validate_connection(&CdnConnection::invalid())
+                .unwrap_err()
+                .error,
+            "cdn connection invalid"
+        );
+    }
+
+    fn zip_with_entry(method: u16, data: &[u8]) -> Vec<u8> {
+        zip_with_compressed_entry(method, data, data.len() as u32)
+    }
+
+    fn zip_with_compressed_entry(method: u16, data: &[u8], uncomp_size: u32) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
+        out.extend_from_slice(&20u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&method.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&0u32.to_le_bytes());
+        out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        out.extend_from_slice(&uncomp_size.to_le_bytes());
+        out.extend_from_slice(&1u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(b"x");
+        out.extend_from_slice(data);
+        out
+    }
+}

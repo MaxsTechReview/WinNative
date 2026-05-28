@@ -2,7 +2,25 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(Winlator)
 
+include(FetchContent)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
+
+# Zstandard is used by winlator/native_content_io.cpp. Keep this dependency in
+# the parent build instead of relying on the Steam client subproject to create it.
+FetchContent_Declare(
+    zstd
+    GIT_REPOSITORY https://github.com/facebook/zstd.git
+    GIT_TAG        v1.5.6
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  build/cmake
+)
+set(ZSTD_BUILD_STATIC    ON  CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_SHARED    OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_PROGRAMS  OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
+set(ZSTD_LEGACY_SUPPORT  OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(zstd)
 
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
