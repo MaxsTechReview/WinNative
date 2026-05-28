@@ -1809,7 +1809,7 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativePrepa
         JNIEnv* env, jclass /*cls*/, jintArray jappIds) {
     // Phase 8b.6+: drive ISteamApps via the IClientEngine sub-interface to
     // warm libsteamclient.so's own PICS cache for the given appids. For
-    // now we log and let the wn-steam-client's own prepareApp (Phase 4.5)
+    // now we log and let the Rust wnsteam runtime's own prepareApp (Phase 4.5)
     // do the heavy lifting.
     if (!jappIds) return;
     jsize n = env->GetArrayLength(jappIds);

@@ -26,12 +26,12 @@
 # default config copies META-INF/services for the kept classes; the
 # explicit `-keep` above ensures the impl classes survive.
 
-# JNI bridge classes — wn-steam-client and wn-steam-bootstrap C++ libs
+# JNI bridge classes — Rust `libwnsteam.so` and the wn-steam-bootstrap C++ lib
 # look these up by string in JNI_OnLoad / via FindClass. R8 renames break
 # the lookup → JNI_OnLoad returns JNI_ERR and the entire native side dies.
 # Crash 2026-05-19: "JNI_ERR returned from JNI_OnLoad in libwnsteam.so"
 # was triggered by R8 renaming WnConnectionObserver and the auth/library/
-# session callback observers the C++ JNI code finds by name.
+# session callback observers the native JNI layer finds by name.
 -keep class com.winlator.cmod.feature.stores.steam.wnsteam.** {
 }
 -keepclassmembers class com.winlator.cmod.feature.stores.steam.wnsteam.** {
@@ -53,7 +53,7 @@
 # zstd-jni — the native side does GetFieldID("srcPos", "J") /
 # GetFieldID("dstPos", "J") on ZstdInputStreamNoFinalizer and
 # similar via JNI; R8 renames the Kotlin/Java fields and the lookup
-# crashes the process at sign-in (wn-steam-client decompresses Steam
+# crashes the process at sign-in (`libwnsteam.so` decompresses Steam
 # CM messages with zstd). Diagnosed 2026-05-19 from
 # `Abort message: java.lang.NoSuchFieldError: no "J" field "srcPos"
 # in class Lcom/github/luben/zstd/ZstdInputStreamNoFinalizer`.

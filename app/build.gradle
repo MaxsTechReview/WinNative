@@ -199,7 +199,7 @@ android {
         compose true
         viewBinding true
         buildConfig true
-        prefab true   // wn-steam-client links OpenSSL + curl via NDK Prefab AARs
+        prefab true   // native Steam/runtime components link OpenSSL + curl via NDK Prefab AARs
     }
 
     sourceSets {

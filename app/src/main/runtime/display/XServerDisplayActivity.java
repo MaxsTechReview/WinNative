@@ -8328,7 +8328,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (isBionicSteamEnabledForShortcut() && planWActiveBootstrapSkip) {
                 Log.i("XServerDisplayActivity",
                         "Steam Launcher: skipping Android-side WnSteamBootstrap + stage2 "
-                        + "diagnostics — wn-steam-launcher.exe is the sole Steam "
+                        + "diagnostics — Wine-side steam.exe is the sole Steam "
                         + "session (avoids double-logon + the listAchievements "
                         + "native crash)");
             } else if (isBionicSteamEnabledForShortcut()) {

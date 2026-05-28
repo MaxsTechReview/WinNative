@@ -1,9 +1,6 @@
 # ----------------------------------------------------------------------------
 # wn-steam-client
 # Rust native Steam protocol client for WinNative.
-#
-# This target is intentionally Rust-only. The legacy C++ implementation remains
-# in the source tree only as migration reference and is not connected to CMake.
 # ----------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.22.1)
@@ -80,6 +77,5 @@ add_custom_target(wnsteam_rust_build DEPENDS "${WNSTEAM_RUST_OUT}")
 add_library(wnsteam SHARED IMPORTED GLOBAL)
 set_target_properties(wnsteam PROPERTIES
     IMPORTED_LOCATION "${WNSTEAM_RUST_OUT}"
-    IMPORTED_SONAME "libwnsteam.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    IMPORTED_SONAME "libwnsteam.so")
 add_dependencies(wnsteam wnsteam_rust_build)

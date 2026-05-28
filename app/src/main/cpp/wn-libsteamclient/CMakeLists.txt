@@ -6,7 +6,7 @@
 # talk to over the Steam3Master / SteamClientService TCP services. We
 # were bundling a prebuilt copy; this module replaces it with our own
 # from-scratch implementation that exposes the same public C ABI but
-# is backed by the open-source `wn-steam-client` CM client we already
+# is backed by the open-source Rust `wnsteam` CM client we already
 # ship.
 #
 # Initial scope (this commit): the FLAT C entry points (CreateInterface
@@ -46,11 +46,6 @@ set_target_properties(wn_libsteamclient PROPERTIES
 
 target_include_directories(wn_libsteamclient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    # Reach the wn-steam-client C-ABI bridge header (wn_steam/cm_bridge.h)
-    # so stubs can dispatch CM operations to the live CMClient owned by
-    # wn-session. Just the header — the C++ classes themselves are opaque
-    # behind the bridge's extern "C" surface.
-    ${CMAKE_CURRENT_SOURCE_DIR}/../wn-steam-client/include
 )
 
 target_compile_options(wn_libsteamclient PRIVATE
