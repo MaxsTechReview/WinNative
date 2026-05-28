@@ -17,6 +17,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  rust-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry + target dirs
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          app/src/main/cpp/wn-steam-client/rust/target
+          app/src/main/cpp/wn-libsteamclient/rust/target
+        key: rust-${{ runner.os }}-${{ hashFiles('app/src/main/cpp/wn-steam-client/rust/Cargo.lock', 'app/src/main/cpp/wn-libsteamclient/rust/Cargo.toml') }}
+        restore-keys: |
+          rust-${{ runner.os }}-
+
+    - name: cargo test wn-steam-client
+      working-directory: app/src/main/cpp/wn-steam-client/rust
+      run: cargo test --release --lib
+
+    - name: cargo test wn-libsteamclient
+      working-directory: app/src/main/cpp/wn-libsteamclient/rust
+      run: cargo test --release --lib
+
   build:
     runs-on: ubuntu-latest
     permissions:

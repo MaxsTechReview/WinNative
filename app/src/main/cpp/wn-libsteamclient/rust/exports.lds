@@ -1,0 +1,14 @@
+{
+    global:
+        Steam_*;
+        SteamAPI_*;
+        SteamGameServer_*;
+        SteamInternal_*;
+        Breakpad_*;
+        CreateInterface;
+        SteamClient;
+        Java_com_winlator_cmod_feature_stores_steam_wnsteam_*;
+        JNI_OnLoad;
+    local:
+        *;
+};
