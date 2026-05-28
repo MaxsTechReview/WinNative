@@ -378,6 +378,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
     private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
+    private final AtomicBoolean steamStateSanitizedForClose = new AtomicBoolean(false);
     private final AtomicBoolean sessionCleanupStarted = new AtomicBoolean(false);
     private final AtomicBoolean switchLaunchInProgress = new AtomicBoolean(false);
     private final AtomicBoolean winHandlerStopped = new AtomicBoolean(false);
@@ -1295,10 +1296,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
                     if (!wnLauncherDrivesDismiss.get()) {
                         preloaderDialog.closeOnUiThread();
-                        if (wnLauncherStatusTailer != null) {
-                            wnLauncherStatusTailer.stop();
-                            wnLauncherStatusTailer = null;
-                        }
+                        stopWnLauncherStatusTailer();
                     }
                     winStarted[0] = true;
                 }
@@ -2401,6 +2399,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         new Thread(() -> {
             performForcedEpicCloudUpload("forced cleanup (" + trigger + ")");
             performForcedGogCloudUpload("forced cleanup (" + trigger + ")");
+            sanitizeSteamStateForNextSession("forced cleanup (" + trigger + ")", true);
 
             try {
                 AppTerminationHelper.stopManagedServices(getApplicationContext(), "xserver_forced_cleanup_" + trigger);
@@ -2486,6 +2485,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
                     savePlaytimeData(true);
                     cleanupActivityCallbacks("exit");
+                    sanitizeSteamStateForNextSession("exit", true);
                     if (midiHandler != null) midiHandler.stop();
                     stopWinHandler("exit");
                     if (wineRequestHandler != null) wineRequestHandler.stop();
@@ -2987,16 +2987,115 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         );
     }
 
+    private void stopWnLauncherStatusTailer() {
+        wnLauncherDrivesDismiss.set(false);
+        if (wnLauncherStatusTailer == null) return;
+        wnLauncherStatusTailer.stop();
+        wnLauncherStatusTailer = null;
+    }
+
+    private void resetWnLauncherLog(File launcherLog) {
+        if (launcherLog == null) return;
+        try {
+            File parent = launcherLog.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            if (launcherLog.exists() && !launcherLog.delete()) {
+                new FileWriter(launcherLog, false).close();
+            }
+            Log.d("XServerDisplayActivity",
+                    "Steam Launcher: reset launch log at " + launcherLog.getPath());
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: failed to reset launch log at "
+                            + launcherLog.getPath(), e);
+        }
+    }
+
+    private void scrubPlanWBridgeFilesForNextSession() {
+        if (container == null) return;
+        try {
+            int scrubbed = 0;
+            File sys32Bridge = new File(container.getRootDir(),
+                    ".wine/drive_c/windows/system32/lsteamclient.dll");
+            File syswow64Bridge = new File(container.getRootDir(),
+                    ".wine/drive_c/windows/syswow64/lsteamclient.dll");
+            if (sys32Bridge.exists() && sys32Bridge.delete()) scrubbed++;
+            if (syswow64Bridge.exists() && syswow64Bridge.delete()) scrubbed++;
+            Log.i("XServerDisplayActivity",
+                    "Steam Launcher: scrubbed " + scrubbed
+                            + " bridge file(s) during close cleanup");
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity",
+                    "Steam Launcher: failed to scrub bridge files during close cleanup", e);
+        }
+    }
+
+    private void sanitizeSteamStateForNextSession(String trigger, boolean waitForPlayingSessionClear) {
+        if (!steamStateSanitizedForClose.compareAndSet(false, true)) {
+            Log.d("XServerDisplayActivity",
+                    "Steam cleanup already ran; skipping duplicate request from " + trigger);
+            return;
+        }
+
+        stopWnLauncherStatusTailer();
+        if (!isSteamShortcut()) return;
+
+        if (container != null) {
+            resetWnLauncherLog(new File(container.getRootDir(), ".wine/drive_c/wn-launcher.log"));
+        }
+
+        boolean bionicSteam = false;
+        try {
+            bionicSteam = isBionicSteamEnabledForShortcut();
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity",
+                    "Steam cleanup: failed to resolve bionic/PlanW state during " + trigger, t);
+        }
+
+        if (!bionicSteam) return;
+
+        boolean planWActive = com.winlator.cmod.feature.stores.steam.utils
+                .PrefManager.INSTANCE.getWnPlanW();
+        try {
+            boolean kicked = false;
+            if (waitForPlayingSessionClear) {
+                kicked = com.winlator.cmod.feature.stores.steam.service.SteamService
+                        .Companion.bionicHandoffReleaseAndKickPlayingSessionBlocking(true, 4000L);
+            } else {
+                com.winlator.cmod.feature.stores.steam.service.SteamService
+                        .Companion.bionicHandoffRelease();
+            }
+            Log.i("XServerDisplayActivity",
+                    "Steam cleanup: release issued from " + trigger
+                            + " planW=" + planWActive
+                            + " kickedPlayingSession=" + kicked);
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity",
+                    "Steam cleanup: release/kick failed during " + trigger, t);
+        }
+
+        try {
+            clearBionicActiveProcessRegistry();
+        } catch (Throwable t) {
+            Log.w("XServerDisplayActivity",
+                    "Steam cleanup: failed to clear ActiveProcess registry during "
+                            + trigger, t);
+        }
+
+        if (planWActive) {
+            scrubPlanWBridgeFilesForNextSession();
+        }
+    }
+
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
         if (preloaderDialog != null) {
             preloaderDialog.close();
         }
-        if (wnLauncherStatusTailer != null) {
-            wnLauncherStatusTailer.stop();
-            wnLauncherStatusTailer = null;
-        }
+        stopWnLauncherStatusTailer();
         if (multicastLock != null && multicastLock.isHeld()) {
             try {
                 multicastLock.release();
@@ -5077,12 +5176,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         container.getRootDir(), ".wine/drive_c/wn-launcher.log");
                 String gameName = shortcut != null && !shortcut.name.isEmpty()
                         ? shortcut.name : "game";
-                if (wnLauncherStatusTailer != null) wnLauncherStatusTailer.stop();
+                resetWnLauncherLog(launcherLog);
+                stopWnLauncherStatusTailer();
                 wnLauncherStatusTailer = new com.winlator.cmod.feature.stores.steam.wnsteam
                         .WnLauncherStatusTailer(
                             launcherLog,
                             gameName,
-                            200L,
+                            100L,
                             (phaseText) -> {
                                 if (preloaderDialog != null) {
                                     preloaderDialog.setStepOnUiThread(phaseText);
@@ -5090,8 +5190,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 return kotlin.Unit.INSTANCE;
                             },
                             () -> {
+                                stopWnLauncherStatusTailer();
                                 if (preloaderDialog != null) {
-                                    preloaderDialog.closeWithDelay(3000L);
+                                    preloaderDialog.closeOnUiThread();
                                 }
                                 return kotlin.Unit.INSTANCE;
                             },
@@ -5107,7 +5208,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                             ".wine/drive_c/Program Files (x86)/Steam/.wn-planw-launcher.stamp");
                                     if (brokenLauncher.exists()) brokenLauncher.delete();
                                 } catch (Exception ignored) {}
+                                try {
+                                    com.winlator.cmod.feature.stores.steam.service.SteamService
+                                            .Companion.bionicHandoffRelease();
+                                } catch (Throwable t) {
+                                    Log.w("XServerDisplayActivity",
+                                            "Steam Launcher: Bionic hand-off release failed after launch failure", t);
+                                }
                                 runOnUiThread(() -> {
+                                    stopWnLauncherStatusTailer();
                                     WinToast.show(this, reason);
                                     if (preloaderDialog != null) preloaderDialog.closeWithDelay(0L);
                                     exit();
@@ -5119,6 +5228,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 Log.i("XServerDisplayActivity",
                         "Steam Launcher: status tailer attached to " + launcherLog.getPath());
             } catch (Exception e) {
+                stopWnLauncherStatusTailer();
                 Log.w("XServerDisplayActivity",
                         "Steam Launcher: failed to start status tailer: " + e.getMessage());
             }
@@ -5127,34 +5237,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         guestProgramLauncherComponent.setEnvVars(envVars);
         guestProgramLauncherComponent.setTerminationCallback((status) -> {
             Log.d("XServerDisplayActivity", "Guest process terminated with status: " + status);
-            if (wnLauncherStatusTailer != null) {
-                wnLauncherStatusTailer.stop();
-                wnLauncherStatusTailer = null;
-            }
+            stopWnLauncherStatusTailer();
 
 
             boolean planWActiveTerm = com.winlator.cmod.feature.stores.steam.utils
                     .PrefManager.INSTANCE.getWnPlanW();
             if (isBionicSteamEnabledForShortcut() && planWActiveTerm) {
-                // Steam-side "playing" state lingers ~5 min after the in-Wine
-                // launcher SIGTERMs without sending CMsgClientGamesPlayed-empty,
-                // which makes the next LaunchApp return EAppUpdateError=16
-                // AlreadyRunning. If an Android-side wn-session is already
-                // logged on, send CMsgClientKickPlayingSession to clear it.
-                // Skip silently if no session is ready (don't burn 5-15s
-                // bringing one up just to clean state).
                 try {
-                    Boolean fired = (Boolean) kotlinx.coroutines.BuildersKt.runBlocking(
-                            kotlinx.coroutines.Dispatchers.getIO(),
-                            (scope, continuation) ->
-                                    com.winlator.cmod.feature.stores.steam.service.SteamService
-                                            .Companion.kickPlayingSessionIfReady(true, continuation));
+                    com.winlator.cmod.feature.stores.steam.service.SteamService
+                            .Companion.bionicHandoffReleaseAndKickPlayingSessionAsync(true);
                     Log.d("XServerDisplayActivity",
-                            "Steam Launcher: game exited — kickPlayingSessionIfReady fired="
-                                    + fired);
+                            "Steam Launcher: game exited — released Bionic hand-off "
+                                    + "and scheduled kickPlayingSessionIfReady");
                 } catch (Throwable t) {
                     Log.w("XServerDisplayActivity",
-                            "Steam Launcher: kickPlayingSessionIfReady failed", t);
+                            "Steam Launcher: Bionic hand-off release/kick failed", t);
                 }
             } else if (isBionicSteamEnabledForShortcut()
                     && !com.winlator.cmod.feature.stores.steam.utils
@@ -8230,6 +8327,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 editor.removeValue(key, "SteamClientDll");
                 editor.removeValue(key, "SteamClientDll64");
                 editor.removeValue(key, "ActiveUser");
+                editor.removeValue(key, "pid");
                 editor.removeValue(key, "Universe");
             }
             Log.d("XServerDisplayActivity", "Cleared Bionic ActiveProcess registry redirector");
@@ -8326,6 +8424,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             boolean planWActiveBootstrapSkip = com.winlator.cmod.feature.stores.steam.utils
                     .PrefManager.INSTANCE.getWnPlanW();
             if (isBionicSteamEnabledForShortcut() && planWActiveBootstrapSkip) {
+                try {
+                    boolean kicked = com.winlator.cmod.feature.stores.steam.service.SteamService
+                            .Companion.kickPlayingSessionIfReadyBlocking(true);
+                    Log.i("XServerDisplayActivity",
+                            "Steam Launcher: pre-launch kickPlayingSessionIfReady fired="
+                                    + kicked);
+                } catch (Throwable t) {
+                    Log.w("XServerDisplayActivity",
+                            "Steam Launcher: pre-launch kickPlayingSessionIfReady failed", t);
+                }
+                try {
+                    com.winlator.cmod.feature.stores.steam.service.SteamService
+                            .Companion.bionicHandoffAcquire();
+                    Log.i("XServerDisplayActivity",
+                            "Steam Launcher: suspended Android wn-session before PlanW launch");
+                } catch (Throwable t) {
+                    Log.w("XServerDisplayActivity",
+                            "Steam Launcher: failed to suspend Android wn-session", t);
+                }
                 Log.i("XServerDisplayActivity",
                         "Steam Launcher: skipping Android-side WnSteamBootstrap + stage2 "
                         + "diagnostics — Wine-side steam.exe is the sole Steam "

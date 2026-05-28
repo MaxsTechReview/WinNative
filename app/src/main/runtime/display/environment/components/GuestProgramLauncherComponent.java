@@ -32,8 +32,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GuestProgramLauncherComponent extends EnvironmentComponent {
+  private static final String TAG = "GuestProgramLauncherComponent";
+  private static final String DEPENDENCY_LOG_TAG = "CurlDeps";
+  private static final long DEPENDENCY_CHECK_TIMEOUT_MS = 1500L;
+  private static final Object lock = new Object();
+  private static final AtomicBoolean dependencyCheckScheduled = new AtomicBoolean(false);
   private String guestExecutable;
   private int pid = -1;
   private String[] bindingPaths;
@@ -42,7 +48,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private String box64Preset = Box64Preset.PERFORMANCE;
   private String fexcorePreset = FEXCorePreset.PERFORMANCE;
   private Callback<Integer> terminationCallback;
-  private static final Object lock = new Object();
   private final ContentsManager contentsManager;
   private final ContentProfile wineProfile;
   private Container container;
@@ -483,28 +488,44 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   @Override
   public void start() {
     synchronized (lock) {
+      long startTime = System.currentTimeMillis();
       if (wineInfo.isArm64EC()) {
         extractEmulatorsDlls();
       } else extractBox64Files();
       copyDefaultBox64RCFile();
-      checkDependencies();
+      scheduleDependencyCheck();
 
       // Run Steamless DRM stripping if configured (must happen after box64 is ready
       // but before the game exe is launched)
       if (preUnpackCallback != null) {
         try {
-          Log.d(
-              "GuestProgramLauncherComponent",
-              "Running preUnpack callback (Steamless DRM stripping)");
+          Log.d(TAG, "Running preUnpack callback (Steamless DRM stripping)");
           preUnpackCallback.run();
         } catch (Exception e) {
-          Log.e("GuestProgramLauncherComponent", "preUnpack callback failed", e);
+          Log.e(TAG, "preUnpack callback failed", e);
         }
       }
 
       pid = execGuestProgram();
-      Log.d("GuestProgramLauncherComponent", "Guest process started with pid=" + pid);
+      Log.d(
+          TAG,
+          "Guest process started with pid="
+              + pid
+              + " after launch prep "
+              + (System.currentTimeMillis() - startTime)
+              + "ms");
     }
+  }
+
+  private void scheduleDependencyCheck() {
+    if (!dependencyCheckScheduled.compareAndSet(false, true)) return;
+
+    Thread thread =
+        new Thread(
+            () -> Log.d(DEPENDENCY_LOG_TAG, checkDependencies()),
+            "GuestDependencyCheck");
+    thread.setDaemon(true);
+    thread.start();
   }
 
   private void copyDefaultBox64RCFile() {
@@ -517,31 +538,90 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
   private String checkDependencies() {
     String curlPath = environment.getImageFs().getRootDir().getPath() + "/usr/lib/libXau.so";
-    String lddCommand = "ldd " + curlPath;
-
     StringBuilder output = new StringBuilder("Checking Curl dependencies...\n");
+    java.lang.Process process = null;
+    Thread stdoutPump = null;
+    Thread stderrPump = null;
 
     try {
-      java.lang.Process process = Runtime.getRuntime().exec(lddCommand);
-      try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()));
-          BufferedReader errorReader =
-              new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          output.append(line).append("\n");
-        }
-        while ((line = errorReader.readLine()) != null) {
-          output.append(line).append("\n");
+      process = Runtime.getRuntime().exec(new String[] {"ldd", curlPath});
+      stdoutPump = createDependencyPump(process.getInputStream(), output);
+      stderrPump = createDependencyPump(process.getErrorStream(), output);
+
+      stdoutPump.start();
+      stderrPump.start();
+
+      long deadline = System.currentTimeMillis() + DEPENDENCY_CHECK_TIMEOUT_MS;
+      while (true) {
+        try {
+          int exitCode = process.exitValue();
+          synchronized (output) {
+            output.append("ldd exit code: ").append(exitCode).append("\n");
+          }
+          break;
+        } catch (IllegalThreadStateException ignored) {
+          if (System.currentTimeMillis() >= deadline) {
+            synchronized (output) {
+              output
+                  .append("Timed out after ")
+                  .append(DEPENDENCY_CHECK_TIMEOUT_MS)
+                  .append("ms; skipping blocking dependency probe\n");
+            }
+            process.destroy();
+            break;
+          }
+
+          try {
+            Thread.sleep(50L);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            synchronized (output) {
+              output.append("Dependency probe interrupted\n");
+            }
+            process.destroy();
+            break;
+          }
         }
       }
-      process.waitFor();
     } catch (Exception e) {
       output.append("Error running ldd: ").append(e.getMessage());
+    } finally {
+      joinDependencyPump(stdoutPump);
+      joinDependencyPump(stderrPump);
     }
 
-    Log.d("CurlDeps", output.toString()); // Log the full dependency output
     return output.toString();
+  }
+
+  private Thread createDependencyPump(InputStream stream, StringBuilder output) {
+    Thread pump =
+        new Thread(
+            () -> {
+              try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                  synchronized (output) {
+                    output.append(line).append("\n");
+                  }
+                }
+              } catch (IOException e) {
+                synchronized (output) {
+                  output.append("Error reading dependency output: ").append(e.getMessage()).append("\n");
+                }
+              }
+            },
+            "GuestDependencyPump");
+    pump.setDaemon(true);
+    return pump;
+  }
+
+  private void joinDependencyPump(Thread pump) {
+    if (pump == null) return;
+    try {
+      pump.join(200L);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   @Override

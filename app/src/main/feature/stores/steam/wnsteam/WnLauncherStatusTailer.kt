@@ -106,8 +106,9 @@ class WnLauncherStatusTailer(
 
     private fun consumeLine(line: String) {
         if (!line.contains("[wn-launcher]")) return
+        val isWatchingForExit = line.contains("watching \"") && line.contains("for exit")
         val isTerminal = (line.contains("is running") && line.contains("LaunchApp"))
-                || (line.contains("watching \"") && line.contains("for exit (LaunchApp path)"))
+                || isWatchingForExit
                 || line.contains("game process started pid=")
         val isFatal = line.contains("LoadLibrary(") && line.contains("FAILED after all strategies")
         val isLaunchAppDispatched = line.contains("IClientAppManager.LaunchApp(appId=")

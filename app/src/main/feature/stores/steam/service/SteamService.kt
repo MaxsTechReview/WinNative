@@ -397,6 +397,39 @@ class SteamService : Service() {
             instance?.bionicHandoffReleaseImpl()
         }
 
+        fun bionicHandoffReleaseAndKickPlayingSessionAsync(onlyGame: Boolean = true) {
+            instance?.bionicHandoffReleaseAndKickPlayingSessionAsyncImpl(onlyGame)
+        }
+
+        @JvmStatic
+        fun bionicHandoffReleaseAndKickPlayingSessionBlocking(
+            onlyGame: Boolean = true,
+            maxWaitMs: Long = 4_000L,
+        ): Boolean =
+            runBlocking(Dispatchers.IO) {
+                val svc = instance
+                if (svc == null) {
+                    runCatching {
+                        com.winlator.cmod.feature.stores.steam.wnsteam.WnSteamBootstrap.stop()
+                    }
+                    return@runBlocking false
+                }
+                svc.bionicHandoffReleaseAndKickPlayingSessionBlockingImpl(
+                    onlyGame,
+                    maxWaitMs.coerceAtLeast(0L),
+                )
+            }
+
+        @JvmStatic
+        fun isBionicHandoffActive(): Boolean =
+            instance?.suspendedForBionic == true
+
+        @JvmStatic
+        fun kickPlayingSessionIfReadyBlocking(onlyGame: Boolean = true): Boolean =
+            runBlocking(Dispatchers.IO) {
+                kickPlayingSessionIfReady(onlyGame)
+            }
+
 
         fun setHybridModeRuntime(enabled: Boolean) {
             val svc = instance ?: return
@@ -7820,6 +7853,58 @@ class SteamService : Service() {
         if (isRunning && !isStopping && !isLoggingOut && PrefManager.refreshToken.isNotBlank()) {
             connectAndLogon()
         }
+    }
+
+    private fun bionicHandoffReleaseAndKickPlayingSessionAsyncImpl(onlyGame: Boolean) {
+        bionicHandoffReleaseImpl()
+        if (!isRunning || isStopping || isLoggingOut) return
+        scope.launch(Dispatchers.IO) {
+            repeat(20) { attempt ->
+                if (kickPlayingSessionIfReady(onlyGame)) {
+                    Timber.i(
+                        "Bionic hand-off release: kickPlayingSessionIfReady fired " +
+                            "after reconnect (attempt ${attempt + 1}/20 onlyGame=$onlyGame)",
+                    )
+                    return@launch
+                }
+                delay(500L)
+            }
+            Timber.i(
+                "Bionic hand-off release: wn-session never became ready " +
+                    "for kickPlayingSessionIfReady (onlyGame=$onlyGame)",
+            )
+        }
+    }
+
+    private suspend fun bionicHandoffReleaseAndKickPlayingSessionBlockingImpl(
+        onlyGame: Boolean,
+        maxWaitMs: Long,
+    ): Boolean {
+        bionicHandoffReleaseImpl()
+        if (!isRunning || isStopping || isLoggingOut) return false
+
+        val deadlineMs = System.currentTimeMillis() + maxWaitMs
+        var attempt = 0
+        do {
+            attempt++
+            if (kickPlayingSessionIfReady(onlyGame)) {
+                Timber.i(
+                    "Bionic hand-off release: kickPlayingSessionIfReady fired " +
+                        "before close (attempt $attempt onlyGame=$onlyGame)",
+                )
+                return true
+            }
+
+            val remainingMs = deadlineMs - System.currentTimeMillis()
+            if (remainingMs <= 0L) break
+            delay(minOf(250L, remainingMs))
+        } while (true)
+
+        Timber.i(
+            "Bionic hand-off release: wn-session never became ready " +
+                "before close (onlyGame=$onlyGame timeoutMs=$maxWaitMs)",
+        )
+        return false
     }
 
     private suspend fun stop() {

@@ -1,4 +1,4 @@
-use crate::cdn_client::CdnClient;
+use crate::cdn_client::{CdnClient, CdnConnection};
 use crate::content_manifest::{ChunkData, ContentManifest};
 use crate::depot_chunk::process_depot_chunk;
 use crate::pb::ccontentserverdirectory::CContentServerDirectoryServerInfo;
@@ -8,7 +8,7 @@ use std::path::{Component, Path};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const DEPOT_FILE_FLAG_EXECUTABLE: u32 = 32;
 pub const DEPOT_FILE_FLAG_DIRECTORY: u32 = 64;
@@ -268,6 +268,7 @@ pub fn write_depot_sequential(
 
     let mut bytes_written = 0u64;
     let total_bytes = plan.total_bytes;
+    let mut conn = cdn.open_connection();
     for (job_index, job) in plan.chunk_jobs.iter().enumerate() {
         if options
             .cancel
@@ -293,6 +294,7 @@ pub fn write_depot_sequential(
         }
         match fetch_process_write_chunk(
             cdn,
+            Some(&mut conn),
             servers,
             manifest,
             job.file_idx as usize,
@@ -374,6 +376,9 @@ fn write_depot_parallel(
             let servers_ref = servers;
             let progress = options.on_progress;
             handles.push(scope.spawn(move || {
+                let mut conn = cdn_ref.open_connection();
+                let mut slow_chunks = 0u32;
+                let mut worker_server_bias = worker_id % servers_ref.len();
                 loop {
                     if cancel_flag.is_some_and(|c| c.load(Ordering::Relaxed)) {
                         return;
@@ -412,9 +417,16 @@ fn write_depot_parallel(
                         }
                         continue;
                     }
-                    let start_server = (idx + worker_id) % servers_ref.len();
+                    if should_rotate_after_slow_chunks(slow_chunks, servers_ref.len()) {
+                        worker_server_bias = (worker_server_bias + 1) % servers_ref.len();
+                        conn = cdn_ref.open_connection();
+                        slow_chunks = 0;
+                    }
+                    let start_server = (idx + worker_server_bias) % servers_ref.len();
+                    let started = Instant::now();
                     match fetch_process_write_chunk(
                         cdn_ref,
+                        Some(&mut conn),
                         servers_ref,
                         manifest_ref,
                         job.file_idx as usize,
@@ -426,6 +438,14 @@ fn write_depot_parallel(
                         timeout,
                     ) {
                         Ok(bytes) => {
+                            if started.elapsed()
+                                > Duration::from_secs(SLOW_CHUNK_ROTATE_THRESHOLD_SECS)
+                                && servers_ref.len() > 1
+                            {
+                                slow_chunks += 1;
+                            } else {
+                                slow_chunks = 0;
+                            }
                             let total = bytes_written.fetch_add(bytes, Ordering::Relaxed) + bytes;
                             if let Some(cb) = progress {
                                 cb(total, total_bytes, false);
@@ -529,6 +549,7 @@ pub fn process_and_write_chunk(
 #[allow(clippy::too_many_arguments)]
 pub fn fetch_process_write_chunk(
     cdn: &CdnClient,
+    mut conn: Option<&mut CdnConnection>,
     servers: &[CContentServerDirectoryServerInfo],
     manifest: &ContentManifest,
     file_idx: usize,
@@ -559,14 +580,27 @@ pub fn fetch_process_write_chunk(
     {
         if attempt > 0 {
             thread::sleep(Duration::from_millis(retry_backoff_millis(attempt as u32)));
+            if let Some(connection) = conn.as_deref_mut() {
+                *connection = cdn.open_connection();
+            }
         }
-        let fetched = cdn.fetch_chunk(
-            &servers[server_idx],
-            manifest.metadata.depot_id,
-            &chunk.sha,
-            cdn_auth_token,
-            timeout,
-        );
+        let fetched = match conn.as_deref_mut() {
+            Some(connection) => cdn.fetch_chunk_with_connection(
+                connection,
+                &servers[server_idx],
+                manifest.metadata.depot_id,
+                &chunk.sha,
+                cdn_auth_token,
+                timeout,
+            ),
+            None => cdn.fetch_chunk(
+                &servers[server_idx],
+                manifest.metadata.depot_id,
+                &chunk.sha,
+                cdn_auth_token,
+                timeout,
+            ),
+        };
         if !fetched.ok() {
             last_error = fetched.error;
             continue;

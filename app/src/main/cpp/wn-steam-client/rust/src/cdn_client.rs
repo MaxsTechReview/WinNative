@@ -26,8 +26,8 @@ pub struct CdnChunkResult {
     pub http_status: i32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CdnConnection {
+    client: Option<reqwest::blocking::Client>,
     valid: bool,
 }
 
@@ -39,11 +39,17 @@ impl Default for CdnConnection {
 
 impl CdnConnection {
     pub fn new() -> Self {
-        Self { valid: true }
+        Self {
+            client: None,
+            valid: true,
+        }
     }
 
     pub fn invalid() -> Self {
-        Self { valid: false }
+        Self {
+            client: None,
+            valid: false,
+        }
     }
 
     pub fn valid(&self) -> bool {
@@ -65,6 +71,10 @@ impl CdnClient {
 
     pub fn ca_bundle_path(&self) -> &str {
         &self.ca_bundle_path
+    }
+
+    pub fn open_connection(&self) -> CdnConnection {
+        CdnConnection::new()
     }
 
     pub fn build_manifest_url(
@@ -191,17 +201,42 @@ impl CdnClient {
 
     pub fn fetch_chunk_with_connection(
         &self,
-        conn: &CdnConnection,
+        conn: &mut CdnConnection,
         server: &CContentServerDirectoryServerInfo,
         depot_id: u32,
         chunk_sha: &[u8],
         cdn_auth_token: &str,
         timeout: Duration,
     ) -> CdnChunkResult {
-        if let Err(result) = CdnClient::validate_connection(conn) {
-            return result;
+        let url = match self.build_chunk_url(server, depot_id, chunk_sha, cdn_auth_token) {
+            Ok(url) => url,
+            Err(error) => {
+                return CdnChunkResult {
+                    error,
+                    ..Default::default()
+                }
+            }
+        };
+        let client = match self.ensure_connection(conn) {
+            Ok(client) => client,
+            Err(error) => {
+                return CdnChunkResult {
+                    error,
+                    ..Default::default()
+                }
+            }
+        };
+        match self.http_get_with_client(client, &url, timeout) {
+            Ok(response) => CdnClient::validate_chunk_response(
+                response.http_status,
+                response.body,
+                response.content_length,
+            ),
+            Err(error) => CdnChunkResult {
+                error,
+                ..Default::default()
+            },
         }
-        self.fetch_chunk(server, depot_id, chunk_sha, cdn_auth_token, timeout)
     }
 
     pub fn fetch_item_def_archive(
@@ -308,9 +343,19 @@ impl CdnClient {
     }
 
     fn http_get(&self, url: &str, timeout: Duration) -> Result<HttpResponse, String> {
-        let client = self.http_client(timeout)?;
+        let client = self.http_client()?;
+        self.http_get_with_client(&client, url, timeout)
+    }
+
+    fn http_get_with_client(
+        &self,
+        client: &reqwest::blocking::Client,
+        url: &str,
+        timeout: Duration,
+    ) -> Result<HttpResponse, String> {
         let response = client
             .get(url)
+            .timeout(timeout)
             .send()
             .map_err(|err| format!("http get: {err}"))?;
         let http_status = response.status().as_u16() as i32;
@@ -326,10 +371,9 @@ impl CdnClient {
         })
     }
 
-    fn http_client(&self, timeout: Duration) -> Result<reqwest::blocking::Client, String> {
+    fn http_client(&self) -> Result<reqwest::blocking::Client, String> {
         let mut builder = reqwest::blocking::Client::builder()
             .user_agent(USER_AGENT)
-            .timeout(timeout)
             .connect_timeout(CdnClient::connect_timeout());
         if !self.ca_bundle_path.is_empty() {
             let pem =
@@ -341,6 +385,21 @@ impl CdnClient {
             }
         }
         builder.build().map_err(|err| format!("http client: {err}"))
+    }
+
+    fn ensure_connection<'a>(
+        &self,
+        conn: &'a mut CdnConnection,
+    ) -> Result<&'a reqwest::blocking::Client, String> {
+        if let Err(result) = CdnClient::validate_connection(conn) {
+            return Err(result.error);
+        }
+        if conn.client.is_none() {
+            conn.client = Some(self.http_client()?);
+        }
+        conn.client
+            .as_ref()
+            .ok_or_else(|| "cdn connection not initialized".to_string())
     }
 }
 
@@ -540,6 +599,47 @@ mod tests {
                 .error,
             "cdn connection invalid"
         );
+    }
+
+    #[test]
+    fn persistent_connection_lazily_initializes_and_reuses_client() {
+        let client = CdnClient::new("");
+        let server = CContentServerDirectoryServerInfo {
+            host: "127.0.0.1".into(),
+            ..Default::default()
+        };
+        let mut conn = client.open_connection();
+        assert!(conn.client.is_none());
+
+        let _ = client.fetch_chunk_with_connection(
+            &mut conn,
+            &server,
+            100,
+            &[0xab, 0xcd],
+            "",
+            Duration::from_millis(50),
+        );
+        assert!(conn.client.is_some());
+
+        let first_client = conn
+            .client
+            .as_ref()
+            .map(|inner| inner as *const reqwest::blocking::Client)
+            .unwrap();
+        let _ = client.fetch_chunk_with_connection(
+            &mut conn,
+            &server,
+            100,
+            &[0xab, 0xcd],
+            "",
+            Duration::from_millis(50),
+        );
+        let second_client = conn
+            .client
+            .as_ref()
+            .map(|inner| inner as *const reqwest::blocking::Client)
+            .unwrap();
+        assert_eq!(first_client, second_client);
     }
 
     fn zip_with_entry(method: u16, data: &[u8]) -> Vec<u8> {
