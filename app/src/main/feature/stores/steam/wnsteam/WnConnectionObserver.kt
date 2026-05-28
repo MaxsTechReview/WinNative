@@ -1,7 +1,5 @@
-// IMPORTANT: the package path below is hard-bound to the JNI lookup in
-// app/src/main/cpp/wn-steam-client/jni/wn_steam_jni.cpp (the constant
-// kObserverClassName). Do NOT move this file or rename the package
-// without updating that constant.
+// IMPORTANT: the package path below is hard-bound to native JNI lookup.
+// Do NOT move this file or rename the package without updating native code.
 package com.winlator.cmod.feature.stores.steam.wnsteam
 
 /**

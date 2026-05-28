@@ -11,6 +11,10 @@
 ## the PE under build/ and copies it into
 ## app/src/main/assets/wnsteam/steampipe/steam_api64.dll for APK
 ## packaging.
+##
+## Keep this source list aligned with build.sh. The generated .def and
+## override C sources are checked in so standalone CMake users can build
+## the bridge without the legacy steam_api_bridge.c shim.
 
 cmake_minimum_required(VERSION 3.18)
 project(wn_steamapi_bridge C)
@@ -24,7 +28,13 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
         "Run cmake with -DCMAKE_TOOLCHAIN_FILE=mingw64.cmake or use build.sh.")
 endif()
 
-add_library(steam_api64 SHARED steam_api_bridge.c)
+add_library(steam_api64 SHARED
+    steam_api_bridge_callbacks.c
+    steam_api_bridge_overrides.c
+    steam_api_bridge_steamclient.c
+    steam_api_bridge_lifecycle.c
+    steam_api_bridge.def
+)
 target_link_libraries(steam_api64 PRIVATE kernel32 user32)
 target_link_options(steam_api64 PRIVATE -static-libgcc -Wl,--kill-at)
 set_target_properties(steam_api64 PROPERTIES

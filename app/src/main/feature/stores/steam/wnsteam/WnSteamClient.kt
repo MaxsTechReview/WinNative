@@ -1,5 +1,4 @@
 // JNI symbols depend on this package path and class name.
-// Update app/src/main/cpp/wn-steam-client/jni/wn_steam_jni.cpp if either changes.
 package com.winlator.cmod.feature.stores.steam.wnsteam
 
 import timber.log.Timber

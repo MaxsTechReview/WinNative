@@ -40,11 +40,10 @@ mkdir -p build
 #   - steam_api_bridge.def: PE export forwards for the other ~1200
 #     exports → original_steam_api64.dll (gbe_fork renamed at install).
 #
-# We deliberately DO NOT include steam_api_bridge.c (lifecycle hooks)
-# nor steam_api_bridge_flat.c (full vtable forwarders). gbe_fork handles
-# lifecycle + every non-matchmaking flat-C path. Including those would
-# conflict with the .def forwards (multiple definitions for the same
-# export name).
+# We deliberately DO NOT include steam_api_bridge_flat.c (full vtable
+# forwarders). gbe_fork handles every non-matchmaking flat-C path, so
+# compiling the generated forwarders here would conflict with the .def
+# forwards (multiple definitions for the same export name).
 x86_64-w64-mingw32-gcc -shared -O2 -fvisibility=hidden \
     -o "$OUT" \
     steam_api_bridge_overrides.c \
