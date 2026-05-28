@@ -2968,15 +2968,10 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
 
     let app_id = app_id as u32;
     let job_id = runtime.next_job_id();
-    let Some(message) = runtime.core().build_job_proto_message(
-        EMsg::CLIENT_REQUEST_ENCRYPTED_APP_TICKET,
-        job_id,
-        crate::pb::cmsg_client_request_encrypted_app_ticket::CMsgClientRequestEncryptedAppTicket {
-            app_id,
-        }
-        .serialize(),
-        app_id,
-    ) else {
+    let Some(message) = runtime
+        .core()
+        .build_request_encrypted_app_ticket(app_id, job_id)
+    else {
         return ptr::null_mut();
     };
 

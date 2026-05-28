@@ -20,12 +20,16 @@ class WnLauncherStatusTailer(
     private var thread: Thread? = null
     @Volatile private var lastEmitted: String = ""
     @Volatile private var launchAppDispatchedAt: Long = 0L
+    @Volatile private var fileExistedAtStart: Boolean = false
+    @Volatile private var launchCompleteSignaled: Boolean = false
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
+        fileExistedAtStart = logFile.exists()
+        launchCompleteSignaled = false
         android.util.Log.i(TAG, "start: path=" + logFile.absolutePath
-                + " exists=" + logFile.exists()
-                + " size=" + (if (logFile.exists()) logFile.length() else -1L)
+                + " exists=" + fileExistedAtStart
+                + " size=" + (if (fileExistedAtStart) logFile.length() else -1L)
                 + " canRead=" + logFile.canRead())
         thread = Thread({ tailLoop() }, "WnLauncherStatusTailer").apply {
             isDaemon = true
@@ -59,9 +63,14 @@ class WnLauncherStatusTailer(
                 RandomAccessFile(logFile, "r").use { raf ->
                     val len = raf.length()
                     if (!openedOnce) {
-                        lastOffset = len
                         openedOnce = true
-                        android.util.Log.i(TAG, "tailLoop: first read; file len=$len — seeking to end (skipping any stale content from previous launch); waiting for launcher to truncate + write new content")
+                        if (fileExistedAtStart) {
+                            lastOffset = len
+                            android.util.Log.i(TAG, "tailLoop: first read; file len=$len — seeking to end (skipping any stale content from previous launch); waiting for launcher to truncate + write new content")
+                        } else {
+                            lastOffset = 0L
+                            android.util.Log.i(TAG, "tailLoop: first read on freshly created log; file len=$len — reading from start")
+                        }
                     } else if (len < lastOffset) {
                         android.util.Log.i(TAG, "tailLoop iter=$iter: file shrank from $lastOffset to $len bytes — launcher truncated, resetting offset")
                         lastOffset = 0L
@@ -98,18 +107,24 @@ class WnLauncherStatusTailer(
     private fun consumeLine(line: String) {
         if (!line.contains("[wn-launcher]")) return
         val isTerminal = (line.contains("is running") && line.contains("LaunchApp"))
+                || (line.contains("watching \"") && line.contains("for exit (LaunchApp path)"))
                 || line.contains("game process started pid=")
         val isFatal = line.contains("LoadLibrary(") && line.contains("FAILED after all strategies")
         val isLaunchAppDispatched = line.contains("IClientAppManager.LaunchApp(appId=")
-        val isLaunchAppMissed = line.contains("LaunchApp dispatched") && line.contains("never appeared")
+        val isLaunchAppRetry = line.contains("LaunchApp attempt")
+                && line.contains("never appeared")
+                && line.contains("retrying LaunchApp")
+        val isCreateProcessFallback = line.contains("LaunchApp dispatched")
+                && line.contains("never appeared")
+                && line.contains("falling back to CreateProcess")
         val phase = phaseFor(line)
         if (phase != null && phase != lastEmitted) {
-            lastEmitted = phase
-            android.util.Log.i(TAG, "phase change: \"$phase\" (from line: ${line.take(80)})")
-            main.post { onPhase(phase) }
+            emitPhase(phase, line)
         }
         if (isLaunchAppDispatched) launchAppDispatchedAt = System.currentTimeMillis()
         if (isTerminal) {
+            if (launchCompleteSignaled) return
+            launchCompleteSignaled = true
             android.util.Log.i(TAG, "terminal phase (LaunchApp is running) — signaling launch complete")
             // Disarm the watchdog: the game spawned successfully, so the 30s
             // post-dispatch timeout would otherwise fire mid-play and kill the
@@ -119,20 +134,29 @@ class WnLauncherStatusTailer(
         } else if (isFatal) {
             android.util.Log.w(TAG, "fatal phase (launcher LoadLibrary failed) — signaling launch failure")
             main.post { onLaunchFailed?.invoke("Steam Launcher could not start. Re-staging — please relaunch.") }
-        } else if (isLaunchAppMissed) {
-            android.util.Log.w(TAG, "LaunchApp dispatched but game exe never appeared — launcher will try CreateProcess fallback")
-            main.post { onPhase("Game didn't start via Steam — trying direct launch…") }
+        } else if (isLaunchAppRetry) {
+            emitPhase("Game didn't start yet — retrying via Steam…", line)
+        } else if (isCreateProcessFallback) {
+            android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback")
+            launchAppDispatchedAt = 0L
+            emitPhase("Game didn't start via Steam — trying direct launch…", line)
         }
     }
 
     private fun watchdogTick() {
         val dispatchedAt = launchAppDispatchedAt
         if (dispatchedAt == 0L || lastEmitted.startsWith("Game didn't start")) return
-        if (System.currentTimeMillis() - dispatchedAt > 30_000L) {
-            android.util.Log.w(TAG, "watchdog: 30s elapsed after LaunchApp with no terminal — assuming launch failed")
+        if (System.currentTimeMillis() - dispatchedAt > LAUNCH_APP_WATCHDOG_MS) {
+            android.util.Log.w(TAG, "watchdog: ${LAUNCH_APP_WATCHDOG_MS}ms elapsed after LaunchApp with no terminal — assuming launch failed")
             launchAppDispatchedAt = 0L
             main.post { onLaunchFailed?.invoke("Steam Launcher reached the game but it never started.") }
         }
+    }
+
+    private fun emitPhase(phase: String, line: String) {
+        lastEmitted = phase
+        android.util.Log.i(TAG, "phase change: \"$phase\" (from line: ${line.take(80)})")
+        main.post { onPhase(phase) }
     }
 
     private fun phaseFor(line: String): String? = when {
@@ -175,5 +199,6 @@ class WnLauncherStatusTailer(
 
     companion object {
         private const val TAG = "WnLauncherTailer"
+        private const val LAUNCH_APP_WATCHDOG_MS = 35_000L
     }
 }

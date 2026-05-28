@@ -615,6 +615,26 @@ impl CMClientCore {
         )
     }
 
+    pub fn build_request_encrypted_app_ticket(
+        &self,
+        app_id: u32,
+        job_id: u64,
+    ) -> Option<OutboundProtoMessage> {
+        if app_id == 0 {
+            return None;
+        }
+        self.build_job_proto_message(
+            EMsg::CLIENT_REQUEST_ENCRYPTED_APP_TICKET,
+            job_id,
+            crate::pb::cmsg_client_request_encrypted_app_ticket::CMsgClientRequestEncryptedAppTicket {
+                app_id,
+            }
+            .serialize(),
+            // Match the legacy C++ client: this request is not app-routed.
+            0,
+        )
+    }
+
     pub fn build_get_depot_decryption_key(
         &self,
         depot_id: u32,
@@ -1869,6 +1889,13 @@ mod tests {
         assert_eq!(decoded.emsg, EMsg::CLIENT_GET_APP_OWNERSHIP_TICKET);
         assert_eq!(decoded.header.jobid_source, 99);
         assert_eq!(decoded.header.jobid_target, INVALID_JOB_ID);
+
+        let encrypted = core.build_request_encrypted_app_ticket(480, 123).unwrap();
+        let decoded = crate::proto_envelope::decode_proto_envelope(&encrypted.wire).unwrap();
+        assert_eq!(decoded.emsg, EMsg::CLIENT_REQUEST_ENCRYPTED_APP_TICKET);
+        assert_eq!(decoded.header.jobid_source, 123);
+        assert_eq!(decoded.header.jobid_target, INVALID_JOB_ID);
+        assert_eq!(decoded.header.routing_appid, 0);
     }
 
     #[test]
