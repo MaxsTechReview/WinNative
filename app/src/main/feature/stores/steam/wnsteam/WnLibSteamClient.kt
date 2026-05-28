@@ -247,6 +247,16 @@ object WnLibSteamClient {
         try { nativeSetAppBuildId(appId, buildId) } catch (_: UnsatisfiedLinkError) {}
     }
 
+    fun setAppSourcePackages(appId: Int, packageIds: IntArray?) {
+        if (!loaded || appId <= 0) return
+        try { nativeSetAppSourcePackages(appId, packageIds) } catch (_: UnsatisfiedLinkError) {}
+    }
+
+    fun setAppCloudRemoteDir(appId: Int, path: String?) {
+        if (!loaded || appId <= 0) return
+        try { nativeSetAppCloudRemoteDir(appId, path) } catch (_: UnsatisfiedLinkError) {}
+    }
+
     fun setFriendsList(steamIds: LongArray) {
         if (!loaded) return
         try { nativeSetFriendsList(steamIds) } catch (_: UnsatisfiedLinkError) {}

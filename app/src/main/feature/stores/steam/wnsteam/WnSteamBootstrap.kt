@@ -41,8 +41,16 @@ object WnSteamBootstrap {
         appId: Int = 0,
     ): Int {
         if (initialized) {
-            Log.i(TAG, "start: already initialized")
-            return 0
+            if (appId > 0) {
+                Log.i(
+                    TAG,
+                    "start: app-bound launch requested while bootstrap is live; forcing a clean restart (appId=$appId)",
+                )
+                stop()
+            } else {
+                Log.i(TAG, "start: already initialized")
+                return 0
+            }
         }
         val rc = try {
             nativeInit(context, libPath, home, steam3Master, steamClientService,
@@ -97,6 +105,7 @@ object WnSteamBootstrap {
         if (!initialized) return
         try { nativeShutdown() } catch (_: UnsatisfiedLinkError) {}
         initialized = false
+        prewarmRan = false
         Log.i(TAG, "stop done")
     }
 

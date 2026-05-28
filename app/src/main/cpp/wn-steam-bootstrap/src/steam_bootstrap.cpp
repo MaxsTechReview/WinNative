@@ -109,6 +109,8 @@ struct State {
     int   (*fn_Steam_CreateGlobalUser)(int* pipe_inout)= nullptr;
     bool  (*fn_Steam_BLoggedOn)(int pipe, int user)    = nullptr;
     void  (*fn_Steam_LogOff)(int pipe, int user)       = nullptr;
+    void  (*fn_Steam_ReleaseUser)(int pipe, int user)  = nullptr;
+    bool  (*fn_Steam_BReleaseSteamPipe)(int pipe)      = nullptr;
     bool  (*fn_Steam_BGetCallback)(int pipe, void* cb) = nullptr;
     void  (*fn_Steam_FreeLastCallback)(int pipe)       = nullptr;
     void  (*fn_Breakpad_SteamSetAppID)(unsigned app_id)= nullptr;
@@ -532,6 +534,10 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeInit(
         ::dlsym(lsc, "Steam_BLoggedOn"));
     g_state.fn_Steam_LogOff = reinterpret_cast<void(*)(int, int)>(
         ::dlsym(lsc, "Steam_LogOff"));
+    g_state.fn_Steam_ReleaseUser = reinterpret_cast<void(*)(int, int)>(
+        ::dlsym(lsc, "Steam_ReleaseUser"));
+    g_state.fn_Steam_BReleaseSteamPipe = reinterpret_cast<bool(*)(int)>(
+        ::dlsym(lsc, "Steam_BReleaseSteamPipe"));
     g_state.fn_Steam_BGetCallback = reinterpret_cast<bool(*)(int, void*)>(
         ::dlsym(lsc, "Steam_BGetCallback"));
     g_state.fn_Steam_FreeLastCallback = reinterpret_cast<void(*)(int)>(
@@ -547,10 +553,13 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeInit(
         return -3;
     }
     LOGI("dlsym OK: CreateInterface=%p Steam_CreateGlobalUser=%p "
-         "Steam_BLoggedOn=%p Steam_BGetCallback=%p",
+         "Steam_BLoggedOn=%p Steam_ReleaseUser=%p "
+         "Steam_BReleaseSteamPipe=%p Steam_BGetCallback=%p",
          reinterpret_cast<void*>(g_state.fn_CreateInterface),
          reinterpret_cast<void*>(g_state.fn_Steam_CreateGlobalUser),
          reinterpret_cast<void*>(g_state.fn_Steam_BLoggedOn),
+         reinterpret_cast<void*>(g_state.fn_Steam_ReleaseUser),
+         reinterpret_cast<void*>(g_state.fn_Steam_BReleaseSteamPipe),
          reinterpret_cast<void*>(g_state.fn_Steam_BGetCallback));
 
     if (g_state.fn_Breakpad_SteamSetAppID) {
@@ -1758,12 +1767,44 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeShutd
     }
 
     std::lock_guard<std::mutex> lk(g_state.mu);
-    // Tear down in reverse order of init: log off the user, drop the
-    // pipe. We don't dlclose libsteamclient.so — it leaves background
+    // Tear down in reverse order of init: log off the user, release the
+    // global user, then drop the pipe. We don't dlclose libsteamclient.so — it leaves background
     // threads that crash on unload (the same pattern every embedded
     // Steam launcher we surveyed follows).
     if (g_state.fn_Steam_LogOff && g_state.user != 0 && g_state.pipe != 0) {
         g_state.fn_Steam_LogOff(g_state.pipe, g_state.user);
+        LOGI("nativeShutdown: Steam_LogOff(pipe=%d, user=%d)",
+             g_state.pipe, g_state.user);
+    }
+    if (g_state.user != 0 && g_state.pipe != 0) {
+        if (g_state.fn_Steam_ReleaseUser) {
+            g_state.fn_Steam_ReleaseUser(g_state.pipe, g_state.user);
+            LOGI("nativeShutdown: Steam_ReleaseUser(pipe=%d, user=%d)",
+                 g_state.pipe, g_state.user);
+        } else if (g_state.steamclient_iface) {
+            auto* steamclient =
+                reinterpret_cast<wnsteambs::ISteamClient*>(g_state.steamclient_iface);
+            steamclient->ReleaseUser(g_state.pipe, g_state.user);
+            LOGI("nativeShutdown: ISteamClient.ReleaseUser(pipe=%d, user=%d)",
+                 g_state.pipe, g_state.user);
+        } else {
+            LOGW("nativeShutdown: no ReleaseUser entry point available");
+        }
+    }
+    if (g_state.pipe != 0) {
+        if (g_state.fn_Steam_BReleaseSteamPipe) {
+            bool ok = g_state.fn_Steam_BReleaseSteamPipe(g_state.pipe);
+            LOGI("nativeShutdown: Steam_BReleaseSteamPipe(%d) -> %d",
+                 g_state.pipe, ok ? 1 : 0);
+        } else if (g_state.steamclient_iface) {
+            auto* steamclient =
+                reinterpret_cast<wnsteambs::ISteamClient*>(g_state.steamclient_iface);
+            bool ok = steamclient->BReleaseSteamPipe(g_state.pipe);
+            LOGI("nativeShutdown: ISteamClient.BReleaseSteamPipe(%d) -> %d",
+                 g_state.pipe, ok ? 1 : 0);
+        } else {
+            LOGW("nativeShutdown: no BReleaseSteamPipe entry point available");
+        }
     }
     // Roll back every env var nativeInit set. The Android process outlives
     // a single wine launch; without this pass a subsequent Launch-Steam-Client
@@ -1797,6 +1838,8 @@ Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamBootstrap_nativeShutd
     g_state.fn_Steam_CreateGlobalUser       = nullptr;
     g_state.fn_Steam_BLoggedOn              = nullptr;
     g_state.fn_Steam_LogOff                 = nullptr;
+    g_state.fn_Steam_ReleaseUser            = nullptr;
+    g_state.fn_Steam_BReleaseSteamPipe      = nullptr;
     g_state.fn_Steam_BGetCallback           = nullptr;
     g_state.fn_Steam_FreeLastCallback       = nullptr;
     g_state.fn_Breakpad_SteamSetAppID       = nullptr;

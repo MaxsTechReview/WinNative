@@ -3,6 +3,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
+import com.winlator.cmod.feature.stores.steam.data.ManifestInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SpecialGameSaveMapping
 import com.winlator.cmod.feature.stores.steam.service.SteamService
@@ -785,6 +786,58 @@ object SteamUtils {
      * Creates a Steam ACF (Application Cache File) manifest for the given app.
      * This allows real Steam to detect the game as installed.
      */
+    private fun resolveManifestForBranch(
+        depot: DepotInfo,
+        branch: String,
+        visitedApps: MutableSet<Int> = mutableSetOf(),
+    ): ManifestInfo? {
+        depot.manifests[branch]?.let { return it }
+        depot.encryptedManifests[branch]?.let { return it }
+
+        if (!branch.equals("public", ignoreCase = true)) {
+            depot.manifests["public"]?.let { return it }
+            depot.encryptedManifests["public"]?.let { return it }
+        }
+
+        val sourceAppId = depot.depotFromApp
+        if (sourceAppId == SteamService.INVALID_APP_ID || !visitedApps.add(sourceAppId)) {
+            return null
+        }
+
+        val sourceDepot = SteamService.getAppInfoOf(sourceAppId)?.depots?.get(depot.depotId) ?: return null
+        return resolveManifestForBranch(sourceDepot, branch, visitedApps)
+    }
+
+    private fun collectInstalledDepotManifests(
+        steamAppId: Int,
+        appInfo: com.winlator.cmod.feature.stores.steam.data.SteamApp,
+        branch: String,
+        installedDepotIds: Set<Int>,
+        installedDlcAppIds: Set<Int>,
+    ): LinkedHashMap<Int, ManifestInfo> {
+        val allKnownDepots = linkedMapOf<Int, DepotInfo>()
+        appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
+        SteamService.getDownloadableDepots(steamAppId).forEach { (depotId, depot) ->
+            allKnownDepots[depotId] = depot
+        }
+
+        val installedDepots = linkedMapOf<Int, ManifestInfo>()
+        allKnownDepots.forEach { (depotId, depotInfo) ->
+            val shouldInclude =
+                depotId in installedDepotIds ||
+                    (
+                        depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
+                            depotInfo.dlcAppId in installedDlcAppIds
+                    )
+            if (!shouldInclude) return@forEach
+
+            resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L }?.let { manifest ->
+                installedDepots[depotId] = manifest
+            }
+        }
+        return installedDepots
+    }
+
     @JvmStatic
     fun createAppManifest(
         context: Context,
@@ -813,6 +866,8 @@ object SteamUtils {
             }
             val gameName = gameDir.name
             val sizeOnDisk = calculateDirectorySize(gameDir)
+            val selectedBranch = SteamService.resolveSelectedBetaName(steamAppId).ifBlank { "public" }
+            val ownerSteamId = PrefManager.steamUserSteamId64.takeIf { it > 0L }?.toString() ?: "0"
 
             // Create symlink from Steam common directory to actual game directory
             val steamGameLink = File(commonDir, gameName)
@@ -825,30 +880,17 @@ object SteamUtils {
                 }
             }
 
-            val buildId = appInfo.branches["public"]?.buildId ?: 0L
-            val downloadableDepots = SteamService.getDownloadableDepots(steamAppId)
+            val buildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
             val installedDepotIds = SteamService.getInstalledDepotsOf(steamAppId).orEmpty().toSet()
             val installedDlcAppIds = SteamService.getInstalledDlcDepotsOf(steamAppId).orEmpty().toSet()
-
-            val regularDepots = mutableMapOf<Int, DepotInfo>()
-            val sharedDepots = mutableMapOf<Int, DepotInfo>()
-
-            downloadableDepots.forEach { (depotId, depotInfo) ->
-                val isInstalledDepot =
-                    depotId in installedDepotIds ||
-                        (
-                            depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
-                                depotInfo.dlcAppId in installedDlcAppIds
-                        )
-                if (!isInstalledDepot) return@forEach
-
-                val manifest = depotInfo.manifests["public"]
-                if (manifest != null && manifest.gid != 0L) {
-                    regularDepots[depotId] = depotInfo
-                } else {
-                    sharedDepots[depotId] = depotInfo
-                }
-            }
+            val installedDepots =
+                collectInstalledDepotManifests(
+                    steamAppId = steamAppId,
+                    appInfo = appInfo,
+                    branch = selectedBranch,
+                    installedDepotIds = installedDepotIds,
+                    installedDlcAppIds = installedDlcAppIds,
+                )
 
             val acfContent =
                 buildString {
@@ -862,28 +904,32 @@ object SteamUtils {
                     appendLine("\t\"SizeOnDisk\"\t\t\"$sizeOnDisk\"")
                     appendLine("\t\"buildid\"\t\t\"$buildId\"")
 
-                    val actualInstallDir = appInfo.config.installDir.ifEmpty { gameName }
+                    val actualInstallDir = gameName
                     appendLine("\t\"installdir\"\t\t\"${escapeString(actualInstallDir)}\"")
 
-                    appendLine("\t\"LastOwner\"\t\t\"0\"")
+                    appendLine("\t\"LastOwner\"\t\t\"$ownerSteamId\"")
                     appendLine("\t\"BytesToDownload\"\t\t\"0\"")
                     appendLine("\t\"BytesDownloaded\"\t\t\"0\"")
                     appendLine("\t\"AutoUpdateBehavior\"\t\t\"0\"")
                     appendLine("\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"")
                     appendLine("\t\"ScheduledAutoUpdate\"\t\t\"0\"")
 
-                    if (regularDepots.isNotEmpty()) {
+                    if (installedDepots.isNotEmpty()) {
                         appendLine("\t\"InstalledDepots\"")
                         appendLine("\t{")
-                        regularDepots.forEach { (depotId, depotInfo) ->
-                            val manifest = depotInfo.manifests["public"]
+                        installedDepots.forEach { (depotId, manifest) ->
                             appendLine("\t\t\"$depotId\"")
                             appendLine("\t\t{")
-                            appendLine("\t\t\t\"manifest\"\t\t\"${manifest?.gid ?: "0"}\"")
-                            appendLine("\t\t\t\"size\"\t\t\"${manifest?.size ?: 0}\"")
+                            appendLine("\t\t\t\"manifest\"\t\t\"${manifest.gid}\"")
+                            appendLine("\t\t\t\"size\"\t\t\"${manifest.size}\"")
                             appendLine("\t\t}")
                         }
                         appendLine("\t}")
+                    } else if (installedDepotIds.isNotEmpty()) {
+                        Timber.w(
+                            "ACF manifest for appId=$steamAppId has ${installedDepotIds.size} trusted depot(s) " +
+                                "but none could be resolved for branch '$selectedBranch'",
+                        )
                     }
 
                     appendLine("\t\"UserConfig\" { \"language\" \"english\" }")
@@ -895,7 +941,8 @@ object SteamUtils {
             acfFile.writeText(acfContent)
             Timber.i("Created ACF manifest for ${appInfo.name} at ${acfFile.absolutePath}")
 
-            if (sharedDepots.isNotEmpty()) {
+            val hasSharedInstallDepots = appInfo.depots.values.any { it.sharedInstall }
+            if (hasSharedInstallDepots) {
                 val steamworksAcfContent =
                     buildString {
                         appendLine("\"AppState\"")

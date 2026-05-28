@@ -2112,13 +2112,30 @@ class SteamService : Service() {
             return calculateManifestSizes(combined, branch)
         }
 
+        private fun isSuspiciousSteamInstallDirLeaf(value: String): Boolean {
+            val normalized = value.trim().replace('\\', '/').trimEnd('/')
+            if (normalized.isEmpty()) return false
+            val leaf = normalized.substringAfterLast('/')
+            return leaf.equals("common", ignoreCase = true) ||
+                leaf.equals("steamapps", ignoreCase = true)
+        }
+
+        private fun isSuspiciousSteamInstallPath(path: String): Boolean {
+            val normalized = path.trim().replace('\\', '/').trimEnd('/')
+            if (normalized.isEmpty()) return false
+            return normalized.endsWith("/steamapps/common", ignoreCase = true) ||
+                normalized.endsWith("/steamapps", ignoreCase = true)
+        }
+
         fun getAppDirName(app: SteamApp?): String {
-            // The folder name, if it got made
-            var appName = app?.config?.installDir.orEmpty()
-            if (appName.isEmpty()) {
-                appName = app?.name.orEmpty()
-            }
-            return appName
+            val configuredInstallDir =
+                app?.config?.installDir
+                    .orEmpty()
+                    .trim()
+                    .takeUnless(::isSuspiciousSteamInstallDirLeaf)
+
+            return configuredInstallDir.takeUnless { it.isNullOrEmpty() }
+                ?: app?.name.orEmpty()
         }
 
         private fun normalizeInstallPath(path: String): String {
@@ -2137,12 +2154,25 @@ class SteamService : Service() {
             // installDir from PICS metadata is just a folder name, custom installs save full path
             val customDir = info?.installDir.orEmpty()
             if (customDir.isNotEmpty() && (customDir.startsWith("/") || customDir.contains(File.separator))) {
-                // It's a full path (custom install location)
-                return normalizeInstallPath(customDir)
+                val normalizedCustomDir = normalizeInstallPath(customDir)
+                if (!isSuspiciousSteamInstallPath(normalizedCustomDir)) {
+                    // It's a full path (custom install location)
+                    return normalizedCustomDir
+                }
+                Timber.w(
+                    "getAppDirPath: ignoring suspicious stored install path %s for appId=%d",
+                    normalizedCustomDir,
+                    gameId,
+                )
             }
 
             val appName = getAppDirName(info)
             val oldName = info?.name.orEmpty()
+            val candidateNames =
+                buildList {
+                    if (appName.isNotEmpty()) add(appName)
+                    if (oldName.isNotEmpty() && oldName != appName) add(oldName)
+                }
 
             // Respect user-selected default download folder
             val context = PluviaApp.instance.applicationContext
@@ -2154,39 +2184,35 @@ class SteamService : Service() {
                             .getFilePathFromUri(context, android.net.Uri.parse(storeDefaultUri))
                     Timber.i("getAppDirPath: resolved baseDir $baseDir from URI $storeDefaultUri")
                     if (baseDir != null) {
-                        val path = Paths.get(baseDir, appName)
-                        if (Files.exists(path)) {
-                            Timber.i("getAppDirPath: found existing path $path")
-                            return normalizeInstallPath(path.pathString)
-                        }
-                        if (oldName.isNotEmpty()) {
-                            val oldPath = Paths.get(baseDir, oldName)
-                            if (Files.exists(oldPath)) {
-                                Timber.i("getAppDirPath: found existing oldPath $oldPath")
-                                return normalizeInstallPath(oldPath.pathString)
+                        for (candidateName in candidateNames) {
+                            val candidatePath = Paths.get(baseDir, candidateName)
+                            if (Files.exists(candidatePath)) {
+                                Timber.i("getAppDirPath: found existing path $candidatePath")
+                                return normalizeInstallPath(candidatePath.pathString)
                             }
                         }
+                        val targetName = candidateNames.firstOrNull().orEmpty()
+                        val targetPath = Paths.get(baseDir, targetName)
                         // If it doesn't exist yet, this is where we'll install it
-                        Timber.i("getAppDirPath: returning new path $path")
-                        return normalizeInstallPath(path.pathString)
+                        Timber.i("getAppDirPath: returning new path $targetPath")
+                        return normalizeInstallPath(targetPath.pathString)
                     }
                 }
             }
 
             for (basePath in allInstallPaths) {
-                val candidate = Paths.get(basePath, appName)
-                if (Files.exists(candidate)) return normalizeInstallPath(candidate.pathString)
-                if (oldName.isNotEmpty()) {
-                    val oldCandidate = Paths.get(basePath, oldName)
-                    if (Files.exists(oldCandidate)) return normalizeInstallPath(oldCandidate.pathString)
+                for (candidateName in candidateNames) {
+                    val candidate = Paths.get(basePath, candidateName)
+                    if (Files.exists(candidate)) return normalizeInstallPath(candidate.pathString)
                 }
             }
 
             // Nothing on disk yet – default to whatever location you want new installs to use
+            val targetName = candidateNames.firstOrNull().orEmpty()
             if (PrefManager.useExternalStorage) {
-                return normalizeInstallPath(Paths.get(externalAppInstallPath, appName).pathString)
+                return normalizeInstallPath(Paths.get(externalAppInstallPath, targetName).pathString)
             }
-            return normalizeInstallPath(Paths.get(internalAppInstallPath, appName).pathString)
+            return normalizeInstallPath(Paths.get(internalAppInstallPath, targetName).pathString)
         }
 
         private fun createSteamShortcut(
@@ -5007,12 +5033,73 @@ class SteamService : Service() {
             Timber.w(e, "Failed to generate achievements for appId=$appId")
         }
 
+        private fun resolvePreferredLaunchBuildId(
+            app: SteamApp?,
+            branch: String,
+        ): Int {
+            val buildId =
+                app?.branches?.get(branch)?.buildId
+                    ?: app?.branches?.get("public")?.buildId
+                    ?: app?.branches?.values?.firstOrNull()?.buildId
+                    ?: 0L
+            return buildId.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        }
+
+        private fun resolvePreferredLaunchDepotIds(
+            appId: Int,
+            branch: String,
+            preferredLanguage: String = PrefManager.containerLanguage,
+        ): IntArray {
+            val trustedInstalledDepots =
+                getInstalledApp(appId)
+                    ?.downloadedDepots
+                    .orEmpty()
+                    .asSequence()
+                    .filter { it > 0 }
+                    .distinct()
+                    .sorted()
+                    .toList()
+            if (trustedInstalledDepots.isNotEmpty()) {
+                return trustedInstalledDepots.toIntArray()
+            }
+
+            val installedDlcAppIds = getInstalledDlcDepotsOf(appId).orEmpty()
+            val fallbackSelectedDepots =
+                getSelectedDownloadDepots(
+                    appId = appId,
+                    userSelectedDlcAppIds = installedDlcAppIds,
+                    preferredLanguage = preferredLanguage,
+                    branch = branch,
+                ).keys
+                    .asSequence()
+                    .filter { it > 0 }
+                    .distinct()
+                    .sorted()
+                    .toList()
+            if (fallbackSelectedDepots.isNotEmpty()) {
+                Timber.w(
+                    "resolvePreferredLaunchDepotIds: appId=$appId branch=$branch " +
+                        "had no trusted depot snapshot; using ${fallbackSelectedDepots.size} selected depot(s)",
+                )
+                return fallbackSelectedDepots.toIntArray()
+            }
+
+            return IntArray(0)
+        }
+
         fun pushAppInstalledDepotsToLibSteamClient(appId: Int) = runCatching {
             if (appId <= 0) return@runCatching
-            val depots: IntArray = getInstalledDepotsOf(appId)
-                ?.map { it }
-                ?.toIntArray()
-                ?: IntArray(0)
+            val depots = resolvePreferredLaunchDepotIds(
+                appId = appId,
+                branch = resolveSelectedBetaName(appId).ifBlank { "public" },
+            )
+            if (depots.isEmpty()) {
+                Timber.w(
+                    "pushAppInstalledDepotsToLibSteamClient: no depots resolved for appId=$appId; " +
+                        "leaving previous bridge state intact",
+                )
+                return@runCatching
+            }
             com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
                 .setAppInstalledDepots(appId, depots)
             Timber.i("Pushed ${depots.size} installed depot(s) to libsteamclient.so (app $appId)")
@@ -5022,6 +5109,13 @@ class SteamService : Service() {
 
         suspend fun pushAppDlcsToLibSteamClient(appId: Int) = runCatching {
             if (appId <= 0) return@runCatching
+            val selectedBranch = resolveSelectedBetaName(appId).ifBlank { "public" }
+            val localBuildId = resolvePreferredLaunchBuildId(getAppInfoOf(appId), selectedBranch)
+            if (localBuildId > 0) {
+                com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+                    .setAppBuildId(appId, localBuildId)
+                Timber.i("Pushed local buildId=$localBuildId to libsteamclient.so (app $appId)")
+            }
             val snapshotJson = withWnSession { s ->
                 withContext(Dispatchers.IO) { s.getLibrarySnapshotJson() }
             } ?: return@runCatching
@@ -5060,6 +5154,90 @@ class SteamService : Service() {
             Timber.i("Pushed ${dlcIds.size} DLC entries to libsteamclient.so (app $appId)")
         }.onFailure { e ->
             Timber.w(e, "pushAppDlcsToLibSteamClient failed (appId=$appId)")
+        }
+
+        private suspend fun primeLibSteamClientLaunchState(
+            appId: Int,
+            selectedBranch: String,
+        ): Boolean {
+            val svc = instance ?: return false
+            val ctx = svc.applicationContext
+            val libSteamClient = com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+            if (!libSteamClient.ensureLoaded(ctx)) {
+                Timber.w("primeLibSteamClientLaunchState: failed to load bridge library for appId=$appId")
+                return false
+            }
+            libSteamClient.seedFromPrefManager(ctx)
+
+            val manifestBranch = selectedBranch.ifBlank { "public" }
+            val app = withContext(Dispatchers.IO) { svc.appDao.findApp(appId) }
+            val rawInstalledApp = withContext(Dispatchers.IO) { svc.appInfoDao.getInstalledApp(appId) }
+            val ownedIds = withContext(Dispatchers.IO) { svc.appDao.getAllAppIds() }
+            val installedIds =
+                withContext(Dispatchers.IO) { svc.appInfoDao.getAllInstalledAppIds().toMutableSet() }
+                    .apply {
+                        if (rawInstalledApp?.isDownloaded == true) {
+                            add(appId)
+                        }
+                    }
+
+            libSteamClient.setAppId(appId)
+            if (ownedIds.isNotEmpty()) {
+                libSteamClient.setOwnedApps(ownedIds.toIntArray())
+            }
+            if (installedIds.isNotEmpty()) {
+                libSteamClient.setInstalledApps(installedIds.sorted().toIntArray())
+            }
+
+            app?.name?.takeIf { it.isNotBlank() }?.let { appName ->
+                libSteamClient.setAppNames(intArrayOf(appId), arrayOf(appName))
+            }
+
+            val installDir = runCatching { getAppDirPath(appId) }.getOrNull()
+            if (!installDir.isNullOrEmpty()) {
+                libSteamClient.setAppInstallDir(appId, installDir)
+            }
+
+            val buildId = resolvePreferredLaunchBuildId(app, manifestBranch)
+            if (buildId > 0) {
+                libSteamClient.setAppBuildId(appId, buildId)
+            }
+
+            val depotIds = resolvePreferredLaunchDepotIds(appId, manifestBranch)
+            if (depotIds.isNotEmpty()) {
+                libSteamClient.setAppInstalledDepots(appId, depotIds)
+            }
+
+            app?.packageId
+                ?.takeIf { it != INVALID_PKG_ID }
+                ?.let { packageId ->
+                    libSteamClient.setAppSourcePackages(appId, intArrayOf(packageId))
+                }
+
+            val accountId = runCatching {
+                com.winlator.cmod.feature.stores.steam.utils
+                    .SteamUtils.getSteam3AccountId().toLong()
+            }.getOrNull() ?: 0L
+            if (accountId > 0L) {
+                val remoteDir = runCatching {
+                    com.winlator.cmod.feature.stores.steam.enums
+                        .PathType.SteamUserData.toAbsPath(
+                            svc,
+                            appId,
+                            accountId,
+                        )
+                }.getOrNull()
+                if (!remoteDir.isNullOrEmpty()) {
+                    libSteamClient.setAppCloudRemoteDir(appId, remoteDir)
+                }
+            }
+
+            libSteamClient.setAppCurrentBeta(appId, selectedBranch)
+            Timber.i(
+                "primeLibSteamClientLaunchState: app=$appId branch=$manifestBranch " +
+                    "buildId=$buildId depots=${depotIds.size} owned=${ownedIds.size} installed=${installedIds.size}",
+            )
+            return true
         }
 
         fun pushAppWorkshopItemsToLibSteamClient(appId: Int) = runCatching {
@@ -5191,17 +5369,18 @@ class SteamService : Service() {
         }
         suspend fun prepareLibSteamClientForLaunch(appId: Int) {
             if (appId <= 0) return
-            runCatching {
-                com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                    .setAppId(appId)
-            }
             startOverlayPollLoop()
-            runCatching {
-                val branch = resolveSelectedBetaName(appId)
-                com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                    .setAppCurrentBeta(appId, branch)
-                Timber.i("prepareLibSteamClientForLaunch: app=$appId beta='${branch.ifEmpty { "public" }}'")
-            }
+            val selectedBranch = resolveSelectedBetaName(appId)
+            val baseStatePrimed =
+                runCatching { primeLibSteamClientLaunchState(appId, selectedBranch) }
+                    .getOrElse { e ->
+                        Timber.w(e, "prepareLibSteamClientForLaunch: base-state prime failed for app $appId")
+                        false
+                    }
+            Timber.i(
+                "prepareLibSteamClientForLaunch: app=$appId beta='${selectedBranch.ifEmpty { "public" }}' " +
+                    "baseStatePrimed=$baseStatePrimed",
+            )
             val deadlineMs = System.currentTimeMillis() + 15_000L
             while (System.currentTimeMillis() < deadlineMs) {
                 val session = withWnSession { it }
@@ -5267,6 +5446,7 @@ class SteamService : Service() {
                 val inventoryOk = inventoryJob.await()
                 Timber.i(
                     "prepareLibSteamClientForLaunch: app=$appId " +
+                        "baseStatePrimed=$baseStatePrimed " +
                         "encrypted-app-ticket=$ticketOk ownership-ticket=$ownerOk " +
                         "cloud=$cloudOk dlc=$dlcOk depots=$depotsOk " +
                         "workshop=$workshopOk inventory=$inventoryOk",
@@ -6604,7 +6784,7 @@ class SteamService : Service() {
                         }
                         if (a.sourcePackageIds.isNotEmpty()) {
                             com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                                .nativeSetAppSourcePackages(
+                                .setAppSourcePackages(
                                     a.id, a.sourcePackageIds.toIntArray())
                             ++sourcePackagesPushed
                         }
@@ -7534,7 +7714,7 @@ class SteamService : Service() {
                             }.getOrNull()
                             if (!remoteDir.isNullOrEmpty()) {
                                 com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
-                                    .nativeSetAppCloudRemoteDir(appId, remoteDir)
+                                    .setAppCloudRemoteDir(appId, remoteDir)
                             }
                         }
                     }

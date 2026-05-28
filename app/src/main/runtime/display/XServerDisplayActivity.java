@@ -1751,21 +1751,197 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return null;
     }
 
+    private boolean isSuspiciousSteamGameInstallDir(String path) {
+        if (path == null || path.isEmpty()) return false;
+
+        String normalized = path.replace('\\', '/');
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        String lower = normalized.toLowerCase(java.util.Locale.ROOT);
+        return lower.endsWith("/steamapps/common") || lower.endsWith("/steamapps");
+    }
+
+    private boolean isSuspiciousSteamInstallLeaf(String value) {
+        if (value == null || value.isEmpty()) return false;
+
+        String normalized = value.replace('\\', '/');
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        int lastSlash = normalized.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash + 1 < normalized.length()) {
+            normalized = normalized.substring(lastSlash + 1);
+        }
+
+        return "common".equalsIgnoreCase(normalized) || "steamapps".equalsIgnoreCase(normalized);
+    }
+
+    private String normalizeRelativeExeCandidate(String value) {
+        if (value == null) return "";
+
+        String normalized = value.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.matches("^[A-Za-z]:/.*")) {
+            normalized = normalized.substring(3);
+        }
+        return normalized;
+    }
+
+    private File resolveImmediateChildCaseInsensitive(File parent, String childName) {
+        if (parent == null || childName == null || childName.isEmpty() || !parent.isDirectory()) {
+            return null;
+        }
+
+        File directChild = new File(parent, childName);
+        if (directChild.exists()) return directChild;
+
+        File[] children = parent.listFiles();
+        if (children == null) return null;
+
+        for (File child : children) {
+            if (childName.equalsIgnoreCase(child.getName())) {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasKnownGameExeUnderDir(File dir, java.util.List<String> relativeExeCandidates) {
+        if (dir == null || !dir.isDirectory()) return false;
+
+        for (String relativeExe : relativeExeCandidates) {
+            File candidateExe = resolvePathCaseInsensitive(dir, relativeExe);
+            if (candidateExe != null && candidateExe.isFile()) {
+                return true;
+            }
+        }
+
+        return findGameExe(dir) != null;
+    }
+
+    private String recoverSteamGameInstallPath(int appId, String libraryRootPath) {
+        if (libraryRootPath == null || libraryRootPath.isEmpty()) return null;
+
+        File libraryRoot = new File(libraryRootPath);
+        if (!libraryRoot.isDirectory()) return null;
+
+        java.util.LinkedHashSet<String> relativeExeCandidates = new java.util.LinkedHashSet<>();
+        String shortcutLaunchExe = shortcut != null ? shortcut.getExtra("launch_exe_path") : "";
+        String containerLaunchExe = container != null ? container.getExecutablePath() : "";
+        String installedExe = SteamBridge.getInstalledExe(appId);
+
+        for (String candidate : new String[]{shortcutLaunchExe, containerLaunchExe, installedExe}) {
+            String normalized = normalizeRelativeExeCandidate(candidate);
+            if (!normalized.isEmpty()) {
+                relativeExeCandidates.add(normalized);
+            }
+        }
+
+        java.util.LinkedHashSet<String> preferredDirNames = new java.util.LinkedHashSet<>();
+        if (shortcut != null && shortcut.name != null && !shortcut.name.trim().isEmpty()) {
+            preferredDirNames.add(shortcut.name.trim());
+        }
+
+        String serviceInstallPath = SteamBridge.getAppDirPath(appId);
+        if (serviceInstallPath != null && !serviceInstallPath.isEmpty()) {
+            String serviceLeaf = new File(serviceInstallPath).getName();
+            if (!serviceLeaf.isEmpty()) {
+                preferredDirNames.add(serviceLeaf);
+            }
+        }
+
+        java.util.ArrayList<String> relativeExeList = new java.util.ArrayList<>(relativeExeCandidates);
+        for (String preferredDirName : preferredDirNames) {
+            if (isSuspiciousSteamInstallLeaf(preferredDirName)) continue;
+
+            File preferredDir = resolveImmediateChildCaseInsensitive(libraryRoot, preferredDirName);
+            if (preferredDir != null && preferredDir.isDirectory()
+                    && hasKnownGameExeUnderDir(preferredDir, relativeExeList)) {
+                return getCanonicalPathOrAbsolute(preferredDir);
+            }
+        }
+
+        if (relativeExeList.isEmpty()) return null;
+
+        java.util.ArrayList<File> matches = new java.util.ArrayList<>();
+        File[] children = libraryRoot.listFiles();
+        if (children == null) return null;
+
+        for (File child : children) {
+            if (!child.isDirectory()) continue;
+            if (hasKnownGameExeUnderDir(child, relativeExeList)) {
+                matches.add(child);
+            }
+        }
+
+        if (matches.size() == 1) {
+            return getCanonicalPathOrAbsolute(matches.get(0));
+        }
+
+        if (matches.size() > 1) {
+            Log.w("XServerDisplayActivity",
+                    "Ambiguous Steam install-path recovery for appId=" + appId
+                            + " libraryRoot=" + libraryRootPath
+                            + " matches=" + matches.size());
+        }
+        return null;
+    }
+
+    private String sanitizeSteamGameInstallPath(int appId, String candidatePath, String source) {
+        if (candidatePath == null || candidatePath.isEmpty()) return candidatePath;
+
+        File candidateDir = new File(candidatePath);
+        if (!candidateDir.isDirectory()) return candidatePath;
+
+        String canonicalPath = getCanonicalPathOrAbsolute(candidateDir);
+        if (!isSuspiciousSteamGameInstallDir(canonicalPath)) {
+            return canonicalPath;
+        }
+
+        String recoveredPath = recoverSteamGameInstallPath(appId, canonicalPath);
+        if (recoveredPath != null && !recoveredPath.isEmpty()) {
+            Log.w("XServerDisplayActivity",
+                    "Recovered Steam game install path from " + source
+                            + " root " + canonicalPath + " -> " + recoveredPath
+                            + " for appId=" + appId);
+            return recoveredPath;
+        }
+
+        Log.w("XServerDisplayActivity",
+                "Ignoring suspicious Steam game install path from " + source
+                        + " for appId=" + appId + ": " + canonicalPath);
+        return null;
+    }
+
     private String resolveSteamGameInstallPath(int appId) {
         if (shortcut != null) {
             String shortcutInstallPath = shortcut.getExtra("game_install_path");
-            if (shortcutInstallPath != null && !shortcutInstallPath.isEmpty()) {
-                File shortcutInstallDir = new File(shortcutInstallPath);
-                if (shortcutInstallDir.isDirectory()) {
-                    return getCanonicalPathOrAbsolute(shortcutInstallDir);
+            String resolvedShortcutInstallPath =
+                    sanitizeSteamGameInstallPath(appId, shortcutInstallPath, "shortcut");
+            if (resolvedShortcutInstallPath != null && !resolvedShortcutInstallPath.isEmpty()) {
+                if (!resolvedShortcutInstallPath.equals(shortcutInstallPath)) {
+                    shortcut.putExtra("game_install_path", resolvedShortcutInstallPath);
+                    shortcut.saveData();
                 }
+                return resolvedShortcutInstallPath;
             }
         }
 
         String serviceInstallPath = SteamBridge.getAppDirPath(appId);
         if (serviceInstallPath == null || serviceInstallPath.isEmpty()) return serviceInstallPath;
 
-        File serviceInstallDir = new File(serviceInstallPath);
+        String resolvedServiceInstallPath =
+                sanitizeSteamGameInstallPath(appId, serviceInstallPath, "service");
+        if (resolvedServiceInstallPath == null || resolvedServiceInstallPath.isEmpty()) {
+            return serviceInstallPath;
+        }
+
+        File serviceInstallDir = new File(resolvedServiceInstallPath);
         if (serviceInstallDir.isDirectory() && shortcut != null) {
             String shortcutInstallPath = shortcut.getExtra("game_install_path");
             String canonicalInstallPath = getCanonicalPathOrAbsolute(serviceInstallDir);
@@ -6846,10 +7022,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (gameInstPath != null) {
             File gameDir = new File(gameInstPath);
             if (gameDir.exists()) {
+                String canonicalGameDir = getCanonicalPathOrAbsolute(gameDir);
+                if (isSuspiciousSteamGameInstallDir(canonicalGameDir)) {
+                    Log.w("XServerDisplayActivity",
+                            "resolveRelativeGameExe: refusing auto-detect inside shared Steam library root: "
+                                    + canonicalGameDir + " for appId=" + appId);
+                    return "";
+                }
                 File detected = findGameExe(gameDir);
                 if (detected != null) {
                     String absPath = getCanonicalPathOrAbsolute(detected);
-                    String basePath = getCanonicalPathOrAbsolute(gameDir);
+                    String basePath = canonicalGameDir;
                     if (absPath.startsWith(basePath)) {
                         String relative = absPath.substring(basePath.length());
                         if (relative.startsWith(File.separator)) relative = relative.substring(1);
@@ -8352,11 +8535,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             File defaultAcf = new File(imageFs.getRootDir(),
                     ImageFs.WINEPREFIX + "/drive_c/Program Files (x86)/Steam/steamapps/appmanifest_" + appId + ".acf");
             File containerAcf = new File(steamappsDir, "appmanifest_" + appId + ".acf");
-            if (defaultAcf.exists() && !containerAcf.exists()) {
+            if (defaultAcf.exists()) {
                 try {
                     java.nio.file.Files.copy(defaultAcf.toPath(), containerAcf.toPath(),
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    Log.d("XServerDisplayActivity", "Copied ACF manifest to container steamapps dir");
+                    Log.d("XServerDisplayActivity", "Synced ACF manifest to container steamapps dir");
                 } catch (Exception e) {
                     Log.w("XServerDisplayActivity", "Failed to copy ACF to container steamapps", e);
                 }
@@ -8717,7 +8900,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             content.append("\t\t\"contentid\"\t\t\"0\"\n");
             content.append("\t\t\"totalsize\"\t\t\"0\"\n");
             content.append("\t\t\"update_clean_bytes_tally\"\t\t\"0\"\n");
-            content.append("\t\t\"time_last_update_verified\"\t\t\"0\"\n");
+            content.append("\t\t\"time_last_update_verified\"\t\t\"")
+                    .append(System.currentTimeMillis() / 1000L)
+                    .append("\"\n");
             content.append("\t\t\"apps\"\n");
             content.append("\t\t{\n");
             for (String appId : installedAppIds) {
