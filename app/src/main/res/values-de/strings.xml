@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">DRI3-Erweiterung verwenden</string>
     <string name="session_xserver_simulate_touch_screen">Touchscreen simulieren</string>
     <string name="session_xserver_preferences_button_text">   EINSTELLUNGEN   </string>
     <string name="session_xserver_extra_keys_config_desc">Hier kannst du den Wert der Extra-Keys-Variable wie in der Termux-App festlegen (lies <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">dies</a>) und mehr \n
@@ -549,12 +548,6 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_xserver_pref_kbd">Tastatur</string>
     <string name="session_xserver_pref_other">Sonstiges</string>
     <string name="session_xserver_pref_version">Version</string>
-    <string name="session_xserver_use_dri3_description">Deaktivieren kann Grafikfehler auf einigen Geräten beheben</string>
-    <string name="session_xserver_native_rendering">Natives Rendering</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3-Hardware-Rendering</string>
-    <string name="session_xserver_native_rendering_disabled">Software-WSI-Fallback</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Natives Rendering aktiviert (wirksam beim nächsten Start)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Natives Rendering deaktiviert (wirksam beim nächsten Start)</string>
     <string name="session_xserver_notification_description">WinNative XServer-Nachrichten</string>
     <string name="session_xserver_notification_content">WinNative läuft, beenden oder wischen Sie diese Benachrichtigung nicht weg</string>
 
@@ -1070,7 +1063,6 @@ Installierter Pfad:
     <string name="session_drawer_rail_label_mouse">Maus</string>
     <string name="session_drawer_rail_label_fullscreen">Vollbild</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Aufg.</string>
     <string name="session_drawer_rail_label_logs">Logs</string>

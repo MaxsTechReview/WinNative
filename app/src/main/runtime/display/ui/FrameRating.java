@@ -222,7 +222,8 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.C_DIVISOR = Color.parseColor("#616161");
     this.context = context;
     this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
-    this.isNativeActive = this.preferences.getBoolean("use_dri3", true);
+    // Native rendering (DRI3) is always on; the toggle was removed.
+    this.isNativeActive = true;
     this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
     setOrientation(LinearLayout.HORIZONTAL);
     setLayoutParams(

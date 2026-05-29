@@ -71,7 +71,6 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.Pause
@@ -544,9 +543,6 @@ fun buildXServerDrawerState(
     showMagnifier: Boolean,
     magnifierActive: Boolean,
     showLogs: Boolean,
-    nativeRenderingEnabled: Boolean,
-    nativeRenderingTitle: String,
-    nativeRenderingSubtitle: String,
     hudTransparency: Float = 1.0f,
     hudScale: Float = 1.0f,
     hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
@@ -645,13 +641,6 @@ fun buildXServerDrawerState(
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
                 icon = Icons.Outlined.Tune,
                 active = sgsrEnabled || vividEnabled || colorProfile > 0,
-            ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_native_rendering,
-                title = nativeRenderingTitle,
-                subtitle = nativeRenderingSubtitle,
-                icon = Icons.Outlined.Memory,
-                active = nativeRenderingEnabled,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_pause,
@@ -1429,7 +1418,6 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_disable_mouse -> R.string.session_drawer_rail_label_mouse
         R.id.main_menu_toggle_fullscreen -> R.string.session_drawer_rail_label_fullscreen
         R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
-        R.id.main_menu_native_rendering -> R.string.session_drawer_rail_label_native
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
         R.id.main_menu_logs -> R.string.session_drawer_rail_label_logs

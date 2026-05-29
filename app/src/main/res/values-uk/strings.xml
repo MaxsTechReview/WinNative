@@ -537,7 +537,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Використовувати розширення DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Імітувати сенсорний екран</string>
     <string name="session_xserver_preferences_button_text">   НАЛАШТУВАННЯ   </string>
     <string name="session_xserver_extra_keys_config_desc">Тут ви можете встановити значення змінної extra-keys, як у додатку Termux (читайте <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">тут</a>) та інше \n
@@ -553,12 +552,6 @@
     <string name="session_xserver_pref_kbd">Клавіатура</string>
     <string name="session_xserver_pref_other">Інше</string>
     <string name="session_xserver_pref_version">Версія</string>
-    <string name="session_xserver_use_dri3_description">Вимкнення може виправити графічні артефакти на деяких пристроях</string>
-    <string name="session_xserver_native_rendering">Нативний рендеринг</string>
-    <string name="session_xserver_native_rendering_enabled">Апаратний рендеринг DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Програмний WSI-резерв</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Нативний рендеринг увімкнено (набуде чинності при наступному запуску)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Нативний рендеринг вимкнено (набуде чинності при наступному запуску)</string>
     <string name="session_xserver_notification_description">Повідомлення WinNative XServer</string>
     <string name="session_xserver_notification_content">WinNative працює, не закривайте та не змахуйте це сповіщення</string>
 
@@ -1076,7 +1069,6 @@
     <string name="session_drawer_rail_label_mouse">Миша</string>
     <string name="session_drawer_rail_label_fullscreen">Повний екран</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Натив.</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачі</string>
     <string name="session_drawer_rail_label_logs">Логи</string>

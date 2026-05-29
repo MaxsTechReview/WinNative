@@ -19,12 +19,15 @@ import java.util.concurrent.TimeUnit
 object StoreArtworkCache {
     private const val ROOT_DIR = "library_artwork_cache"
     private const val TAG = "StoreArtworkCache"
+    private const val MAX_CONCURRENT_DOWNLOADS = 12
 
     private val client: OkHttpClient by lazy {
         OkHttpClient
             .Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .connectionPool(okhttp3.ConnectionPool(MAX_CONCURRENT_DOWNLOADS, 5, TimeUnit.MINUTES))
+            .retryOnConnectionFailure(true)
             .build()
     }
 
@@ -54,7 +57,7 @@ object StoreArtworkCache {
                 .distinctBy { "${it.store}:${it.gameId}:${it.slot}:${it.url}" }
         if (distinctRefs.isEmpty()) return false
 
-        val semaphore = Semaphore(permits = 4)
+        val semaphore = Semaphore(permits = MAX_CONCURRENT_DOWNLOADS)
         return coroutineScope {
             distinctRefs
                 .map { ref ->

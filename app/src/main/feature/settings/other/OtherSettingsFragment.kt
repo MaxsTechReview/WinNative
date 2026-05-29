@@ -139,10 +139,6 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putFloat("cursor_speed", percent / 100f) }
                             refresh()
                         },
-                        onUseDRI3Changed = { checked ->
-                            preferences.edit { putBoolean("use_dri3", checked) }
-                            refresh()
-                        },
                         onCursorLockChanged = { checked ->
                             preferences.edit { putBoolean("cursor_lock", checked) }
                             refresh()
@@ -230,7 +226,6 @@ class OtherSettingsFragment : Fragment() {
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
                         .coerceIn(10, 200),
-                useDRI3 = preferences.getBoolean("use_dri3", true),
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),

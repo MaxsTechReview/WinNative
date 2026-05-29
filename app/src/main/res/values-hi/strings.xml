@@ -582,7 +582,6 @@
     <string name="container_presets_cannot_remove">आप इस प्रीसेट को नहीं हटा सकते</string>
     <string name="container_presets_cannot_export">इस प्रीसेट को निर्यात नहीं किया जा सकता</string>
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">DRI3 एक्सटेंशन उपयोग करें</string>
     <string name="session_xserver_simulate_touch_screen">टच स्क्रीन का अनुकरण करें</string>
     <string name="session_xserver_preferences_button_text">   PREFERENCES   </string>
     <string name="session_xserver_extra_keys_config_desc">यहाँ आप Termux ऐप की तरह extra-keys वैरिएबल का मान सेट कर सकते हैं (<a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">इसे</a> पढ़ें) और भी बहुत कुछ \n
@@ -598,12 +597,6 @@
     <string name="session_xserver_pref_kbd">कीबोर्ड</string>
     <string name="session_xserver_pref_other">अन्य</string>
     <string name="session_xserver_pref_version">संस्करण</string>
-    <string name="session_xserver_use_dri3_description">अक्षम करने से कुछ उपकरणों पर ग्राफ़िकल गड़बड़ियाँ ठीक हो सकती हैं</string>
-    <string name="session_xserver_native_rendering">नेटिव रेंडरिंग</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 हार्डवेयर रेंडरिंग</string>
-    <string name="session_xserver_native_rendering_disabled">सॉफ़्टवेयर WSI फ़ॉलबैक</string>
-    <string name="session_xserver_native_rendering_enabled_toast">नेटिव रेंडरिंग सक्षम (अगले लॉन्च पर प्रभावी)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">नेटिव रेंडरिंग अक्षम (अगले लॉन्च पर प्रभावी)</string>
     <string name="session_xserver_notification_description">WinNative XServer संदेश</string>
     <string name="session_xserver_notification_content">WinNative चल रहा है, इस अधिसूचना को बंद न करें या स्वाइप न करें</string>
     <string name="session_drawer_keyboard">कीबोर्ड</string>
@@ -689,7 +682,6 @@
     <string name="session_drawer_rail_label_mouse">माउस</string>
     <string name="session_drawer_rail_label_fullscreen">फ़ुलस्क्रीन</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">नेटिव</string>
     <string name="session_drawer_rail_label_magnifier">ज़ूम</string>
     <string name="session_drawer_rail_label_task_manager">कार्य</string>
     <string name="session_drawer_rail_label_logs">लॉग</string>
