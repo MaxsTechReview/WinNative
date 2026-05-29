@@ -66,13 +66,6 @@ public class Pointer {
   }
 
   public void setPosition(int x, int y) {
-    Window confinedWindow = xServer.windowManager.getConfinedWindow();
-    if (confinedWindow != null) {
-      short rootX = confinedWindow.getRootX();
-      short rootY = confinedWindow.getRootY();
-      x = Mathf.clamp(x, rootX, rootX + confinedWindow.getWidth() - 1);
-      y = Mathf.clamp(y, rootY, rootY + confinedWindow.getHeight() - 1);
-    }
     setX(x);
     setY(y);
     triggerOnPointerMove(this.x, this.y);

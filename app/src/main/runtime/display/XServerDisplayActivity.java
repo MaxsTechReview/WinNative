@@ -283,8 +283,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
     private float globalCursorSpeed = 1.0f;
-    private float capturedCursorAccumX = 0.0f;
-    private float capturedCursorAccumY = 0.0f;
     private MagnifierView magnifierView;
     private Callback<String> logStreamSink;
     private BufferedWriter logStreamWriter;
@@ -443,6 +441,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (profile != null) profileSpeed = profile.getCursorSpeed();
                 }
                 touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+            }
+        } else if ("touchscreen_toggle".equals(key)) {
+            if (touchpadView != null) {
+                touchpadView.setSimTouchScreen(sharedPreferences.getBoolean("touchscreen_toggle", false));
             }
         }
     };
@@ -1754,6 +1756,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
                 int historySize = event.getHistorySize();
+                float totalRawDx = 0.0f;
+                float totalRawDy = 0.0f;
+
+                // 1. Calculate total movement first to find the speed
+                for (int i = 0; i <= historySize; i++) {
+                    if (i < historySize) {
+                        totalRawDx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+                        totalRawDy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+                    } else {
+                        totalRawDx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+                        totalRawDy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+                    }
+                }
+
+                // 2. Lock in a single acceleration multiplier for this entire event
+                float accelX = 1.0f;
+                float accelY = 1.0f;
+                if (!xServer.isRelativeMouseMovement() && !xServer.isSimulateTouchScreen()) {
+                    float scaledTotalX = xform[0] * totalRawDx + xform[2] * totalRawDy;
+                    float scaledTotalY = xform[1] * totalRawDx + xform[3] * totalRawDy;
+                    if (Math.abs(scaledTotalX) > 6.0f) accelX = TouchpadView.CURSOR_ACCELERATION;
+                    if (Math.abs(scaledTotalY) > 6.0f) accelY = TouchpadView.CURSOR_ACCELERATION;
+                }
+
+                // 3. Stream individual points immediately using the locked-in speed
                 for (int i = 0; i <= historySize; i++) {
                     float rawDx, rawDy;
                     if (i < historySize) {
@@ -1764,30 +1791,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         rawDy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
                     }
 
-                    if (rawDx == 0.0f && rawDy == 0.0f) {
-                        if (i == historySize) {
-                            rawDx = event.getX();
-                            rawDy = event.getY();
-                        } else continue;
+                    if (rawDx == 0.0f && rawDy == 0.0f) continue;
+
+                    float scaledDx = (xform[0] * rawDx + xform[2] * rawDy) * accelX * globalCursorSpeed;
+                    float scaledDy = (xform[1] * rawDx + xform[3] * rawDy) * accelY * globalCursorSpeed;
+                    
+                    if (inputControlsView != null) {
+                        ControlsProfile profile = inputControlsView.getProfile();
+                        if (profile != null) {
+                            scaledDx *= profile.getCursorSpeed();
+                            scaledDy *= profile.getCursorSpeed();
+                        }
                     }
 
-                    float[] fDelta = getCapturedPointerDelta(rawDx, rawDy);
-                    capturedCursorAccumX += fDelta[0];
-                    capturedCursorAccumY += fDelta[1];
-
-                    int idx = (int)capturedCursorAccumX;
-                    int idy = (int)capturedCursorAccumY;
+                    int idx = Mathf.roundPoint(scaledDx);
+                    int idy = Mathf.roundPoint(scaledDy);
 
                     if (idx != 0 || idy != 0) {
-                        capturedCursorAccumX -= idx;
-                        capturedCursorAccumY -= idy;
-
                         if (xServer.isRelativeMouseMovement()) {
-                            xServer.updatePointerForDisplayDelta(idx, idy);
                             xServer.getWinHandler().mouseMoveDelta(idx, idy);
-                        } else {
-                            xServer.injectPointerMoveDelta(idx, idy);
                         }
+                        xServer.injectPointerMoveDelta(idx, idy);
                     }
                 }
                 handled = true;
@@ -1813,16 +1837,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (profile != null) profileSpeed = profile.getCursorSpeed();
         }
 
-        if (Math.abs(dx) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dx *= TouchpadView.CURSOR_ACCELERATION;
-        if (Math.abs(dy) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dy *= TouchpadView.CURSOR_ACCELERATION;
+        float scaledDx = xform[0] * dx + xform[2] * dy;
+        float scaledDy = xform[1] * dx + xform[3] * dy;
 
-        dx *= globalCursorSpeed * profileSpeed;
-        dy *= globalCursorSpeed * profileSpeed;
+        if (!xServer.isRelativeMouseMovement() && !xServer.isSimulateTouchScreen()) {
+            if (Math.abs(scaledDx) > 6.0f) scaledDx *= TouchpadView.CURSOR_ACCELERATION;
+            if (Math.abs(scaledDy) > 6.0f) scaledDy *= TouchpadView.CURSOR_ACCELERATION;
+        }
 
-        return new float[]{
-                xform[0] * dx + xform[2] * dy,
-                xform[1] * dx + xform[3] * dy
-        };
+        scaledDx *= globalCursorSpeed * profileSpeed;
+        scaledDy *= globalCursorSpeed * profileSpeed;
+
+        return new float[]{scaledDx, scaledDy};
     }
 
     @Override
@@ -4187,8 +4213,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void releasePointerCapture() {
         boolean hadPointerCapture = touchpadView != null && touchpadView.hasPointerCapture();
-        capturedCursorAccumX = 0;
-        capturedCursorAccumY = 0;
         if (touchpadView != null) {
             if (hadPointerCapture) {
                 touchpadView.resetInputState();
