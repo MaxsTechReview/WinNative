@@ -2004,7 +2004,11 @@ class SteamService : Service() {
 
         private fun manifestDownloadBytes(manifest: ManifestInfo?): Long {
             if (manifest == null) return 0L
-            return manifest.download.takeIf { it > 0L } ?: manifest.size.coerceAtLeast(0L)
+            val size = manifest.size.coerceAtLeast(0L)
+            // Compressed download can't exceed uncompressed size; reject bogus stored
+            // values (legacy depots showed tens of TiB) and bound to size. The real
+            // value is restored by healCorruptManifestDownloadSizes().
+            return manifest.download.takeIf { it in 1L..size } ?: size
         }
 
         private fun calculateManifestSizes(
@@ -3118,11 +3122,8 @@ class SteamService : Service() {
                 appInfoForDownload
                     ?.let { getGroupedBaseAppDlcContentDepotIds(it) }
                     .orEmpty()
-            // Depots the base package entitles directly are base content; never let the
-            // positional DLC grouping drop them (it sweeps up base depots when a DLC marker
-            // precedes them in depot order, e.g. DMC5 601151/2) — that would exclude the base
-            // game from the download and zero its size in the downloads tab. Mirrors the
-            // getSelectedDownloadDepots fix that powers the store detail size estimate.
+            // Base-package-entitled depots are base content; never let the positional DLC
+            // grouping drop them (e.g. DMC5 601151/2) — that zeroes the downloads-tab size.
             val baseEntitledDepotIds =
                 appInfoForDownload?.packageId?.let { getEntitledDepotIds(it) }.orEmpty()
             Timber.d("Main app depots count: ${mainDepots.size}")
@@ -8352,6 +8353,9 @@ class SteamService : Service() {
         picsGetProductInfoJob?.cancel()
         picsGetProductInfoJob = continuousPICSGetProductInfo()
 
+        // Repair legacy depots whose stored download>size was frozen by the change-number skip.
+        healCorruptManifestDownloadSizes()
+
         // Tell steam we're online, this allows friends to update.
         scope.launch {
             val effectiveState =
@@ -8846,6 +8850,106 @@ class SteamService : Service() {
                                 }
                         }
                     }
+            }
+        }
+
+    /**
+     * Re-fetches apps whose stored manifest download>size (impossible: compressed
+     * can't exceed uncompressed) — stale values frozen by [continuousPICSGetProductInfo]'s
+     * change-number skip. Re-stores only when the fresh appinfo is clean, so a bad
+     * response never overwrites good data. Self-limiting once rows are clean.
+     */
+    private fun healCorruptManifestDownloadSizes(): Job =
+        scope.launch {
+            if (!isLoggedIn) return@launch
+
+            fun SteamApp.hasCorruptDownload(): Boolean =
+                depots.values.any { depot ->
+                    depot.manifests.values.any { m -> m.size > 0L && m.download > m.size }
+                }
+
+            val corruptAppIds =
+                runCatching {
+                    withContext(Dispatchers.IO) { appDao.getAllAsList() }
+                        .filter { it.hasCorruptDownload() }
+                        .map { it.id }
+                }.getOrElse { e ->
+                    Timber.w(e, "heal: scan for corrupt manifest download sizes failed")
+                    return@launch
+                }
+            if (corruptAppIds.isEmpty()) return@launch
+            Timber.i(
+                "heal: ${corruptAppIds.size} app(s) have download>size; re-fetching: ${corruptAppIds.sorted()}",
+            )
+
+            // Owned-app appinfo only comes back in full with the access token.
+            val tokenMap = HashMap<Int, Long>()
+            runCatching {
+                withWnSession { session ->
+                    withContext(Dispatchers.IO) { session.getPicsAccessTokens(corruptAppIds, emptyList()) }
+                }?.let { tokJson ->
+                    JSONObject(tokJson).optJSONObject("appTokens")?.let { at ->
+                        for (k in at.keys()) tokenMap[k.toInt()] = at.getString(k).toLongOrNull() ?: 0L
+                    }
+                }
+            }.onFailure { e -> Timber.w(e, "heal: access-token fetch failed; trying public appinfo") }
+
+            var healedCount = 0
+            corruptAppIds.chunked(MAX_PICS_BUFFER).forEach { chunk ->
+                ensureActive()
+                val json =
+                    withWnSession { session ->
+                        withContext(Dispatchers.IO) {
+                            session.getPicsAppProductInfo(chunk, chunk.map { tokenMap[it] ?: 0L })
+                        }
+                    } ?: return@forEach
+                runCatching {
+                    val arr = JSONArray(json)
+                    val healed = mutableListOf<SteamApp>()
+                    for (i in 0 until arr.length()) {
+                        ensureActive()
+                        val entry = arr.getJSONObject(i)
+                        val appId = entry.optInt("appid")
+                        val changeNumber = entry.optInt("changeNumber")
+                        val appinfo = entry.optJSONObject("appinfo") ?: continue
+                        val generated = WnKeyValue.fromJsonObject(appinfo).generateSteamApp()
+                        if (generated.id == INVALID_APP_ID) continue
+                        // Only accept a re-fetch that actually removes the corruption.
+                        if (generated.hasCorruptDownload()) {
+                            Timber.w("heal: appId=$appId still reports download>size after re-fetch; leaving stored row")
+                            continue
+                        }
+                        val appFromDb = appDao.findApp(appId)
+                        val packageId = appFromDb?.packageId ?: INVALID_PKG_ID
+                        val packageFromDb =
+                            if (packageId != INVALID_PKG_ID) licenseDao.findLicense(packageId) else null
+                        val existingInstallDir = appFromDb?.installDir.orEmpty()
+                        val preserveInstallDir =
+                            existingInstallDir.isNotEmpty() &&
+                                (existingInstallDir.startsWith("/") || existingInstallDir.contains(File.separator))
+                        healed.add(
+                            generated.copy(
+                                packageId = packageId,
+                                ownerAccountId =
+                                    packageFromDb?.ownerAccountId ?: appFromDb?.ownerAccountId.orEmpty(),
+                                receivedPICS = true,
+                                lastChangeNumber = changeNumber,
+                                licenseFlags =
+                                    packageFromDb?.licenseFlags
+                                        ?: appFromDb?.licenseFlags
+                                        ?: EnumSet.noneOf(ELicenseFlags::class.java),
+                                installDir = if (preserveInstallDir) existingInstallDir else generated.installDir,
+                            ),
+                        )
+                    }
+                    if (healed.isNotEmpty()) {
+                        db.withTransaction { appDao.insertAll(healed) }
+                        healedCount += healed.size
+                    }
+                }.onFailure { e -> Timber.w(e, "heal: batch processing failed") }
+            }
+            if (healedCount > 0) {
+                Timber.i("heal: corrected manifest download sizes for $healedCount app(s)")
             }
         }
 
