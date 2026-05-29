@@ -58,6 +58,11 @@ object WinToast {
     }
 
     @JvmStatic
+    fun show(context: Context, text: String, toastDuration: Int, anchor: android.view.View?) {
+        show(context, text, null, toastDurationToMs(toastDuration), anchor)
+    }
+
+    @JvmStatic
     fun show(context: Context, @StringRes textResId: Int, toastDuration: Int) {
         show(context, context.getString(textResId), toastDuration)
     }

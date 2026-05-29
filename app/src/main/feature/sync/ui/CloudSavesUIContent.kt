@@ -49,6 +49,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +75,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 import com.winlator.cmod.app.shell.LaunchDangerConfirmDialog
@@ -131,6 +135,10 @@ internal fun CloudSavesContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // Anchor toasts to this screen's window so they render above the hosting dialog.
+    val hostView = LocalView.current
+    val notify: (String, Int) -> Unit = { message, duration -> WinToast.show(context, message, duration, hostView) }
+    var restoreInProgress by remember { mutableStateOf(false) }
     var historyRefreshKey by remember { mutableStateOf(0) }
     var historyLoading by remember { mutableStateOf(false) }
     var historyEntries by remember { mutableStateOf<List<GameSaveBackupManager.BackupHistoryEntry>>(emptyList()) }
@@ -173,8 +181,7 @@ internal fun CloudSavesContent(
                         }
                     }
                 gogZipBusy = false
-                WinToast.show(
-                    context,
+                notify(
                     if (result.success) {
                         context.getString(R.string.cloud_saves_gog_zip_success)
                     } else {
@@ -333,8 +340,7 @@ internal fun CloudSavesContent(
                             val sc = shortcut
                             val container = sc?.container
                             if (sc == null || container == null) {
-                                WinToast.show(
-                                    context,
+                                notify(
                                     customNoContainer,
                                     Toast.LENGTH_SHORT,
                                 )
@@ -348,8 +354,7 @@ internal fun CloudSavesContent(
                             ) { picked ->
                                 val pickedFile = java.io.File(picked)
                                 if (!WinePathUtils.isInsideDriveC(pickedFile, container)) {
-                                    WinToast.show(
-                                        context,
+                                    notify(
                                         customOutsideDriveC,
                                         Toast.LENGTH_LONG,
                                     )
@@ -359,8 +364,7 @@ internal fun CloudSavesContent(
                                     WinePathUtils
                                         .androidToWindowsPath(picked, container)
                                 if (winPath == null) {
-                                    WinToast.show(
-                                        context,
+                                    notify(
                                         customPathMapFailed,
                                         Toast.LENGTH_LONG,
                                     )
@@ -368,8 +372,7 @@ internal fun CloudSavesContent(
                                 }
                                 GameSaveBackupManager.setCustomGameSavePath(sc, container, winPath)
                                 customSavePath = winPath
-                                WinToast.show(
-                                    context,
+                                notify(
                                     context.getString(R.string.cloud_saves_custom_folder_set, winPath),
                                     Toast.LENGTH_SHORT,
                                 )
@@ -406,8 +409,7 @@ internal fun CloudSavesContent(
                                 ),
                             )
                         }.onFailure {
-                            WinToast.show(
-                                context,
+                            notify(
                                 gogManageNoBrowser,
                                 Toast.LENGTH_SHORT,
                             )
@@ -437,8 +439,7 @@ internal fun CloudSavesContent(
                             if (hasCloudFiles) {
                                 gogZipLauncher.launch("${safeZipFileName(gameName)}_GOG_Cloud_Saves.zip")
                             } else {
-                                WinToast.show(
-                                    context,
+                                notify(
                                     context.getString(R.string.cloud_saves_gog_zip_empty),
                                     Toast.LENGTH_SHORT,
                                 )
@@ -498,8 +499,7 @@ internal fun CloudSavesContent(
                             val result =
                                 SteamSaveSnapshotManager
                                     .importSnapshotFromFiles(activity, steamAppIdInt, uris, sc.container)
-                            WinToast.show(
-                                context,
+                            notify(
                                 result.message,
                                 Toast.LENGTH_LONG,
                             )
@@ -542,9 +542,8 @@ internal fun CloudSavesContent(
                                 try {
                                     val ok =
                                         SteamCloudSyncHelper
-                                            .forceDownloadById(activity, appId)
-                                    WinToast.show(
-                                        context,
+                                            .forceDownloadById(activity, appId, shortcut?.container)
+                                    notify(
                                         if (ok) steamSyncSuccess else steamSyncFailed,
                                         Toast.LENGTH_SHORT,
                                     )
@@ -570,8 +569,7 @@ internal fun CloudSavesContent(
                             runCatching {
                                 activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
                             }.onFailure {
-                                WinToast.show(
-                                    context,
+                                notify(
                                     steamBrowseNoBrowser,
                                     Toast.LENGTH_SHORT,
                                 )
@@ -591,8 +589,7 @@ internal fun CloudSavesContent(
                             runCatching {
                                 importLauncher.launch(arrayOf("*/*"))
                             }.onFailure {
-                                WinToast.show(
-                                    context,
+                                notify(
                                     steamImportPickerUnavailable,
                                     Toast.LENGTH_SHORT,
                                 )
@@ -619,8 +616,7 @@ internal fun CloudSavesContent(
                                             SteamCloudSyncHelper
                                                 .uploadLocalSavesBlocking(activity, sc)
                                         }
-                                    WinToast.show(
-                                        context,
+                                    notify(
                                         if (ok) steamPushSuccess else steamPushFailed,
                                         Toast.LENGTH_SHORT,
                                     )
@@ -722,6 +718,7 @@ internal fun CloudSavesContent(
                 val target = entryPendingRestore ?: return@LaunchDangerConfirmDialog
                 entryPendingRestore = null
                 scope.launch {
+                    restoreInProgress = true
                     val result =
                         when (target.storage) {
                             GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> {
@@ -772,8 +769,8 @@ internal fun CloudSavesContent(
                             }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
                         }
-                    WinToast.show(
-                        context,
+                    restoreInProgress = false
+                    notify(
                         if (result.success) {
                             context.getString(R.string.cloud_saves_history_restore_success)
                         } else {
@@ -785,6 +782,35 @@ internal fun CloudSavesContent(
                 }
             },
         )
+    }
+
+    if (restoreInProgress) {
+        Dialog(
+            onDismissRequest = { restoreInProgress = false },
+            properties = DialogProperties(dismissOnClickOutside = false),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = CloudPanel,
+                border = BorderStroke(1.dp, CloudBorder),
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(26.dp),
+                        color = CloudAccent,
+                        strokeWidth = 3.dp,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(R.string.cloud_saves_restoring),
+                        color = Color.White,
+                    )
+                }
+            }
+        }
     }
 
     entryPendingRename?.let { entry ->
@@ -935,8 +961,7 @@ internal fun CloudSavesContent(
                                     }
                                     else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_rename_failed))
                                 }
-                            WinToast.show(
-                                context,
+                            notify(
                                 if (result.success) {
                                     context.getString(R.string.cloud_saves_history_rename_success)
                                 } else {

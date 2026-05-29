@@ -6191,6 +6191,11 @@ class SteamService : Service() {
             withContext(Dispatchers.IO) {
                 async {
                     if (isOffline || !isConnected) {
+                        // Steam Launcher mode hands the CM session to the in-Wine Steam, which owns cloud saves during play; don't report its intentional offline as a failure.
+                        if (isBionicHandoffActive()) {
+                            Timber.i("closeApp: Bionic hand-off active for app %d — deferring exit cloud sync to in-Wine Steam", appId)
+                            return@async CloudSyncOutcome(true, "Steam Launcher handles cloud saves directly.")
+                        }
                         return@async CloudSyncOutcome(false, "Steam is offline.")
                     }
 

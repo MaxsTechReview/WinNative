@@ -227,6 +227,24 @@ void teardown(const char* reason) {
         }
     }
 
+    // Cloud-flush settle: stay logged on until steamclient's cloud upload goes idle (or the 5s cap) before logoff/pipe-release, so the in-Wine Steam can finish syncing this app's save.
+    if (g_pipe != 0 && g_bgetcallback && g_freelastcallback) {
+        const int kCloudMaxMs = 5000, kCloudMinMs = 600, kStepMs = 100, kQuietStepsToIdle = 6;
+        int waited = 0, quietSteps = 0;
+        while (waited < kCloudMaxMs) {
+            char cb[64];
+            int drained = 0;
+            while (g_bgetcallback(g_pipe, cb)) { g_freelastcallback(g_pipe); ++drained; }
+            quietSteps = (drained == 0) ? quietSteps + 1 : 0;
+            ::Sleep(kStepMs);
+            waited += kStepMs;
+            if (waited >= kCloudMinMs && quietSteps >= kQuietStepsToIdle) break;
+        }
+        char cbuf[128];
+        std::snprintf(cbuf, sizeof(cbuf), "cloud-flush settle done (%dms, quietSteps=%d)", waited, quietSteps);
+        wn_log(cbuf);
+    }
+
     // Reverse order of init, mirroring WnSteamBootstrap.nativeShutdown: log off
     // the user (this is the CMsgClientLogOff that reaps the server session),
     // release the user, then drop the pipe.

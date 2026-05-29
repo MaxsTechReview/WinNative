@@ -1020,6 +1020,16 @@ object SteamAutoCloud {
 
                     val totalFiles = filesToUpload.size
                     val finalFileCount = managedFiles.size
+
+                    // Guard against an empty/transient local scan wiping the whole cloud copy.
+                    if (filesToUpload.isEmpty() && filesToDelete.isNotEmpty() && managedFiles.isEmpty()) {
+                        Timber.e(
+                            "Refusing to delete all ${filesToDelete.size} cloud file(s) for ${appInfo.id}: " +
+                                "no local save files found; preserving cloud saves",
+                        )
+                        return@async UserFilesUploadResult(false, 0, 0, 0)
+                    }
+
                     if (appInfo.ufs.maxNumFiles > 0 && finalFileCount > appInfo.ufs.maxNumFiles) {
                         Timber.e(
                             "Steam cloud upload would exceed file count quota for ${appInfo.id}: " +
