@@ -356,10 +356,9 @@ class TouchpadView(
                         if (xServer.isRelativeMouseMovement) {
                             xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
                             updateVisibleRelativeCursor(xServer.pointer.x + dx, xServer.pointer.y + dy)
-                        } else {
-                            xServer.injectPointerMoveDelta(dx, dy)
-                            xServer.renderer?.requestCursorRender()
+                            return true
                         }
+                        xServer.injectPointerMoveDelta(dx, dy)
                     }
                 } else {
                     for (i in 0 until MAX_FINGERS.toInt()) {
@@ -443,10 +442,9 @@ class TouchpadView(
                     if (xServer.isRelativeMouseMovement) {
                         xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
                         updateVisibleRelativeCursor(xServer.pointer.x + dx, xServer.pointer.y + dy)
-                    } else {
-                        xServer.injectPointerMoveDelta(dx, dy)
-                        xServer.renderer?.requestCursorRender()
+                        return
                     }
+                    xServer.injectPointerMoveDelta(dx, dy)
                 }
             }
         }
@@ -756,10 +754,9 @@ class TouchpadView(
                     if (xServer.isRelativeMouseMovement) {
                         xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
                         updateVisibleRelativeCursor(xServer.pointer.x + dx, xServer.pointer.y + dy)
-                    } else {
-                        xServer.injectPointerMoveDelta(dx, dy)
-                        xServer.renderer?.requestCursorRender()
+                        return true
                     }
+                    xServer.injectPointerMoveDelta(dx, dy)
                 }
                 true
             }

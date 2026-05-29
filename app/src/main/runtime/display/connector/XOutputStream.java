@@ -52,14 +52,8 @@ public class XOutputStream {
   }
 
   public void writeFP3232(double value) {
-    if (Double.isNaN(value) || Double.isInfinite(value)) {
-      throw new IllegalArgumentException("FP3232 value must be finite");
-    }
-    long fixed = Math.round(FP3232_SCALE * value);
-    int integral = (int) (fixed >> 32);
-    int frac = (int) fixed;
-    writeInt(integral);
-    writeInt(frac);
+    if (Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException("FP3232 value must be finite");
+    writeLong(Math.round(value * FP3232_SCALE));
   }
 
   public void writeString8(String str) {

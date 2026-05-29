@@ -212,44 +212,25 @@ public class XServer {
 
   public void injectPointerMoveDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      int maxX = screenInfo.width - 1;
-      int maxY = screenInfo.height - 1;
+      int x = pointer.getX() + dx;
+      int y = pointer.getY() + dy;
 
-      android.graphics.Rect confinementBounds = grabManager.getConfinementBounds();
-      if (confinementBounds != null) {
-        int minX = Math.max(0, confinementBounds.left);
-        int minY = Math.max(0, confinementBounds.top);
-        int maxX2 = Math.min(maxX, confinementBounds.right - 1);
-        int maxY2 = Math.min(maxY, confinementBounds.bottom - 1);
-        int clampedX = Mathf.clamp(pointer.getX() + dx, minX, maxX2);
-        int clampedY = Mathf.clamp(pointer.getY() + dy, minY, maxY2);
-        pointer.setPosition(clampedX, clampedY);
+      android.graphics.Rect confinement = grabManager.getConfinementBounds();
+      if (confinement != null) {
+        x = Mathf.clamp(x, confinement.left, confinement.right - 1);
+        y = Mathf.clamp(y, confinement.top, confinement.bottom - 1);
       } else {
-        int softMarginX = (int) (screenInfo.width * 0.05f);
-        int softMarginY = (int) (screenInfo.height * 0.05f);
-        int x = Mathf.clamp(pointer.getX() + dx, -softMarginX, (screenInfo.width - 1) + softMarginX);
-        int y = Mathf.clamp(pointer.getY() + dy, -softMarginY, (screenInfo.height - 1) + softMarginY);
-        pointer.setPosition(x, y);
-
-        int clampedX2 = x;
-        int clampedY2 = y;
-        if (x < 0) {
-          clampedX2 = 0;
-        } else if (x > screenInfo.width - 1) {
-          clampedX2 = screenInfo.width - 1;
-        }
-        if (y < 0) {
-          clampedY2 = 0;
-        } else if (y > screenInfo.height - 1) {
-          clampedY2 = screenInfo.height - 1;
-        }
-        pointer.setX(clampedX2);
-        pointer.setY(clampedY2);
+        short softMarginX = (short) (screenInfo.width * 0.05f);
+        short softMarginY = (short) (screenInfo.height * 0.05f);
+        x = Mathf.clamp(x, -softMarginX, (screenInfo.width - 1) + softMarginX);
+        y = Mathf.clamp(y, -softMarginY, (screenInfo.height - 1) + softMarginY);
       }
+      pointer.setPosition(x, y);
 
-      XInput2Extension xInput2Extension = getExtension(XInput2Extension.MAJOR_OPCODE);
-      if (xInput2Extension != null) xInput2Extension.emitRawMotion(2, dx, dy);
+      XInput2Extension xi = getExtension(XInput2Extension.MAJOR_OPCODE);
+      if (xi != null) xi.emitRawMotion(2, dx, dy);
     }
+    if (renderer != null) renderer.requestCursorRender();
   }
 
   public void updatePointerForDisplay(int x, int y) {
