@@ -1828,14 +1828,24 @@ class SteamService : Service() {
             val selectedDlcIds = userSelectedDlcAppIds.toSet()
             val indirectDlcAppIds = getDownloadableDlcAppsOf(appId).orEmpty().map { it.id }.toSet()
             val mainDepots = getMainAppDepots(appId)
+            val appInfoForGrouping = getAppInfoOf(appId)
             val groupedBaseDlcDepotIds =
-                getAppInfoOf(appId)
+                appInfoForGrouping
                     ?.let { getGroupedBaseAppDlcContentDepotIds(it) }
                     .orEmpty()
+            // Depots the base package entitles directly are always base content,
+            // so never let the positional DLC grouping drop them — it sweeps up
+            // base depots when a DLC marker precedes them in depot order, which
+            // would zero the game's download/install size (e.g. DMC5 601151/2).
+            val baseEntitledDepotIds =
+                appInfoForGrouping?.packageId?.let { getEntitledDepotIds(it) }.orEmpty()
 
             val selectedMainDepots =
                 mainDepots.filter { (depotId, depot) ->
-                    (depot.dlcAppId == INVALID_APP_ID && depotId !in groupedBaseDlcDepotIds) ||
+                    (
+                        depot.dlcAppId == INVALID_APP_ID &&
+                            (depotId !in groupedBaseDlcDepotIds || depotId in baseEntitledDepotIds)
+                    ) ||
                         (depot.dlcAppId in selectedDlcIds && resolveDepotManifestInfo(depot, branch) != null)
                 } + getSelectedBaseAppDlcContentDepots(appId, selectedDlcIds, preferredLanguage, branch)
 
@@ -3103,10 +3113,18 @@ class SteamService : Service() {
 
             // Depots from Main game
             val mainDepots = getMainAppDepots(appId)
+            val appInfoForDownload = getAppInfoOf(appId)
             val groupedBaseDlcDepotIds =
-                getAppInfoOf(appId)
+                appInfoForDownload
                     ?.let { getGroupedBaseAppDlcContentDepotIds(it) }
                     .orEmpty()
+            // Depots the base package entitles directly are base content; never let the
+            // positional DLC grouping drop them (it sweeps up base depots when a DLC marker
+            // precedes them in depot order, e.g. DMC5 601151/2) — that would exclude the base
+            // game from the download and zero its size in the downloads tab. Mirrors the
+            // getSelectedDownloadDepots fix that powers the store detail size estimate.
+            val baseEntitledDepotIds =
+                appInfoForDownload?.packageId?.let { getEntitledDepotIds(it) }.orEmpty()
             Timber.d("Main app depots count: ${mainDepots.size}")
             val baseMainAppDepots =
                 if (isAddingDlcToTrustedInstall) {
@@ -3117,7 +3135,8 @@ class SteamService : Service() {
                     emptyMap()
                 } else {
                     mainDepots.filter { (depotId, depot) ->
-                        depot.dlcAppId == INVALID_APP_ID && depotId !in groupedBaseDlcDepotIds
+                        depot.dlcAppId == INVALID_APP_ID &&
+                            (depotId !in groupedBaseDlcDepotIds || depotId in baseEntitledDepotIds)
                     }
                 }
             val targetDepotIdSet = targetDepotIds?.takeIf { it.isNotEmpty() }
