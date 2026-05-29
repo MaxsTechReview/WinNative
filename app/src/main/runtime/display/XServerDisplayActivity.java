@@ -1776,8 +1776,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 if (!xServer.isRelativeMouseMovement() && !xServer.isSimulateTouchScreen()) {
                     float scaledTotalX = xform[0] * totalRawDx + xform[2] * totalRawDy;
                     float scaledTotalY = xform[1] * totalRawDx + xform[3] * totalRawDy;
-                    if (Math.abs(scaledTotalX) > 6.0f) accelX = TouchpadView.CURSOR_ACCELERATION;
-                    if (Math.abs(scaledTotalY) > 6.0f) accelY = TouchpadView.CURSOR_ACCELERATION;
+                    if (Math.abs(scaledTotalX) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) accelX = TouchpadView.CURSOR_ACCELERATION;
+                    if (Math.abs(scaledTotalY) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) accelY = TouchpadView.CURSOR_ACCELERATION;
                 }
 
                 // 3. Stream individual points immediately using the locked-in speed
@@ -1841,8 +1841,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         float scaledDy = xform[1] * dx + xform[3] * dy;
 
         if (!xServer.isRelativeMouseMovement() && !xServer.isSimulateTouchScreen()) {
-            if (Math.abs(scaledDx) > 6.0f) scaledDx *= TouchpadView.CURSOR_ACCELERATION;
-            if (Math.abs(scaledDy) > 6.0f) scaledDy *= TouchpadView.CURSOR_ACCELERATION;
+            if (Math.abs(scaledDx) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) scaledDx *= TouchpadView.CURSOR_ACCELERATION;
+            if (Math.abs(scaledDy) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) scaledDy *= TouchpadView.CURSOR_ACCELERATION;
         }
 
         scaledDx *= globalCursorSpeed * profileSpeed;

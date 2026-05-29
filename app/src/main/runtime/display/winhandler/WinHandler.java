@@ -378,7 +378,7 @@ public class WinHandler {
     try {
       this.sendData.rewind();
       this.sendData.put((byte) 7);
-      this.sendData.putInt(10);
+      this.sendData.putInt(11);
       this.sendData.putInt(flags);
       this.sendData.putShort((short) dx);
       this.sendData.putShort((short) dy);

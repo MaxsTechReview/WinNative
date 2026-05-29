@@ -212,33 +212,30 @@ public class XServer {
 
   public void injectPointerMoveDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      if (!isRelativeMouseMovement()) {
-        int maxX = screenInfo.width - 1;
-        int maxY = screenInfo.height - 1;
-        Window confinedWindow = windowManager.getConfinedWindow();
-        if (confinedWindow != null) {
-          short rootX = confinedWindow.getRootX();
-          short rootY = confinedWindow.getRootY();
-          int minX = Math.max(0, rootX);
-          int minY = Math.max(0, rootY);
-          int maxX2 = Math.min(maxX, rootX + confinedWindow.getWidth() - 1);
-          int maxY2 = Math.min(maxY, rootY + confinedWindow.getHeight() - 1);
-          int nx = Mathf.clamp(pointer.getX() + dx, minX, maxX2);
-          int ny = Mathf.clamp(pointer.getY() + dy, minY, maxY2);
-          pointer.setPosition(nx, ny);
-        } else {
-          short softMarginX = (short) (screenInfo.width * 0.05f);
-          short softMarginY = (short) (screenInfo.height * 0.05f);
-          int nx = Mathf.clamp(pointer.getX() + dx, -softMarginX, (screenInfo.width - 1) + softMarginX);
-          int ny = Mathf.clamp(pointer.getY() + dy, -softMarginY, (screenInfo.height - 1) + softMarginY);
-          pointer.setPosition(nx, ny);
+      int minX = 0;
+      int minY = 0;
+      int maxX = screenInfo.width - 1;
+      int maxY = screenInfo.height - 1;
 
-          int cx = Mathf.clamp(nx, 0, screenInfo.width - 1);
-          int cy = Mathf.clamp(ny, 0, screenInfo.height - 1);
-          pointer.setX(cx);
-          pointer.setY(cy);
-        }
+      android.graphics.Rect confinementBounds = grabManager.getConfinementBounds();
+      if (confinementBounds != null) {
+        minX = Math.max(0, confinementBounds.left);
+        minY = Math.max(0, confinementBounds.top);
+        maxX = Math.min(maxX, confinementBounds.right - 1);
+        maxY = Math.min(maxY, confinementBounds.bottom - 1);
       }
+
+      int softMarginX = (int) (screenInfo.width * 0.05f);
+      int softMarginY = (int) (screenInfo.height * 0.05f);
+
+      int x = Mathf.clamp(pointer.getX() + dx, minX - softMarginX, maxX + softMarginX);
+      int y = Mathf.clamp(pointer.getY() + dy, minY - softMarginY, maxY + softMarginY);
+      pointer.setPosition(x, y);
+
+      int clampedX = Mathf.clamp(x, minX, maxX);
+      int clampedY = Mathf.clamp(y, minY, maxY);
+      pointer.setX(clampedX);
+      pointer.setY(clampedY);
 
       XInput2Extension xInput2Extension = getExtension(XInput2Extension.MAJOR_OPCODE);
       if (xInput2Extension != null) xInput2Extension.emitRawMotion(2, dx, dy);

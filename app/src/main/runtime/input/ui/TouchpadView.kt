@@ -349,13 +349,9 @@ class TouchpadView(
                     val dy = Mathf.roundPoint(delta[1])
 
                     if (dx != 0 || dy != 0) {
-                        if (xServer.isRelativeMouseMovement) {
-                            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
-                            xServer.updatePointerForDisplayDelta(dx, dy)
-                        } else {
-                            xServer.injectPointerMoveDelta(dx, dy)
-                            xServer.renderer?.requestCursorRender()
-                        }
+                        if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
+                        xServer.injectPointerMoveDelta(dx, dy)
+                        if (!xServer.isRelativeMouseMovement) xServer.renderer?.requestCursorRender()
                     }
                 } else {
                     for (i in 0 until MAX_FINGERS.toInt()) {
