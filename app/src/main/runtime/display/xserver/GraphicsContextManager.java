@@ -29,8 +29,8 @@ public class GraphicsContextManager extends XResourceManager {
 
   public void updateGraphicsContext(
       GraphicsContext dstContext, GraphicsContext srcContext, Bitmask valueMask) {
-    for (int index : valueMask) {
-      switch (index) {
+    for (long index : valueMask) {
+      switch ((int) index) {
         case GraphicsContext.FLAG_FUNCTION:
           dstContext.setFunction(srcContext.getFunction());
           break;
@@ -73,8 +73,8 @@ public class GraphicsContextManager extends XResourceManager {
 
   public void updateGraphicsContext(
       GraphicsContext graphicsContext, Bitmask valueMask, XInputStream inputStream) {
-    for (int index : valueMask) {
-      switch (index) {
+    for (long index : valueMask) {
+      switch ((int) index) {
         case GraphicsContext.FLAG_FUNCTION:
           graphicsContext.setFunction(GraphicsContext.Function.values()[inputStream.readInt()]);
           break;

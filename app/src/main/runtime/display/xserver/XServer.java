@@ -212,30 +212,40 @@ public class XServer {
 
   public void injectPointerMoveDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      int minX = 0;
-      int minY = 0;
       int maxX = screenInfo.width - 1;
       int maxY = screenInfo.height - 1;
 
       android.graphics.Rect confinementBounds = grabManager.getConfinementBounds();
       if (confinementBounds != null) {
-        minX = Math.max(0, confinementBounds.left);
-        minY = Math.max(0, confinementBounds.top);
-        maxX = Math.min(maxX, confinementBounds.right - 1);
-        maxY = Math.min(maxY, confinementBounds.bottom - 1);
+        int minX = Math.max(0, confinementBounds.left);
+        int minY = Math.max(0, confinementBounds.top);
+        int maxX2 = Math.min(maxX, confinementBounds.right - 1);
+        int maxY2 = Math.min(maxY, confinementBounds.bottom - 1);
+        int clampedX = Mathf.clamp(pointer.getX() + dx, minX, maxX2);
+        int clampedY = Mathf.clamp(pointer.getY() + dy, minY, maxY2);
+        pointer.setPosition(clampedX, clampedY);
+      } else {
+        int softMarginX = (int) (screenInfo.width * 0.05f);
+        int softMarginY = (int) (screenInfo.height * 0.05f);
+        int x = Mathf.clamp(pointer.getX() + dx, -softMarginX, (screenInfo.width - 1) + softMarginX);
+        int y = Mathf.clamp(pointer.getY() + dy, -softMarginY, (screenInfo.height - 1) + softMarginY);
+        pointer.setPosition(x, y);
+
+        int clampedX2 = x;
+        int clampedY2 = y;
+        if (x < 0) {
+          clampedX2 = 0;
+        } else if (x > screenInfo.width - 1) {
+          clampedX2 = screenInfo.width - 1;
+        }
+        if (y < 0) {
+          clampedY2 = 0;
+        } else if (y > screenInfo.height - 1) {
+          clampedY2 = screenInfo.height - 1;
+        }
+        pointer.setX(clampedX2);
+        pointer.setY(clampedY2);
       }
-
-      int softMarginX = (int) (screenInfo.width * 0.05f);
-      int softMarginY = (int) (screenInfo.height * 0.05f);
-
-      int x = Mathf.clamp(pointer.getX() + dx, minX - softMarginX, maxX + softMarginX);
-      int y = Mathf.clamp(pointer.getY() + dy, minY - softMarginY, maxY + softMarginY);
-      pointer.setPosition(x, y);
-
-      int clampedX = Mathf.clamp(x, minX, maxX);
-      int clampedY = Mathf.clamp(y, minY, maxY);
-      pointer.setX(clampedX);
-      pointer.setY(clampedY);
 
       XInput2Extension xInput2Extension = getExtension(XInput2Extension.MAJOR_OPCODE);
       if (xInput2Extension != null) xInput2Extension.emitRawMotion(2, dx, dy);
@@ -296,15 +306,29 @@ public class XServer {
     }
   }
 
-  private void setupExtensions() {
-    extensions.put(BigReqExtension.MAJOR_OPCODE, new BigReqExtension());
-    extensions.put(MITSHMExtension.MAJOR_OPCODE, new MITSHMExtension());
-    if (dri3Enabled) {
-      extensions.put(DRI3Extension.MAJOR_OPCODE, new DRI3Extension());
+  private void registerExtension(Extension ext, int[] nextEventId, int[] nextErrorId) {
+    if (ext.getNumEvents() > 0) {
+      ext.setFirstEventId((byte) nextEventId[0]);
+      nextEventId[0] += ext.getNumEvents();
     }
-    extensions.put(PresentExtension.MAJOR_OPCODE, new PresentExtension());
-    extensions.put(SyncExtension.MAJOR_OPCODE, new SyncExtension());
-    extensions.put(XInput2Extension.MAJOR_OPCODE, new XInput2Extension());
+    if (ext.getNumErrors() > 0) {
+      ext.setFirstErrorId((byte) nextErrorId[0]);
+      nextErrorId[0] += ext.getNumErrors();
+    }
+    extensions.put(ext.getMajorOpcode(), ext);
+  }
+
+  private void setupExtensions() {
+    int[] nextEventId = {64};
+    int[] nextErrorId = {128};
+    registerExtension(new BigReqExtension(), nextEventId, nextErrorId);
+    registerExtension(new MITSHMExtension(), nextEventId, nextErrorId);
+    if (dri3Enabled) {
+      registerExtension(new DRI3Extension(), nextEventId, nextErrorId);
+    }
+    registerExtension(new PresentExtension(), nextEventId, nextErrorId);
+    registerExtension(new SyncExtension(), nextEventId, nextErrorId);
+    registerExtension(new XInput2Extension(), nextEventId, nextErrorId);
   }
 
   public <T extends Extension> T getExtension(int opcode) {

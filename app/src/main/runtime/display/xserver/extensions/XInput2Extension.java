@@ -30,9 +30,9 @@ public class XInput2Extension implements Extension {
     private static final int XI_BUTTON_CLASS = 1;
     private static final int XI_MAJOR = 2;
     private static final int XI_MINOR = 2;
-    private static final int XI_RawButtonPress_MASK = 32768;
-    private static final int XI_RawButtonRelease_MASK = 65536;
-    private static final int XI_RawMotion_MASK = 131072;
+    private static final long XI_RawButtonPress_MASK = 32768;
+    private static final long XI_RawButtonRelease_MASK = 65536;
+    private static final long XI_RawMotion_MASK = 131072;
     private static final int XI_VALUATOR_CLASS = 2;
     private byte firstEventId = 0;
     private byte firstErrorId = 0;
@@ -70,18 +70,22 @@ public class XInput2Extension implements Extension {
         return MAJOR_OPCODE;
     }
 
+    @Override
     public int getNumEvents() {
         return 24;
     }
 
+    @Override
     public int getNumErrors() {
         return 5;
     }
 
+    @Override
     public void setFirstEventId(byte id) {
         this.firstEventId = id;
     }
 
+    @Override
     public void setFirstErrorId(byte id) {
         this.firstErrorId = id;
     }
@@ -293,7 +297,7 @@ public class XInput2Extension implements Extension {
             Bitmask mask = new Bitmask(0);
             for (int word = 0; word < maskLen; word++) {
                 long value = inputStream.readUnsignedInt();
-                if (word == 0) mask.set((int)value);
+                mask.set(value << (word * 32));
             }
             Selection sel = new Selection();
             sel.client = client;
@@ -350,7 +354,7 @@ public class XInput2Extension implements Extension {
     }
 
     public void emitRawButton(int deviceId, int buttonNumber, boolean pressed) {
-        int maskBit = pressed ? XI_RawButtonPress_MASK : XI_RawButtonRelease_MASK;
+        long maskBit = pressed ? XI_RawButtonPress_MASK : XI_RawButtonRelease_MASK;
         for (Selection sel : this.selections) {
             if (matchesSelection(sel, deviceId) && sel.mask.isSet(maskBit)) {
                 try {

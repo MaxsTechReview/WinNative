@@ -1810,8 +1810,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (idx != 0 || idy != 0) {
                         if (xServer.isRelativeMouseMovement()) {
                             xServer.getWinHandler().mouseMoveDelta(idx, idy);
+                            touchpadView.updateVisibleRelativeCursor(xServer.pointer.getX() + idx, xServer.pointer.getY() + idy);
+                        } else {
+                            xServer.injectPointerMoveDelta(idx, idy);
                         }
-                        xServer.injectPointerMoveDelta(idx, idy);
                     }
                 }
                 handled = true;

@@ -33,6 +33,8 @@ public class PresentExtension
         WindowManager.OnWindowModificationListener {
   public static final byte MAJOR_OPCODE = -103;
   private static final int FAKE_INTERVAL = 1000000 / 60;
+  private byte firstEventId = 0;
+  private byte firstErrorId = 0;
 
   public enum Kind {
     PIXMAP,
@@ -92,12 +94,32 @@ public class PresentExtension
 
   @Override
   public byte getFirstErrorId() {
-    return 0;
+    return firstErrorId;
   }
 
   @Override
   public byte getFirstEventId() {
+    return firstEventId;
+  }
+
+  @Override
+  public int getNumEvents() {
     return 0;
+  }
+
+  @Override
+  public int getNumErrors() {
+    return 0;
+  }
+
+  @Override
+  public void setFirstEventId(byte id) {
+    this.firstEventId = id;
+  }
+
+  @Override
+  public void setFirstErrorId(byte id) {
+    this.firstErrorId = id;
   }
 
   private void sendIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence) {

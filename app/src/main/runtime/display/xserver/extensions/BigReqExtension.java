@@ -33,6 +33,22 @@ public class BigReqExtension implements Extension {
   }
 
   @Override
+  public int getNumEvents() {
+    return 0;
+  }
+
+  @Override
+  public int getNumErrors() {
+    return 0;
+  }
+
+  @Override
+  public void setFirstEventId(byte id) {}
+
+  @Override
+  public void setFirstErrorId(byte id) {}
+
+  @Override
   public void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException {
     try (XStreamLock lock = outputStream.lock()) {
