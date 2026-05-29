@@ -326,6 +326,11 @@ class SteamService : Service() {
         // simply repeats once per interval until the work is done.
         private const val BACKGROUND_IDLE_GRACE_MS = 60_000L
 
+        // Keep the Steam account fully offline this long after a PlanW game closes
+        // before resuming the wn-session, so Steam reaps the launcher's games-played
+        // registration (else the next launch hits AlreadyRunning 0x10 → fallback).
+        private const val WN_PLANW_REAP_OFFLINE_MS = 10_000L
+
         const val INVALID_APP_ID: Int = Int.MAX_VALUE
         const val INVALID_PKG_ID: Int = Int.MAX_VALUE
         private const val STEAM_CONTROLLER_CONFIG_FILENAME = "steam_controller_config.vdf"
@@ -1266,8 +1271,12 @@ class SteamService : Service() {
                     val session = wnSession?.takeIf { it.state() == 3 } ?: return@withContext false
                     session.markPlayingBlocked()
                     session.kickPlayingSession(onlyGame)
+                    // kickPlayingSession only clears the playing-BLOCKED state, not the
+                    // games-played registration from the launcher's LaunchApp — clear that
+                    // too (empty CMsgClientGamesPlayed) or the next launch hits AlreadyRunning.
+                    session.notifyGamesPlayed("[]", EOSType.AndroidUnknown.code())
                     instance?._isPlayingBlocked?.value = true
-                    Timber.i("kickPlayingSessionIfReady: dispatched (onlyGame=$onlyGame)")
+                    Timber.i("kickPlayingSessionIfReady: dispatched (onlyGame=$onlyGame) + cleared games-played")
                     true
                 } catch (e: Throwable) {
                     Timber.w(e, "kickPlayingSessionIfReady failed")
@@ -8028,9 +8037,38 @@ class SteamService : Service() {
         }
         if (!suspendedForBionic) return
         suspendedForBionic = false
-        Timber.i("Bionic hand-off RELEASE — bootstrap logged off, resuming WN-Steam-Client")
         retryAttempt = 0
-        if (isRunning && !isStopping && !isLoggingOut && PrefManager.refreshToken.isNotBlank()) {
+        if (!(isRunning && !isStopping && !isLoggingOut && PrefManager.refreshToken.isNotBlank())) {
+            Timber.i("Bionic hand-off RELEASE — not resuming (service not in a resumable state)")
+            return
+        }
+        // PlanW: defer the wn-session resume so the account stays fully offline long
+        // enough for Steam to reap the launcher's games-played registration; resuming
+        // immediately keeps it online and the next launch hits AlreadyRunning (0x10).
+        if (PrefManager.wnPlanW) {
+            Timber.i(
+                "Bionic hand-off RELEASE — PlanW: deferring wn-session resume " +
+                    "${WN_PLANW_REAP_OFFLINE_MS}ms so Steam reaps the launcher's " +
+                    "games-played registration (account stays offline)",
+            )
+            scope.launch(Dispatchers.IO) {
+                delay(WN_PLANW_REAP_OFFLINE_MS)
+                // Skip if a new launch re-acquired the hand-off in the meantime, or
+                // the session already came up some other way.
+                if (!suspendedForBionic && isRunning && !isStopping && !isLoggingOut &&
+                    PrefManager.refreshToken.isNotBlank() && (wnSession?.state() ?: 0) != 3
+                ) {
+                    Timber.i("Bionic hand-off RELEASE — PlanW reap window elapsed, resuming WN-Steam-Client")
+                    connectAndLogon()
+                } else {
+                    Timber.i(
+                        "Bionic hand-off RELEASE — PlanW reap window elapsed, resume skipped " +
+                            "(suspendedForBionic=$suspendedForBionic wnState=${wnSession?.state()})",
+                    )
+                }
+            }
+        } else {
+            Timber.i("Bionic hand-off RELEASE — bootstrap logged off, resuming WN-Steam-Client")
             connectAndLogon()
         }
     }
