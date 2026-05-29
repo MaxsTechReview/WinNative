@@ -1,46 +1,46 @@
 #pragma once
-// Clean Steam logoff for the in-Wine WinNative launcher (steam.exe).
-// Call wn_launcher_arm_clean_shutdown(...) after logon with a valid (pipe, user)
-// to avoid force-close leaving Steam "running" / AlreadyRunning on relaunch.
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Route [wn-launcher] markers through the host logger; a second handle to
-// C:\wn-launcher.log can lose the markers the Android close path depends on.
-// Call before arming with one already-"[wn-launcher] "-prefixed line; NULL falls back to fopen.
 void wn_launcher_set_log_sink(void (*log_fn)(const char* line));
 
-// Tell the module which game image (e.g. "Balls.exe") was launched so teardown
-// can close it before logoff. Safe any time after arming; NULL/"" disables it.
 void wn_launcher_set_game_exe(const char* exeName);
 
-// hSteamClient: LoadLibrary handle for steamclient64.dll.
-// pipe/user: live HSteamPipe / HSteamUser from launcher logon.
-// logPath: launcher log path, or NULL to disable [wn-launcher] markers; ignored after wn_launcher_set_log_sink().
 void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe, int user,
                                     const char* logPath);
 
-// Give the clean-shutdown module the IClientEngine + app id so teardown can drive
-// the Steam Cloud (AutoCloud) exit upload via steamclient before logging off.
 void wn_launcher_set_cloud_context(void* engine, int hUser, int hPipe, unsigned int appId);
 
-// Drive a steamclient IClientRemoteStorage app sync and block until it settles
-// (or timeoutMs). cmd/flags: launch download = (1,0), exit upload = (2,4).
-// Returns the final EGetFileSyncState (1=Synchronized, 6=Conflict), or <0 on error.
 int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
                            unsigned int appId, int cmd, int flags, int timeoutMs);
 
-// Trigger teardown synchronously, e.g. on game exit so normal close also logs
-// off cleanly. Idempotent; safe after arming because the watcher/ctrl-handler
-// no-op afterwards.
 void wn_launcher_clean_shutdown_now(const char* reason);
 
-// Block up to maxMs for an in-flight teardown to finish (no-op if none).
-// main() uses this to avoid exiting mid-teardown and cutting the logoff flush.
 void wn_launcher_wait_clean_shutdown(int maxMs);
 
 #ifdef __cplusplus
+}
+
+#include <string.h>
+
+inline bool wn_game_image_matches(const char* procName, const char* gameExe) {
+    if (!procName || !gameExe || !gameExe[0]) return false;
+    if (_stricmp(procName, gameExe) == 0) return true;
+    static const char* const kSteamlessSuffixes[] = { ".original.exe", ".unpacked.exe" };
+    size_t glen = strlen(gameExe);
+    for (const char* suf : kSteamlessSuffixes) {
+        size_t slen = strlen(suf);
+        if (glen > slen && _stricmp(gameExe + (glen - slen), suf) == 0) {
+            char base[260];
+            size_t blen = glen - slen;
+            if (blen >= sizeof(base)) blen = sizeof(base) - 1;
+            memcpy(base, gameExe, blen);
+            base[blen] = '\0';
+            return _stricmp(procName, base) == 0;
+        }
+    }
+    return false;
 }
 #endif

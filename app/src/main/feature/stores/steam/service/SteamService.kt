@@ -2646,21 +2646,6 @@ class SteamService : Service() {
 
         fun isImageFsInstalled(context: Context): Boolean = ImageFs.find(context).isValid()
 
-        fun isImageFsInstallable(
-            context: Context,
-            variant: String,
-        ): Boolean {
-            if (variant.equals("BIONIC")) {
-                return File(context.filesDir, "imagefs_bionic.txz").exists() || context.assets
-                    .list("")
-                    ?.contains("imagefs_bionic.txz") == true
-            } else {
-                return File(context.filesDir, "imagefs_gamenative.txz").exists() || context.assets
-                    .list("")
-                    ?.contains("imagefs_gamenative.txz") == true
-            }
-        }
-
         fun isSteamInstallable(context: Context): Boolean = File(context.filesDir, "steam.tzst").exists()
 
         fun isFileInstallable(
@@ -2748,39 +2733,6 @@ class SteamService : Service() {
                 total += bytesRead
                 progress(total)
             }
-        }
-
-        fun downloadImageFs(
-            onDownloadProgress: (Float) -> Unit,
-            parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-            variant: String,
-            context: Context,
-        ) = parentScope.async {
-            Timber.i("imagefs will be downloaded")
-            if (variant == "BIONIC") {
-                val dest = File(context.filesDir, "imagefs_bionic.txz")
-                Timber.d("Downloading imagefs_bionic to " + dest.toString())
-                fetchFileWithFallback("imagefs_bionic.txz", dest, context, onDownloadProgress)
-            } else {
-                Timber.d("Downloading imagefs_gamenative to " + File(context.filesDir, "imagefs_gamenative.txz"))
-                fetchFileWithFallback(
-                    "imagefs_gamenative.txz",
-                    File(context.filesDir, "imagefs_gamenative.txz"),
-                    context,
-                    onDownloadProgress,
-                )
-            }
-        }
-
-        fun downloadImageFsPatches(
-            onDownloadProgress: (Float) -> Unit,
-            parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-            context: Context,
-        ) = parentScope.async {
-            Timber.i("imagefs will be downloaded")
-            val dest = File(context.filesDir, "imagefs_patches_gamenative.tzst")
-            Timber.d("Downloading imagefs_patches_gamenative.tzst to " + dest.toString())
-            fetchFileWithFallback("imagefs_patches_gamenative.tzst", dest, context, onDownloadProgress)
         }
 
         fun downloadFile(

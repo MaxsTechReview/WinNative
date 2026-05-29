@@ -472,7 +472,7 @@ object WnSteamAssetsInstaller {
     }
 
     private fun patchLsteamclientLibPath(soFile: File, context: Context) {
-        val marker = "/data/data/app.gamenative/files/imagefs/usr/lib/libsteamclient.so"
+        val marker = "/data/data/app.winnative/files/imagefs/usr/lib/libsteamclient.so"
         val markerBytes = marker.toByteArray(Charsets.US_ASCII)
         val targetBytes = bridgeLibPath(context).absolutePath.toByteArray(Charsets.US_ASCII)
         if (targetBytes.size > markerBytes.size) {

@@ -86,17 +86,14 @@ static void log_line(const char* fmt, ...) {
     if (g_logFile) {
         fputs(buf, g_logFile);
     } else {
-        // Fallback for any log_line invoked before open_log() (unlikely but safe).
         FILE* lf = fopen("C:\\wn-launcher.log", "a");
         if (lf) { fputs(buf, lf); fclose(lf); }
     }
 }
 
-// Sink handed to clean_shutdown.cpp so its [wn-launcher] markers ("clean-shutdown
-// armed", "clean logoff complete", ...) go through this one open log handle. A
-// separate fopen() inside clean_shutdown writes at a position our next log_line
-// clobbers, which silently dropped those markers — and the Android close path
-// keys off exactly those markers to run / confirm the clean-shutdown handshake.
+// Route clean_shutdown.cpp's [wn-launcher] markers through our single log handle;
+// a separate fopen() there gets clobbered by our next write, dropping the markers
+// the Android close path keys off.
 static void clean_shutdown_log_sink(const char* line) {
     if (line) log_line("%s", line);
 }
@@ -134,7 +131,7 @@ static void log_token_claims(const char* token) {
     for (size_t i = 0; i < seglen && op < sizeof(out) - 1; ++i) {
         unsigned char c = (unsigned char) (dot1 + 1)[i];
         int v = b64url_val(c);
-        if (v < 0) continue;  // skip '=' / stray
+        if (v < 0) continue;
         acc = (acc << 6) | (uint32_t) v;
         bits += 6;
         if (bits >= 8) {
@@ -216,7 +213,7 @@ static void seed_active_process_registry(uint32_t our_pid, uint32_t steam_accoun
 
 static void stage_steam_config(void) {
     const char* cfgDir = "C:\\Program Files (x86)\\Steam\\config";
-    CreateDirectoryA(cfgDir, NULL);  // no-op if it already exists
+    CreateDirectoryA(cfgDir, NULL);
     const char* files[2] = {
         "C:\\Program Files (x86)\\Steam\\config\\config.vdf",
         "C:\\Program Files (x86)\\Steam\\config\\local.vdf",
@@ -290,7 +287,9 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
              acf, installdir);
 }
 
-static int count_process_by_name(const char* exeName) {
+// Counts running game processes (matches LaunchApp's canonical name or the literal
+// fallback name via wn_game_image_matches).
+static int count_game_processes(const char* exeName) {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snap == INVALID_HANDLE_VALUE) return -1;
     PROCESSENTRY32 pe;
@@ -298,23 +297,17 @@ static int count_process_by_name(const char* exeName) {
     int count = 0;
     if (Process32First(snap, &pe)) {
         do {
-            if (_stricmp(pe.szExeFile, exeName) == 0) count++;
+            if (wn_game_image_matches(pe.szExeFile, exeName)) count++;
         } while (Process32Next(snap, &pe));
     }
     CloseHandle(snap);
     return count;
 }
 
-// Direct game launch used when the integrated IClientAppManager::LaunchApp path
-// dispatches cleanly (EAppUpdateError=NoError) but never actually spawns the
-// game — under Wine/Plan-W there is no real Steam client UI / reaper process to
-// consume the launch request, so the app stays registered "launching" while the
-// process never appears. We start it ourselves. This is safe with respect to the
-// AlreadyRunning bug because the clean-shutdown arm (see clean_shutdown.cpp)
-// sends a clean Steam_LogOff on close/game-exit, so the CM session is reaped
-// instead of lingering ~40s. Logs the "game process started pid=" marker the
-// Android-side WnLauncherStatusTailer treats as a terminal (launch-complete)
-// signal. Returns true if the process was created.
+// Direct launch when LaunchApp dispatches cleanly but never spawns the game (no
+// real Steam UI/reaper under Wine to consume the request). Safe vs AlreadyRunning
+// because the clean-shutdown arm reaps the CM session on exit. Logs the "game
+// process started pid=" marker WnLauncherStatusTailer treats as launch-complete.
 static bool create_process_game(const char* gameExe, const char* exeName) {
     char cwd[MAX_PATH];
     snprintf(cwd, sizeof(cwd), "%s", gameExe);
@@ -330,9 +323,8 @@ static bool create_process_game(const char* gameExe, const char* exeName) {
     PROCESS_INFORMATION pi;
     memset(&pi, 0, sizeof(pi));
 
-    // Inherit the launcher's environment (SteamAppId / SteamClientLaunch / etc.
-    // were already set via SetEnvironmentVariableA above) so the game's
-    // SteamAPI_Init attaches to our logged-on steamclient session.
+    // Inherit our env (SteamAppId etc.) so the game's SteamAPI_Init attaches to
+    // our logged-on steamclient session.
     BOOL ok = CreateProcessA(gameExe, cmd, NULL, NULL, FALSE,
                              0, NULL, cwd[0] ? cwd : NULL, &si, &pi);
     if (!ok) {
@@ -1087,10 +1079,8 @@ int main(int argc, char** argv) {
                 bool reqRc = reqInfo(iApps, appIds, 1);
                 log_line("[wn-launcher] RequestAppInfoUpdate(appId=%u) -> %d",
                          appId, reqRc ? 1 : 0);
-                // 1.5s ceiling: give steamclient's PICS fetch time to land, else
-                // LaunchApp returns MissingConfig(9). Safe to keep short — the
-                // dispatch below retries on MissingConfig; this only covers the
-                // warm-cache case. (1003 callback rarely fires, so usually full wait.)
+                // 1.5s for PICS appinfo to land (else LaunchApp -> MissingConfig);
+                // short is safe — the dispatch below retries on MissingConfig.
                 bool appInfoDone = false;
                 int  waited = 0;
                 for (int i = 0; i < 15 && !appInfoDone; ++i) {
@@ -1128,11 +1118,8 @@ int main(int argc, char** argv) {
             if (is_exec_ptr(stateP)) {
                 typedef int (WN_THISCALL *GetAppInstallStateFn)(void* self, uint32_t app);
                 GetAppInstallStateFn getInstallState = (GetAppInstallStateFn) stateP;
-                // 2s ceiling — the launcher itself wrote StateFlags=4 into
-                // the .acf in stage_app_manifest, so RefreshAppInfo() above
-                // should already make this poll return FullyInstalled on the
-                // first iteration. The loop remains only to absorb a slow
-                // appmanifest re-parse on the steamclient side.
+                // 2s — stage_app_manifest already wrote StateFlags=4, so this
+                // usually returns FullyInstalled at once; loop absorbs a slow re-parse.
                 int st = 0;
                 for (int i = 0; i < 20; ++i) {
                     st = getInstallState(appMgr, appId);
@@ -1159,14 +1146,13 @@ int main(int argc, char** argv) {
     const char* exeName = strrchr(gameExe, '\\');
     exeName = exeName ? exeName + 1 : gameExe;
 
-    // Hand the game image name to the clean-shutdown module so its teardown can
-    // stop the game before logging off — that exit is what makes steamclient
-    // emit the games-played([]) reap, preventing AlreadyRunning on the next
-    // launch (the clean Steam_LogOff alone does not clear it).
+    // Teardown stops the game before logoff — that exit emits games-played([]),
+    // which reaps the session and prevents AlreadyRunning next launch (logoff
+    // alone doesn't clear it).
     wn_launcher_set_game_exe(exeName);
 
-    // Hand the cloud context to the teardown module and pull cloud saves + build
-    // the AutoCloud launch baseline now, so the exit upload has a reference to diff.
+    // Pull cloud saves + set the teardown cloud context now, so the exit upload
+    // has a baseline to diff.
     if (loggedOn && engine && appId != 0) {
         wn_launcher_set_cloud_context(engine, hUser, pipe, appId);
         wn_launcher_cloud_sync(engine, hUser, pipe, appId, 1, 0, 15000);
@@ -1195,8 +1181,8 @@ int main(int argc, char** argv) {
             // RefreshAppInfo() slot — re-primes appinfo between MissingConfig retries.
             void* refreshAppInfoP = appMgr_vt[kVtAppMgr_RefreshAppInfo / 8];
 
-            // A cold launch often sees 1-2 MissingConfig(9) before PICS appinfo lands;
-            // those retries are fast, so 5 attempts stays inside the 35s watchdog.
+            // Cold launch may see 1-2 fast MissingConfig(9) retries; 5 stays inside
+            // the 35s watchdog.
             const int kMaxLaunchAttempts = 5;
             for (int attempt = 1; attempt <= kMaxLaunchAttempts && !launchedViaApp; ++attempt) {
                 uint64_t apiCall = launchApp(appMgr, &gameId, 0, 300, "");
@@ -1304,9 +1290,8 @@ int main(int argc, char** argv) {
             }
 
             if (eAppError == 9 /* MissingConfig */) {
-                // Launch-config appinfo not landed yet — re-prime appinfo, let the
-                // fetch settle, then retry fast (nothing was launched). The "never
-                // appeared … retrying LaunchApp" wording disarms the Android watchdog.
+                // appinfo not landed — re-prime, settle, retry fast (nothing launched).
+                // "never appeared … retrying" wording disarms the Android watchdog.
                 if (is_exec_ptr(refreshAppInfoP)) {
                     typedef void (WN_THISCALL *RefreshAppInfoFn)(void* self);
                     ((RefreshAppInfoFn) refreshAppInfoP)(appMgr);
@@ -1323,8 +1308,8 @@ int main(int argc, char** argv) {
                     Sleep(100);
                 }
             } else if (eAppError > 0 /* a real error, e.g. AlreadyRunning(0x10) */) {
-                // Not retryable in-process (e.g. AlreadyRunning = a prior session's
-                // games-played still live server-side) — go straight to the fallback.
+                // Not retryable in-process (AlreadyRunning = prior session's
+                // games-played still live server-side) — go straight to fallback.
                 log_line("[wn-launcher] LaunchApp attempt %d/%d: \"%s\" never "
                          "appeared — EAppUpdateError=%d%s; not retryable in-process "
                          "— falling back", attempt, kMaxLaunchAttempts, exeName,
@@ -1338,9 +1323,8 @@ int main(int argc, char** argv) {
                     : "LaunchApp returned a non-NoError EAppUpdateError";
                 break;
             } else {
-                // NoError(0)/indeterminate(-1): launch accepted. Wait for the game
-                // WITHOUT re-dispatching — a second LaunchApp while one is pending
-                // cancels the in-flight spawn under Wine.
+                // NoError(0)/indeterminate(-1): accepted. Wait WITHOUT re-dispatching
+                // — a second LaunchApp while one is pending cancels the spawn (Wine).
                 const int kGameAppearLoops = 40;  // 40 * 500ms = 20s
                 log_line("[wn-launcher] LaunchApp dispatched (attempt %d/%d, "
                          "EAppUpdateError=%d); waiting up to %ds for \"%s\" to "
@@ -1348,7 +1332,7 @@ int main(int argc, char** argv) {
                          attempt, kMaxLaunchAttempts, eAppError,
                          kGameAppearLoops / 2, exeName);
                 for (int w = 0; w < kGameAppearLoops && !launchedViaApp; ++w) {
-                    if (count_process_by_name(exeName) > 0) {
+                    if (count_game_processes(exeName) > 0) {
                         launchedViaApp = true;
                         break;
                     }
@@ -1381,13 +1365,10 @@ int main(int argc, char** argv) {
         launchFailureReason = engine ? "appId was 0" : "IClientEngine was null";
     }
 
-    // Integrated LaunchApp didn't bring the game up — start it directly. The
-    // clean-shutdown arm above still sends a clean Steam_LogOff on close, so the
-    // direct launch no longer leaves the app stuck "running" (the root cause of
-    // the AlreadyRunning failure on the *next* launch). The log line below
-    // carries the "LaunchApp dispatched" + "never appeared" + "falling back to
-    // CreateProcess" markers the Android-side WnLauncherStatusTailer keys off to
-    // disarm its post-dispatch watchdog and show the direct-launch phase.
+    // LaunchApp didn't bring the game up — start it directly (clean-shutdown arm
+    // still reaps the session on exit, avoiding next-launch AlreadyRunning). The
+    // "LaunchApp dispatched … never appeared … falling back to CreateProcess"
+    // markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
     if (!launchedViaApp) {
         log_line("[wn-launcher] LaunchApp dispatched but \"%s\" never appeared "
                  "— falling back to CreateProcess (%s)",
@@ -1399,8 +1380,7 @@ int main(int argc, char** argv) {
         const char* path = launchedViaApp ? "LaunchApp path"
                                            : "CreateProcess fallback";
         log_line("[wn-launcher] watching \"%s\" for exit (%s)", exeName, path);
-        // Declare exit after 2 consecutive absent polls (~2s) — tolerates a brief
-        // gap while staying snappy (4 added ~4s of dead latency after quit).
+        // Declare exit after 2 consecutive absent polls (~2s) — tolerates a brief gap.
         int absent = 0;
         while (absent < 2) {
             Sleep(1000);
@@ -1408,15 +1388,13 @@ int main(int argc, char** argv) {
                 char cb[64];
                 while (bGetCallback(pipe, cb)) freeLastCallback(pipe);
             }
-            absent = (count_process_by_name(exeName) != 0) ? 0 : absent + 1;
+            absent = (count_game_processes(exeName) != 0) ? 0 : absent + 1;
         }
         log_line("[wn-launcher] game \"%s\" exited (%s)", exeName, path);
         if (cleanShutdownArmed) {
             wn_launcher_clean_shutdown_now("game-exit");
-            // If the Android close path's sentinel already kicked off teardown on
-            // the watcher thread, block here until it finishes so returning from
-            // main() doesn't terminate the process mid-reap (which would cut the
-            // games-played/logoff flush short and bring back AlreadyRunning).
+            // Block until teardown finishes so returning from main() doesn't kill
+            // the process mid-reap (cutting the logoff flush → AlreadyRunning).
             wn_launcher_wait_clean_shutdown(12000);
         }
         log_line("[wn-launcher] Steam Launcher shutdown");

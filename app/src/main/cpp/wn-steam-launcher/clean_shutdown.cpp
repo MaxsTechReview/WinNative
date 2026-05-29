@@ -9,18 +9,14 @@
 #include <thread>
 #include <vector>
 
-// The steamclient flat exports we drive on teardown — same signatures the
-// Android-side bootstrap resolves in steam_bootstrap.cpp. The ABI is the Valve
-// flat C entry-point ABI, identical across the Win64 steamclient64.dll and the
-// Android libsteamclient.so.
 namespace {
 
-using Steam_LogOff_fn = void (*)(int /*pipe*/, int /*user*/);
-using Steam_ReleaseUser_fn = void (*)(int /*pipe*/, int /*user*/);
-using Steam_BReleaseSteamPipe_fn = bool (*)(int /*pipe*/);
-using Steam_BLoggedOn_fn = bool (*)(int /*pipe*/, int /*user*/);
-using Steam_BGetCallback_fn = bool (*)(int /*pipe*/, void* /*cb*/);
-using Steam_FreeLastCallback_fn = void (*)(int /*pipe*/);
+using Steam_LogOff_fn = void (*)(int, int);
+using Steam_ReleaseUser_fn = void (*)(int, int);
+using Steam_BReleaseSteamPipe_fn = bool (*)(int);
+using Steam_BLoggedOn_fn = bool (*)(int, int);
+using Steam_BGetCallback_fn = bool (*)(int, void*);
+using Steam_FreeLastCallback_fn = void (*)(int);
 
 Steam_LogOff_fn g_logoff = nullptr;
 Steam_ReleaseUser_fn g_release_user = nullptr;
@@ -32,28 +28,18 @@ Steam_FreeLastCallback_fn g_freelastcallback = nullptr;
 int g_pipe = 0;
 int g_user = 0;
 char g_log_path[MAX_PATH] = {0};
-
-// The game executable name (e.g. "Balls.exe") the launcher started for this
-// session. On teardown we terminate it BEFORE logging off so steamclient sees
-// its launched app exit and emits the games-played([]) that reaps the
-// server-side "playing" registration — see the note in teardown().
 char g_game_exe[260] = {0};
 
-// Steam Cloud context for the teardown-time AutoCloud upload, set by main.cpp once
-// the IClientEngine is resolved. Valid until the steamclient pipe is released.
 void* g_cs_engine = nullptr;
 int g_cs_hUser = 0;
 int g_cs_hPipe = 0;
 unsigned int g_cs_appId = 0;
 
-// RE'd steamclient ABI: IClientEngine::GetIClientRemoteStorage = vtable +0xC0;
-// IClientRemoteStorage: GetSyncState +0x240, BeginAppSync +0x270, IsAppSyncInProgress +0x278.
 constexpr int kVtEngine_GetIClientRemoteStorage = 0xC0;
 constexpr int kVtRS_GetSyncState        = 0x240;
 constexpr int kVtRS_BeginAppSync        = 0x270;
 constexpr int kVtRS_IsAppSyncInProgress = 0x278;
 
-// VirtualQuery guard before calling a runtime-built vtable slot (offsets can shift between client builds).
 bool cs_is_exec_ptr(void* p) {
     if (!p) return false;
     MEMORY_BASIC_INFORMATION mbi;
@@ -64,9 +50,6 @@ bool cs_is_exec_ptr(void* p) {
            x == PAGE_EXECUTE_READWRITE || x == PAGE_EXECUTE_WRITECOPY;
 }
 
-// Terminate every running process whose image name matches exeName. Returns the
-// count terminated. Used so a steamclient that launched the game via
-// IClientAppManager::LaunchApp observes the exit and clears games-played.
 int kill_processes_by_name(const char* exeName) {
     if (!exeName || !exeName[0]) return 0;
     HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -76,7 +59,7 @@ int kill_processes_by_name(const char* exeName) {
     int killed = 0;
     if (::Process32First(snap, &pe)) {
         do {
-            if (_stricmp(pe.szExeFile, exeName) == 0) {
+            if (wn_game_image_matches(pe.szExeFile, exeName)) {
                 HANDLE h = ::OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
                 if (h) {
                     if (::TerminateProcess(h, 0)) killed++;
@@ -89,7 +72,6 @@ int kill_processes_by_name(const char* exeName) {
     return killed;
 }
 
-// Count running processes whose image name matches exeName.
 int count_processes_by_name(const char* exeName) {
     if (!exeName || !exeName[0]) return 0;
     HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -99,15 +81,13 @@ int count_processes_by_name(const char* exeName) {
     int n = 0;
     if (::Process32First(snap, &pe)) {
         do {
-            if (_stricmp(pe.szExeFile, exeName) == 0) n++;
+            if (wn_game_image_matches(pe.szExeFile, exeName)) n++;
         } while (::Process32Next(snap, &pe));
     }
     ::CloseHandle(snap);
     return n;
 }
 
-// PIDs of the game process(es), populated just before EnumWindows so the
-// enum callback (a plain WNDENUMPROC, no captures) can match windows to them.
 std::vector<DWORD> g_close_pids;
 
 BOOL CALLBACK close_enum_proc(HWND hwnd, LPARAM lp) {
@@ -115,10 +95,6 @@ BOOL CALLBACK close_enum_proc(HWND hwnd, LPARAM lp) {
     ::GetWindowThreadProcessId(hwnd, &pid);
     for (DWORD p : g_close_pids) {
         if (p == pid) {
-            // WM_CLOSE asks the app to quit gracefully (its window proc / engine
-            // runs its normal shutdown, including SteamAPI_Shutdown) instead of
-            // being SIGKILLed — which is what makes steamclient emit the
-            // games-played([]) reap.
             ::PostMessageA(hwnd, WM_CLOSE, 0, 0);
             break;
         }
@@ -126,8 +102,6 @@ BOOL CALLBACK close_enum_proc(HWND hwnd, LPARAM lp) {
     return TRUE;
 }
 
-// Ask the game to close gracefully by posting WM_CLOSE to all its top-level
-// windows. Returns the number of game processes targeted.
 int graceful_close_game(const char* exeName) {
     g_close_pids.clear();
     HANDLE snap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -136,7 +110,7 @@ int graceful_close_game(const char* exeName) {
         pe.dwSize = sizeof(pe);
         if (::Process32First(snap, &pe)) {
             do {
-                if (_stricmp(pe.szExeFile, exeName) == 0) {
+                if (wn_game_image_matches(pe.szExeFile, exeName)) {
                     g_close_pids.push_back(pe.th32ProcessID);
                 }
             } while (::Process32Next(snap, &pe));
@@ -149,10 +123,6 @@ int graceful_close_game(const char* exeName) {
     return (int) g_close_pids.size();
 }
 
-// When set by the host launcher, all markers go through this sink (the
-// launcher's single open log handle) instead of our own fopen — see the note in
-// clean_shutdown.h. Receives a fully-formed "[wn-launcher] ..." line (no
-// trailing newline; the sink adds it).
 void (*g_log_fn)(const char* line) = nullptr;
 
 std::atomic<bool> g_armed{false};
@@ -160,21 +130,16 @@ std::atomic<bool> g_done{false};
 std::atomic<bool> g_teardown_complete{false};
 std::atomic<bool> g_watch_run{false};
 
-// Windows path the Android close path writes; mirrors C:\wn-launcher.log so it
-// lands in the same Wine prefix drive_c the app reads back.
 constexpr const char* kSentinelPath = "C:\\wn-launcher.shutdown";
 
 void wn_log(const char* msg) {
     char line[512];
     std::snprintf(line, sizeof(line), "[wn-launcher] %s", msg);
-    // Preferred: route through the launcher's own logger so the marker lands in
-    // the same file at a consistent write position (a separate handle here gets
-    // clobbered by the launcher's next write).
+
     if (g_log_fn) {
         g_log_fn(line);
         return;
     }
-    // Standalone fallback: our own append handle.
     if (g_log_path[0] == '\0') return;
     FILE* f = std::fopen(g_log_path, "a");
     if (!f) return;
@@ -183,7 +148,6 @@ void wn_log(const char* msg) {
 }
 
 void teardown(const char* reason) {
-    // Run exactly once even if the ctrl handler and the watcher thread race.
     bool expected = false;
     if (!g_done.compare_exchange_strong(expected, true)) return;
 
@@ -193,17 +157,9 @@ void teardown(const char* reason) {
                   reason ? reason : "?", g_pipe, g_user);
     wn_log(buf);
 
-    // STEP 0 — close the game before logging off so this session ends cleanly and
-    // the account can go fully offline (the offline window is what lets Steam reap
-    // the games-played registration; see WN_PLANW_REAP_OFFLINE_MS on the Android
-    // side). On a natural game-exit the game is already gone, so this is skipped.
     if (g_game_exe[0] && g_pipe != 0) {
-        // WM_CLOSE first so the game runs SteamAPI_Shutdown (emits games-played([]));
-        // hard-kill only as a fallback if it ignores WM_CLOSE.
         int targeted = graceful_close_game(g_game_exe);
         if (targeted == 0) {
-            // Natural game-exit: game already gone (ran its own SteamAPI_Shutdown),
-            // so skip the wait + settle and go straight to logoff — keeps it snappy.
             wn_log("game already exited — skipping graceful-close wait");
         } else {
             std::snprintf(buf, sizeof(buf),
@@ -211,8 +167,6 @@ void teardown(const char* reason) {
                           "waiting for clean SteamAPI_Shutdown", g_game_exe, targeted);
             wn_log(buf);
 
-            // Force-close path only (game still running). The game exits on
-            // WM_CLOSE in ~2.8s, so 3s covers it before the hard-kill fallback.
             const int kMaxWaitMs = 3000;
             int waited = 0;
             while (waited < kMaxWaitMs && count_processes_by_name(g_game_exe) > 0) {
@@ -237,11 +191,9 @@ void teardown(const char* reason) {
                               g_game_exe, waited, killed);
                 wn_log(buf);
             }
-            // Brief settle to drain pending callbacks before logoff (the actual
-            // reap is time-based, handled by the Android offline window).
             if (g_bgetcallback && g_freelastcallback) {
                 char cb[64];
-                for (int i = 0; i < 4; ++i) {  // ~0.4s
+                for (int i = 0; i < 4; ++i) {
                     while (g_bgetcallback(g_pipe, cb)) g_freelastcallback(g_pipe);
                     ::Sleep(100);
                 }
@@ -252,25 +204,14 @@ void teardown(const char* reason) {
         }
     }
 
-    // Steam Cloud exit upload: the game is closed now, so drive the AutoCloud
-    // exit sync through steamclient before logging off — this is what actually
-    // pushes the save to the server in Steam Launcher mode.
     if (g_cs_engine && g_cs_appId != 0) {
         wn_launcher_cloud_sync(g_cs_engine, g_cs_hUser, g_cs_hPipe, g_cs_appId, 2, 4, 15000);
     }
 
-    // Reverse order of init, mirroring WnSteamBootstrap.nativeShutdown: log off
-    // the user (this is the CMsgClientLogOff that reaps the server session),
-    // release the user, then drop the pipe.
     if (g_logoff && g_user != 0 && g_pipe != 0) {
         g_logoff(g_pipe, g_user);
         wn_log("Steam_LogOff sent");
 
-        // Flush before releasing the pipe: Steam_LogOff only QUEUES the
-        // CMsgClientLogOff onto steamclient's CM thread, and releasing the pipe
-        // tears the socket down — release too early and the logoff never goes out.
-        // Poll Steam_BLoggedOn as the flush signal; a short wait is enough (the
-        // reap itself is time-based, handled by the Android offline window).
         const int kMinMs = 300, kMaxMs = 700, kStepMs = 100;
         int waited = 0;
         bool loggedOff = false;
@@ -299,13 +240,8 @@ void teardown(const char* reason) {
 
     wn_log("clean logoff complete");
 
-    // Remove the sentinel so a stale file can't immediately re-trigger.
     ::DeleteFileA(kSentinelPath);
 
-    // Signal any thread blocked in wn_launcher_wait_clean_shutdown() that the
-    // reap + logoff fully completed. main() waits on this after its game-watch
-    // loop so it does not return (and exit the process) while the sentinel
-    // watcher thread is still mid-teardown.
     g_teardown_complete.store(true);
 }
 
@@ -328,8 +264,6 @@ void watch_loop() {
         if (::GetFileAttributesA(kSentinelPath) != INVALID_FILE_ATTRIBUTES) {
             teardown("sentinel");
             g_watch_run.store(false);
-            // End the process so the Android side sees steam.exe disappear and
-            // can stop waiting on the handshake.
             ::ExitProcess(0);
             return;
         }
@@ -337,7 +271,7 @@ void watch_loop() {
     }
 }
 
-}  // namespace
+}
 
 extern "C" void wn_launcher_set_log_sink(void (*log_fn)(const char* line)) {
     g_log_fn = log_fn;
@@ -354,7 +288,7 @@ extern "C" void wn_launcher_set_game_exe(const char* exeName) {
 extern "C" void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe,
                                                int user, const char* logPath) {
     bool expected = false;
-    if (!g_armed.compare_exchange_strong(expected, true)) return;  // arm once
+    if (!g_armed.compare_exchange_strong(expected, true)) return;
 
     g_pipe = pipe;
     g_user = user;
@@ -390,7 +324,6 @@ extern "C" void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe,
 
     ::SetConsoleCtrlHandler(ctrl_handler, TRUE);
 
-    // Clear any stale sentinel left by a previous session before we watch.
     ::DeleteFileA(kSentinelPath);
 
     g_watch_run.store(true);
@@ -453,7 +386,6 @@ extern "C" int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
         std::snprintf(buf, sizeof(buf),
             "[wn-launcher] cloud: sync settled (state=%d after %dms)", finalState, waited);
         wn_log(buf);
-        // 1=Synchronized, 0=Disabled, 6=Conflict (never auto-resolve) → done; 2/3/4/5 → retry.
         if (finalState == 1 || finalState == 0 || finalState == 6) break;
     }
     if (finalState == 6) {
@@ -467,8 +399,6 @@ extern "C" void wn_launcher_clean_shutdown_now(const char* reason) {
 }
 
 extern "C" void wn_launcher_wait_clean_shutdown(int maxMs) {
-    // Only block if a teardown is actually in flight (g_done set) but not yet
-    // finished. If teardown never started, return immediately.
     int waited = 0;
     while (g_done.load() && !g_teardown_complete.load() && waited < maxMs) {
         ::Sleep(50);
