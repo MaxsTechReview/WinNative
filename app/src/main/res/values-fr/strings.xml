@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Désactiver Xinput (pour contrôle exclusif clavier/souris)</string>
     <string name="shortcuts_properties_exclusive_input">Entrée exclusive</string>
     <string name="shortcuts_properties_custom_game_settings">Paramètres de jeu personnalisés</string>
-    <string name="shortcuts_properties_use_cold_client">Utiliser ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Mode d\'émulation Steam pour les jeux Steam — gère le DRM, les succès et les DLC. Recommandé pour tous les jeux Steam.</string>
-    <string name="shortcuts_properties_unpack_files">DRM hérité</string>
-    <string name="shortcuts_properties_unpack_files_description">Supprime le DRM SteamStub de l\'exe. Opération unique. Désactivez seulement si un jeu ne fonctionne plus.</string>
-    <string name="shortcuts_properties_force_dlc">Forcer les DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Activez si les DLC ne sont pas détectés ou si les sauvegardes avec DLC ne fonctionnent pas.</string>
-    <string name="steam_section_emulator">Émulateur Steam (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Utiliser Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Mode hors ligne Steam</string>
     <string name="shortcuts_properties_reset">Réinitialiser les propriétés</string>
@@ -1233,7 +1226,7 @@ Chemin installé :
     <string name="shortcuts_library_artwork_title">Illustrations de la bibliothèque</string>
     <string name="shortcuts_list_readded_existing">Raccourci existant rajouté</string>
     <string name="shortcuts_properties_runtime_patcher">Correcteur DRM d\'exécution</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injecte un DLL de correction DRM au lancement. Réduit les FPS — à utiliser seulement si Unpack Files seul échoue.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injecte un DLL de correction DRM au lancement. Réduit les FPS — à utiliser seulement si le lanceur hérité seul échoue.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Sélectionner le dossier de sauvegarde</string>
     <string name="cloud_saves_custom_folder_label">Dossier de sauvegarde</string>
@@ -1260,5 +1253,34 @@ Chemin installé :
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">ID d’application invalide</string>
     <string name="cloud_saves_label_saved">Libellé enregistré</string>
+    <string name="downloads_queue_cancel_all_title">Annuler tous les téléchargements ?</string>
+    <string name="downloads_queue_cancel_all_warning">Annuler des téléchargements de DLC, jeux ou mises à jour peut potentiellement corrompre vos installations de jeux.\n\nVoulez-vous vraiment annuler tous les téléchargements et supprimer les fichiers déjà téléchargés ?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Utiliser le lanceur hérité</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Émulation Steam héritée : lance le jeu via le lanceur ColdClient et retire le DRM SteamStub de l\'exe. À utiliser uniquement pour les anciens jeux qui ne fonctionnent pas avec Steam Launcher.</string>
+    <string name="steam_section_real_client">Client Steam réel WinNative</string>
+    <string name="steam_section_emulator">Émulateur Steam hérité</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Force le client Steam émulé à se signaler hors ligne afin que le jeu ne tente pas de connexions en ligne. À utiliser pour les jeux qui restent bloqués sur la vérification réseau de Steam.</string>
+    <string name="input_controls_select_style">Sélectionner le style</string>
+    <string name="input_controls_select_label_theme">Étiquettes des boutons</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Profil intégré : une copie modifiable a été créée.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Réinitialiser ce profil à sa disposition d\'origine ? Toutes vos modifications seront perdues.</string>
+    <string name="input_controls_editor_profile_reset">Profil réinitialisé à sa disposition d\'origine.</string>
+    <string name="input_controls_editor_reset_unavailable">Aucun instantané d\'origine n\'est disponible pour ce profil.</string>
+    <string name="container_graphics_compositor_present_mode">Synchronisation d\'affichage Vulkan</string>
+    <string name="cloud_sync_disable_title">Désactiver les sauvegardes cloud</string>
+    <string name="cloud_saves_steam_push_label">Envoyer vers Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Forcer l\'envoi de la sauvegarde locale</string>
+    <string name="cloud_saves_steam_push_success">Sauvegarde envoyée vers Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Impossible d\'envoyer la sauvegarde vers Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud est inaccessible pour le moment. Reconnexion en arrière-plan… touchez Actualiser une fois de nouveau en ligne.</string>
+    <string name="steam_session_refused_event">Steam a refusé la session en cache (EResult=%1$d). Veuillez vous reconnecter.</string>
+    <string name="settings_hud_record_to_file_title">Enregistrer les performances dans un fichier</string>
+    <string name="settings_hud_record_to_file_summary">Écrit chaque seconde les métriques FPS, CPU, GPU, température et batterie dans /WinNative/logs/ pendant le jeu.</string>
+    <string name="settings_leaderboard_category">Performances</string>
 </resources>
 

@@ -314,16 +314,9 @@
     <string name="num_controllers">Количество контроллеров</string>
     <string name="shortcuts_properties_exclusive_input">Эксклюзивный ввод</string>
     <string name="shortcuts_properties_custom_game_settings">Пользовательские настройки игры</string>
-    <string name="shortcuts_properties_use_cold_client">Использовать лаунчер ColdClient</string>
-    <string name="shortcuts_properties_use_cold_client_description">Режим эмуляции Steam для игр Steam — обрабатывает DRM, достижения и DLC. Рекомендуется для всех игр Steam.</string>
-    <string name="shortcuts_properties_unpack_files">Распаковать файлы</string>
-    <string name="shortcuts_properties_unpack_files_description">Удаляет SteamStub DRM из exe. Одноразовая операция. Отключайте только если игра перестала работать.</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM-патчер</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Внедряет DLL DRM-патчера при запуске. Снижает FPS — используйте только если распаковка файлов не помогает.</string>
-    <string name="shortcuts_properties_force_dlc">Принудительно включить DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Включите, если DLC не обнаруживаются или сохранения DLC не работают.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Внедряет DLL DRM-патчера при запуске. Снижает FPS — используйте только если один устаревший лаунчер не помогает.</string>
     <string name="steam_section_title">Steam</string>
-    <string name="steam_section_emulator">Эмулятор Steam (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Использовать Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Сбросить свойства</string>
@@ -1182,4 +1175,18 @@
     <string name="saves_export_warning_title">Используйте только для пользовательских игр</string>
     <string name="saves_export_warning_body">Экспорт может включать сохранения из игр, установленных из магазинов, или игр с облачной синхронизацией.</string>
     <string name="common_ui_exporting">Экспорт…</string>
+    <string name="downloads_queue_cancel_download_confirm">Отменить загрузку %1$s и удалить все скачанные файлы?</string>
+    <string name="downloads_queue_this_game">эта игра</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Использовать устаревший лаунчер</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Устаревшая эмуляция Steam: запускает игру через лаунчер ColdClient и удаляет SteamStub DRM из exe. Используйте только для старых игр, которые не работают со Steam Launcher.</string>
+    <string name="steam_section_real_client">Настоящий клиент Steam WinNative</string>
+    <string name="steam_section_emulator">Устаревший эмулятор Steam</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Заставляет эмулируемый клиент Steam сообщать, что он офлайн, чтобы игра не пыталась подключаться к сети. Используйте для игр, которые зависают на сетевой проверке Steam.</string>
+    <string name="cloud_sync_disable_title">Отключить облачные сохранения</string>
+    <string name="cloud_saves_steam_push_label">Отправить в Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Принудительно загрузить локальное сохранение</string>
+    <string name="cloud_saves_steam_push_success">Сохранение отправлено в Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Не удалось отправить сохранение в Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud сейчас недоступен. Повторное подключение выполняется в фоне… нажмите обновить, когда снова будете онлайн.</string>
+    <string name="steam_session_refused_event">Steam отклонил кэшированную сессию (EResult=%1$d). Войдите снова.</string>
 </resources>

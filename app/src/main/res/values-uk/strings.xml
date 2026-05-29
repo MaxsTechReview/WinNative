@@ -291,13 +291,6 @@
     <string name="shortcuts_properties_disable_xinput">Вимкнути XInput (для ексклюзивного керування миша/клавіатура)</string>
     <string name="shortcuts_properties_exclusive_input">Ексклюзивне введення</string>
     <string name="shortcuts_properties_custom_game_settings">Користувацькі налаштування гри</string>
-    <string name="shortcuts_properties_use_cold_client">Використовувати ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Режим емуляції Steam для ігор Steam — обробляє DRM, досягнення та DLC. Рекомендовано для всіх ігор Steam.</string>
-    <string name="shortcuts_properties_unpack_files">Застарілий DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Видаляє SteamStub DRM з exe. Одноразова операція. Вимикайте лише якщо гра перестає працювати.</string>
-    <string name="shortcuts_properties_force_dlc">Примусово увімкнути DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Увімкніть, якщо DLC не виявлено або збереження з DLC не працюють.</string>
-    <string name="steam_section_emulator">Емулятор Steam (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Використовувати Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Скинути властивості</string>
@@ -1239,7 +1232,7 @@
     <string name="shortcuts_library_artwork_title">Зображення бібліотеки</string>
     <string name="shortcuts_list_readded_existing">Повторно додано наявний ярлик</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Вставляє DLL DRM-патчера під час запуску. Знижує FPS — використовуйте лише якщо Unpack Files сам не допомагає.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Вставляє DLL DRM-патчера під час запуску. Знижує FPS — використовуйте лише якщо сам застарілий лаунчер не допомагає.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Вибрати папку збережень</string>
     <string name="cloud_saves_custom_folder_label">Папка збережень</string>
@@ -1266,5 +1259,34 @@
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">Недійсний ID застосунку</string>
     <string name="cloud_saves_label_saved">Мітку збережено</string>
+    <string name="downloads_queue_cancel_all_title">Скасувати всі завантаження?</string>
+    <string name="downloads_queue_cancel_all_warning">Скасування завантажень DLC, гри або оновлення може пошкодити встановлені ігри.\n\nСправді скасувати всі завантаження й видалити вже завантажені файли?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Використовувати застарілий лаунчер</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Застаріла емуляція Steam: запускає гру через лаунчер ColdClient і видаляє SteamStub DRM з exe. Використовуйте лише для старих ігор, які не працюють зі Steam Launcher.</string>
+    <string name="steam_section_real_client">Справжній клієнт Steam WinNative</string>
+    <string name="steam_section_emulator">Застарілий емулятор Steam</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Змушує емульований клієнт Steam повідомляти, що він офлайн, щоб гра не намагалася підключатися до мережі. Використовуйте для ігор, які зависають на мережевій перевірці Steam.</string>
+    <string name="input_controls_select_style">Виберіть стиль</string>
+    <string name="input_controls_select_label_theme">Мітки кнопок</string>
+    <string name="input_controls_style_original">Оригінальний</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Оригінальний</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Вбудований профіль — створено копію, яку можна редагувати.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Скинути цей профіль до початкового макета? Усі внесені зміни буде втрачено.</string>
+    <string name="input_controls_editor_profile_reset">Профіль скинуто до початкового макета.</string>
+    <string name="input_controls_editor_reset_unavailable">Для цього профілю немає початкового знімка.</string>
+    <string name="container_graphics_compositor_present_mode">Синхронізація дисплея Vulkan</string>
+    <string name="cloud_sync_disable_title">Вимкнути хмарні збереження</string>
+    <string name="cloud_saves_steam_push_label">Надіслати до Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Примусово завантажити локальне збереження</string>
+    <string name="cloud_saves_steam_push_success">Збереження надіслано до Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Не вдалося надіслати збереження до Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud зараз недоступний. Повторне підключення виконується у фоні… натисніть оновити, коли знову будете онлайн.</string>
+    <string name="steam_session_refused_event">Steam відхилив кешований сеанс (EResult=%1$d). Увійдіть знову.</string>
+    <string name="settings_hud_record_to_file_title">Записувати продуктивність у файл</string>
+    <string name="settings_hud_record_to_file_summary">Записує щосекундні показники FPS, CPU, GPU, температури й батареї до /WinNative/logs/ під час гри.</string>
+    <string name="settings_leaderboard_category">Продуктивність</string>
 </resources>
 

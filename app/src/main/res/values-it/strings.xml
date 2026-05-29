@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Disabilita Xinput (per controllo esclusivo M/T)</string>
     <string name="shortcuts_properties_exclusive_input">Input esclusivo</string>
     <string name="shortcuts_properties_custom_game_settings">Impostazioni di gioco personalizzate</string>
-    <string name="shortcuts_properties_use_cold_client">Usa ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Modalità di emulazione Steam per i giochi Steam — gestisce DRM, achievement e DLC. Consigliata per tutti i giochi Steam.</string>
-    <string name="shortcuts_properties_unpack_files">DRM legacy</string>
-    <string name="shortcuts_properties_unpack_files_description">Rimuove il DRM SteamStub dall\'exe. Operazione unica. Disattiva solo se un gioco si rompe.</string>
-    <string name="shortcuts_properties_force_dlc">Forza DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Abilita se i DLC non vengono rilevati o i salvataggi con DLC non funzionano.</string>
-    <string name="steam_section_emulator">Emulatore Steam (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Usa Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Modalità offline Steam</string>
     <string name="shortcuts_properties_reset">Ripristina proprietà</string>
@@ -1233,7 +1226,7 @@ Percorso installato:
     <string name="shortcuts_library_artwork_title">Immagini della libreria</string>
     <string name="shortcuts_list_readded_existing">Collegamento esistente riaggiunto</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Inietta una DLL patcher DRM all\'avvio. Riduce gli FPS — usala solo se Unpack Files da solo non riesce.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Inietta una DLL patcher DRM all\'avvio. Riduce gli FPS — usala solo se il Legacy Launcher da solo non riesce.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Seleziona cartella salvataggi</string>
     <string name="cloud_saves_custom_folder_label">Cartella salvataggi</string>
@@ -1260,5 +1253,34 @@ Percorso installato:
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">ID app non valido</string>
     <string name="cloud_saves_label_saved">Etichetta salvata</string>
+    <string name="downloads_queue_cancel_all_title">Annullare tutti i download?</string>
+    <string name="downloads_queue_cancel_all_warning">Annullare download di DLC, giochi o aggiornamenti può potenzialmente corrompere le installazioni dei giochi.\n\nVuoi davvero annullare tutti i download ed eliminare i file scaricati finora?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Usa launcher legacy</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Emulazione Steam legacy: esegue il gioco tramite il launcher ColdClient e rimuove SteamStub DRM dall\'exe. Usa solo per giochi più vecchi che non funzionano con Steam Launcher.</string>
+    <string name="steam_section_real_client">Client Steam reale WinNative</string>
+    <string name="steam_section_emulator">Emulatore Steam legacy</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Fa sì che il client Steam emulato risulti offline, così il gioco non tenterà connessioni online. Usa per i giochi che si bloccano durante il controllo di rete di Steam.</string>
+    <string name="input_controls_select_style">Seleziona stile</string>
+    <string name="input_controls_select_label_theme">Etichette pulsanti</string>
+    <string name="input_controls_style_original">Originale</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Originale</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Profilo integrato: è stata creata una copia modificabile.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Ripristinare questo profilo al layout originale? Tutte le modifiche apportate andranno perse.</string>
+    <string name="input_controls_editor_profile_reset">Profilo ripristinato al layout originale.</string>
+    <string name="input_controls_editor_reset_unavailable">Nessuno snapshot originale disponibile per questo profilo.</string>
+    <string name="container_graphics_compositor_present_mode">Sincronizzazione display Vulkan</string>
+    <string name="cloud_sync_disable_title">Disattiva salvataggi cloud</string>
+    <string name="cloud_saves_steam_push_label">Invia a Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Forza upload del salvataggio locale</string>
+    <string name="cloud_saves_steam_push_success">Salvataggio inviato a Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Impossibile inviare il salvataggio a Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud non è raggiungibile al momento. Riconnessione in background… tocca aggiorna quando torni online.</string>
+    <string name="steam_session_refused_event">Steam ha rifiutato la sessione in cache (EResult=%1$d). Accedi di nuovo.</string>
+    <string name="settings_hud_record_to_file_title">Registra prestazioni su file</string>
+    <string name="settings_hud_record_to_file_summary">Scrive ogni secondo metriche FPS, CPU, GPU, temperatura e batteria in /WinNative/logs/ durante il gioco.</string>
+    <string name="settings_leaderboard_category">Prestazioni</string>
 </resources>
 

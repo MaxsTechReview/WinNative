@@ -303,16 +303,9 @@
     <string name="num_controllers">कंट्रोलरों की संख्या</string>
     <string name="shortcuts_properties_exclusive_input">विशेष इनपुट</string>
     <string name="shortcuts_properties_custom_game_settings">कस्टम गेम सेटिंग्स</string>
-    <string name="shortcuts_properties_use_cold_client">ColdClient लॉन्चर उपयोग करें</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam गेम्स के लिए Steam इम्यूलेशन मोड - DRM, उपलब्धियों और DLC को संभालता है। सभी Steam गेम्स के लिए अनुशंसित।</string>
-    <string name="shortcuts_properties_unpack_files">फ़ाइलें अनपैक करें</string>
-    <string name="shortcuts_properties_unpack_files_description">Exe से SteamStub DRM स्ट्रिप्स। एक बार का ऑपरेशन. गेम टूटने पर ही अक्षम करें.</string>
     <string name="shortcuts_properties_runtime_patcher">रनटाइम DRM पैचर</string>
-    <string name="shortcuts_properties_runtime_patcher_description">लॉन्च के समय एक DRM पैचर DLL इंजेक्ट करता है। FPS को कम करता है - केवल तभी उपयोग करें जब फ़ाइलें अनपैक करना विफल हो जाए।</string>
-    <string name="shortcuts_properties_force_dlc">DLC बाध्य करें</string>
-    <string name="shortcuts_properties_force_dlc_description">यदि DLCs का पता नहीं चलता है या DLC सेव काम नहीं करता है तो सक्षम करें।</string>
+    <string name="shortcuts_properties_runtime_patcher_description">लॉन्च के समय DRM पैचर DLL इंजेक्ट करता है। FPS कम करता है - केवल तब उपयोग करें जब Legacy Launcher अकेले विफल हो।</string>
     <string name="steam_section_title">Steam</string>
-    <string name="steam_section_emulator">Steam एम्यूलेटर (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Steam Input उपयोग करें</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam ऑफ़लाइन मोड</string>
     <string name="shortcuts_properties_reset">गुण रीसेट करें</string>
@@ -1213,4 +1206,18 @@
     <string name="saves_export_warning_title">इसे केवल कस्टम गेम के साथ उपयोग करें</string>
     <string name="saves_export_warning_body">निर्यात में स्टोर से इंस्टॉल किए गए या क्लाउड-सिंक गेम के सेव शामिल हो सकते हैं।</string>
     <string name="common_ui_exporting">निर्यात हो रहा है…</string>
+    <string name="downloads_queue_cancel_download_confirm">%1$s का डाउनलोड रद्द करें और सभी डाउनलोड की गई फ़ाइलें हटाएँ?</string>
+    <string name="downloads_queue_this_game">यह गेम</string>
+    <string name="shortcuts_properties_use_legacy_launcher">लेगेसी लॉन्चर का उपयोग करें</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">लेगेसी Steam एम्यूलेशन: गेम को ColdClient लॉन्चर के माध्यम से चलाता है और exe से SteamStub DRM हटाता है। केवल पुराने गेम के लिए उपयोग करें जो Steam Launcher के साथ काम नहीं करते।</string>
+    <string name="steam_section_real_client">WinNative वास्तविक Steam क्लाइंट</string>
+    <string name="steam_section_emulator">लेगेसी Steam एम्यूलेटर</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">एम्यूलेटेड Steam क्लाइंट को ऑफ़लाइन रिपोर्ट कराता है, ताकि गेम ऑनलाइन कनेक्शन का प्रयास न करे। उन गेम के लिए उपयोग करें जो Steam की नेटवर्क जाँच पर अटक जाते हैं।</string>
+    <string name="cloud_sync_disable_title">क्लाउड सेव अक्षम करें</string>
+    <string name="cloud_saves_steam_push_label">Steam Cloud पर भेजें</string>
+    <string name="cloud_saves_steam_push_helper">स्थानीय सेव को जबरन अपलोड करें</string>
+    <string name="cloud_saves_steam_push_success">सेव Steam Cloud पर भेज दिया गया।</string>
+    <string name="cloud_saves_steam_push_failed">सेव Steam Cloud पर नहीं भेजा जा सका।</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud अभी पहुँच योग्य नहीं है। पृष्ठभूमि में फिर से कनेक्ट हो रहा है… ऑनलाइन वापस आने पर रीफ़्रेश टैप करें।</string>
+    <string name="steam_session_refused_event">Steam ने कैश किए गए सत्र को अस्वीकार कर दिया (EResult=%1$d)। कृपया फिर से साइन इन करें।</string>
 </resources>

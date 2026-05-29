@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Deaktiver XInput (For eksklusiv M/KB-styring)</string>
     <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
     <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
-    <string name="shortcuts_properties_use_cold_client">Brug ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam-emuleringstilstanden for Steam-spil — håndterer DRM, præstationer og DLC. Anbefales til alle Steam-spil.</string>
-    <string name="shortcuts_properties_unpack_files">Ældre DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Fjerner SteamStub DRM fra exe-filen. Engangshandling. Deaktiver kun hvis et spil går i stykker.</string>
-    <string name="shortcuts_properties_force_dlc">Tving DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Aktiver hvis DLC\'er ikke bliver fundet, eller gemmedata med DLC ikke virker.</string>
-    <string name="steam_section_emulator">Steam-emulator (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Brug Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam offlinetilstand</string>
     <string name="shortcuts_properties_reset">Nulstil egenskaber</string>
@@ -1233,7 +1226,7 @@ Installeret sti:
     <string name="shortcuts_library_artwork_title">Biblioteksbilleder</string>
     <string name="shortcuts_list_readded_existing">Eksisterende genvej genføjet</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injicerer en DRM-patcher-DLL ved opstart. Reducerer FPS – brug kun hvis Udpak filer alene fejler.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injicerer en DRM-patcher-DLL ved opstart. Reducerer FPS – brug kun hvis Legacy Launcher alene fejler.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Vælg mappe til gemte spil</string>
     <string name="cloud_saves_custom_folder_label">Mappe til gemte spil</string>
@@ -1260,4 +1253,33 @@ Installeret sti:
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">Ugyldigt app-id</string>
     <string name="cloud_saves_label_saved">Etiket gemt</string>
+    <string name="downloads_queue_cancel_all_title">Annuller alle downloads?</string>
+    <string name="downloads_queue_cancel_all_warning">Annullering af DLC-, spil- eller opdateringsdownloads kan potentielt beskadige dine spilinstallationer.\n\nEr du sikker på, at du vil annullere alle downloads og slette de filer, der er downloadet indtil nu?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Brug Legacy Launcher</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Ældre Steam-emulering: kører spillet gennem ColdClient-launcheren og fjerner SteamStub DRM fra exe-filen. Brug kun til ældre spil, der ikke virker med Steam Launcher.</string>
+    <string name="steam_section_real_client">WinNative ægte Steam-klient</string>
+    <string name="steam_section_emulator">Ældre Steam-emulator</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Får den emulerede Steam-klient til at melde sig offline, så spillet ikke forsøger onlineforbindelser. Bruges til spil, der hænger ved Steams netværkstjek.</string>
+    <string name="input_controls_select_style">Vælg stil</string>
+    <string name="input_controls_select_label_theme">Knapetiketter</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Indbygget profil - oprettede en kopi, du kan redigere.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Nulstil denne profil til dens oprindelige layout? Alle ændringer, du har lavet, går tabt.</string>
+    <string name="input_controls_editor_profile_reset">Profil nulstillet til dens oprindelige layout.</string>
+    <string name="input_controls_editor_reset_unavailable">Intet oprindeligt snapshot er tilgængeligt for denne profil.</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan-skærmsynkronisering</string>
+    <string name="cloud_sync_disable_title">Deaktiver cloud-gemte spil</string>
+    <string name="cloud_saves_steam_push_label">Upload til Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Tving upload af lokalt gemt spil</string>
+    <string name="cloud_saves_steam_push_success">Gemt spil uploadet til Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Kunne ikke uploade gemt spil til Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden… tryk opdater, når du er online igen.</string>
+    <string name="steam_session_refused_event">Steam afviste den cachede session (EResult=%1$d). Log ind igen.</string>
+    <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
+    <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
+    <string name="settings_leaderboard_category">Ydeevne</string>
 </resources>

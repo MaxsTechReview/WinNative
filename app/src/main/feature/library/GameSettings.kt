@@ -327,11 +327,11 @@ class GameSettingsStateHolder {
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
     val steamLauncher = mutableStateOf(true)
-    val useColdClient = mutableStateOf(false)
+    // Single toggle that drives both the ColdClient launcher and SteamStub DRM
+    // unpacking (persisted as the "useColdClient" + "unpackFiles" keys).
+    val useLegacyLauncher = mutableStateOf(false)
     val useSteamInput = mutableStateOf(false)
-    val forceDlc = mutableStateOf(false)
     val steamOfflineMode = mutableStateOf(false)
-    val unpackFiles = mutableStateOf(false)
     val runtimePatcher = mutableStateOf(false)
 
     // Components
@@ -1880,14 +1880,14 @@ private fun SteamSection(state: GameSettingsStateHolder) {
     val onSteamLauncherChange: (Boolean) -> Unit = { enabled ->
         state.steamLauncher.value = enabled
         if (enabled) {
-            state.useColdClient.value = false
-            state.unpackFiles.value = false
+            state.useLegacyLauncher.value = false
             state.runtimePatcher.value = false
-            state.forceDlc.value = false
             state.steamOfflineMode.value = false
         }
     }
 
+    SubsectionLabel(stringResource(R.string.steam_section_real_client))
+    Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingCheckbox(
             label = "Steam Launcher",
@@ -1909,10 +1909,10 @@ private fun SteamSection(state: GameSettingsStateHolder) {
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_use_cold_client),
-            checked = state.useColdClient.value,
+            label = stringResource(R.string.shortcuts_properties_use_legacy_launcher),
+            checked = state.useLegacyLauncher.value,
             onCheckedChange = {
-                state.useColdClient.value = it
+                state.useLegacyLauncher.value = it
                 if (it) {
                     state.steamLauncher.value = false
                 }
@@ -1920,13 +1920,15 @@ private fun SteamSection(state: GameSettingsStateHolder) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            stringResource(R.string.shortcuts_properties_use_cold_client_description),
+            stringResource(R.string.shortcuts_properties_use_legacy_launcher_description),
             color = TextDim,
             fontSize = 11.sp,
             lineHeight = 16.sp
         )
         Spacer(Modifier.height(SettingItemGap))
 
+        // Use Steam Input — hidden in the UI for now (state/persistence kept intact).
+        /*
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_use_steam_input),
             checked = state.useSteamInput.value,
@@ -1936,23 +1938,7 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             }
         )
         Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_force_dlc),
-            checked = state.forceDlc.value,
-            onCheckedChange = {
-                state.forceDlc.value = it
-                if (it) state.steamLauncher.value = false
-            }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.shortcuts_properties_force_dlc_description),
-            color = TextDim,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
-        Spacer(Modifier.height(SettingItemGap))
+        */
 
         SettingCheckbox(
             label = stringResource(R.string.shortcuts_properties_steam_offline_mode),
@@ -1960,26 +1946,16 @@ private fun SteamSection(state: GameSettingsStateHolder) {
             onCheckedChange = {
                 state.steamOfflineMode.value = it
                 if (it) state.steamLauncher.value = false
-            }
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_unpack_files),
-            checked = state.unpackFiles.value,
-            onCheckedChange = {
-                state.unpackFiles.value = it
-                if (it) {
-                    state.steamLauncher.value = false
-                }
-            }
+            },
+            enabled = state.useLegacyLauncher.value
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            stringResource(R.string.shortcuts_properties_unpack_files_description),
+            stringResource(R.string.shortcuts_properties_steam_offline_mode_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
+            modifier = Modifier.alpha(if (state.useLegacyLauncher.value) 1f else 0.4f)
         )
         Spacer(Modifier.height(SettingItemGap))
 
@@ -1991,14 +1967,16 @@ private fun SteamSection(state: GameSettingsStateHolder) {
                 if (it) {
                     state.steamLauncher.value = false
                 }
-            }
+            },
+            enabled = state.useLegacyLauncher.value
         )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.shortcuts_properties_runtime_patcher_description),
             color = TextDim,
             fontSize = 11.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
+            modifier = Modifier.alpha(if (state.useLegacyLauncher.value) 1f else 0.4f)
         )
     }
 }

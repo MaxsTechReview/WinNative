@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">XInput 비활성화 (마우스/키보드 전용 제어)</string>
     <string name="shortcuts_properties_exclusive_input">전용 입력</string>
     <string name="shortcuts_properties_custom_game_settings">사용자 지정 게임 설정</string>
-    <string name="shortcuts_properties_use_cold_client">ColdClient Launcher 사용</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam 게임용 Steam 에뮬레이션 모드입니다 — DRM, 도전 과제 및 DLC를 처리합니다. 모든 Steam 게임에 권장됩니다.</string>
-    <string name="shortcuts_properties_unpack_files">레거시 DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">exe에서 SteamStub DRM을 제거합니다. 한 번만 수행됩니다. 게임에 문제가 생길 때만 비활성화하세요.</string>
-    <string name="shortcuts_properties_force_dlc">DLC 강제 적용</string>
-    <string name="shortcuts_properties_force_dlc_description">DLC가 감지되지 않거나 DLC 저장 데이터가 작동하지 않을 때 활성화하세요.</string>
-    <string name="steam_section_emulator">Steam 에뮬레이터 (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Steam 입력 사용</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 오프라인 모드</string>
     <string name="shortcuts_properties_reset">속성 초기화</string>
@@ -1234,7 +1227,7 @@
     <string name="shortcuts_library_artwork_title">라이브러리 아트워크</string>
     <string name="shortcuts_list_readded_existing">기존 바로가기를 다시 추가했습니다</string>
     <string name="shortcuts_properties_runtime_patcher">런타임 DRM 패처</string>
-    <string name="shortcuts_properties_runtime_patcher_description">실행 시 DRM 패처 DLL을 주입합니다. FPS가 저하되므로 Unpack Files만으로 실패할 때만 사용하세요.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">실행 시 DRM 패처 DLL을 주입합니다. FPS가 저하되므로 Legacy Launcher만으로 실패할 때만 사용하세요.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">저장 폴더 선택</string>
     <string name="cloud_saves_custom_folder_label">저장 폴더</string>
@@ -1261,5 +1254,34 @@
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">잘못된 앱 ID</string>
     <string name="cloud_saves_label_saved">라벨이 저장되었습니다</string>
+    <string name="downloads_queue_cancel_all_title">모든 다운로드를 취소할까요?</string>
+    <string name="downloads_queue_cancel_all_warning">DLC, 게임 또는 업데이트 다운로드를 취소하면 게임 설치가 손상될 수 있습니다.\n\n모든 다운로드를 취소하고 지금까지 다운로드한 파일을 삭제할까요?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Legacy Launcher 사용</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Legacy Steam 에뮬레이션: ColdClient 런처로 게임을 실행하고 exe에서 SteamStub DRM을 제거합니다. Steam Launcher에서 작동하지 않는 오래된 게임에만 사용하세요.</string>
+    <string name="steam_section_real_client">WinNative 실제 Steam 클라이언트</string>
+    <string name="steam_section_emulator">레거시 Steam 에뮬레이터</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">에뮬레이트된 Steam 클라이언트가 오프라인으로 표시되게 하여 게임이 온라인 연결을 시도하지 않도록 합니다. Steam 네트워크 확인에서 멈추는 게임에 사용하세요.</string>
+    <string name="input_controls_select_style">스타일 선택</string>
+    <string name="input_controls_select_label_theme">버튼 레이블</string>
+    <string name="input_controls_style_original">원본</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">원본</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">기본 제공 프로필입니다. 편집할 수 있는 복사본을 만들었습니다.</string>
+    <string name="input_controls_editor_confirm_reset_profile">이 프로필을 원래 레이아웃으로 초기화할까요? 변경 사항이 모두 손실됩니다.</string>
+    <string name="input_controls_editor_profile_reset">프로필이 원래 레이아웃으로 초기화되었습니다.</string>
+    <string name="input_controls_editor_reset_unavailable">이 프로필에 사용할 수 있는 원본 스냅샷이 없습니다.</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan 디스플레이 동기화</string>
+    <string name="cloud_sync_disable_title">클라우드 저장 비활성화</string>
+    <string name="cloud_saves_steam_push_label">Steam Cloud로 업로드</string>
+    <string name="cloud_saves_steam_push_helper">로컬 저장 강제 업로드</string>
+    <string name="cloud_saves_steam_push_success">저장 파일을 Steam Cloud로 업로드했습니다.</string>
+    <string name="cloud_saves_steam_push_failed">저장 파일을 Steam Cloud로 업로드할 수 없습니다.</string>
+    <string name="cloud_saves_history_steam_unreachable">현재 Steam Cloud에 연결할 수 없습니다. 백그라운드에서 다시 연결 중입니다… 온라인 상태가 되면 새로 고침을 누르세요.</string>
+    <string name="steam_session_refused_event">Steam이 캐시된 세션을 거부했습니다(EResult=%1$d). 다시 로그인하세요.</string>
+    <string name="settings_hud_record_to_file_title">성능을 파일로 기록</string>
+    <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/에 기록합니다.</string>
+    <string name="settings_leaderboard_category">성능</string>
 </resources>
 
