@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Dezactiveaza Xinput (pentru control exclusiv M/T)</string>
     <string name="shortcuts_properties_exclusive_input">Intrare exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Setari personalizate joc</string>
-    <string name="shortcuts_properties_use_cold_client">Foloseste ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Modul de emulare Steam pentru jocuri Steam — gestionează DRM, realizări și DLC. Recomandat pentru toate jocurile Steam.</string>
-    <string name="shortcuts_properties_unpack_files">DRM vechi</string>
-    <string name="shortcuts_properties_unpack_files_description">Elimina DRM SteamStub din exe. Operatiune unica. Dezactiveaza doar daca un joc nu mai functioneaza.</string>
-    <string name="shortcuts_properties_force_dlc">Forteaza DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Activeaza daca DLC-urile nu sunt detectate sau salvarile cu DLC nu functioneaza.</string>
-    <string name="steam_section_emulator">Emulator Steam (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">Foloseste Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Mod offline Steam</string>
     <string name="shortcuts_properties_reset">Reseteaza proprietatile</string>
@@ -1233,7 +1226,7 @@ Cale instalata:
     <string name="shortcuts_library_artwork_title">Ilustrații bibliotecă</string>
     <string name="shortcuts_list_readded_existing">Scurtătură existentă readăugată</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Injecteaza un DLL patcher DRM la lansare. Reduce FPS — foloseste doar daca Unpack Files singur esueaza.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injectează un DLL patcher DRM la lansare. Reduce FPS — folosește doar dacă lansatorul moștenit singur eșuează.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">Selectează folderul salvărilor</string>
     <string name="cloud_saves_custom_folder_label">Folder salvări</string>
@@ -1260,5 +1253,34 @@ Cale instalata:
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">ID aplicație nevalid</string>
     <string name="cloud_saves_label_saved">Etichetă salvată</string>
+    <string name="downloads_queue_cancel_all_title">Anulezi toate descărcările?</string>
+    <string name="downloads_queue_cancel_all_warning">Anularea descărcărilor de DLC, jocuri sau actualizări poate corupe instalările jocurilor.\n\nSigur vrei să anulezi toate descărcările și să ștergi fișierele descărcate până acum?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Folosește lansatorul moștenit</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Emulare Steam moștenită: rulează jocul prin lansatorul ColdClient și elimină DRM-ul SteamStub din exe. Folosește doar pentru jocuri mai vechi care nu funcționează cu Steam Launcher.</string>
+    <string name="steam_section_real_client">Client Steam real WinNative</string>
+    <string name="steam_section_emulator">Emulator Steam moștenit</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Face clientul Steam emulat să raporteze că este offline, astfel încât jocul să nu încerce conexiuni online. Folosește pentru jocurile care se blochează la verificarea rețelei Steam.</string>
+    <string name="input_controls_select_style">Selectează stilul</string>
+    <string name="input_controls_select_label_theme">Etichete butoane</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Profil integrat - a fost creată o copie editabilă.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Resetezi acest profil la aspectul original? Toate modificările făcute se vor pierde.</string>
+    <string name="input_controls_editor_profile_reset">Profil resetat la aspectul original.</string>
+    <string name="input_controls_editor_reset_unavailable">Nu există niciun instantaneu original disponibil pentru acest profil.</string>
+    <string name="container_graphics_compositor_present_mode">Sincronizare afișaj Vulkan</string>
+    <string name="cloud_sync_disable_title">Dezactivează salvările în cloud</string>
+    <string name="cloud_saves_steam_push_label">Trimite în Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Forțează încărcarea salvării locale</string>
+    <string name="cloud_saves_steam_push_success">Salvare trimisă în Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Nu s-a putut trimite salvarea în Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud nu este accesibil acum. Reconectare în fundal… atinge reîmprospătare când revii online.</string>
+    <string name="steam_session_refused_event">Steam a refuzat sesiunea din cache (EResult=%1$d). Conectează-te din nou.</string>
+    <string name="settings_hud_record_to_file_title">Înregistrează performanța în fișier</string>
+    <string name="settings_hud_record_to_file_summary">Scrie în /WinNative/logs/ metrici pe secundă pentru FPS, CPU, GPU, temperatură și baterie în timpul jocului.</string>
+    <string name="settings_leaderboard_category">Performanță</string>
 </resources>
 

@@ -72,7 +72,6 @@ public class Container {
     private boolean useColdClient = false;
     private boolean allowSteamUpdates;
     private boolean needsUnpacking = true;
-    private boolean forceDlc = false;
     private boolean steamOfflineMode = false;
     private boolean unpackFiles = false;
     private boolean runtimePatcher = false;
@@ -431,7 +430,6 @@ public class Container {
             data.put("coldClientMigrated", true);
             data.put("allowSteamUpdates", allowSteamUpdates);
             data.put("needsUnpacking", needsUnpacking);
-            data.put("forceDlc", forceDlc);
             data.put("steamOfflineMode", steamOfflineMode);
             data.put("unpackFiles", unpackFiles);
             data.put("runtimePatcher", runtimePatcher);
@@ -557,9 +555,6 @@ public class Container {
                     break;
                 case "needsUnpacking" :
                     setNeedsUnpacking(data.getBoolean(key));
-                    break;
-                case "forceDlc":
-                    setForceDlc(data.getBoolean(key));
                     break;
                 case "steamOfflineMode":
                     setSteamOfflineMode(data.getBoolean(key));
@@ -727,14 +722,6 @@ public class Container {
 
     public void setNeedsUnpacking(boolean needsUnpacking) {
         this.needsUnpacking = needsUnpacking;
-    }
-
-    public boolean isForceDlc() {
-        return forceDlc;
-    }
-
-    public void setForceDlc(boolean forceDlc) {
-        this.forceDlc = forceDlc;
     }
 
     public boolean isSteamOfflineMode() {

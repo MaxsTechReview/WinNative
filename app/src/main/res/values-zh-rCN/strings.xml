@@ -287,13 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">禁用 XInput（独占鼠标/键盘控制）</string>
     <string name="shortcuts_properties_exclusive_input">独占输入</string>
     <string name="shortcuts_properties_custom_game_settings">自定义游戏设置</string>
-    <string name="shortcuts_properties_use_cold_client">使用 ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam 游戏的 Steam 模拟模式 — 处理 DRM、成就和 DLC。推荐用于所有 Steam 游戏。</string>
-    <string name="shortcuts_properties_unpack_files">旧版 DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">从 exe 中移除 SteamStub DRM。一次性操作。仅在游戏出问题时禁用。</string>
-    <string name="shortcuts_properties_force_dlc">强制 DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">如果 DLC 未被检测到或 DLC 存档无法正常工作，请启用。</string>
-    <string name="steam_section_emulator">Steam 模拟器 (Goldberg)</string>
     <string name="shortcuts_properties_use_steam_input">使用 Steam 输入</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 离线模式</string>
     <string name="shortcuts_properties_reset">重置属性</string>
@@ -1233,7 +1226,7 @@
     <string name="shortcuts_library_artwork_title">库封面</string>
     <string name="shortcuts_list_readded_existing">已重新添加现有快捷方式</string>
     <string name="shortcuts_properties_runtime_patcher">运行时 DRM 破解器</string>
-    <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用 Unpack Files 失败时使用。</string>
+    <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用旧版启动器失败时使用。</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">选择存档文件夹</string>
     <string name="cloud_saves_custom_folder_label">存档文件夹</string>
@@ -1260,5 +1253,34 @@
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">应用 ID 无效</string>
     <string name="cloud_saves_label_saved">标签已保存</string>
+    <string name="downloads_queue_cancel_all_title">取消所有下载？</string>
+    <string name="downloads_queue_cancel_all_warning">取消 DLC、游戏或更新下载可能会损坏你的游戏安装。\n\n确定要取消所有下载并删除目前已下载的文件吗？</string>
+    <string name="shortcuts_properties_use_legacy_launcher">使用旧版启动器</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">旧版 Steam 模拟：通过 ColdClient 启动器运行游戏，并从 exe 中移除 SteamStub DRM。仅用于无法使用 Steam Launcher 的旧游戏。</string>
+    <string name="steam_section_real_client">WinNative 真实 Steam 客户端</string>
+    <string name="steam_section_emulator">旧版 Steam 模拟器</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">让模拟的 Steam 客户端报告为离线，这样游戏就不会尝试在线连接。适用于在 Steam 网络检查时卡住的游戏。</string>
+    <string name="input_controls_select_style">选择样式</string>
+    <string name="input_controls_select_label_theme">按钮标签</string>
+    <string name="input_controls_style_original">原版</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">原版</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">内置配置文件 - 已创建可编辑副本。</string>
+    <string name="input_controls_editor_confirm_reset_profile">将此配置文件重置为原始布局？你所做的任何更改都会丢失。</string>
+    <string name="input_controls_editor_profile_reset">配置文件已重置为原始布局。</string>
+    <string name="input_controls_editor_reset_unavailable">此配置文件没有可用的原始快照。</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan 显示同步</string>
+    <string name="cloud_sync_disable_title">禁用云存档</string>
+    <string name="cloud_saves_steam_push_label">推送到 Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">强制上传本地存档</string>
+    <string name="cloud_saves_steam_push_success">存档已推送到 Steam Cloud。</string>
+    <string name="cloud_saves_steam_push_failed">无法将存档推送到 Steam Cloud。</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud 目前无法访问。正在后台重新连接…重新上线后点按刷新。</string>
+    <string name="steam_session_refused_event">Steam 拒绝了缓存的会话 (EResult=%1$d)。请重新登录。</string>
+    <string name="settings_hud_record_to_file_title">将性能记录到文件</string>
+    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标写入 /WinNative/logs/。</string>
+    <string name="settings_leaderboard_category">性能</string>
 </resources>
 

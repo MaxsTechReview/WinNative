@@ -1098,7 +1098,6 @@ object SteamUtils {
      * @param appId              Steam app ID
      * @param language           container language (e.g. "english")
      * @param isOffline          whether to write offline=1 in configs.main.ini
-     * @param forceDlc           whether to write unlock_all=1 regardless of installed DLC
      * @param useSteamInput      whether to generate Steam Input controller config
      * @param ticketBase64       encrypted app ticket for online auth (may be null)
      */
@@ -1109,7 +1108,6 @@ object SteamUtils {
         appId: Int,
         language: String = "english",
         isOffline: Boolean = false,
-        forceDlc: Boolean = false,
         useSteamInput: Boolean = false,
         ticketBase64: String? = null,
     ) {
@@ -1190,7 +1188,7 @@ object SteamUtils {
                     appendLine("branch_name=public")
                     appendLine()
                     appendLine("[app::dlcs]")
-                    appendLine("unlock_all=${if (forceDlc) 1 else 0}")
+                    appendLine("unlock_all=0")
                     dlcIds?.sorted()?.forEach {
                         appendLine("$it=dlc$it")
                         appendedDlcIds.add(it)
