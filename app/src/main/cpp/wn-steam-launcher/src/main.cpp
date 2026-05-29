@@ -1165,6 +1165,13 @@ int main(int argc, char** argv) {
     // launch (the clean Steam_LogOff alone does not clear it).
     wn_launcher_set_game_exe(exeName);
 
+    // Hand the cloud context to the teardown module and pull cloud saves + build
+    // the AutoCloud launch baseline now, so the exit upload has a reference to diff.
+    if (loggedOn && engine && appId != 0) {
+        wn_launcher_set_cloud_context(engine, hUser, pipe, appId);
+        wn_launcher_cloud_sync(engine, hUser, pipe, appId, 1, 0, 15000);
+    }
+
     bool launchedViaApp = false;
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";

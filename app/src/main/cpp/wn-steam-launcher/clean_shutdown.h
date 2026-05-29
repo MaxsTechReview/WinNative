@@ -22,6 +22,16 @@ void wn_launcher_set_game_exe(const char* exeName);
 void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe, int user,
                                     const char* logPath);
 
+// Give the clean-shutdown module the IClientEngine + app id so teardown can drive
+// the Steam Cloud (AutoCloud) exit upload via steamclient before logging off.
+void wn_launcher_set_cloud_context(void* engine, int hUser, int hPipe, unsigned int appId);
+
+// Drive a steamclient IClientRemoteStorage app sync and block until it settles
+// (or timeoutMs). cmd/flags: launch download = (1,0), exit upload = (2,4).
+// Returns the final EGetFileSyncState (1=Synchronized, 6=Conflict), or <0 on error.
+int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
+                           unsigned int appId, int cmd, int flags, int timeoutMs);
+
 // Trigger teardown synchronously, e.g. on game exit so normal close also logs
 // off cleanly. Idempotent; safe after arming because the watcher/ctrl-handler
 // no-op afterwards.

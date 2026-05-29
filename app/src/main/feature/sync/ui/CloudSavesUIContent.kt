@@ -541,8 +541,10 @@ internal fun CloudSavesContent(
                                 steamBusy = true
                                 try {
                                     val ok =
-                                        SteamCloudSyncHelper
-                                            .forceDownloadById(activity, appId, shortcut?.container)
+                                        withContext(Dispatchers.IO) {
+                                            SteamCloudSyncHelper
+                                                .forceDownloadById(activity, appId, shortcut?.container)
+                                        }
                                     notify(
                                         if (ok) steamSyncSuccess else steamSyncFailed,
                                         Toast.LENGTH_SHORT,

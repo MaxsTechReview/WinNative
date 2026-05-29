@@ -39,6 +39,31 @@ char g_log_path[MAX_PATH] = {0};
 // server-side "playing" registration — see the note in teardown().
 char g_game_exe[260] = {0};
 
+// Steam Cloud context for the teardown-time AutoCloud upload, set by main.cpp once
+// the IClientEngine is resolved. Valid until the steamclient pipe is released.
+void* g_cs_engine = nullptr;
+int g_cs_hUser = 0;
+int g_cs_hPipe = 0;
+unsigned int g_cs_appId = 0;
+
+// RE'd steamclient ABI: IClientEngine::GetIClientRemoteStorage = vtable +0xC0;
+// IClientRemoteStorage: GetSyncState +0x240, BeginAppSync +0x270, IsAppSyncInProgress +0x278.
+constexpr int kVtEngine_GetIClientRemoteStorage = 0xC0;
+constexpr int kVtRS_GetSyncState        = 0x240;
+constexpr int kVtRS_BeginAppSync        = 0x270;
+constexpr int kVtRS_IsAppSyncInProgress = 0x278;
+
+// VirtualQuery guard before calling a runtime-built vtable slot (offsets can shift between client builds).
+bool cs_is_exec_ptr(void* p) {
+    if (!p) return false;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(p, &mbi, sizeof(mbi)) == 0) return false;
+    if (mbi.State != MEM_COMMIT) return false;
+    DWORD x = mbi.Protect & 0xFF;
+    return x == PAGE_EXECUTE || x == PAGE_EXECUTE_READ ||
+           x == PAGE_EXECUTE_READWRITE || x == PAGE_EXECUTE_WRITECOPY;
+}
+
 // Terminate every running process whose image name matches exeName. Returns the
 // count terminated. Used so a steamclient that launched the game via
 // IClientAppManager::LaunchApp observes the exit and clears games-played.
@@ -227,22 +252,11 @@ void teardown(const char* reason) {
         }
     }
 
-    // Cloud-flush settle: stay logged on until steamclient's cloud upload goes idle (or the 5s cap) before logoff/pipe-release, so the in-Wine Steam can finish syncing this app's save.
-    if (g_pipe != 0 && g_bgetcallback && g_freelastcallback) {
-        const int kCloudMaxMs = 5000, kCloudMinMs = 600, kStepMs = 100, kQuietStepsToIdle = 6;
-        int waited = 0, quietSteps = 0;
-        while (waited < kCloudMaxMs) {
-            char cb[64];
-            int drained = 0;
-            while (g_bgetcallback(g_pipe, cb)) { g_freelastcallback(g_pipe); ++drained; }
-            quietSteps = (drained == 0) ? quietSteps + 1 : 0;
-            ::Sleep(kStepMs);
-            waited += kStepMs;
-            if (waited >= kCloudMinMs && quietSteps >= kQuietStepsToIdle) break;
-        }
-        char cbuf[128];
-        std::snprintf(cbuf, sizeof(cbuf), "cloud-flush settle done (%dms, quietSteps=%d)", waited, quietSteps);
-        wn_log(cbuf);
+    // Steam Cloud exit upload: the game is closed now, so drive the AutoCloud
+    // exit sync through steamclient before logging off — this is what actually
+    // pushes the save to the server in Steam Launcher mode.
+    if (g_cs_engine && g_cs_appId != 0) {
+        wn_launcher_cloud_sync(g_cs_engine, g_cs_hUser, g_cs_hPipe, g_cs_appId, 2, 4, 15000);
     }
 
     // Reverse order of init, mirroring WnSteamBootstrap.nativeShutdown: log off
@@ -381,6 +395,71 @@ extern "C" void wn_launcher_arm_clean_shutdown(void* hSteamClient, int pipe,
 
     g_watch_run.store(true);
     std::thread(watch_loop).detach();
+}
+
+extern "C" void wn_launcher_set_cloud_context(void* engine, int hUser, int hPipe,
+                                              unsigned int appId) {
+    g_cs_engine = engine;
+    g_cs_hUser = hUser;
+    g_cs_hPipe = hPipe;
+    g_cs_appId = appId;
+}
+
+extern "C" int wn_launcher_cloud_sync(void* engine, int hUser, int hPipe,
+                                      unsigned int appId, int cmd, int flags, int timeoutMs) {
+    if (!engine || appId == 0) return -1;
+    void** engine_vt = *reinterpret_cast<void***>(engine);
+    void* getRsP = engine_vt[kVtEngine_GetIClientRemoteStorage / 8];
+    if (!cs_is_exec_ptr(getRsP)) {
+        wn_log("[wn-launcher] cloud: GetIClientRemoteStorage slot not executable — skipping sync");
+        return -1;
+    }
+    using GetRsFn = void* (*)(void*, int, int);
+    void* rs = reinterpret_cast<GetRsFn>(getRsP)(engine, hUser, hPipe);
+    if (!rs) {
+        wn_log("[wn-launcher] cloud: IClientRemoteStorage null — skipping sync");
+        return -1;
+    }
+    void** rs_vt = *reinterpret_cast<void***>(rs);
+    void* beginP  = rs_vt[kVtRS_BeginAppSync / 8];
+    void* inProgP = rs_vt[kVtRS_IsAppSyncInProgress / 8];
+    void* stateP  = rs_vt[kVtRS_GetSyncState / 8];
+    if (!cs_is_exec_ptr(beginP) || !cs_is_exec_ptr(inProgP) || !cs_is_exec_ptr(stateP)) {
+        wn_log("[wn-launcher] cloud: RemoteStorage slot(s) not executable — skipping sync");
+        return -1;
+    }
+    using BeginFn  = bool (*)(void*, unsigned int, int, int);
+    using InProgFn = bool (*)(void*, unsigned int);
+    using StateFn  = int  (*)(void*, unsigned int);
+
+    char buf[176];
+    int finalState = -1;
+    for (int attempt = 1; attempt <= 3; ++attempt) {
+        bool started = reinterpret_cast<BeginFn>(beginP)(rs, appId, cmd, flags);
+        std::snprintf(buf, sizeof(buf),
+            "[wn-launcher] cloud: BeginAppSync(app=%u cmd=%d flags=%d) attempt %d -> %d",
+            appId, cmd, flags, attempt, started ? 1 : 0);
+        wn_log(buf);
+        int waited = 0;
+        while (reinterpret_cast<InProgFn>(inProgP)(rs, appId) && waited < timeoutMs) {
+            if (g_bgetcallback && g_freelastcallback) {
+                char cb[64];
+                while (g_bgetcallback(g_pipe, cb)) g_freelastcallback(g_pipe);
+            }
+            ::Sleep(10);
+            waited += 10;
+        }
+        finalState = reinterpret_cast<StateFn>(stateP)(rs, appId);
+        std::snprintf(buf, sizeof(buf),
+            "[wn-launcher] cloud: sync settled (state=%d after %dms)", finalState, waited);
+        wn_log(buf);
+        // 1=Synchronized, 0=Disabled, 6=Conflict (never auto-resolve) → done; 2/3/4/5 → retry.
+        if (finalState == 1 || finalState == 0 || finalState == 6) break;
+    }
+    if (finalState == 6) {
+        wn_log("[wn-launcher] cloud: CONFLICT (state 6) — not auto-resolving; leaving saves intact");
+    }
+    return finalState;
 }
 
 extern "C" void wn_launcher_clean_shutdown_now(const char* reason) {

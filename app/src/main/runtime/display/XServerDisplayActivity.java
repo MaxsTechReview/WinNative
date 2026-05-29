@@ -2677,14 +2677,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         
         syncStoreCloudOnExit(() -> {
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!beginSessionCleanup("exit")) {
-                        return;
-                    }
-                    savePlaytimeData(true);
-                    cleanupActivityCallbacks("exit");
+            handler.postDelayed(() -> {
+                if (!beginSessionCleanup("exit")) {
+                    return;
+                }
+                savePlaytimeData(true);
+                cleanupActivityCallbacks("exit");
+                // Teardown blocks for several seconds (the in-Wine cloud upload + clean-shutdown
+                // wait), so run it off the UI thread or the closing splash freezes. Mirrors
+                // performForcedSessionCleanup's threading; UI-touching calls are marshalled back.
+                new Thread(() -> {
                     sanitizeSteamStateForNextSession("exit", true);
                     if (midiHandler != null) midiHandler.stop();
                     stopWinHandler("exit");
@@ -2706,11 +2708,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     midiHandler = null;
                     xServer = null;
                     xServerView = null;
-                    if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
-                    cleanupDebugDialog("exit");
                     SessionKeepAliveService.stopSession(XServerDisplayActivity.this);
-                    closeAfterSessionExit();
-                }
+                    runOnUiThread(() -> {
+                        if (preloaderDialog != null && preloaderDialog.isShowing()) preloaderDialog.closeOnUiThread();
+                        cleanupDebugDialog("exit");
+                        closeAfterSessionExit();
+                    });
+                }, "XServerExitCleanup").start();
             }, 1000);
         });
     }
@@ -3315,7 +3319,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String WN_LAUNCHER_ARMED_MARKER = "[wn-launcher] clean-shutdown armed";
     private static final String WN_LAUNCHER_LOGOFF_DONE_MARKER = "[wn-launcher] clean logoff complete";
     // Ceiling; returns early as soon as the "clean logoff complete" marker appears.
-    private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 13000L;
+    // Covers the in-Wine cloud exit upload (up to ~15s) plus the logoff flush.
+    private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 20000L;
     private static final long WN_LAUNCHER_SHUTDOWN_POLL_MS = 150L;
 
     private void signalPlanWLauncherCleanShutdown(String trigger) {
