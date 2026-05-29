@@ -103,7 +103,6 @@ data class OtherSettingsState(
     val winlatorPath: String = "",
     val shortcutExportPath: String = "",
     val cursorSpeedPercent: Int = 100,
-    val useDRI3: Boolean = true,
     val cursorLock: Boolean = false,
     val xinputDisabled: Boolean = false,
     val enableFileProvider: Boolean = true,
@@ -146,7 +145,6 @@ fun OtherSettingsScreen(
     onPickWinlatorPath: () -> Unit,
     onPickShortcutExportPath: () -> Unit,
     onCursorSpeedChanged: (Int) -> Unit,
-    onUseDRI3Changed: (Boolean) -> Unit,
     onCursorLockChanged: (Boolean) -> Unit,
     onXinputDisabledChanged: (Boolean) -> Unit,
     onEnableFileProviderChanged: (Boolean) -> Unit,
@@ -257,16 +255,6 @@ fun OtherSettingsScreen(
             CursorSpeedCard(
                 percent = state.cursorSpeedPercent,
                 onPercentChanged = onCursorSpeedChanged,
-            )
-        }
-
-        item(key = "use_dri3_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.session_xserver_use_dri3_extension),
-                subtitle = stringResource(R.string.session_xserver_use_dri3_description),
-                icon = Icons.Outlined.Visibility,
-                checked = state.useDRI3,
-                onCheckedChange = onUseDRI3Changed,
             )
         }
 

@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">DRI3 확장 사용</string>
     <string name="session_xserver_simulate_touch_screen">터치 스크린 시뮬레이션</string>
     <string name="session_xserver_preferences_button_text">   환경설정   </string>
     <string name="session_xserver_extra_keys_config_desc">Termux 앱에서처럼 extra-keys 변수의 값을 설정할 수 있습니다 (<a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">여기</a>를 참고하세요) \n
@@ -549,12 +548,6 @@
     <string name="session_xserver_pref_kbd">키보드</string>
     <string name="session_xserver_pref_other">기타</string>
     <string name="session_xserver_pref_version">버전</string>
-    <string name="session_xserver_use_dri3_description">비활성화하면 일부 기기에서 그래픽 결함이 수정될 수 있습니다</string>
-    <string name="session_xserver_native_rendering">네이티브 렌더링</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 하드웨어 렌더링</string>
-    <string name="session_xserver_native_rendering_disabled">소프트웨어 WSI 폴백</string>
-    <string name="session_xserver_native_rendering_enabled_toast">네이티브 렌더링 활성화됨 (다음 실행 시 적용)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">네이티브 렌더링 비활성화됨 (다음 실행 시 적용)</string>
     <string name="session_xserver_notification_description">WinNative XServer 메시지</string>
     <string name="session_xserver_notification_content">WinNative가 실행 중입니다. 이 알림을 종료하거나 스와이프하지 마세요</string>
 
@@ -1070,7 +1063,6 @@
     <string name="session_drawer_rail_label_mouse">마우스</string>
     <string name="session_drawer_rail_label_fullscreen">전체 화면</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">네이티브</string>
     <string name="session_drawer_rail_label_magnifier">확대</string>
     <string name="session_drawer_rail_label_task_manager">작업</string>
     <string name="session_drawer_rail_label_logs">로그</string>

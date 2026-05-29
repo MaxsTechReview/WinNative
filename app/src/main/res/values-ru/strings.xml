@@ -539,7 +539,6 @@
     <string name="container_presets_cannot_export">Невозможно экспортировать этот пресет</string>
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Использовать расширение DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Имитировать сенсорный экран</string>
     <string name="session_xserver_preferences_button_text">ПРЕДПОЧТЕНИЯ</string>
     <string name="session_xserver_extra_keys_config_desc">Здесь вы можете установить значение переменной дополнительных ключей, как в приложении Termux (читайте</string>
@@ -549,12 +548,6 @@
     <string name="session_xserver_pref_kbd">Клавиатура</string>
     <string name="session_xserver_pref_other">Другое</string>
     <string name="session_xserver_pref_version">Версия</string>
-    <string name="session_xserver_use_dri3_description">Отключение может исправить графические сбои на некоторых устройствах.</string>
-    <string name="session_xserver_native_rendering">Нативный рендеринг</string>
-    <string name="session_xserver_native_rendering_enabled">Аппаратный рендеринг DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Резервный вариант программного обеспечения WSI</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Нативный рендеринг включен (вступит в силу при следующем запуске)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Нативный рендеринг отключен (вступит в силу при следующем запуске)</string>
     <string name="session_xserver_notification_description">Сообщения WinNative XServer</string>
     <string name="session_xserver_notification_content">WinNative запущен, не уничтожайте и не смахивайте это уведомление</string>
     <!-- Session > Drawer Menu -->
@@ -641,7 +634,6 @@
     <string name="session_drawer_rail_label_mouse">Мышь</string>
     <string name="session_drawer_rail_label_fullscreen">Полноэкранный</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Нативный</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачи</string>
     <string name="session_drawer_rail_label_logs">Журналы</string>

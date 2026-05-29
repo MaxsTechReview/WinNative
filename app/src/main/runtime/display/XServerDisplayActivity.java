@@ -797,7 +797,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         });
 
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
-        isNativeRenderingEnabled = preferences.getBoolean("use_dri3", true);
+        // Native rendering (DRI3) is always on; the toggle was removed. Hardcoded so stale "use_dri3=false" prefs can't disable it.
+        isNativeRenderingEnabled = true;
         displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
         displayHostComposeView.setFocusable(true);
         displayHostComposeView.setFocusableInTouchMode(true);
@@ -3611,9 +3612,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 true,
                 magnifierView != null,
                 enableLogsMenu,
-                isNativeRenderingEnabled,
-                getString(R.string.session_xserver_native_rendering),
-                getString(isNativeRenderingEnabled ? R.string.session_xserver_native_rendering_enabled : R.string.session_xserver_native_rendering_disabled),
                 hudTransparency,
                 hudScale,
                 hudElements,
@@ -4499,15 +4497,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     renderer.setMagnifierUIActive(true);
                 }
                 renderDrawerMenu();
-                break;
-            case R.id.main_menu_native_rendering:
-                isNativeRenderingEnabled = !isNativeRenderingEnabled;
-                preferences.edit().putBoolean("use_dri3", isNativeRenderingEnabled).apply();
-                if (frameRating != null) frameRating.setIsNative(isNativeRenderingEnabled);
-                renderDrawerMenu();
-                WinToast.show(this, getString(isNativeRenderingEnabled
-                    ? R.string.session_xserver_native_rendering_enabled_toast
-                    : R.string.session_xserver_native_rendering_disabled_toast));
                 break;
             case R.id.main_menu_exit:
                 closeDrawerMenu();
@@ -6133,10 +6122,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         envVars.put("WRAPPER_RESOURCE_TYPE", resourceType);
 
         ArrayList<String> wsiDebugFlags = new ArrayList<>();
-        if (!isNativeRenderingEnabled) {
-            wsiDebugFlags.add("sw");
-            envVars.put("LIBGL_DRI3_DISABLE", "1");
-        }
         String syncFrame = graphicsDriverConfig.get("syncFrame");
         if ("1".equals(syncFrame)) {
             wsiDebugFlags.add("forcesync");
@@ -6144,7 +6129,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!wsiDebugFlags.isEmpty()) {
             envVars.put("MESA_VK_WSI_DEBUG", String.join(",", wsiDebugFlags));
         }
-        Log.d("NativeRendering", "use_dri3=" + isNativeRenderingEnabled + " MESA_VK_WSI_DEBUG=" + envVars.get("MESA_VK_WSI_DEBUG"));
 
         String disablePresentWait = graphicsDriverConfig.get("disablePresentWait");
         envVars.put("WRAPPER_DISABLE_PRESENT_WAIT", disablePresentWait);

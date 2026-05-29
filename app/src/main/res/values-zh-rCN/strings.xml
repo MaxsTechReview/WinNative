@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">使用 DRI3 扩展</string>
     <string name="session_xserver_simulate_touch_screen">模拟触摸屏</string>
     <string name="session_xserver_preferences_button_text">   偏好设置   </string>
     <string name="session_xserver_extra_keys_config_desc">您可以在此设置 extra-keys 变量的值，类似于 Termux 应用（请阅读 <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">此文档</a>）及更多内容 \n
@@ -549,12 +548,6 @@
     <string name="session_xserver_pref_kbd">键盘</string>
     <string name="session_xserver_pref_other">其他</string>
     <string name="session_xserver_pref_version">版本</string>
-    <string name="session_xserver_use_dri3_description">禁用可能修复某些设备上的图形故障</string>
-    <string name="session_xserver_native_rendering">原生渲染</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 硬件渲染</string>
-    <string name="session_xserver_native_rendering_disabled">软件 WSI 回退</string>
-    <string name="session_xserver_native_rendering_enabled_toast">原生渲染已启用（下次启动时生效）</string>
-    <string name="session_xserver_native_rendering_disabled_toast">原生渲染已禁用（下次启动时生效）</string>
     <string name="session_xserver_notification_description">WinNative XServer 消息</string>
     <string name="session_xserver_notification_content">WinNative 正在运行，请勿关闭或滑动移除此通知</string>
 
@@ -1070,7 +1063,6 @@
     <string name="session_drawer_rail_label_mouse">鼠标</string>
     <string name="session_drawer_rail_label_fullscreen">全屏</string>
     <string name="session_drawer_rail_label_pip">画中画</string>
-    <string name="session_drawer_rail_label_native">原生</string>
     <string name="session_drawer_rail_label_magnifier">缩放</string>
     <string name="session_drawer_rail_label_task_manager">任务</string>
     <string name="session_drawer_rail_label_logs">日志</string>

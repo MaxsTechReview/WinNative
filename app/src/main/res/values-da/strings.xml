@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Brug DRI3-udvidelse</string>
     <string name="session_xserver_simulate_touch_screen">Simuler touchskærm</string>
     <string name="session_xserver_preferences_button_text">   PRÆFERENCER   </string>
     <string name="session_xserver_extra_keys_config_desc">Her kan du indstille værdien af extra-keys-variablen ligesom i Termux-appen (læs <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">dette</a>) og mere \n
@@ -549,12 +548,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_xserver_pref_kbd">Tastatur</string>
     <string name="session_xserver_pref_other">Andet</string>
     <string name="session_xserver_pref_version">Version</string>
-    <string name="session_xserver_use_dri3_description">Deaktivering kan rette grafiske fejl på visse enheder</string>
-    <string name="session_xserver_native_rendering">Native rendering</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 hardware-rendering</string>
-    <string name="session_xserver_native_rendering_disabled">Software WSI-fallback</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Native rendering aktiveret (træder i kraft ved næste start)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Native rendering deaktiveret (træder i kraft ved næste start)</string>
     <string name="session_xserver_notification_description">WinNative XServer-beskeder</string>
     <string name="session_xserver_notification_content">WinNative kører, luk ikke eller swipe denne notifikation væk</string>
 
@@ -1070,7 +1063,6 @@ Installeret sti:
     <string name="session_drawer_rail_label_mouse">Mus</string>
     <string name="session_drawer_rail_label_fullscreen">Fuldskærm</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Opgaver</string>
     <string name="session_drawer_rail_label_logs">Logs</string>

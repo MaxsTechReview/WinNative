@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Utiliser l\'extension DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Simuler un écran tactile</string>
     <string name="session_xserver_preferences_button_text">   PRÉFÉRENCES   </string>
     <string name="session_xserver_extra_keys_config_desc">Ici vous pouvez définir la valeur de la variable extra-keys comme dans l\'application Termux (lire <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">ceci</a>) et plus encore \n
@@ -549,12 +548,6 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_xserver_pref_kbd">Clavier</string>
     <string name="session_xserver_pref_other">Autre</string>
     <string name="session_xserver_pref_version">Version</string>
-    <string name="session_xserver_use_dri3_description">Désactiver peut corriger des artefacts graphiques sur certains appareils</string>
-    <string name="session_xserver_native_rendering">Rendu natif</string>
-    <string name="session_xserver_native_rendering_enabled">Rendu matériel DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Repli logiciel WSI</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Rendu natif activé (prend effet au prochain lancement)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Rendu natif désactivé (prend effet au prochain lancement)</string>
     <string name="session_xserver_notification_description">Messages XServer de WinNative</string>
     <string name="session_xserver_notification_content">WinNative est en cours d\'exécution, ne supprimez pas et ne balayez pas cette notification</string>
 
@@ -1070,7 +1063,6 @@ Chemin installé :
     <string name="session_drawer_rail_label_mouse">Souris</string>
     <string name="session_drawer_rail_label_fullscreen">Plein écran</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Natif</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tâches</string>
     <string name="session_drawer_rail_label_logs">Logs</string>

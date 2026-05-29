@@ -533,7 +533,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Foloseste extensia DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Simuleaza ecran tactil</string>
     <string name="session_xserver_preferences_button_text">   PREFERINTE   </string>
     <string name="session_xserver_extra_keys_config_desc">Aici poti seta valoarea variabilei extra-keys ca in aplicatia Termux (citeste <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">aici</a>) si altele \n
@@ -549,12 +548,6 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_xserver_pref_kbd">Tastatura</string>
     <string name="session_xserver_pref_other">Altele</string>
     <string name="session_xserver_pref_version">Versiune</string>
-    <string name="session_xserver_use_dri3_description">Dezactivarea poate rezolva probleme grafice pe unele dispozitive</string>
-    <string name="session_xserver_native_rendering">Randare nativa</string>
-    <string name="session_xserver_native_rendering_enabled">Randare hardware DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Alternativa software WSI</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Randarea nativa activata (intra in vigoare la urmatoarea lansare)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Randarea nativa dezactivata (intra in vigoare la urmatoarea lansare)</string>
     <string name="session_xserver_notification_description">Mesaje WinNative XServer</string>
     <string name="session_xserver_notification_content">WinNative rulează, nu închideți sau glisați această notificare</string>
 
@@ -1070,7 +1063,6 @@ Cale instalata:
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Ecran complet</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Sarcini</string>
     <string name="session_drawer_rail_label_logs">Loguri</string>
