@@ -1,6 +1,7 @@
 package com.winlator.cmod.feature.steamcloudsync
 
 import android.content.Context
+import com.winlator.cmod.feature.stores.steam.data.PostSyncInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
@@ -265,6 +266,20 @@ object SteamCloudSyncHelper {
         }
     }
 
+    fun timestampsFromSyncInfo(
+        context: Context,
+        shortcut: Shortcut,
+        syncInfo: PostSyncInfo?,
+    ): SteamCloudConflictTimestamps {
+        if (syncInfo == null || (syncInfo.localTimestamp <= 0L && syncInfo.remoteTimestamp <= 0L)) {
+            return getConflictTimestamps(context, shortcut)
+        }
+        return SteamCloudConflictTimestamps(
+            localTimestampLabel = formatTimestamp(syncInfo.localTimestamp, LABEL_NO_LOCAL_SAVES),
+            cloudTimestampLabel = formatTimestamp(syncInfo.remoteTimestamp, LABEL_NO_CLOUD_SAVES),
+        )
+    }
+
     @JvmStatic
     fun getConflictTimestamps(
         context: Context,
@@ -309,6 +324,46 @@ object SteamCloudSyncHelper {
         Timber.i("Steam cloud save download for %s: %s", shortcut.name, result)
         return result
     }
+
+    suspend fun syncBeforeLaunch(
+        context: Context,
+        shortcut: Shortcut,
+        preferredSave: SaveLocation = SaveLocation.None,
+        ignorePendingOperations: Boolean = false,
+    ): PostSyncInfo? {
+        if (shortcut.getExtra("game_source") != "STEAM") return null
+        val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return null
+        val prefixToPath = steamPrefixResolver(context, appId, shortcut.container)
+        val syncInfo =
+            SteamService
+                .beginLaunchApp(
+                    appId = appId,
+                    preferredSave = preferredSave,
+                    ignorePendingOperations = ignorePendingOperations,
+                    prefixToPath = prefixToPath,
+                    isOffline = isOfflineMode(shortcut),
+                ).await()
+
+        if (syncInfo.syncResult == SyncResult.Success || syncInfo.syncResult == SyncResult.UpToDate) {
+            probeCache.remove(appId)
+            runCatching {
+                SteamService.pushCloudStateToLibSteamClient(appId)
+            }.onFailure { e ->
+                Timber.w(e, "syncBeforeLaunch: libsteamclient cloud refresh failed for app=%d", appId)
+            }
+        }
+        return syncInfo
+    }
+
+    fun syncBeforeLaunchBlocking(
+        context: Context,
+        shortcut: Shortcut,
+        preferredSave: SaveLocation = SaveLocation.None,
+        ignorePendingOperations: Boolean = false,
+    ): PostSyncInfo? =
+        runBlocking(Dispatchers.IO) {
+            syncBeforeLaunch(context, shortcut, preferredSave, ignorePendingOperations)
+        }
 
     /**
      * Uploads local Steam save files for [appId] so they overwrite Steam Cloud.

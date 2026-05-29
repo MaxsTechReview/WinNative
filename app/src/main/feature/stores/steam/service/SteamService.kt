@@ -4897,8 +4897,9 @@ class SteamService : Service() {
                                     .from(prefix)
                                     .toAbsPath(ctx, appId, accountId)
                             }
+                            val appInfo = getAppInfoOf(appId)
                             com.winlator.cmod.feature.steamcloudsync.SteamAutoCloud
-                                .cloudContentDiffersFromLocal(response, prefixToPath)
+                                .cloudContentDiffersFromLocal(response, prefixToPath, appInfo)
                         } else {
                             true
                         }
@@ -5339,6 +5340,8 @@ class SteamService : Service() {
             val names      = Array(live.size) { i -> live[i].filename }
             val sizes      = IntArray(live.size) { i -> live[i].rawFileSize.coerceAtMost(Int.MAX_VALUE.toLong()).toInt() }
             val timestamps = LongArray(live.size) { i -> live[i].timestamp / 1000L }
+            com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+                .setAppId(appId)
             com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
                 .setCloudFiles(names, sizes, timestamps)
             com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient

@@ -1370,6 +1370,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 UpdateChecker.INSTANCE.cancelPostGameCheck();
 
                 if (!sessionToReuse) {
+                    if (isSteamShortcut()) {
+                        try {
+                            setSteamClientVisibility(true, isColdClientEnabledForShortcut());
+                        } catch (Throwable t) {
+                            Log.w("XServerDisplayActivity",
+                                    "Failed to select Steam client store before cloud sync", t);
+                        }
+                    }
+
                     // Parallel prep:
                     //   - Cloud sync (Steam/Epic/GOG) — independent of prefix files
                     //   - Steam game prefix setup (DLL injects, Plan W assets) —
