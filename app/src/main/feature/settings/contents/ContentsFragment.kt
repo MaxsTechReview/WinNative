@@ -156,7 +156,7 @@ class ContentsFragment : Fragment() {
             profiles
                 .filter { it.isInstalled }
                 .sortedWith(
-                    compareByDescending<ContentProfile> { it.isInstalled }
+                    compareByDescending<ContentProfile> { it.isOfficial }
                         .thenBy { it.verName.lowercase() }
                         .thenByDescending { it.verCode },
                 )
@@ -164,7 +164,8 @@ class ContentsFragment : Fragment() {
             profiles
                 .filterNot { it.isInstalled }
                 .sortedWith(
-                    compareBy<ContentProfile> { it.verName.lowercase() }
+                    compareByDescending<ContentProfile> { it.isOfficial }
+                        .thenBy { it.verName.lowercase() }
                         .thenByDescending { it.verCode },
                 )
 
@@ -247,6 +248,7 @@ class ContentsFragment : Fragment() {
             isInstalled = isInstalled,
             hasRemote = remoteUrl != null,
             sizeBytes = cachedSize,
+            isOfficial = isOfficial,
         )
     }
 

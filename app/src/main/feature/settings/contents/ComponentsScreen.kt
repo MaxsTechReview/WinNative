@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -22,13 +23,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +116,7 @@ data class ComponentItem(
     val isInstalled: Boolean,
     val hasRemote: Boolean,
     val sizeBytes: Long? = null,
+    val isOfficial: Boolean = false,
 )
 
 data class ComponentsDownloadProgress(
@@ -572,31 +578,42 @@ private fun ComponentItemCard(
                 }
             }
             Spacer(Modifier.width(8.dp))
-            if (isSteamCompatible(item)) {
-                SteamCompatBadge()
-                Spacer(Modifier.width(8.dp))
-            }
-            if (item.isInstalled) {
-                IconTapButton(
-                    icon = Icons.Outlined.Delete,
-                    tint = DangerRed,
-                    onClick = onRemove,
-                )
-            } else if (item.hasRemote) {
-                SmallPillButton(
-                    label = stringResource(R.string.common_ui_download),
-                    icon = Icons.Outlined.Download,
-                    tint = Accent,
-                    onClick = onDownload,
-                )
-            } else {
-                // Locally extracted profile with no remote URL — non-interactive placeholder.
-                Icon(
-                    imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.5f),
-                    modifier = Modifier.size(18.dp),
-                )
+            // The trailing action (Download / Delete / placeholder) drives the
+            // height; the badges fillMaxHeight() so they always match it exactly.
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (item.isOfficial) {
+                    OfficialBadge(Modifier.fillMaxHeight())
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (isSteamCompatible(item)) {
+                    SteamCompatBadge(Modifier.fillMaxHeight())
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (item.isInstalled) {
+                    IconTapButton(
+                        icon = Icons.Outlined.Delete,
+                        tint = DangerRed,
+                        onClick = onRemove,
+                    )
+                } else if (item.hasRemote) {
+                    SmallPillButton(
+                        label = stringResource(R.string.common_ui_download),
+                        icon = Icons.Outlined.Download,
+                        tint = Accent,
+                        onClick = onDownload,
+                    )
+                } else {
+                    // Locally extracted profile with no remote URL — non-interactive placeholder.
+                    Icon(
+                        imageVector = Icons.Outlined.CloudDownload,
+                        contentDescription = null,
+                        tint = TextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }
@@ -631,14 +648,35 @@ private fun isSteamCompatible(item: ComponentItem): Boolean =
     item.verName.contains("steam", ignoreCase = true) ||
         item.key.contains("steam", ignoreCase = true)
 
+// Badge marking first-party "WinNative" builds. A perfect square (width follows
+// the filled height) in WinNative blue, carrying only the WinNative logo for
+// "WN" branding. Pass Modifier.fillMaxHeight() to match the row's action height.
 @Composable
-private fun SteamCompatBadge() {
+private fun OfficialBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Accent.copy(alpha = 0.14f))
+            .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_winnative_badge),
+            contentDescription = "Official WinNative build",
+            modifier = Modifier.fillMaxSize(0.8f),
+        )
+    }
+}
+
+@Composable
+private fun SteamCompatBadge(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(SuccessGreen.copy(alpha = 0.14f))
             .border(1.dp, SuccessGreen.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

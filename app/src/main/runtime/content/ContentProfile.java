@@ -17,6 +17,7 @@ public class ContentProfile {
   public static final String MARK_WINE_BINPATH = "binPath";
   public static final String MARK_WINE_LIBPATH = "libPath";
   public static final String MARK_WINE_PREFIX_PACK = "prefixPack";
+  public static final String MARK_OFFICIAL = "official";
 
   public enum ContentType {
     CONTENT_TYPE_WINE("Wine"),
@@ -60,4 +61,6 @@ public class ContentProfile {
   public String winePrefixPack;
   public String remoteUrl;
   public boolean isInstalled;
+  /** True for first-party "WinNative" builds, flagged via "official" in contents.json. */
+  public boolean isOfficial;
 }

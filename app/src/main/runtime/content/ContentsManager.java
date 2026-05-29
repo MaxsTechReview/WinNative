@@ -136,6 +136,8 @@ public class ContentsManager {
           remoteProfile.type = ContentProfile.ContentType.getTypeByName(object.getString("type"));
           remoteProfile.verName = object.getString("verName");
           remoteProfile.verCode = object.getInt("verCode");
+          remoteProfile.isOfficial =
+              parseOfficialFlag(object.opt(ContentProfile.MARK_OFFICIAL));
           remoteProfiles.add(remoteProfile);
         } catch (JSONException e) {
           e.printStackTrace();
@@ -145,6 +147,18 @@ public class ContentsManager {
       e.printStackTrace();
     }
     syncContents();
+  }
+
+  /**
+   * Interprets the optional "official" marker. Accepts a string ("1"/"true"/"yes"), a number
+   * (non-zero), or a boolean so the contents.json author can use whichever form is convenient.
+   */
+  private static boolean parseOfficialFlag(Object value) {
+    if (value == null) return false;
+    if (value instanceof Boolean) return (Boolean) value;
+    if (value instanceof Number) return ((Number) value).intValue() != 0;
+    String s = value.toString().trim();
+    return s.equals("1") || s.equalsIgnoreCase("true") || s.equalsIgnoreCase("yes");
   }
 
   public void syncContents() {
@@ -444,6 +458,7 @@ public class ContentsManager {
       profile.verCode = verCode;
       profile.desc = desc;
       profile.fileList = fileList;
+      profile.isOfficial = parseOfficialFlag(profileJSONObject.opt(ContentProfile.MARK_OFFICIAL));
       profile.isInstalled = isInstalled(context, profile);
       return profile;
     } catch (Exception e) {
@@ -660,6 +675,9 @@ public class ContentsManager {
   private void mergeRemoteMetadata(ContentProfile localProfile, ContentProfile remoteProfile) {
     if (localProfile.remoteUrl == null) {
       localProfile.remoteUrl = remoteProfile.remoteUrl;
+    }
+    if (remoteProfile.isOfficial) {
+      localProfile.isOfficial = true;
     }
     localProfile.isInstalled = true;
   }
