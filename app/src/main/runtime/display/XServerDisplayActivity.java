@@ -4018,7 +4018,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     new XServerDisplayHostCallbacks() {
                         @Override
                         public void onDrawerSlide() {
-                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                            // Per frame: avoid hideSystemUI's relayout unless bars actually showed.
+                            AppUtils.hideSystemUIIfVisible(XServerDisplayActivity.this);
                         }
 
                         @Override
@@ -6208,7 +6209,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 float dy = event.getY(pointerIndex) - drawerEdgeGestureStartY;
                 int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
 
-                if (dx > slop && dx > Math.abs(dy)) {
+                if (dx > getDrawerOpenTriggerPx()
+                        && dx > Math.abs(dy) * XServerDisplayHostKt.XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO) {
                     if (touchpadView != null) {
                         touchpadView.resetInputState();
                     }
@@ -6231,6 +6233,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private int getDrawerEdgeSwipePx() {
         return (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+    }
+
+    private int getDrawerOpenTriggerPx() {
+        return (int) (XServerDisplayHostKt.XSERVER_DRAWER_OPEN_TRIGGER_DP * getResources().getDisplayMetrics().density);
     }
 
     private boolean isTouchInsideMagnifier(float x, float y) {
