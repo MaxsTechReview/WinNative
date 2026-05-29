@@ -112,9 +112,6 @@ class WnLauncherStatusTailer(
                 || line.contains("game process started pid=")
         val isFatal = line.contains("LoadLibrary(") && line.contains("FAILED after all strategies")
         val isLaunchAppDispatched = line.contains("IClientAppManager.LaunchApp(appId=")
-        val isLaunchAppRetry = line.contains("LaunchApp attempt")
-                && line.contains("never appeared")
-                && line.contains("retrying LaunchApp")
         val isCreateProcessFallback = line.contains("LaunchApp dispatched")
                 && line.contains("never appeared")
                 && line.contains("falling back to CreateProcess")
@@ -135,18 +132,16 @@ class WnLauncherStatusTailer(
         } else if (isFatal) {
             android.util.Log.w(TAG, "fatal phase (launcher LoadLibrary failed) — signaling launch failure")
             main.post { onLaunchFailed?.invoke("Steam Launcher could not start. Re-staging — please relaunch.") }
-        } else if (isLaunchAppRetry) {
-            emitPhase("Game didn't start yet — retrying via Steam…", line)
         } else if (isCreateProcessFallback) {
-            android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback")
+            // Keep the UI on "Launching <game>…" through the fallback; disarm the watchdog.
+            android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback (UI stays on Launching…)")
             launchAppDispatchedAt = 0L
-            emitPhase("Game didn't start via Steam — trying direct launch…", line)
         }
     }
 
     private fun watchdogTick() {
         val dispatchedAt = launchAppDispatchedAt
-        if (dispatchedAt == 0L || lastEmitted.startsWith("Game didn't start")) return
+        if (dispatchedAt == 0L) return  // disarmed on spawn / fallback
         if (System.currentTimeMillis() - dispatchedAt > LAUNCH_APP_WATCHDOG_MS) {
             android.util.Log.w(TAG, "watchdog: ${LAUNCH_APP_WATCHDOG_MS}ms elapsed after LaunchApp with no terminal — assuming launch failed")
             launchAppDispatchedAt = 0L

@@ -2556,6 +2556,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    // SIGTERM->SIGKILL grace before end-of-session process kill. In PlanW the
+    // launcher already closed+saved the game before we reach here, so only Wine
+    // infra stubs remain — shorten it for that case; other sessions keep 2s so a
+    // slow save-on-exit isn't cut short.
+    private long sessionTerminateGraceMs() {
+        try {
+            if (isSteamShortcut()
+                    && com.winlator.cmod.feature.stores.steam.utils.PrefManager
+                            .INSTANCE.getWnPlanW()) {
+                return 800L;
+            }
+        } catch (Throwable ignored) {}
+        return 2000L;
+    }
+
     private void performForcedSessionCleanup(String trigger) {
         if (!beginSessionCleanup(trigger)) {
             Log.d("XServerLeakCheck", "Forced session cleanup already ran; skipping duplicate request from " + trigger);
@@ -2616,7 +2631,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 Log.e("XServerLeakCheck", "Failed to stop WineRequestHandler during forced cleanup", e);
             }
 
-            ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
+            ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(sessionTerminateGraceMs(), true);
             ProcessHelper.drainDeadChildren("forced cleanup (" + trigger + ")");
             ProcessHelper.scheduleDeadChildReapSweep("forced cleanup (" + trigger + ")", 4000, 200);
 
@@ -2674,7 +2689,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     if (midiHandler != null) midiHandler.stop();
                     stopWinHandler("exit");
                     if (wineRequestHandler != null) wineRequestHandler.stop();
-                    ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(2000, true);
+                    ArrayList<String> remaining = ProcessHelper.terminateSessionProcessesAndWait(sessionTerminateGraceMs(), true);
                     ProcessHelper.drainDeadChildren("activity exit cleanup");
                     ProcessHelper.scheduleDeadChildReapSweep("activity exit cleanup", 4000, 200);
                     if (!remaining.isEmpty()) {
@@ -3227,10 +3242,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         stopWnLauncherStatusTailer();
         if (!isSteamShortcut()) return;
 
-        if (container != null) {
-            resetWnLauncherLog(new File(container.getRootDir(), ".wine/drive_c/wn-launcher.log"));
-        }
-
         boolean bionicSteam = false;
         try {
             bionicSteam = isBionicSteamEnabledForShortcut();
@@ -3239,15 +3250,36 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     "Steam cleanup: failed to resolve bionic/PlanW state during " + trigger, t);
         }
 
-        if (!bionicSteam) return;
-
         boolean planWActive = com.winlator.cmod.feature.stores.steam.utils
                 .PrefManager.INSTANCE.getWnPlanW();
+
+        // Ask the in-Wine launcher to log off Steam cleanly before we kill it; a
+        // SIGKILL'd launcher leaves the app registered "running" (~40s) and the next
+        // launch hits AlreadyRunning → fallback. No-op until the launcher advertises
+        // the armed marker.
+        if (bionicSteam && planWActive) {
+            try {
+                signalPlanWLauncherCleanShutdown(trigger);
+            } catch (Throwable t) {
+                Log.w("XServerDisplayActivity",
+                        "Steam cleanup: launcher clean-shutdown handshake failed during "
+                                + trigger, t);
+            }
+        }
+
+        if (container != null) {
+            resetWnLauncherLog(new File(container.getRootDir(), ".wine/drive_c/wn-launcher.log"));
+        }
+
+        if (!bionicSteam) return;
+
         try {
-            boolean kicked = false;
             if (waitForPlayingSessionClear) {
-                kicked = com.winlator.cmod.feature.stores.steam.service.SteamService
-                        .Companion.bionicHandoffReleaseAndKickPlayingSessionBlocking(true, 4000L);
+                // Fire-and-forget: blocking on the kick wasted ~4s every exit (in PlanW
+                // the wn-session is offline during the reap window so it can't fire). The
+                // release is synchronous; the kick retries in the background after reconnect.
+                com.winlator.cmod.feature.stores.steam.service.SteamService
+                        .Companion.bionicHandoffReleaseAndKickPlayingSessionAsync(true);
             } else {
                 com.winlator.cmod.feature.stores.steam.service.SteamService
                         .Companion.bionicHandoffRelease();
@@ -3255,7 +3287,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.i("XServerDisplayActivity",
                     "Steam cleanup: release issued from " + trigger
                             + " planW=" + planWActive
-                            + " kickedPlayingSession=" + kicked);
+                            + " (playing-session kick dispatched async)");
         } catch (Throwable t) {
             Log.w("XServerDisplayActivity",
                     "Steam cleanup: release/kick failed during " + trigger, t);
@@ -3272,6 +3304,91 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (planWActive) {
             scrubPlanWBridgeFilesForNextSession();
         }
+    }
+
+    // ---- Plan-W launcher clean-shutdown handshake ---------------------------
+    // Hand the in-Wine launcher a file sentinel it watches; on seeing it the
+    // launcher does a clean Steam_LogOff + teardown and exits, reaping the server
+    // session so the next launch doesn't hit AlreadyRunning. No-op until the
+    // launcher advertises the armed marker in wn-launcher.log.
+    private static final String WN_LAUNCHER_SHUTDOWN_SENTINEL = "wn-launcher.shutdown";
+    private static final String WN_LAUNCHER_ARMED_MARKER = "[wn-launcher] clean-shutdown armed";
+    private static final String WN_LAUNCHER_LOGOFF_DONE_MARKER = "[wn-launcher] clean logoff complete";
+    // Ceiling; returns early as soon as the "clean logoff complete" marker appears.
+    private static final long WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS = 13000L;
+    private static final long WN_LAUNCHER_SHUTDOWN_POLL_MS = 150L;
+
+    private void signalPlanWLauncherCleanShutdown(String trigger) {
+        if (container == null) return;
+        File driveC = new File(container.getRootDir(), ".wine/drive_c");
+        File log = new File(driveC, "wn-launcher.log");
+        if (!wnLauncherLogContains(log, WN_LAUNCHER_ARMED_MARKER)) {
+            Log.i("XServerDisplayActivity",
+                    "Plan-W launcher clean-shutdown: launcher did not advertise support ("
+                            + WN_LAUNCHER_ARMED_MARKER + " absent) — skipping handshake from "
+                            + trigger);
+            return;
+        }
+        File sentinel = new File(driveC, WN_LAUNCHER_SHUTDOWN_SENTINEL);
+        try {
+            FileUtils.writeString(sentinel, Long.toString(System.currentTimeMillis()));
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity",
+                    "Plan-W launcher clean-shutdown: failed to write sentinel "
+                            + sentinel.getAbsolutePath(), e);
+            return;
+        }
+        Log.i("XServerDisplayActivity",
+                "Plan-W launcher clean-shutdown: wrote " + sentinel.getAbsolutePath()
+                        + " from " + trigger + " — waiting up to "
+                        + WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS + "ms for clean logoff");
+
+        long deadline = System.currentTimeMillis() + WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS;
+        boolean cleanLogoff = false;
+        boolean launcherExited = false;
+        while (System.currentTimeMillis() < deadline) {
+            if (wnLauncherLogContains(log, WN_LAUNCHER_LOGOFF_DONE_MARKER)) {
+                cleanLogoff = true;
+                break;
+            }
+            if (!isSteamExeRunning()) {
+                launcherExited = true;
+                break;
+            }
+            try {
+                Thread.sleep(WN_LAUNCHER_SHUTDOWN_POLL_MS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        Log.i("XServerDisplayActivity",
+                "Plan-W launcher clean-shutdown: done from " + trigger
+                        + " (cleanLogoff=" + cleanLogoff + " launcherExited=" + launcherExited
+                        + " elapsedMs=" + (WN_LAUNCHER_SHUTDOWN_TIMEOUT_MS
+                                - Math.max(0, deadline - System.currentTimeMillis())) + ")");
+        try {
+            if (sentinel.exists()) sentinel.delete();
+        } catch (Exception ignored) {}
+    }
+
+    private static boolean isSteamExeRunning() {
+        for (String detail : ProcessHelper.listRunningWineProcessDetails()) {
+            if (detail.toLowerCase().contains("steam.exe")) return true;
+        }
+        return false;
+    }
+
+    private static boolean wnLauncherLogContains(File log, String marker) {
+        if (log == null || !log.isFile()) return false;
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(new java.io.FileInputStream(log)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains(marker)) return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     @Override
@@ -3910,7 +4027,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     new XServerDisplayHostCallbacks() {
                         @Override
                         public void onDrawerSlide() {
-                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                            // Per frame: avoid hideSystemUI's relayout unless bars actually showed.
+                            AppUtils.hideSystemUIIfVisible(XServerDisplayActivity.this);
                         }
 
                         @Override
@@ -6100,7 +6218,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 float dy = event.getY(pointerIndex) - drawerEdgeGestureStartY;
                 int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
 
-                if (dx > slop && dx > Math.abs(dy)) {
+                if (dx > getDrawerOpenTriggerPx()
+                        && dx > Math.abs(dy) * XServerDisplayHostKt.XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO) {
                     if (touchpadView != null) {
                         touchpadView.resetInputState();
                     }
@@ -6123,6 +6242,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private int getDrawerEdgeSwipePx() {
         return (int) (XServerDisplayHostKt.XSERVER_DRAWER_EDGE_SWIPE_DP * getResources().getDisplayMetrics().density);
+    }
+
+    private int getDrawerOpenTriggerPx() {
+        return (int) (XServerDisplayHostKt.XSERVER_DRAWER_OPEN_TRIGGER_DP * getResources().getDisplayMetrics().density);
     }
 
     private boolean isTouchInsideMagnifier(float x, float y) {

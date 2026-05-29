@@ -46,6 +46,12 @@ import kotlin.math.roundToInt
 
 const val XSERVER_DRAWER_EDGE_SWIPE_DP = 35
 
+// Horizontal swipe distance to open the drawer; shared with XServerDisplayActivity.
+const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
+
+// Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
+const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
+
 private val DrawerWidth = 340.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
@@ -161,6 +167,7 @@ private fun XServerDisplayHost(
                             if (dialogVisible || drawerWidthPx <= 0f) return@awaitEachGesture
 
                             val edgeWidthPx = XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx()
+                            val openTriggerPx = XSERVER_DRAWER_OPEN_TRIGGER_DP.dp.toPx()
                             val canStartFromHere =
                                 if (stateHolder.isDrawerOpen) {
                                     down.position.x >= drawerWidthPx &&
@@ -199,7 +206,8 @@ private fun XServerDisplayHost(
                                         if (stateHolder.isDrawerOpen) {
                                             totalDx < -viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
                                         } else {
-                                            totalDx > viewConfiguration.touchSlop && totalDx > abs(totalDy)
+                                            totalDx > openTriggerPx &&
+                                                totalDx > abs(totalDy) * XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO
                                         }
                                     if (horizontalDragClaimed) {
                                         gestureClaimed = true
