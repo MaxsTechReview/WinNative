@@ -37,10 +37,10 @@ unsafe extern "C" {
     fn __android_log_write(prio: i32, tag: *const i8, text: *const i8) -> i32;
 }
 
-fn qr_log(message: &str) {
+fn android_log(tag: &str, message: &str) {
     #[cfg(target_os = "android")]
     {
-        let Ok(tag) = CString::new("WnSteamQr") else {
+        let Ok(tag) = CString::new(tag) else {
             return;
         };
         let sanitized = message.replace('\0', " ");
@@ -53,8 +53,12 @@ fn qr_log(message: &str) {
     }
     #[cfg(not(target_os = "android"))]
     {
-        let _ = message;
+        let _ = (tag, message);
     }
+}
+
+fn qr_log(message: &str) {
+    android_log("WnSteamQr", message);
 }
 
 struct WnConnectionHandle {
@@ -586,18 +590,46 @@ fn long_array_to_u64_vec(env: &JNIEnv, array: &JLongArray) -> Vec<u64> {
     values.into_iter().map(|value| value as u64).collect()
 }
 
+// One value per line (0 for blank/garbage), so callers that pair these lists
+// with another by index never have a line silently dropped and shifted.
 fn parse_u32_lines(value: &str) -> Vec<u32> {
     value
         .lines()
-        .filter_map(|line| line.trim().parse::<u32>().ok())
+        .map(|line| parse_u32_token(line).unwrap_or(0))
         .collect()
 }
 
 fn parse_u64_lines(value: &str) -> Vec<u64> {
     value
         .lines()
-        .filter_map(|line| line.trim().parse::<u64>().ok())
+        .map(|line| parse_u64_token(line).unwrap_or(0))
         .collect()
+}
+
+// Kotlin renders u64/u32 ids+tokens from signed Long/Int, so high-bit values
+// arrive negative (e.g. "-2956503589389641226"). Parse signed-or-unsigned and
+// wrap (two's complement) like the C++ stoull this replaced; a strict
+// parse::<uN>() rejects the minus and would lose the token.
+fn parse_u32_token(line: &str) -> Option<u32> {
+    let token = line.trim();
+    if token.is_empty() {
+        return None;
+    }
+    token
+        .parse::<u32>()
+        .ok()
+        .or_else(|| token.parse::<i32>().ok().map(|v| v as u32))
+}
+
+fn parse_u64_token(line: &str) -> Option<u64> {
+    let token = line.trim();
+    if token.is_empty() {
+        return None;
+    }
+    token
+        .parse::<u64>()
+        .ok()
+        .or_else(|| token.parse::<i64>().ok().map(|v| v as u64))
 }
 
 fn split_nonempty_lines(value: &str) -> Vec<String> {
@@ -1111,7 +1143,78 @@ fn request_pics_product_info(
     let body = request_proto_body(runtime, timeout, |core, job_id| {
         core.build_pics_product_info(packages, apps, meta_data_only, job_id)
     })?;
-    crate::pb::cmsg_client_pics::CMsgClientPICSProductInfoResponse::deserialize(&body)
+    let mut response =
+        crate::pb::cmsg_client_pics::CMsgClientPICSProductInfoResponse::deserialize(&body)?;
+    hydrate_http_delivered_appinfo(&mut response, timeout);
+    Some(response)
+}
+
+/// Large appinfo the CM delivered over HTTP arrives as an empty `buffer` + a
+/// `sha`/`http_host`; fetch it like the official client so the app isn't dropped.
+fn hydrate_http_delivered_appinfo(
+    response: &mut crate::pb::cmsg_client_pics::CMsgClientPICSProductInfoResponse,
+    timeout: Duration,
+) {
+    if response.http_host.is_empty() {
+        return;
+    }
+    let targets: Vec<(usize, u32, Vec<u8>)> = response
+        .apps
+        .iter()
+        .enumerate()
+        .filter(|(_, app)| !app.missing_token && app.buffer.is_empty() && !app.sha.is_empty())
+        .map(|(index, app)| (index, app.appid, app.sha.clone()))
+        .collect();
+    if targets.is_empty() {
+        return;
+    }
+    let host = response.http_host.clone();
+    let cdn = crate::cdn_client::CdnClient::new("");
+    let total = targets.len();
+    let fetched = fetch_appinfo_buffers_parallel(&cdn, &host, targets, timeout);
+    let mut hydrated = 0usize;
+    for (index, buffer) in fetched {
+        if let (Some(buffer), Some(app)) = (buffer, response.apps.get_mut(index)) {
+            app.buffer = buffer;
+            hydrated += 1;
+        }
+    }
+    android_log(
+        "WnSteamPics",
+        &format!("hydrated {hydrated}/{total} HTTP-delivered appinfo buffer(s) from {host}"),
+    );
+}
+
+/// Concurrent appinfo fetch (bounded pool); returns `(index, buffer?)`.
+fn fetch_appinfo_buffers_parallel(
+    cdn: &crate::cdn_client::CdnClient,
+    host: &str,
+    targets: Vec<(usize, u32, Vec<u8>)>,
+    timeout: Duration,
+) -> Vec<(usize, Option<Vec<u8>>)> {
+    let worker_count = targets.len().clamp(1, 8);
+    let queue = Mutex::new(targets.into_iter());
+    let results = Mutex::new(Vec::new());
+    thread::scope(|scope| {
+        for _ in 0..worker_count {
+            scope.spawn(|| {
+                let mut conn = cdn.open_connection();
+                loop {
+                    let job = queue.lock().expect("appinfo fetch queue poisoned").next();
+                    let Some((index, app_id, sha)) = job else {
+                        break;
+                    };
+                    let buffer =
+                        cdn.fetch_appinfo_with_connection(&mut conn, host, app_id, &sha, timeout);
+                    results
+                        .lock()
+                        .expect("appinfo fetch results poisoned")
+                        .push((index, buffer));
+                }
+            });
+        }
+    });
+    results.into_inner().expect("appinfo fetch results poisoned")
 }
 
 fn request_app_ownership_ticket(
@@ -3933,4 +4036,59 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             job_id,
         )
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_u32_lines, parse_u64_lines};
+
+    #[test]
+    fn parses_high_bit_token_from_signed_long_string() {
+        // High-bit u64 token arrives as a negative Long string; recover unsigned.
+        assert_eq!(
+            parse_u64_lines("-2956503589389641226"),
+            vec![15490240484319910390u64]
+        );
+        // Plain unsigned strings still parse unchanged.
+        assert_eq!(parse_u64_lines("4984014265555654850"), vec![4984014265555654850u64]);
+    }
+
+    #[test]
+    fn keeps_token_to_id_pairing_aligned_across_negatives() {
+        // A dropped negative line shifts later tokens onto the wrong package.
+        let ids = parse_u32_lines("305944\n322317\n304933");
+        let tokens = parse_u64_lines("4984014265555654850\n-4562710670371372905\n3396749975682522332");
+        assert_eq!(ids.len(), 3);
+        assert_eq!(tokens.len(), 3, "no line may be dropped or pairing misaligns");
+        assert_eq!(tokens[1], (-4562710670371372905i64) as u64);
+        assert_eq!(tokens[2], 3396749975682522332u64);
+    }
+
+    #[test]
+    fn parses_high_bit_u32_id_from_signed_int_string() {
+        assert_eq!(parse_u32_lines("-1"), vec![u32::MAX]);
+        assert_eq!(parse_u32_lines("601150"), vec![601150u32]);
+    }
+
+    #[test]
+    fn blank_or_garbage_line_becomes_zero_without_shifting() {
+        // A blank/garbage line must keep its slot (0), not drop and misalign.
+        assert_eq!(parse_u64_lines("11\n\n22"), vec![11u64, 0, 22]);
+        assert_eq!(parse_u32_lines("11\nxx\n22"), vec![11u32, 0, 22]);
+        assert!(parse_u64_lines("").is_empty());
+    }
+
+    #[test]
+    fn appinfo_json_preserves_object_key_order() {
+        // The Kotlin appinfo decoder groups DLC depots positionally, so depot
+        // keys must stay in source order, not be sorted (BTreeMap default).
+        let mut depots = crate::vdf::KVNode::new("depots");
+        for id in ["601151", "1432644", "601152"] {
+            depots.children.push(crate::vdf::KVNode::new(id));
+        }
+        assert_eq!(
+            super::kvnode_to_json_value(&depots).to_string(),
+            r#"{"601151":{},"1432644":{},"601152":{}}"#
+        );
+    }
 }

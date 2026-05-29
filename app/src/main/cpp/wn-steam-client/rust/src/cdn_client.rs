@@ -1,5 +1,5 @@
 use crate::pb::ccontentserverdirectory::CContentServerDirectoryServerInfo;
-use flate2::read::DeflateDecoder;
+use flate2::read::{DeflateDecoder, GzDecoder};
 use std::fs;
 use std::io::Read;
 use std::time::Duration;
@@ -253,6 +253,37 @@ impl CdnClient {
         Some(CdnClient::strip_item_def_trailing_nul(response.body))
     }
 
+    /// HTTP-delivered PICS appinfo URL (large appinfo the CM didn't inline).
+    pub fn build_appinfo_url(http_host: &str, app_id: u32, sha: &[u8]) -> String {
+        format!(
+            "http://{}/appinfo/{}/sha/{}.txt.gz",
+            http_host,
+            app_id,
+            hex_encode(sha)
+        )
+    }
+
+    /// Fetch + gunzip an HTTP-delivered appinfo blob (same VDF as inline `buffer`).
+    pub fn fetch_appinfo_with_connection(
+        &self,
+        conn: &mut CdnConnection,
+        http_host: &str,
+        app_id: u32,
+        sha: &[u8],
+        timeout: Duration,
+    ) -> Option<Vec<u8>> {
+        if http_host.is_empty() || sha.is_empty() {
+            return None;
+        }
+        let url = CdnClient::build_appinfo_url(http_host, app_id, sha);
+        let client = self.ensure_connection(conn).ok()?;
+        let response = self.http_get_with_client(client, &url, timeout).ok()?;
+        if response.http_status != 200 || response.body.is_empty() {
+            return None;
+        }
+        Some(maybe_gunzip(response.body))
+    }
+
     pub fn validate_manifest_response(
         http_status: i32,
         body: Vec<u8>,
@@ -447,6 +478,17 @@ pub fn unzip_first_entry(zip: &[u8]) -> Option<Vec<u8>> {
     }
 }
 
+/// Gunzip; pass through already-inflated bytes (edge caches may decompress).
+pub fn maybe_gunzip(body: Vec<u8>) -> Vec<u8> {
+    if body.len() >= 2 && body[0] == 0x1f && body[1] == 0x8b {
+        let mut out = Vec::new();
+        if GzDecoder::new(&body[..]).read_to_end(&mut out).is_ok() && !out.is_empty() {
+            return out;
+        }
+    }
+    body
+}
+
 pub fn hex_encode(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -532,6 +574,26 @@ mod tests {
     #[test]
     fn hex_encodes_lowercase() {
         assert_eq!(hex_encode(&[0, 1, 0xab, 0xff]), "0001abff");
+    }
+
+    #[test]
+    fn builds_http_appinfo_url() {
+        assert_eq!(
+            CdnClient::build_appinfo_url("cache1.steamcontent.com", 601150, &[0xab, 0xcd, 0x01]),
+            "http://cache1.steamcontent.com/appinfo/601150/sha/abcd01.txt.gz"
+        );
+    }
+
+    #[test]
+    fn gunzips_gzip_and_passes_through_plain_vdf() {
+        use flate2::{write::GzEncoder, Compression};
+        use std::io::Write;
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"\"appinfo\"{}").unwrap();
+        let gz = encoder.finish().unwrap();
+        assert_eq!(maybe_gunzip(gz), b"\"appinfo\"{}");
+        // Already-inflated payload (gzip magic absent) is returned verbatim.
+        assert_eq!(maybe_gunzip(b"\"appinfo\"{}".to_vec()), b"\"appinfo\"{}");
     }
 
     #[test]

@@ -467,4 +467,48 @@ mod tests {
         assert_eq!(package_id, 123);
         assert_eq!(root.name, "package");
     }
+
+    // Manifest gid/size/download: proves the parser reads download (the 3rd value)
+    // correctly, ruling out a parser cause for the stale corrupt download sizes.
+    #[test]
+    fn parses_manifest_uint64_gid_size_download() {
+        let gid: u64 = 8072044898226043193;
+        let size: u64 = 30738676601;
+        let download: u64 = 15000000000;
+        let mut b = vec![TYPE_NONE];
+        b.extend_from_slice(b"public\0");
+        b.push(TYPE_UINT64);
+        b.extend_from_slice(b"gid\0");
+        b.extend_from_slice(&gid.to_le_bytes());
+        b.push(TYPE_UINT64);
+        b.extend_from_slice(b"size\0");
+        b.extend_from_slice(&size.to_le_bytes());
+        b.push(TYPE_UINT64);
+        b.extend_from_slice(b"download\0");
+        b.extend_from_slice(&download.to_le_bytes());
+        b.push(TYPE_END);
+
+        let root = parse_binary(&b).unwrap();
+        assert_eq!(root.child("gid").unwrap().as_string(""), gid.to_string());
+        assert_eq!(root.child("size").unwrap().as_string(""), size.to_string());
+        assert_eq!(
+            root.child("download").unwrap().as_string(""),
+            download.to_string()
+        );
+    }
+
+    #[test]
+    fn parses_manifest_text_vdf() {
+        let text = br#"
+            "public"
+            {
+                "gid"		"8072044898226043193"
+                "size"		"30738676601"
+                "download"		"15000000000"
+            }
+        "#;
+        let root = parse_text(text).unwrap();
+        assert_eq!(root.child("size").unwrap().as_string(""), "30738676601");
+        assert_eq!(root.child("download").unwrap().as_string(""), "15000000000");
+    }
 }
