@@ -33,6 +33,8 @@ public class ExternalController {
   public static final byte TRIGGER_IS_BUTTON = 0;
   public static final byte TRIGGER_IS_AXIS = 1;
   public static final byte TRIGGER_IS_BOTH = 2;
+  // Sentinel: user never picked a trigger type -> auto-detect.
+  private static final int TRIGGER_TYPE_UNSET = -1;
   public static final HashMap<Byte, Byte> buttonMappings = new HashMap<>();
   private XServerDisplayActivity activity;
   private Context context;
@@ -40,6 +42,9 @@ public class ExternalController {
   private String name;
   private int deviceId = -1;
   private byte triggerType = TRIGGER_IS_AXIS;
+  // Device exposes an analog trigger axis; gates the analog path so a stale "as button"
+  // pref can't kill an analog pad's triggers. Default true = historical behavior.
+  private boolean hasAnalogTriggerAxis = true;
   private final ArrayList<ExternalControllerBinding> controllerBindings = new ArrayList<>();
   public final GamepadState state = new GamepadState();
   public final GamepadState remappedState = new GamepadState();
@@ -93,6 +98,13 @@ public class ExternalController {
               useSquareDeadzoneLeft =
                   sharedPreferences.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
               break;
+            case PreferenceKeys.TRIGGER_TYPE:
+              {
+                int pref =
+                    sharedPreferences.getInt(PreferenceKeys.TRIGGER_TYPE, TRIGGER_TYPE_UNSET);
+                triggerType = pref == TRIGGER_TYPE_UNSET ? autoTriggerType() : (byte) pref;
+              }
+              break;
           }
         }
       };
@@ -129,6 +141,29 @@ public class ExternalController {
     this.invertRightX = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_X, false);
     this.invertRightY = prefs.getBoolean(PreferenceKeys.INVERT_RIGHT_Y, false);
     this.useSquareDeadzoneLeft = prefs.getBoolean(PreferenceKeys.SQUARE_DEADZONE_LEFT, false);
+    // Honor an explicit choice; else auto-detect. Runs per instance via setContext.
+    this.hasAnalogTriggerAxis = deviceHasAnalogTriggerAxis();
+    int triggerTypePref = prefs.getInt(PreferenceKeys.TRIGGER_TYPE, TRIGGER_TYPE_UNSET);
+    this.triggerType =
+        triggerTypePref == TRIGGER_TYPE_UNSET ? autoTriggerType() : (byte) triggerTypePref;
+  }
+
+  /** Default trigger mode (no explicit choice): derived from capability. */
+  private byte autoTriggerType() {
+    return hasAnalogTriggerAxis ? TRIGGER_IS_AXIS : TRIGGER_IS_BUTTON;
+  }
+
+  /** True if the device reports an analog trigger axis; true (historical default) when uninspectable. */
+  private boolean deviceHasAnalogTriggerAxis() {
+    int id = getDeviceId();
+    InputDevice device = id >= 0 ? InputDevice.getDevice(id) : null;
+    if (device == null) {
+      return true;
+    }
+    return device.getMotionRange(MotionEvent.AXIS_LTRIGGER) != null
+        || device.getMotionRange(MotionEvent.AXIS_RTRIGGER) != null
+        || device.getMotionRange(MotionEvent.AXIS_GAS) != null
+        || device.getMotionRange(MotionEvent.AXIS_BRAKE) != null;
   }
 
   public String getName() {
@@ -345,7 +380,11 @@ public class ExternalController {
 
   public boolean updateStateFromMotionEvent(MotionEvent event) {
     if (isJoystickDevice(event)) {
-      processTriggerButton(event);
+      // Capability-gated, not mode-gated: button-only pads skip this (the 0-read would
+      // clobber the digital key state); analog pads always run it.
+      if (hasAnalogTriggerAxis) {
+        processTriggerButton(event);
+      }
       int historySize = event.getHistorySize();
       for (int i = 0; i < historySize; i++) {
         processJoystickInput(event, i);
@@ -363,9 +402,20 @@ public class ExternalController {
     int buttonIdx = getButtonIdxByKeyCode(keyCode);
     if (buttonIdx != -1) {
       if (buttonIdx == 10 || buttonIdx == 11) {
-        // Trigger key events: don't call sendGamepadState to avoid
-        // overwriting analog trigger values from motion events
-        return false;
+        if (triggerType == TRIGGER_IS_AXIS) {
+          // Axis mode: analog path owns the value; ignore the digital key.
+          return false;
+        }
+        // Non-axis: set the button bit; synthesize analog only when there's no axis to own it.
+        this.state.setPressed(buttonIdx, pressed);
+        if (!hasAnalogTriggerAxis) {
+          if (buttonIdx == 10) {
+            this.state.triggerL = pressed ? 1.0f : 0.0f;
+          } else {
+            this.state.triggerR = pressed ? 1.0f : 0.0f;
+          }
+        }
+        return true;
       }
       this.state.setPressed(buttonIdx, pressed);
       return true;
