@@ -115,6 +115,10 @@ public class XServer {
     return renderer;
   }
 
+  public GrabManager getGrabManager() {
+    return grabManager;
+  }
+
   public void setRenderer(VulkanRenderer renderer) {
     this.renderer = renderer;
   }
@@ -210,22 +214,22 @@ public class XServer {
     }
   }
 
-  public void injectPointerMoveDelta(int dx, int dy) {
+  public void injectPointerMoveDelta(double dx, double dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      int x = pointer.getX() + dx;
-      int y = pointer.getY() + dy;
+      double x = pointer.getX() + dx;
+      double y = pointer.getY() + dy;
 
       android.graphics.Rect confinement = grabManager.getConfinementBounds();
       if (confinement != null) {
-        x = Mathf.clamp(x, confinement.left, confinement.right - 1);
-        y = Mathf.clamp(y, confinement.top, confinement.bottom - 1);
+        x = Mathf.clamp(x, (double)confinement.left, (double)confinement.right - 1.0);
+        y = Mathf.clamp(y, (double)confinement.top, (double)confinement.bottom - 1.0);
       } else {
         short softMarginX = (short) (screenInfo.width * 0.05f);
         short softMarginY = (short) (screenInfo.height * 0.05f);
-        x = Mathf.clamp(x, -softMarginX, (screenInfo.width - 1) + softMarginX);
-        y = Mathf.clamp(y, -softMarginY, (screenInfo.height - 1) + softMarginY);
+        x = Mathf.clamp(x, (double)-softMarginX, (double)(screenInfo.width - 1) + softMarginX);
+        y = Mathf.clamp(y, (double)-softMarginY, (double)(screenInfo.height - 1) + softMarginY);
       }
-      pointer.setPosition(x, y);
+      pointer.setPosition(Mathf.roundPoint((float)x), Mathf.roundPoint((float)y));
 
       XInput2Extension xi = getExtension(XInput2Extension.MAJOR_OPCODE);
       if (xi != null) xi.emitRawMotion(2, dx, dy);
