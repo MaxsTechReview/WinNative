@@ -737,8 +737,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             wineRequestHandler = new WineRequestHandler(this);
 
         if (controller != null) {
-            int triggerType = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS);
-            controller.setTriggerType((byte) triggerType);
+            // Only force a type when explicitly chosen; else keep the auto-detected value.
+            int triggerType = preferences.getInt("trigger_type", -1);
+            if (triggerType != -1) {
+                controller.setTriggerType((byte) triggerType);
+            }
         }
 
 
