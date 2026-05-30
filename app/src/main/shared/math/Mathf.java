@@ -9,6 +9,10 @@ public abstract class Mathf {
     return (x < min) ? min : (x > max ? max : x);
   }
 
+  public static double clamp(double x, double min, double max) {
+    return (x < min) ? min : ((x > max) ? max : x);
+  }
+
   public static float roundTo(float x, float step) {
     return (float) (Math.floor(x / step) * step);
   }

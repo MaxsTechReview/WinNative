@@ -1609,11 +1609,10 @@ return boundingBox;
             cursorAccumX -= idx;
             cursorAccumY -= idy;
 
-            XServer xServer = inputControlsView.getXServer();
-            if (xServer.isRelativeMouseMovement()) {
-              xServer.updatePointerForDisplayDelta(idx, idy);
-              xServer.getWinHandler().mouseMoveDelta(idx, idy);
-            } else inputControlsView.getXServer().injectPointerMoveDelta(idx, idy);
+            // Feed Wine via the single unaccelerated XInput2 raw-motion path for both
+            // relative and absolute modes (see InputControlsView / XServer for why the
+            // WinHandler relative path was removed: Proton 10/11 accelerates it).
+            inputControlsView.getXServer().injectPointerMoveDelta(idx, idy);
           }
         }
       } else {

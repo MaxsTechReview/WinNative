@@ -57,7 +57,7 @@ public abstract class GrabRequests {
       client.xServer.grabManager.activatePointerGrab(window, ownerEvents, eventMask, client);
       if (confineToId != 0) {
         Window confineToWindow = client.xServer.windowManager.getWindow(confineToId);
-        client.xServer.windowManager.setConfinedWindow(confineToWindow);
+        client.xServer.grabManager.setConfineToWindow(confineToWindow);
       }
     }
 
@@ -74,6 +74,6 @@ public abstract class GrabRequests {
       XClient client, XInputStream inputStream, XOutputStream outputStream) {
     inputStream.skip(4);
     client.xServer.grabManager.deactivatePointerGrab();
-    client.xServer.windowManager.setConfinedWindow(null);
+    client.xServer.grabManager.setConfineToWindow(null);
   }
 }

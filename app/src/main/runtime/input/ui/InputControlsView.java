@@ -494,7 +494,6 @@ public class InputControlsView extends View {
 
   private void createMouseMoveTimer() {
     if (xServer == null) return;
-    WinHandler winHandler = xServer.getWinHandler();
     if (mouseMoveTimer == null && profile != null) {
       final float cursorSpeed = profile.getCursorSpeed();
       mouseMoveTimer = new Timer();
@@ -505,12 +504,11 @@ public class InputControlsView extends View {
               if (getContext() instanceof XServerDisplayActivity && ((XServerDisplayActivity)getContext()).isInputSuspended()) return;
               if (mouseMoveOffsetX != 0 || mouseMoveOffsetY != 0) {                int dx = (int) (mouseMoveOffsetX * cursorSpeed * 20);
                 int dy = (int) (mouseMoveOffsetY * cursorSpeed * 20);
-                if (xServer.isRelativeMouseMovement()) {
-                  xServer.updatePointerForDisplayDelta(dx, dy);
-                  winHandler.mouseMoveDelta(dx, dy);
-                } else {
-                  xServer.injectPointerMoveDelta(dx, dy);
-                }
+                // Both relative and absolute mouse modes feed Wine through the same
+                // unaccelerated XInput2 raw-motion path. The old relative branch used
+                // WinHandler (Win32 SendInput), which Proton 10/11 runs through pointer
+                // acceleration; keeping a single path avoids that and the double-feed.
+                xServer.injectPointerMoveDelta(dx, dy);
                 if (xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
               }
             }

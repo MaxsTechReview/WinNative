@@ -2,9 +2,7 @@ package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.Log;
 import android.util.SparseArray;
-import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
-import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.DRI3Extension;

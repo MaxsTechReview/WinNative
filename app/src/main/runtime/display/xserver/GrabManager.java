@@ -47,6 +47,10 @@ public class GrabManager implements WindowManager.OnWindowModificationListener {
     return confineToWindow != null ? confineToWindow.getAbsoluteBounds() : null;
   }
 
+  public void setConfineToWindow(Window confineToWindow) {
+    this.confineToWindow = confineToWindow;
+  }
+
   public void deactivatePointerGrab() {
     if (window != null) {
       xServer.inputDeviceManager.sendEnterLeaveNotify(

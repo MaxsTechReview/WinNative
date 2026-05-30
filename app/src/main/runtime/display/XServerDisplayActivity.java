@@ -2022,21 +2022,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
                 int historySize = event.getHistorySize();
-                float totalRawDx = 0.0f;
-                float totalRawDy = 0.0f;
 
-                // 1. Calculate total movement first to find the speed
-                for (int i = 0; i <= historySize; i++) {
-                    if (i < historySize) {
-                        totalRawDx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
-                        totalRawDy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
-                    } else {
-                        totalRawDx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-                        totalRawDy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-                    }
-                }
-
-                // 3. Stream individual points immediately using the locked-in speed
+                // Stream each batched sample (history) plus the current one as its own
+                // delta, so high-polling-rate mice deliver smooth sub-frame motion.
                 for (int i = 0; i <= historySize; i++) {
                     float rawDx, rawDy;
                     if (i < historySize) {
@@ -2061,10 +2049,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     if (scaledDx != 0.0f || scaledDy != 0.0f) {
                         if (xServer.isRelativeMouseMovement()) {
-                            int idx = Mathf.roundPoint(scaledDx);
-                            int idy = Mathf.roundPoint(scaledDy);
-                            xServer.getWinHandler().mouseMoveDelta(idx, idy);
-                            touchpadView.updateVisibleRelativeCursor(xServer.pointer.getX() + idx, xServer.pointer.getY() + idy);
+                            // Feed Wine ONE unaccelerated raw-motion delta via XInput2.
+                            // Do not also push through WinHandler: that path runs injected
+                            // motion through Win32 pointer ballistics on Proton 10/11, and
+                            // double-feeding it alongside XIRawMotion is what made the camera
+                            // accelerate erratically. injectPointerMoveDelta also moves the
+                            // visible cursor and requests a render, so no extra call is needed.
                             xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
                         } else {
                             int nx = Mathf.roundPoint(xServer.pointer.getX() + scaledDx);
@@ -2087,22 +2077,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 handled = true;
                 break;
         }
-    }
-
-    private float[] getCapturedPointerDelta(float dx, float dy) {
-        float profileSpeed = 1.0f;
-        if (inputControlsView != null) {
-            ControlsProfile profile = inputControlsView.getProfile();
-            if (profile != null) profileSpeed = profile.getCursorSpeed();
-        }
-
-        float scaledDx = xform[0] * dx + xform[2] * dy;
-        float scaledDy = xform[1] * dx + xform[3] * dy;
-
-        scaledDx *= globalCursorSpeed * profileSpeed;
-        scaledDy *= globalCursorSpeed * profileSpeed;
-
-        return new float[]{scaledDx, scaledDy};
     }
 
     @Override

@@ -353,11 +353,9 @@ class TouchpadView(
                     val idy = Mathf.roundPoint(fdy)
 
                     if (idx != 0 || idy != 0 || fdx != 0f || fdy != 0f) {
-                        if (xServer.isRelativeMouseMovement) {
-                            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, idx, idy, 0)
-                            updateVisibleRelativeCursor(xServer.pointer.x + idx, xServer.pointer.y + idy)
-                            return true
-                        }
+                        // Single unaccelerated XInput2 raw-motion path for both relative
+                        // and absolute modes; the old relative WinHandler path is what
+                        // Proton 10/11 ran through pointer acceleration.
                         xServer.injectPointerMoveDelta(fdx.toDouble(), fdy.toDouble())
                     }
                 } else {
@@ -438,11 +436,8 @@ class TouchpadView(
                         xServer.injectPointerMove(finger1.x.toInt(), finger1.y.toInt())
                     }
                 } else {
-                    if (xServer.isRelativeMouseMovement) {
-                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
-                        updateVisibleRelativeCursor(xServer.pointer.x + dx, xServer.pointer.y + dy)
-                        return
-                    }
+                    // Single unaccelerated XInput2 raw-motion path for both relative
+                    // and absolute modes (see the SOURCE_MOUSE branch / XServer).
                     xServer.injectPointerMoveDelta(dx.toDouble(), dy.toDouble())
                 }
             }
@@ -766,11 +761,8 @@ class TouchpadView(
                 val idx = Mathf.roundPoint(fdx)
                 val idy = Mathf.roundPoint(fdy)
                 if (idx != 0 || idy != 0 || fdx != 0f || fdy != 0f) {
-                    if (xServer.isRelativeMouseMovement) {
-                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, idx, idy, 0)
-                        updateVisibleRelativeCursor(xServer.pointer.x + idx, xServer.pointer.y + idy)
-                        return true
-                    }
+                    // Single unaccelerated XInput2 raw-motion path for both relative
+                    // and absolute modes (see XServer for why WinHandler was removed).
                     xServer.injectPointerMoveDelta(fdx.toDouble(), fdy.toDouble())
                 }
                 true
