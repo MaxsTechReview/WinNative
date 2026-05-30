@@ -60,6 +60,7 @@ public class WinHandler {
   private static final int OSC_DEVICE_ID = -1;
   private static final short SERVER_PORT = 7947;
   private static final long VIRTUAL_REBALANCE_AFTER_PHYSICAL_DISCONNECT_MS = 200;
+  private static final long PHYSICAL_DISCONNECT_DEBOUNCE_MS = 400;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
   private final XServerDisplayActivity activity;
@@ -109,16 +110,18 @@ public class WinHandler {
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
   private Runnable pendingVirtualGamepadRebalance;
+  private final Map<Integer, Runnable> pendingDeviceReleases = new HashMap<>();
   private final InputManager.InputDeviceListener inputDeviceListener =
       new InputManager.InputDeviceListener() {
         @Override
         public void onInputDeviceAdded(int deviceId) {
+          WinHandler.this.cancelPendingDeviceRelease(deviceId);
           WinHandler.this.assignConnectedDeviceIfPossible(deviceId, "hotplug");
         }
 
         @Override
         public void onInputDeviceRemoved(int deviceId) {
-          WinHandler.this.releaseSlot(deviceId);
+          WinHandler.this.scheduleDeviceRelease(deviceId);
         }
 
         @Override
@@ -228,9 +231,17 @@ public class WinHandler {
     }
 
     if (this.usedSlots.size() >= MAX_CONTROLLERS) {
-      Log.d(
-          "WinHandler", "Ignoring device " + deviceId + " from " + source + ": slot limit reached.");
-      return false;
+      // Still allow a reconnecting / sub-device that will reuse an existing
+      // physical controller's slot instead of consuming a new one. Without this,
+      // a transient remove/add while all four slots are full would be dropped.
+      android.view.InputDevice probe = android.view.InputDevice.getDevice(deviceId);
+      String descriptor = probe != null ? probe.getDescriptor() : null;
+      if (descriptor == null || !this.descriptorToSlot.containsKey(descriptor)) {
+        Log.d(
+            "WinHandler",
+            "Ignoring device " + deviceId + " from " + source + ": slot limit reached.");
+        return false;
+      }
     }
 
     android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
@@ -760,7 +771,7 @@ public class WinHandler {
     ensureWriterForSlot(slot);
   }
 
-  private boolean moveVirtualGamepadToSlot(int targetSlot) {
+  private boolean moveVirtualGamepadToSlot(int targetSlot, boolean releaseVacatedSlot) {
     Integer currentSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
     if (currentSlot == null) {
       return false;
@@ -775,7 +786,15 @@ public class WinHandler {
 
     ensureWriterForSlot(targetSlot);
     if (this.writers[currentSlot] != null) {
-      this.writers[currentSlot].reset();
+      if (releaseVacatedSlot && !isPhysicalSlotOccupied(currentSlot)) {
+        // The virtual pad is leaving this slot for good (consolidation, not a
+        // hand-off to an incoming physical pad). Tear it down so winebus sees the
+        // device disappear instead of a phantom stuck-at-neutral controller.
+        this.writers[currentSlot].destroy();
+        this.writers[currentSlot] = null;
+      } else {
+        this.writers[currentSlot].reset();
+      }
     }
 
     this.deviceToSlot.put(OSC_DEVICE_ID, targetSlot);
@@ -801,7 +820,7 @@ public class WinHandler {
     if (preferredVirtualSlot == -1) {
       releaseSlot(OSC_DEVICE_ID);
     } else if (preferredVirtualSlot != virtualSlot) {
-      moveVirtualGamepadToSlot(preferredVirtualSlot);
+      moveVirtualGamepadToSlot(preferredVirtualSlot, true);
     }
   }
 
@@ -851,7 +870,7 @@ public class WinHandler {
           if (this.pendingVirtualGamepadRebalance != null) {
             return existing;
           }
-          moveVirtualGamepadToSlot(preferredVirtualSlot);
+          moveVirtualGamepadToSlot(preferredVirtualSlot, true);
           Integer updatedSlot = this.deviceToSlot.get(deviceId);
           return updatedSlot != null ? updatedSlot : -1;
         }
@@ -906,7 +925,7 @@ public class WinHandler {
     Integer virtualSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
     if (virtualSlot != null && virtualSlot == preferredPhysicalSlot) {
       int relocatedVirtualSlot = findPreferredVirtualSlot(null);
-      moveVirtualGamepadToSlot(relocatedVirtualSlot);
+      moveVirtualGamepadToSlot(relocatedVirtualSlot, false);
     }
 
     bindDeviceToSlot(deviceId, descriptor, preferredPhysicalSlot);
@@ -972,6 +991,49 @@ public class WinHandler {
         }
       }
     }
+  }
+
+  private void scheduleDeviceRelease(int deviceId) {
+    if (deviceId == OSC_DEVICE_ID) {
+      releaseSlot(deviceId);
+      return;
+    }
+    // Debounce transient Android remove/add churn (Bluetooth flaps, sub-device
+    // re-enumeration). A real unplug stays gone and is released after the delay;
+    // a quick reconnect re-seats onto the same slot via descriptorToSlot before
+    // the writer is ever torn down, so the guest never sees a disconnect.
+    cancelPendingDeviceRelease(deviceId);
+    Runnable release =
+        new Runnable() {
+          @Override
+          public void run() {
+            pendingDeviceReleases.remove(deviceId);
+            releaseSlot(deviceId);
+          }
+        };
+    pendingDeviceReleases.put(deviceId, release);
+    this.inputHandler.postDelayed(release, PHYSICAL_DISCONNECT_DEBOUNCE_MS);
+    Log.d(
+        "WinHandler",
+        "Device "
+            + deviceId
+            + " removed; scheduling slot release in "
+            + PHYSICAL_DISCONNECT_DEBOUNCE_MS
+            + "ms (debounce). Reconnect within window keeps the slot.");
+  }
+
+  private void cancelPendingDeviceRelease(int deviceId) {
+    Runnable pending = pendingDeviceReleases.remove(deviceId);
+    if (pending != null) {
+      this.inputHandler.removeCallbacks(pending);
+    }
+  }
+
+  private void cancelAllPendingDeviceReleases() {
+    for (Runnable pending : pendingDeviceReleases.values()) {
+      this.inputHandler.removeCallbacks(pending);
+    }
+    pendingDeviceReleases.clear();
   }
 
   public void setXInputDisabled(boolean disabled) {
@@ -1126,6 +1188,7 @@ public class WinHandler {
 
   public void closeFakeInputWriter() {
     cancelPendingVirtualGamepadRebalance();
+    cancelAllPendingDeviceReleases();
     if (this.inputManager != null && this.inputDeviceListener != null) {
       this.inputManager.unregisterInputDeviceListener(this.inputDeviceListener);
     }
