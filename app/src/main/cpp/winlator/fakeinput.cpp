@@ -80,7 +80,28 @@ struct FakeController {
   uint64_t read_seq = 0;
   uint64_t generation = 0;
   size_t mapping_size = 0;
+  size_t neutral_remaining = 0;
 };
+
+struct NeutralEventSpec {
+  uint16_t type;
+  uint16_t code;
+};
+
+// Full neutral baseline for the synthetic gamepad: every button released, every
+// axis/hat centered, followed by a SYN_REPORT. Replayed after a ring overflow so
+// a dropped button-up or axis-return event can't leave the guest stuck.
+static const NeutralEventSpec kNeutralEvents[] = {
+    {EV_KEY, BTN_A},      {EV_KEY, BTN_B},      {EV_KEY, BTN_X},
+    {EV_KEY, BTN_Y},      {EV_KEY, BTN_TL},     {EV_KEY, BTN_TR},
+    {EV_KEY, BTN_SELECT}, {EV_KEY, BTN_START},  {EV_KEY, BTN_MODE},
+    {EV_KEY, BTN_THUMBL}, {EV_KEY, BTN_THUMBR}, {EV_ABS, ABS_X},
+    {EV_ABS, ABS_Y},      {EV_ABS, ABS_RX},     {EV_ABS, ABS_RY},
+    {EV_ABS, ABS_GAS},    {EV_ABS, ABS_BRAKE},  {EV_ABS, ABS_HAT0X},
+    {EV_ABS, ABS_HAT0Y},  {EV_SYN, SYN_REPORT},
+};
+static constexpr size_t kNeutralEventCount =
+    sizeof(kNeutralEvents) / sizeof(kNeutralEvents[0]);
 
 static std::unordered_map<int, FakeController> controller_map;
 static std::unordered_map<int, std::string> ring_paths;
@@ -408,9 +429,17 @@ fake_fd_has_unread_data(int fd) {
   uint64_t write_seq = ring_write_seq(fake.ring);
   if (write_seq < fake.read_seq)
     fake.read_seq = write_seq;
-  if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
+  if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
     fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-  return write_seq > fake.read_seq;
+    if (fake.neutral_remaining == 0)
+      Logger::log("Fake input ring overflow on fd %d slot %d; will emit neutral "
+                  "frame\n",
+                  fd, fake.slot);
+    fake.neutral_remaining = kNeutralEventCount;
+  }
+  // A pending neutral-recovery frame counts as readable so poll/blocking reads
+  // wake to finish flushing it even after the ring itself has drained.
+  return fake.neutral_remaining > 0 || write_seq > fake.read_seq;
 }
 
 __attribute__((visibility("hidden"))) static long long
@@ -944,15 +973,53 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
     }
 
     uint64_t write_seq = ring_write_seq(fake.ring);
-    if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY)
+    if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
       fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
+      if (fake.neutral_remaining == 0)
+        Logger::log("Fake input ring overflow on fd %d slot %d; will emit "
+                    "neutral frame\n",
+                    fd, fake.slot);
+      fake.neutral_remaining = kNeutralEventCount;
+    }
+
+    uint8_t *out = static_cast<uint8_t *>(buf);
+    size_t out_events = 0;
+    size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
+
+    // The ring overran the reader and events were dropped. Replay a full neutral
+    // baseline before any surviving (delta) events so a lost button-up / axis
+    // return can't stick. The frame streams across reads of any size: we emit as
+    // much as fits and do NOT consume the ring until it is fully delivered, so
+    // even a one-event-at-a-time consumer recovers. neutral_remaining keeps the
+    // fd readable (see fake_fd_has_unread_data) so poll wakes us to finish it.
+    if (fake.neutral_remaining > 0) {
+      struct timeval now = {};
+      gettimeofday(&now, nullptr);
+      while (fake.neutral_remaining > 0 && out_events < requested_events) {
+        size_t idx = kNeutralEventCount - fake.neutral_remaining;
+        struct input_event ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.time = now;
+        ev.type = kNeutralEvents[idx].type;
+        ev.code = kNeutralEvents[idx].code;
+        ev.value = 0;
+        memcpy(out + (out_events * FAKE_INPUT_EVENT_SIZE), &ev,
+               FAKE_INPUT_EVENT_SIZE);
+        out_events++;
+        fake.neutral_remaining--;
+      }
+      if (fake.neutral_remaining > 0) {
+        // Buffer filled before the baseline finished; deliver the remainder (and
+        // only then fresh events) on subsequent reads. out_events >= 1 here.
+        return static_cast<ssize_t>(out_events * FAKE_INPUT_EVENT_SIZE);
+      }
+    }
 
     size_t available_events =
         static_cast<size_t>(std::min<uint64_t>(write_seq - fake.read_seq,
                                               FAKE_INPUT_RING_CAPACITY));
-    size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
-    size_t events_to_read = std::min(requested_events, available_events);
-    uint8_t *out = static_cast<uint8_t *>(buf);
+    size_t events_to_read =
+        std::min(requested_events - out_events, available_events);
     const uint8_t *ring_events =
         reinterpret_cast<const uint8_t *>(fake.ring) +
         FAKE_INPUT_RING_HEADER_SIZE;
@@ -960,13 +1027,14 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
     for (size_t i = 0; i < events_to_read; i++) {
       size_t event_index =
           static_cast<size_t>((fake.read_seq + i) % FAKE_INPUT_RING_CAPACITY);
-      memcpy(out + (i * FAKE_INPUT_EVENT_SIZE),
+      memcpy(out + ((out_events + i) * FAKE_INPUT_EVENT_SIZE),
              ring_events + (event_index * FAKE_INPUT_EVENT_SIZE),
              FAKE_INPUT_EVENT_SIZE);
     }
 
     fake.read_seq += events_to_read;
-    return static_cast<ssize_t>(events_to_read * FAKE_INPUT_EVENT_SIZE);
+    return static_cast<ssize_t>((out_events + events_to_read) *
+                                FAKE_INPUT_EVENT_SIZE);
   }
   return syscall(SYS_read, fd, buf, count);
 }
