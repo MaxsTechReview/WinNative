@@ -363,9 +363,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private long startTime;
     private SharedPreferences playtimePrefs;
     private String shortcutName;
-    private String cachedDisplayName = "";
-    private String cachedPlatform = "";
-    private String cachedContainerLabel = "";
+    private String cachedPreloaderTitle = "";
+    private String cachedPreloaderBadge = "";
+    private String cachedPreloaderSubtitle = "";
     private Handler handler;
     private Runnable savePlaytimeRunnable;
     private static final long SAVE_INTERVAL_MS = 1000;
@@ -1260,12 +1260,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             };
         }
 
-        cachedPlatform = shortcut != null ? shortcut.getExtra("game_source") : "";
-        if (cachedPlatform == null) cachedPlatform = "";
-        cachedDisplayName = (shortcutName != null && !shortcutName.isEmpty())
+        cachedPreloaderBadge = shortcut != null ? shortcut.getExtra("game_source") : "";
+        if (cachedPreloaderBadge == null) cachedPreloaderBadge = "";
+        cachedPreloaderTitle = (shortcutName != null && !shortcutName.isEmpty())
                 ? shortcutName
                 : getString(R.string.preloader_default_name);
-        cachedContainerLabel = container != null ? container.getName() : "";
+        cachedPreloaderSubtitle = container != null ? container.getName() : "";
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
         if (preferences.getBoolean("enable_background_session", false)) {
@@ -3178,16 +3178,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void showLaunchPreloader(String text) {
         if (preloaderDialog == null) return;
-        preloaderDialog.showOnUiThread(text, cachedDisplayName, cachedPlatform, cachedContainerLabel);
+        preloaderDialog.showOnUiThread(
+                text,
+                cachedPreloaderTitle,
+                cachedPreloaderBadge,
+                cachedPreloaderSubtitle);
     }
 
     private void showLaunchPreloaderProgress(String text, int percent) {
         if (preloaderDialog == null) return;
         preloaderDialog.showProgressOnUiThread(
                 text,
-                cachedDisplayName,
-                cachedPlatform,
-                cachedContainerLabel,
+                cachedPreloaderTitle,
+                cachedPreloaderBadge,
+                cachedPreloaderSubtitle,
                 Math.max(0, Math.min(100, percent))
         );
     }
