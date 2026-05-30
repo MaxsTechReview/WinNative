@@ -45,6 +45,8 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -97,6 +99,7 @@ fun GoogleScreen() {
     var googleSignedIn by remember { mutableStateOf(false) }
     var syncState by remember { mutableStateOf(CloudSyncManager.StoreLoginSyncState()) }
     var busy by remember { mutableStateOf(false) }
+    var autoSignIn by remember { mutableStateOf(CloudSyncManager.isAutoSignInOnLaunchEnabled(context)) }
 
     fun loadCachedState() {
         val currentActivity = activity ?: return
@@ -139,6 +142,37 @@ fun GoogleScreen() {
             ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item("auto_signin_section") {
+            SectionLabel(stringResource(R.string.google_auto_signin_section))
+        }
+
+        item("auto_signin_card") {
+            AutoSignInToggleCard(
+                checked = autoSignIn,
+                onCheckedChange = { enabled ->
+                    autoSignIn = enabled
+                    CloudSyncManager.setAutoSignInOnLaunchEnabled(context, enabled)
+                    if (enabled) {
+                        // The user opted in — sign in right away so it takes effect immediately
+                        // (and every subsequent launch). A toast here is expected, unlike the
+                        // silent OFF behavior.
+                        val currentActivity = activity ?: return@AutoSignInToggleCard
+                        busy = true
+                        CloudSyncManager.signIn(currentActivity) { success, message ->
+                            busy = false
+                            googleSignedIn = success
+                            if (success) {
+                                com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+                                    .setDriveConnected(context, true)
+                            }
+                            WinToast.show(context, message)
+                            refreshRemoteState()
+                        }
+                    }
+                },
+            )
+        }
+
         item("services_section") {
             SectionLabel(stringResource(R.string.google_cloud_services))
         }
@@ -153,6 +187,8 @@ fun GoogleScreen() {
                     CloudSyncManager.signIn(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = success
+                        // Keep the Google Saved-Games gate (used by save backup/history) in sync.
+                        GameSaveBackupManager.setDriveConnected(context, success)
                         WinToast.show(context, message)
                         refreshRemoteState()
                     }
@@ -163,6 +199,7 @@ fun GoogleScreen() {
                     CloudSyncManager.signOut(currentActivity) { success, message ->
                         busy = false
                         googleSignedIn = !success
+                        if (success) GameSaveBackupManager.setDriveConnected(context, false)
                         WinToast.show(context, message)
                         loadCachedState()
                     }
@@ -227,6 +264,69 @@ private fun SectionLabel(
         letterSpacing = 1.4.sp,
         modifier = modifier.padding(bottom = 4.dp),
     )
+}
+
+@Composable
+private fun AutoSignInToggleCard(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .clickable { onCheckedChange(!checked) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(IconBoxBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Gamepad,
+                contentDescription = null,
+                tint = Accent,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.google_auto_signin_title),
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.google_auto_signin_summary),
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors =
+                SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Accent,
+                    uncheckedThumbColor = TextSecondary,
+                    uncheckedTrackColor = IconBoxBg,
+                    uncheckedBorderColor = CardBorder,
+                ),
+        )
+    }
 }
 
 @Composable

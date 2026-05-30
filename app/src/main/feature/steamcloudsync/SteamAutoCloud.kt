@@ -56,108 +56,75 @@ object SteamAutoCloud {
      *  - `Sequence.any {  }` short-circuits on the first divergence.
      *  - We compute the local SHA only on files whose size already matches.
      */
+    /**
+     * Group persisted cloud files by the local path they resolve to.
+     *
+     * Steam Cloud can hold DUPLICATE / stale entries for one logical save file under different
+     * prefixes or filenames — e.g. Monster Hunter Rise lists both `win64_save/X` and
+     * `%SteamUserData%win64_save/X` (plus token-in-filename leftovers from earlier bad uploads),
+     * all mapping to the same on-disk file. Collapsing by resolved local path lets the downloader
+     * fetch each file once (any working variant satisfies it) and the conflict/verification checks
+     * treat a path as in-sync when the local file matches ANY variant — instead of failing the
+     * whole sync on a redundant phantom entry the CDN no longer has.
+     *
+     * Unresolvable entries (null local path) are dropped: they're malformed leftovers, not real
+     * saves, and must not wedge the sync into a permanent "conflict".
+     */
+    private fun groupPersistedCloudFilesByLocalPath(
+        response: CloudFileChangeList,
+        prefixToPath: (String) -> String,
+        cloudRouting: CloudPathRouting?,
+    ): LinkedHashMap<Path, MutableList<CloudFileInfo>> {
+        val groups = LinkedHashMap<Path, MutableList<CloudFileInfo>>()
+        response.files
+            .asSequence()
+            .filter { it.persistState == PERSIST_STATE_PERSISTED }
+            .forEach { cloudFile ->
+                val local =
+                    resolveCloudFileLocalPath(cloudFile, response, prefixToPath, cloudRouting)
+                        ?.toAbsolutePath()
+                        ?.normalize()
+                if (local == null) {
+                    Timber.d("ConflictProbe: cloud file %s has no resolvable local path → ignoring", cloudFile.filename)
+                    return@forEach
+                }
+                groups.getOrPut(local) { mutableListOf() }.add(cloudFile)
+            }
+        return groups
+    }
+
+    /** True if a local file matches ANY of the cloud variants mapped to its path (size + SHA-1). */
+    private fun localMatchesAnyVariant(localPath: Path, variants: List<CloudFileInfo>): Boolean {
+        if (!Files.exists(localPath)) return false
+        val localSize = runCatching { Files.size(localPath) }.getOrNull() ?: return false
+        val localSha = runCatching { streamingSha(localPath) }.getOrNull() ?: return false
+        return variants.any { it.rawFileSize == localSize && localSha.contentEquals(it.shaFile) }
+    }
+
     fun cloudContentDiffersFromLocal(
         response: CloudFileChangeList,
         prefixToPath: (String) -> String,
         appInfo: SteamApp? = null,
     ): Boolean {
         val cloudRouting = appInfo?.let { buildCloudPathRouting(it, prefixToPath) }
-        return response.files
-            .asSequence()
-            .filter { it.persistState == PERSIST_STATE_PERSISTED }
-            .any { cloudFile ->
-                val localPath = resolveLocalPathForCloudFile(cloudFile, response, prefixToPath, cloudRouting)
-                if (localPath == null) {
-                    Timber.d("ConflictProbe: cloud file %s has no local path → diverges", cloudFile.filename)
-                    return@any true
-                }
-                if (!Files.exists(localPath)) {
-                    Timber.d("ConflictProbe: cloud file %s missing locally → diverges", cloudFile.filename)
-                    return@any true
-                }
-                val localSize =
-                    try {
-                        Files.size(localPath)
-                    } catch (_: Exception) {
-                        return@any true
-                    }
-                if (localSize != cloudFile.rawFileSize) {
-                    Timber.d(
-                        "ConflictProbe: %s size mismatch (cloud=%d, local=%d) → diverges",
-                        cloudFile.filename,
-                        cloudFile.rawFileSize,
-                        localSize,
-                    )
-                    return@any true
-                }
-                val localSha = runCatching { streamingSha(localPath) }.getOrNull()
-                if (localSha == null) {
-                    return@any true
-                }
-                val mismatched = !localSha.contentEquals(cloudFile.shaFile)
-                if (mismatched) {
-                    Timber.d("ConflictProbe: %s SHA mismatch → diverges", cloudFile.filename)
-                }
-                mismatched
+        val groups = groupPersistedCloudFilesByLocalPath(response, prefixToPath, cloudRouting)
+        return groups.any { (localPath, variants) ->
+            val matches = localMatchesAnyVariant(localPath, variants)
+            if (!matches) {
+                Timber.d("ConflictProbe: %s does not match any cloud variant → diverges", localPath)
             }
+            !matches
+        }
     }
 
+    // Delegates to the canonical resolver so the conflict check and remotecache.vdf writer
+    // resolve a cloud file to the EXACT path the downloader writes it to.
     private fun resolveLocalPathForCloudFile(
         cloudFile: CloudFileInfo,
         response: CloudFileChangeList,
         prefixToPath: (String) -> String,
         cloudRouting: CloudPathRouting?,
-    ): Path? {
-        val prefix =
-            if (cloudFile.pathPrefixIndex >= 0 && cloudFile.pathPrefixIndex < response.pathPrefixes.size) {
-                response.pathPrefixes[cloudFile.pathPrefixIndex]
-            } else {
-                ""
-            }
-
-        val gameInstallToken = "%${PathType.GameInstall.name}%"
-        if (cloudFile.filename.startsWith(gameInstallToken)) {
-            val stripped = cloudFile.filename.removePrefix(gameInstallToken).trimStart('/', '\\')
-            return runCatching { Paths.get(prefixToPath(PathType.GameInstall.name), stripped) }.getOrNull()
-        }
-
-        cloudRouting
-            ?.localPathByCloudPrefix
-            ?.get(prefix.trimEnd('/', '\\'))
-            ?.let { return runCatching { Paths.get(it, cloudFile.filename) }.getOrNull() }
-
-        steamUserDataSubpath(prefix)?.let { subpath ->
-            return runCatching {
-                if (subpath.isEmpty()) {
-                    Paths.get(prefixToPath(PathType.SteamUserData.name), cloudFile.filename)
-                } else {
-                    Paths.get(prefixToPath(PathType.SteamUserData.name), subpath, cloudFile.filename)
-                }
-            }.getOrNull()
-        }
-
-        val tokenMatch = findPlaceholderWithin(prefix).firstOrNull()?.value
-        val rootName =
-            if (tokenMatch != null) {
-                tokenMatch.removePrefix("%").removeSuffix("%")
-            } else {
-                PathType.DEFAULT.name
-            }
-        val pathAfterRoot =
-            if (tokenMatch != null) {
-                prefix.removePrefix(tokenMatch).trimStart('/', '\\')
-            } else {
-                prefix
-            }
-        return runCatching {
-            val baseDir = prefixToPath(rootName)
-            if (pathAfterRoot.isEmpty()) {
-                Paths.get(baseDir, cloudFile.filename)
-            } else {
-                Paths.get(baseDir, pathAfterRoot, cloudFile.filename)
-            }
-        }.getOrNull()
-    }
+    ): Path? = resolveCloudFileLocalPath(cloudFile, response, prefixToPath, cloudRouting)
 
     private fun steamUserDataSubpath(prefix: String): String? {
         val normalized = prefix.replace('\\', '/').trimStart('/')
@@ -324,6 +291,137 @@ object SteamAutoCloud {
                 }
 
         return CloudPathRouting(rootAliases, exactPrefixTargets)
+    }
+
+    // ── Canonical cloud-file → local-path resolution ──
+    //
+    // SINGLE source of truth shared by the downloader, the post-download hash verification,
+    // the launch/probe conflict checks, and the remotecache.vdf writer. Previously the
+    // downloader and the conflict check used two different mappings, so for games that use
+    // uploadRoot/uploadPath (rootoverrides) aliases, ROOT_MOD prefixes, or %GameInstall%
+    // routing the download landed in path A while the check read path B — leaving the save
+    // "different from cloud" forever and re-prompting the conflict on every launch even after
+    // the user picked "Use Cloud". Resolving every consumer through one function guarantees we
+    // verify exactly the file we wrote.
+
+    private fun pathTypePairsFor(
+        fileList: CloudFileChangeList,
+        prefixToPath: (String) -> String,
+        cloudRouting: CloudPathRouting,
+    ): List<Pair<String, String>> =
+        fileList.pathPrefixes
+            .map { prefix ->
+                var matchResults = findPlaceholderWithin(prefix).map { it.value }.toList()
+                val bare = if (prefix.startsWith("ROOT_MOD")) listOf("ROOT_MOD") else emptyList()
+                if (matchResults.isEmpty()) {
+                    matchResults = List(1) { PathType.DEFAULT.name }
+                }
+                matchResults + bare
+            }.flatten()
+            .distinct()
+            .map { placeholder ->
+                val localRootName = cloudRouting.localRootByCloudToken[placeholder] ?: placeholder
+                val root = PathType.from(localRootName)
+                val effectiveLocalRoot = if (root.isSupportedSteamCloudRoot) localRootName else PathType.DEFAULT.name
+                if (!root.isSupportedSteamCloudRoot) {
+                    Timber.w(
+                        "Unrecognized Steam cloud root '%s' in prefix mapping — defaulting to %s so files still resolve",
+                        placeholder,
+                        PathType.DEFAULT.name,
+                    )
+                }
+                placeholder to prefixToPath(effectiveLocalRoot)
+            }
+
+    private fun parseRemotePath(prefix: String): RemotePath {
+        val steamUserDataSubpath = steamUserDataSubpath(prefix)
+        if (steamUserDataSubpath != null) {
+            return RemotePath(PathType.SteamUserData, steamUserDataSubpath)
+        }
+        val token =
+            when {
+                prefix.startsWith("ROOT_MOD", ignoreCase = true) -> "ROOT_MOD"
+                else -> findPlaceholderWithin(prefix).firstOrNull()?.value
+            }
+        val root = token?.let { PathType.from(it) } ?: PathType.DEFAULT
+        val withoutRoot =
+            when {
+                token == null -> prefix
+                prefix.startsWith("ROOT_MOD", ignoreCase = true) -> prefix.substring("ROOT_MOD".length)
+                else -> prefix.removePrefix(token)
+            }.trimStart('/', '\\')
+        return RemotePath(root, if (withoutRoot == ".") "" else withoutRoot)
+    }
+
+    private fun convertPrefixes(
+        fileList: CloudFileChangeList,
+        prefixToPath: (String) -> String,
+        cloudRouting: CloudPathRouting,
+    ): List<String> {
+        val pathTypePairs = pathTypePairsFor(fileList, prefixToPath, cloudRouting)
+        return fileList.pathPrefixes.map { prefix ->
+            steamUserDataSubpath(prefix)?.let { subpath ->
+                return@map if (subpath.isEmpty()) {
+                    prefixToPath(PathType.SteamUserData.name)
+                } else {
+                    Paths.get(prefixToPath(PathType.SteamUserData.name), subpath).toString()
+                }
+            }
+
+            var modified = prefix
+            val prefixContainsNoPlaceholder = findPlaceholderWithin(prefix).none()
+            if (prefixContainsNoPlaceholder) {
+                modified = Paths.get(PathType.DEFAULT.name, prefix).pathString
+            }
+            pathTypePairs.forEach {
+                modified = modified.replace(it.first, it.second)
+            }
+            if (modified == prefix) {
+                modified = Paths.get(prefixToPath(PathType.DEFAULT.name), modified).toString()
+            }
+            modified
+        }
+    }
+
+    /**
+     * Resolve a cloud file to the absolute local path it belongs at — the exact path the
+     * downloader writes to. This is the canonical mapping; all conflict/verification consumers
+     * must route through it so we never check a different location than we wrote.
+     */
+    private fun resolveCloudFileLocalPath(
+        file: CloudFileInfo,
+        fileList: CloudFileChangeList,
+        prefixToPath: (String) -> String,
+        cloudRouting: CloudPathRouting?,
+    ): Path? {
+        val routing = cloudRouting ?: CloudPathRouting(emptyMap(), emptyMap())
+
+        // Steam sometimes returns prefix="" and filename="%GameInstall%save0.dat" instead of
+        // splitting correctly — route the embedded token the same way the downloader does.
+        val gameInstallPrefix = "%${PathType.GameInstall.name}%"
+        if (file.filename.startsWith(gameInstallPrefix)) {
+            val stripped = file.filename.removePrefix(gameInstallPrefix).trimStart('/', '\\')
+            return runCatching {
+                routing.localPathByCloudPrefix[gameInstallPrefix]?.let { Paths.get(it, stripped) }
+                    ?: Paths.get(prefixToPath(PathType.GameInstall.name), stripped)
+            }.getOrNull()
+        }
+
+        val defaultConvertedPrefixes = convertPrefixes(fileList, prefixToPath, routing)
+        val convertedPrefixes =
+            fileList.pathPrefixes.mapIndexed { index, prefix ->
+                routing.localPathByCloudPrefix[prefix.trimEnd('/')]
+                    ?: defaultConvertedPrefixes.getOrElse(index) { prefixToPath(PathType.DEFAULT.name) }
+            }
+
+        return runCatching {
+            if (file.pathPrefixIndex in fileList.pathPrefixes.indices) {
+                Paths.get(convertedPrefixes[file.pathPrefixIndex], file.filename)
+            } else {
+                // No referenced prefix → default path.
+                Paths.get(prefixToPath(PathType.DEFAULT.name), file.filename)
+            }
+        }.getOrNull()
     }
 
     private fun uploadNameFor(
@@ -656,92 +754,6 @@ object SteamAutoCloud {
 
             val cloudRouting = buildCloudPathRouting(appInfo, prefixToPath)
 
-            val getPathTypePairs: (CloudFileChangeList) -> List<Pair<String, String>> = { fileList ->
-                fileList.pathPrefixes
-                    .map {
-                        var matchResults = findPlaceholderWithin(it).map { it.value }.toList()
-                        val bare = if (it.startsWith("ROOT_MOD")) listOf("ROOT_MOD") else emptyList()
-
-                        Timber.i("Mapping prefix $it and found $matchResults")
-
-                        if (matchResults.isEmpty()) {
-                            matchResults = List(1) { PathType.DEFAULT.name }
-                        }
-
-                        matchResults + bare
-                    }.flatten()
-                    .distinct()
-                    .map { placeholder ->
-                        val localRootName = cloudRouting.localRootByCloudToken[placeholder] ?: placeholder
-                        val root = PathType.from(localRootName)
-                        val effectiveLocalRoot = if (root.isSupportedSteamCloudRoot) localRootName else PathType.DEFAULT.name
-                        if (!root.isSupportedSteamCloudRoot) {
-                            Timber.w(
-                                "Unrecognized Steam cloud root '%s' in prefix mapping — defaulting to %s so files still resolve",
-                                placeholder,
-                                PathType.DEFAULT.name,
-                            )
-                        }
-                        placeholder to prefixToPath(effectiveLocalRoot)
-                    }
-            }
-
-            val parseRemotePath: (String) -> RemotePath = { prefix ->
-                val steamUserDataSubpath = steamUserDataSubpath(prefix)
-                if (steamUserDataSubpath != null) {
-                    RemotePath(PathType.SteamUserData, steamUserDataSubpath)
-                } else {
-                    val token =
-                        when {
-                            prefix.startsWith("ROOT_MOD", ignoreCase = true) -> "ROOT_MOD"
-                            else -> findPlaceholderWithin(prefix).firstOrNull()?.value
-                        }
-                    val root = token?.let { PathType.from(it) } ?: PathType.DEFAULT
-                    val withoutRoot =
-                        when {
-                            token == null -> prefix
-                            prefix.startsWith("ROOT_MOD", ignoreCase = true) ->
-                                prefix.substring("ROOT_MOD".length)
-                            else -> prefix.removePrefix(token)
-                        }.trimStart('/', '\\')
-                    RemotePath(root, if (withoutRoot == ".") "" else withoutRoot)
-                }
-            }
-
-            val convertPrefixes: (CloudFileChangeList) -> List<String> = { fileList ->
-                val pathTypePairs = getPathTypePairs(fileList)
-
-                fileList.pathPrefixes.map { prefix ->
-                    steamUserDataSubpath(prefix)?.let { subpath ->
-                        return@map if (subpath.isEmpty()) {
-                            prefixToPath(PathType.SteamUserData.name)
-                        } else {
-                            Paths.get(prefixToPath(PathType.SteamUserData.name), subpath).toString()
-                        }
-                    }
-
-                    var modified = prefix
-
-                    val prefixContainsNoPlaceholder = findPlaceholderWithin(prefix).none()
-
-                    if (prefixContainsNoPlaceholder) {
-                        modified = Paths.get(PathType.DEFAULT.name, prefix).pathString
-                    }
-
-                    pathTypePairs.forEach {
-                        modified = modified.replace(it.first, it.second)
-                    }
-
-                    // if the prefix has not been modified then there were no placeholders in it
-                    // so we need to set it to point to the default path
-                    if (modified == prefix) {
-                        modified = Paths.get(prefixToPath(PathType.DEFAULT.name), modified).toString()
-                    }
-
-                    modified
-                }
-            }
-
             val getFilePrefix: (CloudFileInfo, CloudFileChangeList) -> String = { file, fileList ->
                 if (file.pathPrefixIndex < fileList.pathPrefixes.size) {
                     Paths.get(fileList.pathPrefixes[file.pathPrefixIndex]).pathString
@@ -764,38 +776,17 @@ object SteamAutoCloud {
                 Paths.get(getFilePrefix(file, fileList), file.filename).pathString
             }
 
-            val getFullFilePath: (CloudFileInfo, CloudFileChangeList) -> Path? = getFullFilePath@{ file, fileList ->
+            val getFullFilePath: (CloudFileInfo, CloudFileChangeList) -> Path? = { file, fileList ->
                 val remotePath = getFileRemotePath(file, fileList)
-
                 if (!remotePath.root.isSupportedSteamCloudRoot) {
                     Timber.w(
-                        "Unrecognized Steam cloud file root %s: %s — attempting download via fallback path",
+                        "Unrecognized Steam cloud file root %s: %s — resolving via canonical path mapping",
                         remotePath.root,
                         getFilePrefixPath(file, fileList),
                     )
                 }
-
-                val gameInstallPrefix = "%${PathType.GameInstall.name}%"
-                if (file.filename.startsWith(gameInstallPrefix)) {
-                    // Steam API sometimes returns prefix="" and filename="%GameInstall%save0.dat" instead of splitting correctly.
-                    val stripped = file.filename.removePrefix(gameInstallPrefix).trimStart('/', '\\')
-                    return@getFullFilePath cloudRouting.localPathByCloudPrefix[gameInstallPrefix]?.let {
-                        Paths.get(it, stripped)
-                    } ?: Paths.get(prefixToPath(PathType.GameInstall.name), stripped)
-                }
-
-                val defaultConvertedPrefixes = convertPrefixes(fileList)
-                val convertedPrefixes =
-                    fileList.pathPrefixes.mapIndexed { index, prefix ->
-                        cloudRouting.localPathByCloudPrefix[prefix.trimEnd('/')] ?: defaultConvertedPrefixes[index]
-                    }
-
-                if (file.pathPrefixIndex < fileList.pathPrefixes.size) {
-                    Paths.get(convertedPrefixes[file.pathPrefixIndex], file.filename)
-                } else {
-                    // if the file does not reference any prefix then we need to set it to the default path
-                    Paths.get(prefixToPath(PathType.DEFAULT.name), file.filename)
-                }
+                // Single source of truth — identical to the conflict check / remotecache writer.
+                resolveCloudFileLocalPath(file, fileList, prefixToPath, cloudRouting)
             }
 
             val getDownloadSafetyRoot: (CloudFileInfo, CloudFileChangeList) -> Path = { file, fileList ->
@@ -806,7 +797,7 @@ object SteamAutoCloud {
                 } else if (file.pathPrefixIndex < fileList.pathPrefixes.size) {
                     val prefix = fileList.pathPrefixes[file.pathPrefixIndex]
                     val mapped = cloudRouting.localPathByCloudPrefix[prefix.trimEnd('/', '\\')]
-                    Paths.get(mapped ?: convertPrefixes(fileList)[file.pathPrefixIndex])
+                    Paths.get(mapped ?: convertPrefixes(fileList, prefixToPath, cloudRouting)[file.pathPrefixIndex])
                 } else {
                     Paths.get(prefixToPath(PathType.DEFAULT.name))
                 }
@@ -831,28 +822,14 @@ object SteamAutoCloud {
                 changesExist to FileChanges(deletedFiles, modifiedFiles, newFiles)
             }
 
+            // Post-download verification: every cloud file's bytes must be present locally.
+            // Deduped by resolved local path with match-ANY semantics so the redundant/stale
+            // duplicate entries Steam Cloud keeps for one logical file (different prefixes/names)
+            // can't make a fully-restored save look like it still conflicts.
             val hasHashConflicts: (Map<String, List<UserFileInfo>>, CloudFileChangeList) -> Boolean =
-                { localUserFiles, fileList ->
-                    fileList.files.any { file ->
-                        val remotePath = getFileRemotePath(file, fileList)
-                        if (!remotePath.root.isSupportedSteamCloudRoot) {
-                            Timber.w(
-                                "Hash-validating cloud file with unrecognized root %s: %s",
-                                remotePath.root,
-                                file.filename,
-                            )
-                        }
-                        val prefix = getFilePrefix(file, fileList)
-                        Timber.i("Checking for $prefix in ${localUserFiles.keys}")
-
-                        val localPath = getFullFilePath(file, fileList) ?: return@any true
-                        if (!Files.exists(localPath)) return@any true
-                        val localSha = runCatching { streamingSha(localPath) }.getOrNull() ?: return@any true
-                        Timber.i("Comparing SHA of ${getFilePrefixPath(file, fileList)} and $localPath")
-                        Timber.i("[${file.shaFile.joinToString(", ")}]\n[${localSha.joinToString(", ")}]")
-
-                        !file.shaFile.contentEquals(localSha)
-                    }
+                { _, fileList ->
+                    groupPersistedCloudFilesByLocalPath(fileList, prefixToPath, cloudRouting)
+                        .any { (localPath, variants) -> !localMatchesAnyVariant(localPath, variants) }
                 }
 
             val getLocalUserFilesAsPrefixMap: () -> Map<String, List<UserFileInfo>> = {
@@ -913,87 +890,92 @@ object SteamAutoCloud {
                 parentScope.async {
                     var filesDownloaded = 0
                     var bytesDownloaded = 0L
-                    val filesToDownload =
-                        fileList.files.filter { it.persistState == PERSIST_STATE_PERSISTED }
-                    val totalFiles = filesToDownload.size
+                    // Dedup by resolved local path: a logical save file Steam lists under multiple
+                    // prefixes/names is downloaded ONCE. We try each cloud-name variant until one
+                    // fetches successfully, so a redundant/stale entry the CDN no longer has can't
+                    // fail the whole sync. filesDownloaded counts UNIQUE local paths written and is
+                    // compared against the same unique-path total by the caller.
+                    val groups = groupPersistedCloudFilesByLocalPath(fileList, prefixToPath, cloudRouting)
+                    val totalFiles = groups.size
 
-                    filesToDownload.forEach { file ->
-                        val prefixedPath = getFilePrefixPath(file, fileList)
-                        val actualFilePath = getFullFilePath(file, fileList)
-                        if (actualFilePath == null) {
-                            Timber.w("Skipping download for unsupported Steam cloud path $prefixedPath")
-                            return@forEach
-                        }
-                        val rootBase =
-                            getDownloadSafetyRoot(file, fileList)
-                                .toAbsolutePath()
-                                .normalize()
-                        val targetNormalized = actualFilePath.toAbsolutePath().normalize()
-                        if (!targetNormalized.startsWith(rootBase)) {
-                            Timber.e(
-                                "Refusing path-traversal target outside save root: %s (root=%s, prefixedPath=%s)",
-                                targetNormalized,
-                                rootBase,
-                                prefixedPath,
-                            )
-                            return@forEach
-                        }
-
-                        Timber.i("$prefixedPath -> $actualFilePath")
-                        onProgress?.invoke("Downloading ${file.filename}", -1f)
-
-                        val wnBytes =
-                            SteamService.withWnSession {
-                                it.downloadCloudFile(appInfo.id, prefixedPath)
+                    groups.forEach { (targetPath, variants) ->
+                        var wrote = false
+                        for (file in variants) {
+                            if (wrote) break
+                            val prefixedPath = getFilePrefixPath(file, fileList)
+                            val rootBase =
+                                getDownloadSafetyRoot(file, fileList)
+                                    .toAbsolutePath()
+                                    .normalize()
+                            if (!targetPath.startsWith(rootBase)) {
+                                Timber.e(
+                                    "Refusing path-traversal target outside save root: %s (root=%s, prefixedPath=%s)",
+                                    targetPath,
+                                    rootBase,
+                                    prefixedPath,
+                                )
+                                continue
                             }
-                        if (wnBytes == null) {
-                            Timber.w(
-                                "Cloud download failed for ${file.filename} ($prefixedPath); preserving existing local file",
-                            )
-                            return@forEach
-                        }
 
-                        val tmpPath =
-                            actualFilePath.resolveSibling(
-                                actualFilePath.fileName.toString() + DOWNLOAD_TMP_SUFFIX,
-                            )
-                        try {
-                            actualFilePath.parent?.let { Files.createDirectories(it) }
-                            Files.deleteIfExists(tmpPath)
-                            FileOutputStream(tmpPath.toString()).use { fs ->
-                                fs.write(wnBytes)
+                            onProgress?.invoke("Downloading ${file.filename}", -1f)
+                            val wnBytes =
+                                SteamService.withWnSession {
+                                    it.downloadCloudFile(appInfo.id, prefixedPath)
+                                }
+                            if (wnBytes == null) {
+                                Timber.w(
+                                    "Cloud download failed for ${file.filename} ($prefixedPath); trying next variant",
+                                )
+                                continue
+                            }
+
+                            val tmpPath =
+                                targetPath.resolveSibling(
+                                    targetPath.fileName.toString() + DOWNLOAD_TMP_SUFFIX,
+                                )
+                            try {
+                                targetPath.parent?.let { Files.createDirectories(it) }
+                                Files.deleteIfExists(tmpPath)
+                                FileOutputStream(tmpPath.toString()).use { fs ->
+                                    fs.write(wnBytes)
+                                    try {
+                                        fs.fd.sync()
+                                    } catch (e: Exception) {
+                                        Timber.w(e, "fsync failed for %s; continuing", tmpPath)
+                                    }
+                                }
                                 try {
-                                    fs.fd.sync()
+                                    Files.move(tmpPath, targetPath, StandardCopyOption.ATOMIC_MOVE)
+                                } catch (_: Exception) {
+                                    Files.move(tmpPath, targetPath, StandardCopyOption.REPLACE_EXISTING)
+                                }
+                                try {
+                                    val mtimeMs = if (file.timestamp > 0) file.timestamp else 0L
+                                    java.nio.file.Files.setLastModifiedTime(
+                                        targetPath,
+                                        java.nio.file.attribute.FileTime.fromMillis(mtimeMs),
+                                    )
                                 } catch (e: Exception) {
-                                    Timber.w(e, "fsync failed for %s; continuing", tmpPath)
+                                    Timber.d(e, "cloud download: failed to set mtime for ${file.filename}")
+                                }
+                                filesDownloaded++
+                                bytesDownloaded += wnBytes.size.toLong()
+                                wrote = true
+                                onProgress?.invoke("Downloading ${file.filename}", 1f)
+                                Timber.i(
+                                    "cloud restore via wn-steam-client: ${file.filename} (${wnBytes.size} bytes) -> $targetPath",
+                                )
+                            } catch (e: Exception) {
+                                Timber.w(e, "Could not write $targetPath; preserving existing local file")
+                                try {
+                                    Files.deleteIfExists(tmpPath)
+                                } catch (_: Exception) {
+                                    // best-effort
                                 }
                             }
-                            try {
-                                Files.move(tmpPath, actualFilePath, StandardCopyOption.ATOMIC_MOVE)
-                            } catch (_: Exception) {
-                                Files.move(tmpPath, actualFilePath, StandardCopyOption.REPLACE_EXISTING)
-                            }
-                            try {
-                                val mtimeMs = if (file.timestamp > 0) file.timestamp else 0L
-                                java.nio.file.Files.setLastModifiedTime(
-                                    actualFilePath,
-                                    java.nio.file.attribute.FileTime.fromMillis(mtimeMs))
-                            } catch (e: Exception) {
-                                Timber.d(e, "cloud download: failed to set mtime for ${file.filename}")
-                            }
-                            filesDownloaded++
-                            bytesDownloaded += wnBytes.size.toLong()
-                            onProgress?.invoke("Downloading ${file.filename}", 1f)
-                            Timber.i(
-                                "cloud restore via wn-steam-client: ${file.filename} (${wnBytes.size} bytes)",
-                            )
-                        } catch (e: Exception) {
-                            Timber.w(e, "Could not write ${file.filename}; preserving existing local file")
-                            try {
-                                Files.deleteIfExists(tmpPath)
-                            } catch (_: Exception) {
-                                // best-effort
-                            }
+                        }
+                        if (!wrote) {
+                            Timber.w("No cloud variant could be downloaded for %s; preserving existing local file", targetPath)
                         }
                     }
 
@@ -1207,7 +1189,12 @@ object SteamAutoCloud {
                                     getFilesDiff(remoteUserFiles, allLocalUserFiles).second.filesDeleted
                                 }
 
-                            val expectedDownloads = remoteUserFiles.size
+                            // Count UNIQUE local paths to download — Steam Cloud's duplicate/stale
+                            // entries for one logical file must not inflate the target and wedge the
+                            // sync into permanent DownloadFail (the Monster Hunter Rise symptom).
+                            val cloudTargetPaths =
+                                groupPersistedCloudFilesByLocalPath(appFileListChange, prefixToPath, cloudRouting).keys
+                            val expectedDownloads = cloudTargetPaths.size
                             microsecDownloadFiles =
                                 measureTime {
                                     val downloadInfo = downloadFiles(appFileListChange, parentScope).await()
@@ -1229,6 +1216,13 @@ object SteamAutoCloud {
                                     } else {
                                         var totalFilesDeleted = 0
                                         filesDeletedByCloud.forEach {
+                                            // Safety: never delete a local file the cloud actually has
+                                            // under SOME variant name (guards against the duplicate-
+                                            // prefix entries making a kept file look "removed remotely").
+                                            val abs =
+                                                runCatching { it.getAbsPath(prefixToPath).toAbsolutePath().normalize() }
+                                                    .getOrNull()
+                                            if (abs != null && abs in cloudTargetPaths) return@forEach
                                             val deleted = Files.deleteIfExists(it.getAbsPath(prefixToPath))
                                             if (deleted) totalFilesDeleted++
                                         }
@@ -1410,9 +1404,38 @@ object SteamAutoCloud {
                                         }
 
                                         SaveLocation.None -> {
-                                            syncResult = SyncResult.Conflict
-                                            remoteTimestamp = appFileListChange.files.map { it.timestamp }.maxOrNull() ?: 0L
-                                            localTimestamp = allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                            // A real Steam conflict requires the local and cloud
+                                            // FILE CONTENT to actually diverge — not merely a
+                                            // change-number mismatch. The change number can drift
+                                            // (e.g. an upload's batch change number lags the next
+                                            // GetAppFileChangelist, or the persisted baseline is
+                                            // lost) while every file is byte-identical, which used
+                                            // to surface a phantom conflict dialog on every launch.
+                                            // Steam itself compares file SHAs; if both sides hold
+                                            // the same bytes there is nothing to resolve. Mirror the
+                                            // launch-probe hardening here: only prompt on genuine
+                                            // content divergence, otherwise silently reconcile the
+                                            // baseline so the false conflict cannot recur.
+                                            val contentDiffers =
+                                                cloudContentDiffersFromLocal(appFileListChange, prefixToPath, appInfo)
+                                            if (contentDiffers) {
+                                                syncResult = SyncResult.Conflict
+                                                remoteTimestamp = appFileListChange.files.map { it.timestamp }.maxOrNull() ?: 0L
+                                                localTimestamp = allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                            } else {
+                                                Timber.i(
+                                                    "Change number differs ($effectiveLocalAppChangeNumber -> $cloudAppChangeNumber) " +
+                                                        "but local and cloud content are identical; reconciling baseline (no real conflict)",
+                                                )
+                                                writeSteamRemoteCacheVdf(appInfo, appFileListChange, prefixToPath, cloudRouting)
+                                                with(steamInstance) {
+                                                    db.withTransaction {
+                                                        fileChangeListsDao.insert(appInfo.id, allLocalUserFiles)
+                                                        changeNumbersDao.insert(appInfo.id, cloudAppChangeNumber)
+                                                    }
+                                                }
+                                                syncResult = SyncResult.UpToDate
+                                            }
                                         }
                                     }
                                 }

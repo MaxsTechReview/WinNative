@@ -11,6 +11,8 @@ import com.google.android.gms.games.snapshot.SnapshotMetadataChange
 import com.google.android.gms.tasks.Tasks
 import com.winlator.cmod.feature.stores.epic.service.EpicCloudSavesManager
 import com.winlator.cmod.feature.stores.gog.service.GOGService
+import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
+import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
@@ -131,6 +133,15 @@ object GameSaveBackupManager {
         EPIC_CLOUD,
         /** GOG cloud's live file listing. Restore pulls full cloud state down. */
         GOG_CLOUD,
+
+        /**
+         * Google Play Games **Saved Games (Snapshots)**. A logical save is one manifest
+         * snapshot plus N gzipped-zip "part" snapshots (split to fit `getMaxDataSize()`).
+         * Surfaced in Save History as a single entry with the GOOGLE badge; restore
+         * reassembles the parts, extracts into the resolved save dirs, then pushes the
+         * restored state back to the game's primary cloud (Steam Cloud for Steam).
+         */
+        GOOGLE,
     }
 
     /** Origin of a history backup — identifies which side of a conflict it came from. */
@@ -252,7 +263,12 @@ object GameSaveBackupManager {
     /** Pref name kept verbatim ("google_drive_connected") for upgrade compatibility — the backend is now PGS. */
     fun isDriveConnected(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_DRIVE_CONNECTED, false)
 
-    private fun setDriveConnected(context: Context, connected: Boolean) {
+    /**
+     * Records whether a Google Play Games session is connected. Public so the sign-in
+     * surfaces (Google tab account card, the launch auto-sign-in, the on-launch toggle) can
+     * keep this flag — the gate for showing/loading Google Saved-Games history — in sync.
+     */
+    fun setDriveConnected(context: Context, connected: Boolean) {
         prefs(context).edit().putBoolean(KEY_GOOGLE_DRIVE_CONNECTED, connected).apply()
     }
 
@@ -288,20 +304,350 @@ object GameSaveBackupManager {
                     return@withContext BackupResult(false, "Google save backups are disabled.")
                 }
                 val appId = gameId.toIntOrNull()
-                if (appId != null) {
-                    val ok = com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
-                        .recordSnapshot(activity.applicationContext, appId, origin)
-                    return@withContext BackupResult(
-                        ok || origin == BackupOrigin.LOCAL,
-                        if (ok) "Local snapshot captured." else "No local save files found to snapshot.",
-                    )
+                    ?: return@withContext BackupResult(false, "Invalid Steam appId for snapshot.")
+
+                // 1) Local rolling snapshot — the offline rollback safety net (always attempted).
+                val localOk = SteamSaveSnapshotManager.recordSnapshot(activity.applicationContext, appId, origin)
+
+                // 2) Mirror the kept save to Google Play Games (split + zipped) when a Google
+                //    session is connected. Uses the caller's [authMode] (RESUME from the launch
+                //    conflict flow), so when the user is NOT signed in this is a silent no-op and
+                //    only the local snapshot is kept.
+                val googleResult =
+                    runCatching {
+                        backupSaveToGoogle(activity, gameSource, gameId, gameName, origin, authMode)
+                    }.getOrElse { e ->
+                        Timber.tag(TAG).w(e, "Google mirror of kept save failed for $gameId")
+                        BackupResult(false, e.message ?: "Google backup failed.")
+                    }
+
+                when {
+                    googleResult.success -> BackupResult(true, googleResult.message)
+                    localOk -> BackupResult(true, "Local snapshot captured.")
+                    origin == BackupOrigin.LOCAL -> BackupResult(true, "No local save files found to snapshot.")
+                    else -> BackupResult(false, googleResult.message)
                 }
-                BackupResult(false, "Invalid Steam appId for snapshot.")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "backupDiscardedSave failed for $gameSource/$gameId")
                 BackupResult(false, "Failed to back up save: ${e.message}")
             }
         }
+
+    // ── Google Play Games saved-game backup / list / restore ──
+
+    /**
+     * Back up the current local save for a game to Google Play Games **Saved Games**.
+     *
+     * Pipeline: collect save sources → stream a single gzipped-zip into a cache file →
+     * split into ≤[MAX_PARTS] part snapshots sized to fit `SnapshotsClient.getMaxDataSize()`
+     * → write the parts first, then the manifest LAST (its presence is the commit point).
+     * The manifest references the part names plus the uncompressed size and SHA-256 so a
+     * later restore can verify integrity. Returns a user-facing [BackupResult].
+     *
+     * Silent when not signed in: with [authMode] = RESUME/SILENT, a missing Google session
+     * short-circuits to a failure result with no UI and no toast.
+     */
+    @JvmOverloads
+    suspend fun backupSaveToGoogle(
+        activity: Activity,
+        gameSource: GameSource,
+        gameId: String,
+        gameName: String,
+        origin: BackupOrigin,
+        authMode: GoogleAuthMode = GoogleAuthMode.INTERACTIVE,
+        label: String? = null,
+        customSaveDir: File? = null,
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                if (!ensureAuthenticated(activity, authMode)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
+                }
+                val context = activity.applicationContext
+                val sources = getLocalSaveSources(context, gameSource, gameId, customSaveDir, forRestore = false)
+                if (sources.isEmpty()) {
+                    return@withContext BackupResult(false, "No save files found to back up.")
+                }
+                val client =
+                    freshSnapshotsClient(activity)
+                        ?: return@withContext BackupResult(false, "Google Play Games is unavailable.")
+
+                val tmp = File.createTempFile("wnsv_b", ".gz", context.cacheDir)
+                try {
+                    val (uncompressed, sha) = streamGzippedZipToFile(sources, tmp)
+                    val compressed = tmp.length()
+                    if (compressed <= 0L) {
+                        return@withContext BackupResult(false, "Save archive was empty.")
+                    }
+                    if (compressed > MAX_COMPRESSED_BYTES) {
+                        return@withContext BackupResult(
+                            false,
+                            "Save is too large to back up (${formatMb(compressed)} > ${formatMb(MAX_COMPRESSED_BYTES)}).",
+                        )
+                    }
+                    val partSize = computePartSize(client)
+                    val partCount = ((compressed + partSize - 1) / partSize).toInt().coerceAtLeast(1)
+                    if (partCount > MAX_PARTS) {
+                        return@withContext BackupResult(false, "Save needs too many parts to store ($partCount).")
+                    }
+
+                    val gameKey = buildGameKeyHash(gameSource, gameId)
+                    val createdAt = System.currentTimeMillis()
+                    val saveId = buildSaveId(createdAt)
+                    val partNames = (0 until partCount).map { partUniqueName(gameSource, gameKey, saveId, it) }
+
+                    // Parts first. Any failure deletes the just-written parts so no orphans linger.
+                    if (!uploadParts(activity, client, tmp, partNames, partSize)) {
+                        deleteSnapshotsByName(activity, partNames)
+                        return@withContext BackupResult(false, "Failed to upload save to Google Play Games.")
+                    }
+
+                    val manifest =
+                        Manifest(
+                            schema = 1,
+                            source = gameSource,
+                            gameId = gameId,
+                            gameName = gameName,
+                            origin = origin,
+                            createdAtMs = createdAt,
+                            uncompressedSize = uncompressed,
+                            compressedSize = compressed,
+                            sha256 = sha,
+                            parts = partNames,
+                            windowsPath =
+                                if (gameSource == GameSource.CUSTOM) customSaveWindowsPathFor(context, gameId) else null,
+                        )
+                    val cleanLabel = sanitizeHistoryLabel(label)
+                    // Manifest written LAST — its existence commits the save.
+                    val committed =
+                        writeSnapshot(
+                            activity,
+                            client,
+                            uniqueName = manifestUniqueName(gameSource, gameKey, saveId),
+                            description = manifestDescription(origin, cleanLabel),
+                            playedTimeMs = 0L,
+                            data = manifest.toJson().toByteArray(Charsets.UTF_8),
+                        )
+                    if (!committed) {
+                        deleteSnapshotsByName(activity, partNames)
+                        return@withContext BackupResult(false, "Failed to finalize Google Play Games backup.")
+                    }
+
+                    setDriveConnected(context, true)
+                    runCatching { pruneGoogleHistory(activity, client, gameSource, gameId) }
+                        .onFailure { Timber.tag(TAG).w(it, "pruneGoogleHistory failed for $gameId") }
+                    BackupResult(true, "Saved to Google Play Games.")
+                } finally {
+                    runCatching { tmp.delete() }
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "backupSaveToGoogle failed for $gameSource/$gameId")
+                BackupResult(false, "Failed to back up save: ${e.message}")
+            }
+        }
+
+    /**
+     * List a game's Google Play Games saved-game history, newest-first. Each manifest snapshot
+     * becomes one [BackupHistoryEntry] with `storage = GOOGLE`. Returns empty (no UI) when no
+     * Google session is connected.
+     */
+    @JvmOverloads
+    suspend fun listGoogleHistory(
+        activity: Activity,
+        gameSource: GameSource,
+        gameId: String,
+        authMode: GoogleAuthMode = GoogleAuthMode.RESUME,
+    ): List<BackupHistoryEntry> =
+        withContext(Dispatchers.IO) {
+            try {
+                if (!isDriveConnected(activity.applicationContext)) return@withContext emptyList()
+                if (!ensureAuthenticated(activity, authMode)) return@withContext emptyList()
+                val client = freshSnapshotsClient(activity) ?: return@withContext emptyList()
+                val gameKey = buildGameKeyHash(gameSource, gameId)
+                val prefix = manifestPrefix(gameSource, gameKey)
+                loadAllSnapshotsMetadata(client)
+                    .filter { it.uniqueName.startsWith(prefix) && it.uniqueName.endsWith("_m") }
+                    .mapNotNull { meta ->
+                        val bytes = readSnapshotBytes(client, meta.uniqueName) ?: return@mapNotNull null
+                        val manifest = Manifest.fromJson(String(bytes, Charsets.UTF_8)) ?: return@mapNotNull null
+                        BackupHistoryEntry(
+                            fileId = meta.uniqueName,
+                            fileName = "",
+                            timestampMs = manifest.createdAtMs,
+                            origin = manifest.origin,
+                            sizeBytes = manifest.uncompressedSize.coerceAtLeast(0L),
+                            label = parseLabelFromDescription(meta.description),
+                            storage = BackupStorage.GOOGLE,
+                        )
+                    }
+                    .sortedByDescending { it.timestampMs }
+                    .take(MAX_HISTORY_ENTRIES)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "listGoogleHistory failed for $gameSource/$gameId")
+                emptyList()
+            }
+        }
+
+    /**
+     * Restore a Google Play Games saved-game [entry]: read its manifest, download + concatenate
+     * the parts, verify the SHA-256, extract into the resolved save dirs, then push the restored
+     * state up to the game's primary cloud (Steam Cloud for Steam). The reassembled archive is
+     * always deleted afterward.
+     */
+    @JvmOverloads
+    suspend fun restoreFromGoogle(
+        activity: Activity,
+        entry: BackupHistoryEntry,
+        gameSource: GameSource,
+        gameId: String,
+        authMode: GoogleAuthMode = GoogleAuthMode.INTERACTIVE,
+        customSaveDir: File? = null,
+        containerHint: Container? = null,
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                if (!ensureAuthenticated(activity, authMode)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
+                }
+                val context = activity.applicationContext
+                val client =
+                    freshSnapshotsClient(activity)
+                        ?: return@withContext BackupResult(false, "Google Play Games is unavailable.")
+                val manifestBytes =
+                    readSnapshotBytes(client, entry.fileId)
+                        ?: return@withContext BackupResult(false, "Backup manifest is missing.")
+                val manifest =
+                    Manifest.fromJson(String(manifestBytes, Charsets.UTF_8))
+                        ?: return@withContext BackupResult(false, "Backup manifest is unreadable.")
+                if (manifest.parts.isEmpty()) {
+                    return@withContext BackupResult(false, "Backup has no data parts.")
+                }
+
+                val tmp = File.createTempFile("wnsv_r", ".gz", context.cacheDir)
+                try {
+                    if (!downloadParts(client, manifest.parts, tmp)) {
+                        return@withContext BackupResult(false, "Failed to download backup parts.")
+                    }
+                    if (manifest.sha256.isNotEmpty() && !sha256OfFile(tmp).equals(manifest.sha256, ignoreCase = true)) {
+                        return@withContext BackupResult(false, "Backup integrity check failed.")
+                    }
+                    val sources =
+                        getLocalSaveSources(context, gameSource, gameId, customSaveDir, forRestore = true, containerHint = containerHint)
+                    if (sources.isEmpty()) {
+                        return@withContext BackupResult(false, "Cannot determine save directory for this game.")
+                    }
+                    sources.forEach { it.localDir.mkdirs() }
+                    extractGzippedZipToSources(tmp, sources)
+
+                    val pushed =
+                        when (gameSource) {
+                            GameSource.STEAM ->
+                                gameId.toIntOrNull()?.let {
+                                    SteamCloudSyncHelper.uploadLocalSaves(context, it, containerHint)
+                                } ?: false
+                            else -> syncUpToProvider(context, gameSource, gameId)
+                        }
+                    BackupResult(true, if (pushed) "Save restored and synced." else "Save restored locally.")
+                } finally {
+                    runCatching { tmp.delete() }
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "restoreFromGoogle failed for $gameSource/$gameId")
+                BackupResult(false, "Restore failed: ${e.message}")
+            }
+        }
+
+    /** Update the user label on a Google saved-game entry by rewriting its manifest description. */
+    suspend fun renameGoogleEntry(
+        activity: Activity,
+        entry: BackupHistoryEntry,
+        newLabel: String?,
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                if (!ensureAuthenticated(activity, GoogleAuthMode.INTERACTIVE)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
+                }
+                val client =
+                    freshSnapshotsClient(activity)
+                        ?: return@withContext BackupResult(false, "Google Play Games is unavailable.")
+                val bytes =
+                    readSnapshotBytes(client, entry.fileId)
+                        ?: return@withContext BackupResult(false, "Backup manifest is missing.")
+                val manifest =
+                    Manifest.fromJson(String(bytes, Charsets.UTF_8))
+                        ?: return@withContext BackupResult(false, "Backup manifest is unreadable.")
+                val cleanLabel = sanitizeHistoryLabel(newLabel)
+                val ok =
+                    writeSnapshot(
+                        activity,
+                        client,
+                        uniqueName = entry.fileId,
+                        description = manifestDescription(manifest.origin, cleanLabel),
+                        playedTimeMs = 0L,
+                        data = bytes,
+                    )
+                BackupResult(ok, if (ok) "Label updated." else "Rename failed.")
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "renameGoogleEntry failed")
+                BackupResult(false, "Rename failed: ${e.message}")
+            }
+        }
+
+    /** Delete a Google saved-game entry and all of its part snapshots. */
+    suspend fun deleteGoogleEntry(
+        activity: Activity,
+        entry: BackupHistoryEntry,
+    ): BackupResult =
+        withContext(Dispatchers.IO) {
+            try {
+                if (!ensureAuthenticated(activity, GoogleAuthMode.INTERACTIVE)) {
+                    return@withContext BackupResult(false, "Not signed in to Google Play Games.")
+                }
+                val client =
+                    freshSnapshotsClient(activity)
+                        ?: return@withContext BackupResult(false, "Google Play Games is unavailable.")
+                deleteEntry(activity, client, entry)
+                BackupResult(true, "Backup deleted.")
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "deleteGoogleEntry failed")
+                BackupResult(false, "Delete failed: ${e.message}")
+            }
+        }
+
+    /** Part size that fits within a single snapshot's `getMaxDataSize()`, minus envelope headroom. */
+    private suspend fun computePartSize(client: SnapshotsClient): Long {
+        val maxData =
+            runCatching { Tasks.await(client.getMaxDataSize()).toLong() }
+                .getOrNull()
+                ?.takeIf { it > 0L }
+                ?: (3L * 1024 * 1024) // Play Games historical default if the query fails.
+        return (maxData - PART_SIZE_HEADROOM_BYTES).coerceAtLeast(MIN_PART_SIZE_BYTES)
+    }
+
+    /** Drop manifests beyond [MAX_HISTORY_ENTRIES] for this game (oldest first), with their parts. */
+    private suspend fun pruneGoogleHistory(
+        activity: Activity,
+        client: SnapshotsClient,
+        gameSource: GameSource,
+        gameId: String,
+    ) {
+        val gameKey = buildGameKeyHash(gameSource, gameId)
+        val prefix = manifestPrefix(gameSource, gameKey)
+        val manifests =
+            loadAllSnapshotsMetadata(client)
+                .filter { it.uniqueName.startsWith(prefix) && it.uniqueName.endsWith("_m") }
+                .sortedByDescending { it.lastModifiedTimestamp }
+        if (manifests.size <= MAX_HISTORY_ENTRIES) return
+        manifests.drop(MAX_HISTORY_ENTRIES).forEach { meta ->
+            val bytes = readSnapshotBytes(client, meta.uniqueName)
+            val parts = bytes?.let { Manifest.fromJson(String(it, Charsets.UTF_8)) }?.parts.orEmpty()
+            if (parts.isNotEmpty()) deleteSnapshotsByName(activity, parts)
+            deleteSnapshotsByName(activity, listOf(meta.uniqueName))
+        }
+    }
+
+    private fun formatMb(bytes: Long): String = "%.1f MB".format(bytes / (1024.0 * 1024.0))
 
     // ── Custom-game helpers (used by the "Select Save Folder" picker UI) ──
 
@@ -405,9 +751,21 @@ object GameSaveBackupManager {
         gameId: String,
         customSaveDir: File?,
         forRestore: Boolean,
+        containerHint: Container? = null,
     ): List<SaveBackupSource> =
         when (source) {
-            GameSource.STEAM -> emptyList() // Steam uses Steam Cloud — Google Saves unused.
+            GameSource.STEAM -> {
+                // Steam's primary cloud is Steam Cloud, but a Steam save can ALSO be mirrored
+                // to Google Play Games (the conflict "keep a copy" flow). Reuse the exact source
+                // enumeration the local Steam snapshot manager uses so backup and restore resolve
+                // identical zipRoot -> dir mappings (the manifest doesn't need to store paths).
+                // The containerHint pins resolution to the game's own wineprefix so restore writes
+                // into — and the follow-up Steam Cloud upload reads from — the same container.
+                val appId = gameId.toIntOrNull() ?: return emptyList()
+                SteamSaveSnapshotManager
+                    .enumerateGoogleSaveSources(context, appId, forRestore, containerHint)
+                    .map { (zipRoot, dir) -> SaveBackupSource("steam/$zipRoot", dir) }
+            }
             GameSource.EPIC -> getEpicSaveSources(context, gameId, forRestore)
             GameSource.GOG -> getGogSaveSources(context, gameId, forRestore)
             GameSource.CUSTOM -> getCustomSaveSources(context, gameId, customSaveDir, forRestore)

@@ -515,6 +515,21 @@ object SteamSaveSnapshotManager {
         return sources.values.toList()
     }
 
+    /**
+     * Public view of [enumerateSaveSources] for the Google Play Games saved-game backend
+     * ([GameSaveBackupManager]) so a Steam save can be mirrored to / restored from Google using
+     * the exact same `zipRoot -> live dir` mapping the local snapshot history uses. Backup and
+     * restore both call this, so the part archive's zip roots round-trip without the manifest
+     * needing to store any paths.
+     */
+    fun enumerateGoogleSaveSources(
+        context: Context,
+        appId: Int,
+        forRestore: Boolean,
+        containerHint: Container? = null,
+    ): List<Pair<String, File>> =
+        enumerateSaveSources(context, appId, forRestore, containerHint).map { it.zipRoot to it.localDir }
+
     private fun resolveAccountId(): Long =
         SteamService.userSteamId?.accountID?.toLong()
             ?: PrefManager.steamUserSteamId64.takeIf { it != 0L }?.let { it and 0xFFFFFFFFL }
