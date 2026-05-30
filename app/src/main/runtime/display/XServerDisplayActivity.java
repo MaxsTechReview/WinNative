@@ -2051,19 +2051,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     float scaledDy = (xform[1] * rawDx + xform[3] * rawDy) * multiplier;
 
                     if (scaledDx != 0.0f || scaledDy != 0.0f) {
-                        if (xServer.isRelativeMouseMovement()) {
-                            // Feed Wine ONE unaccelerated raw-motion delta via XInput2.
-                            // Do not also push through WinHandler: that path runs injected
-                            // motion through Win32 pointer ballistics on Proton 10/11, and
-                            // double-feeding it alongside XIRawMotion is what made the camera
-                            // accelerate erratically. injectPointerMoveDelta also moves the
-                            // visible cursor and requests a render, so no extra call is needed.
-                            xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
-                        } else {
-                            int nx = Mathf.roundPoint(xServer.pointer.getX() + scaledDx);
-                            int ny = Mathf.roundPoint(xServer.pointer.getY() + scaledDy);
-                            xServer.injectPointerMove(nx, ny);
-                        }
+                        // Both relative and absolute mode feed Wine ONE unaccelerated
+                        // XInput2 raw-motion delta (which also moves the visible cursor).
+                        //
+                        // Relative: do NOT also push through WinHandler -- that runs injected
+                        // motion through Win32 pointer ballistics on Proton 10/11, and
+                        // double-feeding it alongside XIRawMotion made the camera accelerate.
+                        //
+                        // Absolute (relative off): previously used injectPointerMove(), which
+                        // sends ONLY core absolute MotionNotify and no raw motion. Raw-input
+                        // games then have to derive relative motion from the warped cursor and
+                        // Wine applies pointer ballistics to it -- the residual acceleration
+                        // seen with relative off (on every Proton, incl. 9). Emitting raw
+                        // motion (unaccelerated by definition) here removes that; the cursor
+                        // still tracks 1:1 for desktop/2D apps via the core motion + render.
+                        xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
                     }
                 }
                 handled = true;
