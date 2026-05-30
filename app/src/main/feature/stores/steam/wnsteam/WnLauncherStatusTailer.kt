@@ -136,8 +136,8 @@ class WnLauncherStatusTailer(
             android.util.Log.w(TAG, "fatal phase (launcher LoadLibrary failed) — signaling launch failure")
             main.post { onLaunchFailed?.invoke(appContext.getString(R.string.preloader_steam_launcher_start_failed)) }
         } else if (isCreateProcessFallback) {
-            // Keep the UI on "Launching <game>…" through the fallback; disarm the watchdog.
-            android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback (UI stays on Launching…)")
+            // Keep the UI on "Launching <game>" through the fallback; disarm the watchdog.
+            android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback (UI stays on Launching)")
             launchAppDispatchedAt = 0L
         }
     }

@@ -31,8 +31,8 @@
     <string name="common_ui_icon">Ikona</string>
     <string name="common_ui_duplicate">Duplikuj</string>
     <string name="common_ui_credits_and_third_party_apps">Autorzy i aplikacje zewnętrzne</string>
-    <string name="common_ui_loading">Ładowanie…</string>
-    <string name="common_ui_exporting">Eksportowanie…</string>
+    <string name="common_ui_loading">Ładowanie</string>
+    <string name="common_ui_exporting">Eksportowanie</string>
     <string name="common_ui_enable">Włącz</string>
     <string name="common_ui_disable">Wyłącz</string>
     <string name="common_ui_force">Wymuś</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">Weryfikacja plików zakończona</string>
     <string name="store_game_verify_failed_notice">Weryfikacja plików nie powiodła się</string>
     <string name="store_game_progress_background_hint">Możesz to zamknąć — proces będzie dalej działał. Sprawdź kartę Pobrane w dowolnym momencie.</string>
-    <string name="store_game_checking_updates">Sprawdzanie aktualizacji…</string>
+    <string name="store_game_checking_updates">Sprawdzanie aktualizacji</string>
     <string name="store_game_no_updates_notice">Brak dostępnych aktualizacji</string>
     <string name="store_game_update_complete">Aktualizacja zakończona</string>
     <string name="store_game_update_failed_notice">Aktualizacja nie powiodła się</string>
@@ -261,9 +261,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Nowy kontener</string>
     <string name="containers_list_edit">Edytuj kontener</string>
-    <string name="containers_list_creating">Tworzenie kontenera…</string>
-    <string name="containers_list_removing">Usuwanie kontenera…</string>
-    <string name="containers_list_duplicating">Duplikowanie kontenera…</string>
+    <string name="containers_list_creating">Tworzenie kontenera</string>
+    <string name="containers_list_removing">Usuwanie kontenera</string>
+    <string name="containers_list_duplicating">Duplikowanie kontenera</string>
     <string name="containers_list_remove_title">Usuń kontener</string>
     <string name="containers_list_duplicate_title">Zduplikuj kontener</string>
     <string name="containers_list_confirm_remove">Czy chcesz usunąć ten kontener?</string>
@@ -518,6 +518,7 @@
     <string name="container_graphics_bcn_emulation_type">Typ emulacji BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Pamięć podręczna emulacji BCn</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Superrozdzielczość w grach 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Ostrość krawędzi</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Czy chcesz zduplikować ten preset?</string>
     <string name="container_presets_confirm_remove">Czy chcesz usunąć ten preset?</string>
@@ -760,7 +761,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Nie udało się zainstalować soundfontu!</string>
     <string name="settings_audio_sound_font_already_exist">Soundfont, który chcesz zainstalować, już istnieje.</string>
     <string name="settings_audio_unable_to_install_soundfont">Nie można zainstalować soundfontu</string>
-    <string name="settings_audio_installing_soundfont">Instalowanie SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Instalowanie SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Nieprawidłowy format SoundFont.</string>
     <string name="settings_audio_cannot_remove_default">Nie można usunąć domyślnego soundfontu</string>
     <string name="settings_audio_summary">Instaluj, usuwaj i wybieraj SoundFont używany do odtwarzania MIDI.</string>
@@ -816,7 +817,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_content_empty_subtitle">Zainstaluj pakiet lub zmień typ, aby rozpocząć.</string>
     <string name="settings_content_container_created">Utworzono kontener: %1$s</string>
     <string name="settings_content_download_failed">Pobieranie nie powiodło się.</string>
-    <string name="common_ui_working">Pracuję…</string>
+    <string name="common_ui_working">Pracuję</string>
     <string name="settings_content_desc_wine">Stworzone przez projekt Wine; tłumaczy wywołania Win32 na natywne usługi Linux/Android.</string>
     <string name="settings_content_desc_proton">Stworzone przez Valve; runtime oparty na Wine z łatkami dla gier Windows.</string>
     <string name="settings_content_desc_dxvk">Tłumaczy wywołania graficzne Direct3D 9, 10 i 11 na Vulkan.</string>
@@ -835,8 +836,8 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_content_downloading_title">Pobieranie zawartości</string>
     <string name="settings_content_installing_title">Instalowanie zawartości</string>
     <string name="settings_content_extracting_title">Wypakowywanie zawartości</string>
-    <string name="settings_content_extracting_detail">Wypakowywanie… (%1$d plików)</string>
-    <string name="settings_content_preparing_package">Przygotowywanie pakietu…</string>
+    <string name="settings_content_extracting_detail">Wypakowywanie (%1$d plików)</string>
+    <string name="settings_content_preparing_package">Przygotowywanie pakietu</string>
     <string name="settings_content_download_complete">Pobieranie zakończone</string>
     <string name="settings_content_already_installed_title">Komponent jest już zainstalowany</string>
     <string name="settings_content_already_installed_message">Ten komponent jest już zainstalowany. Usuń zainstalowaną kopię przed ponownym pobraniem.
@@ -868,7 +869,7 @@ Zainstalowana ścieżka:
     <string name="settings_drivers_remove_repo_title">Usunąć repozytorium?</string>
     <string name="settings_drivers_remove_repo_message">%1$s zostanie usunięte z listy repozytoriów.</string>
     <string name="settings_drivers_repo_tap_to_load">Dotknij, aby wczytać wydania</string>
-    <string name="settings_drivers_repo_loading_releases">Wczytywanie wydań…</string>
+    <string name="settings_drivers_repo_loading_releases">Wczytywanie wydań</string>
     <string name="settings_drivers_repo_release_count">Wczytano %1$d wydań</string>
     <string name="settings_drivers_repo_no_release_assets">Nie znaleziono zasobów ZIP do pobrania w pobranych wydaniach.</string>
     <string name="settings_drivers_repo_fetch_failed">Nie można wczytać wydań z GitHub.</string>
@@ -878,7 +879,7 @@ Zainstalowana ścieżka:
     <string name="settings_drivers_manager">Menedżer sterowników</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Instalowanie plików systemowych…</string>
+    <string name="setup_wizard_installing_system_files">Instalowanie plików systemowych</string>
     <string name="setup_wizard_unable_to_install_system_files">Nie można zainstalować plików systemowych</string>
     <string name="setup_wizard_system_image_not_installed">Obraz systemu nie jest zainstalowany. Najpierw zainstaluj komponenty.</string>
     <string name="setup_wizard_recommended_components">Zalecane komponenty</string>
@@ -1014,20 +1015,20 @@ Zainstalowana ścieżka:
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Kontener</string>
-    <string name="preloader_initializing">Inicjalizacja…</string>
-    <string name="preloader_launching">Uruchamianie…</string>
-    <string name="preloader_closing">Zamykanie %1$s…</string>
-    <string name="preloader_setup_environment">Konfiguracja środowiska…</string>
-    <string name="preloader_retrying_steam_client_download">Ponawianie pobierania klienta Steam…</string>
-    <string name="preloader_installing_mono">Instalowanie Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Instalowanie pakietów redystrybucyjnych…</string>
-    <string name="preloader_unpacking_exe">Rozpakowywanie pliku wykonywalnego gry…</string>
-    <string name="preloader_downloading_cloud">Pobieranie zapisów z chmury…</string>
-    <string name="preloader_syncing_cloud">Synchronizacja zapisów z chmury…</string>
-    <string name="preloader_uploading_cloud">Przesyłanie zapisów do chmury…</string>
-    <string name="preloader_checking_cloud">Sprawdzanie zapisów w chmurze…</string>
-    <string name="preloader_cloud_sync_retry">%1$s Próba %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Pobieranie synchronizacji chmury…</string>
+    <string name="preloader_initializing">Inicjalizacja</string>
+    <string name="preloader_launching">Uruchamianie</string>
+    <string name="preloader_closing">Zamykanie %1$s</string>
+    <string name="preloader_setup_environment">Konfiguracja środowiska</string>
+    <string name="preloader_retrying_steam_client_download">Ponawianie pobierania klienta Steam</string>
+    <string name="preloader_installing_mono">Instalowanie Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Instalowanie pakietów redystrybucyjnych</string>
+    <string name="preloader_unpacking_exe">Rozpakowywanie pliku wykonywalnego gry</string>
+    <string name="preloader_downloading_cloud">Pobieranie zapisów z chmury</string>
+    <string name="preloader_syncing_cloud">Synchronizacja zapisów z chmury</string>
+    <string name="preloader_uploading_cloud">Przesyłanie zapisów do chmury</string>
+    <string name="preloader_checking_cloud">Sprawdzanie zapisów w chmurze</string>
+    <string name="preloader_cloud_sync_retry">%1$s Próba %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Pobieranie synchronizacji chmury</string>
     <string name="cloud_sync_failed_provider">Synchronizacja chmury %1$s nie powiodła się.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1096,8 +1097,8 @@ Zainstalowana ścieżka:
     <string name="cloud_sync_title">Synchronizacja z chmurą</string>
     <string name="cloud_sync_enabled_summary">Pobieraj zapisy z chmury przy uruchomieniu oraz synchronizuj/twórz ich kopie przy wyjściu.</string>
     <string name="cloud_sync_disabled_summary">Uruchom tę grę bez pobierania zapisów z chmury i bez synchronizacji przy wyjściu.</string>
-    <string name="cloud_saves_backing_up">Tworzenie kopii zapisu w chmurze…</string>
-    <string name="cloud_saves_restoring">Przywracanie zapisu w chmurze…</string>
+    <string name="cloud_saves_backing_up">Tworzenie kopii zapisu w chmurze</string>
+    <string name="cloud_saves_restoring">Przywracanie zapisu w chmurze</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1164,18 +1165,18 @@ Zainstalowana ścieżka:
     <string name="container_surface_effect">Efekt powierzchni</string>
     <string name="downloads_queue_cancel_download_confirm">Anulować pobieranie %1$s i usunąć wszystkie pobrane pliki?</string>
     <string name="downloads_queue_paused_resume_hint">Wstrzymano — dotknij Wznów, aby kontynuować</string>
-    <string name="downloads_queue_phase_applying_data">Stosowanie danych…</string>
-    <string name="downloads_queue_phase_downloading">Pobieranie…</string>
-    <string name="downloads_queue_phase_downloading_file">Pobieranie… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">Finalizowanie…</string>
-    <string name="downloads_queue_phase_patching">Łatanie…</string>
-    <string name="downloads_queue_phase_preparing">Przygotowywanie…</string>
+    <string name="downloads_queue_phase_applying_data">Stosowanie danych</string>
+    <string name="downloads_queue_phase_downloading">Pobieranie</string>
+    <string name="downloads_queue_phase_downloading_file">Pobieranie [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Finalizowanie</string>
+    <string name="downloads_queue_phase_patching">Łatanie</string>
+    <string name="downloads_queue_phase_preparing">Przygotowywanie</string>
     <string name="downloads_queue_phase_queued">W kolejce</string>
     <string name="downloads_queue_phase_unknown">Nieznany</string>
-    <string name="downloads_queue_phase_unpacking">Rozpakowywanie…</string>
-    <string name="downloads_queue_phase_updating">Aktualizowanie…</string>
-    <string name="downloads_queue_phase_verifying">Weryfikowanie…</string>
-    <string name="downloads_queue_phase_verifying_file">Weryfikowanie… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">Rozpakowywanie</string>
+    <string name="downloads_queue_phase_updating">Aktualizowanie</string>
+    <string name="downloads_queue_phase_verifying">Weryfikowanie</string>
+    <string name="downloads_queue_phase_verifying_file">Weryfikowanie [%1$s]</string>
     <string name="downloads_queue_status_label">Stan:</string>
     <string name="downloads_queue_this_game">tę grę</string>
     <string name="hud_position_bottom_center">Dół — środek</string>
@@ -1275,7 +1276,7 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_steam_push_helper">Wymuś wysłanie lokalnego zapisu</string>
     <string name="cloud_saves_steam_push_success">Zapis wysłany do Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Nie udało się wysłać zapisu do Steam Cloud.</string>
-    <string name="cloud_saves_history_steam_unreachable">Steam Cloud jest teraz niedostępny. Ponowne łączenie w tle… dotknij odśwież, gdy wrócisz online.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud jest teraz niedostępny. Ponowne łączenie w tle dotknij odśwież, gdy wrócisz online.</string>
     <string name="steam_session_refused_event">Steam odrzucił zapisaną w pamięci podręcznej sesję (EResult=%1$d). Zaloguj się ponownie.</string>
     <string name="settings_hud_record_to_file_title">Rejestruj wydajność do pliku</string>
     <string name="settings_hud_record_to_file_summary">Zapisuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
@@ -1302,5 +1303,9 @@ Zainstalowana ścieżka:
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher nie powiódł się — ponowne przygotowywanie zasobów</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher nie mógł się uruchomić. Ponowne przygotowywanie — uruchom ponownie</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher dotarł do gry, ale gra się nie uruchomiła</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
+    <string name="workshop_search_items">Szukaj elementów Workshop</string>
+    <string name="common_ui_failed">Niepowodzenie</string>
 </resources>
 

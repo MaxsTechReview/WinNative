@@ -31,8 +31,8 @@
     <string name="common_ui_icon">Ikon</string>
     <string name="common_ui_duplicate">Dupliker</string>
     <string name="common_ui_credits_and_third_party_apps">Credits og tredjepartsapps</string>
-    <string name="common_ui_loading">Indlæser…</string>
-    <string name="common_ui_exporting">Eksporterer…</string>
+    <string name="common_ui_loading">Indlæser</string>
+    <string name="common_ui_exporting">Eksporterer</string>
     <string name="common_ui_enable">Aktiver</string>
     <string name="common_ui_disable">Deaktiver</string>
     <string name="common_ui_force">Tving</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">Bekræftelse af filer fuldført</string>
     <string name="store_game_verify_failed_notice">Bekræftelse af filer mislykkedes</string>
     <string name="store_game_progress_background_hint">Du kan lukke dette — det fortsætter i baggrunden. Se fanen Downloads når som helst.</string>
-    <string name="store_game_checking_updates">Søger efter opdateringer…</string>
+    <string name="store_game_checking_updates">Søger efter opdateringer</string>
     <string name="store_game_no_updates_notice">Ingen opdateringer tilgængelige</string>
     <string name="store_game_update_complete">Opdatering fuldført</string>
     <string name="store_game_update_failed_notice">Opdatering mislykkedes</string>
@@ -257,9 +257,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Ny container</string>
     <string name="containers_list_edit">Rediger container</string>
-    <string name="containers_list_creating">Opretter container…</string>
-    <string name="containers_list_removing">Fjerner container…</string>
-    <string name="containers_list_duplicating">Duplikerer container…</string>
+    <string name="containers_list_creating">Opretter container</string>
+    <string name="containers_list_removing">Fjerner container</string>
+    <string name="containers_list_duplicating">Duplikerer container</string>
     <string name="containers_list_remove_title">Fjern container</string>
     <string name="containers_list_duplicate_title">Dupliker container</string>
     <string name="containers_list_confirm_remove">Vil du fjerne denne container?</string>
@@ -514,6 +514,7 @@
     <string name="container_graphics_bcn_emulation_type">BCn-emuleringstype</string>
     <string name="container_graphics_bcn_emulation_cache">BCn-emuleringscache</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Superopløsning til spil 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Kantskarphed</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Vil du duplikere denne forudindstilling?</string>
     <string name="container_presets_confirm_remove">Vil du fjerne denne forudindstilling?</string>
@@ -754,7 +755,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Installation af SoundFont mislykkedes!</string>
     <string name="settings_audio_sound_font_already_exist">Den SoundFont du vil installere eksisterer allerede.</string>
     <string name="settings_audio_unable_to_install_soundfont">Kan ikke installere SoundFont</string>
-    <string name="settings_audio_installing_soundfont">Installerer SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Installerer SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Forkert SoundFont-format.</string>
     <string name="settings_audio_cannot_remove_default">Kan ikke fjerne standard-SoundFont</string>
     <string name="settings_audio_summary">Installer, fjern og vælg den SoundFont der bruges til MIDI-afspilning.</string>
@@ -810,7 +811,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_empty_subtitle">Installer en pakke eller skift type for at komme i gang.</string>
     <string name="settings_content_container_created">Container oprettet: %1$s</string>
     <string name="settings_content_download_failed">Download mislykkedes.</string>
-    <string name="common_ui_working">Arbejder…</string>
+    <string name="common_ui_working">Arbejder</string>
     <string name="settings_content_desc_wine">Lavet af Wine-projektet; oversætter Win32-kald til native Linux/Android-tjenester.</string>
     <string name="settings_content_desc_proton">Lavet af Valve; en Wine-baseret runtime med spilrettelser til Windows-spil.</string>
     <string name="settings_content_desc_dxvk">Oversætter Direct3D 9-, 10- og 11-grafikkald til Vulkan.</string>
@@ -829,8 +830,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_downloading_title">Downloader indhold</string>
     <string name="settings_content_installing_title">Installerer indhold</string>
     <string name="settings_content_extracting_title">Udpakker indhold</string>
-    <string name="settings_content_extracting_detail">Udpakker… (%1$d filer)</string>
-    <string name="settings_content_preparing_package">Forbereder pakke…</string>
+    <string name="settings_content_extracting_detail">Udpakker (%1$d filer)</string>
+    <string name="settings_content_preparing_package">Forbereder pakke</string>
     <string name="settings_content_download_complete">Download fuldført</string>
     <string name="settings_content_already_installed_title">Komponent allerede installeret</string>
     <string name="settings_content_already_installed_message">Denne komponent er allerede installeret. Fjern den installerede kopi, før du downloader den igen.
@@ -862,7 +863,7 @@ Installeret sti:
     <string name="settings_drivers_remove_repo_title">Fjern lager?</string>
     <string name="settings_drivers_remove_repo_message">%1$s fjernes fra din lagerliste.</string>
     <string name="settings_drivers_repo_tap_to_load">Tryk for at indlæse udgivelser</string>
-    <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser…</string>
+    <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser</string>
     <string name="settings_drivers_repo_release_count">%1$d udgivelser indlæst</string>
     <string name="settings_drivers_repo_no_release_assets">Ingen downloadbare ZIP-filer blev fundet i de hentede udgivelser.</string>
     <string name="settings_drivers_repo_fetch_failed">Kunne ikke indlæse GitHub-udgivelser.</string>
@@ -872,7 +873,7 @@ Installeret sti:
     <string name="settings_drivers_manager">Driver-manager</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Installerer systemfiler…</string>
+    <string name="setup_wizard_installing_system_files">Installerer systemfiler</string>
     <string name="setup_wizard_unable_to_install_system_files">Kan ikke installere systemfiler</string>
     <string name="setup_wizard_system_image_not_installed">Systemimage ikke installeret. Installer venligst komponenter først.</string>
     <string name="setup_wizard_recommended_components">Anbefalede komponenter</string>
@@ -1008,20 +1009,20 @@ Installeret sti:
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>
-    <string name="preloader_initializing">Initialiserer…</string>
-    <string name="preloader_launching">Starter…</string>
-    <string name="preloader_closing">Lukker %1$s…</string>
-    <string name="preloader_setup_environment">Opsætter miljø…</string>
-    <string name="preloader_retrying_steam_client_download">Prøver at downloade Steam-klienten igen…</string>
-    <string name="preloader_installing_mono">Installerer Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Installerer redistribuerbare filer…</string>
-    <string name="preloader_unpacking_exe">Udpakker spilprogram…</string>
-    <string name="preloader_downloading_cloud">Downloader cloud-gemte data…</string>
-    <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data…</string>
-    <string name="preloader_uploading_cloud">Uploader cloud-gemte data…</string>
-    <string name="preloader_checking_cloud">Kontrollerer cloud-gemte data…</string>
-    <string name="preloader_cloud_sync_retry">%1$s Prøver igen %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Cloud Sync downloader…</string>
+    <string name="preloader_initializing">Initialiserer</string>
+    <string name="preloader_launching">Starter</string>
+    <string name="preloader_closing">Lukker %1$s</string>
+    <string name="preloader_setup_environment">Opsætter miljø</string>
+    <string name="preloader_retrying_steam_client_download">Prøver at downloade Steam-klienten igen</string>
+    <string name="preloader_installing_mono">Installerer Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Installerer redistribuerbare filer</string>
+    <string name="preloader_unpacking_exe">Udpakker spilprogram</string>
+    <string name="preloader_downloading_cloud">Downloader cloud-gemte data</string>
+    <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data</string>
+    <string name="preloader_uploading_cloud">Uploader cloud-gemte data</string>
+    <string name="preloader_checking_cloud">Kontrollerer cloud-gemte data</string>
+    <string name="preloader_cloud_sync_retry">%1$s Prøver igen %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Cloud Sync downloader</string>
     <string name="cloud_sync_failed_provider">%1$s cloud-synkronisering mislykkedes.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1090,8 +1091,8 @@ Installeret sti:
     <string name="cloud_sync_title">Cloud Sync</string>
     <string name="cloud_sync_enabled_summary">Download cloud-saves ved opstart og synkroniser/sikkerhedskopiér dem ved afslutning.</string>
     <string name="cloud_sync_disabled_summary">Start dette spil uden download af cloud-save eller synkronisering ved afslutning.</string>
-    <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save…</string>
-    <string name="cloud_saves_restoring">Gendanner cloud-save…</string>
+    <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save</string>
+    <string name="cloud_saves_restoring">Gendanner cloud-save</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1158,18 +1159,18 @@ Installeret sti:
     <string name="container_surface_effect">Overfladeeffekt</string>
     <string name="downloads_queue_cancel_download_confirm">Annuller downloaden af %1$s og slet alle downloadede filer?</string>
     <string name="downloads_queue_paused_resume_hint">Sat på pause – tryk på Fortsæt for at genoptage</string>
-    <string name="downloads_queue_phase_applying_data">Anvender data…</string>
-    <string name="downloads_queue_phase_downloading">Downloader…</string>
-    <string name="downloads_queue_phase_downloading_file">Downloader… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">Afslutter…</string>
-    <string name="downloads_queue_phase_patching">Patcher…</string>
-    <string name="downloads_queue_phase_preparing">Forbereder…</string>
+    <string name="downloads_queue_phase_applying_data">Anvender data</string>
+    <string name="downloads_queue_phase_downloading">Downloader</string>
+    <string name="downloads_queue_phase_downloading_file">Downloader [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Afslutter</string>
+    <string name="downloads_queue_phase_patching">Patcher</string>
+    <string name="downloads_queue_phase_preparing">Forbereder</string>
     <string name="downloads_queue_phase_queued">I kø</string>
     <string name="downloads_queue_phase_unknown">Ukendt</string>
-    <string name="downloads_queue_phase_unpacking">Udpakker…</string>
-    <string name="downloads_queue_phase_updating">Opdaterer…</string>
-    <string name="downloads_queue_phase_verifying">Verificerer…</string>
-    <string name="downloads_queue_phase_verifying_file">Verificerer… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">Udpakker</string>
+    <string name="downloads_queue_phase_updating">Opdaterer</string>
+    <string name="downloads_queue_phase_verifying">Verificerer</string>
+    <string name="downloads_queue_phase_verifying_file">Verificerer [%1$s]</string>
     <string name="downloads_queue_status_label">Status:</string>
     <string name="downloads_queue_this_game">dette spil</string>
     <string name="hud_position_bottom_center">Bund centrum</string>
@@ -1269,7 +1270,7 @@ Installeret sti:
     <string name="cloud_saves_steam_push_helper">Tving upload af lokalt gemt spil</string>
     <string name="cloud_saves_steam_push_success">Gemt spil uploadet til Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Kunne ikke uploade gemt spil til Steam Cloud.</string>
-    <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden… tryk opdater, når du er online igen.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden tryk opdater, når du er online igen.</string>
     <string name="steam_session_refused_event">Steam afviste den cachede session (EResult=%1$d). Log ind igen.</string>
     <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
     <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
@@ -1296,4 +1297,8 @@ Installeret sti:
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher fejlede — forbereder ressourcer igen</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher kunne ikke starte. Forbereder igen — genstart venligst</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher nåede spillet, men det startede aldrig</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
+    <string name="workshop_search_items">Søg i Workshop-elementer</string>
+    <string name="common_ui_failed">Mislykket</string>
 </resources>

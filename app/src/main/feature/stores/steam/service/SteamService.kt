@@ -880,7 +880,7 @@ class SteamService : Service() {
         @Volatile private var wnLoggedOnHandled = false
 
         // Serializes WN-Steam-Client session bring-up. Without this, several
-        // post-logon callers (requestUserPersona, setPersonaState, PICS, …)
+        // post-logon callers (requestUserPersona, setPersonaState, PICS, )
         // each race into bringUpWnSession() and spin up *separate* CM
         // sessions; Steam allows only one session per account-instance, so
         // they kick each other (ClientLoggedOff eresult=34) in a cascade and
@@ -8170,7 +8170,7 @@ class SteamService : Service() {
      * from the [installWnLogonObserver] state observer.
      */
     /**
-     * Exponential reconnect backoff: 2s, 4s, 8s … doubling per attempt and
+     * Exponential reconnect backoff: 2s, 4s, 8s  doubling per attempt and
      * capped at [RECONNECT_BACKOFF_CAP_MS]. `attempt` is the 1-based retry
      * count. Without this, a connection that briefly logs on then drops
      * (typical when the app is backgrounded and Android throttles the
@@ -8178,7 +8178,7 @@ class SteamService : Service() {
      */
     private fun reconnectBackoffMs(attempt: Int): Long {
         val shift = (attempt - 1).coerceIn(0, 8) // 2^0 .. 2^8
-        val seconds = (1L shl shift) * 2L // 2, 4, 8, …, 512
+        val seconds = (1L shl shift) * 2L // 2, 4, 8, , 512
         return (seconds * 1000L).coerceAtMost(RECONNECT_BACKOFF_CAP_MS)
     }
 

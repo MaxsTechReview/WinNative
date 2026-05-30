@@ -33,8 +33,8 @@
     <string name="common_ui_icon">Icon</string>
     <string name="common_ui_duplicate">Duplicate</string>
     <string name="common_ui_credits_and_third_party_apps">Credits and Third-party apps</string>
-    <string name="common_ui_loading">Loading…</string>
-    <string name="common_ui_exporting">Exporting…</string>
+    <string name="common_ui_loading">Loading</string>
+    <string name="common_ui_exporting">Exporting</string>
     <string name="common_ui_enable">Enable</string>
     <string name="common_ui_disable">Disable</string>
     <string name="common_ui_force">Force</string>
@@ -122,7 +122,7 @@
     <string name="store_game_verify_complete">Verify Files Complete</string>
     <string name="store_game_verify_failed_notice">Verify Files Failed</string>
     <string name="store_game_progress_background_hint">You can close this — it keeps running. Check the Downloads tab any time.</string>
-    <string name="store_game_checking_updates">Checking for updates…</string>
+    <string name="store_game_checking_updates">Checking for updates</string>
     <string name="store_game_no_updates_notice">No Updates Available</string>
     <string name="store_game_update_complete">Update Complete</string>
     <string name="store_game_update_failed_notice">Update Failed</string>
@@ -248,18 +248,18 @@
     <string name="downloads_queue_pause_all">Pause All</string>
     <string name="downloads_queue_clear">Clear</string>
     <string name="downloads_queue_status_label">Status:</string>
-    <string name="downloads_queue_phase_downloading">Downloading…</string>
-    <string name="downloads_queue_phase_downloading_file">Downloading… [%1$s]</string>
+    <string name="downloads_queue_phase_downloading">Downloading</string>
+    <string name="downloads_queue_phase_downloading_file">Downloading [%1$s]</string>
     <string name="downloads_queue_phase_queued">Queued</string>
     <string name="downloads_queue_phase_paused">Paused</string>
-    <string name="downloads_queue_phase_preparing">Preparing…</string>
-    <string name="downloads_queue_phase_verifying">Verifying…</string>
-    <string name="downloads_queue_phase_verifying_file">Verifying… [%1$s]</string>
-    <string name="downloads_queue_phase_patching">Patching…</string>
-    <string name="downloads_queue_phase_applying_data">Applying data…</string>
-    <string name="downloads_queue_phase_finalizing">Finalizing…</string>
-    <string name="downloads_queue_phase_unpacking">Unpacking…</string>
-    <string name="downloads_queue_phase_updating">Updating…</string>
+    <string name="downloads_queue_phase_preparing">Preparing</string>
+    <string name="downloads_queue_phase_verifying">Verifying</string>
+    <string name="downloads_queue_phase_verifying_file">Verifying [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Patching</string>
+    <string name="downloads_queue_phase_applying_data">Applying data</string>
+    <string name="downloads_queue_phase_finalizing">Finalizing</string>
+    <string name="downloads_queue_phase_unpacking">Unpacking</string>
+    <string name="downloads_queue_phase_updating">Updating</string>
     <string name="downloads_queue_phase_complete">Complete</string>
     <string name="downloads_queue_phase_cancelled">Cancelled</string>
     <string name="downloads_queue_phase_failed">Failed: %1$s</string>
@@ -277,9 +277,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">New Container</string>
     <string name="containers_list_edit">Edit Container</string>
-    <string name="containers_list_creating">Creating Container…</string>
-    <string name="containers_list_removing">Removing Container…</string>
-    <string name="containers_list_duplicating">Duplicating Container…</string>
+    <string name="containers_list_creating">Creating Container</string>
+    <string name="containers_list_removing">Removing Container</string>
+    <string name="containers_list_duplicating">Duplicating Container</string>
     <string name="containers_list_remove_title">Remove container</string>
     <string name="containers_list_duplicate_title">Duplicate container</string>
     <string name="containers_list_confirm_remove">Do you want to remove this container?</string>
@@ -652,7 +652,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_super_resolution">Super Resolution</string>
     <string name="session_drawer_upscaler_mode">Upscaler</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_edge_sharpness" translatable="false">Edge Sharpness</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Edge Sharpness</string>
     <string name="session_drawer_vivid">Vivid</string>
     <string name="session_drawer_vivid_strength">Vivid Strength</string>
     <string name="session_drawer_color_profile">Color Effect</string>
@@ -909,7 +909,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Soundfont installed failed!</string>
     <string name="settings_audio_sound_font_already_exist">Soundfont you want to install is already exist.</string>
     <string name="settings_audio_unable_to_install_soundfont">Unable to install soundfont</string>
-    <string name="settings_audio_installing_soundfont">Installing SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Installing SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Bad SoundFont Format.</string>
     <string name="settings_audio_cannot_remove_default">Cannot remove default soundfont</string>
     <string name="settings_audio_summary">Install, remove, and choose the SoundFont used for MIDI playback.</string>
@@ -967,7 +967,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_content_empty_subtitle">Install a package or switch type to get started.</string>
     <string name="settings_content_container_created">Created container: %1$s</string>
     <string name="settings_content_download_failed">Download failed.</string>
-    <string name="common_ui_working">Working…</string>
+    <string name="common_ui_working">Working</string>
     <string name="settings_content_desc_wine">Made by the Wine project; translates Win32 calls to native Linux/Android services.</string>
     <string name="settings_content_desc_proton">Made by Valve; a Wine-based runtime with game patches for Windows games.</string>
     <string name="settings_content_desc_dxvk">Translates Direct3D 9, 10, and 11 graphics calls to Vulkan.</string>
@@ -986,8 +986,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_content_downloading_title">Downloading Content</string>
     <string name="settings_content_installing_title">Installing Content</string>
     <string name="settings_content_extracting_title">Extracting Content</string>
-    <string name="settings_content_extracting_detail">Extracting… (%1$d files)</string>
-    <string name="settings_content_preparing_package">Preparing package…</string>
+    <string name="settings_content_extracting_detail">Extracting (%1$d files)</string>
+    <string name="settings_content_preparing_package">Preparing package</string>
     <string name="settings_content_download_complete">Download complete</string>
     <string name="settings_content_already_installed_title">Component Already Installed</string>
     <string name="settings_content_already_installed_message">This component is already installed. Remove the installed copy before downloading it again.
@@ -1019,7 +1019,7 @@ Installed path:
     <string name="settings_drivers_remove_repo_title">Remove repository?</string>
     <string name="settings_drivers_remove_repo_message">%1$s will be removed from your repository list.</string>
     <string name="settings_drivers_repo_tap_to_load">Tap to load releases</string>
-    <string name="settings_drivers_repo_loading_releases">Loading releases…</string>
+    <string name="settings_drivers_repo_loading_releases">Loading releases</string>
     <string name="settings_drivers_repo_release_count">%1$d releases loaded</string>
     <string name="settings_drivers_repo_no_release_assets">No downloadable ZIP assets were found in the fetched releases.</string>
     <string name="settings_drivers_repo_fetch_failed">Could not load GitHub releases.</string>
@@ -1029,7 +1029,7 @@ Installed path:
     <string name="settings_drivers_manager">Driver Manager</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Installing System Files…</string>
+    <string name="setup_wizard_installing_system_files">Installing System Files</string>
     <string name="setup_wizard_unable_to_install_system_files">Unable to install system files</string>
     <string name="setup_wizard_system_image_not_installed">System image not installed. Please install components first.</string>
     <string name="setup_wizard_recommended_components">Recommended Components</string>
@@ -1157,7 +1157,7 @@ Installed path:
     <string name="cloud_saves_steam_push_helper">Force-upload local save</string>
     <string name="cloud_saves_steam_push_success">Save pushed to Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Could not push save to Steam Cloud.</string>
-    <string name="cloud_saves_history_steam_unreachable">Steam Cloud is unreachable right now. Reconnecting in the background… tap refresh once you’re back online.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud is unreachable right now. Reconnecting in the background tap refresh once you’re back online.</string>
     <string name="steam_session_refused_event">Steam refused the cached session (EResult=%1$d). Please sign in again.</string>
     <string name="cloud_sync_enabled_summary">Download on launch, push on exit.</string>
     <string name="cloud_sync_disabled_summary">Launch without cloud save download or exit sync.</string>
@@ -1250,9 +1250,9 @@ Installed path:
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>
-    <string name="preloader_initializing">Initializing…</string>
-    <string name="preloader_launching">Launching…</string>
-    <string name="preloader_closing">Closing %1$s…</string>
+    <string name="preloader_initializing">Initializing</string>
+    <string name="preloader_launching">Launching</string>
+    <string name="preloader_closing">Closing %1$s</string>
     <string name="preloader_preparing_steam_environment">Preparing Steam environment</string>
     <string name="preloader_starting_wine">Starting Wine</string>
     <string name="preloader_starting_steam_launcher">Starting Steam Launcher</string>
@@ -1274,17 +1274,17 @@ Installed path:
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher failed — re-staging assets</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher could not start. Re-staging — please relaunch</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher reached the game but it never started</string>
-    <string name="preloader_setup_environment">Setting up environment…</string>
-    <string name="preloader_retrying_steam_client_download">Retrying Steam client download…</string>
-    <string name="preloader_installing_mono">Installing Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Installing redistributables…</string>
-    <string name="preloader_unpacking_exe">Unpacking game executable…</string>
-    <string name="preloader_downloading_cloud">Downloading cloud saves…</string>
-    <string name="preloader_syncing_cloud">Syncing cloud saves…</string>
-    <string name="preloader_uploading_cloud">Uploading cloud saves…</string>
-    <string name="preloader_checking_cloud">Checking cloud saves…</string>
-    <string name="preloader_cloud_sync_retry">%1$s Retry %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Cloud Sync Downloading…</string>
+    <string name="preloader_setup_environment">Setting up environment</string>
+    <string name="preloader_retrying_steam_client_download">Retrying Steam client download</string>
+    <string name="preloader_installing_mono">Installing Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Installing redistributables</string>
+    <string name="preloader_unpacking_exe">Unpacking game executable</string>
+    <string name="preloader_downloading_cloud">Downloading cloud saves</string>
+    <string name="preloader_syncing_cloud">Syncing cloud saves</string>
+    <string name="preloader_uploading_cloud">Uploading cloud saves</string>
+    <string name="preloader_checking_cloud">Checking cloud saves</string>
+    <string name="preloader_cloud_sync_retry">%1$s Retry %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Cloud Sync Downloading</string>
     <string name="cloud_sync_failed_provider">%1$s cloud save sync failed.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1295,4 +1295,8 @@ Installed path:
     <string name="settings_hud_record_to_file_title">Record performance to file</string>
     <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
     <string name="settings_leaderboard_category">Performance</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Loading Workshop items</string>
+    <string name="workshop_search_items">Search Workshop items</string>
+    <string name="common_ui_failed">Failed</string>
 </resources>

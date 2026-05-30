@@ -222,7 +222,7 @@ object EpicCloudSavesManager {
      * an immediate `false` from [syncCloudSaves] for any Epic game that doesn't
      * support cloud saves (most don't — it's an opt-in catalog flag) or for any
      * fresh install with no saves yet, and then runs the full retry-with-backoff
-     * loop showing the user "Cloud Sync Checking… Retry 3/3" for a permanent
+     * loop showing the user "Cloud Sync Checking Retry 3/3" for a permanent
      * no-op.
      *
      * Non-suspend so Java callers (the activity is .java) can call it directly.

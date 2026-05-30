@@ -31,8 +31,8 @@
     <string name="common_ui_icon">Іконка</string>
     <string name="common_ui_duplicate">Дублювати</string>
     <string name="common_ui_credits_and_third_party_apps">Подяки та сторонні додатки</string>
-    <string name="common_ui_loading">Завантаження…</string>
-    <string name="common_ui_exporting">Експорт…</string>
+    <string name="common_ui_loading">Завантаження</string>
+    <string name="common_ui_exporting">Експорт</string>
     <string name="common_ui_enable">Увімкнути</string>
     <string name="common_ui_disable">Вимкнути</string>
     <string name="common_ui_force">Примусово</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">Перевірку файлів завершено</string>
     <string name="store_game_verify_failed_notice">Не вдалося перевірити файли</string>
     <string name="store_game_progress_background_hint">Це можна закрити — процес продовжить роботу. Перевіряйте вкладку Завантаження будь-коли.</string>
-    <string name="store_game_checking_updates">Перевірка оновлень…</string>
+    <string name="store_game_checking_updates">Перевірка оновлень</string>
     <string name="store_game_no_updates_notice">Оновлень немає</string>
     <string name="store_game_update_complete">Оновлення завершено</string>
     <string name="store_game_update_failed_notice">Не вдалося оновити</string>
@@ -261,9 +261,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Новий контейнер</string>
     <string name="containers_list_edit">Редагувати контейнер</string>
-    <string name="containers_list_creating">Створення контейнера…</string>
-    <string name="containers_list_removing">Видалення контейнера…</string>
-    <string name="containers_list_duplicating">Дублювання контейнера…</string>
+    <string name="containers_list_creating">Створення контейнера</string>
+    <string name="containers_list_removing">Видалення контейнера</string>
+    <string name="containers_list_duplicating">Дублювання контейнера</string>
     <string name="containers_list_remove_title">Видалити контейнер</string>
     <string name="containers_list_duplicate_title">Дублювати контейнер</string>
     <string name="containers_list_confirm_remove">Ви хочете видалити цей контейнер?</string>
@@ -518,6 +518,7 @@
     <string name="container_graphics_bcn_emulation_type">Тип емуляції BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Кеш емуляції BCn</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Суперроздільність для ігор 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Різкість країв</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Ви хочете дублювати цей пресет?</string>
     <string name="container_presets_confirm_remove">Ви хочете видалити цей пресет?</string>
@@ -760,7 +761,7 @@
     <string name="settings_audio_sound_font_installed_failed">Не вдалося встановити SoundFont!</string>
     <string name="settings_audio_sound_font_already_exist">SoundFont, який ви хочете встановити, вже існує.</string>
     <string name="settings_audio_unable_to_install_soundfont">Неможливо встановити SoundFont</string>
-    <string name="settings_audio_installing_soundfont">Встановлення SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Встановлення SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Невірний формат SoundFont.</string>
     <string name="settings_audio_cannot_remove_default">Неможливо видалити типовий SoundFont</string>
     <string name="settings_audio_summary">Встановити, видалити та вибрати SoundFont для відтворення MIDI.</string>
@@ -816,7 +817,7 @@
     <string name="settings_content_empty_subtitle">Встановіть пакет або змініть тип, щоб почати.</string>
     <string name="settings_content_container_created">Створено контейнер: %1$s</string>
     <string name="settings_content_download_failed">Помилка завантаження.</string>
-    <string name="common_ui_working">Зачекайте…</string>
+    <string name="common_ui_working">Зачекайте</string>
     <string name="settings_content_desc_wine">Створено проєктом Wine; транслює виклики Win32 у нативні служби Linux/Android.</string>
     <string name="settings_content_desc_proton">Створено Valve; runtime на основі Wine з патчами для Windows-ігор.</string>
     <string name="settings_content_desc_dxvk">Транслює графічні виклики Direct3D 9, 10 та 11 у Vulkan.</string>
@@ -835,8 +836,8 @@
     <string name="settings_content_downloading_title">Завантаження контенту</string>
     <string name="settings_content_installing_title">Встановлення контенту</string>
     <string name="settings_content_extracting_title">Розпакування контенту</string>
-    <string name="settings_content_extracting_detail">Розпакування… (%1$d файлів)</string>
-    <string name="settings_content_preparing_package">Підготовка пакета…</string>
+    <string name="settings_content_extracting_detail">Розпакування (%1$d файлів)</string>
+    <string name="settings_content_preparing_package">Підготовка пакета</string>
     <string name="settings_content_download_complete">Завантаження завершено</string>
     <string name="settings_content_already_installed_title">Компонент уже встановлено</string>
     <string name="settings_content_already_installed_message">Цей компонент уже встановлено. Видаліть встановлену копію, перш ніж завантажувати його знову.
@@ -868,7 +869,7 @@
     <string name="settings_drivers_remove_repo_title">Видалити репозиторій?</string>
     <string name="settings_drivers_remove_repo_message">%1$s буде видалено зі списку репозиторіїв.</string>
     <string name="settings_drivers_repo_tap_to_load">Натисніть для завантаження релізів</string>
-    <string name="settings_drivers_repo_loading_releases">Завантаження релізів…</string>
+    <string name="settings_drivers_repo_loading_releases">Завантаження релізів</string>
     <string name="settings_drivers_repo_release_count">%1$d релізів завантажено</string>
     <string name="settings_drivers_repo_no_release_assets">Серед отриманих релізів не знайдено ZIP-файлів для завантаження.</string>
     <string name="settings_drivers_repo_fetch_failed">Не вдалося завантажити релізи GitHub.</string>
@@ -878,7 +879,7 @@
     <string name="settings_drivers_manager">Менеджер драйверів</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Встановлення системних файлів…</string>
+    <string name="setup_wizard_installing_system_files">Встановлення системних файлів</string>
     <string name="setup_wizard_unable_to_install_system_files">Неможливо встановити системні файли</string>
     <string name="setup_wizard_system_image_not_installed">Системний образ не встановлено. Будь ласка, спочатку встановіть компоненти.</string>
     <string name="setup_wizard_recommended_components">Рекомендовані компоненти</string>
@@ -1014,20 +1015,20 @@
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Контейнер</string>
-    <string name="preloader_initializing">Ініціалізація…</string>
-    <string name="preloader_launching">Запуск…</string>
-    <string name="preloader_closing">Закриття %1$s…</string>
-    <string name="preloader_setup_environment">Налаштування середовища…</string>
-    <string name="preloader_retrying_steam_client_download">Повторне завантаження клієнта Steam…</string>
-    <string name="preloader_installing_mono">Встановлення Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Встановлення поширюваних компонентів…</string>
-    <string name="preloader_unpacking_exe">Розпакування виконуваного файлу гри…</string>
-    <string name="preloader_downloading_cloud">Завантаження хмарних збережень…</string>
-    <string name="preloader_syncing_cloud">Синхронізація хмарних збережень…</string>
-    <string name="preloader_uploading_cloud">Вивантаження хмарних збережень…</string>
-    <string name="preloader_checking_cloud">Перевірка хмарних збережень…</string>
-    <string name="preloader_cloud_sync_retry">%1$s Повтор %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Завантаження Cloud Sync…</string>
+    <string name="preloader_initializing">Ініціалізація</string>
+    <string name="preloader_launching">Запуск</string>
+    <string name="preloader_closing">Закриття %1$s</string>
+    <string name="preloader_setup_environment">Налаштування середовища</string>
+    <string name="preloader_retrying_steam_client_download">Повторне завантаження клієнта Steam</string>
+    <string name="preloader_installing_mono">Встановлення Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Встановлення поширюваних компонентів</string>
+    <string name="preloader_unpacking_exe">Розпакування виконуваного файлу гри</string>
+    <string name="preloader_downloading_cloud">Завантаження хмарних збережень</string>
+    <string name="preloader_syncing_cloud">Синхронізація хмарних збережень</string>
+    <string name="preloader_uploading_cloud">Вивантаження хмарних збережень</string>
+    <string name="preloader_checking_cloud">Перевірка хмарних збережень</string>
+    <string name="preloader_cloud_sync_retry">%1$s Повтор %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Завантаження Cloud Sync</string>
     <string name="cloud_sync_failed_provider">Хмарна синхронізація %1$s не вдалася.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1096,8 +1097,8 @@
     <string name="cloud_sync_title">Хмарна синхронізація</string>
     <string name="cloud_sync_enabled_summary">Завантажувати хмарні збереження під час запуску та синхронізувати/резервувати їх під час виходу.</string>
     <string name="cloud_sync_disabled_summary">Запустити цю гру без завантаження хмарних збережень і синхронізації при виході.</string>
-    <string name="cloud_saves_backing_up">Створення резервної копії хмарного збереження…</string>
-    <string name="cloud_saves_restoring">Відновлення хмарного збереження…</string>
+    <string name="cloud_saves_backing_up">Створення резервної копії хмарного збереження</string>
+    <string name="cloud_saves_restoring">Відновлення хмарного збереження</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1164,18 +1165,18 @@
     <string name="container_surface_effect">Ефект поверхні</string>
     <string name="downloads_queue_cancel_download_confirm">Скасувати завантаження %1$s і видалити всі завантажені файли?</string>
     <string name="downloads_queue_paused_resume_hint">Призупинено — натисніть «Продовжити» для відновлення</string>
-    <string name="downloads_queue_phase_applying_data">Застосування даних…</string>
-    <string name="downloads_queue_phase_downloading">Завантаження…</string>
-    <string name="downloads_queue_phase_downloading_file">Завантаження… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">Завершення…</string>
-    <string name="downloads_queue_phase_patching">Патчинг…</string>
-    <string name="downloads_queue_phase_preparing">Підготовка…</string>
+    <string name="downloads_queue_phase_applying_data">Застосування даних</string>
+    <string name="downloads_queue_phase_downloading">Завантаження</string>
+    <string name="downloads_queue_phase_downloading_file">Завантаження [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Завершення</string>
+    <string name="downloads_queue_phase_patching">Патчинг</string>
+    <string name="downloads_queue_phase_preparing">Підготовка</string>
     <string name="downloads_queue_phase_queued">У черзі</string>
     <string name="downloads_queue_phase_unknown">Невідомо</string>
-    <string name="downloads_queue_phase_unpacking">Розпакування…</string>
-    <string name="downloads_queue_phase_updating">Оновлення…</string>
-    <string name="downloads_queue_phase_verifying">Перевірка…</string>
-    <string name="downloads_queue_phase_verifying_file">Перевірка… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">Розпакування</string>
+    <string name="downloads_queue_phase_updating">Оновлення</string>
+    <string name="downloads_queue_phase_verifying">Перевірка</string>
+    <string name="downloads_queue_phase_verifying_file">Перевірка [%1$s]</string>
     <string name="downloads_queue_status_label">Статус:</string>
     <string name="downloads_queue_this_game">цю гру</string>
     <string name="hud_position_bottom_center">Знизу по центру</string>
@@ -1275,7 +1276,7 @@
     <string name="cloud_saves_steam_push_helper">Примусово завантажити локальне збереження</string>
     <string name="cloud_saves_steam_push_success">Збереження надіслано до Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Не вдалося надіслати збереження до Steam Cloud.</string>
-    <string name="cloud_saves_history_steam_unreachable">Steam Cloud зараз недоступний. Повторне підключення виконується у фоні… натисніть оновити, коли знову будете онлайн.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud зараз недоступний. Повторне підключення виконується у фоні натисніть оновити, коли знову будете онлайн.</string>
     <string name="steam_session_refused_event">Steam відхилив кешований сеанс (EResult=%1$d). Увійдіть знову.</string>
     <string name="settings_hud_record_to_file_title">Записувати продуктивність у файл</string>
     <string name="settings_hud_record_to_file_summary">Записує щосекундні показники FPS, CPU, GPU, температури й батареї до /WinNative/logs/ під час гри.</string>
@@ -1302,5 +1303,9 @@
     <string name="preloader_steam_launcher_failed_restaging">Збій Steam Launcher — повторна підготовка ресурсів</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher не вдалося запустити. Повторна підготовка — запустіть ще раз</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher дістався гри, але вона не запустилася</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Завантаження елементів Workshop</string>
+    <string name="workshop_search_items">Пошук елементів Workshop</string>
+    <string name="common_ui_failed">Помилка</string>
 </resources>
 

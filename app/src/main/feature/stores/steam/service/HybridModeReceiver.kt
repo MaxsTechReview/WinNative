@@ -1534,7 +1534,7 @@ class HybridModeReceiver : BroadcastReceiver() {
                 Log.i(TAG, "probeBridgeName: SetPersonaName('$unique') vtable[1] → " +
                     "hCall=$hCall cb depth before=$before after=$after " +
                     "(expect after-before=1 PersonaStateChange + check wn-cm-bridge " +
-                    "log line: 'set_persona_name…→ live CMClient')")
+                    "log line: 'set_persona_name→ live CMClient')")
             } catch (t: Throwable) {
                 Log.e(TAG, "probeBridgeName threw", t)
             }

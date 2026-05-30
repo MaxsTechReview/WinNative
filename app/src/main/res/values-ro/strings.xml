@@ -31,8 +31,8 @@
     <string name="common_ui_icon">Pictograma</string>
     <string name="common_ui_duplicate">Duplicare</string>
     <string name="common_ui_credits_and_third_party_apps">Credite si aplicatii terte</string>
-    <string name="common_ui_loading">Se incarca…</string>
-    <string name="common_ui_exporting">Se exporta…</string>
+    <string name="common_ui_loading">Se incarca</string>
+    <string name="common_ui_exporting">Se exporta</string>
     <string name="common_ui_enable">Activare</string>
     <string name="common_ui_disable">Dezactivare</string>
     <string name="common_ui_force">Fortare</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">Verificarea fișierelor s-a încheiat</string>
     <string name="store_game_verify_failed_notice">Verificarea fișierelor a eșuat</string>
     <string name="store_game_progress_background_hint">Poți închide această fereastră — continuă în fundal. Verifică fila Descărcări oricând.</string>
-    <string name="store_game_checking_updates">Se verifică actualizările…</string>
+    <string name="store_game_checking_updates">Se verifică actualizările</string>
     <string name="store_game_no_updates_notice">Nu sunt actualizări disponibile</string>
     <string name="store_game_update_complete">Actualizare finalizată</string>
     <string name="store_game_update_failed_notice">Actualizarea a eșuat</string>
@@ -257,9 +257,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Container nou</string>
     <string name="containers_list_edit">Editeaza container</string>
-    <string name="containers_list_creating">Se creeaza containerul…</string>
-    <string name="containers_list_removing">Se elimina containerul…</string>
-    <string name="containers_list_duplicating">Se duplica containerul…</string>
+    <string name="containers_list_creating">Se creeaza containerul</string>
+    <string name="containers_list_removing">Se elimina containerul</string>
+    <string name="containers_list_duplicating">Se duplica containerul</string>
     <string name="containers_list_remove_title">Elimina containerul</string>
     <string name="containers_list_duplicate_title">Duplica containerul</string>
     <string name="containers_list_confirm_remove">Doresti sa elimini acest container?</string>
@@ -514,6 +514,7 @@
     <string name="container_graphics_bcn_emulation_type">Tip emulare BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache emulare BCn</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Super rezoluție pentru jocuri 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Claritate margini</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Doresti sa duplici acest preset?</string>
     <string name="container_presets_confirm_remove">Doresti sa elimini acest preset?</string>
@@ -754,7 +755,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Instalarea soundfont-ului a esuat!</string>
     <string name="settings_audio_sound_font_already_exist">Soundfont-ul pe care doresti sa il instalezi exista deja.</string>
     <string name="settings_audio_unable_to_install_soundfont">Nu se poate instala soundfont-ul</string>
-    <string name="settings_audio_installing_soundfont">Se instaleaza SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Se instaleaza SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Format SoundFont incorect.</string>
     <string name="settings_audio_cannot_remove_default">Nu se poate elimina soundfont-ul implicit</string>
     <string name="settings_audio_summary">Instaleaza, elimina si alege SoundFont-ul folosit pentru redarea MIDI.</string>
@@ -810,7 +811,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_empty_subtitle">Instalează un pachet sau schimbă tipul pentru a începe.</string>
     <string name="settings_content_container_created">Container creat: %1$s</string>
     <string name="settings_content_download_failed">Descărcare eșuată.</string>
-    <string name="common_ui_working">Se lucrează…</string>
+    <string name="common_ui_working">Se lucrează</string>
     <string name="settings_content_desc_wine">Creat de proiectul Wine; traduce apelurile Win32 în servicii native Linux/Android.</string>
     <string name="settings_content_desc_proton">Creat de Valve; runtime bazat pe Wine cu patch-uri pentru jocuri Windows.</string>
     <string name="settings_content_desc_dxvk">Traduce apelurile grafice Direct3D 9, 10 și 11 în Vulkan.</string>
@@ -829,8 +830,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_downloading_title">Se descarca continutul</string>
     <string name="settings_content_installing_title">Se instaleaza continutul</string>
     <string name="settings_content_extracting_title">Se extrage continutul</string>
-    <string name="settings_content_extracting_detail">Se extrage… (%1$d fisiere)</string>
-    <string name="settings_content_preparing_package">Se pregateste pachetul…</string>
+    <string name="settings_content_extracting_detail">Se extrage (%1$d fisiere)</string>
+    <string name="settings_content_preparing_package">Se pregateste pachetul</string>
     <string name="settings_content_download_complete">Descarcare completa</string>
     <string name="settings_content_already_installed_title">Componenta deja instalata</string>
     <string name="settings_content_already_installed_message">Aceasta componenta este deja instalata. Elimina copia instalata inainte sa o descarci din nou.
@@ -862,7 +863,7 @@ Cale instalata:
     <string name="settings_drivers_remove_repo_title">Elimini depozitul?</string>
     <string name="settings_drivers_remove_repo_message">%1$s va fi eliminat din lista ta de depozite.</string>
     <string name="settings_drivers_repo_tap_to_load">Apasa pentru a incarca versiunile</string>
-    <string name="settings_drivers_repo_loading_releases">Se incarca versiunile…</string>
+    <string name="settings_drivers_repo_loading_releases">Se incarca versiunile</string>
     <string name="settings_drivers_repo_release_count">%1$d versiuni incarcate</string>
     <string name="settings_drivers_repo_no_release_assets">Nu s-au gasit resurse ZIP descarcabile in versiunile obtinute.</string>
     <string name="settings_drivers_repo_fetch_failed">Nu s-au putut incarca versiunile GitHub.</string>
@@ -872,7 +873,7 @@ Cale instalata:
     <string name="settings_drivers_manager">Manager drivere</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Se instaleaza fisierele de sistem…</string>
+    <string name="setup_wizard_installing_system_files">Se instaleaza fisierele de sistem</string>
     <string name="setup_wizard_unable_to_install_system_files">Nu s-au putut instala fisierele de sistem</string>
     <string name="setup_wizard_system_image_not_installed">Imaginea de sistem nu este instalata. Instaleaza mai intai componentele.</string>
     <string name="setup_wizard_recommended_components">Componente recomandate</string>
@@ -1008,20 +1009,20 @@ Cale instalata:
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>
-    <string name="preloader_initializing">Se inițializează…</string>
-    <string name="preloader_launching">Se lansează…</string>
-    <string name="preloader_closing">Se închide %1$s…</string>
-    <string name="preloader_setup_environment">Se configurează mediul…</string>
-    <string name="preloader_retrying_steam_client_download">Se reîncearcă descărcarea clientului Steam…</string>
-    <string name="preloader_installing_mono">Se instalează Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Se instalează redistribuibilele…</string>
-    <string name="preloader_unpacking_exe">Se decomprimă executabilul jocului…</string>
-    <string name="preloader_downloading_cloud">Se descarcă salvările din cloud…</string>
-    <string name="preloader_syncing_cloud">Se sincronizează salvările din cloud…</string>
-    <string name="preloader_uploading_cloud">Se încarcă salvările în cloud…</string>
-    <string name="preloader_checking_cloud">Se verifică salvările din cloud…</string>
-    <string name="preloader_cloud_sync_retry">%1$s Reîncercare %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Descărcare Cloud Sync…</string>
+    <string name="preloader_initializing">Se inițializează</string>
+    <string name="preloader_launching">Se lansează</string>
+    <string name="preloader_closing">Se închide %1$s</string>
+    <string name="preloader_setup_environment">Se configurează mediul</string>
+    <string name="preloader_retrying_steam_client_download">Se reîncearcă descărcarea clientului Steam</string>
+    <string name="preloader_installing_mono">Se instalează Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Se instalează redistribuibilele</string>
+    <string name="preloader_unpacking_exe">Se decomprimă executabilul jocului</string>
+    <string name="preloader_downloading_cloud">Se descarcă salvările din cloud</string>
+    <string name="preloader_syncing_cloud">Se sincronizează salvările din cloud</string>
+    <string name="preloader_uploading_cloud">Se încarcă salvările în cloud</string>
+    <string name="preloader_checking_cloud">Se verifică salvările din cloud</string>
+    <string name="preloader_cloud_sync_retry">%1$s Reîncercare %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Descărcare Cloud Sync</string>
     <string name="cloud_sync_failed_provider">Sincronizarea cloud %1$s a eșuat.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1090,8 +1091,8 @@ Cale instalata:
     <string name="cloud_sync_title">Sincronizare în cloud</string>
     <string name="cloud_sync_enabled_summary">Descarcă salvările din cloud la pornire și sincronizează/fă backup la ieșire.</string>
     <string name="cloud_sync_disabled_summary">Pornește acest joc fără descărcarea salvărilor din cloud sau sincronizare la ieșire.</string>
-    <string name="cloud_saves_backing_up">Se face backup salvării în cloud…</string>
-    <string name="cloud_saves_restoring">Se restaurează salvarea în cloud…</string>
+    <string name="cloud_saves_backing_up">Se face backup salvării în cloud</string>
+    <string name="cloud_saves_restoring">Se restaurează salvarea în cloud</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1158,18 +1159,18 @@ Cale instalata:
     <string name="container_surface_effect">Efect de suprafață</string>
     <string name="downloads_queue_cancel_download_confirm">Anulezi descărcarea pentru %1$s și ștergi toate fișierele descărcate?</string>
     <string name="downloads_queue_paused_resume_hint">Pauză - apasă Reluare pentru a continua</string>
-    <string name="downloads_queue_phase_applying_data">Se aplică datele…</string>
-    <string name="downloads_queue_phase_downloading">Se descarcă…</string>
-    <string name="downloads_queue_phase_downloading_file">Se descarcă… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">Se finalizează…</string>
-    <string name="downloads_queue_phase_patching">Se aplică patch-ul…</string>
-    <string name="downloads_queue_phase_preparing">Se pregătește…</string>
+    <string name="downloads_queue_phase_applying_data">Se aplică datele</string>
+    <string name="downloads_queue_phase_downloading">Se descarcă</string>
+    <string name="downloads_queue_phase_downloading_file">Se descarcă [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Se finalizează</string>
+    <string name="downloads_queue_phase_patching">Se aplică patch-ul</string>
+    <string name="downloads_queue_phase_preparing">Se pregătește</string>
     <string name="downloads_queue_phase_queued">În coadă</string>
     <string name="downloads_queue_phase_unknown">Necunoscut</string>
-    <string name="downloads_queue_phase_unpacking">Se dezarhivează…</string>
-    <string name="downloads_queue_phase_updating">Se actualizează…</string>
-    <string name="downloads_queue_phase_verifying">Se verifică…</string>
-    <string name="downloads_queue_phase_verifying_file">Se verifică… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">Se dezarhivează</string>
+    <string name="downloads_queue_phase_updating">Se actualizează</string>
+    <string name="downloads_queue_phase_verifying">Se verifică</string>
+    <string name="downloads_queue_phase_verifying_file">Se verifică [%1$s]</string>
     <string name="downloads_queue_status_label">Stare:</string>
     <string name="downloads_queue_this_game">acest joc</string>
     <string name="hud_position_bottom_center">Jos centru</string>
@@ -1269,7 +1270,7 @@ Cale instalata:
     <string name="cloud_saves_steam_push_helper">Forțează încărcarea salvării locale</string>
     <string name="cloud_saves_steam_push_success">Salvare trimisă în Steam Cloud.</string>
     <string name="cloud_saves_steam_push_failed">Nu s-a putut trimite salvarea în Steam Cloud.</string>
-    <string name="cloud_saves_history_steam_unreachable">Steam Cloud nu este accesibil acum. Reconectare în fundal… atinge reîmprospătare când revii online.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud nu este accesibil acum. Reconectare în fundal atinge reîmprospătare când revii online.</string>
     <string name="steam_session_refused_event">Steam a refuzat sesiunea din cache (EResult=%1$d). Conectează-te din nou.</string>
     <string name="settings_hud_record_to_file_title">Înregistrează performanța în fișier</string>
     <string name="settings_hud_record_to_file_summary">Scrie în /WinNative/logs/ metrici pe secundă pentru FPS, CPU, GPU, temperatură și baterie în timpul jocului.</string>
@@ -1296,5 +1297,9 @@ Cale instalata:
     <string name="preloader_steam_launcher_failed_restaging">Steam Launcher a eșuat — se pregătesc din nou resursele</string>
     <string name="preloader_steam_launcher_start_failed">Steam Launcher nu a putut porni. Se pregătește din nou — relansează</string>
     <string name="preloader_steam_launcher_game_never_started">Steam Launcher a ajuns la joc, dar acesta nu a pornit</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Se încarcă elementele Workshop</string>
+    <string name="workshop_search_items">Caută elemente Workshop</string>
+    <string name="common_ui_failed">Eșuat</string>
 </resources>
 

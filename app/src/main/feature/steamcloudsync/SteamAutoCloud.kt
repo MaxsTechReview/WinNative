@@ -53,7 +53,7 @@ object SteamAutoCloud {
      *
      * Optimizations:
      *  - Size comparison is a free pre-filter (no SHA on obvious size delta).
-     *  - `Sequence.any { … }` short-circuits on the first divergence.
+     *  - `Sequence.any {  }` short-circuits on the first divergence.
      *  - We compute the local SHA only on files whose size already matches.
      */
     fun cloudContentDiffersFromLocal(
