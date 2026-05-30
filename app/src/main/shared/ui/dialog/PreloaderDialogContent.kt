@@ -11,9 +11,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,8 +25,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,9 +51,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -354,22 +361,44 @@ private fun PlatformBadge(
     accentColor: Color,
     alpha: Float,
 ) {
-    Box(
+    val shape = RoundedCornerShape(9.dp)
+    Row(
         modifier =
             Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(accentColor.copy(alpha = 0.12f * alpha))
-                .padding(horizontal = 15.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
+                .clip(shape)
+                .background(accentColor.copy(alpha = 0.1f * alpha))
+                .border(width = 1.dp, color = accentColor.copy(alpha = 0.32f * alpha), shape = shape)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.9f * alpha)),
+        )
+        Spacer(modifier = Modifier.width(7.dp))
         Text(
             text = label,
-            fontSize = 13.sp,
+            fontSize = 12.5.sp,
+            letterSpacing = 0.3.sp,
             fontFamily = InterFont,
             fontWeight = FontWeight.Medium,
             color = accentColor.copy(alpha = alpha),
-            textAlign = TextAlign.Center,
             maxLines = 1,
+            // Drop default font padding and center within the line box so the label sits dead-center
+            // against the dot instead of riding high.
+            style =
+                TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle =
+                        LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.Both,
+                        ),
+                ),
         )
     }
 }
@@ -386,7 +415,7 @@ private fun NeonCometRing(
         infiniteTransition.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
-            animationSpec = infiniteRepeatable(tween(1450, easing = LinearEasing), RepeatMode.Restart),
+            animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart),
             label = "ringRotation",
         )
     val animatedProgress by animateFloatAsState(
@@ -396,13 +425,13 @@ private fun NeonCometRing(
     )
 
     Box(
-        modifier = Modifier.size(96.dp),
+        modifier = Modifier.size(48.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 3.5.dp.toPx()
-            val glowStroke = 9.dp.toPx()
-            val inset = glowStroke / 2f
+            val strokeWidth = 4.dp.toPx()
+            // Inset enough to keep the rounded cap and lead dot from clipping the bounds.
+            val inset = strokeWidth / 2f + 2.dp.toPx()
             val arcSize =
                 Size(
                     width = size.width - inset * 2f,
@@ -411,8 +440,9 @@ private fun NeonCometRing(
             val topLeft = Offset(inset, inset)
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = arcSize.width / 2f
-            val sweep = if (isIndeterminate) 104f else 360f * animatedProgress
-            val startAngle = if (isIndeterminate) rotation.value - 92f else -90f
+            // A long ~280° arc reads as a proper spinner; determinate fills to progress.
+            val sweep = if (isIndeterminate) 280f else 360f * animatedProgress
+            val startAngle = if (isIndeterminate) rotation.value else -90f
             val endAngle = startAngle + sweep
             val endRadians = Math.toRadians(endAngle.toDouble())
             val leadDot =
@@ -421,8 +451,9 @@ private fun NeonCometRing(
                     y = center.y + radius * sin(endRadians).toFloat(),
                 )
 
+            // Track ring behind the spinner.
             drawArc(
-                color = TrackColor.copy(alpha = 0.72f * alpha),
+                color = TrackColor.copy(alpha = 0.7f * alpha),
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -432,35 +463,23 @@ private fun NeonCometRing(
             )
 
             if (sweep > 0.5f) {
-                // Soft outer glow tracing the comet.
-                drawArc(
-                    color = accentColor.copy(alpha = 0.14f * alpha),
-                    startAngle = startAngle - if (isIndeterminate) 12f else 0f,
-                    sweepAngle = sweep + if (isIndeterminate) 24f else 0f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = glowStroke, cap = StrokeCap.Round),
-                )
-
-                // Comet body. A sweep gradient is anchored to the canvas (0° = +x axis), so on its
-                // own the bright head would stay pinned near 3 o'clock instead of following the arc.
-                // Rotate the canvas to the arc's start and place the white head at the arc's actual
-                // end (sweep/360 of the gradient) so it stays locked onto the lead dot.
+                // Tapered arc: faint tail growing into a solid accent head. A sweep gradient is
+                // anchored to the canvas (0° = +x axis), so rotate the canvas to the arc's start
+                // and place the bright head at the arc's actual end (sweep/360 of the gradient).
                 val head = (sweep / 360f).coerceIn(0.05f, 1f)
                 val cometStops =
                     if (head >= 0.999f) {
                         arrayOf(
-                            0f to accentColor.copy(alpha = 0.30f * alpha),
-                            0.70f to accentColor.copy(alpha = 0.70f * alpha),
+                            0f to accentColor.copy(alpha = 0.35f * alpha),
+                            0.7f to accentColor.copy(alpha = 0.8f * alpha),
                             1f to Color.White.copy(alpha = 0.95f * alpha),
                         )
                     } else {
                         arrayOf(
                             0f to Color.Transparent,
-                            head * 0.5f to accentColor.copy(alpha = 0.35f * alpha),
-                            head * 0.85f to accentColor.copy(alpha = 0.70f * alpha),
-                            head to Color.White.copy(alpha = 0.95f * alpha),
+                            head * 0.55f to accentColor.copy(alpha = 0.35f * alpha),
+                            head * 0.85f to accentColor.copy(alpha = 0.85f * alpha),
+                            head to accentColor.copy(alpha = 0.95f * alpha),
                             1f to Color.Transparent,
                         )
                     }
@@ -478,19 +497,15 @@ private fun NeonCometRing(
             }
 
             if (isIndeterminate || animatedProgress > 0f) {
+                // Subtle glow on the leading edge.
                 drawCircle(
-                    color = accentColor.copy(alpha = 0.22f * alpha),
-                    radius = 7.dp.toPx(),
+                    color = accentColor.copy(alpha = 0.2f * alpha),
+                    radius = 3.5.dp.toPx(),
                     center = leadDot,
                 )
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.95f * alpha),
-                    radius = 2.8.dp.toPx(),
-                    center = leadDot,
-                )
-                drawCircle(
-                    color = accentColor.copy(alpha = 0.86f * alpha),
-                    radius = 2.dp.toPx(),
+                    color = Color.White.copy(alpha = 0.9f * alpha),
+                    radius = 1.5.dp.toPx(),
                     center = leadDot,
                 )
             }
