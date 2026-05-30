@@ -816,9 +816,8 @@ class TouchpadView(
             dx = transformedPoint[0] - xServer.pointer.x
             dy = transformedPoint[1] - xServer.pointer.y
         } else {
-            if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION
-            if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION
-
+            // No cursor acceleration for a physical mouse: keep it 1:1 (linear sensitivity only).
+            // Acceleration stays on the finger touchpad path (Finger.deltaX/deltaY).
             val rawDx = dx
             dx = xform[0] * rawDx + xform[2] * dy
             dy = xform[1] * rawDx + xform[3] * dy

@@ -2079,9 +2079,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (profile != null) profileSpeed = profile.getCursorSpeed();
         }
 
-        if (Math.abs(dx) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dx *= TouchpadView.CURSOR_ACCELERATION;
-        if (Math.abs(dy) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD) dy *= TouchpadView.CURSOR_ACCELERATION;
-
+        // No cursor acceleration for a physical mouse: it must stay 1:1 so aim is consistent
+        // in-game and on the desktop. (Acceleration is a touchpad-finger affordance only.)
         dx *= globalCursorSpeed * profileSpeed;
         dy *= globalCursorSpeed * profileSpeed;
 
