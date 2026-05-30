@@ -2330,7 +2330,7 @@ class UnifiedActivity :
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (searchQuery.text.isEmpty()) {
                                             Text(
-                                                "Search games...",
+                                                "Search games",
                                                 style =
                                                     TextStyle(
                                                         color = TextSecondary,

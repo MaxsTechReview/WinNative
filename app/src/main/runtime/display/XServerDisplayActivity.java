@@ -1418,7 +1418,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     prepExec.shutdown();
 
                     if (preloaderDialog != null && isSteamShortcut()) {
-                        preloaderDialog.setStepOnUiThread("Preparing Steam environment…");
+                        preloaderDialog.setStepOnUiThread(R.string.preloader_preparing_steam_environment);
                     }
                     setupWineSystemFiles();
                     extractGraphicsDriverFiles();
@@ -5478,6 +5478,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 stopWnLauncherStatusTailer();
                 wnLauncherStatusTailer = new com.winlator.cmod.feature.stores.steam.wnsteam
                         .WnLauncherStatusTailer(
+                            this,
                             launcherLog,
                             gameName,
                             100L,
@@ -5582,7 +5583,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (!reusingSession) {
             if (preloaderDialog != null) {
-                preloaderDialog.setStepOnUiThread("Starting Wine…");
+                preloaderDialog.setStepOnUiThread(R.string.preloader_starting_wine);
             }
             environment.startEnvironmentComponents();
             SessionKeepAliveService.setActiveEnvironment(environment);

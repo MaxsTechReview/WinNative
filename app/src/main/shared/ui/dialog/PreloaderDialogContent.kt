@@ -1,5 +1,6 @@
 package com.winlator.cmod.shared.ui.dialog
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -9,6 +10,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -340,17 +346,34 @@ fun PreloaderDialogContent(state: PreloaderDialogState) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = text,
-                fontSize = 15.sp,
-                fontFamily = InterFont,
-                color = TextSecondary.copy(alpha = contentAlpha),
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                minLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 360.dp),
-            )
+            AnimatedContent(
+                targetState = text,
+                contentAlignment = Alignment.Center,
+                transitionSpec = {
+                    // Cross-fade with a gentle upward drift: the new line rises into place from
+                    // slightly below while the old one fades out drifting up. No 3D flip.
+                    (
+                        fadeIn(tween(260, delayMillis = 60)) +
+                            slideInVertically(tween(320, easing = FastOutSlowInEasing)) { it / 6 }
+                    ) togetherWith (
+                        fadeOut(tween(200)) +
+                            slideOutVertically(tween(320, easing = FastOutSlowInEasing)) { -it / 6 }
+                    )
+                },
+                label = "statusText",
+            ) { value ->
+                Text(
+                    text = value,
+                    fontSize = 15.sp,
+                    fontFamily = InterFont,
+                    color = TextSecondary.copy(alpha = contentAlpha),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 360.dp),
+                )
+            }
         }
     }
 }

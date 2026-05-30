@@ -434,7 +434,7 @@ class GOGService : Service() {
         suspend fun logout(context: Context): Result<Unit> {
             return withContext(Dispatchers.IO) {
                 try {
-                    Timber.i("[GOGService] Logging out from GOG...")
+                    Timber.i("[GOGService] Logging out from GOG")
 
                     val instance = getInstance()
                     if (instance == null) {
@@ -755,7 +755,7 @@ class GOGService : Service() {
                 is DownloadCoordinator.Decision.Queue -> {
                     downloadInfo.setActive(false)
                     downloadInfo.isCancelling = false
-                    downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                    downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued")
                     val numericId = gameId.toIntOrNull() ?: 0
                     PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(numericId, true))
                     return Result.success(downloadInfo)
@@ -986,7 +986,7 @@ class GOGService : Service() {
             if (decision is DownloadCoordinator.Decision.Queue) {
                 downloadInfo.setActive(false)
                 downloadInfo.isCancelling = false
-                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued")
                 PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true))
                 return downloadInfo
             }
@@ -1130,7 +1130,7 @@ class GOGService : Service() {
             if (decision is DownloadCoordinator.Decision.Queue) {
                 downloadInfo.setActive(false)
                 downloadInfo.isCancelling = false
-                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                downloadInfo.updateStatus(DownloadPhase.QUEUED, "Queued")
                 PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true))
                 return downloadInfo
             }

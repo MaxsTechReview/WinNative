@@ -113,7 +113,7 @@ class GOGDownloadManager
                             .DownloadStatusChanged(gameId.toIntOrNull() ?: 0, true),
                     )
 
-                    downloadInfo.updateStatusMessage("Fetching builds...")
+                    downloadInfo.updateStatusMessage("Fetching builds")
 
                     // Prefer Gen 2 builds, falling back to Gen 1 legacy builds.
                     val selectedBuild =
@@ -173,7 +173,7 @@ class GOGDownloadManager
 
                     val realGameId = gameId
 
-                    downloadInfo.updateStatusMessage("Fetching manifest...")
+                    downloadInfo.updateStatusMessage("Fetching manifest")
 
                     val gameManifestResult = apiClient.fetchManifest(selectedBuild.link)
                     if (gameManifestResult.isFailure) {
@@ -210,7 +210,7 @@ class GOGDownloadManager
 
                     val dependencies = gameManifest.dependencies
 
-                    downloadInfo.updateStatusMessage("Filtering depots...")
+                    downloadInfo.updateStatusMessage("Filtering depots")
 
                     val (languageDepots, effectiveLang) = parser.filterDepotsByLanguage(gameManifest, language)
                     if (languageDepots.isEmpty()) {
@@ -258,7 +258,7 @@ class GOGDownloadManager
                             else -> fileProductId
                         }
 
-                    downloadInfo.updateStatusMessage("Fetching depot manifests (${depots.size})...")
+                    downloadInfo.updateStatusMessage("Fetching depot manifests (${depots.size})")
 
                     val depotCompleted = AtomicInteger(0)
                     val depotManifestResults =
@@ -274,7 +274,7 @@ class GOGDownloadManager
                                             if (i >= depots.size) break
                                             perDepot[i] = apiClient.fetchDepotManifest(depots[i].manifest)
                                             val done = depotCompleted.incrementAndGet()
-                                            downloadInfo.updateStatusMessage("Fetching depot $done/${depots.size}...")
+                                            downloadInfo.updateStatusMessage("Fetching depot $done/${depots.size}")
                                         }
                                     }
                                 }.awaitAll()
@@ -322,7 +322,7 @@ class GOGDownloadManager
                         verifyScanTotalBytes = gameFiles.sumOf { f -> f.chunks.sumOf { it.size } }
                         downloadInfo.updateStatus(
                             com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.VERIFYING,
-                            "Verifying installed files (0/$beforeCount)...",
+                            "Verifying installed files (0/$beforeCount)",
                         )
                         downloadInfo.setTotalExpectedBytes(verifyScanTotalBytes)
                         downloadInfo.setDisplayTotalExpectedBytes(verifyScanTotalBytes)
@@ -349,7 +349,7 @@ class GOGDownloadManager
                             val isLastFile = idx == beforeCount - 1
                             if (isLastFile || now - lastEmitMs >= PROGRESS_EMIT_INTERVAL_MS) {
                                 lastEmitMs = now
-                                downloadInfo.updateStatusMessage("Verifying installed files (${idx + 1}/$beforeCount)...")
+                                downloadInfo.updateStatusMessage("Verifying installed files (${idx + 1}/$beforeCount)")
                                 downloadInfo.emitProgressChange()
                                 verifyProgressSink?.invoke(verifyScannedBytes, verifyScanTotalBytes)
                             }
@@ -412,7 +412,7 @@ class GOGDownloadManager
                         downloadInfo.setBytesDownloaded(verifyScannedBytes)
                         downloadInfo.updateStatus(
                             com.winlator.cmod.feature.stores.steam.enums.DownloadPhase.DOWNLOADING,
-                            if (gameFiles.isEmpty()) "All files verified" else "Re-downloading ${gameFiles.size} changed file(s)...",
+                            if (gameFiles.isEmpty()) "All files verified" else "Re-downloading ${gameFiles.size} changed file(s)",
                         )
                         downloadInfo.emitProgressChange()
                         verifyProgressSink?.invoke(verifyScannedBytes, combinedWorkTotal)
@@ -446,7 +446,7 @@ class GOGDownloadManager
                         verifyProgressSink?.invoke(alreadyDoneBytes, fullCompressedSize)
                     }
 
-                    downloadInfo.updateStatusMessage("Getting secure download links...")
+                    downloadInfo.updateStatusMessage("Getting secure download links")
 
                     val productUrlMap = mutableMapOf<String, List<String>>()
                     val chunkToProductMap = mutableMapOf<String, String>()
@@ -517,7 +517,7 @@ class GOGDownloadManager
                     installPath.mkdirs()
                     MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
 
-                    downloadInfo.updateStatusMessage("Downloading chunks...")
+                    downloadInfo.updateStatusMessage("Downloading chunks")
 
                     val chunkCacheDir = File(installPath, ".gog_chunks")
                     chunkCacheDir.mkdirs()
@@ -658,7 +658,7 @@ class GOGDownloadManager
             MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
             MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_COMPLETE_MARKER)
 
-            downloadInfo.updateStatusMessage("Updating database...")
+            downloadInfo.updateStatusMessage("Updating database")
             try {
                 val game = gogManager.getGameFromDbById(gameId)
                 if (game != null) {
@@ -712,7 +712,7 @@ class GOGDownloadManager
                     val ownedGameIds = gogManager.getAllGameIds()
 
                     // Filter depots by selected language (same logic as Gen 2), then by ownership
-                    downloadInfo.updateStatusMessage("Filtering depots...")
+                    downloadInfo.updateStatusMessage("Filtering depots")
                     val (languageDepots, effectiveLang) = parser.filterDepotsByLanguage(gameManifest, language)
                     if (languageDepots.isEmpty()) {
                         return@withContext Result.failure(
@@ -762,7 +762,7 @@ class GOGDownloadManager
                     )
                     val allV1Files = mutableListOf<FileWithProduct>()
 
-                    downloadInfo.updateStatusMessage("Fetching depot manifests (${filesToDownload.size})...")
+                    downloadInfo.updateStatusMessage("Fetching depot manifests (${filesToDownload.size})")
                     val gen1DepotJsonResults =
                         coroutineScope {
                             val limit = minOf(MAX_PARALLEL_MANIFEST_FETCHES, filesToDownload.size).coerceAtLeast(1)
@@ -779,7 +779,7 @@ class GOGDownloadManager
                                             perDepot[i] =
                                                 apiClient.fetchDepotManifestV1(d.productId, platform, timestamp, d.manifest)
                                             val done = completed.incrementAndGet()
-                                            downloadInfo.updateStatusMessage("Fetching depot $done/${filesToDownload.size}...")
+                                            downloadInfo.updateStatusMessage("Fetching depot $done/${filesToDownload.size}")
                                         }
                                     }
                                 }.awaitAll()
@@ -810,7 +810,7 @@ class GOGDownloadManager
                             fileExistsWithCorrectSize(outFile, f.file.size)
                         }
                     }
-                    if (verifyMode) downloadInfo.updateStatusMessage("Verifying installed files...")
+                    if (verifyMode) downloadInfo.updateStatusMessage("Verifying installed files")
                     gameFiles = gameFiles.filterNot { v1IsValid(it, installPath) }
                     if (supportDir != null) {
                         supportFiles = supportFiles.filterNot { v1IsValid(it, supportDir) }
@@ -819,7 +819,7 @@ class GOGDownloadManager
                         gameFiles.sumOf { it.file.size } +
                             if (supportDir != null) supportFiles.sumOf { it.file.size } else 0L
                     downloadInfo.setTotalExpectedBytes(totalSize)
-                    downloadInfo.updateStatusMessage("Downloading files...")
+                    downloadInfo.updateStatusMessage("Downloading files")
                     downloadInfo.setProgress(0f)
                     downloadInfo.setActive(true)
                     downloadInfo.emitProgressChange()
@@ -1007,7 +1007,7 @@ class GOGDownloadManager
                     val downloadedChunks = AtomicInteger(0)
                     val refreshMutex = Mutex()
 
-                    Timber.tag("GOG").d("Downloading $totalChunks chunks...")
+                    Timber.tag("GOG").d("Downloading $totalChunks chunks")
 
                     if (totalChunks == 0) {
                         return@withContext Result.success(Unit)
@@ -1463,7 +1463,7 @@ class GOGDownloadManager
                             .tag(
                                 "GOG",
                             ).w(
-                                "Chunk $chunkMd5 download failed (attempt ${attempt + 1}/$MAX_CHUNK_RETRIES): ${lastException?.message}. Retrying in ${delay}ms...",
+                                "Chunk $chunkMd5 download failed (attempt ${attempt + 1}/$MAX_CHUNK_RETRIES): ${lastException?.message}. Retrying in ${delay}ms",
                             )
                         kotlinx.coroutines.delay(delay)
                     }

@@ -1,13 +1,15 @@
 package com.winlator.cmod.feature.stores.steam.wnsteam
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import timber.log.Timber
+import com.winlator.cmod.R
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.concurrent.atomic.AtomicBoolean
 
 class WnLauncherStatusTailer(
+    context: Context,
     private val logFile: File,
     private val gameDisplayName: String,
     private val pollIntervalMs: Long = 200L,
@@ -16,6 +18,7 @@ class WnLauncherStatusTailer(
     private val onLaunchFailed: ((reason: String) -> Unit)? = null,
 ) {
     private val running = AtomicBoolean(false)
+    private val appContext = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private var thread: Thread? = null
     @Volatile private var lastEmitted: String = ""
@@ -131,7 +134,7 @@ class WnLauncherStatusTailer(
             main.post { onLaunchComplete?.invoke() }
         } else if (isFatal) {
             android.util.Log.w(TAG, "fatal phase (launcher LoadLibrary failed) — signaling launch failure")
-            main.post { onLaunchFailed?.invoke("Steam Launcher could not start. Re-staging — please relaunch.") }
+            main.post { onLaunchFailed?.invoke(appContext.getString(R.string.preloader_steam_launcher_start_failed)) }
         } else if (isCreateProcessFallback) {
             // Keep the UI on "Launching <game>…" through the fallback; disarm the watchdog.
             android.util.Log.w(TAG, "LaunchApp exhausted retries — launcher will try CreateProcess fallback (UI stays on Launching…)")
@@ -145,7 +148,7 @@ class WnLauncherStatusTailer(
         if (System.currentTimeMillis() - dispatchedAt > LAUNCH_APP_WATCHDOG_MS) {
             android.util.Log.w(TAG, "watchdog: ${LAUNCH_APP_WATCHDOG_MS}ms elapsed after LaunchApp with no terminal — assuming launch failed")
             launchAppDispatchedAt = 0L
-            main.post { onLaunchFailed?.invoke("Steam Launcher reached the game but it never started.") }
+            main.post { onLaunchFailed?.invoke(appContext.getString(R.string.preloader_steam_launcher_game_never_started)) }
         }
     }
 
@@ -156,40 +159,40 @@ class WnLauncherStatusTailer(
     }
 
     private fun phaseFor(line: String): String? = when {
-        line.contains("in-process Steam launcher starting") -> "Starting Steam Launcher…"
-        line.contains("steamclient64.dll loaded") -> "Loading Steam client…"
-        line.contains("Steam_CreateGlobalUser OK") -> "Connecting to Steam…"
-        line.contains("LogOn(") && line.contains("EResult=1") -> "Signing in to Steam…"
-        line.contains("callback 101 SteamServersConnected") -> "Signed in — fetching game info…"
-        line.contains("Steam_BLoggedOn=true") -> "Steam ready"
-        line.contains("RequestAppInfoUpdate(appId=") -> "Updating game info…"
-        line.contains("GetAppInstallState(appId=") -> "Verifying install…"
-        line.contains("redist scan: scanning") -> "Scanning redistributables…"
+        line.contains("in-process Steam launcher starting") -> appContext.getString(R.string.preloader_starting_steam_launcher)
+        line.contains("steamclient64.dll loaded") -> appContext.getString(R.string.preloader_loading_steam_client)
+        line.contains("Steam_CreateGlobalUser OK") -> appContext.getString(R.string.preloader_connecting_to_steam)
+        line.contains("LogOn(") && line.contains("EResult=1") -> appContext.getString(R.string.preloader_signing_in_to_steam)
+        line.contains("callback 101 SteamServersConnected") -> appContext.getString(R.string.preloader_fetching_game_info)
+        line.contains("Steam_BLoggedOn=true") -> appContext.getString(R.string.preloader_steam_ready)
+        line.contains("RequestAppInfoUpdate(appId=") -> appContext.getString(R.string.preloader_updating_game_info)
+        line.contains("GetAppInstallState(appId=") -> appContext.getString(R.string.preloader_verifying_install)
+        line.contains("redist scan: scanning") -> appContext.getString(R.string.preloader_scanning_redists)
         line.contains("installing redistributable:") -> phaseForInstallingRedist(line)
-        line.contains("redist scan: installed") -> "Redistributables ready"
-        line.contains("redist scan: ") && line.contains(" of ") -> "Redistributables ready"
-        line.contains("redist scan: 0 *.exe installers") -> "No redistributables to install"
-        line.contains("redist scan: no _CommonRedist") -> "No redistributables to install"
-        line.contains("steamservice: post-start state=4") -> "Steam service running"
-        line.contains("IClientAppManager.LaunchApp(appId=") -> "Launching $gameDisplayName…"
+        line.contains("redist scan: installed") -> appContext.getString(R.string.preloader_redists_ready)
+        line.contains("redist scan: ") && line.contains(" of ") -> appContext.getString(R.string.preloader_redists_ready)
+        line.contains("redist scan: 0 *.exe installers") -> appContext.getString(R.string.preloader_no_redists)
+        line.contains("redist scan: no _CommonRedist") -> appContext.getString(R.string.preloader_no_redists)
+        line.contains("steamservice: post-start state=4") -> appContext.getString(R.string.preloader_steam_service_running)
+        line.contains("IClientAppManager.LaunchApp(appId=") -> appContext.getString(R.string.preloader_launching_game, gameDisplayName)
         line.contains("LoadLibrary(") && line.contains("FAILED after all strategies") ->
-            "Steam Launcher failed — re-staging assets"
+            appContext.getString(R.string.preloader_steam_launcher_failed_restaging)
         else -> null
     }
 
     private fun phaseForInstallingRedist(line: String): String {
         val marker = "installing redistributable:"
         val start = line.indexOf(marker)
-        if (start < 0) return "Installing redistributable…"
+        if (start < 0) return appContext.getString(R.string.preloader_installing_redist_single)
         val rest = line.substring(start + marker.length).trim()
         val name = rest.substringBefore(" (").trim()
         val ratio = rest.substringAfter("(", "").substringBefore(",", "").trim()
         return if (name.isNotEmpty() && ratio.contains("/")) {
-            "Installing $name… ($ratio)"
+            appContext.getString(R.string.preloader_installing_named_redist_progress, name, ratio)
         } else if (name.isNotEmpty()) {
-            "Installing $name…"
+            appContext.getString(R.string.preloader_installing_named_redist, name)
         } else {
-            "Installing redistributable…"
+            appContext.getString(R.string.preloader_installing_redist_single)
         }
     }
 

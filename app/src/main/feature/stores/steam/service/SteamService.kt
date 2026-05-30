@@ -3586,7 +3586,7 @@ class SteamService : Service() {
                         di.setPersistencePath(appDirPath)
                         di.setTotalExpectedBytes(totalBytes)
                         di.setDisplayTotalExpectedBytes(selectedDisplayDownloadBytes)
-                        di.updateStatus(DownloadPhase.QUEUED, "Queued...")
+                        di.updateStatus(DownloadPhase.QUEUED, "Queued")
                         di.setActive(false)
                     }
                 downloadJobs[appId] = info
@@ -3672,11 +3672,11 @@ class SteamService : Service() {
                                     try {
                                         if (attempt > 1) {
                                             Timber.i("Retry attempt $attempt/$maxRetries for appId: $appId")
-                                            di.updateStatusMessage("Retrying download (attempt $attempt/$maxRetries)...")
+                                            di.updateStatusMessage("Retrying download (attempt $attempt/$maxRetries)")
                                             withContext(Dispatchers.Main) {
                                                 WinToast.show(
                                                     instance?.applicationContext ?: return@withContext,
-                                                    "Retrying download (attempt $attempt/$maxRetries)...",
+                                                    "Retrying download (attempt $attempt/$maxRetries)",
                                                     Toast.LENGTH_SHORT,
                                                 )
                                             }
@@ -3696,7 +3696,7 @@ class SteamService : Service() {
                                             // Brief grace period: wnSession may be mid-logon.
                                             var grace = 0
                                             while (grace < 8 && wnSession?.state() != 3) {
-                                                di.updateStatusMessage("Waiting for Steam connection...")
+                                                di.updateStatusMessage("Waiting for Steam connection")
                                                 delay(1000L)
                                                 grace++
                                             }
@@ -3709,7 +3709,7 @@ class SteamService : Service() {
                                         }
                                         if (wnReady == null) {
                                             Timber.i("downloadApp: no logged-on wnSession — bringing one up for the download")
-                                            di.updateStatusMessage("Connecting to Steam...")
+                                            di.updateStatusMessage("Connecting to Steam")
                                             val svc = instance
                                                 ?: throw Exception("Steam service unavailable.")
                                             val refreshTok = PrefManager.refreshToken
@@ -3735,7 +3735,7 @@ class SteamService : Service() {
                                             // PICS crawl so it doesn't flood the CM while the
                                             // download needs the channel for depot keys.
                                             brought.setAutoPopulateLibrary(false)
-                                            di.updateStatusMessage("Logging in to Steam...")
+                                            di.updateStatusMessage("Logging in to Steam")
                                             if (!brought.logonWithRefreshToken(
                                                     refreshTok,
                                                     PrefManager.username,
@@ -3765,7 +3765,7 @@ class SteamService : Service() {
                                             ?: throw Exception("WN-Steam-Client session unavailable.")
 
                                         Timber.i("Initializing WN-Steam downloader for appId: $appId (attempt $attempt)")
-                                        di.updateStatusMessage("Initializing downloader...")
+                                        di.updateStatusMessage("Initializing downloader")
 
                                         // CA bundle for HTTPS CDN verification (same file
                                         // CaBundleExtractor provides for the CM session).
@@ -4109,7 +4109,7 @@ class SteamService : Service() {
 
                                 // Complete app download - Wrap in try-catch to ensure we don't crash at the finish line
                                 try {
-                                    di.updateStatusMessage("Finalizing installation...")
+                                    di.updateStatusMessage("Finalizing installation")
                                     Timber.i("Finalizing installation at path: $appDirPath")
                                     if (originalMainAppDepots.isNotEmpty()) {
                                         val mainAppDepotIds = originalMainAppDepots.keys.sorted()
@@ -4669,7 +4669,7 @@ class SteamService : Service() {
                             val appInfo = getAppInfoOf(appId)
 
                             if (steamInstance != null && appInfo != null) {
-                                progressWrapper("Checking Cloud Saves...", 0f)
+                                progressWrapper("Checking Cloud Saves", 0f)
                                 val postSyncInfo =
                                     SteamAutoCloud
                                         .syncUserFiles(
@@ -4742,7 +4742,7 @@ class SteamService : Service() {
                                 Timber.e(e, "Cloud sync failed after $maxAttempts attempts for app $appId")
                                 syncResult = PostSyncInfo(SyncResult.UnknownFail)
                             } else {
-                                Timber.w("Cloud sync attempt $attempt failed for app $appId, retrying...")
+                                Timber.w("Cloud sync attempt $attempt failed for app $appId, retrying")
                                 delay(1000L * attempt)
                             }
                         }
@@ -4941,7 +4941,7 @@ class SteamService : Service() {
                             if (attempt == maxAttempts) {
                                 Timber.e(e, "Force cloud sync failed after $maxAttempts attempts for app $appId")
                             } else {
-                                Timber.w("Force cloud sync attempt $attempt failed for app $appId, retrying...")
+                                Timber.w("Force cloud sync attempt $attempt failed for app $appId, retrying")
                                 delay(1000L * attempt)
                             }
                         }
@@ -6196,7 +6196,7 @@ class SteamService : Service() {
                                 val appInfo = getAppInfoOf(appId)
 
                                 if (steamInstance != null && appInfo != null) {
-                                    progressWrapper("Checking Local Saves...", 0f)
+                                    progressWrapper("Checking Local Saves", 0f)
                                     val postSyncInfo =
                                         SteamAutoCloud
                                             .syncUserFiles(
@@ -6257,7 +6257,7 @@ class SteamService : Service() {
                                 if (attempt == maxAttempts) {
                                     Timber.e(e, "Close app sync failed after $maxAttempts attempts for app $appId")
                                 } else {
-                                    Timber.w("Close app sync attempt $attempt failed for app $appId, retrying...")
+                                    Timber.w("Close app sync attempt $attempt failed for app $appId, retrying")
                                     delay(1000L * attempt)
                                 }
                             }
@@ -7826,7 +7826,7 @@ class SteamService : Service() {
                 var attempt = 0
                 while (isRunning && !isStopping && PrefManager.refreshToken.isNotBlank()) {
                     if (wnSession?.state() == 3) break
-                    Timber.d("connectAndLogon: bringing up WN-Steam-Client session...")
+                    Timber.d("connectAndLogon: bringing up WN-Steam-Client session")
                     val state = withWnSession { it.state() }
                     if (state == 3) break
                     attempt++
@@ -8203,7 +8203,7 @@ class SteamService : Service() {
             retryAttempt++
             val backoffMs = reconnectBackoffMs(retryAttempt)
             Timber.w("Reconnect scheduled in ${backoffMs}ms (retry $retryAttempt/$MAX_RETRY_ATTEMPTS)")
-            notificationHelper.notify("Retrying...")
+            notificationHelper.notify("Retrying")
             PluviaApp.events.emit(SteamEvent.RemotelyDisconnected)
             reconnectJob?.cancel()
             reconnectJob =

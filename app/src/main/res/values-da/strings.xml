@@ -43,7 +43,7 @@
     <string name="common_ui_height">Højde</string>
     <string name="common_ui_open_file">Åbn fil</string>
     <string name="common_ui_download_file">Download fil</string>
-    <string name="common_ui_downloading_file">Downloader fil...</string>
+    <string name="common_ui_downloading_file">Downloader fil</string>
     <string name="common_ui_browse">Gennemse</string>
     <string name="common_ui_options">Indstillinger</string>
     <string name="common_ui_export">Eksporter</string>
@@ -106,7 +106,7 @@
     <string name="common_ui_application">Applikation</string>
     <string name="common_ui_check">Tjek</string>
     <string name="store_game_check_for_update">Søg efter opdatering</string>
-    <string name="store_game_checking_for_update">Tjekker...</string>
+    <string name="store_game_checking_for_update">Tjekker</string>
     <string name="store_game_download_update">Download opdatering</string>
     <string name="store_game_no_update_available">Ingen opdatering tilgængelig</string>
     <string name="store_game_update_available">Opdatering tilgængelig</string>
@@ -1274,4 +1274,26 @@ Installeret sti:
     <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
     <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
     <string name="settings_leaderboard_category">Ydeevne</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Forbereder Steam-miljø</string>
+    <string name="preloader_starting_wine">Starter Wine</string>
+    <string name="preloader_starting_steam_launcher">Starter Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Indlæser Steam-klient</string>
+    <string name="preloader_connecting_to_steam">Opretter forbindelse til Steam</string>
+    <string name="preloader_signing_in_to_steam">Logger ind på Steam</string>
+    <string name="preloader_fetching_game_info">Logget ind — henter spilinfo</string>
+    <string name="preloader_steam_ready">Steam er klar</string>
+    <string name="preloader_updating_game_info">Opdaterer spilinfo</string>
+    <string name="preloader_verifying_install">Bekræfter installation</string>
+    <string name="preloader_scanning_redists">Scanner videredistribuerbare pakker</string>
+    <string name="preloader_installing_redist_single">Installerer videredistribuerbar pakke</string>
+    <string name="preloader_installing_named_redist">Installerer %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Installerer %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Videredistribuerbare pakker klar</string>
+    <string name="preloader_no_redists">Ingen videredistribuerbare pakker at installere</string>
+    <string name="preloader_steam_service_running">Steam-tjenesten kører</string>
+    <string name="preloader_launching_game">Starter %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher fejlede — forbereder ressourcer igen</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher kunne ikke starte. Forbereder igen — genstart venligst</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher nåede spillet, men det startede aldrig</string>
 </resources>

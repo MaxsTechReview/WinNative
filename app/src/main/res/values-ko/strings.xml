@@ -43,7 +43,7 @@
     <string name="common_ui_height">높이</string>
     <string name="common_ui_open_file">파일 열기</string>
     <string name="common_ui_download_file">파일 다운로드</string>
-    <string name="common_ui_downloading_file">파일 다운로드 중...</string>
+    <string name="common_ui_downloading_file">파일 다운로드 중</string>
     <string name="common_ui_browse">찾아보기</string>
     <string name="common_ui_options">옵션</string>
     <string name="common_ui_export">내보내기</string>
@@ -106,7 +106,7 @@
     <string name="common_ui_application">애플리케이션</string>
     <string name="common_ui_check">확인</string>
     <string name="store_game_check_for_update">업데이트 확인</string>
-    <string name="store_game_checking_for_update">확인 중...</string>
+    <string name="store_game_checking_for_update">확인 중</string>
     <string name="store_game_download_update">업데이트 다운로드</string>
     <string name="store_game_no_update_available">사용 가능한 업데이트 없음</string>
     <string name="store_game_update_available">업데이트 가능</string>
@@ -1275,5 +1275,27 @@
     <string name="settings_hud_record_to_file_title">성능을 파일로 기록</string>
     <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/에 기록합니다.</string>
     <string name="settings_leaderboard_category">성능</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Steam 환경 준비 중</string>
+    <string name="preloader_starting_wine">Wine 시작 중</string>
+    <string name="preloader_starting_steam_launcher">Steam Launcher 시작 중</string>
+    <string name="preloader_loading_steam_client">Steam 클라이언트 로드 중</string>
+    <string name="preloader_connecting_to_steam">Steam에 연결 중</string>
+    <string name="preloader_signing_in_to_steam">Steam에 로그인 중</string>
+    <string name="preloader_fetching_game_info">로그인됨 — 게임 정보 가져오는 중</string>
+    <string name="preloader_steam_ready">Steam 준비됨</string>
+    <string name="preloader_updating_game_info">게임 정보 업데이트 중</string>
+    <string name="preloader_verifying_install">설치 확인 중</string>
+    <string name="preloader_scanning_redists">재배포 패키지 검색 중</string>
+    <string name="preloader_installing_redist_single">재배포 패키지 설치 중</string>
+    <string name="preloader_installing_named_redist">%1$s 설치 중</string>
+    <string name="preloader_installing_named_redist_progress">%1$s 설치 중 (%2$s)</string>
+    <string name="preloader_redists_ready">재배포 패키지 준비됨</string>
+    <string name="preloader_no_redists">설치할 재배포 패키지가 없습니다</string>
+    <string name="preloader_steam_service_running">Steam 서비스 실행 중</string>
+    <string name="preloader_launching_game">%1$s 실행 중</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher 실패 — 리소스 다시 준비 중</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher를 시작할 수 없습니다. 다시 준비 중 — 다시 실행하세요</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher가 게임까지 도달했지만 게임이 시작되지 않았습니다</string>
 </resources>
 

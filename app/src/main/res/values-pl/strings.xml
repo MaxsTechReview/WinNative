@@ -43,7 +43,7 @@
     <string name="common_ui_height">Wysokość</string>
     <string name="common_ui_open_file">Otwórz plik</string>
     <string name="common_ui_download_file">Pobierz plik</string>
-    <string name="common_ui_downloading_file">Pobieranie pliku...</string>
+    <string name="common_ui_downloading_file">Pobieranie pliku</string>
     <string name="common_ui_browse">Przeglądaj</string>
     <string name="common_ui_options">Opcje</string>
     <string name="common_ui_export">Eksportuj</string>
@@ -106,7 +106,7 @@
     <string name="common_ui_application">Aplikacja</string>
     <string name="common_ui_check">Sprawdź</string>
     <string name="store_game_check_for_update">Sprawdź aktualizacje</string>
-    <string name="store_game_checking_for_update">Sprawdzanie...</string>
+    <string name="store_game_checking_for_update">Sprawdzanie</string>
     <string name="store_game_download_update">Pobierz aktualizację</string>
     <string name="store_game_no_update_available">Brak dostępnych aktualizacji</string>
     <string name="store_game_update_available">Aktualizacja dostępna</string>
@@ -1280,5 +1280,27 @@ Zainstalowana ścieżka:
     <string name="settings_hud_record_to_file_title">Rejestruj wydajność do pliku</string>
     <string name="settings_hud_record_to_file_summary">Zapisuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
     <string name="settings_leaderboard_category">Wydajność</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Przygotowywanie środowiska Steam</string>
+    <string name="preloader_starting_wine">Uruchamianie Wine</string>
+    <string name="preloader_starting_steam_launcher">Uruchamianie Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Ładowanie klienta Steam</string>
+    <string name="preloader_connecting_to_steam">Łączenie ze Steam</string>
+    <string name="preloader_signing_in_to_steam">Logowanie do Steam</string>
+    <string name="preloader_fetching_game_info">Zalogowano — pobieranie informacji o grze</string>
+    <string name="preloader_steam_ready">Steam gotowy</string>
+    <string name="preloader_updating_game_info">Aktualizowanie informacji o grze</string>
+    <string name="preloader_verifying_install">Weryfikowanie instalacji</string>
+    <string name="preloader_scanning_redists">Skanowanie pakietów redystrybucyjnych</string>
+    <string name="preloader_installing_redist_single">Instalowanie pakietu redystrybucyjnego</string>
+    <string name="preloader_installing_named_redist">Instalowanie %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Instalowanie %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Pakiety redystrybucyjne gotowe</string>
+    <string name="preloader_no_redists">Brak pakietów redystrybucyjnych do zainstalowania</string>
+    <string name="preloader_steam_service_running">Usługa Steam działa</string>
+    <string name="preloader_launching_game">Uruchamianie %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher nie powiódł się — ponowne przygotowywanie zasobów</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher nie mógł się uruchomić. Ponowne przygotowywanie — uruchom ponownie</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher dotarł do gry, ale gra się nie uruchomiła</string>
 </resources>
 
