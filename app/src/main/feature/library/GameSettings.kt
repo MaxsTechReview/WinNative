@@ -1118,43 +1118,46 @@ private fun GeneralSection(
     if (!isContainer) {
         Spacer(Modifier.height(SettingSectionGap))
         SettingGroup {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "FPS Limiter",
-                    color = TextPrimary,
-                    fontSize = SettingValueSize,
-                    fontWeight = FontWeight.SemiBold
+            val fpsMin = 30
+            // Cap the slider at the panel's highest supported refresh rate, parsed
+            // from the refresh-rate entries (e.g. "120 Hz"); fall back to 60.
+            val supportedMax = state.refreshRateEntries.value
+                .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }
+                .maxOrNull() ?: 60
+            val maxFps = supportedMax.coerceAtLeast(fpsMin)
+            val enabled = state.fpsLimit.intValue > 0
+            // Remember the last enabled value so off→on restores it; re-seed when
+            // the panel's supported max changes.
+            var lastFps by remember(maxFps) {
+                mutableStateOf(
+                    (if (state.fpsLimit.intValue > 0) state.fpsLimit.intValue else 60)
+                        .coerceIn(fpsMin, maxFps)
                 )
-                val limits = listOf(0, 30, 45, 60, 90, 120)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    limits.forEach { limit ->
-                        val isChecked = state.fpsLimit.intValue == limit
-                        val bgColor = if (isChecked) AccentBlue.copy(alpha = 0.15f) else ChipSurface
-                        val borderColor = if (isChecked) AccentBlue.copy(alpha = 0.4f) else ChipBorder
-                        val textColor = if (isChecked) AccentBlue else TextDim
+            }
 
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(bgColor)
-                                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                                .clickable { state.fpsLimit.intValue = limit }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                if (limit == 0) "None" else "$limit",
-                                color = textColor,
-                                fontSize = SettingLabelSize,
-                                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal
-                            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SettingSwitch(
+                    label = "FPS Limiter",
+                    checked = enabled,
+                    onCheckedChange = { on -> state.fpsLimit.intValue = if (on) lastFps else 0 }
+                )
+                AnimatedVisibility(
+                    visible = enabled,
+                    enter = graphicsCardExpandEnter(),
+                    exit = graphicsCardExpandExit()
+                ) {
+                    SettingSlider(
+                        label = "Limit",
+                        value = lastFps,
+                        range = fpsMin..maxFps,
+                        valueText = "$lastFps FPS",
+                        steps = (maxFps - fpsMin - 1).coerceAtLeast(0),
+                        onValueChange = {
+                            val v = it.coerceIn(fpsMin, maxFps)
+                            lastFps = v
+                            state.fpsLimit.intValue = v
                         }
-                    }
+                    )
                 }
             }
         }
