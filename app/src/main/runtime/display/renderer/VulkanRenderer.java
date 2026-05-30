@@ -542,6 +542,10 @@ public class VulkanRenderer
         xServerView.requestTransientRender(100);
     }
 
+    public void updateVisualCursorPosition(int x, int y) {
+        requestCursorRender();
+    }
+
     @Override
     public void onPointerMove(short x, short y) {
         requestCursorRender();

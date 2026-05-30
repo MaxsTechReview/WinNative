@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WindowManager extends XResourceManager {
-  private static final String SGSR_RESIZE_TAG = "SGSRResize";
-
   public enum FocusRevertTo {
     NONE,
     POINTER_ROOT,
@@ -36,7 +34,6 @@ public class WindowManager extends XResourceManager {
   }
 
   public final Window rootWindow;
-  private Window confinedWindow;
   private final SparseArray<Window> windows = new SparseArray<>();
   public final DrawableManager drawableManager;
   private Window focusedWindow;
@@ -89,8 +86,6 @@ public class WindowManager extends XResourceManager {
     short oldHeight = rootWindow.getHeight();
     if (oldWidth == width && oldHeight == height) return false;
 
-    Log.i(SGSR_RESIZE_TAG, "resizeRootWindow: " + oldWidth + "x" + oldHeight +
-        " -> " + width + "x" + height);
     resizeWindowForScreenChange(rootWindow, (short) 0, (short) 0, width, height);
     resizeFullscreenDescendants(rootWindow, oldWidth, oldHeight, width, height);
     return true;
@@ -162,17 +157,7 @@ public class WindowManager extends XResourceManager {
     return focusedWindow;
   }
 
-  public Window getConfinedWindow() {
-    return confinedWindow;
-  }
-
-  public void setConfinedWindow(Window window) {
-    if (confinedWindow != null) confinedWindow.setConfined(false);
-    confinedWindow = window;
-    if (confinedWindow != null) confinedWindow.setConfined(true);
-  }
-
-  public void revertFocus() {
+  private void revertFocus() {
     switch (focusRevertTo) {
       case NONE:
         focusedWindow = null;
@@ -181,7 +166,8 @@ public class WindowManager extends XResourceManager {
         focusedWindow = rootWindow;
         break;
       case PARENT:
-        if (focusedWindow.getParent() != null) focusedWindow = focusedWindow.getParent();
+        if (focusedWindow != null && focusedWindow.getParent() != null)
+          focusedWindow = focusedWindow.getParent();
         break;
     }
   }
@@ -286,12 +272,6 @@ public class WindowManager extends XResourceManager {
     boolean moved = window.getX() != x || window.getY() != y;
     if (!resized && !moved) return;
 
-    Log.i(SGSR_RESIZE_TAG, "resizeWindow id=" + window.id +
-        (window == rootWindow ? " root" : "") + ": " +
-        oldWidth + "x" + oldHeight + "@" + oldX + "," + oldY + " -> " +
-        width + "x" + height + "@" + x + "," + y +
-        " mapped=" + window.attributes.isMapped());
-
     if (resized && window.isInputOutput()) {
       Drawable oldContent = window.getContent();
       drawableManager.removeDrawable(oldContent.id);
@@ -337,8 +317,6 @@ public class WindowManager extends XResourceManager {
               && child.getX() + child.getWidth() >= oldWidth
               && child.getY() + child.getHeight() >= oldHeight;
       if (coveredOldScreen) {
-        Log.i(SGSR_RESIZE_TAG, "resizeFullscreenDescendant id=" + child.id +
-            ": covered old screen " + oldWidth + "x" + oldHeight);
         resizeWindowForScreenChange(child, (short) 0, (short) 0, width, height);
       }
       resizeFullscreenDescendants(child, oldWidth, oldHeight, width, height);
@@ -367,8 +345,8 @@ public class WindowManager extends XResourceManager {
     Window sibling = null;
     Window.StackMode stackMode = null;
 
-    for (int index : valueMask) {
-      switch (index) {
+    for (long index : valueMask) {
+      switch ((int) index) {
         case Window.FLAG_X:
           x = (short) inputStream.readInt();
           break;

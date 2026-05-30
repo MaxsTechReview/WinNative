@@ -362,6 +362,12 @@ public class Window extends XResource {
     return rootY;
   }
 
+  public android.graphics.Rect getAbsoluteBounds() {
+    short rootX = getRootX();
+    short rootY = getRootY();
+    return new android.graphics.Rect(rootX, rootY, width + rootX, height + rootY);
+  }
+
   public Window getAncestorWithEventMask(Bitmask eventMask) {
     Window window = this;
     while (window != null) {

@@ -909,7 +909,7 @@ private fun CursorSpeedCard(
             Slider(
                 value = percent.toFloat(),
                 onValueChange = { onPercentChanged(it.toInt()) },
-                valueRange = 10f..200f,
+                valueRange = 10f..300f,
                 steps = 0,
                 colors = settingsSliderColors(),
                 track = { SettingsSliderTrack(it) },

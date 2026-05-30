@@ -417,6 +417,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             } else {
                 sensorManager.unregisterListener(gyroListener);
             }
+        } else if ("cursor_speed".equals(key)) {
+            globalCursorSpeed = sharedPreferences.getFloat("cursor_speed", 1.0f);
+            if (touchpadView != null) {
+                float profileSpeed = 1.0f;
+                if (inputControlsView != null) {
+                    ControlsProfile profile = inputControlsView.getProfile();
+                    if (profile != null) profileSpeed = profile.getCursorSpeed();
+                }
+                touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+            }
+        } else if ("touchscreen_toggle".equals(key)) {
+            if (touchpadView != null) {
+                touchpadView.setSimTouchScreen(sharedPreferences.getBoolean("touchscreen_toggle", false));
+            }
         }
     };
 
@@ -2007,13 +2021,57 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                int[] delta = getCapturedPointerDelta(event);
-                if (delta[0] == 0 && delta[1] == 0) break;
-                if (xServer.isRelativeMouseMovement()) {
-                    xServer.updatePointerForDisplayDelta(delta[0], delta[1]);
-                    xServer.getWinHandler().mouseMoveDelta(delta[0], delta[1]);
-                } else {
-                    xServer.injectPointerMoveDelta(delta[0], delta[1]);
+                int historySize = event.getHistorySize();
+                float totalRawDx = 0.0f;
+                float totalRawDy = 0.0f;
+
+                // 1. Calculate total movement first to find the speed
+                for (int i = 0; i <= historySize; i++) {
+                    if (i < historySize) {
+                        totalRawDx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+                        totalRawDy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+                    } else {
+                        totalRawDx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+                        totalRawDy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+                    }
+                }
+
+                // 3. Stream individual points immediately using the locked-in speed
+                for (int i = 0; i <= historySize; i++) {
+                    float rawDx, rawDy;
+                    if (i < historySize) {
+                        rawDx = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+                        rawDy = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+                    } else {
+                        rawDx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+                        rawDy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+                    }
+
+                    if (rawDx == 0.0f && rawDy == 0.0f) continue;
+
+                    float multiplier = globalCursorSpeed;
+                    if (xServer.isRelativeMouseMovement() && inputControlsView != null) {
+                        ControlsProfile profile = inputControlsView.getProfile();
+                        if (profile != null) {
+                            multiplier *= profile.getCursorSpeed();
+                        }
+                    }
+                    float scaledDx = (xform[0] * rawDx + xform[2] * rawDy) * multiplier;
+                    float scaledDy = (xform[1] * rawDx + xform[3] * rawDy) * multiplier;
+
+                    if (scaledDx != 0.0f || scaledDy != 0.0f) {
+                        if (xServer.isRelativeMouseMovement()) {
+                            int idx = Mathf.roundPoint(scaledDx);
+                            int idy = Mathf.roundPoint(scaledDy);
+                            xServer.getWinHandler().mouseMoveDelta(idx, idy);
+                            touchpadView.updateVisibleRelativeCursor(xServer.pointer.getX() + idx, xServer.pointer.getY() + idy);
+                            xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
+                        } else {
+                            int nx = Mathf.roundPoint(xServer.pointer.getX() + scaledDx);
+                            int ny = Mathf.roundPoint(xServer.pointer.getY() + scaledDy);
+                            xServer.injectPointerMove(nx, ny);
+                        }
+                    }
                 }
                 handled = true;
                 break;
@@ -2031,17 +2089,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private int[] getCapturedPointerDelta(MotionEvent event) {
-        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-        if (dx == 0.0f && dy == 0.0f) {
-            dx = event.getX();
-            dy = event.getY();
+    private float[] getCapturedPointerDelta(float dx, float dy) {
+        float profileSpeed = 1.0f;
+        if (inputControlsView != null) {
+            ControlsProfile profile = inputControlsView.getProfile();
+            if (profile != null) profileSpeed = profile.getCursorSpeed();
         }
-        return new int[]{
-                (int)(xform[0] * dx + xform[2] * dy),
-                (int)(xform[1] * dx + xform[3] * dy)
-        };
+
+        float scaledDx = xform[0] * dx + xform[2] * dy;
+        float scaledDy = xform[1] * dx + xform[3] * dy;
+
+        scaledDx *= globalCursorSpeed * profileSpeed;
+        scaledDy *= globalCursorSpeed * profileSpeed;
+
+        return new float[]{scaledDx, scaledDy};
     }
 
     @Override
@@ -3653,6 +3714,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false),
+                globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
@@ -3950,6 +4012,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
                         preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onCursorSpeedChanged(float speed) {
+                        globalCursorSpeed = speed;
+                        preferences.edit().putFloat("cursor_speed", speed).apply();
+                        if (touchpadView != null) {
+                            float profileSpeed = 1.0f;
+                            if (inputControlsView != null) {
+                                ControlsProfile profile = inputControlsView.getProfile();
+                                if (profile != null) profileSpeed = profile.getCursorSpeed();
+                            }
+                            touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+                        }
                         renderDrawerMenu();
                     }
 

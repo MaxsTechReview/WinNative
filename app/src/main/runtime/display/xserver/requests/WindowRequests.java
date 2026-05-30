@@ -81,8 +81,8 @@ public abstract class WindowRequests {
       outputStream.writeByte((byte) window.getMapState().ordinal());
       outputStream.writeByte((byte) (window.attributes.isOverrideRedirect() ? 1 : 0));
       outputStream.writeInt(0);
-      outputStream.writeInt(window.getAllEventMasks().getBits());
-      outputStream.writeInt(client.getEventMaskForWindow(window).getBits());
+      outputStream.writeInt((int) window.getAllEventMasks().getBits());
+      outputStream.writeInt((int) client.getEventMaskForWindow(window).getBits());
       outputStream.writeShort((short) window.attributes.getDoNotPropagateMask().getBits());
       outputStream.writeShort((short) 0);
     }
@@ -345,11 +345,15 @@ public abstract class WindowRequests {
 
       short[] localPoint =
           srcWindow.rootPointToLocal(client.xServer.pointer.getX(), client.xServer.pointer.getY());
+      short x = localPoint[0];
+      short y = localPoint[1];
+      short softMarginX = (short) (client.xServer.screenInfo.width * 0.05f);
+      short softMarginY = (short) (client.xServer.screenInfo.height * 0.05f);
       boolean isContained =
-          localPoint[0] >= srcX
-              && localPoint[1] >= srcY
-              && localPoint[0] < (srcX + srcWidth)
-              && localPoint[1] < (srcY + srcHeight);
+          x >= srcX - softMarginX
+              && y >= srcY - softMarginY
+              && x < (srcX + srcWidth) + softMarginX
+              && y < (srcY + srcHeight) + softMarginY;
       if (!isContained) return;
     }
 
