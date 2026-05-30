@@ -46,7 +46,7 @@ class EpicVerifyManager
 
                     PluviaApp.events.emitJava(AndroidEvent.DownloadStatusChanged(gameId, true))
                     downloadInfo.setActive(true)
-                    downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Fetching manifest...")
+                    downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Fetching manifest")
 
                     val selectedTags = EpicConstants.containerLanguageToEpicInstallTags(containerLanguage)
                     val scopes = mutableListOf<VerifyManifestScope>()
@@ -104,7 +104,7 @@ class EpicVerifyManager
                                 if (scopes.size > 1) {
                                     "Verifying ${scope.title} (${index + 1}/${scopes.size})"
                                 } else {
-                                    "Verifying files..."
+                                    "Verifying files"
                                 },
                             )
                             scope to
@@ -137,7 +137,7 @@ class EpicVerifyManager
                             if (scopes.size > 1) {
                                 "Repairing ${scope.title}: ${plan.repairFiles.size} files"
                             } else {
-                                "Repairing ${plan.repairFiles.size} files..."
+                                "Repairing ${plan.repairFiles.size} files"
                             },
                         )
                         val result =
@@ -170,7 +170,7 @@ class EpicVerifyManager
                         )
                     }
 
-                    downloadInfo.updateStatus(DownloadPhase.FINALIZING, "Finalizing verify...")
+                    downloadInfo.updateStatus(DownloadPhase.FINALIZING, "Finalizing verify")
                     chunkCacheDir.deleteRecursively()
                     scopes.forEach { scope ->
                         EpicInstalledManifestStore.saveManifest(installDir, scope.appName, scope.manifestBytes)

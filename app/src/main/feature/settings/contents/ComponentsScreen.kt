@@ -9,7 +9,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -19,13 +23,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -59,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,9 +79,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 
-// ============================================================================
 // Palette (unified with Drivers / Stores / Other / Debug)
-// ============================================================================
 private val BgDark = Color(0xFF18181D)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
@@ -101,9 +107,7 @@ private fun Modifier.noRippleClickable(
     )
 }
 
-// ============================================================================
 // State
-// ============================================================================
 
 data class ComponentItem(
     val key: String,
@@ -112,6 +116,7 @@ data class ComponentItem(
     val isInstalled: Boolean,
     val hasRemote: Boolean,
     val sizeBytes: Long? = null,
+    val isOfficial: Boolean = false,
 )
 
 data class ComponentsDownloadProgress(
@@ -134,9 +139,7 @@ data class ComponentsState(
     val autoCreateContainer: Boolean = true,
 )
 
-// ============================================================================
 // Root
-// ============================================================================
 
 @Composable
 fun ComponentsScreen(
@@ -269,9 +272,7 @@ fun ComponentsScreen(
     }
 }
 
-// ============================================================================
 // Hero header
-// ============================================================================
 
 @Composable
 private fun HeroHeader(
@@ -404,9 +405,7 @@ private fun CountPill(
     }
 }
 
-// ============================================================================
 // Content type tabs
-// ============================================================================
 
 @Composable
 private fun TypeTabsContent(
@@ -494,9 +493,7 @@ private fun TypeTabChip(
     }
 }
 
-// ============================================================================
 // Section label
-// ============================================================================
 
 @Composable
 private fun SectionLabel(
@@ -513,10 +510,9 @@ private fun SectionLabel(
     )
 }
 
-// ============================================================================
 // Component item card
-// ============================================================================
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ComponentItemCard(
     item: ComponentItem,
@@ -562,6 +558,13 @@ private fun ComponentItemCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.basicMarquee(
+                        iterations = Int.MAX_VALUE,
+                        initialDelayMillis = 5000,
+                        repeatDelayMillis = 5000,
+                        velocity = 25.dp,
+                        spacing = MarqueeSpacing(40.dp),
+                    ),
                 )
                 val sizeLabel = formatSizeLabel(item)
                 if (sizeLabel != null) {
@@ -575,35 +578,48 @@ private fun ComponentItemCard(
                 }
             }
             Spacer(Modifier.width(8.dp))
-            if (item.isInstalled) {
-                IconTapButton(
-                    icon = Icons.Outlined.Delete,
-                    tint = DangerRed,
-                    onClick = onRemove,
-                )
-            } else if (item.hasRemote) {
-                SmallPillButton(
-                    label = stringResource(R.string.common_ui_download),
-                    icon = Icons.Outlined.Download,
-                    tint = Accent,
-                    onClick = onDownload,
-                )
-            } else {
-                // Locally extracted profile with no remote URL — non-interactive placeholder.
-                Icon(
-                    imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.5f),
-                    modifier = Modifier.size(18.dp),
-                )
+            // The trailing action (Download / Delete / placeholder) drives the
+            // height; the badges fillMaxHeight() so they always match it exactly.
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (item.isOfficial) {
+                    OfficialBadge(Modifier.fillMaxHeight())
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (isSteamCompatible(item)) {
+                    SteamCompatBadge(Modifier.fillMaxHeight())
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (item.isInstalled) {
+                    IconTapButton(
+                        icon = Icons.Outlined.Delete,
+                        tint = DangerRed,
+                        onClick = onRemove,
+                    )
+                } else if (item.hasRemote) {
+                    SmallPillButton(
+                        label = stringResource(R.string.common_ui_download),
+                        icon = Icons.Outlined.Download,
+                        tint = Accent,
+                        onClick = onDownload,
+                    )
+                } else {
+                    // Locally extracted profile with no remote URL — non-interactive placeholder.
+                    Icon(
+                        imageVector = Icons.Outlined.CloudDownload,
+                        contentDescription = null,
+                        tint = TextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }
 }
 
-// ============================================================================
 // Generic small controls
-// ============================================================================
 
 @Composable
 private fun IconTapButton(
@@ -624,6 +640,50 @@ private fun IconTapButton(
             contentDescription = null,
             tint = tint,
             modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+private fun isSteamCompatible(item: ComponentItem): Boolean =
+    item.verName.contains("steam", ignoreCase = true) ||
+        item.key.contains("steam", ignoreCase = true)
+
+// Badge marking first-party "WinNative" builds. A perfect square (width follows
+// the filled height) in WinNative blue, carrying only the WinNative logo for
+// "WN" branding. Pass Modifier.fillMaxHeight() to match the row's action height.
+@Composable
+private fun OfficialBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Accent.copy(alpha = 0.14f))
+            .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_winnative_badge),
+            contentDescription = "Official WinNative build",
+            modifier = Modifier.fillMaxSize(0.8f),
+        )
+    }
+}
+
+@Composable
+private fun SteamCompatBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(SuccessGreen.copy(alpha = 0.14f))
+            .border(1.dp, SuccessGreen.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Steam",
+            color = SuccessGreen,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -668,9 +728,7 @@ private fun SmallPillButton(
     }
 }
 
-// ============================================================================
 // Empty state
-// ============================================================================
 
 @Composable
 private fun EmptyState() {
@@ -708,9 +766,7 @@ private fun EmptyState() {
     }
 }
 
-// ============================================================================
 // Confirm dialog
-// ============================================================================
 
 @Composable
 private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
@@ -736,19 +792,17 @@ private fun DownloadProgressDialog(progress: ComponentsDownloadProgress) {
     }
 }
 
-// ============================================================================
 // Helpers
-// ============================================================================
 
 @Composable
 private fun formatSizeLabel(item: ComponentItem): String? {
     if (item.isInstalled) {
-        val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: …"
+        val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: --"
         if (bytes <= 0L) return null
         return "${stringResource(R.string.common_ui_size)}: ${formatBytes(bytes)}"
     }
     if (!item.hasRemote) return null
-    val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: …"
+    val bytes = item.sizeBytes ?: return "${stringResource(R.string.common_ui_size)}: --"
     if (bytes <= 0L) return null
     return "${stringResource(R.string.common_ui_size)}: ${formatBytes(bytes)}"
 }

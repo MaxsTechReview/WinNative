@@ -14,16 +14,9 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Publishes the host device's active-network interface addresses into the
- * Wine prefix so Wine reports a live network. Winlator's Wine reads the
- * interface list from {@code <tmpDir>/ifaddrs} (Android sandboxes direct
- * interface enumeration). Without this file, Wine's iphlpapi reports zero
- * interfaces; steam.exe's startup connectivity / Network List Manager check
- * then concludes the machine is offline and shows "Could not connect to
- * Steam network" without ever attempting a CM connection.
- *
- * Ported from the GameNative reference. Re-runs on CONNECTIVITY_ACTION so a
- * Wi-Fi change mid-session is reflected.
+ * Writes active Android network info into the Wine prefix. Wine reads
+ * {@code <tmpDir>/ifaddrs} because Android sandboxes direct interface
+ * enumeration. CONNECTIVITY_ACTION refreshes the files mid-session.
  */
 public class NetworkInfoUpdateComponent extends EnvironmentComponent {
     private static final String TAG = "NetworkInfoUpdateComponent";

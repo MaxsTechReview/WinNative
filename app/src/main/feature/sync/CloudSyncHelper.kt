@@ -162,7 +162,7 @@ object CloudSyncHelper {
 
         return runBlocking {
             when (gameSource) {
-                "STEAM" -> SteamCloudSyncHelper.hasActualLocalSaves(context, appId.toIntOrNull() ?: return@runBlocking false)
+                "STEAM" -> SteamCloudSyncHelper.hasActualLocalSaves(context, appId.toIntOrNull() ?: return@runBlocking false, shortcut.container)
                 "EPIC" -> {
                     val epicAppId = appId.toIntOrNull() ?: return@runBlocking false
                     EpicCloudSavesManager.getResolvedSaveDirectory(context, epicAppId, epicTargetContainerId(shortcut))?.hasAnyFile() == true

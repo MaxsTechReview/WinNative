@@ -12,16 +12,13 @@ import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
 
-/**
- * Manages Epic Games authentication and account operations.
- */
+/** Manages Epic Games authentication and account operations. */
 object EpicAuthManager {
     private val _isLoggedInFlow = MutableStateFlow(false)
     val isLoggedInFlow = _isLoggedInFlow.asStateFlow()
 
-    // Denuvo ownership tokens are server-side valid ~30 minutes and the endpoint is
-    // rate-limited (~5 requests / 24h / game). Cache to disk and re-use a few minutes
-    // under the validity window to avoid burning the quota on relaunches.
+    // Ownership tokens are valid for about 30 minutes and the endpoint is rate-limited.
+    // Cache slightly below that window to avoid burning quota on relaunches.
     private const val OWNERSHIP_TOKEN_CACHE_TTL_MS = 25L * 60L * 1000L
 
     fun updateLoginStatus(context: Context) {
@@ -66,11 +63,9 @@ object EpicAuthManager {
     }
 
     /**
-     * Classify the current on-disk Epic credentials. If the refresh token's known expiry is
-     * already in the past, the credentials file is cleared and a [StoreSessionEvent.SessionExpired]
-     * is emitted on [StoreSessionBus].
+     * Classifies the stored Epic credentials and clears them when the refresh token is expired.
      *
-     * Safe to call from any thread — touches only local disk.
+     * Safe to call from any thread; this only touches local disk.
      */
     fun getAuthStatus(context: Context): StoreAuthStatus {
         if (!hasStoredCredentials(context)) return StoreAuthStatus.LOGGED_OUT
@@ -87,9 +82,8 @@ object EpicAuthManager {
         if (credentials.refreshExpiresAt > 0 && now >= credentials.refreshExpiresAt - refreshBuffer) {
             Timber.i("Epic refresh token expired (refreshExpiresAt=${credentials.refreshExpiresAt}), clearing credentials")
             clearStoredCredentials(context)
-            // No SessionExpired emit here — getAuthStatus is called during startup before the
-            // bus collector is active. The UI already transitions to "logged out" via
-            // isLoggedInFlow. The emit-on-refresh-failure path covers mid-session death.
+            // Startup can call getAuthStatus before bus collectors are active. The login flow
+            // handles startup state; refresh failures emit mid-session expiry events.
             return StoreAuthStatus.EXPIRED
         }
 
@@ -99,7 +93,7 @@ object EpicAuthManager {
             credentials.refreshExpiresAt > 0 ->
                 StoreAuthStatus.REFRESHABLE
             else ->
-                // Legacy on-disk format without refresh_expires_at — probe on next use.
+                // Legacy credentials without refresh_expires_at are probed on next use.
                 StoreAuthStatus.UNKNOWN
         }
     }
@@ -107,9 +101,7 @@ object EpicAuthManager {
     @JvmStatic
     fun isLoggedIn(context: Context): Boolean = getAuthStatus(context).isLoggedInForUi
 
-    /**
-     * Clear stored credentials (logout)
-     */
+    /** Clears stored credentials for logout. */
     fun clearStoredCredentials(context: Context): Boolean =
         try {
             clearOwnershipTokenCache(context)
@@ -120,7 +112,7 @@ object EpicAuthManager {
                 } else {
                     true
                 }
-            // Session is gone — no point running the periodic refresh worker.
+            // The session is gone, so the periodic refresh worker can stop.
             EpicTokenRefreshWorker.cancel(context)
             updateLoginStatus(context)
             result
@@ -129,29 +121,19 @@ object EpicAuthManager {
             false
         }
 
-    /**
-     * Extract authorization code from various input formats:
-     * - Full URL: https://www.epicgames.com/id/api/redirect?code=abc123
-     * - Just code: abc123
-     */
+    /** Extracts an authorization code from a redirect URL or raw code input. */
     private fun extractCodeFromInput(input: String): String {
         val trimmed = input.trim()
-        // Check if it's a URL with code parameter
         if (trimmed.startsWith("http")) {
             val codeMatch = Regex("[?&]code=([^&]+)").find(trimmed)
             return codeMatch?.groupValues?.get(1) ?: ""
         }
-        // Otherwise assume it's already the code
+        // Raw codes are accepted as-is.
         return trimmed
     }
 
     /**
-     * Authenticate with Epic Games using authorization code from OAuth2 flow
-     * Users must visit Epic login page, authenticate, and copy the authorization code
-     *
-     * @param context Android context
-     * @param authorizationCode OAuth authorization code from Epic redirect
-     * @return Result containing EpicCredentials on success, exception on failure
+     * Authenticates with an Epic OAuth authorization code and stores the resulting credentials.
      */
     suspend fun authenticateWithCode(
         context: Context,
@@ -160,13 +142,11 @@ object EpicAuthManager {
         return try {
             Timber.i("Starting Epic authentication with authorization code...")
 
-            // Extract the actual authorization code from URL if needed
             val actualCode = extractCodeFromInput(authorizationCode)
             if (actualCode.isEmpty()) {
                 return Result.failure(Exception("Invalid authorization URL: no code parameter found"))
             }
 
-            // Use native API client for authentication
             Timber.d("Authenticating via EpicAuthClient...")
 
             val authResult = EpicAuthClient.authenticateWithCode(actualCode)
@@ -179,7 +159,6 @@ object EpicAuthManager {
 
             val authResponse = authResult.getOrNull()!!
 
-            // Save credentials to file
             val credentials =
                 EpicCredentials(
                     accessToken = authResponse.accessToken,
@@ -211,7 +190,6 @@ object EpicAuthManager {
                 return Result.failure(Exception("Failed to load credentials"))
             }
 
-            // Check if token is expired (with 5 minute buffer)
             val now = System.currentTimeMillis()
             val expiresAt = credentials.expiresAt
             val bufferMs = 5 * 60 * 1000 // 5 minutes
@@ -256,11 +234,7 @@ object EpicAuthManager {
         }
     }
 
-    /**
-     * Get game launch token for authenticating with Epic Games Services
-     * This should be called immediately before launching a game that requires online authentication
-     *
-     */
+    /** Gets a launch token immediately before starting a game that uses Epic services. */
     suspend fun getGameLaunchToken(
         context: Context,
         namespace: String? = null,
@@ -268,7 +242,6 @@ object EpicAuthManager {
         requiresOwnershipToken: Boolean = false,
     ): Result<EpicGameToken> {
         return try {
-            // Get current valid credentials (will refresh if expired)
             val credentialsResult = getStoredCredentials(context)
             if (credentialsResult.isFailure) {
                 return Result.failure(credentialsResult.exceptionOrNull() ?: Exception("Not authenticated"))
@@ -276,7 +249,6 @@ object EpicAuthManager {
 
             val credentials = credentialsResult.getOrNull()!!
 
-            // Get game exchange token (required for all games)
             Timber.d("Getting game exchange token for launch...")
             val exchangeTokenResult = EpicAuthClient.getGameExchangeToken(credentials.accessToken)
             if (exchangeTokenResult.isFailure) {
@@ -284,7 +256,6 @@ object EpicAuthManager {
             }
             val exchangeCode = exchangeTokenResult.getOrNull()!!
 
-            // Get ownership token if required (for DRM-protected games)
             var ownershipTokenHex: String? = null
             if (requiresOwnershipToken) {
                 if (namespace.isNullOrEmpty() || catalogItemId.isNullOrEmpty()) {
@@ -312,8 +283,7 @@ object EpicAuthManager {
                             Exception("Failed to get ownership token for DRM-protected game: $error"),
                         )
                     } else {
-                        // Convert binary token to hex string for easier handling
-                        // Use toInt() and 0xFF to prevent sign extension of negative bytes
+                        // Mask bytes before hex encoding to avoid sign extension.
                         val tokenBytes = ownershipResult.getOrNull()!!
                         ownershipTokenHex = tokenBytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
                         writeOwnershipTokenHex(context, namespace, catalogItemId, ownershipTokenHex)
@@ -354,7 +324,7 @@ object EpicAuthManager {
             Timber.e(e, "Failed to clear Epic credentials")
             Result.failure(e)
         } finally {
-            updateLoginStatus(context) // Always update status after logout attempt
+            updateLoginStatus(context)
         }
 
     private fun saveCredentials(
@@ -373,8 +343,7 @@ object EpicAuthManager {
 
             authFile.writeText(json.toString())
             updateLoginStatus(context)
-            // Ensure the periodic refresh worker is running whenever creds exist on disk.
-            // Uses KEEP policy so this is a no-op when already scheduled.
+            // Keep the periodic refresh worker scheduled while credentials exist.
             EpicTokenRefreshWorker.schedule(context)
             Timber.d("Credentials saved to ${authFile.absolutePath}")
         } catch (e: Exception) {
@@ -392,8 +361,7 @@ object EpicAuthManager {
                 accessToken = json.getString("access_token"),
                 refreshToken = json.getString("refresh_token"),
                 accountId = json.getString("account_id"),
-                // Use optString so we don't kick existing users out on first run of a build that
-                // started persisting display_name — older credentials.json files don't have it.
+                // Older credentials files may not include display_name.
                 displayName = json.optString("display_name", ""),
                 expiresAt = json.getLong("expires_at"),
                 refreshExpiresAt = json.optLong("refresh_expires_at", 0L),

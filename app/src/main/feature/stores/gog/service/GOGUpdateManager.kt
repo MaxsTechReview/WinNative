@@ -127,7 +127,7 @@ class GOGUpdateManager
                     PluviaApp.events.emitJava(AndroidEvent.DownloadStatusChanged(gameIdInt, true))
                     downloadInfo.setActive(true)
                     downloadInfo.isCancelling = false
-                    downloadInfo.updateStatus(DownloadPhase.DOWNLOADING, "Preparing update...")
+                    downloadInfo.updateStatus(DownloadPhase.DOWNLOADING, "Preparing update")
 
                     MarkerUtils.addMarker(installPath.absolutePath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
                     MarkerUtils.removeMarker(installPath.absolutePath, Marker.DOWNLOAD_COMPLETE_MARKER)

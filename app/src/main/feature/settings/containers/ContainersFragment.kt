@@ -27,22 +27,16 @@ import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
+import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import java.io.File
 import kotlin.math.roundToInt
 
 class ContainersFragment : Fragment() {
     private lateinit var manager: ContainerManager
-    private lateinit var preloaderDialog: PreloaderDialog
 
     private var screenState by mutableStateOf(ContainersScreenState())
     private var storageScanToken = 0L
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        preloaderDialog = PreloaderDialog(requireActivity())
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -154,12 +148,17 @@ class ContainersFragment : Fragment() {
 
     private fun performDuplicateContainer(container: Container) {
         dismissDialog()
-        preloaderDialog.show(R.string.containers_list_duplicating, false)
+        val duplicatingPopup = ContainerProgressPopup(
+            requireActivity(),
+            R.string.containers_list_duplicating,
+            indeterminate = false,
+        )
+        duplicatingPopup.show()
         manager.duplicateContainerAsync(container, { progress ->
-            preloaderDialog.setProgress(progress)
+            duplicatingPopup.setProgress(progress)
         }) {
-            preloaderDialog.setProgress(100)
-            preloaderDialog.closeWithDelay(600)
+            duplicatingPopup.setProgress(100)
+            duplicatingPopup.closeWithDelay(600)
             Handler(Looper.getMainLooper()).postDelayed({
                 loadContainersList()
             }, 600)
@@ -169,14 +168,16 @@ class ContainersFragment : Fragment() {
     private fun performRemoveContainer(container: Container) {
         val ctx = context ?: return
         dismissDialog()
-        preloaderDialog.show(R.string.containers_list_removing)
+        val removingPopup =
+            ContainerProgressPopup(requireActivity(), R.string.containers_list_removing)
+        removingPopup.show()
         for (shortcut in manager.loadShortcuts()) {
             if (shortcut.container == container) {
                 ShortcutsFragment.disableShortcutOnScreen(ctx, shortcut)
             }
         }
         manager.removeContainerAsync(container) {
-            preloaderDialog.close()
+            removingPopup.close()
             loadContainersList()
         }
     }

@@ -110,7 +110,6 @@ object EpicGameLauncher {
 
         Timber.tag("EPIC").i("Game launch token obtained for ${game.appName}")
 
-        // Authentication parameters
         params.add("-AUTH_LOGIN=unused")
         params.add("-AUTH_PASSWORD=${gameToken.authCode}")
         params.add("-AUTH_TYPE=exchangecode")
@@ -118,7 +117,6 @@ object EpicGameLauncher {
         params.add("-epicenv=Prod")
         params.add("-EpicPortal")
 
-        // User identity parameters
         val displayName = gameToken.displayName.takeIf { it.isNotBlank() } ?: "EpicUser"
         val accountId = gameToken.accountId.ifBlank { "0" }
         params.add("-epicusername=$displayName")
@@ -141,7 +139,6 @@ object EpicGameLauncher {
             Timber.tag("EPIC").d("Added deployment id for ${game.appName}")
         }
 
-        // Ownership token for DRM-protected games
         if (ownershipTokenPath != null) {
             params.add("-epicovt=$ownershipTokenPath")
             Timber.tag("EPIC").d("Added ownership token path: $ownershipTokenPath")

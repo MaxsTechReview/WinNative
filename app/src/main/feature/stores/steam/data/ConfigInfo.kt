@@ -1,4 +1,5 @@
 package com.winlator.cmod.feature.stores.steam.data
+
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -9,7 +10,6 @@ data class ConfigInfo(
     val steamControllerTouchTemplateIndex: Int = 0,
     val steamInputManifestPath: String = "",
     val steamControllerConfigDetails: List<SteamControllerConfigDetail> = emptyList(),
-    // val steamControllerTouchConfigDetails: TouchConfigDetails,
 )
 
 @Serializable

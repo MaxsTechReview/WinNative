@@ -199,7 +199,6 @@ object ManifestUtils {
         val modified = mutableListOf<Pair<FileManifest, FileManifest>>()
         val unchanged = mutableListOf<FileManifest>()
 
-        // Find added and modified files
         newFiles.forEach { (filename, newFile) ->
             val oldFile = oldFiles[filename]
             when {
@@ -209,7 +208,6 @@ object ManifestUtils {
             }
         }
 
-        // Find removed files
         oldFiles.forEach { (filename, oldFile) ->
             if (!newFiles.containsKey(filename)) {
                 removed.add(oldFile)

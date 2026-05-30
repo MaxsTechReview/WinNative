@@ -278,7 +278,6 @@ object ContainerCreation {
         desiredName: String = displayNameForProfile(profile),
     ): Container? {
         val wineVersion = ContentsManager.getEntryName(profile)
-        // Find existing container with exact name match
         containerManager.containers.firstOrNull { it.name.equals(desiredName, ignoreCase = true) }?.let {
             if (it.wineVersion != wineVersion) {
                 it.setWineVersion(wineVersion)

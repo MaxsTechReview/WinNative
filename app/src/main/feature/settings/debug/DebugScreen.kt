@@ -97,6 +97,7 @@ data class DebugState(
     val inputLogs: Boolean = false,
     val downloadLogs: Boolean = false,
     val vulkanValidationLayers: Boolean = false,
+    val wnHybridMode: Boolean = false,
 )
 
 // Root
@@ -115,6 +116,7 @@ fun DebugScreen(
     onInputLogsChanged: (Boolean) -> Unit,
     onDownloadLogsChanged: (Boolean) -> Unit,
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
+    onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
@@ -255,6 +257,11 @@ fun DebugScreen(
                 onCheckedChange = onDownloadLogsChanged,
             )
         }
+
+        item(key = "experimental_section") {
+            SectionLabel("Experimental", modifier = Modifier.padding(top = 8.dp))
+        }
+
 
         item(key = "tools_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_tools), modifier = Modifier.padding(top = 8.dp))

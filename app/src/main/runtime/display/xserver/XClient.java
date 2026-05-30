@@ -1,11 +1,13 @@
 package com.winlator.cmod.runtime.display.xserver;
 
+import android.os.Build;
 import androidx.collection.ArrayMap;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.locks.LockSupport;
 
 public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public final XServer xServer;
@@ -155,6 +157,8 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
     return xServer.resourceIDs.isInInterval(id, resourceIDBase);
   }
 
+  private static final long PACER_SPIN_MARGIN_NS = 1_000_000L;
+
   public void enforceAbsoluteFramerate() {
     com.winlator.cmod.runtime.display.renderer.VulkanRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
@@ -174,23 +178,23 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
       nextFrameTimeNanos = now + targetFrameTime;
     }
 
-    long sleepTime = nextFrameTimeNanos - now;
-
-    // Only sleep if we are actually early by more than 0.5ms (VSync Bias)
-    if (sleepTime > 500_000L) {
-      // Deep sleep for the bulk of the time.
-      // 4ms buffer provides maximum stability against Android OS jitter.
-      if (sleepTime > 4_000_000L) {
-        long sleepMs = (sleepTime - 4_000_000L) / 1_000_000L;
-        try {
-          Thread.sleep(sleepMs);
-        } catch (InterruptedException ignored) {}
+    if (nextFrameTimeNanos - now > 500_000L) {
+      boolean interrupted = false;
+      long remaining = nextFrameTimeNanos - System.nanoTime();
+      while (remaining > PACER_SPIN_MARGIN_NS) {
+        LockSupport.parkNanos(remaining - PACER_SPIN_MARGIN_NS);
+        if (Thread.interrupted()) { interrupted = true; break; }
+        remaining = nextFrameTimeNanos - System.nanoTime();
       }
-
-      // High-precision spin for the final 4ms.
-      // This is the "Unity Style" heart-beat that guarantees VSync alignment.
-      while (System.nanoTime() < nextFrameTimeNanos) {
-        // Spin lock for exact nanosecond precision
+      if (!interrupted) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+          while (System.nanoTime() < nextFrameTimeNanos) {
+            Thread.onSpinWait();
+          }
+        } else {
+          while (System.nanoTime() < nextFrameTimeNanos) {
+          }
+        }
       }
     }
 

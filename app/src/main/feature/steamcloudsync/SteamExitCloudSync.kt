@@ -74,6 +74,7 @@ object SteamExitCloudSync {
                                         activity.applicationContext,
                                         appId,
                                         GameSaveBackupManager.BackupOrigin.AUTO,
+                                        shortcut.container,
                                     )
                                 }.onFailure {
                                     Timber.tag("SteamExitCloudSync").w(
@@ -93,6 +94,7 @@ object SteamExitCloudSync {
                         )
                     }
                 },
+                shortcut.container,
             )
         } catch (e: Exception) {
             Timber.tag("SteamExitCloudSync").w(e, "Failed to initiate Steam cloud sync")

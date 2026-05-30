@@ -30,6 +30,7 @@ data class WnOwnedApp(
     val accessToken: String,
     val dlcAppIds: List<Int>,
     val sourcePackageIds: List<Int>,
+    val buildId: Int = 0,
 )
 
 /** Full snapshot of the native library store. */

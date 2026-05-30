@@ -117,11 +117,6 @@
     </string-array>
     <string-array name="fexcore_version_entries">
     </string-array>
-    <string-array name="steam_type_entries">
-        <item>Normal - No optimizations</item>
-        <item>Light - Disables overlay, shaders, UI extras</item>
-        <item>Ultralight - Maximum performance, minimal features</item>
-    </string-array>
     <string-array name="dinput_mapper_type_entries">
         <item>@string/container_config_dinput_legacy</item>
         <item>@string/container_config_dinput_modern</item>

@@ -107,9 +107,6 @@ import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-// ---------------------------------------------------------------------------
-// Black / gray color scheme
-// ---------------------------------------------------------------------------
 private val BgDeep = Color(0xFF18181D)
 private val SidebarBg = Color(0xFF18181D)
 private val ContentBg = Color(0xFF18181D)
@@ -188,9 +185,6 @@ private fun Modifier.smartDropdownAnchor(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Data classes
-// ---------------------------------------------------------------------------
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
 data class EnvVarItem(val key: String, val value: String)
 data class ExtraArgGroup(val header: String, val args: List<String>)
@@ -200,19 +194,13 @@ data class DriveItem(
     val canChangeLetter: Boolean = false,
 )
 
-// ---------------------------------------------------------------------------
-// State holder
-// ---------------------------------------------------------------------------
 class GameSettingsStateHolder {
     val currentSection = mutableIntStateOf(0)
 
-    // True when editing a Container directly; hides shortcut-only fields
-    // and exposes wine version / mouse warp / drives / desktop background.
+    // Container edits expose container-only fields and hide shortcut fields.
     val isContainerEditMode = mutableStateOf(false)
-    // Wine version dropdown is editable only when creating a new container.
     val wineVersionEditable = mutableStateOf(false)
 
-    // General
     val name = mutableStateOf("")
     val launchExePath = mutableStateOf("")
     val launchExeDisplayPath = mutableStateOf("")
@@ -338,15 +326,13 @@ class GameSettingsStateHolder {
 
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
-    val useColdClient = mutableStateOf(false)
+    val steamLauncher = mutableStateOf(true)
+    // Single toggle that drives both the ColdClient launcher and SteamStub DRM
+    // unpacking (persisted as the "useColdClient" + "unpackFiles" keys).
+    val useLegacyLauncher = mutableStateOf(false)
     val useSteamInput = mutableStateOf(false)
-    val forceDlc = mutableStateOf(false)
     val steamOfflineMode = mutableStateOf(false)
-    val unpackFiles = mutableStateOf(false)
     val runtimePatcher = mutableStateOf(false)
-    val launchRealSteam = mutableStateOf(false)
-    val steamTypeEntries = mutableStateOf<List<String>>(emptyList())
-    val selectedSteamType = mutableIntStateOf(0)
 
     // Components
     val winComponentEntries = mutableStateOf<List<String>>(emptyList())
@@ -356,7 +342,6 @@ class GameSettingsStateHolder {
     // Variables
     val envVars = mutableStateOf<List<EnvVarItem>>(emptyList())
 
-    // Input
     val controlsProfileEntries = mutableStateOf<List<String>>(emptyList())
     val selectedControlsProfile = mutableIntStateOf(0)
     val numControllersEntries = mutableStateOf<List<String>>(emptyList())
@@ -401,13 +386,9 @@ class GameSettingsStateHolder {
     // Advanced - Drives
     val drives = mutableStateOf("")
 
-    // Loading state
     val isLoaded = mutableStateOf(false)
 }
 
-// ---------------------------------------------------------------------------
-// Callbacks
-// ---------------------------------------------------------------------------
 interface GameSettingsCallbacks {
     fun onConfirm()
     fun onDismiss()
@@ -440,9 +421,6 @@ interface GameSettingsCallbacks {
     fun onImportSaves() {}
 }
 
-// ---------------------------------------------------------------------------
-// Preset exec args
-// ---------------------------------------------------------------------------
 private val ExtraArgPresets = listOf(
     ExtraArgGroup(
         "Unity", listOf(
@@ -469,15 +447,11 @@ private val ExtraArgPresets = listOf(
     )
 )
 
-// ---------------------------------------------------------------------------
-// Sidebar section definitions
-// ---------------------------------------------------------------------------
 private data class SidebarSection(
     val icon: ImageVector,
     val labelResId: Int
 )
 
-// Section IDs (stable across dynamic lists)
 private const val SEC_GENERAL = 0
 private const val SEC_STEAM = 1
 private const val SEC_DISPLAY = 2
@@ -508,9 +482,7 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     return list
 }
 
-// ===================================================================
 // Main Content Composable
-// ===================================================================
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
@@ -607,9 +579,7 @@ private fun SectionContent(
     }
 }
 
-// ===================================================================
 // Sidebar
-// ===================================================================
 @Composable
 private fun Sidebar(
     title: String,
@@ -789,9 +759,7 @@ private fun SidebarItem(
     }
 }
 
-// ===================================================================
 // Section 0: General
-// ===================================================================
 @Composable
 private fun GeneralSection(
     state: GameSettingsStateHolder,
@@ -1193,9 +1161,7 @@ private fun GeneralSection(
     }
 }
 
-// ===================================================================
 // Section 1: Display
-// ===================================================================
 @Composable
 private fun DisplaySection(
     state: GameSettingsStateHolder,
@@ -1273,9 +1239,7 @@ private fun DisplaySection(
 
 }
 
-// ===================================================================
 // Graphics Driver Configuration Card
-// ===================================================================
 @Composable
 private fun GraphicsDriverConfigCard(
     state: GameSettingsStateHolder,
@@ -1476,9 +1440,7 @@ private fun GraphicsDriverConfigCard(
     }
 }
 
-// ===================================================================
 // Extensions multi-select
-// ===================================================================
 @Composable
 private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
     val extensions = state.gfxAvailableExtensions.value
@@ -1652,9 +1614,7 @@ private fun ExtensionsPickerDialog(
     }
 }
 
-// ===================================================================
 // DXVK Configuration Card
-// ===================================================================
 @Composable
 private fun DXVKConfigCard(
     state: GameSettingsStateHolder,
@@ -1662,7 +1622,6 @@ private fun DXVKConfigCard(
 ) {
     val expanded by state.dxvkConfigExpanded
 
-    // Determine DXVK async support based on currently selected version
     val dxvkVersions = state.dxvkVersionEntries.value
     val selectedIdx = state.dxvkSelectedVersion.intValue
     val selectedVersion = if (selectedIdx in dxvkVersions.indices) dxvkVersions[selectedIdx] else ""
@@ -1791,9 +1750,7 @@ private fun DXVKConfigCard(
     }
 }
 
-// ===================================================================
 // WineD3D Configuration Card
-// ===================================================================
 @Composable
 private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
@@ -1914,95 +1871,32 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     }
 }
 
-// ===================================================================
 // Section: Steam (conditional)
-// ===================================================================
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
 
-    SubsectionLabel(stringResource(R.string.steam_section_emulator))
+    // Steam Launcher is the default Steam path; toggling it on auto-uncheck
+    // every other Steam mode (they're all mutually exclusive launch paths).
+    val onSteamLauncherChange: (Boolean) -> Unit = { enabled ->
+        state.steamLauncher.value = enabled
+        if (enabled) {
+            state.useLegacyLauncher.value = false
+            state.runtimePatcher.value = false
+            state.steamOfflineMode.value = false
+        }
+    }
+
+    SubsectionLabel(stringResource(R.string.steam_section_real_client))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_use_cold_client),
-            checked = state.useColdClient.value,
-            onCheckedChange = {
-                state.useColdClient.value = it
-                // Cold Client and Launch Steam Client are mutually exclusive —
-                // they use different Steam DLL setups that can't coexist at runtime.
-                if (it) state.launchRealSteam.value = false
-            }
+            label = "Steam Launcher",
+            checked = state.steamLauncher.value,
+            onCheckedChange = onSteamLauncherChange
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            stringResource(R.string.shortcuts_properties_use_cold_client_description),
-            color = TextDim,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_use_steam_input),
-            checked = state.useSteamInput.value,
-            onCheckedChange = { state.useSteamInput.value = it }
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_force_dlc),
-            checked = state.forceDlc.value,
-            onCheckedChange = { state.forceDlc.value = it }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.shortcuts_properties_force_dlc_description),
-            color = TextDim,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_steam_offline_mode),
-            checked = state.steamOfflineMode.value,
-            onCheckedChange = { state.steamOfflineMode.value = it }
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_unpack_files),
-            checked = state.unpackFiles.value,
-            onCheckedChange = {
-                state.unpackFiles.value = it
-                // Unpack Files swaps the on-disk exe with a Steamless-stripped copy —
-                // incompatible with the original-exe launch Real Steam does via -applaunch.
-                if (it) state.launchRealSteam.value = false
-            }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.shortcuts_properties_unpack_files_description),
-            color = TextDim,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
-        Spacer(Modifier.height(SettingItemGap))
-
-        SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_runtime_patcher),
-            checked = state.runtimePatcher.value,
-            onCheckedChange = {
-                state.runtimePatcher.value = it
-                // Runtime DRM Patcher injects Goldberg DLLs into the game at launch —
-                // Real Steam talks to the actual Steam client and doesn't want emulated
-                // steamclient DLLs poking around in its address space.
-                if (it) state.launchRealSteam.value = false
-            }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.shortcuts_properties_runtime_patcher_description),
+            "Run the game through the in-Wine Steam Launcher (recommended). Disables other Steam launch modes.",
             color = TextDim,
             fontSize = 11.sp,
             lineHeight = 16.sp
@@ -2011,48 +1905,83 @@ private fun SteamSection(state: GameSettingsStateHolder) {
 
     Spacer(Modifier.height(SettingItemGap))
 
-    SubsectionLabel(stringResource(R.string.steam_section_real_client))
+    SubsectionLabel(stringResource(R.string.steam_section_emulator))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
         SettingCheckbox(
-            label = stringResource(R.string.shortcuts_properties_launch_steam_client_beta),
-            checked = state.launchRealSteam.value,
+            label = stringResource(R.string.shortcuts_properties_use_legacy_launcher),
+            checked = state.useLegacyLauncher.value,
             onCheckedChange = {
-                state.launchRealSteam.value = it
-                // Launch Steam Client runs the game through the real Steam client's
-                // -applaunch pipeline. Cold Client, Unpack Files, and Runtime DRM
-                // Patcher all conflict with that path — disable when this one is on.
+                state.useLegacyLauncher.value = it
                 if (it) {
-                    state.useColdClient.value = false
-                    state.unpackFiles.value = false
-                    state.runtimePatcher.value = false
+                    state.steamLauncher.value = false
                 }
             }
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            stringResource(R.string.shortcuts_properties_launch_steam_client_description),
+            stringResource(R.string.shortcuts_properties_use_legacy_launcher_description),
             color = TextDim,
             fontSize = 11.sp,
             lineHeight = 16.sp
         )
-
         Spacer(Modifier.height(SettingItemGap))
 
-        if (state.steamTypeEntries.value.isNotEmpty()) {
-            SettingDropdown(
-                label = stringResource(R.string.shortcuts_properties_steam_type),
-                entries = state.steamTypeEntries.value,
-                selectedIndex = state.selectedSteamType.intValue,
-                onSelected = { state.selectedSteamType.intValue = it }
-            )
-        }
+        // Use Steam Input — hidden in the UI for now (state/persistence kept intact).
+        /*
+        SettingCheckbox(
+            label = stringResource(R.string.shortcuts_properties_use_steam_input),
+            checked = state.useSteamInput.value,
+            onCheckedChange = {
+                state.useSteamInput.value = it
+                if (it) state.steamLauncher.value = false
+            }
+        )
+        Spacer(Modifier.height(SettingItemGap))
+        */
+
+        SettingCheckbox(
+            label = stringResource(R.string.shortcuts_properties_steam_offline_mode),
+            checked = state.steamOfflineMode.value,
+            onCheckedChange = {
+                state.steamOfflineMode.value = it
+                if (it) state.steamLauncher.value = false
+            },
+            enabled = state.useLegacyLauncher.value
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.shortcuts_properties_steam_offline_mode_description),
+            color = TextDim,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier.alpha(if (state.useLegacyLauncher.value) 1f else 0.4f)
+        )
+        Spacer(Modifier.height(SettingItemGap))
+
+        SettingCheckbox(
+            label = stringResource(R.string.shortcuts_properties_runtime_patcher),
+            checked = state.runtimePatcher.value,
+            onCheckedChange = {
+                state.runtimePatcher.value = it
+                if (it) {
+                    state.steamLauncher.value = false
+                }
+            },
+            enabled = state.useLegacyLauncher.value
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.shortcuts_properties_runtime_patcher_description),
+            color = TextDim,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier.alpha(if (state.useLegacyLauncher.value) 1f else 0.4f)
+        )
     }
 }
 
-// ===================================================================
 // Section 3: Wine
-// ===================================================================
 @Composable
 private fun WineSection(
     state: GameSettingsStateHolder,
@@ -2221,9 +2150,7 @@ private fun WineSection(
     }
 }
 
-// ===================================================================
 // Section 4: Components
-// ===================================================================
 @Composable
 private fun ComponentsSection(
     state: GameSettingsStateHolder,
@@ -2288,9 +2215,7 @@ private fun ComponentsSection(
     }
 }
 
-// ===================================================================
 // Section 5: Variables
-// ===================================================================
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
@@ -2419,7 +2344,6 @@ private fun VariablesSection(
 
         Spacer(Modifier.height(SettingItemGap))
 
-        // Add button
         if (!hasDraftEnvVar) {
             Box(
                 modifier = Modifier
@@ -2641,9 +2565,7 @@ private fun DriveLetterSelector(
     }
 }
 
-// ===================================================================
 // Env Var row: name dropdown + type-aware value editor
-// ===================================================================
 @Composable
 private fun EnvVarRow(
     name: String,
@@ -2763,7 +2685,6 @@ private fun EnvVarRow(
                 // Divider after Custom
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-                // Sort: unselected vars in ABC order, then selected vars in ABC order
                 val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
                 val unselected = allKnown
                     .filter { it !in excludeOtherNames && it != name }
@@ -3052,9 +2973,7 @@ private fun EnvValueTextField(
     )
 }
 
-// ===================================================================
 // Section 6: Input
-// ===================================================================
 @Composable
 private fun InputSection(state: GameSettingsStateHolder) {
     val isContainer = state.isContainerEditMode.value
@@ -3256,9 +3175,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
     }
 }
 
-// ===================================================================
 // Section 7: Advanced
-// ===================================================================
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AdvancedSection(
@@ -3494,9 +3411,7 @@ private fun AdvancedSection(
     }
 }
 
-// ===================================================================
 // Exec Args Helper Dropdown
-// ===================================================================
 @Composable
 private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -3565,9 +3480,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     }
 }
 
-// ===================================================================
 // CPU Chip
-// ===================================================================
 @Composable
 private fun CpuChip(
     index: Int,
@@ -3596,9 +3509,7 @@ private fun CpuChip(
     }
 }
 
-// ===================================================================
 // Reusable Components
-// ===================================================================
 
 @Composable
 private fun HtmlText(
@@ -4009,9 +3920,7 @@ private fun SettingSlider(
     }
 }
 
-// ===================================================================
 // Section 10: Saves
-// ===================================================================
 @Composable
 private fun SavesSection(
     state: GameSettingsStateHolder,

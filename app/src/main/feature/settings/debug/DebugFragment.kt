@@ -139,6 +139,21 @@ class DebugFragment : Fragment() {
                             preferences.edit { putBoolean("enable_vulkan_validation_layers", checked) }
                             refresh()
                         },
+                        onWnHybridModeChanged = { checked ->
+                            com.winlator.cmod.feature.stores.steam.utils.PrefManager
+                                .wnHybridMode = checked
+                            com.winlator.cmod.feature.stores.steam.service
+                                .SteamService.setHybridModeRuntime(checked)
+                            WinToast.show(
+                                ctx,
+                                if (checked) {
+                                    "WN Hybrid mode ON — libsteamclient.so is now the Steam session"
+                                } else {
+                                    "WN Hybrid mode OFF — wn-steam-client resumed"
+                                },
+                            )
+                            refresh()
+                        },
                         onShareLogs = { shareLogs() },
                     )
                 }
@@ -170,6 +185,7 @@ class DebugFragment : Fragment() {
                 inputLogs = preferences.getBoolean("enable_input_logs", false),
                 downloadLogs = preferences.getBoolean("enable_download_logs", false),
                 vulkanValidationLayers = preferences.getBoolean("enable_vulkan_validation_layers", false),
+                wnHybridMode = com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnHybridMode,
             )
     }
 

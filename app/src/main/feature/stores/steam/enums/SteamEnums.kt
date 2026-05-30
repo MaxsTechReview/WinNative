@@ -4,11 +4,10 @@ import java.util.EnumSet
 
 /**
  * In-house replacements for the handful of `in.dragonbra.javasteam.enums.*`
- * enums the app still depended on (Phase 9 — dropping the JavaSteam
- * dependency). Each mirrors JavaSteam's API exactly — `code()`, `from(Int)`,
- * and for bitflag enums the `EnumSet`-based `from`/`code` pair — so consuming
- * code only needs its import line swapped. Integer codes are identical to
- * Steam's wire/DB values, so persisted data is unaffected.
+ * enums the app still depended on. Each mirrors JavaSteam's API exactly:
+ * `code()`, `from(Int)`, and for bitflag enums the `EnumSet`-based
+ * `from`/`code` pair. Integer codes are identical to Steam's wire/DB values,
+ * so persisted data is unaffected.
  */
 
 enum class EPersonaState(private val codeValue: Int) {

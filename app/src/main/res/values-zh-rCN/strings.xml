@@ -31,8 +31,8 @@
     <string name="common_ui_icon">图标</string>
     <string name="common_ui_duplicate">复制</string>
     <string name="common_ui_credits_and_third_party_apps">鸣谢与第三方应用</string>
-    <string name="common_ui_loading">加载中…</string>
-    <string name="common_ui_exporting">正在导出…</string>
+    <string name="common_ui_loading">加载中</string>
+    <string name="common_ui_exporting">正在导出</string>
     <string name="common_ui_enable">启用</string>
     <string name="common_ui_disable">禁用</string>
     <string name="common_ui_force">强制</string>
@@ -43,7 +43,7 @@
     <string name="common_ui_height">高度</string>
     <string name="common_ui_open_file">打开文件</string>
     <string name="common_ui_download_file">下载文件</string>
-    <string name="common_ui_downloading_file">正在下载文件...</string>
+    <string name="common_ui_downloading_file">正在下载文件</string>
     <string name="common_ui_browse">浏览</string>
     <string name="common_ui_options">选项</string>
     <string name="common_ui_export">导出</string>
@@ -106,7 +106,7 @@
     <string name="common_ui_application">应用程序</string>
     <string name="common_ui_check">检查</string>
     <string name="store_game_check_for_update">检查更新</string>
-    <string name="store_game_checking_for_update">正在检查...</string>
+    <string name="store_game_checking_for_update">正在检查</string>
     <string name="store_game_download_update">下载更新</string>
     <string name="store_game_no_update_available">没有可用更新</string>
     <string name="store_game_update_available">有可用更新</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">文件验证完成</string>
     <string name="store_game_verify_failed_notice">文件验证失败</string>
     <string name="store_game_progress_background_hint">你可以关闭此窗口 — 它会继续运行。可随时在下载标签页查看。</string>
-    <string name="store_game_checking_updates">正在检查更新…</string>
+    <string name="store_game_checking_updates">正在检查更新</string>
     <string name="store_game_no_updates_notice">没有可用更新</string>
     <string name="store_game_update_complete">更新完成</string>
     <string name="store_game_update_failed_notice">更新失败</string>
@@ -257,9 +257,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">新建容器</string>
     <string name="containers_list_edit">编辑容器</string>
-    <string name="containers_list_creating">正在创建容器…</string>
-    <string name="containers_list_removing">正在移除容器…</string>
-    <string name="containers_list_duplicating">正在复制容器…</string>
+    <string name="containers_list_creating">正在创建容器</string>
+    <string name="containers_list_removing">正在移除容器</string>
+    <string name="containers_list_duplicating">正在复制容器</string>
     <string name="containers_list_remove_title">移除容器</string>
     <string name="containers_list_duplicate_title">复制容器</string>
     <string name="containers_list_confirm_remove">您要移除此容器吗？</string>
@@ -287,17 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">禁用 XInput（独占鼠标/键盘控制）</string>
     <string name="shortcuts_properties_exclusive_input">独占输入</string>
     <string name="shortcuts_properties_custom_game_settings">自定义游戏设置</string>
-    <string name="shortcuts_properties_use_cold_client">使用 ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam 游戏的 Steam 模拟模式 — 处理 DRM、成就和 DLC。推荐用于所有 Steam 游戏。</string>
-    <string name="shortcuts_properties_unpack_files">旧版 DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">从 exe 中移除 SteamStub DRM。一次性操作。仅在游戏出问题时禁用。</string>
-    <string name="shortcuts_properties_force_dlc">强制 DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">如果 DLC 未被检测到或 DLC 存档无法正常工作，请启用。</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">启动 Steam 客户端（测试版）</string>
-    <string name="shortcuts_properties_launch_steam_client_description">在 Wine 中运行真实 Steam 客户端。需要账号。可能会降低性能；并非所有游戏都支持。</string>
-    <string name="shortcuts_properties_steam_type">Steam 客户端性能</string>
-    <string name="steam_section_emulator">Steam 模拟器 (Goldberg)</string>
-    <string name="steam_section_real_client">真实 Steam 客户端</string>
     <string name="shortcuts_properties_use_steam_input">使用 Steam 输入</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 离线模式</string>
     <string name="shortcuts_properties_reset">重置属性</string>
@@ -525,6 +514,7 @@
     <string name="container_graphics_bcn_emulation_type">BCn 模拟类型</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 模拟缓存</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 游戏超分辨率 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">边缘锐度</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">您要复制此预设吗？</string>
     <string name="container_presets_confirm_remove">您要移除此预设吗？</string>
@@ -544,7 +534,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">使用 DRI3 扩展</string>
     <string name="session_xserver_simulate_touch_screen">模拟触摸屏</string>
     <string name="session_xserver_preferences_button_text">   偏好设置   </string>
     <string name="session_xserver_extra_keys_config_desc">您可以在此设置 extra-keys 变量的值，类似于 Termux 应用（请阅读 <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">此文档</a>）及更多内容 \n
@@ -560,12 +549,6 @@
     <string name="session_xserver_pref_kbd">键盘</string>
     <string name="session_xserver_pref_other">其他</string>
     <string name="session_xserver_pref_version">版本</string>
-    <string name="session_xserver_use_dri3_description">禁用可能修复某些设备上的图形故障</string>
-    <string name="session_xserver_native_rendering">原生渲染</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 硬件渲染</string>
-    <string name="session_xserver_native_rendering_disabled">软件 WSI 回退</string>
-    <string name="session_xserver_native_rendering_enabled_toast">原生渲染已启用（下次启动时生效）</string>
-    <string name="session_xserver_native_rendering_disabled_toast">原生渲染已禁用（下次启动时生效）</string>
     <string name="session_xserver_notification_description">WinNative XServer 消息</string>
     <string name="session_xserver_notification_content">WinNative 正在运行，请勿关闭或滑动移除此通知</string>
 
@@ -772,7 +755,7 @@
     <string name="settings_audio_sound_font_installed_failed">SoundFont 安装失败！</string>
     <string name="settings_audio_sound_font_already_exist">您要安装的 SoundFont 已存在。</string>
     <string name="settings_audio_unable_to_install_soundfont">无法安装 SoundFont</string>
-    <string name="settings_audio_installing_soundfont">正在安装 SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">正在安装 SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">SoundFont 格式错误。</string>
     <string name="settings_audio_cannot_remove_default">无法移除默认 SoundFont</string>
     <string name="settings_audio_summary">安装、移除和选择用于 MIDI 播放的 SoundFont。</string>
@@ -828,7 +811,7 @@
     <string name="settings_content_empty_subtitle">安装一个包或切换类型以开始。</string>
     <string name="settings_content_container_created">已创建容器：%1$s</string>
     <string name="settings_content_download_failed">下载失败。</string>
-    <string name="common_ui_working">处理中…</string>
+    <string name="common_ui_working">处理中</string>
     <string name="settings_content_desc_wine">由 Wine 项目制作；将 Win32 调用转换为原生 Linux/Android 服务。</string>
     <string name="settings_content_desc_proton">由 Valve 制作；基于 Wine 的运行时，带有 Windows 游戏补丁。</string>
     <string name="settings_content_desc_dxvk">将 Direct3D 9、10 和 11 图形调用转换为 Vulkan。</string>
@@ -847,8 +830,8 @@
     <string name="settings_content_downloading_title">正在下载内容</string>
     <string name="settings_content_installing_title">正在安装内容</string>
     <string name="settings_content_extracting_title">正在解压内容</string>
-    <string name="settings_content_extracting_detail">正在解压…（%1$d 个文件）</string>
-    <string name="settings_content_preparing_package">正在准备包…</string>
+    <string name="settings_content_extracting_detail">正在解压（%1$d 个文件）</string>
+    <string name="settings_content_preparing_package">正在准备包</string>
     <string name="settings_content_download_complete">下载完成</string>
     <string name="settings_content_already_installed_title">组件已安装</string>
     <string name="settings_content_already_installed_message">此组件已安装。再次下载前请先移除已安装的副本。
@@ -880,7 +863,7 @@
     <string name="settings_drivers_remove_repo_title">移除仓库？</string>
     <string name="settings_drivers_remove_repo_message">%1$s 将从您的仓库列表中移除。</string>
     <string name="settings_drivers_repo_tap_to_load">点击加载版本</string>
-    <string name="settings_drivers_repo_loading_releases">正在加载版本…</string>
+    <string name="settings_drivers_repo_loading_releases">正在加载版本</string>
     <string name="settings_drivers_repo_release_count">已加载 %1$d 个版本</string>
     <string name="settings_drivers_repo_no_release_assets">在获取的版本中未找到可下载的 ZIP 资源。</string>
     <string name="settings_drivers_repo_fetch_failed">无法加载 GitHub 版本。</string>
@@ -890,7 +873,7 @@
     <string name="settings_drivers_manager">驱动管理器</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">正在安装系统文件…</string>
+    <string name="setup_wizard_installing_system_files">正在安装系统文件</string>
     <string name="setup_wizard_unable_to_install_system_files">无法安装系统文件</string>
     <string name="setup_wizard_system_image_not_installed">系统镜像未安装。请先安装组件。</string>
     <string name="setup_wizard_recommended_components">推荐组件</string>
@@ -1026,20 +1009,20 @@
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">容器</string>
-    <string name="preloader_initializing">正在初始化…</string>
-    <string name="preloader_launching">正在启动…</string>
-    <string name="preloader_closing">正在关闭 %1$s…</string>
-    <string name="preloader_setup_environment">正在设置环境…</string>
-    <string name="preloader_retrying_steam_client_download">正在重试下载 Steam 客户端…</string>
-    <string name="preloader_installing_mono">正在安装 Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">正在安装运行库…</string>
-    <string name="preloader_unpacking_exe">正在解压游戏可执行文件…</string>
-    <string name="preloader_downloading_cloud">正在下载云存档…</string>
-    <string name="preloader_syncing_cloud">正在同步云存档…</string>
-    <string name="preloader_uploading_cloud">正在上传云存档…</string>
-    <string name="preloader_checking_cloud">正在检查云存档…</string>
-    <string name="preloader_cloud_sync_retry">%1$s 重试 %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">云同步下载中…</string>
+    <string name="preloader_initializing">正在初始化</string>
+    <string name="preloader_launching">正在启动</string>
+    <string name="preloader_closing">正在关闭 %1$s</string>
+    <string name="preloader_setup_environment">正在设置环境</string>
+    <string name="preloader_retrying_steam_client_download">正在重试下载 Steam 客户端</string>
+    <string name="preloader_installing_mono">正在安装 Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">正在安装运行库</string>
+    <string name="preloader_unpacking_exe">正在解压游戏可执行文件</string>
+    <string name="preloader_downloading_cloud">正在下载云存档</string>
+    <string name="preloader_syncing_cloud">正在同步云存档</string>
+    <string name="preloader_uploading_cloud">正在上传云存档</string>
+    <string name="preloader_checking_cloud">正在检查云存档</string>
+    <string name="preloader_cloud_sync_retry">%1$s 重试 %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">云同步下载中</string>
     <string name="cloud_sync_failed_provider">%1$s 云同步失败。</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1081,7 +1064,6 @@
     <string name="session_drawer_rail_label_mouse">鼠标</string>
     <string name="session_drawer_rail_label_fullscreen">全屏</string>
     <string name="session_drawer_rail_label_pip">画中画</string>
-    <string name="session_drawer_rail_label_native">原生</string>
     <string name="session_drawer_rail_label_magnifier">缩放</string>
     <string name="session_drawer_rail_label_task_manager">任务</string>
     <string name="session_drawer_rail_label_logs">日志</string>
@@ -1109,8 +1091,8 @@
     <string name="cloud_sync_title">云同步</string>
     <string name="cloud_sync_enabled_summary">启动时下载云存档，并在退出时同步/备份。</string>
     <string name="cloud_sync_disabled_summary">启动此游戏时不下载云存档，也不在退出时同步。</string>
-    <string name="cloud_saves_backing_up">正在备份云存档…</string>
-    <string name="cloud_saves_restoring">正在恢复云存档…</string>
+    <string name="cloud_saves_backing_up">正在备份云存档</string>
+    <string name="cloud_saves_restoring">正在恢复云存档</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1177,18 +1159,18 @@
     <string name="container_surface_effect">画面效果</string>
     <string name="downloads_queue_cancel_download_confirm">取消 %1$s 的下载并删除所有已下载文件？</string>
     <string name="downloads_queue_paused_resume_hint">已暂停 - 点击"继续"以恢复</string>
-    <string name="downloads_queue_phase_applying_data">正在应用数据…</string>
-    <string name="downloads_queue_phase_downloading">正在下载…</string>
-    <string name="downloads_queue_phase_downloading_file">正在下载… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">正在收尾…</string>
-    <string name="downloads_queue_phase_patching">正在打补丁…</string>
-    <string name="downloads_queue_phase_preparing">正在准备…</string>
+    <string name="downloads_queue_phase_applying_data">正在应用数据</string>
+    <string name="downloads_queue_phase_downloading">正在下载</string>
+    <string name="downloads_queue_phase_downloading_file">正在下载 [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">正在收尾</string>
+    <string name="downloads_queue_phase_patching">正在打补丁</string>
+    <string name="downloads_queue_phase_preparing">正在准备</string>
     <string name="downloads_queue_phase_queued">队列中</string>
     <string name="downloads_queue_phase_unknown">未知</string>
-    <string name="downloads_queue_phase_unpacking">正在解压…</string>
-    <string name="downloads_queue_phase_updating">正在更新…</string>
-    <string name="downloads_queue_phase_verifying">正在验证…</string>
-    <string name="downloads_queue_phase_verifying_file">正在验证… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">正在解压</string>
+    <string name="downloads_queue_phase_updating">正在更新</string>
+    <string name="downloads_queue_phase_verifying">正在验证</string>
+    <string name="downloads_queue_phase_verifying_file">正在验证 [%1$s]</string>
     <string name="downloads_queue_status_label">状态：</string>
     <string name="downloads_queue_this_game">此游戏</string>
     <string name="hud_position_bottom_center">底部居中</string>
@@ -1237,7 +1219,7 @@
     <string name="shortcuts_library_artwork_title">库封面</string>
     <string name="shortcuts_list_readded_existing">已重新添加现有快捷方式</string>
     <string name="shortcuts_properties_runtime_patcher">运行时 DRM 破解器</string>
-    <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用 Unpack Files 失败时使用。</string>
+    <string name="shortcuts_properties_runtime_patcher_description">启动时注入 DRM 补丁 DLL。会降低 FPS——仅在单独使用旧版启动器失败时使用。</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">选择存档文件夹</string>
     <string name="cloud_saves_custom_folder_label">存档文件夹</string>
@@ -1264,5 +1246,60 @@
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">应用 ID 无效</string>
     <string name="cloud_saves_label_saved">标签已保存</string>
+    <string name="downloads_queue_cancel_all_title">取消所有下载？</string>
+    <string name="downloads_queue_cancel_all_warning">取消 DLC、游戏或更新下载可能会损坏你的游戏安装。\n\n确定要取消所有下载并删除目前已下载的文件吗？</string>
+    <string name="shortcuts_properties_use_legacy_launcher">使用旧版启动器</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">旧版 Steam 模拟：通过 ColdClient 启动器运行游戏，并从 exe 中移除 SteamStub DRM。仅用于无法使用 Steam Launcher 的旧游戏。</string>
+    <string name="steam_section_real_client">WinNative 真实 Steam 客户端</string>
+    <string name="steam_section_emulator">旧版 Steam 模拟器</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">让模拟的 Steam 客户端报告为离线，这样游戏就不会尝试在线连接。适用于在 Steam 网络检查时卡住的游戏。</string>
+    <string name="input_controls_select_style">选择样式</string>
+    <string name="input_controls_select_label_theme">按钮标签</string>
+    <string name="input_controls_style_original">原版</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">原版</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">内置配置文件 - 已创建可编辑副本。</string>
+    <string name="input_controls_editor_confirm_reset_profile">将此配置文件重置为原始布局？你所做的任何更改都会丢失。</string>
+    <string name="input_controls_editor_profile_reset">配置文件已重置为原始布局。</string>
+    <string name="input_controls_editor_reset_unavailable">此配置文件没有可用的原始快照。</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan 显示同步</string>
+    <string name="cloud_sync_disable_title">禁用云存档</string>
+    <string name="cloud_saves_steam_push_label">推送到 Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">强制上传本地存档</string>
+    <string name="cloud_saves_steam_push_success">存档已推送到 Steam Cloud。</string>
+    <string name="cloud_saves_steam_push_failed">无法将存档推送到 Steam Cloud。</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud 目前无法访问。正在后台重新连接重新上线后点按刷新。</string>
+    <string name="steam_session_refused_event">Steam 拒绝了缓存的会话 (EResult=%1$d)。请重新登录。</string>
+    <string name="settings_hud_record_to_file_title">将性能记录到文件</string>
+    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标写入 /WinNative/logs/。</string>
+    <string name="settings_leaderboard_category">性能</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">正在准备 Steam 环境</string>
+    <string name="preloader_starting_wine">正在启动 Wine</string>
+    <string name="preloader_starting_steam_launcher">正在启动 Steam Launcher</string>
+    <string name="preloader_loading_steam_client">正在加载 Steam 客户端</string>
+    <string name="preloader_connecting_to_steam">正在连接 Steam</string>
+    <string name="preloader_signing_in_to_steam">正在登录 Steam</string>
+    <string name="preloader_fetching_game_info">已登录 — 正在获取游戏信息</string>
+    <string name="preloader_steam_ready">Steam 已就绪</string>
+    <string name="preloader_updating_game_info">正在更新游戏信息</string>
+    <string name="preloader_verifying_install">正在验证安装</string>
+    <string name="preloader_scanning_redists">正在扫描运行库</string>
+    <string name="preloader_installing_redist_single">正在安装运行库</string>
+    <string name="preloader_installing_named_redist">正在安装 %1$s</string>
+    <string name="preloader_installing_named_redist_progress">正在安装 %1$s（%2$s）</string>
+    <string name="preloader_redists_ready">运行库已就绪</string>
+    <string name="preloader_no_redists">没有要安装的运行库</string>
+    <string name="preloader_steam_service_running">Steam 服务正在运行</string>
+    <string name="preloader_launching_game">正在启动 %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher 失败 — 正在重新准备资源</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher 无法启动。正在重新准备资源 — 请重新启动</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher 已到达游戏，但游戏未启动</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">正在加载 Workshop 项目</string>
+    <string name="workshop_search_items">搜索 Workshop 项目</string>
+    <string name="common_ui_failed">失败</string>
 </resources>
 

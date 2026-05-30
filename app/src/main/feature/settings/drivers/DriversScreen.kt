@@ -361,9 +361,7 @@ fun DriversScreen(
     }
 }
 
-// ============================================================================
 // Hero header
-// ============================================================================
 
 @Composable
 private fun HeroHeader(
@@ -555,9 +553,7 @@ private fun HeroButton(
     }
 }
 
-// ============================================================================
 // Section label
-// ============================================================================
 
 @Composable
 private fun SectionLabel(
@@ -574,9 +570,7 @@ private fun SectionLabel(
     )
 }
 
-// ============================================================================
 // Installed driver card
-// ============================================================================
 
 @Composable
 private fun InstalledDriverCard(
@@ -674,9 +668,7 @@ private fun InstalledDriverCard(
     }
 }
 
-// ============================================================================
 // Repo card with inline expandable releases
-// ============================================================================
 
 @Composable
 private fun RepoCard(
@@ -885,9 +877,7 @@ private fun LoadingPlaceholder() {
     )
 }
 
-// ============================================================================
 // Release card with expandable notes + assets
-// ============================================================================
 
 @Composable
 private fun ReleaseCard(
@@ -1094,9 +1084,7 @@ private fun InstalledPill() {
     }
 }
 
-// ============================================================================
 // Generic small controls
-// ============================================================================
 
 @Composable
 private fun IconTapButton(
@@ -1187,9 +1175,7 @@ private fun DialogActionButton(
     }
 }
 
-// ============================================================================
 // Empty state
-// ============================================================================
 
 @Composable
 private fun EmptyRepoCard() {
@@ -1276,9 +1262,7 @@ private fun EmptyState() {
     }
 }
 
-// ============================================================================
 // Dialogs
-// ============================================================================
 
 @Composable
 private fun RepoEditDialog(
@@ -1370,9 +1354,7 @@ private fun RepoEditDialog(
     }
 }
 
-// ============================================================================
 // Download / install progress dialog
-// ============================================================================
 
 @Composable
 private fun DownloadProgressDialog(progress: DownloadProgress) {

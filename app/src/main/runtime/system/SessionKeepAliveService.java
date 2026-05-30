@@ -371,6 +371,16 @@ public class SessionKeepAliveService extends Service {
         new Thread(() -> {
             try {
                 Thread.sleep(1500L);
+                if (com.winlator.cmod.feature.stores.steam.service.SteamService
+                        .Companion.isBionicHandoffActive()) {
+                    try {
+                        boolean kicked = com.winlator.cmod.feature.stores.steam.service.SteamService
+                                .Companion.bionicHandoffReleaseAndKickPlayingSessionBlocking(true, 2500L);
+                        Log.i(TAG, "Task removal Steam cleanup: kickedPlayingSession=" + kicked);
+                    } catch (Throwable t) {
+                        Log.w(TAG, "Task removal Steam cleanup failed", t);
+                    }
+                }
                 ProcessHelper.terminateSessionProcessesAndWait(1500, true);
                 ProcessHelper.drainDeadChildren("session keep-alive task removed");
             } catch (Throwable t) {

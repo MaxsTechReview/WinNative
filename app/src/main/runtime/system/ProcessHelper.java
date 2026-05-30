@@ -286,9 +286,28 @@ public abstract class ProcessHelper {
       pb.directory(workingDir);
       pb.environment().putAll(EnvironmentManager.getEnvVars());
       if (debugCallbacks.isEmpty()) {
-        File nullFile = new File("/dev/null");
-        pb.redirectError(nullFile);
-        pb.redirectOutput(nullFile);
+        String wineDebug = EnvironmentManager.getEnvVars().get("WINEDEBUG");
+        boolean wineDebugActive = wineDebug != null
+                && !wineDebug.isEmpty()
+                && !wineDebug.equals("-all");
+        Log.i("ProcessHelper",
+                "exec wine-debug branch: WINEDEBUG='" + wineDebug + "' active=" + wineDebugActive
+                        + " cmd=" + command.substring(0, Math.min(80, command.length())));
+        if (wineDebugActive) {
+          File logFile = new File("/data/data/com.winnative.cmod/files/wine_stderr.log");
+          try {
+            if (logFile.exists() && logFile.length() > 16 * 1024 * 1024) logFile.delete();
+          } catch (Exception ignored) {}
+          pb.redirectErrorStream(true);
+          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+          Log.i("ProcessHelper", "exec wine-debug: redirecting stderr+stdout to " + logFile.getAbsolutePath());
+        } else {
+          File nullFile = new File("/dev/null");
+          pb.redirectError(nullFile);
+          pb.redirectOutput(nullFile);
+        }
+      } else {
+        Log.i("ProcessHelper", "exec: debugCallbacks non-empty (" + debugCallbacks.size() + "), routing wine stderr to logcat");
       }
       java.lang.Process process = pb.start();
       if (!debugCallbacks.isEmpty()) {

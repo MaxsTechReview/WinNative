@@ -32,7 +32,7 @@
     <string name="common_ui_icon">Значок</string>
     <string name="common_ui_duplicate">Дублировать</string>
     <string name="common_ui_credits_and_third_party_apps">Авторы и сторонние приложения</string>
-    <string name="common_ui_loading">Загрузка…</string>
+    <string name="common_ui_loading">Загрузка</string>
     <string name="common_ui_enable">Включить</string>
     <string name="common_ui_disable">Отключить</string>
     <string name="common_ui_force">Принудительно</string>
@@ -44,7 +44,7 @@
     <string name="common_ui_height">Высота</string>
     <string name="common_ui_open_file">Открыть файл</string>
     <string name="common_ui_download_file">Скачать файл</string>
-    <string name="common_ui_downloading_file">Скачивание файла...</string>
+    <string name="common_ui_downloading_file">Скачивание файла</string>
     <string name="common_ui_browse">Обзор</string>
     <string name="common_ui_options">Параметры</string>
     <string name="common_ui_export">Экспорт</string>
@@ -107,7 +107,7 @@
     <string name="common_ui_application">Приложение</string>
     <string name="common_ui_check">Проверить</string>
     <string name="store_game_check_for_update">Проверить обновления</string>
-    <string name="store_game_checking_for_update">Проверка...</string>
+    <string name="store_game_checking_for_update">Проверка</string>
     <string name="store_game_download_update">Скачать обновление</string>
     <string name="store_game_no_update_available">Обновлений нет</string>
     <string name="store_game_update_available">Доступно обновление</string>
@@ -120,7 +120,7 @@
     <string name="store_game_verify_complete">Проверка файлов завершена</string>
     <string name="store_game_verify_failed_notice">Не удалось проверить файлы</string>
     <string name="store_game_progress_background_hint">Это окно можно закрыть — процесс продолжит работу. Вкладку «Загрузки» можно проверить в любое время.</string>
-    <string name="store_game_checking_updates">Проверка обновлений…</string>
+    <string name="store_game_checking_updates">Проверка обновлений</string>
     <string name="store_game_no_updates_notice">Нет доступных обновлений</string>
     <string name="store_game_update_complete">Обновление завершено</string>
     <string name="store_game_update_failed_notice">Обновление не выполнено</string>
@@ -248,18 +248,18 @@
     <string name="downloads_queue_pause_all">Приостановить все</string>
     <string name="downloads_queue_clear">Очистить</string>
     <string name="downloads_queue_status_label">Статус:</string>
-    <string name="downloads_queue_phase_downloading">Загрузка…</string>
-    <string name="downloads_queue_phase_downloading_file">Загрузка… [%1$s]</string>
+    <string name="downloads_queue_phase_downloading">Загрузка</string>
+    <string name="downloads_queue_phase_downloading_file">Загрузка [%1$s]</string>
     <string name="downloads_queue_phase_queued">В очереди</string>
     <string name="downloads_queue_phase_paused">Приостановлено</string>
-    <string name="downloads_queue_phase_preparing">Подготовка…</string>
-    <string name="downloads_queue_phase_verifying">Проверка…</string>
-    <string name="downloads_queue_phase_verifying_file">Проверка… [%1$s]</string>
-    <string name="downloads_queue_phase_patching">Применение патча…</string>
-    <string name="downloads_queue_phase_applying_data">Применение данных…</string>
-    <string name="downloads_queue_phase_finalizing">Завершение…</string>
-    <string name="downloads_queue_phase_unpacking">Распаковка…</string>
-    <string name="downloads_queue_phase_updating">Обновление…</string>
+    <string name="downloads_queue_phase_preparing">Подготовка</string>
+    <string name="downloads_queue_phase_verifying">Проверка</string>
+    <string name="downloads_queue_phase_verifying_file">Проверка [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Применение патча</string>
+    <string name="downloads_queue_phase_applying_data">Применение данных</string>
+    <string name="downloads_queue_phase_finalizing">Завершение</string>
+    <string name="downloads_queue_phase_unpacking">Распаковка</string>
+    <string name="downloads_queue_phase_updating">Обновление</string>
     <string name="downloads_queue_phase_complete">Завершено</string>
     <string name="downloads_queue_phase_cancelled">Отменено</string>
     <string name="downloads_queue_phase_failed">Ошибка: %1$s</string>
@@ -274,9 +274,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Новый контейнер</string>
     <string name="containers_list_edit">Редактировать контейнер</string>
-    <string name="containers_list_creating">Создание контейнера…</string>
-    <string name="containers_list_removing">Удаление контейнера…</string>
-    <string name="containers_list_duplicating">Дублирование контейнера…</string>
+    <string name="containers_list_creating">Создание контейнера</string>
+    <string name="containers_list_removing">Удаление контейнера</string>
+    <string name="containers_list_duplicating">Дублирование контейнера</string>
     <string name="containers_list_remove_title">Удалить контейнер</string>
     <string name="containers_list_duplicate_title">Дублировать контейнер</string>
     <string name="containers_list_confirm_remove">Вы хотите удалить этот контейнер?</string>
@@ -314,20 +314,9 @@
     <string name="num_controllers">Количество контроллеров</string>
     <string name="shortcuts_properties_exclusive_input">Эксклюзивный ввод</string>
     <string name="shortcuts_properties_custom_game_settings">Пользовательские настройки игры</string>
-    <string name="shortcuts_properties_use_cold_client">Использовать лаунчер ColdClient</string>
-    <string name="shortcuts_properties_use_cold_client_description">Режим эмуляции Steam для игр Steam — обрабатывает DRM, достижения и DLC. Рекомендуется для всех игр Steam.</string>
-    <string name="shortcuts_properties_unpack_files">Распаковать файлы</string>
-    <string name="shortcuts_properties_unpack_files_description">Удаляет SteamStub DRM из exe. Одноразовая операция. Отключайте только если игра перестала работать.</string>
     <string name="shortcuts_properties_runtime_patcher">Runtime DRM-патчер</string>
-    <string name="shortcuts_properties_runtime_patcher_description">Внедряет DLL DRM-патчера при запуске. Снижает FPS — используйте только если распаковка файлов не помогает.</string>
-    <string name="shortcuts_properties_force_dlc">Принудительно включить DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Включите, если DLC не обнаруживаются или сохранения DLC не работают.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Запустить клиент Steam (бета)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Запускает настоящий клиент Steam в Wine. Требуется учетная запись. Может снизить производительность; не все игры работают.</string>
-    <string name="shortcuts_properties_steam_type">Производительность клиента Steam</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Внедряет DLL DRM-патчера при запуске. Снижает FPS — используйте только если один устаревший лаунчер не помогает.</string>
     <string name="steam_section_title">Steam</string>
-    <string name="steam_section_emulator">Эмулятор Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Настоящий клиент Steam</string>
     <string name="shortcuts_properties_use_steam_input">Использовать Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Офлайн-режим Steam</string>
     <string name="shortcuts_properties_reset">Сбросить свойства</string>
@@ -550,7 +539,6 @@
     <string name="container_presets_cannot_export">Невозможно экспортировать этот пресет</string>
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Использовать расширение DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Имитировать сенсорный экран</string>
     <string name="session_xserver_preferences_button_text">ПРЕДПОЧТЕНИЯ</string>
     <string name="session_xserver_extra_keys_config_desc">Здесь вы можете установить значение переменной дополнительных ключей, как в приложении Termux (читайте</string>
@@ -560,12 +548,6 @@
     <string name="session_xserver_pref_kbd">Клавиатура</string>
     <string name="session_xserver_pref_other">Другое</string>
     <string name="session_xserver_pref_version">Версия</string>
-    <string name="session_xserver_use_dri3_description">Отключение может исправить графические сбои на некоторых устройствах.</string>
-    <string name="session_xserver_native_rendering">Нативный рендеринг</string>
-    <string name="session_xserver_native_rendering_enabled">Аппаратный рендеринг DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Резервный вариант программного обеспечения WSI</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Нативный рендеринг включен (вступит в силу при следующем запуске)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Нативный рендеринг отключен (вступит в силу при следующем запуске)</string>
     <string name="session_xserver_notification_description">Сообщения WinNative XServer</string>
     <string name="session_xserver_notification_content">WinNative запущен, не уничтожайте и не смахивайте это уведомление</string>
     <!-- Session > Drawer Menu -->
@@ -589,7 +571,7 @@
     <string name="session_drawer_super_resolution">Супер разрешение</string>
     <string name="session_drawer_upscaler_mode">Апскейлер</string>
     <string name="session_drawer_upscaler_fsr">SGSR 1</string>
-    <string name="session_drawer_sgsr_edge_sharpness" translatable="false">Edge Sharpness</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Резкость краёв</string>
     <string name="session_drawer_vivid">Насыщенный</string>
     <string name="session_drawer_vivid_strength">Интенсивность насыщенности</string>
     <string name="session_drawer_color_profile">Цветовой эффект</string>
@@ -652,7 +634,6 @@
     <string name="session_drawer_rail_label_mouse">Мышь</string>
     <string name="session_drawer_rail_label_fullscreen">Полноэкранный</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Нативный</string>
     <string name="session_drawer_rail_label_magnifier">Лупа</string>
     <string name="session_drawer_rail_label_task_manager">Задачи</string>
     <string name="session_drawer_rail_label_logs">Журналы</string>
@@ -842,7 +823,7 @@
     <string name="settings_audio_sound_font_installed_failed">Не удалось установить Soundfont!</string>
     <string name="settings_audio_sound_font_already_exist">Звуковой шрифт, который вы хотите установить, уже существует.</string>
     <string name="settings_audio_unable_to_install_soundfont">Не удалось установить SoundFont</string>
-    <string name="settings_audio_installing_soundfont">Установка SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Установка SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Неправильный формат SoundFont.</string>
     <string name="settings_audio_cannot_remove_default">Невозможно удалить звуковой шрифт по умолчанию</string>
     <string name="settings_audio_summary">Установите, удалите и выберите SoundFont, используемый для воспроизведения MIDI.</string>
@@ -896,7 +877,7 @@
     <string name="settings_content_empty_subtitle">Чтобы начать работу, установите пакет или переключите тип.</string>
     <string name="settings_content_container_created">Контейнер создан: %1$s.</string>
     <string name="settings_content_download_failed">Загрузка не удалась.</string>
-    <string name="common_ui_working">Выполняется…</string>
+    <string name="common_ui_working">Выполняется</string>
     <string name="settings_content_desc_wine">Создано проектом Wine; преобразует вызовы Win32 в собственные службы Linux/Android.</string>
     <string name="settings_content_desc_proton">Создано Valve; среда выполнения на основе Wine с игровыми патчами для игр Windows.</string>
     <string name="settings_content_desc_dxvk">Преобразует графические вызовы Direct3D 9, 10 и 11 в Vulkan.</string>
@@ -915,8 +896,8 @@
     <string name="settings_content_downloading_title">Загрузка контента</string>
     <string name="settings_content_installing_title">Установка контента</string>
     <string name="settings_content_extracting_title">Извлечение контента</string>
-    <string name="settings_content_extracting_detail">Извлечение… (%1$d файлов)</string>
-    <string name="settings_content_preparing_package">Готовим пакет…</string>
+    <string name="settings_content_extracting_detail">Извлечение (%1$d файлов)</string>
+    <string name="settings_content_preparing_package">Готовим пакет</string>
     <string name="settings_content_download_complete">Загрузка завершена</string>
     <string name="settings_content_already_installed_title">Компонент уже установлен</string>
     <string name="settings_content_already_installed_message">Этот компонент уже установлен. Удалите установленную копию перед повторной загрузкой.
@@ -947,7 +928,7 @@
     <string name="settings_drivers_remove_repo_title">Удалить репозиторий?</string>
     <string name="settings_drivers_remove_repo_message">%1$s будет удален из списка репозиториев.</string>
     <string name="settings_drivers_repo_tap_to_load">Нажмите, чтобы загрузить выпуски</string>
-    <string name="settings_drivers_repo_loading_releases">Загрузка выпусков…</string>
+    <string name="settings_drivers_repo_loading_releases">Загрузка выпусков</string>
     <string name="settings_drivers_repo_release_count">Загружено релизов: %1$d</string>
     <string name="settings_drivers_repo_no_release_assets">В полученных выпусках не обнаружено загружаемых ZIP-ресурсов.</string>
     <string name="settings_drivers_repo_fetch_failed">Не удалось загрузить выпуски GitHub.</string>
@@ -956,7 +937,7 @@
     <string name="settings_drivers_repo_unknown_size">Неизвестный размер</string>
     <string name="settings_drivers_manager">Менеджер драйверов</string>
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Установка системных файлов…</string>
+    <string name="setup_wizard_installing_system_files">Установка системных файлов</string>
     <string name="setup_wizard_unable_to_install_system_files">Не удалось установить системные файлы</string>
     <string name="setup_wizard_system_image_not_installed">Образ системы не установлен. Сначала установите компоненты.</string>
     <string name="setup_wizard_recommended_components">Рекомендуемые компоненты</string>
@@ -1086,7 +1067,7 @@
     <!-- Cloud Saves > Provider sync & backup history -->
     <string name="cloud_saves_sync_from_provider">Синхронизировать из облака %1$s</string>
     <string name="cloud_saves_sync_from_provider_generic">Синхронизировать из облака</string>
-    <string name="cloud_saves_syncing_from_provider">Скачивание сохранения из облака %1$s…</string>
+    <string name="cloud_saves_syncing_from_provider">Скачивание сохранения из облака %1$s</string>
     <string name="cloud_saves_sync_from_provider_success">Облачное сохранение из %1$s скачано.</string>
     <string name="cloud_saves_sync_from_provider_failed">Не удалось скачать сохранение из облака %1$s.</string>
     <string name="cloud_saves_gog_manage_label">Управление облачными сохранениями GOG</string>
@@ -1156,20 +1137,20 @@
     <string name="saves_import_export_imported_failed">Не удалось импортировать сохранения: %1$s</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Контейнер</string>
-    <string name="preloader_initializing">Инициализация…</string>
-    <string name="preloader_launching">Запуск…</string>
-    <string name="preloader_closing">Закрытие %1$s…</string>
-    <string name="preloader_setup_environment">Настройка среды…</string>
-    <string name="preloader_retrying_steam_client_download">Повторная попытка загрузки клиента Steam…</string>
-    <string name="preloader_installing_mono">Установка Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Установка распространяемых компонентов…</string>
-    <string name="preloader_unpacking_exe">Распаковка исполняемого файла игры…</string>
-    <string name="preloader_downloading_cloud">Загрузка облачных сохранений…</string>
-    <string name="preloader_syncing_cloud">Синхронизация сохранений в облаке…</string>
-    <string name="preloader_uploading_cloud">Загрузка сохранений в облако…</string>
-    <string name="preloader_checking_cloud">Проверка сохранений в облаке…</string>
-    <string name="preloader_cloud_sync_retry">%1$s: повтор %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">Скачивание облачных сохранений…</string>
+    <string name="preloader_initializing">Инициализация</string>
+    <string name="preloader_launching">Запуск</string>
+    <string name="preloader_closing">Закрытие %1$s</string>
+    <string name="preloader_setup_environment">Настройка среды</string>
+    <string name="preloader_retrying_steam_client_download">Повторная попытка загрузки клиента Steam</string>
+    <string name="preloader_installing_mono">Установка Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Установка распространяемых компонентов</string>
+    <string name="preloader_unpacking_exe">Распаковка исполняемого файла игры</string>
+    <string name="preloader_downloading_cloud">Загрузка облачных сохранений</string>
+    <string name="preloader_syncing_cloud">Синхронизация сохранений в облаке</string>
+    <string name="preloader_uploading_cloud">Загрузка сохранений в облако</string>
+    <string name="preloader_checking_cloud">Проверка сохранений в облаке</string>
+    <string name="preloader_cloud_sync_retry">%1$s: повтор %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Скачивание облачных сохранений</string>
     <string name="cloud_sync_failed_provider">Не удалось синхронизировать облачное сохранение %1$s.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1185,5 +1166,45 @@
     <string name="saves_export_success_path">Экспортировано в %1$s</string>
     <string name="saves_export_warning_title">Используйте только для пользовательских игр</string>
     <string name="saves_export_warning_body">Экспорт может включать сохранения из игр, установленных из магазинов, или игр с облачной синхронизацией.</string>
-    <string name="common_ui_exporting">Экспорт…</string>
+    <string name="common_ui_exporting">Экспорт</string>
+    <string name="downloads_queue_cancel_download_confirm">Отменить загрузку %1$s и удалить все скачанные файлы?</string>
+    <string name="downloads_queue_this_game">эта игра</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Использовать устаревший лаунчер</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Устаревшая эмуляция Steam: запускает игру через лаунчер ColdClient и удаляет SteamStub DRM из exe. Используйте только для старых игр, которые не работают со Steam Launcher.</string>
+    <string name="steam_section_real_client">Настоящий клиент Steam WinNative</string>
+    <string name="steam_section_emulator">Устаревший эмулятор Steam</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Заставляет эмулируемый клиент Steam сообщать, что он офлайн, чтобы игра не пыталась подключаться к сети. Используйте для игр, которые зависают на сетевой проверке Steam.</string>
+    <string name="cloud_sync_disable_title">Отключить облачные сохранения</string>
+    <string name="cloud_saves_steam_push_label">Отправить в Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Принудительно загрузить локальное сохранение</string>
+    <string name="cloud_saves_steam_push_success">Сохранение отправлено в Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Не удалось отправить сохранение в Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud сейчас недоступен. Повторное подключение выполняется в фоне нажмите обновить, когда снова будете онлайн.</string>
+    <string name="steam_session_refused_event">Steam отклонил кэшированную сессию (EResult=%1$d). Войдите снова.</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Подготовка среды Steam</string>
+    <string name="preloader_starting_wine">Запуск Wine</string>
+    <string name="preloader_starting_steam_launcher">Запуск Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Загрузка клиента Steam</string>
+    <string name="preloader_connecting_to_steam">Подключение к Steam</string>
+    <string name="preloader_signing_in_to_steam">Вход в Steam</string>
+    <string name="preloader_fetching_game_info">Вход выполнен — получение информации об игре</string>
+    <string name="preloader_steam_ready">Steam готов</string>
+    <string name="preloader_updating_game_info">Обновление информации об игре</string>
+    <string name="preloader_verifying_install">Проверка установки</string>
+    <string name="preloader_scanning_redists">Поиск распространяемых компонентов</string>
+    <string name="preloader_installing_redist_single">Установка распространяемого компонента</string>
+    <string name="preloader_installing_named_redist">Установка %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Установка %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Распространяемые компоненты готовы</string>
+    <string name="preloader_no_redists">Нет распространяемых компонентов для установки</string>
+    <string name="preloader_steam_service_running">Служба Steam запущена</string>
+    <string name="preloader_launching_game">Запуск %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Сбой Steam Launcher — повторная подготовка ресурсов</string>
+    <string name="preloader_steam_launcher_start_failed">Не удалось запустить Steam Launcher. Повторная подготовка — запустите снова</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher дошёл до игры, но она не запустилась</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Загрузка элементов Workshop</string>
+    <string name="workshop_search_items">Поиск элементов Workshop</string>
+    <string name="common_ui_failed">Ошибка</string>
 </resources>

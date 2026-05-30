@@ -6,6 +6,10 @@ import java.io.File
 import java.nio.file.Paths
 import java.security.SecureRandom
 
+private val REGEX_FILENAME_UNSAFE = Regex("[^a-zA-Z0-9_-]")
+
+internal fun String.sanitizeForFilename(): String = REGEX_FILENAME_UNSAFE.replace(this, "_")
+
 /**
  * Constants for Epic Games Store integration
  */
@@ -178,10 +182,7 @@ object EpicConstants {
         return Paths.get(defaultEpicGamesPath(context), sanitizedTitle).toString()
     }
 
-    /**
-     * Get build version for user agent
-     */
     private fun getBuildVersion(): String {
-        return "0.1.0" // TODO: Pull from BuildConfig
+        return "0.1.0"
     }
 }

@@ -69,21 +69,7 @@ data class GOGSaveSyncConfig(
     val locations: List<GOGCloudSavesLocationTemplate>,
 )
 
-/**
- * Unified manager for GOG game and library operations.
- *
- * Responsibilities:
- * - Database CRUD for GOG games
- * - Library syncing from GOG API
- * - Game downloads and installation
- * - Installation verification
- * - Executable discovery
- * - Wine launch commands
- * - File system operations
- *
- * Uses GOGPythonBridge for all GOGDL command execution.
- * Uses GOGAuthManager for authentication checks.
- */
+// Coordinates GOG library, install, verification, launch, and sync operations.
 @Singleton
 class GOGManager
     @Inject
@@ -93,25 +79,19 @@ class GOGManager
         private val gogContentApiClient: GOGContentApiClient,
         private val gogContentManifestParser: GOGContentManifestParser,
     ) {
-        // Thread-safe cache for download sizes
         private val downloadSizeCache = ConcurrentHashMap<String, String>()
         private val REFRESH_BATCH_SIZE = 10
         private val GOG_PLACEHOLDER_PRODUCT_ID = "2147483047"
 
-        // Cache for remote config API responses (clientId -> save locations)
-        // This avoids fetching the same config multiple times
         private val remoteConfigCache = ConcurrentHashMap<String, List<GOGCloudSavesLocationTemplate>>()
 
-        // Timestamp storage for sync state (gameId_locationName -> timestamp)
-        // Persisted to disk to survive app restarts
+        // Persisted cloud-save sync state.
         private val syncTimestamps = ConcurrentHashMap<String, String>()
         private val timestampFile = File(context.filesDir, "gog_sync_timestamps.json")
 
-        // Track active sync operations to prevent concurrent syncs
         private val activeSyncs = ConcurrentHashMap.newKeySet<String>()
 
         init {
-            // Load persisted cloudsave timestamps on initialization
             loadCloudSaveTimestampsFromDisk()
         }
 
@@ -607,7 +587,6 @@ class GOGManager
 
                     Timber.tag("GOG").d("Found ${existingGameIds.size} games already in database")
 
-                    // Filter to games that need details fetched
                     val newGameIds =
                         (
                             gameIds.filter { it !in existingGameIds } +
@@ -718,7 +697,6 @@ class GOGManager
                 var detectedCount = 0
 
                 try {
-                    // Check both internal and external storage paths
                     val pathsToCheck =
                         listOf(
                             GOGConstants.internalGOGGamesPath,
@@ -739,7 +717,6 @@ class GOGManager
                             try {
                                 val detectedGame = detectGameFromDirectory(installDir)
                                 if (detectedGame != null) {
-                                    // Update database with installation info
                                     val existingGame = getGameFromDbById(detectedGame.id)
                                     if (existingGame != null && !existingGame.isInstalled) {
                                         val updatedGame =
@@ -916,7 +893,6 @@ class GOGManager
                         )
                     Timber.i("Deleted $deletedShortcuts GOG shortcuts for game $gameId")
 
-                    // Delete game files
                     if (installDir.exists()) {
                         val success = installDir.deleteRecursively()
                         if (success) {
@@ -941,7 +917,6 @@ class GOGManager
                     }
                     StoreArtworkCache.deleteGame(context, "gog", gameId)
 
-                    // Trigger library refresh event
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .LibraryInstallStatusChanged(libraryItem.gameId),
@@ -979,7 +954,6 @@ class GOGManager
 
                 val isInstalled = isDownloadComplete && !isDownloadInProgress
 
-                // Update database if status changed
                 if (game != null && (isInstalled != game.isInstalled || (isInstalled && game.installPath != appDirPath))) {
                     val installPath = if (isInstalled) appDirPath else ""
                     val updatedGame = game.copy(isInstalled = isInstalled, installPath = installPath)
@@ -1027,7 +1001,6 @@ class GOGManager
             return Pair(true, null)
         }
 
-        // Get the exe. There is a v1 and v2 depending on the age of the game.
         suspend fun getInstalledExe(libraryItem: LibraryItem): String =
             withContext(Dispatchers.IO) {
                 val gameId = libraryItem.gameId.toString()
@@ -1100,7 +1073,6 @@ class GOGManager
                 return null
             }
 
-            // Check current directory first
             val infoFile =
                 directory.listFiles()?.find {
                     it.isFile &&
@@ -1232,7 +1204,6 @@ class GOGManager
                     execFile.absolutePath,
                 ) ?: WineUtils.getWindowsPath(container, execFile.absolutePath)
 
-            // Set working directory
             val execWorkingDir = execFile.parentFile
             if (execWorkingDir != null) {
                 guestProgramLauncherComponent.setWorkingDir(execWorkingDir)
@@ -1315,10 +1286,7 @@ class GOGManager
                 if (productId.isEmpty()) continue
 
                 val exePathWin = "$gameDriveLetter:\\$isiRelativePathWin"
-                // HACK: /DIR and /supportDir point to a \"rootdir\" folder inside ISI, which is a symlink
-                // to the actual game install root (created during redist download). This gives
-                // scriptinterpreter a full path with drive + folder name while still resolving
-                // to the game directory that the drive letter is mapped to.
+                // scriptinterpreter needs a drive-qualified folder; rootdir resolves to the game root.
                 val dirAndSupport = "$gameDriveLetter:\\_CommonRedist\\ISI\\rootdir"
                 val args =
                     listOf(
@@ -1342,9 +1310,6 @@ class GOGManager
             return parts
         }
 
-        // ==========================================================================
-        // CLOUD SAVES
-        // ==========================================================================
 
         /**
          * Read GOG game info file and extract clientId
@@ -1472,7 +1437,6 @@ class GOGManager
                         }
                         val configJson = JSONObject(responseBody)
 
-                        // Parse response: content.Windows.cloudStorage.locations
                         val content = configJson.optJSONObject("content")
                         if (content == null) {
                             Timber.tag("GOG").w("[Cloud Saves] No 'content' field in remote config response")
@@ -1722,9 +1686,7 @@ class GOGManager
             }
         }
 
-        // ==========================================================================
-        // FILE SYSTEM & PATHS
-        // ==========================================================================
+        // File system and paths
 
         fun getAppDirPath(appId: String): String {
             val gameId = ContainerUtils.extractGameIdFromContainerId(appId)

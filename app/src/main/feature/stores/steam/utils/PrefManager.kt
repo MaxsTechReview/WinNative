@@ -169,6 +169,18 @@ object PrefManager {
             setInt("steam_user_account_id", value)
         }
 
+    var wnHybridMode: Boolean
+        get() = getBoolean("wn_hybrid_mode", true)
+        set(value) {
+            setBoolean("wn_hybrid_mode", value)
+        }
+
+    var wnPlanW: Boolean
+        get() = getBoolean("wn_plan_w", true)
+        set(value) {
+            setBoolean("wn_plan_w", value)
+        }
+
     var cellId: Int
         get() = getInt("cell_id", 0)
         set(value) {
@@ -197,6 +209,12 @@ object PrefManager {
         get() = getString("steam_user_avatar_hash", "")
         set(value) {
             setString("steam_user_avatar_hash", value)
+        }
+
+    var friendsSnapshotJson: String
+        get() = getString("friends_snapshot_json", "")
+        set(value) {
+            setString("friends_snapshot_json", value)
         }
 
     var personaState: Int

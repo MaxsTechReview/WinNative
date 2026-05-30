@@ -2,7 +2,7 @@ package com.winlator.cmod.feature.stores.steam.data
 
 /**
  * In-house replacements for the small JavaSteam value/data types the app
- * still used (Phase 9 — dropping the `in.dragonbra.javasteam` dependency).
+ * still used.
  * Each keeps the exact field/method names the call sites relied on so the
  * migration is just an import swap.
  */

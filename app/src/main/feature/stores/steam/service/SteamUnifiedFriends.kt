@@ -5,7 +5,7 @@ import org.json.JSONArray
 import timber.log.Timber
 
 /**
- * Owned-games lookup. Phase 9: this used to wrap JavaSteam's `Player`
+ * Owned-games lookup. this used to wrap JavaSteam's `Player`
  * unified-messaging service; it now goes through the in-house C++
  * WN-Steam-Client ([SteamService.withWnSession] → Player.GetOwnedGames#1).
  *

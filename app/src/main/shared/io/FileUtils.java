@@ -369,6 +369,9 @@ public abstract class FileUtils {
   }
 
   public static String getFilePathFromUriUsingSAF(Context context, Uri uri) {
+    if (uri == null || !"content".equalsIgnoreCase(uri.getScheme())) {
+      return null;
+    }
     String documentId;
     try {
       documentId = DocumentsContract.getTreeDocumentId(uri);

@@ -36,9 +36,6 @@ class PluviaApp : Application() {
         PrefManager.install(this)
         GOGConstants.init(this)
 
-        // Let Play Games restore silent auth before Google settings query remote state.
-        com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
-
         com.winlator.cmod.app.service.NetworkMonitor
             .init(this)
         scheduleColdStartWarmups()

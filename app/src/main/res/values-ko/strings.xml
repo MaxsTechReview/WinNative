@@ -31,8 +31,8 @@
     <string name="common_ui_icon">아이콘</string>
     <string name="common_ui_duplicate">복제</string>
     <string name="common_ui_credits_and_third_party_apps">크레딧 및 서드파티 앱</string>
-    <string name="common_ui_loading">로딩 중…</string>
-    <string name="common_ui_exporting">내보내는 중…</string>
+    <string name="common_ui_loading">로딩 중</string>
+    <string name="common_ui_exporting">내보내는 중</string>
     <string name="common_ui_enable">활성화</string>
     <string name="common_ui_disable">비활성화</string>
     <string name="common_ui_force">강제</string>
@@ -43,7 +43,7 @@
     <string name="common_ui_height">높이</string>
     <string name="common_ui_open_file">파일 열기</string>
     <string name="common_ui_download_file">파일 다운로드</string>
-    <string name="common_ui_downloading_file">파일 다운로드 중...</string>
+    <string name="common_ui_downloading_file">파일 다운로드 중</string>
     <string name="common_ui_browse">찾아보기</string>
     <string name="common_ui_options">옵션</string>
     <string name="common_ui_export">내보내기</string>
@@ -106,7 +106,7 @@
     <string name="common_ui_application">애플리케이션</string>
     <string name="common_ui_check">확인</string>
     <string name="store_game_check_for_update">업데이트 확인</string>
-    <string name="store_game_checking_for_update">확인 중...</string>
+    <string name="store_game_checking_for_update">확인 중</string>
     <string name="store_game_download_update">업데이트 다운로드</string>
     <string name="store_game_no_update_available">사용 가능한 업데이트 없음</string>
     <string name="store_game_update_available">업데이트 가능</string>
@@ -119,7 +119,7 @@
     <string name="store_game_verify_complete">파일 확인 완료</string>
     <string name="store_game_verify_failed_notice">파일 확인 실패</string>
     <string name="store_game_progress_background_hint">이 창을 닫아도 계속 실행됩니다. 언제든지 다운로드 탭에서 확인하세요.</string>
-    <string name="store_game_checking_updates">업데이트 확인 중…</string>
+    <string name="store_game_checking_updates">업데이트 확인 중</string>
     <string name="store_game_no_updates_notice">사용 가능한 업데이트 없음</string>
     <string name="store_game_update_complete">업데이트 완료</string>
     <string name="store_game_update_failed_notice">업데이트 실패</string>
@@ -257,9 +257,9 @@
     <!-- Containers > List -->
     <string name="containers_list_new">새 컨테이너</string>
     <string name="containers_list_edit">컨테이너 편집</string>
-    <string name="containers_list_creating">컨테이너 생성 중…</string>
-    <string name="containers_list_removing">컨테이너 제거 중…</string>
-    <string name="containers_list_duplicating">컨테이너 복제 중…</string>
+    <string name="containers_list_creating">컨테이너 생성 중</string>
+    <string name="containers_list_removing">컨테이너 제거 중</string>
+    <string name="containers_list_duplicating">컨테이너 복제 중</string>
     <string name="containers_list_remove_title">컨테이너 제거</string>
     <string name="containers_list_duplicate_title">컨테이너 복제</string>
     <string name="containers_list_confirm_remove">이 컨테이너를 제거하시겠습니까?</string>
@@ -287,17 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">XInput 비활성화 (마우스/키보드 전용 제어)</string>
     <string name="shortcuts_properties_exclusive_input">전용 입력</string>
     <string name="shortcuts_properties_custom_game_settings">사용자 지정 게임 설정</string>
-    <string name="shortcuts_properties_use_cold_client">ColdClient Launcher 사용</string>
-    <string name="shortcuts_properties_use_cold_client_description">Steam 게임용 Steam 에뮬레이션 모드입니다 — DRM, 도전 과제 및 DLC를 처리합니다. 모든 Steam 게임에 권장됩니다.</string>
-    <string name="shortcuts_properties_unpack_files">레거시 DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">exe에서 SteamStub DRM을 제거합니다. 한 번만 수행됩니다. 게임에 문제가 생길 때만 비활성화하세요.</string>
-    <string name="shortcuts_properties_force_dlc">DLC 강제 적용</string>
-    <string name="shortcuts_properties_force_dlc_description">DLC가 감지되지 않거나 DLC 저장 데이터가 작동하지 않을 때 활성화하세요.</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Steam 클라이언트 실행 (베타)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Wine에서 실제 Steam 클라이언트를 실행합니다. 계정이 필요합니다. 성능이 저하될 수 있으며 모든 게임이 작동하지는 않습니다.</string>
-    <string name="shortcuts_properties_steam_type">Steam 클라이언트 성능</string>
-    <string name="steam_section_emulator">Steam 에뮬레이터 (Goldberg)</string>
-    <string name="steam_section_real_client">실제 Steam 클라이언트</string>
     <string name="shortcuts_properties_use_steam_input">Steam 입력 사용</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam 오프라인 모드</string>
     <string name="shortcuts_properties_reset">속성 초기화</string>
@@ -525,6 +514,7 @@
     <string name="container_graphics_bcn_emulation_type">BCn 에뮬레이션 유형</string>
     <string name="container_graphics_bcn_emulation_cache">BCn 에뮬레이션 캐시</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ 게임 슈퍼 해상도 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">가장자리 선명도</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">이 프리셋을 복제하시겠습니까?</string>
     <string name="container_presets_confirm_remove">이 프리셋을 제거하시겠습니까?</string>
@@ -544,7 +534,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">DRI3 확장 사용</string>
     <string name="session_xserver_simulate_touch_screen">터치 스크린 시뮬레이션</string>
     <string name="session_xserver_preferences_button_text">   환경설정   </string>
     <string name="session_xserver_extra_keys_config_desc">Termux 앱에서처럼 extra-keys 변수의 값을 설정할 수 있습니다 (<a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">여기</a>를 참고하세요) \n
@@ -560,12 +549,6 @@
     <string name="session_xserver_pref_kbd">키보드</string>
     <string name="session_xserver_pref_other">기타</string>
     <string name="session_xserver_pref_version">버전</string>
-    <string name="session_xserver_use_dri3_description">비활성화하면 일부 기기에서 그래픽 결함이 수정될 수 있습니다</string>
-    <string name="session_xserver_native_rendering">네이티브 렌더링</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 하드웨어 렌더링</string>
-    <string name="session_xserver_native_rendering_disabled">소프트웨어 WSI 폴백</string>
-    <string name="session_xserver_native_rendering_enabled_toast">네이티브 렌더링 활성화됨 (다음 실행 시 적용)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">네이티브 렌더링 비활성화됨 (다음 실행 시 적용)</string>
     <string name="session_xserver_notification_description">WinNative XServer 메시지</string>
     <string name="session_xserver_notification_content">WinNative가 실행 중입니다. 이 알림을 종료하거나 스와이프하지 마세요</string>
 
@@ -772,7 +755,7 @@
     <string name="settings_audio_sound_font_installed_failed">SoundFont 설치에 실패했습니다!</string>
     <string name="settings_audio_sound_font_already_exist">설치하려는 SoundFont가 이미 존재합니다.</string>
     <string name="settings_audio_unable_to_install_soundfont">SoundFont를 설치할 수 없습니다</string>
-    <string name="settings_audio_installing_soundfont">SoundFont 설치 중…</string>
+    <string name="settings_audio_installing_soundfont">SoundFont 설치 중</string>
     <string name="settings_audio_sound_font_bad_format">잘못된 SoundFont 형식입니다.</string>
     <string name="settings_audio_cannot_remove_default">기본 SoundFont는 제거할 수 없습니다</string>
     <string name="settings_audio_summary">MIDI 재생에 사용되는 SoundFont를 설치, 제거 및 선택합니다.</string>
@@ -828,7 +811,7 @@
     <string name="settings_content_empty_subtitle">시작하려면 패키지를 설치하거나 유형을 전환하세요.</string>
     <string name="settings_content_container_created">컨테이너 생성됨: %1$s</string>
     <string name="settings_content_download_failed">다운로드 실패.</string>
-    <string name="common_ui_working">처리 중…</string>
+    <string name="common_ui_working">처리 중</string>
     <string name="settings_content_desc_wine">Wine 프로젝트에서 제작했으며 Win32 호출을 네이티브 Linux/Android 서비스로 변환합니다.</string>
     <string name="settings_content_desc_proton">Valve에서 제작한 Wine 기반 런타임이며 Windows 게임용 패치를 포함합니다.</string>
     <string name="settings_content_desc_dxvk">Direct3D 9, 10, 11 그래픽 호출을 Vulkan으로 변환합니다.</string>
@@ -847,8 +830,8 @@
     <string name="settings_content_downloading_title">콘텐츠 다운로드 중</string>
     <string name="settings_content_installing_title">콘텐츠 설치 중</string>
     <string name="settings_content_extracting_title">콘텐츠 추출 중</string>
-    <string name="settings_content_extracting_detail">추출 중… (%1$d개 파일)</string>
-    <string name="settings_content_preparing_package">패키지 준비 중…</string>
+    <string name="settings_content_extracting_detail">추출 중 (%1$d개 파일)</string>
+    <string name="settings_content_preparing_package">패키지 준비 중</string>
     <string name="settings_content_download_complete">다운로드 완료</string>
     <string name="settings_content_already_installed_title">구성 요소가 이미 설치됨</string>
     <string name="settings_content_already_installed_message">이 구성 요소는 이미 설치되어 있습니다. 다시 다운로드하기 전에 설치된 복사본을 제거하세요.
@@ -880,7 +863,7 @@
     <string name="settings_drivers_remove_repo_title">저장소를 제거하시겠습니까?</string>
     <string name="settings_drivers_remove_repo_message">%1$s이(가) 저장소 목록에서 제거됩니다.</string>
     <string name="settings_drivers_repo_tap_to_load">탭하여 릴리스 로드</string>
-    <string name="settings_drivers_repo_loading_releases">릴리스 로딩 중…</string>
+    <string name="settings_drivers_repo_loading_releases">릴리스 로딩 중</string>
     <string name="settings_drivers_repo_release_count">%1$d개 릴리스 로드됨</string>
     <string name="settings_drivers_repo_no_release_assets">가져온 릴리스에서 다운로드 가능한 ZIP 파일을 찾을 수 없습니다.</string>
     <string name="settings_drivers_repo_fetch_failed">GitHub 릴리스를 불러올 수 없습니다.</string>
@@ -890,7 +873,7 @@
     <string name="settings_drivers_manager">드라이버 관리</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">시스템 파일 설치 중…</string>
+    <string name="setup_wizard_installing_system_files">시스템 파일 설치 중</string>
     <string name="setup_wizard_unable_to_install_system_files">시스템 파일을 설치할 수 없습니다</string>
     <string name="setup_wizard_system_image_not_installed">시스템 이미지가 설치되지 않았습니다. 먼저 구성 요소를 설치하세요.</string>
     <string name="setup_wizard_recommended_components">권장 구성 요소</string>
@@ -1026,20 +1009,20 @@
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">컨테이너</string>
-    <string name="preloader_initializing">초기화 중…</string>
-    <string name="preloader_launching">실행 중…</string>
-    <string name="preloader_closing">%1$s 종료 중…</string>
-    <string name="preloader_setup_environment">환경 설정 중…</string>
-    <string name="preloader_retrying_steam_client_download">Steam 클라이언트 다운로드 다시 시도 중…</string>
-    <string name="preloader_installing_mono">Wine Mono v%1$s 설치 중…</string>
-    <string name="preloader_installing_redist">재배포 파일 설치 중…</string>
-    <string name="preloader_unpacking_exe">게임 실행 파일 압축 해제 중…</string>
-    <string name="preloader_downloading_cloud">클라우드 세이브 다운로드 중…</string>
-    <string name="preloader_syncing_cloud">클라우드 세이브 동기화 중…</string>
-    <string name="preloader_uploading_cloud">클라우드 세이브 업로드 중…</string>
-    <string name="preloader_checking_cloud">클라우드 세이브 확인 중…</string>
-    <string name="preloader_cloud_sync_retry">%1$s 재시도 %2$d/%3$d…</string>
-    <string name="preloader_cloud_downloading">클라우드 동기화 다운로드 중…</string>
+    <string name="preloader_initializing">초기화 중</string>
+    <string name="preloader_launching">실행 중</string>
+    <string name="preloader_closing">%1$s 종료 중</string>
+    <string name="preloader_setup_environment">환경 설정 중</string>
+    <string name="preloader_retrying_steam_client_download">Steam 클라이언트 다운로드 다시 시도 중</string>
+    <string name="preloader_installing_mono">Wine Mono v%1$s 설치 중</string>
+    <string name="preloader_installing_redist">재배포 파일 설치 중</string>
+    <string name="preloader_unpacking_exe">게임 실행 파일 압축 해제 중</string>
+    <string name="preloader_downloading_cloud">클라우드 세이브 다운로드 중</string>
+    <string name="preloader_syncing_cloud">클라우드 세이브 동기화 중</string>
+    <string name="preloader_uploading_cloud">클라우드 세이브 업로드 중</string>
+    <string name="preloader_checking_cloud">클라우드 세이브 확인 중</string>
+    <string name="preloader_cloud_sync_retry">%1$s 재시도 %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">클라우드 동기화 다운로드 중</string>
     <string name="cloud_sync_failed_provider">%1$s 클라우드 동기화에 실패했습니다.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
@@ -1081,7 +1064,6 @@
     <string name="session_drawer_rail_label_mouse">마우스</string>
     <string name="session_drawer_rail_label_fullscreen">전체 화면</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">네이티브</string>
     <string name="session_drawer_rail_label_magnifier">확대</string>
     <string name="session_drawer_rail_label_task_manager">작업</string>
     <string name="session_drawer_rail_label_logs">로그</string>
@@ -1109,8 +1091,8 @@
     <string name="cloud_sync_title">클라우드 동기화</string>
     <string name="cloud_sync_enabled_summary">실행 시 클라우드 저장을 다운로드하고 종료 시 동기화/백업합니다.</string>
     <string name="cloud_sync_disabled_summary">클라우드 저장 다운로드나 종료 시 동기화 없이 이 게임을 실행합니다.</string>
-    <string name="cloud_saves_backing_up">클라우드 저장 백업 중…</string>
-    <string name="cloud_saves_restoring">클라우드 저장 복원 중…</string>
+    <string name="cloud_saves_backing_up">클라우드 저장 백업 중</string>
+    <string name="cloud_saves_restoring">클라우드 저장 복원 중</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1178,18 +1160,18 @@
     <string name="container_surface_effect">표면 효과</string>
     <string name="downloads_queue_cancel_download_confirm">%1$s 다운로드를 취소하고 다운로드된 모든 파일을 삭제하시겠습니까?</string>
     <string name="downloads_queue_paused_resume_hint">일시 중지됨 - 계속하려면 재개를 탭하세요</string>
-    <string name="downloads_queue_phase_applying_data">데이터 적용 중…</string>
-    <string name="downloads_queue_phase_downloading">다운로드 중…</string>
-    <string name="downloads_queue_phase_downloading_file">다운로드 중… [%1$s]</string>
-    <string name="downloads_queue_phase_finalizing">마무리 중…</string>
-    <string name="downloads_queue_phase_patching">패치 중…</string>
-    <string name="downloads_queue_phase_preparing">준비 중…</string>
+    <string name="downloads_queue_phase_applying_data">데이터 적용 중</string>
+    <string name="downloads_queue_phase_downloading">다운로드 중</string>
+    <string name="downloads_queue_phase_downloading_file">다운로드 중 [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">마무리 중</string>
+    <string name="downloads_queue_phase_patching">패치 중</string>
+    <string name="downloads_queue_phase_preparing">준비 중</string>
     <string name="downloads_queue_phase_queued">대기 중</string>
     <string name="downloads_queue_phase_unknown">알 수 없음</string>
-    <string name="downloads_queue_phase_unpacking">압축 해제 중…</string>
-    <string name="downloads_queue_phase_updating">업데이트 중…</string>
-    <string name="downloads_queue_phase_verifying">검증 중…</string>
-    <string name="downloads_queue_phase_verifying_file">검증 중… [%1$s]</string>
+    <string name="downloads_queue_phase_unpacking">압축 해제 중</string>
+    <string name="downloads_queue_phase_updating">업데이트 중</string>
+    <string name="downloads_queue_phase_verifying">검증 중</string>
+    <string name="downloads_queue_phase_verifying_file">검증 중 [%1$s]</string>
     <string name="downloads_queue_status_label">상태:</string>
     <string name="downloads_queue_this_game">이 게임</string>
     <string name="hud_position_bottom_center">하단 가운데</string>
@@ -1238,7 +1220,7 @@
     <string name="shortcuts_library_artwork_title">라이브러리 아트워크</string>
     <string name="shortcuts_list_readded_existing">기존 바로가기를 다시 추가했습니다</string>
     <string name="shortcuts_properties_runtime_patcher">런타임 DRM 패처</string>
-    <string name="shortcuts_properties_runtime_patcher_description">실행 시 DRM 패처 DLL을 주입합니다. FPS가 저하되므로 Unpack Files만으로 실패할 때만 사용하세요.</string>
+    <string name="shortcuts_properties_runtime_patcher_description">실행 시 DRM 패처 DLL을 주입합니다. FPS가 저하되므로 Legacy Launcher만으로 실패할 때만 사용하세요.</string>
     <!-- Cloud Saves > Custom save folder picker -->
     <string name="cloud_saves_custom_select_folder">저장 폴더 선택</string>
     <string name="cloud_saves_custom_folder_label">저장 폴더</string>
@@ -1265,5 +1247,60 @@
     <!-- Cloud Saves > Internal result messages -->
     <string name="cloud_saves_invalid_app_id">잘못된 앱 ID</string>
     <string name="cloud_saves_label_saved">라벨이 저장되었습니다</string>
+    <string name="downloads_queue_cancel_all_title">모든 다운로드를 취소할까요?</string>
+    <string name="downloads_queue_cancel_all_warning">DLC, 게임 또는 업데이트 다운로드를 취소하면 게임 설치가 손상될 수 있습니다.\n\n모든 다운로드를 취소하고 지금까지 다운로드한 파일을 삭제할까요?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Legacy Launcher 사용</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Legacy Steam 에뮬레이션: ColdClient 런처로 게임을 실행하고 exe에서 SteamStub DRM을 제거합니다. Steam Launcher에서 작동하지 않는 오래된 게임에만 사용하세요.</string>
+    <string name="steam_section_real_client">WinNative 실제 Steam 클라이언트</string>
+    <string name="steam_section_emulator">레거시 Steam 에뮬레이터</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">에뮬레이트된 Steam 클라이언트가 오프라인으로 표시되게 하여 게임이 온라인 연결을 시도하지 않도록 합니다. Steam 네트워크 확인에서 멈추는 게임에 사용하세요.</string>
+    <string name="input_controls_select_style">스타일 선택</string>
+    <string name="input_controls_select_label_theme">버튼 레이블</string>
+    <string name="input_controls_style_original">원본</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">원본</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">기본 제공 프로필입니다. 편집할 수 있는 복사본을 만들었습니다.</string>
+    <string name="input_controls_editor_confirm_reset_profile">이 프로필을 원래 레이아웃으로 초기화할까요? 변경 사항이 모두 손실됩니다.</string>
+    <string name="input_controls_editor_profile_reset">프로필이 원래 레이아웃으로 초기화되었습니다.</string>
+    <string name="input_controls_editor_reset_unavailable">이 프로필에 사용할 수 있는 원본 스냅샷이 없습니다.</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan 디스플레이 동기화</string>
+    <string name="cloud_sync_disable_title">클라우드 저장 비활성화</string>
+    <string name="cloud_saves_steam_push_label">Steam Cloud로 업로드</string>
+    <string name="cloud_saves_steam_push_helper">로컬 저장 강제 업로드</string>
+    <string name="cloud_saves_steam_push_success">저장 파일을 Steam Cloud로 업로드했습니다.</string>
+    <string name="cloud_saves_steam_push_failed">저장 파일을 Steam Cloud로 업로드할 수 없습니다.</string>
+    <string name="cloud_saves_history_steam_unreachable">현재 Steam Cloud에 연결할 수 없습니다. 백그라운드에서 다시 연결 중입니다 온라인 상태가 되면 새로 고침을 누르세요.</string>
+    <string name="steam_session_refused_event">Steam이 캐시된 세션을 거부했습니다(EResult=%1$d). 다시 로그인하세요.</string>
+    <string name="settings_hud_record_to_file_title">성능을 파일로 기록</string>
+    <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/에 기록합니다.</string>
+    <string name="settings_leaderboard_category">성능</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Steam 환경 준비 중</string>
+    <string name="preloader_starting_wine">Wine 시작 중</string>
+    <string name="preloader_starting_steam_launcher">Steam Launcher 시작 중</string>
+    <string name="preloader_loading_steam_client">Steam 클라이언트 로드 중</string>
+    <string name="preloader_connecting_to_steam">Steam에 연결 중</string>
+    <string name="preloader_signing_in_to_steam">Steam에 로그인 중</string>
+    <string name="preloader_fetching_game_info">로그인됨 — 게임 정보 가져오는 중</string>
+    <string name="preloader_steam_ready">Steam 준비됨</string>
+    <string name="preloader_updating_game_info">게임 정보 업데이트 중</string>
+    <string name="preloader_verifying_install">설치 확인 중</string>
+    <string name="preloader_scanning_redists">재배포 패키지 검색 중</string>
+    <string name="preloader_installing_redist_single">재배포 패키지 설치 중</string>
+    <string name="preloader_installing_named_redist">%1$s 설치 중</string>
+    <string name="preloader_installing_named_redist_progress">%1$s 설치 중 (%2$s)</string>
+    <string name="preloader_redists_ready">재배포 패키지 준비됨</string>
+    <string name="preloader_no_redists">설치할 재배포 패키지가 없습니다</string>
+    <string name="preloader_steam_service_running">Steam 서비스 실행 중</string>
+    <string name="preloader_launching_game">%1$s 실행 중</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher 실패 — 리소스 다시 준비 중</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher를 시작할 수 없습니다. 다시 준비 중 — 다시 실행하세요</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher가 게임까지 도달했지만 게임이 시작되지 않았습니다</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Workshop 항목 로드 중</string>
+    <string name="workshop_search_items">Workshop 항목 검색</string>
+    <string name="common_ui_failed">실패</string>
 </resources>
 
