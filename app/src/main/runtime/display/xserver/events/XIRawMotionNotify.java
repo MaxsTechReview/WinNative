@@ -25,7 +25,9 @@ public class XIRawMotionNotify extends Event {
         XStreamLock lock = outputStream.lock();
         try {
             int numAxes = this.valuators.length;
-            int payloadBytes = numAxes * 16;
+            // Trailing cookie data after the 32-byte base event: the valuator-mask word
+            // (4 bytes) + axisvalues (numAxes FP3232) + raw axisvalues (numAxes FP3232).
+            int payloadBytes = 4 + (numAxes * 8) + (numAxes * 8);
             int payloadLengthUnits = payloadBytes / 4;
             outputStream.writeByte(this.code);
             outputStream.writeByte(this.extensionOpcode);
@@ -38,6 +40,10 @@ public class XIRawMotionNotify extends Event {
             outputStream.writeShort((short) this.deviceId);
             outputStream.writeShort((short) 1);
             outputStream.writeInt(0);
+            // Pad to the 32-byte GenericEvent base before the variable cookie data.
+            // Without this the valuator mask + values land 4 bytes early and Wine reads
+            // a malformed XIRawMotion, silently dropping all raw mouse motion.
+            outputStream.writePad(4);
             outputStream.writeInt(this.valuatorMask);
             for (double v : this.valuators) {
                 outputStream.writeFP3232(v);

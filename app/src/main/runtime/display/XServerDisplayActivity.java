@@ -2051,21 +2051,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     float scaledDy = (xform[1] * rawDx + xform[3] * rawDy) * multiplier;
 
                     if (scaledDx != 0.0f || scaledDy != 0.0f) {
-                        // Both relative and absolute mode feed Wine ONE unaccelerated
-                        // XInput2 raw-motion delta (which also moves the visible cursor).
-                        //
-                        // Relative: do NOT also push through WinHandler -- that runs injected
-                        // motion through Win32 pointer ballistics on Proton 10/11, and
-                        // double-feeding it alongside XIRawMotion made the camera accelerate.
-                        //
-                        // Absolute (relative off): previously used injectPointerMove(), which
-                        // sends ONLY core absolute MotionNotify and no raw motion. Raw-input
-                        // games then have to derive relative motion from the warped cursor and
-                        // Wine applies pointer ballistics to it -- the residual acceleration
-                        // seen with relative off (on every Proton, incl. 9). Emitting raw
-                        // motion (unaccelerated by definition) here removes that; the cursor
-                        // still tracks 1:1 for desktop/2D apps via the core motion + render.
-                        xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
+                        if (xServer.isRelativeMouseMovement()) {
+                            // Relative mode -> WinHandler (SendInput relative), matching the
+                            // reference (Winlator-Ludashi). The on-screen cursor is moved for
+                            // display only (no X11 motion). The XInput2 raw path is used only
+                            // in absolute mode below. Feeding BOTH paths here double-fed Wine
+                            // and made the camera accelerate.
+                            int idx = Mathf.roundPoint(scaledDx);
+                            int idy = Mathf.roundPoint(scaledDy);
+                            xServer.updatePointerForDisplayDelta(idx, idy);
+                            xServer.getWinHandler().mouseMoveDelta(idx, idy);
+                        } else {
+                            // Absolute mode -> ONE unaccelerated XInput2 raw-motion delta (also
+                            // moves the visible cursor + requests a render). Raw motion is
+                            // unaccelerated by definition, which removes the "relative off"
+                            // acceleration that occurred when only core motion was sent and Wine
+                            // had to derive (and apply ballistics to) relative motion.
+                            xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
+                        }
                     }
                 }
                 handled = true;
