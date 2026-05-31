@@ -401,8 +401,6 @@ public abstract class WineUtils {
       }
     }
 
-    // Auto-fix containers missing D: and E: drives.
-    // IMPORTANT: Only update in-memory drives — do NOT call container.saveData()
     String currentDrives = container.getDrives();
     if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
       Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
@@ -478,17 +476,6 @@ public abstract class WineUtils {
     return "/storage/" + uuid + rest;
   }
 
-  /**
-   * Ensures the steamapps/common/{gameName} symlink exists and points to the correct game install
-   * directory. This is critical for ColdClientLoader path resolution, especially when games are
-   * installed at custom download paths.
-   *
-   * <p>- Creates the symlink if it doesn't exist - Recreates if it exists but points to a different
-   * (stale) location - Also creates the _CommonRedist and steamapps directory structure
-   *
-   * @param container The container whose Wine prefix to modify
-   * @param gameDirectoryPath The actual path to the game install directory
-   */
   public static void ensureSteamappsCommonSymlink(Container container, String gameDirectoryPath) {
     if (gameDirectoryPath == null || gameDirectoryPath.isEmpty()) return;
 
@@ -510,8 +497,6 @@ public abstract class WineUtils {
       steamCommonDir.mkdirs();
     }
 
-    // Symlink steamapps/common/{gameName} -> actual game directory
-    // Always validate the symlink target matches the actual game path (handles custom paths)
     File steamGameLink = new File(steamCommonDir, gameName);
     boolean needsCreation = false;
     if (steamGameLink.exists() || isSymlink(steamGameLink)) {
@@ -553,9 +538,6 @@ public abstract class WineUtils {
               + canonicalGameDirectoryPath);
     }
 
-    // Keep Steamworks Shared/_CommonRedist writable inside the Wine prefix.
-    // Symlinking to the Android-backed game folder causes Steam's installscript.vdf
-    // writes to fail with "disk write error" for shared redistributables.
     File gameCommonRedist = new File(canonicalGameDirectory, "_CommonRedist");
     File steamworksSharedDir = new File(steamCommonDir, "Steamworks Shared");
     if (!steamworksSharedDir.exists()) {
@@ -712,8 +694,6 @@ public abstract class WineUtils {
       "dxgi",
       "wined3d"
     };
-    // evshim creates SDL virtual joysticks that Wine picks up through winebus,
-    // so Wine's builtin dinput/xinput path should stay preferred on all arches.
     final String[] dinputLibs = {"dinput", "dinput8"};
     final String[] xinputLibs = {
       "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"
@@ -725,9 +705,9 @@ public abstract class WineUtils {
       for (String name : direct3dLibs)
         registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : dinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : xinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
       if (wineInfo != null
           && wineInfo.isArm64EC()
@@ -741,15 +721,6 @@ public abstract class WineUtils {
     copyWineDllsToContainer(rootDir, wineInfo);
   }
 
-  // Skipped on ARM64EC. The proton arm64ec wcp's container_pattern.tzst already seeded
-  // a consistent system32 plus matching winsxs/arm64_microsoft.windows.common-controls
-  // SXS assembly; overwriting user32/shell32 from wineInfo.path/lib/wine pairs them with
-  // a possibly-different proton's comctl32 inside winsxs, and Burn-based installers
-  // (vc_redist) then hit ERROR_CLASS_DOES_NOT_EXIST (0x583) at InitCommonControlsEx
-  // because the class atom tables disagree across builds — flash-and-exit "Failed to
-  // initialize theme manager". Winlator-Ludashi never copies these post-seed and vc_redist
-  // works there on the same proton wcp. wineboot's fakedll mechanism resolves missing
-  // system32 entries to wine builtins at load time, so a no-op is safe.
   private static void copyWineDllsToContainer(File rootDir, WineInfo wineInfo) {
     if (wineInfo == null || wineInfo.path == null || wineInfo.path.isEmpty()) return;
     if (wineInfo.isArm64EC()) {
@@ -799,29 +770,20 @@ public abstract class WineUtils {
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
       for (String name : dinputLibs) {
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
       }
 
       for (String dll : XINPUT_DLLS) {
         String name = dll.substring(0, dll.length() - 4);
-        if (!"builtin,native".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
+          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
       }
     }
   }
 
-  // Pre-seed the VC++ 2015-2022 redistributable registry markers when the proton
-  // wcp has already laid down the runtime DLLs (msvcp140, vcruntime140, etc.) in
-  // system32. Without these registry keys vc_redist's Burn bootstrapper sees
-  // "not installed" and tries to run its installer UI; on Wine ARM64EC its theme
-  // manager init fails (ERROR_CLASS_DOES_NOT_EXIST 0x583) and the installer
-  // exits without doing anything. Game prerequisite checkers read the same keys,
-  // so seeding them is also what unblocks games that gate on "VC++ redist
-  // installed" before launching.
-  // The DLLs are genuinely present, so we are recording fact, not faking state.
   public static void seedVcRedistRegistryIfDllsPresent(File containerRootDir, boolean isArm64EC) {
     File system32 = new File(containerRootDir, ".wine/drive_c/windows/system32");
     if (!new File(system32, "msvcp140.dll").isFile()
@@ -836,8 +798,6 @@ public abstract class WineUtils {
       return;
     }
 
-    // Microsoft's published current VC++ 2015-2022 14.50 redist build (matches
-    // what vc_redist 14.50.35719 self-identifies as).
     final String version = "14.50.35719.0";
     final int major = 14, minor = 50, build = 35719, rebuild = 0;
 
@@ -863,8 +823,6 @@ public abstract class WineUtils {
         reg.setDwordValue(k32, "Rbld", rebuild);
       }
 
-      // Burn bundle dependency providers: vc_redist consults these to decide
-      // "already installed" and exits cleanly if present.
       String[] bundleKeys = isArm64EC
           ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
           : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
@@ -1371,10 +1329,6 @@ public abstract class WineUtils {
       "Winmgmt:3",
       "wuauserv:3"
     };
-    // Services that MUST stay enabled in every startup mode so controllers keep
-    // working. PlugPlay enumerates devices, winebus is the HID bus driver,
-    // winehid is the HID protocol driver, and RpcSs is PlugPlay's RPC backbone —
-    // disabling any of them breaks gamepad input on launch.
     final List<String> controllerCriticalServices =
         Arrays.asList("winebus", "winehid", "PlugPlay", "RpcSs");
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
@@ -1429,12 +1383,6 @@ public abstract class WineUtils {
     }
   }
 
-  /**
-   * Ensures winebus is configured correctly for the fake-input mechanism on every launch. Runs
-   * unconditionally so pre-existing containers are repaired. 1. Removes stale WINEBUS device
-   * entries (phantom VID_845E devices). 2. Sets DisableHidraw=1 so Proton winebus uses evdev
-   * (hooked by libfakeinput).
-   */
   public static void ensureWinebusConfig(Container container) {
     File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
     if (!systemRegFile.exists()) return;

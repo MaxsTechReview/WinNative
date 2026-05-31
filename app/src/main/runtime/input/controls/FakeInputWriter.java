@@ -476,7 +476,7 @@ public class FakeInputWriter {
     writeEvent((short) 3, code, value);
   }
 
-  public void writeGamepadState(GamepadState state) throws IOException {
+  public synchronized void writeGamepadState(GamepadState state) throws IOException {
     int hatX;
     if (!this.isOpen && !open()) {
       return;

@@ -1100,6 +1100,9 @@ Installed path:
     <string name="google_cloud_sync_started">Cloud sync started.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google Services</string>
+    <string name="google_auto_signin_title">Sign in to Google on launch</string>
+    <string name="google_auto_signin_summary">Automatically connect to Google Play Games when the app starts so save backups and sync are always ready. When off, the app never signs in on its own.</string>
+    <string name="google_auto_signin_section">On Launch</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Syncing</string>
     <string name="google_cloud_status_connected">Connected</string>
@@ -1188,6 +1191,11 @@ Installed path:
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_manual">manual</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <!-- Save History badge: where the backup is stored. -->
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Restore</string>
     <string name="cloud_saves_history_restore_confirm_title">Restore this backup?</string>
     <string name="cloud_saves_history_restore_confirm_body">This will replace your current local save with the backup from %1$s.</string>

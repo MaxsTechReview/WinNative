@@ -113,7 +113,9 @@ private fun XServerDisplayHost(
             0f
         }
     val drawerOpenOffset = 0f
-    val drawerSheetVisible = drawerWidthPx <= 0f ||
+    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
+    // to trigger the card-reveal animation; the content itself is always composed.
+    val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
     val dialogVisible = false
@@ -296,17 +298,20 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                if (drawerSheetVisible) {
-                    XServerDrawerContent(
-                        state = stateHolder.state,
-                        taskManagerState = stateHolder.taskManagerState,
-                        logsState = stateHolder.logsState,
-                        openPane = stateHolder.openPane,
-                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                        listener = listener,
-                        onDismiss = { stateHolder.closeDrawer() },
-                    )
-                }
+                // Keep the drawer content composed at all times. When closed the sheet
+                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
+                // but the composition stays warm — opening becomes a cheap slide instead
+                // of rebuilding the whole tree on the first animation frame.
+                XServerDrawerContent(
+                    state = stateHolder.state,
+                    taskManagerState = stateHolder.taskManagerState,
+                    logsState = stateHolder.logsState,
+                    openPane = stateHolder.openPane,
+                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                    listener = listener,
+                    onDismiss = { stateHolder.closeDrawer() },
+                    revealCards = drawerEngaged,
+                )
             }
         }
     }

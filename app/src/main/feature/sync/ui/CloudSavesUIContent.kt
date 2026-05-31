@@ -200,14 +200,24 @@ internal fun CloudSavesContent(
                 GameSaveBackupManager.GameSource.STEAM -> {
                     val appId = gameId.toIntOrNull()
                     if (appId != null) {
-                        when (val r = SteamCloudHistoryProvider.listCloudSaveGroupsDetailed(context, appId)) {
-                            is SteamCloudHistoryProvider.HistoryResult.Entries -> r.list
-                            SteamCloudHistoryProvider.HistoryResult.Empty -> emptyList()
-                            SteamCloudHistoryProvider.HistoryResult.Unreachable -> {
-                                historySteamUnreachable = true
-                                emptyList()
+                        val cloud =
+                            when (val r = SteamCloudHistoryProvider.listCloudSaveGroupsDetailed(context, appId)) {
+                                is SteamCloudHistoryProvider.HistoryResult.Entries -> r.list
+                                SteamCloudHistoryProvider.HistoryResult.Empty -> emptyList()
+                                SteamCloudHistoryProvider.HistoryResult.Unreachable -> {
+                                    historySteamUnreachable = true
+                                    emptyList()
+                                }
                             }
-                        }.sortedByDescending { it.timestampMs }
+                        // Saves the user chose to "keep a copy" of are mirrored to Google Play
+                        // Games; surface them in the same list (silent no-op when not signed in).
+                        val google =
+                            GameSaveBackupManager.listGoogleHistory(
+                                activity,
+                                GameSaveBackupManager.GameSource.STEAM,
+                                gameId,
+                            )
+                        (cloud + google).sortedByDescending { it.timestampMs }
                     } else {
                         emptyList()
                     }
@@ -769,6 +779,15 @@ internal fun CloudSavesContent(
                                 // re-pulls the full cloud state for the game.
                                 GOGCloudHistoryProvider.restoreSaveGroup(context, gameId, targetContainerId)
                             }
+                            GameSaveBackupManager.BackupStorage.GOOGLE -> {
+                                GameSaveBackupManager.restoreFromGoogle(
+                                    activity,
+                                    target,
+                                    gameSource,
+                                    gameId,
+                                    containerHint = shortcut?.container,
+                                )
+                            }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
                         }
                     restoreInProgress = false
@@ -913,6 +932,9 @@ internal fun CloudSavesContent(
                                                 .renameEntry(activity, appId, target.fileId, null)
                                         }
                                     }
+                                    GameSaveBackupManager.BackupStorage.GOOGLE -> {
+                                        GameSaveBackupManager.renameGoogleEntry(activity, target, null)
+                                    }
                                     else -> Unit
                                 }
                                 historyRefreshKey++
@@ -960,6 +982,9 @@ internal fun CloudSavesContent(
                                         } else {
                                             GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
                                         }
+                                    }
+                                    GameSaveBackupManager.BackupStorage.GOOGLE -> {
+                                        GameSaveBackupManager.renameGoogleEntry(activity, target, newLabel)
                                     }
                                     else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_rename_failed))
                                 }
@@ -1082,12 +1107,16 @@ private fun SaveHistoryRow(
                     android.text.format.DateUtils.MINUTE_IN_MILLIS,
                 ).toString()
         }
-    val originLabel =
-        when (entry.origin) {
-            GameSaveBackupManager.BackupOrigin.LOCAL -> stringResource(R.string.cloud_saves_history_origin_local)
-            GameSaveBackupManager.BackupOrigin.CLOUD -> stringResource(R.string.cloud_saves_history_origin_cloud)
-            GameSaveBackupManager.BackupOrigin.MANUAL -> stringResource(R.string.cloud_saves_history_origin_manual)
-            GameSaveBackupManager.BackupOrigin.AUTO -> stringResource(R.string.cloud_saves_history_origin_auto)
+    // Badge reflects WHERE the save is backed up, not the conflict side it came from:
+    // Steam Cloud / local snapshots → "Steam", Play Games mirror → "Google", etc.
+    val storageLabel =
+        when (entry.storage) {
+            GameSaveBackupManager.BackupStorage.STEAM_CLOUD,
+            GameSaveBackupManager.BackupStorage.STEAM_LOCAL,
+            -> stringResource(R.string.cloud_saves_history_storage_steam)
+            GameSaveBackupManager.BackupStorage.GOOGLE -> stringResource(R.string.cloud_saves_history_storage_google)
+            GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
+            GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
     val canRestore = entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD
     Row(
@@ -1130,7 +1159,7 @@ private fun SaveHistoryRow(
                             .padding(horizontal = 5.dp, vertical = 0.dp),
                 ) {
                     Text(
-                        originLabel.uppercase(),
+                        storageLabel.uppercase(),
                         color = CloudAccent,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.SemiBold,

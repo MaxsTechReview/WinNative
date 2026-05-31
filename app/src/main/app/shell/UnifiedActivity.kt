@@ -973,6 +973,30 @@ class UnifiedActivity :
         }
     }
 
+    /**
+     * When the "Sign in to Google on launch" toggle (Settings ▸ Google) is enabled, attempt a
+     * Google Play Games sign-in once per process launch. No toast — the result is reflected in the
+     * Google tab. When the toggle is off (default), this is a no-op and the app never auto-signs-in.
+     */
+    private fun maybeAutoSignInGoogleOnLaunch() {
+        if (!com.winlator.cmod.feature.sync.google.CloudSyncManager.isAutoSignInOnLaunchEnabled(this)) return
+        runCatching {
+            com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
+            com.google.android.gms.games.PlayGames
+                .getGamesSignInClient(this)
+                .signIn()
+                .addOnCompleteListener { task ->
+                    val authed = task.isSuccessful && task.result?.isAuthenticated == true
+                    if (authed) {
+                        com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+                            .setDriveConnected(applicationContext, true)
+                    }
+                }
+        }.onFailure {
+            timber.log.Timber.tag("UnifiedActivity").w(it, "Auto Google sign-in on launch failed")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
         super.onCreate(savedInstanceState)
@@ -989,6 +1013,7 @@ class UnifiedActivity :
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         bootstrapStartupState()
+        maybeAutoSignInGoogleOnLaunch()
 
         // Surface store-session events as toasts.
         lifecycleScope.launch {
