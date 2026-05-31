@@ -492,7 +492,7 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
-        nativeSetFpsLimit(nativeHandle, currentFpsLimit);
+        // nativeSetFpsLimit is a native no-op (pacing is done elsewhere); not called per frame.
         nativeRenderFrame(nativeHandle);
     }
 
