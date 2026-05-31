@@ -2482,7 +2482,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         try {
             if (touchpadView != null) {
                 touchpadView.resetInputState();
-                touchpadView.releasePointerCapture();
+                if (touchpadView.hasPointerCapture()) touchpadView.releasePointerCapture();
                 touchpadView.setOnCapturedPointerListener(null);
             }
         } catch (Exception e) {
@@ -3628,7 +3628,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             drawerStateHolder.openDrawer();
         }
         if (touchpadView != null) {
-            touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
     }
@@ -4659,13 +4658,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (hadPointerCapture) {
                 touchpadView.resetInputState();
                 touchpadView.releasePointerCapture();
-                touchpadView.setOnCapturedPointerListener(null);
             }
-            touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
-        if (hadPointerCapture && inputControlsView != null) {
-            inputControlsView.cancelActiveTouches();
+        if (inputControlsView != null) {
+            if (hadPointerCapture) {
+                inputControlsView.cancelActiveTouches();
+            }
+            else {
+                inputControlsView.cancelContinuousMouseMove();
+            }
         }
     }
 
