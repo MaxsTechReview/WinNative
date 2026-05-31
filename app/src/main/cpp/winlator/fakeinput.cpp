@@ -1051,6 +1051,7 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
       return -1;
     }
 
+    long backoff_ns = 1000 * 1000; // 1ms initial
     while (!fake_fd_has_unread_data(fd)) {
       if (fake_fd_is_stale(fd)) {
         errno = ENODEV;
@@ -1065,8 +1066,10 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
         errno = EINTR;
         return -1;
       }
-      struct timespec sleep_time = {0, 5 * 1000 * 1000};
+      struct timespec sleep_time = {0, backoff_ns};
       nanosleep(&sleep_time, nullptr);
+      if (backoff_ns < 16 * 1000 * 1000)
+        backoff_ns *= 2;
     }
 
     uint64_t write_seq = ring_write_seq(fake.ring);
@@ -1205,23 +1208,13 @@ EXPORT int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     return my_poll ? my_poll(fds, nfds, timeout) : -1;
 
   const long long deadline_ms = timeout < 0 ? -1 : monotonic_ms() + timeout;
+  int backoff_ms = 1;
 
   while (true) {
     int ready = 0;
 
     for (nfds_t i = 0; i < nfds; i++)
       fds[i].revents = 0;
-
-    int real_ready = my_poll ? my_poll(real_fds.data(), nfds, 0) : 0;
-    if (real_ready > 0) {
-      for (nfds_t i = 0; i < nfds; i++) {
-        if (!is_fake_input_fd(fds[i].fd)) {
-          fds[i].revents = real_fds[i].revents;
-          if (fds[i].revents)
-            ready++;
-        }
-      }
-    }
 
     for (nfds_t i = 0; i < nfds; i++) {
       if (!is_fake_input_fd(fds[i].fd))
@@ -1239,6 +1232,43 @@ EXPORT int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
         ready++;
     }
 
+    int real_timeout = ready > 0 ? 0 : [&] {
+      if (timeout == 0) return 0;
+      int remaining = deadline_ms < 0
+                          ? backoff_ms
+                          : std::min(backoff_ms, (int)(deadline_ms - monotonic_ms()));
+      return std::max(remaining, 0);
+    }();
+
+    int real_ready = my_poll ? my_poll(real_fds.data(), nfds, real_timeout) : 0;
+    if (real_ready > 0) {
+      for (nfds_t i = 0; i < nfds; i++) {
+        if (!is_fake_input_fd(fds[i].fd)) {
+          fds[i].revents = real_fds[i].revents;
+          if (fds[i].revents)
+            ready++;
+        }
+      }
+    }
+
+    if (ready == 0 && real_timeout > 0) {
+      for (nfds_t i = 0; i < nfds; i++) {
+        if (!is_fake_input_fd(fds[i].fd))
+          continue;
+
+        short revents = 0;
+        if (fake_fd_is_stale(fds[i].fd))
+          revents |= POLLHUP;
+        if ((fds[i].events & (POLLIN | POLLRDNORM)) &&
+            fake_fd_has_unread_data(fds[i].fd))
+          revents |= (fds[i].events & (POLLIN | POLLRDNORM));
+
+        fds[i].revents = revents;
+        if (revents)
+          ready++;
+      }
+    }
+
     if (ready > 0)
       return ready;
 
@@ -1248,8 +1278,8 @@ EXPORT int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     if (deadline_ms >= 0 && monotonic_ms() >= deadline_ms)
       return 0;
 
-    struct timespec sleep_time = {0, 5 * 1000 * 1000};
-    nanosleep(&sleep_time, nullptr);
+    if (backoff_ms < 16)
+      backoff_ms *= 2;
   }
 }
 
@@ -1317,6 +1347,7 @@ EXPORT int select(int nfds, fd_set *readfds, fd_set *writefds,
   const long long timeout_ms = timeval_to_ms(timeout);
   const long long deadline_ms =
       timeout_ms < 0 ? -1 : monotonic_ms() + timeout_ms;
+  int backoff_ms = 1;
 
   while (true) {
     int ready = 0;
@@ -1328,16 +1359,37 @@ EXPORT int select(int nfds, fd_set *readfds, fd_set *writefds,
     if (exceptfds)
       FD_ZERO(exceptfds);
 
+    for (int fd = 0; fd < nfds; fd++) {
+      if (!is_fake_input_fd(fd))
+        continue;
+      if (readfds && FD_ISSET(fd, &original_readfds) && fake_fd_is_stale(fd)) {
+        FD_SET(fd, readfds);
+        ready++;
+      } else if (readfds && FD_ISSET(fd, &original_readfds) &&
+                 fake_fd_has_unread_data(fd)) {
+        FD_SET(fd, readfds);
+        ready++;
+      }
+    }
+
+    int wait_ms = ready > 0 ? 0 : [&] {
+      if (timeout_ms == 0) return 0;
+      int remaining = deadline_ms < 0
+                          ? backoff_ms
+                          : std::min(backoff_ms, (int)(deadline_ms - monotonic_ms()));
+      return std::max(remaining, 0);
+    }();
+    struct timeval wait_tv = {wait_ms / 1000, (wait_ms % 1000) * 1000};
+
     fd_set iter_readfds = real_readfds;
     fd_set iter_writefds = real_writefds;
     fd_set iter_exceptfds = real_exceptfds;
-    struct timeval zero_timeout = {0, 0};
 
     int real_ready =
         my_select
             ? my_select(nfds, readfds ? &iter_readfds : nullptr,
                         writefds ? &iter_writefds : nullptr,
-                        exceptfds ? &iter_exceptfds : nullptr, &zero_timeout)
+                        exceptfds ? &iter_exceptfds : nullptr, &wait_tv)
             : 0;
 
     if (real_ready > 0) {
@@ -1357,16 +1409,18 @@ EXPORT int select(int nfds, fd_set *readfds, fd_set *writefds,
       }
     }
 
-    for (int fd = 0; fd < nfds; fd++) {
-      if (!is_fake_input_fd(fd))
-        continue;
-      if (readfds && FD_ISSET(fd, &original_readfds) && fake_fd_is_stale(fd)) {
-        FD_SET(fd, readfds);
-        ready++;
-      } else if (readfds && FD_ISSET(fd, &original_readfds) &&
-                 fake_fd_has_unread_data(fd)) {
-        FD_SET(fd, readfds);
-        ready++;
+    if (ready == 0 && wait_ms > 0) {
+      for (int fd = 0; fd < nfds; fd++) {
+        if (!is_fake_input_fd(fd))
+          continue;
+        if (readfds && FD_ISSET(fd, &original_readfds) && fake_fd_is_stale(fd)) {
+          FD_SET(fd, readfds);
+          ready++;
+        } else if (readfds && FD_ISSET(fd, &original_readfds) &&
+                   fake_fd_has_unread_data(fd)) {
+          FD_SET(fd, readfds);
+          ready++;
+        }
       }
     }
 
@@ -1379,7 +1433,7 @@ EXPORT int select(int nfds, fd_set *readfds, fd_set *writefds,
     if (deadline_ms >= 0 && monotonic_ms() >= deadline_ms)
       return 0;
 
-    struct timespec sleep_time = {0, 5 * 1000 * 1000};
-    nanosleep(&sleep_time, nullptr);
+    if (backoff_ms < 16)
+      backoff_ms *= 2;
   }
 }
