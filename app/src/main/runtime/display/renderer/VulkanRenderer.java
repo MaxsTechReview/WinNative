@@ -549,7 +549,9 @@ public class VulkanRenderer
     }
 
     @Override
-    public void onFramePresented(Window window) {
+    public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+        // DRI3_BUFFER fires at pixmap allocation, not a visible change; the real present already wakes us. Skip it.
+        if (source == WindowManager.FrameSource.DRI3_BUFFER) return;
         requestRenderCoalesced();
     }
 
