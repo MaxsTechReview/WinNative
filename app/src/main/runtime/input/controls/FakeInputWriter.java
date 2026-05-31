@@ -25,13 +25,19 @@ public class FakeInputWriter {
   private static final int RING_HEADER_SIZE = 64;
   private static final int RING_SIZE = RING_HEADER_SIZE + (RING_CAPACITY_EVENTS * EVENT_SIZE);
   private static final int RING_MAGIC = 0x46494252; // FIBR
-  private static final int RING_VERSION = 1;
+  private static final int RING_VERSION = 2;
   private static final int RING_MAGIC_OFFSET = 0;
   private static final int RING_VERSION_OFFSET = 4;
   private static final int RING_EVENT_SIZE_OFFSET = 8;
   private static final int RING_CAPACITY_OFFSET = 12;
   private static final int RING_WRITE_SEQ_OFFSET = 16;
   private static final int RING_GENERATION_OFFSET = 24;
+  // Authoritative absolute-state snapshot the native reader replays as a full
+  // keyframe to heal any delta-stream desync. Written under a seqlock
+  // (RING_SNAPSHOT_SEQ_OFFSET: odd = write in progress).
+  private static final int RING_SNAPSHOT_SEQ_OFFSET = 32;
+  private static final int RING_SNAPSHOT_BUTTONS_OFFSET = 40;
+  private static final int RING_SNAPSHOT_AXES_OFFSET = 44; // short[8]
   private static final String RING_DIR_NAME = "fakeinput-rings";
   public static final short EV_ABS = 3;
   public static final short EV_KEY = 1;
@@ -70,6 +76,11 @@ public class FakeInputWriter {
   private volatile boolean destroyed = false;
   private final boolean[] prevButtonStates = new boolean[12];
   private boolean hasChanges = false;
+  // If a publish fails after prev* state has already advanced, the next frame
+  // must re-emit the whole state once; otherwise an unchanged control would stay
+  // silent and the ring snapshot would never catch up.
+  private boolean pendingFullResend = false;
+  private boolean forceResend = false;
   private final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
 
   public FakeInputWriter(String fakeInputPath, int slot) {
@@ -158,6 +169,11 @@ public class FakeInputWriter {
     data.putInt(RING_CAPACITY_OFFSET, RING_CAPACITY_EVENTS);
     data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
     data.putLong(RING_GENERATION_OFFSET, 0L);
+    data.putLong(RING_SNAPSHOT_SEQ_OFFSET, 0L);
+    data.putInt(RING_SNAPSHOT_BUTTONS_OFFSET, 0);
+    for (int i = 0; i < 8; i++) {
+      data.putShort(RING_SNAPSHOT_AXES_OFFSET + (i * 2), (short) 0);
+    }
   }
 
   private static void releaseRingSlotLocked(int slot) {
@@ -280,8 +296,12 @@ public class FakeInputWriter {
           ringSlot.everActivated = true;
         }
         ringSlot.data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
+        clearSnapshotLocked(ringSlot.data);
         ringSlot.data.putLong(RING_GENERATION_OFFSET, ringSlot.generation);
         ringSlot.active = true;
+        Log.d(
+            TAG,
+            "Activated fake input ring for slot " + this.slot + " generation=" + ringSlot.generation);
       }
     }
     return true;
@@ -300,6 +320,7 @@ public class FakeInputWriter {
       if (ringSlot.active && ringSlot.data != null) {
         ringSlot.generation++;
         ringSlot.data.putLong(RING_WRITE_SEQ_OFFSET, 0L);
+        clearSnapshotLocked(ringSlot.data);
         ringSlot.data.putLong(RING_GENERATION_OFFSET, ringSlot.generation);
         Log.i(
             TAG,
@@ -318,22 +339,80 @@ public class FakeInputWriter {
       return false;
     }
 
+    // Raw byte copy: endianness is irrelevant since we never interpret
+    // multi-byte fields out of the source here.
     ByteBuffer source = this.buffer.duplicate();
-    source.order(ByteOrder.LITTLE_ENDIAN);
     synchronized (ringSlot) {
       ByteBuffer ring = ringSlot.data;
       long writeSeq = ring.getLong(RING_WRITE_SEQ_OFFSET);
+      int sourceLimit = source.limit();
       while (source.remaining() >= EVENT_SIZE) {
         int eventIndex = (int) (writeSeq % RING_CAPACITY_EVENTS);
         int targetOffset = RING_HEADER_SIZE + (eventIndex * EVENT_SIZE);
-        for (int i = 0; i < EVENT_SIZE; i++) {
-          ring.put(targetOffset + i, source.get());
-        }
+        // Bulk-copy one event (EVENT_SIZE bytes) instead of byte-by-byte.
+        // Bound the source to a single event, position the ring at the slot,
+        // then let put(ByteBuffer) move the whole block. Mutating the ring's
+        // Java position is harmless: the native reader uses a raw pointer, not
+        // this position. API-26 safe (no JDK 13+ absolute bulk put).
+        source.limit(source.position() + EVENT_SIZE);
+        ring.position(targetOffset);
+        ring.put(source);
+        source.limit(sourceLimit);
         writeSeq++;
       }
+      // Publish the resulting absolute state. prev* now hold the post-update
+      // values, i.e. exactly the state the events just written transition to.
+      writeSnapshotLocked(ring);
       ring.putLong(RING_WRITE_SEQ_OFFSET, writeSeq);
     }
     return true;
+  }
+
+  // Publishes the full absolute controller state for the native reader to replay
+  // as a keyframe. seqlock: bump to odd, write fields, bump to even. Mirrors the
+  // write_seq publication model (plain mapped-buffer stores); the reader retries
+  // on a torn read.
+  private void writeSnapshotLocked(ByteBuffer ring) {
+    int buttons = 0;
+    for (int i = 0; i < BUTTON_MAP.length; i++) {
+      if (this.prevButtonStates[i]) {
+        buttons |= (1 << i);
+      }
+    }
+    long seq = ring.getLong(RING_SNAPSHOT_SEQ_OFFSET);
+    ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 1); // odd: write in progress
+    ring.putInt(RING_SNAPSHOT_BUTTONS_OFFSET, buttons);
+    // Axis order must match the native kSnapshotAxisCodes:
+    // X, Y, RX, RY, GAS(=triggerR), BRAKE(=triggerL), HAT0X, HAT0Y.
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET, clampShort(this.prevThumbLX));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 2, clampShort(this.prevThumbLY));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 4, clampShort(this.prevThumbRX));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 6, clampShort(this.prevThumbRY));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 8, clampShort(this.prevTriggerR));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 10, clampShort(this.prevTriggerL));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 12, clampShort(this.prevHatX));
+    ring.putShort(RING_SNAPSHOT_AXES_OFFSET + 14, clampShort(this.prevHatY));
+    ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 2); // even: write complete
+  }
+
+  private static short clampShort(int value) {
+    if (value > Short.MAX_VALUE) {
+      return Short.MAX_VALUE;
+    }
+    if (value < Short.MIN_VALUE) {
+      return Short.MIN_VALUE;
+    }
+    return (short) value;
+  }
+
+  private static void clearSnapshotLocked(ByteBuffer ring) {
+    long seq = ring.getLong(RING_SNAPSHOT_SEQ_OFFSET);
+    ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 1);
+    ring.putInt(RING_SNAPSHOT_BUTTONS_OFFSET, 0);
+    for (int i = 0; i < 8; i++) {
+      ring.putShort(RING_SNAPSHOT_AXES_OFFSET + (i * 2), (short) 0);
+    }
+    ring.putLong(RING_SNAPSHOT_SEQ_OFFSET, seq + 2);
   }
 
   private boolean flushBuffer() {
@@ -460,7 +539,10 @@ public class FakeInputWriter {
   }
 
   private void writeButton(int i, boolean z) {
-    if (i < 0 || i >= BUTTON_MAP.length || this.prevButtonStates[i] == z) {
+    if (i < 0 || i >= BUTTON_MAP.length) {
+      return;
+    }
+    if (!this.forceResend && this.prevButtonStates[i] == z) {
       return;
     }
     this.prevButtonStates[i] = z;
@@ -481,6 +563,14 @@ public class FakeInputWriter {
     if (!this.isOpen && !open()) {
       return;
     }
+    // Keep the ring delta-first for latency. Full event frames are only used as
+    // a one-shot repair after a failed publish; normal open/overflow recovery is
+    // handled by the native snapshot keyframe.
+    this.forceResend = this.pendingFullResend;
+    this.pendingFullResend = false;
+    if (this.forceResend) {
+      Log.d(TAG, "Re-emitting full gamepad state after failed publish for slot " + this.slot);
+    }
     this.buffer.clear();
     this.hasChanges = false;
     for (int i = 0; i < 10; i++) {
@@ -493,28 +583,29 @@ public class FakeInputWriter {
     int tl = (int) (state.triggerL * 255.0f);
     int tr = (int) (state.triggerR * 255.0f);
 
-    // The fake evdev ring is event-queue semantics, so unchanged axes must stay silent.
-    if (rx != this.prevThumbRX) {
+    // The fake evdev ring is event-queue semantics, so unchanged axes normally
+    // stay silent; forceResend overrides that to emit a complete keyframe.
+    if (this.forceResend || rx != this.prevThumbRX) {
       this.prevThumbRX = rx;
       writeEvent((short) 3, (short) 3, rx);
     }
-    if (ry != this.prevThumbRY) {
+    if (this.forceResend || ry != this.prevThumbRY) {
       this.prevThumbRY = ry;
       writeEvent((short) 3, (short) 4, ry);
     }
-    if (lx != this.prevThumbLX) {
+    if (this.forceResend || lx != this.prevThumbLX) {
       this.prevThumbLX = lx;
       writeEvent((short) 3, (short) 0, lx);
     }
-    if (ly != this.prevThumbLY) {
+    if (this.forceResend || ly != this.prevThumbLY) {
       this.prevThumbLY = ly;
       writeEvent((short) 3, (short) 1, ly);
     }
-    if (tl != this.prevTriggerL) {
+    if (this.forceResend || tl != this.prevTriggerL) {
       this.prevTriggerL = tl;
       writeEvent((short) 3, (short) 10, tl);
     }
-    if (tr != this.prevTriggerR) {
+    if (this.forceResend || tr != this.prevTriggerR) {
       this.prevTriggerR = tr;
       writeEvent((short) 3, (short) 9, tr);
     }
@@ -530,18 +621,23 @@ public class FakeInputWriter {
     } else if (!state.dpad[2]) {
       hatY = 0;
     }
-    if (hatX != this.prevHatX) {
+    if (this.forceResend || hatX != this.prevHatX) {
       this.prevHatX = hatX;
       writeEvent((short) 3, (short) 16, hatX);
     }
-    if (hatY != this.prevHatY) {
+    if (this.forceResend || hatY != this.prevHatY) {
       this.prevHatY = hatY;
       writeEvent((short) 3, (short) 17, hatY);
     }
     if (this.hasChanges) {
       writeEvent((short) 0, (short) 0, 0);
       this.buffer.flip();
-      if (!flushBuffer()) Log.e(TAG, "Gamepad write error: fake input mmap ring unavailable");
+      if (!flushBuffer()) {
+        Log.e(TAG, "Gamepad write error: fake input mmap ring unavailable");
+        // Couldn't publish; re-assert the whole state on the next frame.
+        this.pendingFullResend = true;
+      }
     }
+    this.forceResend = false;
   }
 }

@@ -47,7 +47,7 @@ static constexpr const char *GAMEPAD_UNIQ_TEMPLATE = "0000000000%02d";
 static constexpr uint8_t GAMEPAD_AXIS_COUNT = 8;
 static constexpr uint8_t GAMEPAD_BUTTON_COUNT = 11;
 static constexpr uint32_t FAKE_INPUT_RING_MAGIC = 0x46494252;
-static constexpr uint32_t FAKE_INPUT_RING_VERSION = 1;
+static constexpr uint32_t FAKE_INPUT_RING_VERSION = 2;
 static constexpr uint32_t FAKE_INPUT_EVENT_SIZE = sizeof(struct input_event);
 static constexpr uint32_t FAKE_INPUT_RING_CAPACITY = 512;
 static constexpr unsigned int FAKE_INPUT_MAJOR = 13;
@@ -55,13 +55,20 @@ static constexpr unsigned int FAKE_INPUT_EVENT_MINOR_BASE = 64;
 static constexpr unsigned int FAKE_INPUT_JS_MINOR_BASE = 0;
 
 struct FakeInputRingHeader {
-  uint32_t magic;
-  uint32_t version;
-  uint32_t event_size;
-  uint32_t capacity;
-  uint64_t write_seq;
-  uint64_t generation;
-  uint8_t reserved[32];
+  uint32_t magic;             // 0
+  uint32_t version;           // 4
+  uint32_t event_size;        // 8
+  uint32_t capacity;          // 12
+  uint64_t write_seq;         // 16
+  uint64_t generation;        // 24
+  // Authoritative absolute-state snapshot, published by the writer under a
+  // seqlock (odd snapshot_seq = write in progress). The reader replays it as a
+  // full keyframe whenever the delta stream could have desynced (open, ring
+  // overflow) so dropped events can recover without periodic duplicate input.
+  uint64_t snapshot_seq;      // 32
+  uint32_t snapshot_buttons;  // 40  bit i -> kSnapshotButtons[i] pressed
+  int16_t snapshot_axes[8];   // 44  values in kSnapshotAxisCodes order
+  uint8_t reserved[4];        // 60
 };
 
 static_assert(sizeof(FakeInputRingHeader) == 64,
@@ -80,7 +87,12 @@ struct FakeController {
   uint64_t read_seq = 0;
   uint64_t generation = 0;
   size_t mapping_size = 0;
-  size_t neutral_remaining = 0;
+  // Pending keyframe (full absolute-state baseline) currently streaming to the
+  // guest. The axis/button values are captured from the snapshot when the
+  // keyframe starts so the frame stays consistent across multi-read delivery.
+  size_t keyframe_remaining = 0;
+  int32_t keyframe_axes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  uint32_t keyframe_buttons = 0;
 };
 
 struct NeutralEventSpec {
@@ -88,9 +100,11 @@ struct NeutralEventSpec {
   uint16_t code;
 };
 
-// Full neutral baseline for the synthetic gamepad: every button released, every
-// axis/hat centered, followed by a SYN_REPORT. Replayed after a ring overflow so
-// a dropped button-up or axis-return event can't leave the guest stuck.
+// Event template for a full keyframe: every button, every axis/hat, then a
+// SYN_REPORT, in this fixed order. The value carried by each event is filled
+// from the authoritative snapshot (see keyframe_value); an all-zero snapshot
+// yields the neutral baseline. Replayed on open and ring overflow so dropped
+// events cannot leave a guest stuck.
 static const NeutralEventSpec kNeutralEvents[] = {
     {EV_KEY, BTN_A},      {EV_KEY, BTN_B},      {EV_KEY, BTN_X},
     {EV_KEY, BTN_Y},      {EV_KEY, BTN_TL},     {EV_KEY, BTN_TR},
@@ -102,6 +116,14 @@ static const NeutralEventSpec kNeutralEvents[] = {
 };
 static constexpr size_t kNeutralEventCount =
     sizeof(kNeutralEvents) / sizeof(kNeutralEvents[0]);
+
+// Axis layout of FakeInputRingHeader::snapshot_axes (mirrors the Java writer).
+static const uint16_t kSnapshotAxisCodes[8] = {
+    ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_GAS, ABS_BRAKE, ABS_HAT0X, ABS_HAT0Y};
+// Bit i of FakeInputRingHeader::snapshot_buttons maps to this button code.
+static const uint16_t kSnapshotButtons[10] = {
+    BTN_A,  BTN_B,      BTN_X,     BTN_Y,      BTN_TL,
+    BTN_TR, BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR};
 
 static std::unordered_map<int, FakeController> controller_map;
 static std::unordered_map<int, std::string> ring_paths;
@@ -350,6 +372,80 @@ ring_header_is_valid(const FakeInputRingHeader *ring) {
          ring->capacity == FAKE_INPUT_RING_CAPACITY;
 }
 
+struct SnapshotState {
+  uint32_t buttons = 0;
+  int32_t axes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+};
+
+static long long monotonic_ms();
+
+// Read the authoritative absolute-state snapshot using the writer's seqlock.
+// Retries on a torn read (snapshot_seq odd or changed mid-read); after a few
+// failed attempts returns the neutral baseline rather than spinning. This
+// mirrors the publication model already used for write_seq.
+__attribute__((visibility("hidden"))) static SnapshotState
+read_snapshot(const FakeInputRingHeader *ring) {
+  SnapshotState out;
+  for (int attempt = 0; attempt < 8; attempt++) {
+    uint64_t s1 = __atomic_load_n(&ring->snapshot_seq, __ATOMIC_ACQUIRE);
+    if (s1 & 1ULL)
+      continue; // a write is in progress
+    uint32_t buttons = ring->snapshot_buttons;
+    int16_t axes[8];
+    for (int i = 0; i < 8; i++)
+      axes[i] = ring->snapshot_axes[i];
+    __atomic_thread_fence(__ATOMIC_ACQUIRE);
+    uint64_t s2 = __atomic_load_n(&ring->snapshot_seq, __ATOMIC_RELAXED);
+    if (s1 == s2) {
+      out.buttons = buttons;
+      for (int i = 0; i < 8; i++)
+        out.axes[i] = axes[i]; // sign-extend to int32 for the event value
+      return out;
+    }
+  }
+  return out;
+}
+
+// Capture the current absolute state into the controller so it can be streamed
+// as a keyframe independently of the ring. Idempotent w.r.t. an in-flight
+// keyframe: callers guard on keyframe_remaining == 0 so a partially delivered
+// frame is never restarted mid-stream.
+__attribute__((visibility("hidden"))) static void
+capture_keyframe(FakeController &fake, const char *reason, int fd) {
+  SnapshotState snap = read_snapshot(fake.ring);
+  fake.keyframe_buttons = snap.buttons;
+  for (int i = 0; i < 8; i++)
+    fake.keyframe_axes[i] = snap.axes[i];
+  fake.keyframe_remaining = kNeutralEventCount;
+  Logger::log("Fake input keyframe reason=%s fd=%d slot=%d read_seq=%llu "
+              "write_seq=%llu buttons=0x%03x axes=[%d,%d,%d,%d,%d,%d,%d,%d]\n",
+              reason ? reason : "unknown", fd, fake.slot,
+              static_cast<unsigned long long>(fake.read_seq),
+              static_cast<unsigned long long>(ring_write_seq(fake.ring)),
+              fake.keyframe_buttons, fake.keyframe_axes[0],
+              fake.keyframe_axes[1], fake.keyframe_axes[2],
+              fake.keyframe_axes[3], fake.keyframe_axes[4],
+              fake.keyframe_axes[5], fake.keyframe_axes[6],
+              fake.keyframe_axes[7]);
+}
+
+// Resolve the value a keyframe event should carry from the captured snapshot.
+__attribute__((visibility("hidden"))) static int32_t
+keyframe_value(const FakeController &fake, uint16_t type, uint16_t code) {
+  if (type == EV_KEY) {
+    for (int i = 0; i < 10; i++)
+      if (kSnapshotButtons[i] == code)
+        return (fake.keyframe_buttons >> i) & 1u;
+    return 0; // e.g. BTN_MODE, which the writer never presses
+  }
+  if (type == EV_ABS) {
+    for (int i = 0; i < 8; i++)
+      if (kSnapshotAxisCodes[i] == code)
+        return fake.keyframe_axes[i];
+  }
+  return 0; // SYN / unknown
+}
+
 __attribute__((visibility("hidden"))) static int
 open_fake_input_ring(const char *event, int flags) {
   int slot = get_event_number(event);
@@ -391,6 +487,9 @@ open_fake_input_ring(const char *event, int flags) {
   controller.mapping_size = FAKE_INPUT_RING_SIZE;
   controller.read_seq = ring_write_seq(ring);
   controller.generation = ring_generation(ring);
+  // Emit the current absolute state as the first frame so a guest that opens
+  // mid-hold (or reopens after a slot hand-off) starts already in sync.
+  capture_keyframe(controller, "open", fd);
   controller_map[fd] = controller;
 
   Logger::log("Adding ring-backed controller, fd %d event %s slot %d\n", fd,
@@ -431,15 +530,13 @@ fake_fd_has_unread_data(int fd) {
     fake.read_seq = write_seq;
   if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
     fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-    if (fake.neutral_remaining == 0)
-      Logger::log("Fake input ring overflow on fd %d slot %d; will emit neutral "
-                  "frame\n",
-                  fd, fake.slot);
-    fake.neutral_remaining = kNeutralEventCount;
+    if (fake.keyframe_remaining == 0) {
+      capture_keyframe(fake, "overflow", fd);
+    }
   }
-  // A pending neutral-recovery frame counts as readable so poll/blocking reads
-  // wake to finish flushing it even after the ring itself has drained.
-  return fake.neutral_remaining > 0 || write_seq > fake.read_seq;
+  // A pending keyframe counts as readable so poll/blocking reads wake to finish
+  // flushing it even after the ring itself has drained.
+  return fake.keyframe_remaining > 0 || write_seq > fake.read_seq;
 }
 
 __attribute__((visibility("hidden"))) static long long
@@ -975,40 +1072,40 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
     uint64_t write_seq = ring_write_seq(fake.ring);
     if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
       fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-      if (fake.neutral_remaining == 0)
-        Logger::log("Fake input ring overflow on fd %d slot %d; will emit "
-                    "neutral frame\n",
-                    fd, fake.slot);
-      fake.neutral_remaining = kNeutralEventCount;
+      if (fake.keyframe_remaining == 0) {
+        capture_keyframe(fake, "overflow", fd);
+      }
     }
 
     uint8_t *out = static_cast<uint8_t *>(buf);
     size_t out_events = 0;
     size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
 
-    // The ring overran the reader and events were dropped. Replay a full neutral
-    // baseline before any surviving (delta) events so a lost button-up / axis
-    // return can't stick. The frame streams across reads of any size: we emit as
-    // much as fits and do NOT consume the ring until it is fully delivered, so
-    // even a one-event-at-a-time consumer recovers. neutral_remaining keeps the
-    // fd readable (see fake_fd_has_unread_data) so poll wakes us to finish it.
-    if (fake.neutral_remaining > 0) {
+    // A keyframe is pending (open / ring overflow). Replay the full
+    // absolute baseline — every button and axis at its snapshot value — before
+    // any surviving delta events, so a lost button-up / axis-return can't stick.
+    // The frame streams across reads of any size: we emit as much as fits and do
+    // NOT consume the ring until it is fully delivered, so even a
+    // one-event-at-a-time consumer recovers. keyframe_remaining keeps the fd
+    // readable (see fake_fd_has_unread_data) so poll wakes us to finish it.
+    if (fake.keyframe_remaining > 0) {
       struct timeval now = {};
       gettimeofday(&now, nullptr);
-      while (fake.neutral_remaining > 0 && out_events < requested_events) {
-        size_t idx = kNeutralEventCount - fake.neutral_remaining;
+      while (fake.keyframe_remaining > 0 && out_events < requested_events) {
+        size_t idx = kNeutralEventCount - fake.keyframe_remaining;
         struct input_event ev;
         memset(&ev, 0, sizeof(ev));
         ev.time = now;
         ev.type = kNeutralEvents[idx].type;
         ev.code = kNeutralEvents[idx].code;
-        ev.value = 0;
+        ev.value = keyframe_value(fake, kNeutralEvents[idx].type,
+                                  kNeutralEvents[idx].code);
         memcpy(out + (out_events * FAKE_INPUT_EVENT_SIZE), &ev,
                FAKE_INPUT_EVENT_SIZE);
         out_events++;
-        fake.neutral_remaining--;
+        fake.keyframe_remaining--;
       }
-      if (fake.neutral_remaining > 0) {
+      if (fake.keyframe_remaining > 0) {
         // Buffer filled before the baseline finished; deliver the remainder (and
         // only then fresh events) on subsequent reads. out_events >= 1 here.
         return static_cast<ssize_t>(out_events * FAKE_INPUT_EVENT_SIZE);
