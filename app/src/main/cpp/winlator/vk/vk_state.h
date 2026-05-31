@@ -376,6 +376,9 @@ typedef struct VkRenderer {
     VkDescriptorPool descriptor_pool;
     uint32_t         descriptor_pool_capacity;
     uint32_t         descriptor_pool_used;
+    VkDescriptorSet* descriptor_free_list;
+    uint32_t         descriptor_free_count;
+    uint32_t         descriptor_free_capacity;
 
     // Graveyard
     VkGraveSlot      graveyard[VK_FRAMES_IN_FLIGHT + 1];

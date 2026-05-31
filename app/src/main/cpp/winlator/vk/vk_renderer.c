@@ -50,6 +50,7 @@ static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity);
 static bool create_pipelines(VkRenderer* r);
 static void destroy_pipelines(VkRenderer* r);
 static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fallback_height);
+static void destroy_swapchain_resources(VkRenderer* r);
 static void destroy_swapchain(VkRenderer* r);
 static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h, bool need_second);
 static void destroy_offscreen(VkRenderer* r);
@@ -73,13 +74,20 @@ VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r) {
         VK_LOGE("vkr_alloc_descriptor_set called before pipelines/pool ready");
         return VK_NULL_HANDLE;
     }
+
+    pthread_mutex_lock(&r->descriptor_mutex);
+    if (r->descriptor_free_count > 0) {
+        VkDescriptorSet set = r->descriptor_free_list[--r->descriptor_free_count];
+        pthread_mutex_unlock(&r->descriptor_mutex);
+        return set;
+    }
+
     VkDescriptorSetAllocateInfo ai = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     ai.descriptorPool = r->descriptor_pool;
     ai.descriptorSetCount = 1;
     ai.pSetLayouts = &r->pipelines.sampler_set_layout;
 
     VkDescriptorSet set = VK_NULL_HANDLE;
-    pthread_mutex_lock(&r->descriptor_mutex);
     VkResult res = vkAllocateDescriptorSets(r->device, &ai, &set);
     if (res != VK_SUCCESS) {
         VK_LOGE("vkAllocateDescriptorSets failed: %d (pool used %u/%u)",
@@ -95,8 +103,12 @@ VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r) {
 void vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set) {
     if (set == VK_NULL_HANDLE) return;
     pthread_mutex_lock(&r->descriptor_mutex);
-    vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
-    if (r->descriptor_pool_used > 0) r->descriptor_pool_used--;
+    if (r->descriptor_free_count < r->descriptor_free_capacity) {
+        r->descriptor_free_list[r->descriptor_free_count++] = set;
+    } else {
+        vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
+        if (r->descriptor_pool_used > 0) r->descriptor_pool_used--;
+    }
     pthread_mutex_unlock(&r->descriptor_mutex);
 }
 
@@ -558,6 +570,10 @@ static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity) {
     }
     r->descriptor_pool_capacity = capacity;
     r->descriptor_pool_used = 0;
+    uint32_t free_cap = capacity < 512 ? capacity : 512;
+    r->descriptor_free_list = calloc(free_cap, sizeof(VkDescriptorSet));
+    r->descriptor_free_count = 0;
+    r->descriptor_free_capacity = r->descriptor_free_list ? free_cap : 0;
     return true;
 }
 
@@ -1108,10 +1124,16 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
                 : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
     sci.presentMode = present_mode;
     sci.clipped = VK_TRUE;
-    if (vkCreateSwapchainKHR(r->device, &sci, NULL, &r->swapchain) != VK_SUCCESS) {
+    VkSwapchainKHR old_sc = r->swapchain;
+    sci.oldSwapchain = old_sc;
+    VkSwapchainKHR new_sc = VK_NULL_HANDLE;
+    if (vkCreateSwapchainKHR(r->device, &sci, NULL, &new_sc) != VK_SUCCESS) {
         VK_LOGE("vkCreateSwapchainKHR failed");
+        if (old_sc) { vkDestroySwapchainKHR(r->device, old_sc, NULL); r->swapchain = VK_NULL_HANDLE; }
         return false;
     }
+    r->swapchain = new_sc;
+    if (old_sc) vkDestroySwapchainKHR(r->device, old_sc, NULL);
 
     uint32_t actual_count = 0;
     if (vkGetSwapchainImagesKHR(r->device, r->swapchain, &actual_count, NULL) != VK_SUCCESS
@@ -1172,7 +1194,7 @@ fail:
     return false;
 }
 
-static void destroy_swapchain(VkRenderer* r) {
+static void destroy_swapchain_resources(VkRenderer* r) {
     for (uint32_t i = 0; i < r->swapchain_image_count; i++) {
         if (r->swapchain_render_finished[i]) {
             vkDestroySemaphore(r->device, r->swapchain_render_finished[i], NULL);
@@ -1188,6 +1210,10 @@ static void destroy_swapchain(VkRenderer* r) {
         }
     }
     r->swapchain_image_count = 0;
+}
+
+static void destroy_swapchain(VkRenderer* r) {
+    destroy_swapchain_resources(r);
     if (r->swapchain) { vkDestroySwapchainKHR(r->device, r->swapchain, NULL); r->swapchain = VK_NULL_HANDLE; }
 }
 
@@ -1690,11 +1716,6 @@ static bool scene_starts_with_sgsr1(const VkScene* s) {
     return s->effect_count > 0 && s->effects[0].type == VK_EFFECT_SGSR1;
 }
 
-// Wait for any frame currently in flight on the graphics queue. Cheaper than
-// vkDeviceWaitIdle for the destroy-and-rebuild paths in record_and_submit_frame: we don't
-// care about non-graphics queue work, only about no live frame still sampling/drawing to
-// the resource we're about to recreate. Caller has already waited on the current frame's
-// fence; this picks up the other in-flight slots.
 static void wait_inflight_frames(VkRenderer* r) {
     VkFence fences[VK_FRAMES_IN_FLIGHT];
     uint32_t count = 0;
@@ -1813,8 +1834,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool recreate_after_present = false;
     if (acq == VK_ERROR_OUT_OF_DATE_KHR) {
         r->surface_ready = false;
-        vkDeviceWaitIdle(r->device);
-        destroy_swapchain(r);
+        pthread_mutex_lock(&r->queue_mutex);
+        vkQueueWaitIdle(r->graphics_queue);
+        pthread_mutex_unlock(&r->queue_mutex);
+        destroy_swapchain_resources(r);
         r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
         pthread_mutex_unlock(&r->render_mutex);
         return false;
@@ -1952,8 +1975,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool present_suboptimal = (pr == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
     if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR || present_suboptimal) {
         r->surface_ready = false;
-        vkDeviceWaitIdle(r->device);
-        destroy_swapchain(r);
+        pthread_mutex_lock(&r->queue_mutex);
+        vkQueueWaitIdle(r->graphics_queue);
+        pthread_mutex_unlock(&r->queue_mutex);
+        destroy_swapchain_resources(r);
         r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
     }
 
@@ -1962,12 +1987,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
-    // No compositor-side FPS pacing here. Frame rate is already bounded by the X dispatch
-    // thread's XClient.enforceAbsoluteFramerate (which gates the game), Choreographer-paced
-    // requestRenderCoalesced (one render request per vsync), and FIFO present mode. Running
-    // a third sleep+busy-spin on the render thread duplicates that pacing for no FPS gain
-    // and burned ~24% of one core on busy-spinning under the GL renderer's behaviour,
-    // measurably regressing in-game 60 FPS caps.
     return true;
 }
 
@@ -2026,6 +2045,7 @@ fail:
     vkr_suballoc_destroy(r);  // safe if never initialized
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
+    free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->device) vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
@@ -2079,6 +2099,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
 
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
+    free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->surface) vkDestroySurfaceKHR(r->instance, r->surface, NULL);
     if (r->anw)     ANativeWindow_release(r->anw);
