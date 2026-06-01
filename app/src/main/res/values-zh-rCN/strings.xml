@@ -942,6 +942,9 @@
     <string name="google_cloud_sync_started">云同步已开始。</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google 服务</string>
+    <string name="google_auto_signin_title">启动时登录 Google</string>
+    <string name="google_auto_signin_summary">应用启动时自动连接到 Google Play 游戏，让存档备份和同步始终就绪。关闭后，应用绝不会自行登录。</string>
+    <string name="google_auto_signin_section">启动时</string>
     <string name="google_cloud_play_games">Google Play 游戏</string>
     <string name="google_cloud_status_syncing">同步中</string>
     <string name="google_cloud_status_connected">已连接</string>
@@ -1117,6 +1120,10 @@
     <string name="cloud_saves_history_empty">暂无已备份的历史存档。被替换的存档和手动备份将在此处保留 30 天。</string>
     <string name="cloud_saves_history_loading">正在加载存档历史\u2026</string>
     <string name="cloud_saves_history_origin_auto">自动</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">云端</string>
     <string name="cloud_saves_history_origin_local">本地</string>
     <string name="cloud_saves_history_origin_manual">手动</string>

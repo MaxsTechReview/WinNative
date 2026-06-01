@@ -209,8 +209,7 @@ internal fun CloudSavesContent(
                                     emptyList()
                                 }
                             }
-                        // Saves the user chose to "keep a copy" of are mirrored to Google Play
-                        // Games; surface them in the same list (silent no-op when not signed in).
+                        // Surface Google-mirrored "keep a copy" saves in the same list (silent no-op when not signed in).
                         val google =
                             GameSaveBackupManager.listGoogleHistory(
                                 activity,
@@ -1107,8 +1106,7 @@ private fun SaveHistoryRow(
                     android.text.format.DateUtils.MINUTE_IN_MILLIS,
                 ).toString()
         }
-    // Badge reflects WHERE the save is backed up, not the conflict side it came from:
-    // Steam Cloud / local snapshots → "Steam", Play Games mirror → "Google", etc.
+    // Badge reflects where the save is backed up (Steam/Google/Epic/GOG), not the conflict side it came from.
     val storageLabel =
         when (entry.storage) {
             GameSaveBackupManager.BackupStorage.STEAM_CLOUD,

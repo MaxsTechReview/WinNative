@@ -942,6 +942,9 @@ Ruta instalada:
     <string name="google_cloud_sync_started">Sincronización en la nube iniciada.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Servicios de Google</string>
+    <string name="google_auto_signin_title">Iniciar sesión en Google al abrir</string>
+    <string name="google_auto_signin_summary">Conéctate automáticamente a Google Play Games cuando se inicia la aplicación para que las copias de seguridad y la sincronización de partidas guardadas estén siempre listas. Si está desactivado, la aplicación nunca inicia sesión por su cuenta.</string>
+    <string name="google_auto_signin_section">Al iniciar</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Sincronizando</string>
     <string name="google_cloud_status_connected">Conectado</string>
@@ -1117,6 +1120,10 @@ Ruta instalada:
     <string name="cloud_saves_history_empty">Aún no hay partidas guardadas anteriores. Las partidas reemplazadas y las copias manuales aparecerán aquí durante 30 días.</string>
     <string name="cloud_saves_history_loading">Cargando historial de partidas\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">nube</string>
     <string name="cloud_saves_history_origin_local">local</string>
     <string name="cloud_saves_history_origin_manual">manual</string>

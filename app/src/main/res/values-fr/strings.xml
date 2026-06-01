@@ -942,6 +942,9 @@ Chemin installé :
     <string name="google_cloud_sync_started">Synchronisation cloud démarrée.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Services Google</string>
+    <string name="google_auto_signin_title">Se connecter à Google au démarrage</string>
+    <string name="google_auto_signin_summary">Se connecter automatiquement à Google Play Jeux au démarrage de l\'application afin que les sauvegardes et la synchronisation soient toujours prêtes. Lorsque l\'option est désactivée, l\'application ne se connecte jamais d\'elle-même.</string>
+    <string name="google_auto_signin_section">Au démarrage</string>
     <string name="google_cloud_play_games">Google Play Jeux</string>
     <string name="google_cloud_status_syncing">Synchronisation</string>
     <string name="google_cloud_status_connected">Connecté</string>
@@ -1117,6 +1120,10 @@ Chemin installé :
     <string name="cloud_saves_history_empty">Aucune sauvegarde précédente pour l\'instant. Les sauvegardes remplacées et les sauvegardes manuelles apparaîtront ici pendant 30 jours.</string>
     <string name="cloud_saves_history_loading">Chargement de l\'historique des sauvegardes\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_local">local</string>
     <string name="cloud_saves_history_origin_manual">manuel</string>

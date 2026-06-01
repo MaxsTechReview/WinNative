@@ -942,6 +942,9 @@ Caminho instalado:
     <string name="google_cloud_sync_started">Sincronizacao na nuvem iniciada.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Servicos Google</string>
+    <string name="google_auto_signin_title">Entrar no Google ao iniciar</string>
+    <string name="google_auto_signin_summary">Conecte-se automaticamente ao Google Play Games quando o app é iniciado para que os backups de saves e a sincronização estejam sempre prontos. Quando desativado, o app nunca entra sozinho.</string>
+    <string name="google_auto_signin_section">Ao iniciar</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Sincronizando</string>
     <string name="google_cloud_status_connected">Conectado</string>
@@ -1117,6 +1120,10 @@ Caminho instalado:
     <string name="cloud_saves_history_empty">Nenhum save anterior com backup ainda. Saves substituídos e backups manuais aparecerão aqui por 30 dias.</string>
     <string name="cloud_saves_history_loading">Carregando histórico de saves\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">nuvem</string>
     <string name="cloud_saves_history_origin_local">local</string>
     <string name="cloud_saves_history_origin_manual">manual</string>

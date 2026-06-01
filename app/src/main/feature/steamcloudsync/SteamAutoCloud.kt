@@ -44,32 +44,7 @@ object SteamAutoCloud {
     private const val PERSIST_STATE_PERSISTED = 0
     private const val PERSIST_STATE_DELETED = 2
 
-    /**
-     * Per-Steam-protocol content-divergence check used by the launch-time conflict probe.
-     *
-     * Returns `true` if ANY persisted cloud file is missing locally OR has a differing
-     * size/SHA-1. Returns `false` only when every cloud file is present locally with
-     * matching size and SHA — the canonical "no conflict" condition.
-     *
-     * Optimizations:
-     *  - Size comparison is a free pre-filter (no SHA on obvious size delta).
-     *  - `Sequence.any {  }` short-circuits on the first divergence.
-     *  - We compute the local SHA only on files whose size already matches.
-     */
-    /**
-     * Group persisted cloud files by the local path they resolve to.
-     *
-     * Steam Cloud can hold DUPLICATE / stale entries for one logical save file under different
-     * prefixes or filenames — e.g. Monster Hunter Rise lists both `win64_save/X` and
-     * `%SteamUserData%win64_save/X` (plus token-in-filename leftovers from earlier bad uploads),
-     * all mapping to the same on-disk file. Collapsing by resolved local path lets the downloader
-     * fetch each file once (any working variant satisfies it) and the conflict/verification checks
-     * treat a path as in-sync when the local file matches ANY variant — instead of failing the
-     * whole sync on a redundant phantom entry the CDN no longer has.
-     *
-     * Unresolvable entries (null local path) are dropped: they're malformed leftovers, not real
-     * saves, and must not wedge the sync into a permanent "conflict".
-     */
+    /** Group persisted cloud files by resolved local path, deduping Steam's stale/duplicate entries (unresolvable ones dropped). */
     private fun groupPersistedCloudFilesByLocalPath(
         response: CloudFileChangeList,
         prefixToPath: (String) -> String,
@@ -101,6 +76,7 @@ object SteamAutoCloud {
         return variants.any { it.rawFileSize == localSize && localSha.contentEquals(it.shaFile) }
     }
 
+    /** True if any cloud file diverges from local content (missing, or no matching size/SHA variant). */
     fun cloudContentDiffersFromLocal(
         response: CloudFileChangeList,
         prefixToPath: (String) -> String,
@@ -117,8 +93,7 @@ object SteamAutoCloud {
         }
     }
 
-    // Delegates to the canonical resolver so the conflict check and remotecache.vdf writer
-    // resolve a cloud file to the EXACT path the downloader writes it to.
+    // Delegates to the canonical resolver so every consumer resolves to the path the downloader writes.
     private fun resolveLocalPathForCloudFile(
         cloudFile: CloudFileInfo,
         response: CloudFileChangeList,
@@ -293,16 +268,7 @@ object SteamAutoCloud {
         return CloudPathRouting(rootAliases, exactPrefixTargets)
     }
 
-    // ── Canonical cloud-file → local-path resolution ──
-    //
-    // SINGLE source of truth shared by the downloader, the post-download hash verification,
-    // the launch/probe conflict checks, and the remotecache.vdf writer. Previously the
-    // downloader and the conflict check used two different mappings, so for games that use
-    // uploadRoot/uploadPath (rootoverrides) aliases, ROOT_MOD prefixes, or %GameInstall%
-    // routing the download landed in path A while the check read path B — leaving the save
-    // "different from cloud" forever and re-prompting the conflict on every launch even after
-    // the user picked "Use Cloud". Resolving every consumer through one function guarantees we
-    // verify exactly the file we wrote.
+    // ── Canonical cloud-file → local-path resolution (single source of truth for all consumers) ──
 
     private fun pathTypePairsFor(
         fileList: CloudFileChangeList,
@@ -383,11 +349,7 @@ object SteamAutoCloud {
         }
     }
 
-    /**
-     * Resolve a cloud file to the absolute local path it belongs at — the exact path the
-     * downloader writes to. This is the canonical mapping; all conflict/verification consumers
-     * must route through it so we never check a different location than we wrote.
-     */
+    /** Resolve a cloud file to the absolute local path the downloader writes to (the canonical mapping). */
     private fun resolveCloudFileLocalPath(
         file: CloudFileInfo,
         fileList: CloudFileChangeList,
@@ -396,8 +358,7 @@ object SteamAutoCloud {
     ): Path? {
         val routing = cloudRouting ?: CloudPathRouting(emptyMap(), emptyMap())
 
-        // Steam sometimes returns prefix="" and filename="%GameInstall%save0.dat" instead of
-        // splitting correctly — route the embedded token the same way the downloader does.
+        // Steam sometimes embeds the %GameInstall% token in the filename with an empty prefix; route it like the downloader.
         val gameInstallPrefix = "%${PathType.GameInstall.name}%"
         if (file.filename.startsWith(gameInstallPrefix)) {
             val stripped = file.filename.removePrefix(gameInstallPrefix).trimStart('/', '\\')
@@ -822,10 +783,7 @@ object SteamAutoCloud {
                 changesExist to FileChanges(deletedFiles, modifiedFiles, newFiles)
             }
 
-            // Post-download verification: every cloud file's bytes must be present locally.
-            // Deduped by resolved local path with match-ANY semantics so the redundant/stale
-            // duplicate entries Steam Cloud keeps for one logical file (different prefixes/names)
-            // can't make a fully-restored save look like it still conflicts.
+            // Post-download verification: each resolved local path must match ANY of its cloud variants.
             val hasHashConflicts: (Map<String, List<UserFileInfo>>, CloudFileChangeList) -> Boolean =
                 { _, fileList ->
                     groupPersistedCloudFilesByLocalPath(fileList, prefixToPath, cloudRouting)
@@ -890,11 +848,7 @@ object SteamAutoCloud {
                 parentScope.async {
                     var filesDownloaded = 0
                     var bytesDownloaded = 0L
-                    // Dedup by resolved local path: a logical save file Steam lists under multiple
-                    // prefixes/names is downloaded ONCE. We try each cloud-name variant until one
-                    // fetches successfully, so a redundant/stale entry the CDN no longer has can't
-                    // fail the whole sync. filesDownloaded counts UNIQUE local paths written and is
-                    // compared against the same unique-path total by the caller.
+                    // Download each unique local path once, trying each cloud variant until one fetches; count unique paths written.
                     val groups = groupPersistedCloudFilesByLocalPath(fileList, prefixToPath, cloudRouting)
                     val totalFiles = groups.size
 
@@ -1189,9 +1143,7 @@ object SteamAutoCloud {
                                     getFilesDiff(remoteUserFiles, allLocalUserFiles).second.filesDeleted
                                 }
 
-                            // Count UNIQUE local paths to download — Steam Cloud's duplicate/stale
-                            // entries for one logical file must not inflate the target and wedge the
-                            // sync into permanent DownloadFail (the Monster Hunter Rise symptom).
+                            // Count UNIQUE local paths so duplicate/stale cloud entries can't inflate the target into permanent DownloadFail.
                             val cloudTargetPaths =
                                 groupPersistedCloudFilesByLocalPath(appFileListChange, prefixToPath, cloudRouting).keys
                             val expectedDownloads = cloudTargetPaths.size
@@ -1216,9 +1168,7 @@ object SteamAutoCloud {
                                     } else {
                                         var totalFilesDeleted = 0
                                         filesDeletedByCloud.forEach {
-                                            // Safety: never delete a local file the cloud actually has
-                                            // under SOME variant name (guards against the duplicate-
-                                            // prefix entries making a kept file look "removed remotely").
+                                            // Never delete a local file the cloud still has under some variant name.
                                             val abs =
                                                 runCatching { it.getAbsPath(prefixToPath).toAbsolutePath().normalize() }
                                                     .getOrNull()
@@ -1404,18 +1354,7 @@ object SteamAutoCloud {
                                         }
 
                                         SaveLocation.None -> {
-                                            // A real Steam conflict requires the local and cloud
-                                            // FILE CONTENT to actually diverge — not merely a
-                                            // change-number mismatch. The change number can drift
-                                            // (e.g. an upload's batch change number lags the next
-                                            // GetAppFileChangelist, or the persisted baseline is
-                                            // lost) while every file is byte-identical, which used
-                                            // to surface a phantom conflict dialog on every launch.
-                                            // Steam itself compares file SHAs; if both sides hold
-                                            // the same bytes there is nothing to resolve. Mirror the
-                                            // launch-probe hardening here: only prompt on genuine
-                                            // content divergence, otherwise silently reconcile the
-                                            // baseline so the false conflict cannot recur.
+                                            // Only a real content divergence is a conflict; a bare change-number drift reconciles the baseline silently.
                                             val contentDiffers =
                                                 cloudContentDiffersFromLocal(appFileListChange, prefixToPath, appInfo)
                                             if (contentDiffers) {

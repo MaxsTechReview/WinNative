@@ -973,11 +973,7 @@ class UnifiedActivity :
         }
     }
 
-    /**
-     * When the "Sign in to Google on launch" toggle (Settings ▸ Google) is enabled, attempt a
-     * Google Play Games sign-in once per process launch. No toast — the result is reflected in the
-     * Google tab. When the toggle is off (default), this is a no-op and the app never auto-signs-in.
-     */
+    /** When the "Sign in to Google on launch" toggle is on, attempt a silent Play Games sign-in once per launch. */
     private fun maybeAutoSignInGoogleOnLaunch() {
         if (!com.winlator.cmod.feature.sync.google.CloudSyncManager.isAutoSignInOnLaunchEnabled(this)) return
         runCatching {

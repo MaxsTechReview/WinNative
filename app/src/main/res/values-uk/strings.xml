@@ -948,6 +948,9 @@
     <string name="google_cloud_sync_started">Хмарну синхронізацію розпочато.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Сервіси Google</string>
+    <string name="google_auto_signin_title">Вхід у Google під час запуску</string>
+    <string name="google_auto_signin_summary">Автоматично підключатися до Google Play Ігри під час запуску додатка, щоб резервні копії збережень і синхронізація завжди були готові. Коли вимкнено, додаток ніколи не входить самостійно.</string>
+    <string name="google_auto_signin_section">Під час запуску</string>
     <string name="google_cloud_play_games">Google Play Ігри</string>
     <string name="google_cloud_status_syncing">Синхронізація</string>
     <string name="google_cloud_status_connected">Підключено</string>
@@ -1123,6 +1126,10 @@
     <string name="cloud_saves_history_empty">Попередніх збережень ще немає. Замінені збереження та ручні резервні копії з\'являтимуться тут протягом 30 днів.</string>
     <string name="cloud_saves_history_loading">Завантаження історії збережень\u2026</string>
     <string name="cloud_saves_history_origin_auto">авто</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">хмара</string>
     <string name="cloud_saves_history_origin_local">локально</string>
     <string name="cloud_saves_history_origin_manual">вручну</string>

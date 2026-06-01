@@ -1044,6 +1044,9 @@
     <string name="google_cloud_sync_started">क्लाउड सिंक शुरू हुआ।</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google सेवाएँ</string>
+    <string name="google_auto_signin_title">लॉन्च पर Google में साइन इन करें</string>
+    <string name="google_auto_signin_summary">ऐप शुरू होने पर अपने आप Google Play Games से कनेक्ट करें ताकि सेव बैकअप और सिंक हमेशा तैयार रहें. बंद होने पर, ऐप कभी भी अपने आप साइन इन नहीं करता.</string>
+    <string name="google_auto_signin_section">लॉन्च पर</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">सिंक हो रहा है</string>
     <string name="google_cloud_status_connected">कनेक्टेड</string>
@@ -1123,6 +1126,10 @@
     <string name="cloud_saves_history_origin_cloud">क्लाउड</string>
     <string name="cloud_saves_history_origin_manual">मैनुअल</string>
     <string name="cloud_saves_history_origin_auto">ऑटो</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">पुनर्स्थापित करें</string>
     <string name="cloud_saves_history_restore_confirm_title">इस बैकअप को पुनर्स्थापित करें?</string>
     <string name="cloud_saves_history_restore_confirm_body">यह आपके वर्तमान स्थानीय सेव को %1$s के बैकअप से बदल देगा।</string>

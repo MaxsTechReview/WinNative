@@ -942,6 +942,9 @@ Installierter Pfad:
     <string name="google_cloud_sync_started">Cloud-Synchronisierung gestartet.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google-Dienste</string>
+    <string name="google_auto_signin_title">Beim Start bei Google anmelden</string>
+    <string name="google_auto_signin_summary">Beim App-Start automatisch mit Google Play Games verbinden, damit Spielstand-Backups und Synchronisierung immer bereit sind. Wenn deaktiviert, meldet sich die App nie von selbst an.</string>
+    <string name="google_auto_signin_section">Beim Start</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Synchronisiere</string>
     <string name="google_cloud_status_connected">Verbunden</string>
@@ -1117,6 +1120,10 @@ Installierter Pfad:
     <string name="cloud_saves_history_empty">Noch keine früheren Spielstände gesichert. Ersetzte Spielstände und manuelle Backups erscheinen hier für 30 Tage.</string>
     <string name="cloud_saves_history_loading">Speicherverlauf wird geladen\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_local">lokal</string>
     <string name="cloud_saves_history_origin_manual">manuell</string>

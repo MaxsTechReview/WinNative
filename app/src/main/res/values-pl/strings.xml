@@ -948,6 +948,9 @@ Zainstalowana ścieżka:
     <string name="google_cloud_sync_started">Rozpoczęto synchronizację w chmurze.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Usługi Google</string>
+    <string name="google_auto_signin_title">Logowanie do Google przy starcie</string>
+    <string name="google_auto_signin_summary">Automatycznie łącz z Google Play Games po uruchomieniu aplikacji, aby kopie zapasowe zapisów i synchronizacja były zawsze gotowe. Gdy wyłączone, aplikacja nigdy nie loguje się samodzielnie.</string>
+    <string name="google_auto_signin_section">Przy starcie</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Synchronizowanie</string>
     <string name="google_cloud_status_connected">Połączono</string>
@@ -1123,6 +1126,10 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_empty">Brak poprzednich zapisów w kopii zapasowej. Zastąpione zapisy i ręczne kopie zapasowe będą tu widoczne przez 30 dni.</string>
     <string name="cloud_saves_history_loading">Ładowanie historii zapisów\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">chmura</string>
     <string name="cloud_saves_history_origin_local">lokalne</string>
     <string name="cloud_saves_history_origin_manual">ręczne</string>

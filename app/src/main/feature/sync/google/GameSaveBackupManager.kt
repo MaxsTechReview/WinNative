@@ -134,13 +134,7 @@ object GameSaveBackupManager {
         /** GOG cloud's live file listing. Restore pulls full cloud state down. */
         GOG_CLOUD,
 
-        /**
-         * Google Play Games **Saved Games (Snapshots)**. A logical save is one manifest
-         * snapshot plus N gzipped-zip "part" snapshots (split to fit `getMaxDataSize()`).
-         * Surfaced in Save History as a single entry with the GOOGLE badge; restore
-         * reassembles the parts, extracts into the resolved save dirs, then pushes the
-         * restored state back to the game's primary cloud (Steam Cloud for Steam).
-         */
+        /** Google Play Games Saved Games: one manifest snapshot plus N gzipped-zip part snapshots, shown as a single GOOGLE entry. */
         GOOGLE,
     }
 
@@ -263,11 +257,7 @@ object GameSaveBackupManager {
     /** Pref name kept verbatim ("google_drive_connected") for upgrade compatibility — the backend is now PGS. */
     fun isDriveConnected(context: Context): Boolean = prefs(context).getBoolean(KEY_GOOGLE_DRIVE_CONNECTED, false)
 
-    /**
-     * Records whether a Google Play Games session is connected. Public so the sign-in
-     * surfaces (Google tab account card, the launch auto-sign-in, the on-launch toggle) can
-     * keep this flag — the gate for showing/loading Google Saved-Games history — in sync.
-     */
+    /** Records whether a Google Play Games session is connected — the gate for loading Google Saved-Games history. */
     fun setDriveConnected(context: Context, connected: Boolean) {
         prefs(context).edit().putBoolean(KEY_GOOGLE_DRIVE_CONNECTED, connected).apply()
     }
@@ -309,10 +299,7 @@ object GameSaveBackupManager {
                 // 1) Local rolling snapshot — the offline rollback safety net (always attempted).
                 val localOk = SteamSaveSnapshotManager.recordSnapshot(activity.applicationContext, appId, origin)
 
-                // 2) Mirror the kept save to Google Play Games (split + zipped) when a Google
-                //    session is connected. Uses the caller's [authMode] (RESUME from the launch
-                //    conflict flow), so when the user is NOT signed in this is a silent no-op and
-                //    only the local snapshot is kept.
+                // 2) Mirror to Google Play Games when signed in; a silent no-op otherwise (only the local snapshot is kept).
                 val googleResult =
                     runCatching {
                         backupSaveToGoogle(activity, gameSource, gameId, gameName, origin, authMode)
@@ -335,18 +322,7 @@ object GameSaveBackupManager {
 
     // ── Google Play Games saved-game backup / list / restore ──
 
-    /**
-     * Back up the current local save for a game to Google Play Games **Saved Games**.
-     *
-     * Pipeline: collect save sources → stream a single gzipped-zip into a cache file →
-     * split into ≤[MAX_PARTS] part snapshots sized to fit `SnapshotsClient.getMaxDataSize()`
-     * → write the parts first, then the manifest LAST (its presence is the commit point).
-     * The manifest references the part names plus the uncompressed size and SHA-256 so a
-     * later restore can verify integrity. Returns a user-facing [BackupResult].
-     *
-     * Silent when not signed in: with [authMode] = RESUME/SILENT, a missing Google session
-     * short-circuits to a failure result with no UI and no toast.
-     */
+    /** Back up the current local save to Google Play Games as ≤[MAX_PARTS] part snapshots plus a manifest written last (the commit point). */
     @JvmOverloads
     suspend fun backupSaveToGoogle(
         activity: Activity,
@@ -446,11 +422,7 @@ object GameSaveBackupManager {
             }
         }
 
-    /**
-     * List a game's Google Play Games saved-game history, newest-first. Each manifest snapshot
-     * becomes one [BackupHistoryEntry] with `storage = GOOGLE`. Returns empty (no UI) when no
-     * Google session is connected.
-     */
+    /** List a game's Google Play Games saved-game history (one entry per manifest, newest-first); empty when not signed in. */
     @JvmOverloads
     suspend fun listGoogleHistory(
         activity: Activity,
@@ -488,12 +460,7 @@ object GameSaveBackupManager {
             }
         }
 
-    /**
-     * Restore a Google Play Games saved-game [entry]: read its manifest, download + concatenate
-     * the parts, verify the SHA-256, extract into the resolved save dirs, then push the restored
-     * state up to the game's primary cloud (Steam Cloud for Steam). The reassembled archive is
-     * always deleted afterward.
-     */
+    /** Restore a Google saved-game [entry]: reassemble + verify the parts, extract into the save dirs, then push to the game's primary cloud. */
     @JvmOverloads
     suspend fun restoreFromGoogle(
         activity: Activity,
@@ -755,12 +722,7 @@ object GameSaveBackupManager {
     ): List<SaveBackupSource> =
         when (source) {
             GameSource.STEAM -> {
-                // Steam's primary cloud is Steam Cloud, but a Steam save can ALSO be mirrored
-                // to Google Play Games (the conflict "keep a copy" flow). Reuse the exact source
-                // enumeration the local Steam snapshot manager uses so backup and restore resolve
-                // identical zipRoot -> dir mappings (the manifest doesn't need to store paths).
-                // The containerHint pins resolution to the game's own wineprefix so restore writes
-                // into — and the follow-up Steam Cloud upload reads from — the same container.
+                // Reuse the local Steam snapshot manager's source enumeration so backup/restore share identical zipRoot -> dir mappings.
                 val appId = gameId.toIntOrNull() ?: return emptyList()
                 SteamSaveSnapshotManager
                     .enumerateGoogleSaveSources(context, appId, forRestore, containerHint)

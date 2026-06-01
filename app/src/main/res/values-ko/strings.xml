@@ -942,6 +942,9 @@
     <string name="google_cloud_sync_started">클라우드 동기화가 시작되었습니다.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google 서비스</string>
+    <string name="google_auto_signin_title">실행 시 Google에 로그인</string>
+    <string name="google_auto_signin_summary">앱이 시작될 때 자동으로 Google Play 게임에 연결하여 저장 백업과 동기화가 항상 준비되도록 합니다. 끄면 앱이 자동으로 로그인하지 않습니다.</string>
+    <string name="google_auto_signin_section">실행 시</string>
     <string name="google_cloud_play_games">Google Play 게임</string>
     <string name="google_cloud_status_syncing">동기화 중</string>
     <string name="google_cloud_status_connected">연결됨</string>
@@ -1118,6 +1121,10 @@
     <string name="cloud_saves_history_empty">아직 백업된 이전 저장 파일이 없습니다. 교체된 저장 파일과 수동 백업이 30일 동안 여기에 표시됩니다.</string>
     <string name="cloud_saves_history_loading">저장 기록 불러오는 중\u2026</string>
     <string name="cloud_saves_history_origin_auto">자동</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">클라우드</string>
     <string name="cloud_saves_history_origin_local">로컬</string>
     <string name="cloud_saves_history_origin_manual">수동</string>

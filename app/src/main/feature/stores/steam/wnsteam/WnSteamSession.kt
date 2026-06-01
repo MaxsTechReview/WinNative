@@ -222,13 +222,7 @@ class WnSteamSession : AutoCloseable {
         return nativeGetCloudDownloadInfo(h, appId, filename)
     }
 
-    // Blocking Steam Cloud file download. Steam may store a save compressed (fileSize <
-    // rawFileSize) in any of several wrappers (single-entry PKZip, gzip, zlib, or raw deflate),
-    // or serve it via transport Content-Encoding. We request `identity` to get the exact stored
-    // blob, then auto-detect and decode it, validating the result against rawFileSize. The old
-    // code assumed a single-entry zip, which silently failed for games whose (typically larger)
-    // saves use a different wrapper or get transparently decoded by the HTTP stack — leaving the
-    // file un-restored and the launch conflict prompt recurring forever (e.g. Monster Hunter Rise).
+    // Blocking Steam Cloud download: request `identity`, then auto-detect/decode the stored wrapper and validate against rawFileSize.
     fun downloadCloudFile(appId: Int, filename: String): ByteArray? {
         val infoJson = getCloudDownloadInfo(appId, filename) ?: return null
         return try {
@@ -237,12 +231,10 @@ class WnSteamSession : AutoCloseable {
             if (host.isEmpty()) return null
             val rawFileSize = obj.optInt("rawFileSize", 0)
             val encrypted = obj.optBoolean("encrypted", false)
-            // Steam CM gives http/https per file; force https on Android (cleartext is blocked by
-            // default and the CDN serves both) but keep the host/path it handed us.
+            // Force https on Android (cleartext is blocked by default; the CDN serves both).
             val url = java.net.URL("https://$host${obj.optString("urlPath")}")
 
-            // Up to 3 attempts — a transient HTTP/network blip must NOT strand the save and
-            // re-trigger the conflict dialog next launch.
+            // Up to 3 attempts so a transient HTTP/network blip can't strand the save.
             var raw: ByteArray? = null
             var lastCode = -1
             for (attempt in 0 until 3) {
@@ -251,9 +243,7 @@ class WnSteamSession : AutoCloseable {
                     connectTimeout = 15_000
                     readTimeout = 30_000
                     instanceFollowRedirects = true
-                    // Get the exact stored bytes; we decode below. Prevents the HTTP stack from
-                    // transparently gunzipping a Content-Encoding:gzip response (which left the
-                    // body already-decoded yet still routed through the unzip path).
+                    // Get the exact stored bytes (we decode below); stops the HTTP stack from transparently gunzipping.
                     setRequestProperty("Accept-Encoding", "identity")
                     obj.optJSONArray("headers")?.let { headers ->
                         for (i in 0 until headers.length()) {
@@ -297,12 +287,7 @@ class WnSteamSession : AutoCloseable {
         }
     }
 
-    /**
-     * Decode a Steam Cloud download payload to the raw file bytes. Tries, in order: already-raw
-     * (uncompressed or transport-decoded), single-entry PKZip, gzip, zlib, and raw DEFLATE — and
-     * accepts the first candidate whose length equals [rawFileSize]. Returns null if nothing
-     * decodes to the expected size (e.g. an encrypted file we can't decrypt).
-     */
+    /** Decode a Steam Cloud payload, trying raw/PKZip/gzip/zlib/raw-DEFLATE and accepting the first match for [rawFileSize]. */
     private fun decodeCloudPayload(raw: ByteArray, rawFileSize: Int): ByteArray? {
         if (raw.isEmpty()) return if (rawFileSize == 0) raw else null
         // Already the raw file (uncompressed, or the HTTP stack decoded transport compression).

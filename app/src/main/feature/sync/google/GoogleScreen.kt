@@ -153,9 +153,7 @@ fun GoogleScreen() {
                     autoSignIn = enabled
                     CloudSyncManager.setAutoSignInOnLaunchEnabled(context, enabled)
                     if (enabled) {
-                        // The user opted in — sign in right away so it takes effect immediately
-                        // (and every subsequent launch). A toast here is expected, unlike the
-                        // silent OFF behavior.
+                        // Opted in: sign in right away (a toast here is expected, unlike the silent OFF path).
                         val currentActivity = activity ?: return@AutoSignInToggleCard
                         busy = true
                         CloudSyncManager.signIn(currentActivity) { success, message ->

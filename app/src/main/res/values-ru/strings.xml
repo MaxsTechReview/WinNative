@@ -1006,6 +1006,9 @@
     <string name="google_cloud_sync_started">Синхронизация с облаком началась.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Сервисы Google</string>
+    <string name="google_auto_signin_title">Вход в Google при запуске</string>
+    <string name="google_auto_signin_summary">Автоматически подключаться к Google Play Games при запуске приложения, чтобы резервные копии сохранений и синхронизация всегда были готовы. Когда выключено, приложение никогда не входит само.</string>
+    <string name="google_auto_signin_section">При запуске</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Синхронизация</string>
     <string name="google_cloud_status_connected">Подключено</string>
@@ -1086,6 +1089,10 @@
     <string name="cloud_saves_history_origin_cloud">облако</string>
     <string name="cloud_saves_history_origin_manual">вручную</string>
     <string name="cloud_saves_history_origin_auto">авто</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Восстановить</string>
     <string name="cloud_saves_history_restore_confirm_title">Восстановить эту резервную копию?</string>
     <string name="cloud_saves_history_restore_confirm_body">Это заменит ваше текущее локальное сохранение резервной копией от %1$s.</string>

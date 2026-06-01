@@ -942,6 +942,9 @@ Installeret sti:
     <string name="google_cloud_sync_started">Skysynkronisering startet.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google-tjenester</string>
+    <string name="google_auto_signin_title">Log ind på Google ved opstart</string>
+    <string name="google_auto_signin_summary">Opret automatisk forbindelse til Google Play Spil, når appen starter, så sikkerhedskopier af gemte filer og synkronisering altid er klar. Når den er slået fra, logger appen aldrig ind af sig selv.</string>
+    <string name="google_auto_signin_section">Ved opstart</string>
     <string name="google_cloud_play_games">Google Play Spil</string>
     <string name="google_cloud_status_syncing">Synkroniserer</string>
     <string name="google_cloud_status_connected">Forbundet</string>
@@ -1117,6 +1120,10 @@ Installeret sti:
     <string name="cloud_saves_history_empty">Ingen tidligere saves er sikkerhedskopieret endnu. Erstattede saves og manuelle sikkerhedskopier vises her i 30 dage.</string>
     <string name="cloud_saves_history_loading">Indlæser save-historik\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_local">lokal</string>
     <string name="cloud_saves_history_origin_manual">manuel</string>
