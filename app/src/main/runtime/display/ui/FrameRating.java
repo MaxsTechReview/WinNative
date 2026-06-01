@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.BatteryManager;
@@ -17,8 +18,12 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.TextPaint;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.ImageSpan;
+import android.text.style.MetricAffectingSpan;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
@@ -73,6 +78,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final int C_CPU;
   private final int C_DIVISOR;
   private final int C_FPS_OK;
+  private final int C_WARM;
+  private final int C_HOT;
   private final int C_GPU;
   private final int C_RAM;
   private final int C_TEMP;
@@ -167,6 +174,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int displayMode = 0;
   private static final int MODE_COUNT = 4;
   private GradientDrawable backdropDrawable;
+  // Outlined plug glyph shown next to the battery wattage while charging (lazily loaded + tinted).
+  private Drawable plugIcon;
   private boolean dualSeriesBattery;
   private boolean frametimeNumericMode;
 
@@ -219,6 +228,8 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.C_TEMP = Color.parseColor("#EF5350");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
+    this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
+    this.C_HOT = Color.parseColor("#FF1744"); // TMP value when battery is hot (>=45C)
     this.C_DIVISOR = Color.parseColor("#616161");
     this.context = context;
     this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
@@ -835,6 +846,13 @@ public class FrameRating extends LinearLayout implements Runnable {
           lp.width = LayoutParams.WRAP_CONTENT;
           lp.height = LayoutParams.WRAP_CONTENT;
           lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
+        } else if (v == tvFpsBig) {
+          lp.width = LayoutParams.WRAP_CONTENT;
+          lp.height = LayoutParams.WRAP_CONTENT;
+          lp.setMargins(0, 0, 0, 0);
+          // Centre the big FPS number across the HUD width when stacked
+          // vertically; inherit the container gravity when horizontal (-1).
+          lp.gravity = horizontal ? -1 : Gravity.CENTER_HORIZONTAL;
         } else {
           lp.width = LayoutParams.WRAP_CONTENT;
           lp.height = LayoutParams.WRAP_CONTENT;
@@ -894,8 +912,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   private void updateRendererText() {
     if (this.tvRenderer != null) {
-      String text = this.rendererName + (this.isNativeActive ? "+" : "");
-      this.tvRenderer.setText(text);
+      this.tvRenderer.setText(this.rendererName);
       this.tvRenderer.setVisibility(this.enableRenderer ? View.VISIBLE : View.GONE);
       updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
     }
@@ -1397,23 +1414,32 @@ public class FrameRating extends LinearLayout implements Runnable {
                 : this.batteryWatts;
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "BAT ", this.C_BAT);
+        // While charging, prefix the live wattage with an outlined plug glyph
+        // instead of the old "CHRG" placeholder text.
         if (this.isCharging) {
-          append(b, "CHRG", this.C_FPS_OK);
-        } else {
-          append(
-              b,
-              displayedBatteryWatts >= 0.0f
-                  ? String.format(Locale.US, "%.1fW", displayedBatteryWatts)
-                  : "N/A",
-              this.C_VALUE);
+          appendPlugIcon(b);
         }
+        append(
+            b,
+            displayedBatteryWatts >= 0.0f
+                ? String.format(Locale.US, "%.1fw", displayedBatteryWatts)
+                : "N/A",
+            this.C_VALUE);
         this.tvBat.setText(b);
         this.tvBat.setVisibility(View.VISIBLE);
       }
       if (this.tvTemp != null) {
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "TMP ", this.C_TEMP);
-        append(b, this.cpuTemp >= 0 ? this.cpuTemp + "°C" : "N/A", this.C_VALUE);
+        if (this.cpuTemp >= 0) {
+          // Battery temperature: amber in the warm range, red once hot.
+          int tempColor =
+              this.cpuTemp >= 45 ? this.C_HOT : this.cpuTemp >= 40 ? this.C_WARM : this.C_VALUE;
+          append(b, this.cpuTemp + "°", tempColor);
+          appendSmall(b, "C", tempColor, 0.7f);
+        } else {
+          append(b, "N/A", this.C_VALUE);
+        }
         this.tvTemp.setText(b);
         this.tvTemp.setVisibility(View.VISIBLE);
       }
@@ -1443,6 +1469,113 @@ public class FrameRating extends LinearLayout implements Runnable {
     int start = b.length();
     b.append(t);
     b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
+  }
+
+  /**
+   * Like {@link #append} but renders the text at {@code scale} of the surrounding size and raises
+   * it so the smaller glyph's top lines up with the full-size text (used for the "C" unit).
+   */
+  private void appendSmall(SpannableStringBuilder b, String t, int c, float scale) {
+    int start = b.length();
+    b.append(t);
+    b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
+    b.setSpan(new SmallRaisedSpan(scale), start, b.length(), 33);
+  }
+
+  /**
+   * Renders text at a reduced size, shifted up so its top aligns with the cap height of the
+   * surrounding full-size text instead of resting on the shared baseline.
+   */
+  private static class SmallRaisedSpan extends MetricAffectingSpan {
+    private final float scale;
+
+    SmallRaisedSpan(float scale) {
+      this.scale = scale;
+    }
+
+    @Override
+    public void updateDrawState(TextPaint tp) {
+      apply(tp);
+    }
+
+    @Override
+    public void updateMeasureState(TextPaint tp) {
+      apply(tp);
+    }
+
+    private void apply(TextPaint tp) {
+      float fullAscent = tp.ascent(); // negative: distance from baseline to top of full text
+      tp.setTextSize(tp.getTextSize() * scale);
+      // Negative baselineShift moves the glyph up; align the smaller top with the full-size top.
+      tp.baselineShift += (int) (fullAscent - tp.ascent());
+    }
+  }
+
+  /**
+   * Append the outlined plug glyph (tinted to the charging colour) followed by a small gap.
+   * The glyph rides on a single placeholder space that the {@link ImageSpan} draws over; a
+   * second visible space separates it from the wattage that follows. Falls back to a textual
+   * "⚡" marker if the drawable can't be loaded.
+   */
+  private void appendPlugIcon(SpannableStringBuilder b) {
+    Drawable plug = getPlugIcon();
+    if (plug == null) {
+      append(b, "⚡ ", this.C_FPS_OK);
+      return;
+    }
+    int start = b.length();
+    b.append(" "); // placeholder rendered as the plug icon
+    b.setSpan(new CenteredImageSpan(plug), start, b.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+    b.append(" "); // gap before the wattage
+  }
+
+  /** Lazily load, size (to the battery text height) and tint the plug drawable; cached. */
+  private Drawable getPlugIcon() {
+    if (this.plugIcon == null && this.context != null) {
+      Drawable d = this.context.getDrawable(R.drawable.ic_hud_plug);
+      if (d != null) {
+        d = d.mutate();
+        // Render the glyph slightly larger than the battery text so it reads clearly.
+        final float scale = 1.3f;
+        float base =
+            this.tvBat != null && this.tvBat.getTextSize() > 0
+                ? this.tvBat.getTextSize()
+                : TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP, 10f, getResources().getDisplayMetrics());
+        int size = Math.round(base * scale);
+        d.setBounds(0, 0, size, size);
+        d.setTint(this.C_FPS_OK);
+        this.plugIcon = d;
+      }
+    }
+    return this.plugIcon;
+  }
+
+  /** {@link ImageSpan} that vertically centres its drawable on the text instead of the baseline. */
+  private static class CenteredImageSpan extends ImageSpan {
+    CenteredImageSpan(Drawable drawable) {
+      super(drawable, ImageSpan.ALIGN_BOTTOM);
+    }
+
+    @Override
+    public void draw(
+        Canvas canvas,
+        CharSequence text,
+        int start,
+        int end,
+        float x,
+        int top,
+        int y,
+        int bottom,
+        Paint paint) {
+      Drawable d = getDrawable();
+      Paint.FontMetricsInt fm = paint.getFontMetricsInt();
+      int transY = y + (fm.descent + fm.ascent) / 2 - d.getBounds().height() / 2;
+      canvas.save();
+      canvas.translate(x, transY);
+      d.draw(canvas);
+      canvas.restore();
+    }
   }
 
   private class FrametimeGraphView extends View {
