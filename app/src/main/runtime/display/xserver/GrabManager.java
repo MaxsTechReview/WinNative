@@ -72,7 +72,12 @@ public class GrabManager implements WindowManager.OnWindowModificationListener {
 
   public void activatePointerGrab(
       Window window, boolean ownerEvents, Bitmask eventMask, XClient client) {
-    activatePointerGrab(window, new EventListener(client, eventMask), ownerEvents, false, null);
+    activatePointerGrab(window, ownerEvents, eventMask, client, null);
+  }
+
+  public void activatePointerGrab(
+      Window window, boolean ownerEvents, Bitmask eventMask, XClient client, Window confineToWindow) {
+    activatePointerGrab(window, new EventListener(client, eventMask), ownerEvents, false, confineToWindow);
   }
 
   public void activatePointerGrab(Window window) {

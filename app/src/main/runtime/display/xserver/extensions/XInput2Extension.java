@@ -227,7 +227,7 @@ public class XInput2Extension implements Extension {
         outputStream.writeShort((short) axisNumber);
         outputStream.writeInt(0);
         outputStream.writeFP3232(0.0);
-        outputStream.writeFP3232(1.0);
+        outputStream.writeFP3232(0.0);
         outputStream.writeFP3232(0.0);
         outputStream.writeInt(0);
         outputStream.writeByte((byte) 0);

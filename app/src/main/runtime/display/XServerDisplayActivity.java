@@ -1799,7 +1799,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             int idy = Mathf.roundPoint(scaledDy);
                             xServer.getWinHandler().mouseMoveDelta(idx, idy);
                             touchpadView.updateVisibleRelativeCursor(xServer.pointer.getX() + idx, xServer.pointer.getY() + idy);
-                            xServer.injectPointerMoveDelta((double) scaledDx, (double) scaledDy);
+                            xServer.injectPointerMoveDelta(idx, idy);
                         } else {
                             int nx = Mathf.roundPoint(xServer.pointer.getX() + scaledDx);
                             int ny = Mathf.roundPoint(xServer.pointer.getY() + scaledDy);

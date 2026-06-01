@@ -214,25 +214,35 @@ public class XServer {
     }
   }
 
-  public void injectPointerMoveDelta(double dx, double dy) {
+  public void injectPointerMoveDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      double x = pointer.getX() + dx;
-      double y = pointer.getY() + dy;
+      int x = pointer.getX() + dx;
+      int y = pointer.getY() + dy;
 
       android.graphics.Rect confinement = grabManager.getConfinementBounds();
       if (confinement != null) {
-        x = Mathf.clamp(x, (double)confinement.left, (double)confinement.right - 1.0);
-        y = Mathf.clamp(y, (double)confinement.top, (double)confinement.bottom - 1.0);
+        x = (int)Mathf.clamp((double)x, (double)confinement.left, (double)confinement.right - 1.0);
+        y = (int)Mathf.clamp((double)y, (double)confinement.top, (double)confinement.bottom - 1.0);
+        pointer.setPosition(x, y);
       } else {
         short softMarginX = (short) (screenInfo.width * 0.05f);
         short softMarginY = (short) (screenInfo.height * 0.05f);
-        x = Mathf.clamp(x, (double)-softMarginX, (double)(screenInfo.width - 1) + softMarginX);
-        y = Mathf.clamp(y, (double)-softMarginY, (double)(screenInfo.height - 1) + softMarginY);
+        x = (int)Mathf.clamp((double)x, (double)-softMarginX, (double)(screenInfo.width - 1) + softMarginX);
+        y = (int)Mathf.clamp((double)y, (double)-softMarginY, (double)(screenInfo.height - 1) + softMarginY);
+        pointer.setPosition(x, y);
+
+        int clampedX = x;
+        int clampedY = y;
+        if (x < 0) clampedX = 0;
+        else if (x > screenInfo.width - 1) clampedX = screenInfo.width - 1;
+        if (y < 0) clampedY = 0;
+        else if (y > screenInfo.height - 1) clampedY = screenInfo.height - 1;
+        pointer.setX(clampedX);
+        pointer.setY(clampedY);
       }
-      pointer.setPosition(Mathf.roundPoint((float)x), Mathf.roundPoint((float)y));
 
       XInput2Extension xi = getExtension(XInput2Extension.MAJOR_OPCODE);
-      if (xi != null) xi.emitRawMotion(2, dx, dy);
+      if (xi != null) xi.emitRawMotion(2, (double)dx, (double)dy);
     }
     if (renderer != null) renderer.requestCursorRender();
   }
@@ -249,10 +259,18 @@ public class XServer {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       short softMarginX = (short) (screenInfo.width * 0.05f);
       short softMarginY = (short) (screenInfo.height * 0.05f);
-      int nx = Mathf.clamp(pointer.getX() + dx, -softMarginX, (screenInfo.width - 1) + softMarginX);
-      int ny = Mathf.clamp(pointer.getY() + dy, -softMarginY, (screenInfo.height - 1) + softMarginY);
-      pointer.setX(nx);
-      pointer.setY(ny);
+      int x = (int) Mathf.clamp((double)pointer.getX() + dx, (double)-softMarginX, (double)(screenInfo.width - 1) + softMarginX);
+      int y = (int) Mathf.clamp((double)pointer.getY() + dy, (double)-softMarginY, (double)(screenInfo.height - 1) + softMarginY);
+      pointer.setPosition(x, y);
+
+      int clampedX = x;
+      int clampedY = y;
+      if (x < 0) clampedX = 0;
+      else if (x > screenInfo.width - 1) clampedX = screenInfo.width - 1;
+      if (y < 0) clampedY = 0;
+      else if (y > screenInfo.height - 1) clampedY = screenInfo.height - 1;
+      pointer.setX(clampedX);
+      pointer.setY(clampedY);
     }
     if (renderer != null) renderer.requestCursorRender();
   }
