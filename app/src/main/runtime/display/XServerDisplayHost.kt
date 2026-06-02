@@ -14,7 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Monitor
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,10 +41,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -154,6 +162,11 @@ private fun XServerDisplayHost(
 
     LaunchedEffect(dialogVisible) {
         callbacks.onDialogVisibilityChanged(dialogVisible)
+    }
+
+    // On swap-back, re-measure the hosted display frame so the reparented surface reclaims full size.
+    LaunchedEffect(stateHolder.phoneRelayoutTick) {
+        if (stateHolder.phoneRelayoutTick > 0) displayFrame.requestLayout()
     }
 
     WinNativeTheme {
@@ -308,6 +321,44 @@ private fun XServerDisplayHost(
                     )
                 }
             }
+
+            val promptName = stateHolder.externalDisplayPromptName
+            if (promptName != null) {
+                ExternalDisplaySwapDialog(
+                    onSwap = {
+                        stateHolder.externalDisplayPromptName = null
+                        stateHolder.onExternalDisplaySwap?.run()
+                    },
+                    onMirror = {
+                        stateHolder.externalDisplayPromptName = null
+                        stateHolder.onExternalDisplayMirror?.run()
+                    },
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun ExternalDisplaySwapDialog(
+    onSwap: () -> Unit,
+    onMirror: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onMirror,
+        icon = { Icon(Icons.Outlined.Monitor, contentDescription = null) },
+        title = { Text(stringResource(R.string.display_output_prompt_title)) },
+        text = { Text(stringResource(R.string.display_output_prompt_message)) },
+        confirmButton = {
+            TextButton(onClick = onSwap) {
+                Text(stringResource(R.string.display_output_prompt_swap))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onMirror) {
+                Text(stringResource(R.string.display_output_prompt_mirror))
+            }
+        },
+        containerColor = PaneSurfaceColor,
+    )
 }

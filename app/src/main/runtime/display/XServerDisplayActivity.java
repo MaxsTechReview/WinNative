@@ -346,6 +346,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
+    private ExternalDisplayController externalDisplayController;
     private Timer taskManagerTimer;
     private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
     private boolean taskManagerCpuExpanded = false;
@@ -2079,6 +2080,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (taskManagerPaneVisible && taskManagerTimer == null) {
             startTaskManagerPolling();
         }
+
+        if (externalDisplayController != null) externalDisplayController.start();
     }
 
     @Override
@@ -2117,6 +2120,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
             taskManagerAccum.clear();
         }
+
+        if (externalDisplayController != null) externalDisplayController.stop();
     }
 
     @Override
@@ -3404,6 +3409,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        dismissExternalDisplayPrompt();
+        if (externalDisplayController != null) {
+            externalDisplayController.release();
+            externalDisplayController = null;
+        }
         if (preloaderDialog != null) {
             preloaderDialog.close();
         }
@@ -3656,6 +3666,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
         );
 
+        // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
+        if (externalDisplayController != null) {
+            boolean swapped = externalDisplayController.isSwapActive();
+            state = XServerDrawerMenuKt.withOutputState(
+                    state,
+                    swapped,
+                    swapped ? externalDisplayController.getDisplayName()
+                            : externalDisplayController.getAvailableDisplayName(),
+                    externalDisplayController.getResolutionLabels(),
+                    externalDisplayController.getSelectedResolutionIndex(),
+                    externalDisplayController.getRefreshRateLabels(),
+                    externalDisplayController.getSelectedRefreshRateIndex(),
+                    externalDisplayController.getFillMode(),
+                    externalDisplayController.isGameModeSupported(),
+                    externalDisplayController.isGameModeEnabled(),
+                    externalDisplayController.hasExternalDisplay());
+        }
+
         if (drawerActionListener == null) {
             drawerActionListener = new XServerDrawerActionListener() {
                     @Override
@@ -3807,6 +3835,62 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onScreenEffectsCardExpandedChanged(boolean expanded) {
                         screenEffectsCardExpanded = expanded;
                         renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onOutputResolutionSelected(int index) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectResolution(index);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputRefreshRateSelected(int index) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectRefreshRate(index);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputAspectModeSelected(int mode) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectFillMode(mode);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputGameModeToggled(boolean enabled) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setGameMode(enabled);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputReturnToPhone() {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.exitSwap();
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputSwapToDisplay() {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.enterSwap();
+                            renderDrawerMenu();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_swapped_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputCastClick() {
+                        launchWirelessDisplayPicker();
                     }
 
                     @Override
@@ -5696,7 +5780,81 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         startTouchscreenTimeout();
 
+        // Detect a connected external display and offer to move the game onto it (controls stay here).
+        externalDisplayController = new ExternalDisplayController(
+                this, xServerDisplayFrame, xServerView,
+                new ExternalDisplayController.Callbacks() {
+                    @Override
+                    public void onExternalDisplayConnected(android.view.Display display) {
+                        showExternalDisplayPrompt(display);
+                    }
+
+                    @Override
+                    public void onExternalDisplayDisconnected() {
+                        runOnUiThread(() -> {
+                            dismissExternalDisplayPrompt();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_restored_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                            renderDrawerMenu();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        });
+                    }
+
+                    @Override
+                    public void onSwapStateChanged(boolean swapActive) {
+                        runOnUiThread(() -> {
+                            // On return-to-phone, re-measure the display frame to reclaim full size.
+                            if (!swapActive && drawerStateHolder != null) {
+                                drawerStateHolder.requestPhoneRelayout();
+                            }
+                            renderDrawerMenu();
+                        });
+                    }
+                });
+        externalDisplayController.start();
+
         AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
+    }
+
+    private void showExternalDisplayPrompt(android.view.Display display) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (externalDisplayController == null || externalDisplayController.isSwapActive()) return;
+            if (drawerStateHolder == null) renderDrawerMenu();
+            if (drawerStateHolder == null) return;
+            // Material 3 "Mirror or Swap" prompt rendered by the Compose host (matches the app style).
+            drawerStateHolder.showExternalDisplayPrompt(
+                    display != null ? display.getName() : "",
+                    () -> { // Swap
+                        if (externalDisplayController != null) {
+                            externalDisplayController.enterSwap();
+                            renderDrawerMenu();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_swapped_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    },
+                    () -> { /* Mirror — keep the system's default mirroring; nothing to do. */ });
+        });
+    }
+
+    private void dismissExternalDisplayPrompt() {
+        if (drawerStateHolder != null) drawerStateHolder.dismissExternalDisplayPrompt();
+    }
+
+    // Open the system Cast / wireless-display picker; a connected display flows through the swap path.
+    private void launchWirelessDisplayPicker() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_CAST_SETTINGS));
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS));
+            } catch (Exception ignore) {
+                android.widget.Toast.makeText(this, R.string.display_output_cast_unavailable,
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
 

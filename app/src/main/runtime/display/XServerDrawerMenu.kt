@@ -197,7 +197,7 @@ private enum class HUDMetricEditor(
     SCALE(minPercent = 50, maxPercent = 200),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS }
 
 internal const val LogsPaneMaxLines = 2000
 
@@ -259,6 +259,13 @@ private val RAIL_PANES =
             pane = DrawerPane.SCREEN_EFFECTS,
             itemId = R.id.main_menu_screen_effects,
             labelRes = R.string.session_drawer_rail_label_effects,
+        ),
+        // Shown only when the host adds a main_menu_output item to state.items.
+        RailPaneSpec(
+            pane = DrawerPane.OUTPUT,
+            itemId = R.id.main_menu_output,
+            labelRes = R.string.session_drawer_rail_label_output,
+            iconOverride = Icons.Outlined.Monitor,
         ),
     )
 
@@ -326,6 +333,18 @@ data class XServerDrawerState(
     val inputControlsOverlayOpacity: Float = 0.4f,
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = false,
+    // External display / cast "Output" pane.
+    val outputSwapActive: Boolean = false,
+    val outputDisplayName: String = "",
+    val outputResolutionLabels: List<String> = emptyList(),
+    val outputSelectedResolutionIndex: Int = 0,
+    val outputRefreshLabels: List<String> = emptyList(),
+    val outputSelectedRefreshIndex: Int = 0,
+    val outputAspectMode: Int = 0,
+    val outputGameModeSupported: Boolean = false,
+    val outputGameModeEnabled: Boolean = false,
+    // Display connected but game still on the phone — show the "Send to display" button.
+    val outputDisplayAvailable: Boolean = false,
 )
 
 class XServerDrawerStateHolder(
@@ -347,6 +366,31 @@ class XServerDrawerStateHolder(
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
+
+    // Material 3 "Mirror or Swap" prompt shown when an external display connects. Non-null name =
+    // visible; the host renders the dialog and invokes the chosen action. Runnable (not a Kotlin
+    // function type) so the Java activity can pass plain lambdas.
+    var externalDisplayPromptName by mutableStateOf<String?>(null)
+    var onExternalDisplaySwap: Runnable? = null
+    var onExternalDisplayMirror: Runnable? = null
+
+    fun showExternalDisplayPrompt(displayName: String, onSwap: Runnable, onMirror: Runnable) {
+        onExternalDisplaySwap = onSwap
+        onExternalDisplayMirror = onMirror
+        externalDisplayPromptName = displayName
+    }
+
+    fun dismissExternalDisplayPrompt() {
+        externalDisplayPromptName = null
+    }
+
+    // Bumped on swap-back so the host re-requests a layout pass on the Compose-hosted display frame.
+    var phoneRelayoutTick by mutableStateOf(0)
+        private set
+
+    fun requestPhoneRelayout() {
+        phoneRelayoutTick++
+    }
 
     val isDrawerOpen: Boolean
         get() = drawerOpen
@@ -486,6 +530,20 @@ interface XServerDrawerActionListener {
     fun onFPSLimitChanged(limit: Int)
 
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
+
+    fun onOutputResolutionSelected(index: Int)
+
+    fun onOutputRefreshRateSelected(index: Int)
+
+    fun onOutputAspectModeSelected(mode: Int)
+
+    fun onOutputGameModeToggled(enabled: Boolean)
+
+    fun onOutputReturnToPhone()
+
+    fun onOutputSwapToDisplay()
+
+    fun onOutputCastClick()
 
     fun onSGSREnabledChanged(enabled: Boolean)
 
@@ -762,6 +820,42 @@ fun setupXServerDrawerComposeView(
     }
 }
 
+// Append the always-present "Output" tab item and its state to the drawer state.
+fun withOutputState(
+    state: XServerDrawerState,
+    swapActive: Boolean,
+    displayName: String,
+    resolutionLabels: List<String>,
+    selectedResolutionIndex: Int,
+    refreshLabels: List<String>,
+    selectedRefreshIndex: Int,
+    aspectMode: Int,
+    gameModeSupported: Boolean,
+    gameModeEnabled: Boolean,
+    displayAvailable: Boolean,
+): XServerDrawerState {
+    val outputItem =
+        XServerDrawerItem(
+            itemId = R.id.main_menu_output,
+            title = "Output",
+            subtitle = "",
+            icon = Icons.Outlined.Monitor,
+        )
+    return state.copy(
+        items = state.items + outputItem,
+        outputSwapActive = swapActive,
+        outputDisplayName = displayName,
+        outputResolutionLabels = resolutionLabels,
+        outputSelectedResolutionIndex = selectedResolutionIndex,
+        outputRefreshLabels = refreshLabels,
+        outputSelectedRefreshIndex = selectedRefreshIndex,
+        outputAspectMode = aspectMode,
+        outputGameModeSupported = gameModeSupported,
+        outputGameModeEnabled = gameModeEnabled,
+        outputDisplayAvailable = displayAvailable,
+    )
+}
+
 @Composable
 internal fun XServerDrawerContent(
     state: XServerDrawerState,
@@ -850,6 +944,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
+                                DrawerPane.OUTPUT -> OutputPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(
                                         taskManagerState = taskManagerState,
@@ -2183,6 +2278,240 @@ private fun ScreenEffectsPaneContent(
     }
 }
 
+
+@Composable
+private fun OutputPaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+                if (state.outputSwapActive) {
+                    OutputActiveControls(state = state, listener = listener, paneScale = paneScale)
+                } else if (state.outputDisplayAvailable) {
+                    OutputSendToDisplay(state = state, listener = listener, paneScale = paneScale)
+                } else {
+                    OutputCastEntry(listener = listener, paneScale = paneScale)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutputActiveControls(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+    paneScale: Float,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+        PaneSectionLabel(stringResource(R.string.session_drawer_output_device))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Monitor,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((20f * paneScale).dp),
+            )
+            Text(
+                text = state.outputDisplayName.ifEmpty { stringResource(R.string.session_drawer_output_title) },
+                color = DrawerTextPrimary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+
+    if (state.outputResolutionLabels.isNotEmpty()) {
+        ThinDivider()
+        Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+            PaneSectionLabel(stringResource(R.string.session_drawer_output_resolution))
+            InputControlsSimpleDropdown(
+                options = state.outputResolutionLabels,
+                selectedIndex = state.outputSelectedResolutionIndex,
+                onSelected = listener::onOutputResolutionSelected,
+            )
+            Text(
+                text = stringResource(R.string.session_drawer_output_render_note),
+                color = DrawerTextSecondary,
+                fontSize = (11f * paneScale).sp,
+                lineHeight = (15f * paneScale).sp,
+            )
+        }
+    }
+
+    if (state.outputRefreshLabels.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+            PaneSectionLabel(stringResource(R.string.session_drawer_output_refresh_rate))
+            InputControlsSimpleDropdown(
+                options = state.outputRefreshLabels,
+                selectedIndex = state.outputSelectedRefreshIndex,
+                onSelected = listener::onOutputRefreshRateSelected,
+            )
+        }
+    }
+
+    ThinDivider()
+    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+        PaneSectionLabel(stringResource(R.string.session_drawer_output_aspect_ratio))
+        val aspectLabels =
+            listOf(
+                stringResource(R.string.session_drawer_output_aspect_fit),
+                stringResource(R.string.session_drawer_output_aspect_stretch),
+                stringResource(R.string.session_drawer_output_aspect_zoom),
+            )
+        ChipFlow {
+            aspectLabels.forEachIndexed { index, label ->
+                HUDToggleChip(
+                    label = label,
+                    checked = state.outputAspectMode == index,
+                    onClick = { listener.onOutputAspectModeSelected(index) },
+                )
+            }
+        }
+    }
+
+    if (state.outputGameModeSupported) {
+        ThinDivider()
+        Column(verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp)) {
+            PaneSectionLabel(stringResource(R.string.session_drawer_output_game_mode))
+            ChipFlow {
+                HUDToggleChip(
+                    label = stringResource(R.string.session_drawer_output_game_mode_on),
+                    checked = state.outputGameModeEnabled,
+                    onClick = { listener.onOutputGameModeToggled(true) },
+                )
+                HUDToggleChip(
+                    label = stringResource(R.string.session_drawer_output_game_mode_off),
+                    checked = !state.outputGameModeEnabled,
+                    onClick = { listener.onOutputGameModeToggled(false) },
+                )
+            }
+            Text(
+                text = stringResource(R.string.session_drawer_output_game_mode_note),
+                color = DrawerTextSecondary,
+                fontSize = (11f * paneScale).sp,
+                lineHeight = (15f * paneScale).sp,
+            )
+        }
+    }
+
+    ThinDivider()
+    OutputPaneButton(
+        label = stringResource(R.string.session_drawer_output_return_to_phone),
+        paneScale = paneScale,
+        onClick = listener::onOutputReturnToPhone,
+    )
+}
+
+@Composable
+private fun OutputSendToDisplay(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+    paneScale: Float,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+        PaneSectionLabel(stringResource(R.string.session_drawer_output_device))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Monitor,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((20f * paneScale).dp),
+            )
+            Text(
+                text = state.outputDisplayName.ifEmpty { stringResource(R.string.session_drawer_output_title) },
+                color = DrawerTextPrimary,
+                fontSize = (14f * paneScale).sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+    OutputPaneButton(
+        label = stringResource(R.string.session_drawer_output_send_to_display),
+        paneScale = paneScale,
+        onClick = listener::onOutputSwapToDisplay,
+    )
+    Text(
+        text = stringResource(R.string.session_drawer_output_send_note),
+        color = DrawerTextSecondary,
+        fontSize = (11f * paneScale).sp,
+        lineHeight = (15f * paneScale).sp,
+    )
+}
+
+@Composable
+private fun OutputCastEntry(
+    listener: XServerDrawerActionListener,
+    paneScale: Float,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+        PaneSectionLabel(stringResource(R.string.session_drawer_output_cast_title))
+        Text(
+            text = stringResource(R.string.session_drawer_output_cast_body),
+            color = DrawerTextSecondary,
+            fontSize = (12f * paneScale).sp,
+            lineHeight = (16f * paneScale).sp,
+        )
+    }
+    OutputPaneButton(
+        label = stringResource(R.string.session_drawer_output_cast_button),
+        paneScale = paneScale,
+        onClick = listener::onOutputCastClick,
+    )
+    Text(
+        text = stringResource(R.string.session_drawer_output_cast_note),
+        color = DrawerTextSecondary,
+        fontSize = (11f * paneScale).sp,
+        lineHeight = (15f * paneScale).sp,
+    )
+}
+
+@Composable
+private fun OutputPaneButton(
+    label: String,
+    paneScale: Float,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape((14f * paneScale).dp))
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, RoundedCornerShape((14f * paneScale).dp))
+                .clickable { onClick() }
+                .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = label,
+            color = DrawerTextPrimary,
+            fontSize = (14f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
 
 @Composable
 private fun TaskManagerPaneContent(
