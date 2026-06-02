@@ -515,6 +515,15 @@ object SteamSaveSnapshotManager {
         return sources.values.toList()
     }
 
+    /** Public view of [enumerateSaveSources] (zipRoot -> live dir) so [GameSaveBackupManager] mirrors Steam saves to/from Google. */
+    fun enumerateGoogleSaveSources(
+        context: Context,
+        appId: Int,
+        forRestore: Boolean,
+        containerHint: Container? = null,
+    ): List<Pair<String, File>> =
+        enumerateSaveSources(context, appId, forRestore, containerHint).map { it.zipRoot to it.localDir }
+
     private fun resolveAccountId(): Long =
         SteamService.userSteamId?.accountID?.toLong()
             ?: PrefManager.steamUserSteamId64.takeIf { it != 0L }?.let { it and 0xFFFFFFFFL }

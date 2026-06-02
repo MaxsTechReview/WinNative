@@ -942,6 +942,9 @@
     <string name="google_cloud_sync_started">云同步已开始。</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google 服务</string>
+    <string name="google_auto_signin_title">启动时登录 Google</string>
+    <string name="google_auto_signin_summary">应用启动时自动连接到 Google Play 游戏，让存档备份和同步始终就绪。关闭后，应用绝不会自行登录。</string>
+    <string name="google_auto_signin_section">启动时</string>
     <string name="google_cloud_play_games">Google Play 游戏</string>
     <string name="google_cloud_status_syncing">同步中</string>
     <string name="google_cloud_status_connected">已连接</string>
@@ -1088,6 +1091,7 @@
     <string name="settings_general_check_for_updates_summary">在启动时和定期自动检查新版本。</string>
     <string name="setup_wizard_containers">容器设置</string>
     <string name="cloud_saves_title">云存档</string>
+    <string name="cloud_saves_title_for_provider">%1$s 云存档 - %2$s</string>
     <string name="cloud_sync_title">云同步</string>
     <string name="cloud_sync_enabled_summary">启动时下载云存档，并在退出时同步/备份。</string>
     <string name="cloud_sync_disabled_summary">启动此游戏时不下载云存档，也不在退出时同步。</string>
@@ -1117,6 +1121,10 @@
     <string name="cloud_saves_history_empty">暂无已备份的历史存档。被替换的存档和手动备份将在此处保留 30 天。</string>
     <string name="cloud_saves_history_loading">正在加载存档历史\u2026</string>
     <string name="cloud_saves_history_origin_auto">自动</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">云端</string>
     <string name="cloud_saves_history_origin_local">本地</string>
     <string name="cloud_saves_history_origin_manual">手动</string>
@@ -1235,7 +1243,7 @@
     <string name="cloud_saves_steam_sync_helper">下载最新存档</string>
     <string name="cloud_saves_steam_sync_success">已从 Steam Cloud 同步</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud 同步失败</string>
-    <string name="cloud_saves_steam_browse_label">浏览 Steam</string>
+    <string name="cloud_saves_steam_browse_label">查看 Steam Cloud 存档</string>
     <string name="cloud_saves_steam_browse_helper">打开云存储</string>
     <string name="cloud_saves_steam_browse_no_browser">没有可用于打开 Steam 页面浏览器</string>
     <string name="cloud_saves_steam_import_label">导入文件</string>

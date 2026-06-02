@@ -3,6 +3,7 @@ package com.winlator.cmod.runtime.display.xserver.extensions;
 import static com.winlator.cmod.runtime.display.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
 import android.util.Log;
+import com.winlator.cmod.runtime.system.ApplicationLogGate;
 import com.winlator.cmod.runtime.display.connector.XConnectorEpoll;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
@@ -223,12 +224,12 @@ public class DRI3Extension implements Extension {
     boolean ahbSupported = GPUImage.isSupported() && bpp == 32 && (depth == 24 || depth == 32);
     int numWindow = ahbSupported ? 1 : 0;
     int numScreen = 1; // always advertise LINEAR for the CPU/SHM path
-    if (ahbSupported && !loggedAhbAdvertised) {
+    if (ahbSupported && !loggedAhbAdvertised && ApplicationLogGate.isEnabled()) {
       Log.i(
           TAG,
           "Advertising DRI3 AHB modifier for window pixmaps: depth=" + depth + " bpp=" + bpp);
       loggedAhbAdvertised = true;
-    } else if (!ahbSupported && !loggedAhbUnavailable) {
+    } else if (!ahbSupported && !loggedAhbUnavailable && ApplicationLogGate.isEnabled()) {
       Log.i(
           TAG,
           "DRI3 AHB modifier unavailable: gpuImageSupported="
@@ -308,16 +309,18 @@ public class DRI3Extension implements Extension {
     drawable.setTexture(gpuImage);
     drawable.setDirectScanout(true);
     client.xServer.pixmapManager.createPixmap(drawable);
-    Log.i(
-        TAG,
-        "Loaded DRI3 AHB pixmap for direct scanout: pixmap="
-            + pixmapId
-            + " size="
-            + Short.toUnsignedInt(width)
-            + "x"
-            + Short.toUnsignedInt(height)
-            + " depth="
-            + Byte.toUnsignedInt(depth));
+    if (ApplicationLogGate.isEnabled()) {
+      Log.i(
+          TAG,
+          "Loaded DRI3 AHB pixmap for direct scanout: pixmap="
+              + pixmapId
+              + " size="
+              + Short.toUnsignedInt(width)
+              + "x"
+              + Short.toUnsignedInt(height)
+              + " depth="
+              + Byte.toUnsignedInt(depth));
+    }
     return true;
   }
 

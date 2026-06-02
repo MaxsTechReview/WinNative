@@ -369,6 +369,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String cachedPreloaderSubtitle = "";
     private Handler handler;
     private Runnable savePlaytimeRunnable;
+    private android.hardware.display.DisplayManager displayManager;
+    private android.hardware.display.DisplayManager.DisplayListener displayListener;
+    private int lastKnownMaxRefreshRate;
     private static final long SAVE_INTERVAL_MS = 1000;
     private static final int EXIT_CLOUD_UPLOAD_MAX_ATTEMPTS = 3;
     private static final long EXIT_CLOUD_UPLOAD_RETRY_DELAY_MS = 1000L;
@@ -511,6 +514,74 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    /**
+     * Watch for the display's refresh rate / supported modes changing while a game
+     * is running (e.g. the user toggles the system refresh rate, or an external
+     * display with different capabilities is connected). Without this, the in-game
+     * FPS-limiter slider's ceiling — and a previously chosen limit — could be left
+     * stranded above what the panel can actually present.
+     */
+    private void registerDisplayChangeListener() {
+        if (displayListener != null) return;
+        displayManager = (android.hardware.display.DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        if (displayManager == null) return;
+        lastKnownMaxRefreshRate = RefreshRateUtils.getMaxSupportedRefreshRate(this);
+        displayListener = new android.hardware.display.DisplayManager.DisplayListener() {
+            @Override
+            public void onDisplayAdded(int displayId) {
+                handleDisplayCapabilitiesChanged();
+            }
+
+            @Override
+            public void onDisplayRemoved(int displayId) {
+                handleDisplayCapabilitiesChanged();
+            }
+
+            @Override
+            public void onDisplayChanged(int displayId) {
+                handleDisplayCapabilitiesChanged();
+            }
+        };
+        // Callbacks are delivered on the main thread via this handler.
+        displayManager.registerDisplayListener(displayListener, handler);
+    }
+
+    private void unregisterDisplayChangeListener() {
+        if (displayManager != null && displayListener != null) {
+            try {
+                displayManager.unregisterDisplayListener(displayListener);
+            } catch (Exception ignored) {}
+        }
+        displayListener = null;
+    }
+
+    private void handleDisplayCapabilitiesChanged() {
+        if (isFinishing() || isDestroyed()) return;
+
+        int maxRate = RefreshRateUtils.getMaxSupportedRefreshRate(this);
+        boolean maxChanged = maxRate != lastKnownMaxRefreshRate;
+        lastKnownMaxRefreshRate = maxRate;
+
+        // If the panel can no longer reach the configured limit, cap it so we don't
+        // keep rendering — and requesting a refresh cadence — above what it can show.
+        if (runtimeFpsLimit > 0 && runtimeFpsLimit > maxRate) {
+            runtimeFpsLimit = maxRate;
+            if (xServerView != null && xServerView.getRenderer() != null) {
+                xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
+            }
+            if (shortcut != null) {
+                shortcut.putExtra("fpsLimit", String.valueOf(runtimeFpsLimit));
+                shortcut.saveData();
+            }
+            applyPreferredRefreshRate();
+        }
+
+        // Keep the in-drawer slider's ceiling in sync, but only if the drawer has
+        // been opened (otherwise the next open rebuilds state with a fresh value).
+        if (maxChanged && drawerStateHolder != null) {
+            renderDrawerMenu();
+        }
+    }
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -695,6 +766,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         com.winlator.cmod.runtime.system.LogManager.prepareForNewSession(this);
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        com.winlator.cmod.runtime.system.ApplicationLogGate.refresh(this);
         applyPreferredRefreshRate();
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(getIntent());
         
@@ -738,8 +810,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             wineRequestHandler = new WineRequestHandler(this);
 
         if (controller != null) {
-            int triggerType = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS);
-            controller.setTriggerType((byte) triggerType);
+            // Only force a type when explicitly chosen; else keep the auto-detected value.
+            int triggerType = preferences.getInt("trigger_type", -1);
+            if (triggerType != -1) {
+                controller.setTriggerType((byte) triggerType);
+            }
         }
 
 
@@ -774,6 +849,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         };
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
 
+        registerDisplayChangeListener();
 
         hideControlsRunnable = () -> {
             if (!isMouseDisabled && xServer != null && xServer.getRenderer() != null
@@ -2411,7 +2487,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         try {
             if (touchpadView != null) {
                 touchpadView.resetInputState();
-                touchpadView.releasePointerCapture();
+                if (touchpadView.hasPointerCapture()) touchpadView.releasePointerCapture();
                 touchpadView.setOnCapturedPointerListener(null);
             }
         } catch (Exception e) {
@@ -3414,6 +3490,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             externalDisplayController.release();
             externalDisplayController = null;
         }
+        unregisterDisplayChangeListener();
         if (preloaderDialog != null) {
             preloaderDialog.close();
         }
@@ -3561,7 +3638,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             drawerStateHolder.openDrawer();
         }
         if (touchpadView != null) {
-            touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
     }
@@ -3663,7 +3739,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false),
-                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen()
+                xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
+                RefreshRateUtils.getMaxSupportedRefreshRate(this)
         );
 
         // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
@@ -4701,13 +4778,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (hadPointerCapture) {
                 touchpadView.resetInputState();
                 touchpadView.releasePointerCapture();
-                touchpadView.setOnCapturedPointerListener(null);
             }
-            touchpadView.releasePointerCapture();
             touchpadView.setOnCapturedPointerListener(null);
         }
-        if (hadPointerCapture && inputControlsView != null) {
-            inputControlsView.cancelActiveTouches();
+        if (inputControlsView != null) {
+            if (hadPointerCapture) {
+                inputControlsView.cancelActiveTouches();
+            }
+            else {
+                inputControlsView.cancelContinuousMouseMove();
+            }
         }
     }
 

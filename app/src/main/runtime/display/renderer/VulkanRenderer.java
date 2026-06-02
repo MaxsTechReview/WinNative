@@ -11,6 +11,7 @@ import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
 import com.winlator.cmod.R;
+import com.winlator.cmod.runtime.system.ApplicationLogGate;
 import com.winlator.cmod.runtime.display.renderer.effects.Effect;
 import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.runtime.display.xserver.Bitmask;
@@ -425,7 +426,7 @@ public class VulkanRenderer
                     sourceH = candidateH;
                     sourceArea = candidateArea;
                 }
-                if (!loggedAhbSceneUse && tex instanceof GPUImage) {
+                if (!loggedAhbSceneUse && tex instanceof GPUImage && ApplicationLogGate.isEnabled()) {
                     Log.i(TAG, "Submitting AHB-backed texture in Vulkan scene: windowCount="
                             + (winCount + 1)
                             + " tex=0x"
@@ -522,7 +523,7 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
-        nativeSetFpsLimit(nativeHandle, currentFpsLimit);
+        // nativeSetFpsLimit is a native no-op (pacing is done elsewhere); not called per frame.
         nativeRenderFrame(nativeHandle);
     }
 
@@ -578,7 +579,9 @@ public class VulkanRenderer
     }
 
     @Override
-    public void onFramePresented(Window window) {
+    public void onFramePresented(Window window, WindowManager.FrameSource source, int serial) {
+        // DRI3_BUFFER fires at pixmap allocation, not a visible change; the real present already wakes us. Skip it.
+        if (source == WindowManager.FrameSource.DRI3_BUFFER) return;
         requestRenderCoalesced();
     }
 
@@ -639,12 +642,14 @@ public class VulkanRenderer
         viewportNeedsUpdate = true;
         magnifierPanInitialized = false;
         updateScene();
-        Log.i(TAG, "XServer screen changed: screen=" + xServer.screenInfo +
-                " surface=" + surfaceWidth + "x" + surfaceHeight +
-                " view=" + oldViewWidth + "x" + oldViewHeight + "@" +
-                oldViewOffsetX + "," + oldViewOffsetY + " -> " +
-                viewTransformation.viewWidth + "x" + viewTransformation.viewHeight +
-                "@" + viewTransformation.viewOffsetX + "," + viewTransformation.viewOffsetY);
+        if (ApplicationLogGate.isEnabled()) {
+            Log.i(TAG, "XServer screen changed: screen=" + xServer.screenInfo +
+                    " surface=" + surfaceWidth + "x" + surfaceHeight +
+                    " view=" + oldViewWidth + "x" + oldViewHeight + "@" +
+                    oldViewOffsetX + "," + oldViewOffsetY + " -> " +
+                    viewTransformation.viewWidth + "x" + viewTransformation.viewHeight +
+                    "@" + viewTransformation.viewOffsetX + "," + viewTransformation.viewOffsetY);
+        }
         requestRenderCoalesced();
     }
 

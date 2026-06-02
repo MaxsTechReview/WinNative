@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.renderer;
 
 import android.util.Log;
 import androidx.annotation.Keep;
+import com.winlator.cmod.runtime.system.ApplicationLogGate;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import java.nio.ByteBuffer;
 
@@ -40,9 +41,11 @@ public class GPUImage extends Texture {
                 ahbPtr = 0;
                 virtualData = null;
             } else {
-                Log.i(TAG, "AHB allocated and CPU mapped: " + width + "x" + height
-                        + " stride=" + Short.toUnsignedInt(stride)
-                        + " ptr=0x" + Long.toHexString(ahbPtr));
+                if (ApplicationLogGate.isEnabled()) {
+                    Log.i(TAG, "AHB allocated and CPU mapped: " + width + "x" + height
+                            + " stride=" + Short.toUnsignedInt(stride)
+                            + " ptr=0x" + Long.toHexString(ahbPtr));
+                }
             }
         } catch (Throwable e) {
             Log.e(TAG, "Failed to create AHB-backed GPUImage", e);
@@ -55,8 +58,10 @@ public class GPUImage extends Texture {
             cpuAccessible = false;
             ahbPtr = nativeAhbImportFromSocket(socketFd);
             if (ahbPtr != 0) {
-                Log.i(TAG, "AHB loaded from DRI3 socket fd=" + socketFd
-                        + " ptr=0x" + Long.toHexString(ahbPtr));
+                if (ApplicationLogGate.isEnabled()) {
+                    Log.i(TAG, "AHB loaded from DRI3 socket fd=" + socketFd
+                            + " ptr=0x" + Long.toHexString(ahbPtr));
+                }
             } else {
                 Log.w(TAG, "AHB import from DRI3 socket failed for fd=" + socketFd);
             }
@@ -82,8 +87,10 @@ public class GPUImage extends Texture {
                     + " ahb=0x" + Long.toHexString(ahbPtr));
         } else {
             handleGeneration = getRendererGeneration();
-            Log.i(TAG, "AHB imported into Vulkan texture: " + width + "x" + height
-                    + " tex=0x" + Long.toHexString(nativeHandle));
+            if (ApplicationLogGate.isEnabled()) {
+                Log.i(TAG, "AHB imported into Vulkan texture: " + width + "x" + height
+                        + " tex=0x" + Long.toHexString(nativeHandle));
+            }
         }
     }
 
@@ -141,11 +148,13 @@ public class GPUImage extends Texture {
         final short size = 8;
         GPUImage probe = null;
         try {
-            Log.i(TAG, "Probing AHB Vulkan support");
+            if (ApplicationLogGate.isEnabled()) Log.i(TAG, "Probing AHB Vulkan support");
             probe = new GPUImage(size, size);
             probe.allocateTexture(size, size, null);
             supported = probe.isValid() && probe.getNativeHandle() != 0;
-            Log.i(TAG, "AHB Vulkan support probe result: supported=" + supported);
+            if (ApplicationLogGate.isEnabled()) {
+                Log.i(TAG, "AHB Vulkan support probe result: supported=" + supported);
+            }
         } catch (Throwable e) {
             supported = false;
             Log.e(TAG, "AHB Vulkan support probe failed", e);

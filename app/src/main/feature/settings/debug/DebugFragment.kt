@@ -64,6 +64,8 @@ class DebugFragment : Fragment() {
                         wineChannelOptions = wineChannelOptions,
                         onAppDebugChanged = { checked ->
                             preferences.edit { putBoolean("enable_app_debug", checked) }
+                            com.winlator.cmod.runtime.system.ApplicationLogGate
+                                .setEnabled(checked)
                             if (checked) {
                                 com.winlator.cmod.runtime.system.LogManager
                                     .startAppLogging(ctx)

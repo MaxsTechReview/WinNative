@@ -942,6 +942,9 @@ Cale instalata:
     <string name="google_cloud_sync_started">Sincronizarea cloud a inceput.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Servicii Google</string>
+    <string name="google_auto_signin_title">Conectare la Google la pornire</string>
+    <string name="google_auto_signin_summary">Conectează-te automat la Google Play Games la pornirea aplicației, astfel încât copiile de rezervă ale salvărilor și sincronizarea să fie mereu pregătite. Când este dezactivat, aplicația nu se conectează niciodată singură.</string>
+    <string name="google_auto_signin_section">La pornire</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Se sincronizeaza</string>
     <string name="google_cloud_status_connected">Conectat</string>
@@ -1088,6 +1091,7 @@ Cale instalata:
     <string name="settings_general_check_for_updates_summary">Verifică automat dacă există versiuni noi ale aplicației la pornire și periodic.</string>
     <string name="setup_wizard_containers">Configurare container</string>
     <string name="cloud_saves_title">Salvări în cloud</string>
+    <string name="cloud_saves_title_for_provider">Salvări în cloud %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronizare în cloud</string>
     <string name="cloud_sync_enabled_summary">Descarcă salvările din cloud la pornire și sincronizează/fă backup la ieșire.</string>
     <string name="cloud_sync_disabled_summary">Pornește acest joc fără descărcarea salvărilor din cloud sau sincronizare la ieșire.</string>
@@ -1117,6 +1121,10 @@ Cale instalata:
     <string name="cloud_saves_history_empty">Nicio salvare anterioară arhivată încă. Salvările înlocuite și copiile de siguranță manuale vor apărea aici timp de 30 de zile.</string>
     <string name="cloud_saves_history_loading">Se încarcă istoricul salvărilor\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_local">local</string>
     <string name="cloud_saves_history_origin_manual">manual</string>
@@ -1235,7 +1243,7 @@ Cale instalata:
     <string name="cloud_saves_steam_sync_helper">Descarcă cea mai recentă salvare</string>
     <string name="cloud_saves_steam_sync_success">Sincronizat din Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Sincronizarea Steam Cloud a eșuat</string>
-    <string name="cloud_saves_steam_browse_label">Răsfoiește Steam</string>
+    <string name="cloud_saves_steam_browse_label">Vezi salvările Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Deschide stocarea în cloud</string>
     <string name="cloud_saves_steam_browse_no_browser">Nu există niciun browser disponibil pentru a deschide pagina Steam</string>
     <string name="cloud_saves_steam_import_label">Importă fișiere</string>

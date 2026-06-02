@@ -247,6 +247,10 @@ void vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), voi
 VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r);
 void            vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set);
 
+// Image sub-allocator — implemented lower in this file.
+static bool vkr_suballoc_image(VkRenderer* r, VkImage image, VkSuballoc* out);
+static void vkr_suballoc_free(VkRenderer* r, VkSuballoc* a);
+
 // Copy `bytes` (multiple of 4) from src to dst, optionally swapping B and R per pixel.
 static void copy_pixels_maybe_swizzle(uint8_t* dst, const uint8_t* src, size_t bytes,
                                       bool swizzle_bgra_rgba) {
@@ -358,7 +362,9 @@ static void destroy_texture_resources(VkRenderer* r, VkTexture* tex) {
     if (tex->view != VK_NULL_HANDLE)    vkDestroyImageView(r->device, tex->view, NULL);
     if (tex->ycbcr != VK_NULL_HANDLE && r->fnDestroyYcbcr) r->fnDestroyYcbcr(r->device, tex->ycbcr, NULL);
     if (tex->image != VK_NULL_HANDLE)   vkDestroyImage(r->device, tex->image, NULL);
-    if (tex->memory != VK_NULL_HANDLE)  vkFreeMemory(r->device, tex->memory, NULL);
+    // Free backing after the image. Sub-allocated -> return span to pool; else free own memory.
+    if (tex->suballocated)              vkr_suballoc_free(r, &tex->suballoc);
+    else if (tex->memory != VK_NULL_HANDLE) vkFreeMemory(r->device, tex->memory, NULL);
     if (tex->ahb != NULL)               AHardwareBuffer_release(tex->ahb);
     free(tex);
 }
@@ -403,6 +409,201 @@ static VkTexture* pop_live_texture(VkRenderer* r) {
     }
     pthread_mutex_unlock(&r->texture_mutex);
     return tex;
+}
+
+// ----------------------------------------------------------------------
+// Image sub-allocator
+// ----------------------------------------------------------------------
+//
+// First-fit over a list of large DEVICE_LOCAL blocks, all under image_suballoc.mutex (alloc on
+// producer threads, free on the render thread). Region nodes are malloc'd only on new-block
+// creation or a non-coalescing free, so steady-state pixmap churn doesn't touch the C heap.
+
+void vkr_suballoc_init(VkRenderer* r) {
+    VkImageSuballocator* sa = &r->image_suballoc;
+    sa->blocks = NULL;
+    sa->block_size = VK_SUBALLOC_BLOCK_SIZE;
+    pthread_mutex_init(&sa->mutex, NULL);
+    sa->mutex_init = true;
+}
+
+static VkDeviceSize suballoc_align_up(VkDeviceSize v, VkDeviceSize a) {
+    return (v + a - 1) & ~(a - 1);
+}
+
+// Carve [reg->offset .. bind+size) out of free region `reg` (`prev` = its free-list
+// predecessor, or NULL). The leading alignment pad folds into the span so free recovers it
+// verbatim. Caller verified the region fits.
+static void suballoc_carve(VkMemBlock* block, VkMemRegion* prev, VkMemRegion* reg,
+                           VkDeviceSize bind, VkDeviceSize size, VkSuballoc* out) {
+    VkDeviceSize span_offset = reg->offset;
+    VkDeviceSize span_end    = bind + size;
+    VkDeviceSize reg_end     = reg->offset + reg->size;
+
+    if (span_end < reg_end) {
+        reg->offset = span_end;          // shrink region to the trailing remainder
+        reg->size   = reg_end - span_end;
+    } else {
+        if (prev) prev->next = reg->next; // region fully consumed — unlink + free
+        else      block->free_list = reg->next;
+        free(reg);
+    }
+
+    out->block       = block;
+    out->memory      = block->memory;
+    out->bind_offset = bind;
+    out->span_offset = span_offset;
+    out->span_size   = span_end - span_offset;
+}
+
+// Reserve a span sized/aligned for `image` into `out`. Does NOT bind — caller issues the one
+// vkBindImageMemory so a bind failure never forces an illegal rebind. False (nothing reserved)
+// if no DEVICE_LOCAL type fits or a new block can't be allocated.
+static bool vkr_suballoc_image(VkRenderer* r, VkImage image, VkSuballoc* out) {
+    VkMemoryRequirements mr;
+    vkGetImageMemoryRequirements(r->device, image, &mr);
+
+    uint32_t type_index = vkr_find_memory_type(r, mr.memoryTypeBits,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (type_index == UINT32_MAX) return false;
+
+    VkDeviceSize align = mr.alignment ? mr.alignment : 1;
+
+    VkImageSuballocator* sa = &r->image_suballoc;
+    pthread_mutex_lock(&sa->mutex);
+
+    // First fit across existing blocks of the matching memory type.
+    for (VkMemBlock* b = sa->blocks; b; b = b->next) {
+        if (b->memory_type_index != type_index) continue;
+        VkMemRegion* prev = NULL;
+        for (VkMemRegion* reg = b->free_list; reg; prev = reg, reg = reg->next) {
+            VkDeviceSize bind = suballoc_align_up(reg->offset, align);
+            if (bind + mr.size <= reg->offset + reg->size) {
+                suballoc_carve(b, prev, reg, bind, mr.size, out);
+                pthread_mutex_unlock(&sa->mutex);
+                return true;
+            }
+        }
+    }
+
+    // No room anywhere — allocate a fresh block big enough for at least this image.
+    VkDeviceSize block_size = sa->block_size;
+    if (block_size < mr.size) block_size = mr.size;
+    block_size = suballoc_align_up(block_size, align);
+
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize  = block_size;
+    ai.memoryTypeIndex = type_index;
+
+    VkDeviceMemory mem = VK_NULL_HANDLE;
+    if (vkAllocateMemory(r->device, &ai, NULL, &mem) != VK_SUCCESS) {
+        pthread_mutex_unlock(&sa->mutex);
+        return false;
+    }
+
+    VkMemBlock*  block  = malloc(sizeof(VkMemBlock));
+    VkMemRegion* region = malloc(sizeof(VkMemRegion));
+    if (!block || !region) {
+        free(block);
+        free(region);
+        vkFreeMemory(r->device, mem, NULL);
+        pthread_mutex_unlock(&sa->mutex);
+        return false;
+    }
+    region->offset = 0;
+    region->size   = block_size;
+    region->next   = NULL;
+    block->memory  = mem;
+    block->size    = block_size;
+    block->memory_type_index = type_index;
+    block->free_list = region;
+    block->next    = sa->blocks;
+    sa->blocks     = block;
+
+    VkDeviceSize bind = suballoc_align_up(region->offset, align);  // == 0 at block start
+    suballoc_carve(block, NULL, region, bind, mr.size, out);
+    pthread_mutex_unlock(&sa->mutex);
+    return true;
+}
+
+static void vkr_suballoc_free(VkRenderer* r, VkSuballoc* a) {
+    if (!a || !a->block) return;
+    VkImageSuballocator* sa = &r->image_suballoc;
+    pthread_mutex_lock(&sa->mutex);
+
+    VkMemBlock*  b   = a->block;
+    VkDeviceSize off = a->span_offset;
+    VkDeviceSize sz  = a->span_size;
+
+    // Sorted insertion point in the free list.
+    VkMemRegion* prev = NULL;
+    VkMemRegion* cur  = b->free_list;
+    while (cur && cur->offset < off) { prev = cur; cur = cur->next; }
+
+    bool merged_prev = prev && prev->offset + prev->size == off;
+    bool merged_next = cur && off + sz == cur->offset;
+
+    if (merged_prev && merged_next) {
+        prev->size += sz + cur->size;
+        prev->next  = cur->next;
+        free(cur);
+    } else if (merged_prev) {
+        prev->size += sz;
+    } else if (merged_next) {
+        cur->offset = off;
+        cur->size  += sz;
+    } else {
+        VkMemRegion* node = malloc(sizeof(VkMemRegion));
+        if (node) {
+            node->offset = off;
+            node->size   = sz;
+            node->next   = cur;
+            if (prev) prev->next = node;
+            else      b->free_list = node;
+        } else {
+            // Node alloc failed (near-impossible): leak the span; the block is reclaimed at
+            // teardown anyway.
+            VK_LOGE("suballoc free: region node alloc failed; leaking %llu bytes",
+                    (unsigned long long)sz);
+        }
+    }
+
+    // Return a fully-drained block so churn doesn't pin memory forever.
+    if (b->free_list && b->free_list->next == NULL
+        && b->free_list->offset == 0 && b->free_list->size == b->size) {
+        VkMemBlock* pb = NULL;
+        for (VkMemBlock* it = sa->blocks; it; pb = it, it = it->next) {
+            if (it == b) {
+                if (pb) pb->next = it->next;
+                else    sa->blocks = it->next;
+                break;
+            }
+        }
+        free(b->free_list);
+        vkFreeMemory(r->device, b->memory, NULL);
+        free(b);
+    }
+
+    pthread_mutex_unlock(&sa->mutex);
+    memset(a, 0, sizeof(*a));
+}
+
+void vkr_suballoc_destroy(VkRenderer* r) {
+    VkImageSuballocator* sa = &r->image_suballoc;
+    VkMemBlock* b = sa->blocks;
+    while (b) {
+        VkMemBlock* next = b->next;
+        VkMemRegion* reg = b->free_list;
+        while (reg) { VkMemRegion* rn = reg->next; free(reg); reg = rn; }
+        if (b->memory) vkFreeMemory(r->device, b->memory, NULL);
+        free(b);
+        b = next;
+    }
+    sa->blocks = NULL;
+    if (sa->mutex_init) {
+        pthread_mutex_destroy(&sa->mutex);
+        sa->mutex_init = false;
+    }
 }
 
 // ----------------------------------------------------------------------
@@ -460,8 +661,7 @@ static void upload_cmds(VkCommandBuffer cmd, void* user) {
 }
 
 static bool create_image_basic(VkRenderer* r, uint32_t w, uint32_t h, VkFormat fmt,
-                               VkImageUsageFlags usage,
-                               VkImage* out_img, VkDeviceMemory* out_mem) {
+                               VkImageUsageFlags usage, VkTexture* t) {
     VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     ic.imageType = VK_IMAGE_TYPE_2D;
     ic.format = fmt;
@@ -476,24 +676,43 @@ static bool create_image_basic(VkRenderer* r, uint32_t w, uint32_t h, VkFormat f
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    if (vkCreateImage(r->device, &ic, NULL, out_img) != VK_SUCCESS) return false;
+    if (vkCreateImage(r->device, &ic, NULL, &t->image) != VK_SUCCESS) return false;
 
+    // Preferred path: pooled span (no per-texture vkAllocateMemory). Bind once here.
+    VkSuballoc sub = {0};
+    if (vkr_suballoc_image(r, t->image, &sub)) {
+        if (vkBindImageMemory(r->device, t->image, sub.memory, sub.bind_offset) == VK_SUCCESS) {
+            t->suballoc = sub;
+            t->suballocated = true;
+            return true;
+        }
+        // Bind attempted -> image can't be rebound via the dedicated path; fail (OOM-grade,
+        // effectively never happens).
+        vkr_suballoc_free(r, &sub);
+        vkDestroyImage(r->device, t->image, NULL);
+        t->image = VK_NULL_HANDLE;
+        return false;
+    }
+
+    // Fallback: dedicated allocation (pool OOM / no DEVICE_LOCAL type). No bind attempted yet.
     VkMemoryRequirements mr;
-    vkGetImageMemoryRequirements(r->device, *out_img, &mr);
+    vkGetImageMemoryRequirements(r->device, t->image, &mr);
 
     VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     ai.allocationSize = mr.size;
     ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (ai.memoryTypeIndex == UINT32_MAX) {
-        vkDestroyImage(r->device, *out_img, NULL);
+        vkDestroyImage(r->device, t->image, NULL);
+        t->image = VK_NULL_HANDLE;
         return false;
     }
 
-    if (vkAllocateMemory(r->device, &ai, NULL, out_mem) != VK_SUCCESS) {
-        vkDestroyImage(r->device, *out_img, NULL);
+    if (vkAllocateMemory(r->device, &ai, NULL, &t->memory) != VK_SUCCESS) {
+        vkDestroyImage(r->device, t->image, NULL);
+        t->image = VK_NULL_HANDLE;
         return false;
     }
-    vkBindImageMemory(r->device, *out_img, *out_mem, 0);
+    vkBindImageMemory(r->device, t->image, t->memory, 0);
     return true;
 }
 
@@ -508,7 +727,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
     t->format = r->caps.upload_format;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    if (!create_image_basic(r, width, height, t->format, usage, &t->image, &t->memory)) {
+    if (!create_image_basic(r, width, height, t->format, usage, t)) {
         free(t);
         return NULL;
     }
@@ -525,9 +744,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
     vi.subresourceRange.levelCount = 1;
     vi.subresourceRange.layerCount = 1;
     if (vkCreateImageView(r->device, &vi, NULL, &t->view) != VK_SUCCESS) {
-        vkDestroyImage(r->device, t->image, NULL);
-        vkFreeMemory(r->device, t->memory, NULL);
-        free(t);
+        destroy_texture_resources(r, t);
         return NULL;
     }
 
@@ -535,19 +752,13 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
     // sampler. tex->sampler stays VK_NULL_HANDLE; destroy_texture_resources skips it.
     if (r->shared_sampler == VK_NULL_HANDLE) {
         VK_LOGE("vkr_texture_create_uploaded: shared_sampler not initialized");
-        vkDestroyImageView(r->device, t->view, NULL);
-        vkDestroyImage(r->device, t->image, NULL);
-        vkFreeMemory(r->device, t->memory, NULL);
-        free(t);
+        destroy_texture_resources(r, t);
         return NULL;
     }
 
     t->descriptor_set = vkr_alloc_descriptor_set(r);
     if (t->descriptor_set == VK_NULL_HANDLE) {
-        vkDestroyImageView(r->device, t->view, NULL);
-        vkDestroyImage(r->device, t->image, NULL);
-        vkFreeMemory(r->device, t->memory, NULL);
-        free(t);
+        destroy_texture_resources(r, t);
         return NULL;
     }
     write_descriptor_set(r, t->descriptor_set, t->view, r->shared_sampler);
@@ -720,11 +931,25 @@ static void batch_transition_to_shader_read(VkCommandBuffer cmd, VkTexture* tex)
         VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
+// Grow-only PreparedBatchUpload[] scratch. Render-thread-only, so unlocked; every element is
+// fully overwritten before use, so no zeroing.
+static PreparedBatchUpload* get_prepared_scratch(VkRenderer* r, uint32_t count) {
+    if (r->batch_prepared_cap < count) {
+        uint32_t new_cap = r->batch_prepared_cap ? r->batch_prepared_cap : 64;
+        while (new_cap < count) new_cap *= 2;
+        void* p = realloc(r->batch_prepared_scratch, (size_t)new_cap * sizeof(PreparedBatchUpload));
+        if (!p) return NULL;
+        r->batch_prepared_scratch = p;
+        r->batch_prepared_cap = new_cap;
+    }
+    return (PreparedBatchUpload*)r->batch_prepared_scratch;
+}
+
 bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads,
                               uint32_t upload_count) {
     if (!r || !uploads || upload_count == 0) return false;
 
-    PreparedBatchUpload* prepared = calloc(upload_count, sizeof(PreparedBatchUpload));
+    PreparedBatchUpload* prepared = get_prepared_scratch(r, upload_count);
     if (!prepared) return false;
 
     VkDeviceSize total = 0;
@@ -733,7 +958,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
         VkTexture* tex = in->texture;
         if (!tex || tex->external || !in->data || in->data_size == 0
             || in->width != tex->width || in->height != tex->height) {
-            free(prepared);
             return false;
         }
 
@@ -749,13 +973,11 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
             dirty_h = in->height;
         }
         if (dirty_x >= in->width || dirty_y >= in->height) {
-            free(prepared);
             return false;
         }
         if (dirty_x + dirty_w > in->width) dirty_w = in->width - dirty_x;
         if (dirty_y + dirty_h > in->height) dirty_h = in->height - dirty_y;
         if (dirty_w == 0 || dirty_h == 0) {
-            free(prepared);
             return false;
         }
 
@@ -764,7 +986,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
         size_t src_offset = ((size_t)dirty_y * stride_pixels + dirty_x) * 4;
         size_t last_row = src_offset + (size_t)(dirty_h - 1) * src_pitch + row;
         if (last_row > in->data_size) {
-            free(prepared);
             return false;
         }
 
@@ -786,7 +1007,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
 
     VkStagingSlot* slot = vkr_staging_pool_acquire(r, total);
     if (!slot) {
-        free(prepared);
         VK_LOGE("vkr_texture_batch_update: staging pool acquire failed");
         return false;
     }
@@ -811,7 +1031,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
     cbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     if (vkBeginCommandBuffer(slot->cmd, &cbi) != VK_SUCCESS) {
         vkr_staging_pool_release(slot);
-        free(prepared);
         return false;
     }
 
@@ -840,7 +1059,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
 
     if (vkEndCommandBuffer(slot->cmd) != VK_SUCCESS) {
         vkr_staging_pool_release(slot);
-        free(prepared);
         return false;
     }
 
@@ -859,7 +1077,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
         rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         vkCreateFence(r->device, &rfi, NULL, &slot->fence);
         vkr_staging_pool_release(slot);
-        free(prepared);
         return false;
     }
 
@@ -867,7 +1084,6 @@ bool vkr_texture_batch_update(VkRenderer* r, const VkTextureBatchUpload* uploads
         prepared[i].texture->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     vkr_staging_pool_release(slot);
-    free(prepared);
     return true;
 }
 

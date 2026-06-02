@@ -222,56 +222,61 @@ class WnSteamSession : AutoCloseable {
         return nativeGetCloudDownloadInfo(h, appId, filename)
     }
 
-    // Blocking Steam Cloud file download; decompresses Steam's zip wrapper.
+    // Blocking Steam Cloud download: request `identity`, then auto-detect/decode the stored wrapper and validate against rawFileSize.
     fun downloadCloudFile(appId: Int, filename: String): ByteArray? {
         val infoJson = getCloudDownloadInfo(appId, filename) ?: return null
         return try {
             val obj = org.json.JSONObject(infoJson)
             val host = obj.optString("urlHost")
             if (host.isEmpty()) return null
-            val fileSize = obj.optInt("fileSize", 0)
             val rawFileSize = obj.optInt("rawFileSize", 0)
+            val encrypted = obj.optBoolean("encrypted", false)
+            // Force https on Android (cleartext is blocked by default; the CDN serves both).
             val url = java.net.URL("https://$host${obj.optString("urlPath")}")
-            val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 15_000
-                readTimeout = 30_000
-                instanceFollowRedirects = true
-                obj.optJSONArray("headers")?.let { headers ->
-                    for (i in 0 until headers.length()) {
-                        val hd = headers.getJSONObject(i)
-                        setRequestProperty(hd.optString("name"), hd.optString("value"))
-                    }
-                }
-            }
-            val raw = try {
-                val code = conn.responseCode
-                if (code != 200) {
-                    android.util.Log.w("WnSteamSession", "cloud GET $filename → HTTP $code")
-                    return null
-                }
-                conn.inputStream.use { it.readBytes() }
-            } finally {
-                conn.disconnect()
-            }
-            // Steam may serve compressed files as a single-entry zip.
-            val body =
-                if (fileSize != rawFileSize && raw.isNotEmpty()) {
-                    java.util.zip.ZipInputStream(raw.inputStream()).use { zin ->
-                        zin.nextEntry ?: run {
-                            android.util.Log.w("WnSteamSession", "cloud file $filename: empty zip")
-                            return null
+
+            // Up to 3 attempts so a transient HTTP/network blip can't strand the save.
+            var raw: ByteArray? = null
+            var lastCode = -1
+            for (attempt in 0 until 3) {
+                val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15_000
+                    readTimeout = 30_000
+                    instanceFollowRedirects = true
+                    // Get the exact stored bytes (we decode below); stops the HTTP stack from transparently gunzipping.
+                    setRequestProperty("Accept-Encoding", "identity")
+                    obj.optJSONArray("headers")?.let { headers ->
+                        for (i in 0 until headers.length()) {
+                            val hd = headers.getJSONObject(i)
+                            setRequestProperty(hd.optString("name"), hd.optString("value"))
                         }
-                        zin.readBytes()
                     }
-                } else {
-                    raw
                 }
-            // Never let a partial HTTP read replace a good local save.
-            if (body.size != rawFileSize) {
+                try {
+                    lastCode = conn.responseCode
+                    if (lastCode == 200) {
+                        raw = conn.inputStream.use { it.readBytes() }
+                        break
+                    }
+                    android.util.Log.w("WnSteamSession", "cloud GET $filename → HTTP $lastCode (attempt ${attempt + 1})")
+                } catch (e: Exception) {
+                    android.util.Log.w("WnSteamSession", "cloud GET $filename failed (attempt ${attempt + 1})", e)
+                } finally {
+                    conn.disconnect()
+                }
+                if (attempt < 2) Thread.sleep(400L * (attempt + 1))
+            }
+            if (raw == null) {
+                android.util.Log.w("WnSteamSession", "cloud file $filename: download failed (last HTTP $lastCode)")
+                return null
+            }
+
+            val body = decodeCloudPayload(raw, rawFileSize)
+            if (body == null || body.size != rawFileSize) {
                 android.util.Log.w(
                     "WnSteamSession",
-                    "cloud file $filename: size mismatch (got ${body.size}, expected $rawFileSize) — rejecting",
+                    "cloud file $filename: could not decode to expected size " +
+                        "(got ${body?.size ?: -1}, expected $rawFileSize, encrypted=$encrypted) — rejecting",
                 )
                 return null
             }
@@ -280,6 +285,54 @@ class WnSteamSession : AutoCloseable {
             android.util.Log.w("WnSteamSession", "cloud file download failed: $filename", e)
             null
         }
+    }
+
+    /** Decode a Steam Cloud payload, trying raw/PKZip/gzip/zlib/raw-DEFLATE and accepting the first match for [rawFileSize]. */
+    private fun decodeCloudPayload(raw: ByteArray, rawFileSize: Int): ByteArray? {
+        if (raw.isEmpty()) return if (rawFileSize == 0) raw else null
+        // Already the raw file (uncompressed, or the HTTP stack decoded transport compression).
+        if (raw.size == rawFileSize) return raw
+
+        // PKZip single-entry wrapper ("PK").
+        if (raw.size >= 4 && raw[0] == 0x50.toByte() && raw[1] == 0x4B.toByte()) {
+            runCatching {
+                java.util.zip.ZipInputStream(raw.inputStream()).use { zin ->
+                    if (zin.nextEntry == null) null else zin.readBytes()
+                }
+            }.getOrNull()?.let { if (it.size == rawFileSize) return it }
+        }
+        // gzip (0x1f 0x8b).
+        if (raw.size >= 2 && raw[0] == 0x1f.toByte() && raw[1] == 0x8b.toByte()) {
+            runCatching {
+                java.util.zip.GZIPInputStream(raw.inputStream()).use { it.readBytes() }
+            }.getOrNull()?.let { if (it.size == rawFileSize) return it }
+        }
+        // zlib-wrapped DEFLATE (RFC 1950) then raw DEFLATE (RFC 1951).
+        for (nowrap in booleanArrayOf(false, true)) {
+            runCatching { inflateBytes(raw, nowrap, rawFileSize) }
+                .getOrNull()
+                ?.let { if (it.size == rawFileSize) return it }
+        }
+        return null
+    }
+
+    private fun inflateBytes(data: ByteArray, nowrap: Boolean, sizeHint: Int): ByteArray {
+        val inflater = java.util.zip.Inflater(nowrap)
+        inflater.setInput(data)
+        val out = java.io.ByteArrayOutputStream(if (sizeHint > 0) sizeHint else data.size * 2)
+        val buf = ByteArray(64 * 1024)
+        try {
+            while (!inflater.finished()) {
+                val n = inflater.inflate(buf)
+                if (n == 0) {
+                    if (inflater.finished() || inflater.needsDictionary() || inflater.needsInput()) break
+                }
+                out.write(buf, 0, n)
+            }
+        } finally {
+            inflater.end()
+        }
+        return out.toByteArray()
     }
 
     // Result of [beginCloudUploadBatch].

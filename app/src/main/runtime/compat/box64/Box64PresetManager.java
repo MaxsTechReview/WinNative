@@ -66,9 +66,9 @@ public abstract class Box64PresetManager {
       envVars.put(ucPrefix + "_DYNAREC_FASTNAN", "1");
       envVars.put(ucPrefix + "_DYNAREC_FASTROUND", "0");
       envVars.put(ucPrefix + "_DYNAREC_X87DOUBLE", "1");
-      envVars.put(ucPrefix + "_DYNAREC_BIGBLOCK", "1");
+      envVars.put(ucPrefix + "_DYNAREC_BIGBLOCK", "2");
       envVars.put(ucPrefix + "_DYNAREC_STRONGMEM", "0");
-      envVars.put(ucPrefix + "_DYNAREC_FORWARD", "128");
+      envVars.put(ucPrefix + "_DYNAREC_FORWARD", "256");
       envVars.put(ucPrefix + "_DYNAREC_CALLRET", "1");
       envVars.put(ucPrefix + "_DYNAREC_WAIT", "1");
       if (ucPrefix.equals("BOX64")) {

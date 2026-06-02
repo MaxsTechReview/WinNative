@@ -942,6 +942,9 @@ Percorso installato:
     <string name="google_cloud_sync_started">Sincronizzazione cloud avviata.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Servizi Google</string>
+    <string name="google_auto_signin_title">Accedi a Google all\'avvio</string>
+    <string name="google_auto_signin_summary">Connettiti automaticamente a Google Play Giochi all\'avvio dell\'app, così i backup dei salvataggi e la sincronizzazione sono sempre pronti. Se disattivato, l\'app non accede mai da sola.</string>
+    <string name="google_auto_signin_section">All\'avvio</string>
     <string name="google_cloud_play_games">Google Play Giochi</string>
     <string name="google_cloud_status_syncing">Sincronizzazione</string>
     <string name="google_cloud_status_connected">Connesso</string>
@@ -1088,6 +1091,7 @@ Percorso installato:
     <string name="settings_general_check_for_updates_summary">Controlla automaticamente la presenza di nuove versioni dell\'app all\'avvio e periodicamente.</string>
     <string name="setup_wizard_containers">Configurazione container</string>
     <string name="cloud_saves_title">Salvataggi cloud</string>
+    <string name="cloud_saves_title_for_provider">Salvataggi cloud di %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronizzazione cloud</string>
     <string name="cloud_sync_enabled_summary">Scarica i salvataggi cloud all\'avvio e sincronizzali/esegui il backup all\'uscita.</string>
     <string name="cloud_sync_disabled_summary">Avvia questo gioco senza scaricare i salvataggi cloud né sincronizzarli all\'uscita.</string>
@@ -1117,6 +1121,10 @@ Percorso installato:
     <string name="cloud_saves_history_empty">Nessun salvataggio precedente ancora sottoposto a backup. I salvataggi sostituiti e i backup manuali appariranno qui per 30 giorni.</string>
     <string name="cloud_saves_history_loading">Caricamento cronologia salvataggi\u2026</string>
     <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_origin_cloud">cloud</string>
     <string name="cloud_saves_history_origin_local">locale</string>
     <string name="cloud_saves_history_origin_manual">manuale</string>
@@ -1235,7 +1243,7 @@ Percorso installato:
     <string name="cloud_saves_steam_sync_helper">Scarica il salvataggio più recente</string>
     <string name="cloud_saves_steam_sync_success">Sincronizzato da Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Sincronizzazione Steam Cloud non riuscita</string>
-    <string name="cloud_saves_steam_browse_label">Sfoglia Steam</string>
+    <string name="cloud_saves_steam_browse_label">Visualizza salvataggi Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Apri archivio cloud</string>
     <string name="cloud_saves_steam_browse_no_browser">Nessun browser disponibile per aprire la pagina Steam</string>
     <string name="cloud_saves_steam_import_label">Importa file</string>

@@ -1,6 +1,5 @@
 package com.winlator.cmod.runtime.display.xserver;
 
-import android.os.Build;
 import androidx.collection.ArrayMap;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
@@ -157,8 +156,6 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
     return xServer.resourceIDs.isInInterval(id, resourceIDBase);
   }
 
-  private static final long PACER_SPIN_MARGIN_NS = 1_000_000L;
-
   public void enforceAbsoluteFramerate() {
     com.winlator.cmod.runtime.display.renderer.VulkanRenderer renderer = xServer.getRenderer();
     if (renderer == null) return;
@@ -178,24 +175,12 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
       nextFrameTimeNanos = now + targetFrameTime;
     }
 
-    if (nextFrameTimeNanos - now > 500_000L) {
-      boolean interrupted = false;
-      long remaining = nextFrameTimeNanos - System.nanoTime();
-      while (remaining > PACER_SPIN_MARGIN_NS) {
-        LockSupport.parkNanos(remaining - PACER_SPIN_MARGIN_NS);
-        if (Thread.interrupted()) { interrupted = true; break; }
-        remaining = nextFrameTimeNanos - System.nanoTime();
-      }
-      if (!interrupted) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          while (System.nanoTime() < nextFrameTimeNanos) {
-            Thread.onSpinWait();
-          }
-        } else {
-          while (System.nanoTime() < nextFrameTimeNanos) {
-          }
-        }
-      }
+    // Park instead of busy-spinning through the final frame window to reduce sustained heat.
+    long remaining = nextFrameTimeNanos - now;
+    while (remaining > 0) {
+      LockSupport.parkNanos(remaining);
+      if (Thread.interrupted()) break;
+      remaining = nextFrameTimeNanos - System.nanoTime();
     }
 
     // Advance to the next heartbeat

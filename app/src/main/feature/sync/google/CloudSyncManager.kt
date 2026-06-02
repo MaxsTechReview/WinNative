@@ -51,6 +51,9 @@ object CloudSyncManager {
     private const val KEY_GOOGLE_SYNC_ENABLED = "google_sync_enabled"
     private const val KEY_LAST_SYNC_TIME = "last_sync_time"
     private const val KEY_LAST_SYNC_ERROR = "last_sync_error"
+
+    /** When true, the app attempts a Google Play Games sign-in once per process launch. Off by default. */
+    private const val KEY_AUTO_SIGNIN_ON_LAUNCH = "google_auto_signin_on_launch"
     private const val SNAPSHOT_NAME = "store_logins_v1"
     private const val AUTH_SESSION_RETRY_COUNT = 5
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
@@ -207,6 +210,14 @@ object CloudSyncManager {
             .apply()
         clearSyncError(activity)
         callback(true, activity.getString(R.string.google_cloud_sync_disabled))
+    }
+
+    /** Whether the app should auto sign-in to Google Play Games on launch. Off by default. */
+    fun isAutoSignInOnLaunchEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_AUTO_SIGNIN_ON_LAUNCH, false)
+
+    fun setAutoSignInOnLaunchEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_AUTO_SIGNIN_ON_LAUNCH, enabled).apply()
     }
 
     fun isAuthenticated(

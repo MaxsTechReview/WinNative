@@ -1044,6 +1044,9 @@
     <string name="google_cloud_sync_started">क्लाउड सिंक शुरू हुआ।</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google सेवाएँ</string>
+    <string name="google_auto_signin_title">लॉन्च पर Google में साइन इन करें</string>
+    <string name="google_auto_signin_summary">ऐप शुरू होने पर अपने आप Google Play Games से कनेक्ट करें ताकि सेव बैकअप और सिंक हमेशा तैयार रहें. बंद होने पर, ऐप कभी भी अपने आप साइन इन नहीं करता.</string>
+    <string name="google_auto_signin_section">लॉन्च पर</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">सिंक हो रहा है</string>
     <string name="google_cloud_status_connected">कनेक्टेड</string>
@@ -1092,6 +1095,7 @@
     <string name="google_cloud_error_generic">Google क्लाउड सिंक विफल: %1$s</string>
     <string name="google_cloud_error_before_open">Google Saved Games खुलने से पहले Google क्लाउड सिंक विफल हो गया।</string>
     <string name="cloud_saves_title">क्लाउड सेव</string>
+    <string name="cloud_saves_title_for_provider">%1$s क्लाउड सेव - %2$s</string>
     <string name="cloud_saves_sync_summary">%1$s के पास अभी जो संस्करण है, उसे डाउनलोड करें।</string>
     <string name="cloud_saves_sync_summary_generic">मौजूदा क्लाउड संस्करण डाउनलोड करें।</string>
     <string name="cloud_saves_no_backups">इस गेम के लिए अभी तक कोई बैकअप नहीं है.</string>
@@ -1123,6 +1127,10 @@
     <string name="cloud_saves_history_origin_cloud">क्लाउड</string>
     <string name="cloud_saves_history_origin_manual">मैनुअल</string>
     <string name="cloud_saves_history_origin_auto">ऑटो</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">पुनर्स्थापित करें</string>
     <string name="cloud_saves_history_restore_confirm_title">इस बैकअप को पुनर्स्थापित करें?</string>
     <string name="cloud_saves_history_restore_confirm_body">यह आपके वर्तमान स्थानीय सेव को %1$s के बैकअप से बदल देगा।</string>
@@ -1150,7 +1158,7 @@
     <string name="cloud_saves_steam_sync_helper">नवीनतम सेव डाउनलोड करें</string>
     <string name="cloud_saves_steam_sync_success">Steam Cloud से सिंक किया गया</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud सिंक विफल रहा</string>
-    <string name="cloud_saves_steam_browse_label">Steam ब्राउज़ करें</string>
+    <string name="cloud_saves_steam_browse_label">Steam Cloud सेव देखें</string>
     <string name="cloud_saves_steam_browse_helper">क्लाउड स्टोरेज खोलें</string>
     <string name="cloud_saves_steam_browse_no_browser">Steam पृष्ठ खोलने के लिए कोई ब्राउज़र उपलब्ध नहीं है</string>
     <string name="cloud_saves_steam_import_label">फ़ाइलें आयात करें</string>

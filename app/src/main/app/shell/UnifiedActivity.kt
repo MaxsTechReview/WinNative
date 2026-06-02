@@ -973,6 +973,26 @@ class UnifiedActivity :
         }
     }
 
+    /** When the "Sign in to Google on launch" toggle is on, attempt a silent Play Games sign-in once per launch. */
+    private fun maybeAutoSignInGoogleOnLaunch() {
+        if (!com.winlator.cmod.feature.sync.google.CloudSyncManager.isAutoSignInOnLaunchEnabled(this)) return
+        runCatching {
+            com.winlator.cmod.feature.sync.google.PlayGamesBootstrap.ensureInitialized(this)
+            com.google.android.gms.games.PlayGames
+                .getGamesSignInClient(this)
+                .signIn()
+                .addOnCompleteListener { task ->
+                    val authed = task.isSuccessful && task.result?.isAuthenticated == true
+                    if (authed) {
+                        com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+                            .setDriveConnected(applicationContext, true)
+                    }
+                }
+        }.onFailure {
+            timber.log.Timber.tag("UnifiedActivity").w(it, "Auto Google sign-in on launch failed")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         instance = this
         super.onCreate(savedInstanceState)
@@ -989,6 +1009,7 @@ class UnifiedActivity :
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         bootstrapStartupState()
+        maybeAutoSignInGoogleOnLaunch()
 
         // Surface store-session events as toasts.
         lifecycleScope.launch {
@@ -3205,6 +3226,7 @@ class UnifiedActivity :
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.titleSmall,
+                                fontSize = 13.sp,
                                 color = TextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -5292,7 +5314,17 @@ class UnifiedActivity :
                         LibraryDetailPopupFrame(
                             title =
                                 when (popup) {
-                                    LibraryDetailPopup.CloudSaves -> stringResource(R.string.cloud_saves_title)
+                                    LibraryDetailPopup.CloudSaves ->
+                                        stringResource(
+                                            R.string.cloud_saves_title_for_provider,
+                                            when {
+                                                isGog -> stringResource(R.string.preloader_platform_gog)
+                                                isEpic -> stringResource(R.string.preloader_platform_epic)
+                                                isCustom -> stringResource(R.string.preloader_platform_custom)
+                                                else -> stringResource(R.string.preloader_platform_steam)
+                                            },
+                                            app.name,
+                                        )
                                 },
                             wide = popup == LibraryDetailPopup.CloudSaves,
                             onDismissRequest = { activePopup = null },
