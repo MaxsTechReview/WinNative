@@ -307,7 +307,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void tryCapturePointer() {
-        if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
+        if (touchpadView != null && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
             touchpadView.postDelayed(() -> {
                 if (touchpadView != null) {
                     updatePointerCapture();
@@ -4130,7 +4130,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldUsePointerCapture() {
-        return !isPointerCaptureForcedOff && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
+        return !isPointerCaptureForcedOff && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
     }
 
     private void updatePointerCapture() {

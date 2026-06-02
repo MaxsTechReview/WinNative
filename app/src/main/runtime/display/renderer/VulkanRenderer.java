@@ -89,6 +89,8 @@ public class VulkanRenderer
     private boolean cpuSaverMode = false;
     private static final long CURSOR_ACTIVE_NS = 100_000_000L;
     private volatile long cursorActiveUntilNs = 0L;
+    // WinMFix: temporary diagnostic — remove before commit.
+    private static long lastRenderLogMs = 0;
 
     private static final int MAX_FPS_LIMIT = 1000;
     private volatile int currentFpsLimit = 0;
@@ -489,6 +491,20 @@ public class VulkanRenderer
         buf.putInt(OFF_SWAP_RB, swapRB ? 1 : 0);
         buf.putInt(OFF_SOURCE_W, sourceW);
         buf.putInt(OFF_SOURCE_H, sourceH);
+
+        // WinMFix: render-side diagnostic — remove before commit.
+        long _now = System.currentTimeMillis();
+        if (_now - lastRenderLogMs > 1000) {
+            lastRenderLogMs = _now;
+            android.util.Log.i("WinMFix", "RENDER scr=" + xServer.screenInfo.width + "x" + xServer.screenInfo.height
+                + " surf=" + surfaceWidth + "x" + surfaceHeight
+                + " src=" + sourceW + "x" + sourceH
+                + " view=" + viewW + "x" + viewH
+                + " curPos=" + cursorPosX + "," + cursorPosY + " curOn=" + cursorOnscreen
+                + " xform=[sx=" + sceneXform[0] + " sy=" + sceneXform[3]
+                + " tx=" + sceneXform[4] + " ty=" + sceneXform[5] + "]"
+                + " full=" + fullscreen + " zoom=" + magnifierZoom);
+        }
 
         // Effects snapshot
         Effect[] active = effectComposer.snapshot();
