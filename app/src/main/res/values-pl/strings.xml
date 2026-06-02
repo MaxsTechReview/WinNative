@@ -1338,5 +1338,11 @@ Zainstalowana ścieżka:
     <string name="session_drawer_output_game_mode_note">Żąda trybu gry / niskiego opóźnienia telewizora (HDMI ALLM), aby zminimalizować opóźnienie wejścia. Wyświetlane tylko, gdy podłączony wyświetlacz to obsługuje.</string>
     <string name="session_drawer_output_send_to_display">Wyślij grę na wyświetlacz</string>
     <string name="session_drawer_output_send_note">Wyświetlacz jest podłączony. Wyślij na niego grę — sterowanie i menu pozostaną na tym telefonie. Możesz w każdej chwili przywrócić ją tutaj.</string>
+    <string name="session_drawer_output_display">Ekran</string>
+    <string name="session_drawer_output_glasses">Okulary</string>
+    <string name="session_drawer_output_brightness">Jasność</string>
+    <string name="session_drawer_output_shade">Przyciemnienie</string>
+    <string name="session_drawer_output_3d">3D (obok siebie)</string>
+    <string name="session_drawer_output_glasses_note">Wysyłane bezpośrednio do okularów Viture przez USB.</string>
 </resources>
 

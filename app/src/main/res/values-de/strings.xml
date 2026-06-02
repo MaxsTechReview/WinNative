@@ -1332,4 +1332,10 @@ Installierter Pfad:
     <string name="session_drawer_output_game_mode_note">Fordert den Spiel-/Niedriglatenzmodus des Fernsehers (HDMI ALLM) an, um die Eingabeverzögerung zu minimieren. Wird nur angezeigt, wenn das verbundene Display dies unterstützt.</string>
     <string name="session_drawer_output_send_to_display">Spiel an Display senden</string>
     <string name="session_drawer_output_send_note">Ein Display ist verbunden. Sende das Spiel dorthin — deine Steuerung und das Menü bleiben auf diesem Telefon. Du kannst es jederzeit hierher zurückholen.</string>
+    <string name="session_drawer_output_display">Anzeige</string>
+    <string name="session_drawer_output_glasses">Brille</string>
+    <string name="session_drawer_output_brightness">Helligkeit</string>
+    <string name="session_drawer_output_shade">Tönung (Abdunkeln)</string>
+    <string name="session_drawer_output_3d">3D (Side-by-Side)</string>
+    <string name="session_drawer_output_glasses_note">Direkt per USB an deine Viture-Brille gesendet.</string>
 </resources>

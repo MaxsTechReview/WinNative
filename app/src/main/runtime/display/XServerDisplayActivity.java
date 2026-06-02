@@ -3682,6 +3682,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     externalDisplayController.isGameModeSupported(),
                     externalDisplayController.isGameModeEnabled(),
                     externalDisplayController.hasExternalDisplay());
+            if (externalDisplayController.isVitureConnected()) {
+                state = XServerDrawerMenuKt.withVitureState(
+                        state,
+                        externalDisplayController.getVitureName(),
+                        externalDisplayController.vitureSupportsBrightness(),
+                        externalDisplayController.getVitureBrightness(),
+                        externalDisplayController.getVitureBrightnessMax(),
+                        externalDisplayController.vitureSupportsFilm(),
+                        externalDisplayController.vitureFilmStepped(),
+                        externalDisplayController.getVitureFilm(),
+                        externalDisplayController.vitureSupports3D(),
+                        externalDisplayController.isViture3D());
+            }
         }
 
         if (drawerActionListener == null) {
@@ -3865,6 +3878,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onOutputGameModeToggled(boolean enabled) {
                         if (externalDisplayController != null) {
                             externalDisplayController.setGameMode(enabled);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputVitureBrightness(int level) {
+                        if (externalDisplayController != null) externalDisplayController.setVitureBrightness(level);
+                    }
+
+                    @Override
+                    public void onOutputVitureFilm(int level) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setVitureFilm(level);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputViture3D(boolean enabled) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setViture3D(enabled);
                             renderDrawerMenu();
                         }
                     }

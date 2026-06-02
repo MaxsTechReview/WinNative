@@ -1332,5 +1332,11 @@ Cale instalata:
     <string name="session_drawer_output_game_mode_note">Solicită modul joc / latență redusă al televizorului (HDMI ALLM) pentru a minimiza întârzierea la intrare. Afișat doar când ecranul conectat îl acceptă.</string>
     <string name="session_drawer_output_send_to_display">Trimite jocul la ecran</string>
     <string name="session_drawer_output_send_note">Un ecran este conectat. Trimite-i jocul — comenzile și meniul rămân pe acest telefon. Îl poți aduce înapoi aici oricând.</string>
+    <string name="session_drawer_output_display">Ecran</string>
+    <string name="session_drawer_output_glasses">Ochelari</string>
+    <string name="session_drawer_output_brightness">Luminozitate</string>
+    <string name="session_drawer_output_shade">Umbră (atenuare)</string>
+    <string name="session_drawer_output_3d">3D (alăturat)</string>
+    <string name="session_drawer_output_glasses_note">Trimis direct la ochelarii Viture prin USB.</string>
 </resources>
 

@@ -1332,5 +1332,11 @@ Caminho instalado:
     <string name="session_drawer_output_game_mode_note">Solicita o modo jogo / baixa latência da TV (HDMI ALLM) para minimizar o atraso de entrada. Exibido apenas quando a tela conectada é compatível.</string>
     <string name="session_drawer_output_send_to_display">Enviar jogo para a tela</string>
     <string name="session_drawer_output_send_note">Uma tela está conectada. Envie o jogo para ela — seus controles e o menu permanecem neste telefone. Você pode trazê-lo de volta aqui a qualquer momento.</string>
+    <string name="session_drawer_output_display">Tela</string>
+    <string name="session_drawer_output_glasses">Óculos</string>
+    <string name="session_drawer_output_brightness">Brilho</string>
+    <string name="session_drawer_output_shade">Sombra (escurecimento)</string>
+    <string name="session_drawer_output_3d">3D (lado a lado)</string>
+    <string name="session_drawer_output_glasses_note">Enviado diretamente para seus óculos Viture via USB.</string>
 </resources>
 

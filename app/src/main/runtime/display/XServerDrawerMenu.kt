@@ -345,6 +345,17 @@ data class XServerDrawerState(
     val outputGameModeEnabled: Boolean = false,
     // Display connected but game still on the phone — show the "Send to display" button.
     val outputDisplayAvailable: Boolean = false,
+    // Viture XR glasses controls (USB), present only when Viture glasses are connected.
+    val outputVitureConnected: Boolean = false,
+    val outputVitureName: String = "",
+    val outputVitureSupportsBrightness: Boolean = false,
+    val outputVitureBrightness: Int = 0,
+    val outputVitureBrightnessMax: Int = 8,
+    val outputVitureSupportsFilm: Boolean = false,
+    val outputVitureFilmStepped: Boolean = false,
+    val outputVitureFilm: Int = 0,
+    val outputVitureSupports3D: Boolean = false,
+    val outputViture3D: Boolean = false,
 )
 
 class XServerDrawerStateHolder(
@@ -538,6 +549,12 @@ interface XServerDrawerActionListener {
     fun onOutputAspectModeSelected(mode: Int)
 
     fun onOutputGameModeToggled(enabled: Boolean)
+
+    fun onOutputVitureBrightness(level: Int)
+
+    fun onOutputVitureFilm(level: Int)
+
+    fun onOutputViture3D(enabled: Boolean)
 
     fun onOutputReturnToPhone()
 
@@ -855,6 +872,32 @@ fun withOutputState(
         outputDisplayAvailable = displayAvailable,
     )
 }
+
+// Overlay Viture-glasses control state onto the output state (only when Viture glasses are connected).
+fun withVitureState(
+    state: XServerDrawerState,
+    name: String,
+    supportsBrightness: Boolean,
+    brightness: Int,
+    brightnessMax: Int,
+    supportsFilm: Boolean,
+    filmStepped: Boolean,
+    film: Int,
+    supports3D: Boolean,
+    threeD: Boolean,
+): XServerDrawerState =
+    state.copy(
+        outputVitureConnected = true,
+        outputVitureName = name,
+        outputVitureSupportsBrightness = supportsBrightness,
+        outputVitureBrightness = brightness,
+        outputVitureBrightnessMax = brightnessMax,
+        outputVitureSupportsFilm = supportsFilm,
+        outputVitureFilmStepped = filmStepped,
+        outputVitureFilm = film,
+        outputVitureSupports3D = supports3D,
+        outputViture3D = threeD,
+    )
 
 @Composable
 internal fun XServerDrawerContent(
@@ -2313,82 +2356,57 @@ private fun OutputActiveControls(
     listener: XServerDrawerActionListener,
     paneScale: Float,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
-        PaneSectionLabel(stringResource(R.string.session_drawer_output_device))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Monitor,
-                contentDescription = null,
-                tint = DrawerAccent,
-                modifier = Modifier.size((20f * paneScale).dp),
-            )
-            Text(
-                text = state.outputDisplayName.ifEmpty { stringResource(R.string.session_drawer_output_title) },
-                color = DrawerTextPrimary,
-                fontSize = (14f * paneScale).sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
+    OutputDeviceHeader(state = state, paneScale = paneScale)
 
-    if (state.outputResolutionLabels.isNotEmpty()) {
-        ThinDivider()
-        Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
-            PaneSectionLabel(stringResource(R.string.session_drawer_output_resolution))
-            InputControlsSimpleDropdown(
-                options = state.outputResolutionLabels,
-                selectedIndex = state.outputSelectedResolutionIndex,
-                onSelected = listener::onOutputResolutionSelected,
-            )
-            Text(
-                text = stringResource(R.string.session_drawer_output_render_note),
-                color = DrawerTextSecondary,
-                fontSize = (11f * paneScale).sp,
-                lineHeight = (15f * paneScale).sp,
-            )
-        }
-    }
-
-    if (state.outputRefreshLabels.isNotEmpty()) {
-        Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-            PaneSectionLabel(stringResource(R.string.session_drawer_output_refresh_rate))
-            InputControlsSimpleDropdown(
-                options = state.outputRefreshLabels,
-                selectedIndex = state.outputSelectedRefreshIndex,
-                onSelected = listener::onOutputRefreshRateSelected,
-            )
-        }
-    }
-
-    ThinDivider()
-    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-        PaneSectionLabel(stringResource(R.string.session_drawer_output_aspect_ratio))
-        val aspectLabels =
-            listOf(
-                stringResource(R.string.session_drawer_output_aspect_fit),
-                stringResource(R.string.session_drawer_output_aspect_stretch),
-                stringResource(R.string.session_drawer_output_aspect_zoom),
-            )
-        ChipFlow {
-            aspectLabels.forEachIndexed { index, label ->
-                HUDToggleChip(
-                    label = label,
-                    checked = state.outputAspectMode == index,
-                    onClick = { listener.onOutputAspectModeSelected(index) },
+    OutputCard(paneScale = paneScale, title = stringResource(R.string.session_drawer_output_display)) {
+        if (state.outputResolutionLabels.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+                OutputFieldLabel(stringResource(R.string.session_drawer_output_resolution), paneScale)
+                InputControlsSimpleDropdown(
+                    options = state.outputResolutionLabels,
+                    selectedIndex = state.outputSelectedResolutionIndex,
+                    onSelected = listener::onOutputResolutionSelected,
                 )
+                Text(
+                    text = stringResource(R.string.session_drawer_output_render_note),
+                    color = DrawerTextSecondary,
+                    fontSize = (11f * paneScale).sp,
+                    lineHeight = (15f * paneScale).sp,
+                )
+            }
+        }
+        if (state.outputRefreshLabels.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+                OutputFieldLabel(stringResource(R.string.session_drawer_output_refresh_rate), paneScale)
+                InputControlsSimpleDropdown(
+                    options = state.outputRefreshLabels,
+                    selectedIndex = state.outputSelectedRefreshIndex,
+                    onSelected = listener::onOutputRefreshRateSelected,
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+            OutputFieldLabel(stringResource(R.string.session_drawer_output_aspect_ratio), paneScale)
+            val aspectLabels =
+                listOf(
+                    stringResource(R.string.session_drawer_output_aspect_fit),
+                    stringResource(R.string.session_drawer_output_aspect_stretch),
+                    stringResource(R.string.session_drawer_output_aspect_zoom),
+                )
+            ChipFlow {
+                aspectLabels.forEachIndexed { index, label ->
+                    HUDToggleChip(
+                        label = label,
+                        checked = state.outputAspectMode == index,
+                        onClick = { listener.onOutputAspectModeSelected(index) },
+                    )
+                }
             }
         }
     }
 
     if (state.outputGameModeSupported) {
-        ThinDivider()
-        Column(verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp)) {
-            PaneSectionLabel(stringResource(R.string.session_drawer_output_game_mode))
+        OutputCard(paneScale = paneScale, title = stringResource(R.string.session_drawer_output_game_mode)) {
             ChipFlow {
                 HUDToggleChip(
                     label = stringResource(R.string.session_drawer_output_game_mode_on),
@@ -2410,7 +2428,10 @@ private fun OutputActiveControls(
         }
     }
 
-    ThinDivider()
+    if (state.outputVitureConnected) {
+        OutputGlassesCard(state = state, listener = listener, paneScale = paneScale)
+    }
+
     OutputPaneButton(
         label = stringResource(R.string.session_drawer_output_return_to_phone),
         paneScale = paneScale,
@@ -2419,33 +2440,141 @@ private fun OutputActiveControls(
 }
 
 @Composable
+private fun OutputGlassesCard(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+    paneScale: Float,
+) {
+    OutputCard(
+        paneScale = paneScale,
+        title = state.outputVitureName.ifEmpty { stringResource(R.string.session_drawer_output_glasses) },
+    ) {
+        if (state.outputVitureSupportsBrightness) {
+            DrawerSliderRow(
+                label = stringResource(R.string.session_drawer_output_brightness),
+                valueText = "${state.outputVitureBrightness}/${state.outputVitureBrightnessMax}",
+                value = state.outputVitureBrightness.toFloat(),
+                valueRange = 0f..state.outputVitureBrightnessMax.toFloat(),
+                steps = (state.outputVitureBrightnessMax - 1).coerceAtLeast(0),
+                onValueChange = { listener.onOutputVitureBrightness(it.roundToInt()) },
+            )
+        }
+        if (state.outputVitureSupportsFilm) {
+            if (state.outputVitureFilmStepped) {
+                DrawerSliderRow(
+                    label = stringResource(R.string.session_drawer_output_shade),
+                    valueText = "${state.outputVitureFilm}/8",
+                    value = state.outputVitureFilm.toFloat(),
+                    valueRange = 0f..8f,
+                    steps = 7,
+                    onValueChange = { listener.onOutputVitureFilm(it.roundToInt()) },
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+                    OutputFieldLabel(stringResource(R.string.session_drawer_output_shade), paneScale)
+                    ChipFlow {
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_drawer_output_game_mode_on),
+                            checked = state.outputVitureFilm > 0,
+                            onClick = { listener.onOutputVitureFilm(1) },
+                        )
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_drawer_output_game_mode_off),
+                            checked = state.outputVitureFilm == 0,
+                            onClick = { listener.onOutputVitureFilm(0) },
+                        )
+                    }
+                }
+            }
+        }
+        if (state.outputVitureSupports3D) {
+            Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
+                OutputFieldLabel(stringResource(R.string.session_drawer_output_3d), paneScale)
+                ChipFlow {
+                    HUDToggleChip(
+                        label = stringResource(R.string.session_drawer_output_game_mode_on),
+                        checked = state.outputViture3D,
+                        onClick = { listener.onOutputViture3D(true) },
+                    )
+                    HUDToggleChip(
+                        label = stringResource(R.string.session_drawer_output_game_mode_off),
+                        checked = !state.outputViture3D,
+                        onClick = { listener.onOutputViture3D(false) },
+                    )
+                }
+            }
+        }
+        Text(
+            text = stringResource(R.string.session_drawer_output_glasses_note),
+            color = DrawerTextSecondary,
+            fontSize = (11f * paneScale).sp,
+            lineHeight = (15f * paneScale).sp,
+        )
+    }
+}
+
+@Composable
+private fun OutputCard(
+    paneScale: Float,
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape((14f * paneScale).dp))
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, RoundedCornerShape((14f * paneScale).dp))
+                .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+        verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+    ) {
+        PaneSectionLabel(title)
+        content()
+    }
+}
+
+@Composable
+private fun OutputFieldLabel(text: String, paneScale: Float) {
+    Text(
+        text = text,
+        color = DrawerTextSecondary,
+        fontSize = (12f * paneScale).sp,
+        fontWeight = FontWeight.Medium,
+    )
+}
+
+@Composable
+private fun OutputDeviceHeader(state: XServerDrawerState, paneScale: Float) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+        modifier = Modifier.padding(horizontal = (2f * paneScale).dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Monitor,
+            contentDescription = null,
+            tint = DrawerAccent,
+            modifier = Modifier.size((22f * paneScale).dp),
+        )
+        Text(
+            text = state.outputDisplayName.ifEmpty { stringResource(R.string.session_drawer_output_title) },
+            color = DrawerTextPrimary,
+            fontSize = (15f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun OutputSendToDisplay(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
     paneScale: Float,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
-        PaneSectionLabel(stringResource(R.string.session_drawer_output_device))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Monitor,
-                contentDescription = null,
-                tint = DrawerAccent,
-                modifier = Modifier.size((20f * paneScale).dp),
-            )
-            Text(
-                text = state.outputDisplayName.ifEmpty { stringResource(R.string.session_drawer_output_title) },
-                color = DrawerTextPrimary,
-                fontSize = (14f * paneScale).sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
+    OutputDeviceHeader(state = state, paneScale = paneScale)
     OutputPaneButton(
         label = stringResource(R.string.session_drawer_output_send_to_display),
         paneScale = paneScale,

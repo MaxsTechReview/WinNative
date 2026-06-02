@@ -1332,5 +1332,11 @@
     <string name="session_drawer_output_game_mode_note">請求電視的遊戲/低延遲模式（HDMI ALLM）以盡量減少輸入延遲。僅在已連接的顯示器支援時顯示。</string>
     <string name="session_drawer_output_send_to_display">將遊戲傳送到顯示器</string>
     <string name="session_drawer_output_send_note">已連接顯示器。將遊戲傳送到該顯示器——你的控制與選單仍保留在本手機上。你可以隨時將其取回這裡。</string>
+    <string name="session_drawer_output_display">顯示</string>
+    <string name="session_drawer_output_glasses">眼鏡</string>
+    <string name="session_drawer_output_brightness">亮度</string>
+    <string name="session_drawer_output_shade">遮光（變暗）</string>
+    <string name="session_drawer_output_3d">3D（左右）</string>
+    <string name="session_drawer_output_glasses_note">透過 USB 直接傳送到你的 Viture 眼鏡。</string>
 </resources>
 

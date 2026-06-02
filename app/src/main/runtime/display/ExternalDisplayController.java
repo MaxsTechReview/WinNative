@@ -94,6 +94,12 @@ public final class ExternalDisplayController {
     private int savedPhoneViewWidth = 0;
     private int savedPhoneViewHeight = 0;
 
+    // Viture XR glasses control (USB MCU protocol); only used when actual Viture glasses are connected.
+    private final VitureGlasses viture;
+    private int vitureBrightness = -1; // last-set (lazily initialised to max on first read)
+    private int vitureFilm = 0;
+    private boolean viture3D = false;
+
     public ExternalDisplayController(Activity activity, FrameLayout phoneFrame,
                                      XServerSurfaceView gameView, Callbacks callbacks) {
         this.activity = activity;
@@ -101,6 +107,12 @@ public final class ExternalDisplayController {
         this.gameView = gameView;
         this.callbacks = callbacks;
         this.displayManager = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
+        this.viture = new VitureGlasses(activity);
+        this.viture.setConnectionListener(connected -> {
+            // When the glasses finish opening, re-apply the selected mode so the refresh command lands.
+            if (connected && swapActive) applyOutputMode();
+            callbacks.onSwapStateChanged(swapActive);
+        });
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -111,6 +123,7 @@ public final class ExternalDisplayController {
             displayManager.registerDisplayListener(displayListener, mainHandler);
             listenerRegistered = true;
         }
+        viture.attach();
         maybePromptForDisplay();
     }
 
@@ -132,6 +145,7 @@ public final class ExternalDisplayController {
 
     public void release() {
         stop();
+        viture.detach();
         exitSwap();
     }
 
@@ -490,6 +504,10 @@ public final class ExternalDisplayController {
         float hz = currentSelectedRefresh();
         WindowManager.LayoutParams lp = presentation.getWindow().getAttributes();
 
+        // On Viture glasses the panel timing is driven over USB (Android may not even enumerate the
+        // mode), so force it via the MCU; the Android calls below then lock the Presentation onto it.
+        if (viture.isConnected()) viture.forceRefreshHz(Math.round(hz));
+
         if (res.physical) {
             Display.Mode best = bestPhysicalMode(res.w, res.h, hz);
             if (best != null) {
@@ -497,6 +515,7 @@ public final class ExternalDisplayController {
                 lp.preferredRefreshRate = 0f; // must be 0 when a modeId is set
                 lp.preferredDisplayModeId = best.getModeId();
                 presentation.getWindow().setAttributes(lp);
+                requestSurfaceFrameRate(best.getRefreshRate()); // reinforce on the surface
                 renderActive = false;
                 Log.i(TAG, "Physical mode " + res.w + "x" + res.h + "@"
                         + Math.round(best.getRefreshRate()) + " (modeId=" + best.getModeId() + ")");
@@ -543,13 +562,19 @@ public final class ExternalDisplayController {
         try { gameView.getHolder().setSizeFromLayout(); } catch (Exception ignore) {}
     }
 
-    // Best-effort refresh hint (API 30+); a no-op if the panel can't produce the rate.
+    // Push the external surface toward a refresh rate (API 30+). FIXED_SOURCE + CHANGE_FRAME_RATE_ALWAYS
+    // is the most aggressive public lever — it requests a non-seamless switch to the panel's nearest
+    // matching mode rather than only a seamless one. Still a vote: a no-op if the panel can't produce it.
     private void requestSurfaceFrameRate(float hz) {
         if (hz <= 0f || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
         try {
             Surface s = gameView.getHolder().getSurface();
-            if (s != null && s.isValid()) {
-                s.setFrameRate(hz, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+            if (s == null || !s.isValid()) return;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                s.setFrameRate(hz, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                        Surface.CHANGE_FRAME_RATE_ALWAYS);
+            } else {
+                s.setFrameRate(hz, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
             }
         } catch (Exception ignore) {}
     }
@@ -582,6 +607,64 @@ public final class ExternalDisplayController {
                 presentation.getWindow().setPreferMinimalPostProcessing(gameMode);
             }
         } catch (Exception ignore) {}
+    }
+
+    // ── Viture XR glasses (USB control, only when Viture glasses are connected) ──
+
+    public boolean isVitureConnected() {
+        return viture.isConnected();
+    }
+
+    public String getVitureName() {
+        return viture.modelName();
+    }
+
+    public boolean vitureSupportsBrightness() {
+        return viture.supportsBrightness();
+    }
+
+    public boolean vitureSupportsFilm() {
+        return viture.supportsFilm();
+    }
+
+    public boolean vitureFilmStepped() {
+        return viture.filmIsStepped();
+    }
+
+    public boolean vitureSupports3D() {
+        return viture.supports3D();
+    }
+
+    public int getVitureBrightnessMax() {
+        return viture.brightnessMax();
+    }
+
+    public int getVitureBrightness() {
+        if (vitureBrightness < 0) vitureBrightness = viture.brightnessMax();
+        return vitureBrightness;
+    }
+
+    public int getVitureFilm() {
+        return vitureFilm;
+    }
+
+    public boolean isViture3D() {
+        return viture3D;
+    }
+
+    public void setVitureBrightness(int level) {
+        vitureBrightness = level;
+        viture.setBrightness(level);
+    }
+
+    public void setVitureFilm(int level) {
+        vitureFilm = level;
+        viture.setFilm(level);
+    }
+
+    public void setViture3D(boolean enabled) {
+        viture3D = enabled;
+        viture.set3D(enabled);
     }
 
     // ── Phone refresh / present mode (touch-lag mitigation) ────────────────
