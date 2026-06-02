@@ -1583,6 +1583,8 @@ return boundingBox;
           for (byte i = 0; i < 4; i++) {
             float value = (i == 1 || i == 3 ? deltaX : deltaY);
             Binding binding = getBindingAt(i);
+            if (Math.abs(value) > TouchpadView.CURSOR_ACCELERATION_THRESHOLD)
+              value *= TouchpadView.CURSOR_ACCELERATION;
             if (binding == Binding.MOUSE_MOVE_LEFT || binding == Binding.MOUSE_MOVE_RIGHT) {
               cursorDx = Mathf.roundPoint(value);
             } else if (binding == Binding.MOUSE_MOVE_UP || binding == Binding.MOUSE_MOVE_DOWN) {

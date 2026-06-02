@@ -67,12 +67,12 @@ public class SyncExtension implements Extension {
 
   @Override
   public int getNumEvents() {
-    return 0;
+    return 2;
   }
 
   @Override
   public int getNumErrors() {
-    return 0;
+    return 2;
   }
 
   @Override

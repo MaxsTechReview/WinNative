@@ -52,12 +52,12 @@ public class MITSHMExtension implements Extension {
 
   @Override
   public int getNumEvents() {
-    return 0;
+    return 1;
   }
 
   @Override
   public int getNumErrors() {
-    return 0;
+    return 1;
   }
 
   @Override
