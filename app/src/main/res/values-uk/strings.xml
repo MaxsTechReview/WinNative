@@ -786,6 +786,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Рівні перевірки Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Перезапустіть дисплей, щоб застосувати.</string>
     <string name="settings_debug_share_logs">Поділитися журналами</string>
+    <string name="settings_debug_delete_logs">Видалити журнали</string>
+    <string name="settings_debug_share_all_logs_short">Поділитися всіма</string>
+    <string name="settings_debug_delete_logs_short">Видалити</string>
+    <string name="settings_debug_delete_all_logs_short">Видалити всі</string>
+    <string name="settings_debug_open_logs_folder_short">Відкрити менеджер журналів</string>
+    <string name="settings_debug_logs_deleted">Журнали видалено</string>
+    <string name="settings_debug_delete_logs_confirm_title">Видалити журнали?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Це назавжди видалить усі збережені файли журналів (%1$s). Дію не можна скасувати.</string>
+    <string name="settings_debug_logs_browser_title">Журнали</string>
+    <string name="settings_debug_log_truncated">Показано останні %1$s цього журналу</string>
     <string name="settings_debug_logs_subject">Журнали WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Немає доступних журналів налагодження. Спочатку увімкніть параметри налагодження та запустіть гру.</string>
     <string name="settings_debug_capture_failed">Не вдалося захопити журнали: %1$s</string>

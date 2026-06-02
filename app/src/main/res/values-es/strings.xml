@@ -780,6 +780,16 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Capas de validación de Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Reinicia la pantalla para aplicar.</string>
     <string name="settings_debug_share_logs">Compartir registros</string>
+    <string name="settings_debug_delete_logs">Eliminar registros</string>
+    <string name="settings_debug_share_all_logs_short">Compartir todo</string>
+    <string name="settings_debug_delete_logs_short">Eliminar</string>
+    <string name="settings_debug_delete_all_logs_short">Eliminar todo</string>
+    <string name="settings_debug_open_logs_folder_short">Abrir gestor de registros</string>
+    <string name="settings_debug_logs_deleted">Registros eliminados</string>
+    <string name="settings_debug_delete_logs_confirm_title">¿Eliminar registros?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Esto eliminará permanentemente todos los archivos de registro guardados (%1$s). No se puede deshacer.</string>
+    <string name="settings_debug_logs_browser_title">Registros</string>
+    <string name="settings_debug_log_truncated">Mostrando los últimos %1$s de este registro</string>
     <string name="settings_debug_logs_subject">Registros de WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">No hay registros de depuración disponibles. Activa primero las opciones de depuración e inicia un juego.</string>
     <string name="settings_debug_capture_failed">Error al capturar registros: %1$s</string>

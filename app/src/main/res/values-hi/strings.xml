@@ -886,6 +886,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan सत्यापन परतें</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">लागू करने के लिए प्रदर्शन पुनः प्रारंभ करें.</string>
     <string name="settings_debug_share_logs">लॉग शेयर करें</string>
+    <string name="settings_debug_delete_logs">लॉग हटाएं</string>
+    <string name="settings_debug_share_all_logs_short">सभी शेयर करें</string>
+    <string name="settings_debug_delete_logs_short">हटाएं</string>
+    <string name="settings_debug_delete_all_logs_short">सभी हटाएं</string>
+    <string name="settings_debug_open_logs_folder_short">लॉग मैनेजर खोलें</string>
+    <string name="settings_debug_logs_deleted">लॉग हटा दिए गए</string>
+    <string name="settings_debug_delete_logs_confirm_title">लॉग हटाएं?</string>
+    <string name="settings_debug_delete_logs_confirm_message">यह सभी सहेजी गई लॉग फ़ाइलों (%1$s) को स्थायी रूप से हटा देगा। इसे पूर्ववत नहीं किया जा सकता।</string>
+    <string name="settings_debug_logs_browser_title">लॉग</string>
+    <string name="settings_debug_log_truncated">इस लॉग के अंतिम %1$s दिखाए जा रहे हैं</string>
     <string name="settings_debug_logs_subject">WinNative लॉग्स (%1$s)</string>
     <string name="settings_debug_no_logs_available">कोई डिबग लॉग उपलब्ध नहीं है. पहले डिबगिंग विकल्प सक्षम करें और एक गेम लॉन्च करें।</string>
     <string name="settings_debug_capture_failed">लॉग कैप्चर करने में विफल: %1$s</string>

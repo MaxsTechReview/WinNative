@@ -840,6 +840,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
     boolean enableBox64Logs = preferences.getBoolean("enable_box64_logs", false);
+    boolean enableFexcoreLogs = preferences.getBoolean("enable_fexcore_logs", false);
     boolean openWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
     boolean shareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 
@@ -853,6 +854,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     addBox64EnvVars(envVars, enableBox64Logs);
     envVars.putAll(FEXCorePresetManager.getEnvVars(context, fexcorePreset));
+
+    if (enableFexcoreLogs) {
+      // FEXCore is silent by default. Enable logging to stderr so its output is
+      // captured by the in-game logs pane and the per-session fexcore_*.txt log.
+      envVars.put("FEX_SILENTLOG", "0");
+      envVars.put("FEX_OUTPUTLOG", "stderr");
+    }
 
     String renderer = GPUInformation.getRenderer(null, null);
 
