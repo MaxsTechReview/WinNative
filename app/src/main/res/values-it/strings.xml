@@ -1091,6 +1091,7 @@ Percorso installato:
     <string name="settings_general_check_for_updates_summary">Controlla automaticamente la presenza di nuove versioni dell\'app all\'avvio e periodicamente.</string>
     <string name="setup_wizard_containers">Configurazione container</string>
     <string name="cloud_saves_title">Salvataggi cloud</string>
+    <string name="cloud_saves_title_for_provider">Salvataggi cloud di %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronizzazione cloud</string>
     <string name="cloud_sync_enabled_summary">Scarica i salvataggi cloud all\'avvio e sincronizzali/esegui il backup all\'uscita.</string>
     <string name="cloud_sync_disabled_summary">Avvia questo gioco senza scaricare i salvataggi cloud né sincronizzarli all\'uscita.</string>
@@ -1242,7 +1243,7 @@ Percorso installato:
     <string name="cloud_saves_steam_sync_helper">Scarica il salvataggio più recente</string>
     <string name="cloud_saves_steam_sync_success">Sincronizzato da Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Sincronizzazione Steam Cloud non riuscita</string>
-    <string name="cloud_saves_steam_browse_label">Sfoglia Steam</string>
+    <string name="cloud_saves_steam_browse_label">Visualizza salvataggi Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Apri archivio cloud</string>
     <string name="cloud_saves_steam_browse_no_browser">Nessun browser disponibile per aprire la pagina Steam</string>
     <string name="cloud_saves_steam_import_label">Importa file</string>

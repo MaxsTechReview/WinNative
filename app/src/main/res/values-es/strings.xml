@@ -1091,6 +1091,7 @@ Ruta instalada:
     <string name="settings_general_check_for_updates_summary">Buscar automáticamente nuevas versiones de la aplicación al iniciar y periódicamente.</string>
     <string name="setup_wizard_containers">Configuración del contenedor</string>
     <string name="cloud_saves_title">Guardados en la nube</string>
+    <string name="cloud_saves_title_for_provider">Guardados en la nube de %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronización en la nube</string>
     <string name="cloud_sync_enabled_summary">Descarga los guardados en la nube al iniciar y sincronízalos o respáldalos al salir.</string>
     <string name="cloud_sync_disabled_summary">Inicia este juego sin descarga de guardados en la nube ni sincronización al salir.</string>
@@ -1242,7 +1243,7 @@ Ruta instalada:
     <string name="cloud_saves_steam_sync_helper">Descargar el guardado más reciente</string>
     <string name="cloud_saves_steam_sync_success">Sincronizado desde Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">La sincronización de Steam Cloud falló</string>
-    <string name="cloud_saves_steam_browse_label">Explorar Steam</string>
+    <string name="cloud_saves_steam_browse_label">Ver guardados de Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Abrir almacenamiento en la nube</string>
     <string name="cloud_saves_steam_browse_no_browser">No hay ningún navegador disponible para abrir la página de Steam</string>
     <string name="cloud_saves_steam_import_label">Importar archivos</string>

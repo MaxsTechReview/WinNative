@@ -1091,6 +1091,7 @@ Installierter Pfad:
     <string name="settings_general_check_for_updates_summary">Beim Start und regelmäßig automatisch nach neuen App-Versionen suchen.</string>
     <string name="setup_wizard_containers">Container-Einrichtung</string>
     <string name="cloud_saves_title">Cloud-Speicherstände</string>
+    <string name="cloud_saves_title_for_provider">%1$s-Cloud-Speicherstände - %2$s</string>
     <string name="cloud_sync_title">Cloud-Synchronisierung</string>
     <string name="cloud_sync_enabled_summary">Cloud-Speicherstände beim Start herunterladen und beim Beenden synchronisieren/sichern.</string>
     <string name="cloud_sync_disabled_summary">Dieses Spiel ohne Cloud-Speicherstand-Download oder Synchronisierung beim Beenden starten.</string>
@@ -1242,7 +1243,7 @@ Installierter Pfad:
     <string name="cloud_saves_steam_sync_helper">Neueste Speicherung herunterladen</string>
     <string name="cloud_saves_steam_sync_success">Von Steam Cloud synchronisiert</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud-Synchronisierung fehlgeschlagen</string>
-    <string name="cloud_saves_steam_browse_label">Steam durchsuchen</string>
+    <string name="cloud_saves_steam_browse_label">Steam-Cloud-Speicherstände anzeigen</string>
     <string name="cloud_saves_steam_browse_helper">Cloudspeicher öffnen</string>
     <string name="cloud_saves_steam_browse_no_browser">Kein Browser zum Öffnen der Steam-Seite verfügbar</string>
     <string name="cloud_saves_steam_import_label">Dateien importieren</string>

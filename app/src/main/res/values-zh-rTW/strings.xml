@@ -1091,6 +1091,7 @@
     <string name="settings_general_check_for_updates_summary">啟動時及定期自動檢查新版本。</string>
     <string name="setup_wizard_containers">容器設定</string>
     <string name="cloud_saves_title">雲端存檔</string>
+    <string name="cloud_saves_title_for_provider">%1$s 雲端存檔 - %2$s</string>
     <string name="cloud_sync_title">雲端同步</string>
     <string name="cloud_sync_enabled_summary">啟動時下載雲端存檔，並在退出時同步/備份。</string>
     <string name="cloud_sync_disabled_summary">啟動此遊戲時不下載雲端存檔，也不在退出時同步。</string>
@@ -1242,7 +1243,7 @@
     <string name="cloud_saves_steam_sync_helper">下載最新存檔</string>
     <string name="cloud_saves_steam_sync_success">已從 Steam Cloud 同步</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud 同步失敗</string>
-    <string name="cloud_saves_steam_browse_label">瀏覽 Steam</string>
+    <string name="cloud_saves_steam_browse_label">查看 Steam Cloud 雲端存檔</string>
     <string name="cloud_saves_steam_browse_helper">開啟雲端儲存空間</string>
     <string name="cloud_saves_steam_browse_no_browser">沒有可用的瀏覽器可開啟 Steam 頁面</string>
     <string name="cloud_saves_steam_import_label">匯入檔案</string>

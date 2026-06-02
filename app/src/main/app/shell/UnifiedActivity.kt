@@ -3226,6 +3226,7 @@ class UnifiedActivity :
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.titleSmall,
+                                fontSize = 13.sp,
                                 color = TextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -5313,7 +5314,17 @@ class UnifiedActivity :
                         LibraryDetailPopupFrame(
                             title =
                                 when (popup) {
-                                    LibraryDetailPopup.CloudSaves -> stringResource(R.string.cloud_saves_title)
+                                    LibraryDetailPopup.CloudSaves ->
+                                        stringResource(
+                                            R.string.cloud_saves_title_for_provider,
+                                            when {
+                                                isGog -> stringResource(R.string.preloader_platform_gog)
+                                                isEpic -> stringResource(R.string.preloader_platform_epic)
+                                                isCustom -> stringResource(R.string.preloader_platform_custom)
+                                                else -> stringResource(R.string.preloader_platform_steam)
+                                            },
+                                            app.name,
+                                        )
                                 },
                             wide = popup == LibraryDetailPopup.CloudSaves,
                             onDismissRequest = { activePopup = null },

@@ -272,40 +272,62 @@ internal fun CloudSavesContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.cloud_saves_title).uppercase(),
+                    stringResource(R.string.cloud_saves_title_for_provider, providerLabel, gameName).uppercase(),
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(CloudAccent.copy(alpha = 0.12f))
-                            .border(1.dp, CloudAccent.copy(alpha = 0.28f), RoundedCornerShape(999.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
-                ) {
-                    Text(
-                        providerLabel.uppercase(),
-                        color = CloudAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.6.sp,
-                    )
-                }
             }
         }
 
-        TogglePairCard(
-            cloudSyncEnabled = cloudSyncEnabled,
-            offlineModeEnabled = offlineModeEnabled,
-            showOfflineMode = !steamManagedCloud,
-            cloudSyncDisableSemantics = steamManagedCloud,
-            onCloudSyncToggle = onCloudSyncToggle,
-            onOfflineModeToggle = onOfflineModeToggle,
-        )
+        if (steamManagedCloud) {
+            val steamBrowseAppId = gameId.toIntOrNull()
+            val steamBrowseNoBrowser = stringResource(R.string.cloud_saves_steam_browse_no_browser)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TogglePairCard(
+                    modifier = Modifier.weight(1f),
+                    cloudSyncEnabled = cloudSyncEnabled,
+                    offlineModeEnabled = offlineModeEnabled,
+                    showOfflineMode = false,
+                    cloudSyncDisableSemantics = true,
+                    onCloudSyncToggle = onCloudSyncToggle,
+                    onOfflineModeToggle = onOfflineModeToggle,
+                )
+                ActionWithHelper(
+                    icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                    label = stringResource(R.string.cloud_saves_steam_browse_label),
+                    tint = CloudWarning,
+                    modifier = Modifier.weight(1f),
+                    enabled = steamBrowseAppId != null,
+                    onClick = {
+                        val appId = steamBrowseAppId ?: return@ActionWithHelper
+                        val url = "https://store.steampowered.com/account/remotestorageapp/?appid=$appId"
+                        runCatching {
+                            activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                        }.onFailure {
+                            notify(steamBrowseNoBrowser, Toast.LENGTH_SHORT)
+                        }
+                    },
+                )
+            }
+        } else {
+            TogglePairCard(
+                cloudSyncEnabled = cloudSyncEnabled,
+                offlineModeEnabled = offlineModeEnabled,
+                showOfflineMode = !steamManagedCloud,
+                cloudSyncDisableSemantics = steamManagedCloud,
+                onCloudSyncToggle = onCloudSyncToggle,
+                onOfflineModeToggle = onOfflineModeToggle,
+            )
+        }
 
         if (isWorking || gogZipBusy) {
             LinearProgressIndicator(
@@ -529,7 +551,6 @@ internal fun CloudSavesContent(
 
             val steamSyncSuccess = stringResource(R.string.cloud_saves_steam_sync_success)
             val steamSyncFailed = stringResource(R.string.cloud_saves_steam_sync_failed)
-            val steamBrowseNoBrowser = stringResource(R.string.cloud_saves_steam_browse_no_browser)
             val steamImportPickerUnavailable = stringResource(R.string.cloud_saves_steam_import_picker_unavailable)
             val steamPushSuccess = stringResource(R.string.cloud_saves_steam_push_success)
             val steamPushFailed = stringResource(R.string.cloud_saves_steam_push_failed)
@@ -539,7 +560,6 @@ internal fun CloudSavesContent(
                     ActionWithHelper(
                         icon = Icons.Outlined.CloudSync,
                         label = stringResource(R.string.cloud_saves_steam_sync_label),
-                        helper = stringResource(R.string.cloud_saves_steam_sync_helper),
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !steamBusy && steamAppIdInt != null,
@@ -566,33 +586,10 @@ internal fun CloudSavesContent(
                         },
                     )
                 }
-                val browseAction: @Composable (Modifier) -> Unit = { mod ->
-                    ActionWithHelper(
-                        icon = Icons.AutoMirrored.Outlined.OpenInNew,
-                        label = stringResource(R.string.cloud_saves_steam_browse_label),
-                        helper = stringResource(R.string.cloud_saves_steam_browse_helper),
-                        tint = CloudWarning,
-                        modifier = mod,
-                        enabled = steamAppIdInt != null,
-                        onClick = {
-                            val appId = steamAppIdInt ?: return@ActionWithHelper
-                            val url = "https://store.steampowered.com/account/remotestorageapp/?appid=$appId"
-                            runCatching {
-                                activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-                            }.onFailure {
-                                notify(
-                                    steamBrowseNoBrowser,
-                                    Toast.LENGTH_SHORT,
-                                )
-                            }
-                        },
-                    )
-                }
                 val importAction: @Composable (Modifier) -> Unit = { mod ->
                     ActionWithHelper(
                         icon = Icons.Outlined.UploadFile,
                         label = stringResource(R.string.cloud_saves_steam_import_label),
-                        helper = stringResource(R.string.cloud_saves_steam_import_helper),
                         tint = CloudSuccess,
                         modifier = mod,
                         enabled = !steamBusy && shortcut != null && steamAppIdInt != null,
@@ -612,7 +609,6 @@ internal fun CloudSavesContent(
                     ActionWithHelper(
                         icon = Icons.Outlined.CloudUpload,
                         label = stringResource(R.string.cloud_saves_steam_push_label),
-                        helper = stringResource(R.string.cloud_saves_steam_push_helper),
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !steamBusy && shortcut != null && steamAppIdInt != null,
@@ -651,13 +647,7 @@ internal fun CloudSavesContent(
                             syncAction(Modifier.weight(1f))
                             pushAction(Modifier.weight(1f))
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            browseAction(Modifier.weight(1f))
-                            importAction(Modifier.weight(1f))
-                        }
+                        importAction(Modifier.fillMaxWidth())
                     }
                 } else {
                     Row(
@@ -666,7 +656,6 @@ internal fun CloudSavesContent(
                     ) {
                         syncAction(Modifier.weight(1f))
                         pushAction(Modifier.weight(1f))
-                        browseAction(Modifier.weight(1f))
                         importAction(Modifier.weight(1f))
                     }
                 }
@@ -1328,13 +1317,14 @@ private fun CompactRenameDialogButton(
 private fun TogglePairCard(
     cloudSyncEnabled: Boolean,
     offlineModeEnabled: Boolean,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     showCloudSync: Boolean = true,
     showOfflineMode: Boolean = true,
     cloudSyncDisableSemantics: Boolean = false,
     onCloudSyncToggle: (Boolean) -> Unit,
     onOfflineModeToggle: (Boolean) -> Unit,
 ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = modifier) {
         val stacked = maxWidth < 380.dp
         val offlineGates = showOfflineMode && offlineModeEnabled
         val cloudSyncCell: @Composable (Modifier) -> Unit = { mod ->
@@ -1468,7 +1458,7 @@ private fun TogglePaneCell(
 private fun ActionWithHelper(
     icon: ImageVector,
     label: String,
-    helper: String,
+    helper: String? = null,
     tint: Color = CloudAccent,
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
@@ -1529,14 +1519,16 @@ private fun ActionWithHelper(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    helper,
-                    color = TextSecondary.copy(alpha = if (enabled) 1f else 0.58f),
-                    fontSize = 9.sp,
-                    lineHeight = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (!helper.isNullOrBlank()) {
+                    Text(
+                        helper,
+                        color = TextSecondary.copy(alpha = if (enabled) 1f else 0.58f),
+                        fontSize = 9.sp,
+                        lineHeight = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

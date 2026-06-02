@@ -1097,6 +1097,7 @@ Zainstalowana ścieżka:
     <string name="settings_general_check_for_updates_summary">Automatycznie sprawdzaj nowe wersje aplikacji przy uruchomieniu i okresowo.</string>
     <string name="setup_wizard_containers">Konfiguracja kontenera</string>
     <string name="cloud_saves_title">Zapisy w chmurze</string>
+    <string name="cloud_saves_title_for_provider">Zapisy w chmurze %1$s - %2$s</string>
     <string name="cloud_sync_title">Synchronizacja z chmurą</string>
     <string name="cloud_sync_enabled_summary">Pobieraj zapisy z chmury przy uruchomieniu oraz synchronizuj/twórz ich kopie przy wyjściu.</string>
     <string name="cloud_sync_disabled_summary">Uruchom tę grę bez pobierania zapisów z chmury i bez synchronizacji przy wyjściu.</string>
@@ -1248,7 +1249,7 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_steam_sync_helper">Pobierz najnowszy zapis</string>
     <string name="cloud_saves_steam_sync_success">Zsynchronizowano ze Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Synchronizacja Steam Cloud nie powiodła się</string>
-    <string name="cloud_saves_steam_browse_label">Przeglądaj Steam</string>
+    <string name="cloud_saves_steam_browse_label">Wyświetl zapisy Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Otwórz magazyn w chmurze</string>
     <string name="cloud_saves_steam_browse_no_browser">Brak dostępnej przeglądarki do otwarcia strony Steam</string>
     <string name="cloud_saves_steam_import_label">Importuj pliki</string>

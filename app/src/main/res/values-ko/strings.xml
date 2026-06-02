@@ -1091,6 +1091,7 @@
     <string name="settings_general_check_for_updates_summary">앱 실행 시와 주기적으로 새 버전을 자동으로 확인합니다.</string>
     <string name="setup_wizard_containers">컨테이너 설정</string>
     <string name="cloud_saves_title">클라우드 저장</string>
+    <string name="cloud_saves_title_for_provider">%1$s 클라우드 저장 - %2$s</string>
     <string name="cloud_sync_title">클라우드 동기화</string>
     <string name="cloud_sync_enabled_summary">실행 시 클라우드 저장을 다운로드하고 종료 시 동기화/백업합니다.</string>
     <string name="cloud_sync_disabled_summary">클라우드 저장 다운로드나 종료 시 동기화 없이 이 게임을 실행합니다.</string>
@@ -1243,7 +1244,7 @@
     <string name="cloud_saves_steam_sync_helper">최신 저장 파일 다운로드</string>
     <string name="cloud_saves_steam_sync_success">Steam Cloud에서 동기화되었습니다</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud 동기화에 실패했습니다</string>
-    <string name="cloud_saves_steam_browse_label">Steam 찾아보기</string>
+    <string name="cloud_saves_steam_browse_label">Steam Cloud 저장 보기</string>
     <string name="cloud_saves_steam_browse_helper">클라우드 저장소 열기</string>
     <string name="cloud_saves_steam_browse_no_browser">Steam 페이지를 열 수 있는 브라우저가 없습니다</string>
     <string name="cloud_saves_steam_import_label">파일 가져오기</string>

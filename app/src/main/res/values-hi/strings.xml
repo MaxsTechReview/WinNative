@@ -1095,6 +1095,7 @@
     <string name="google_cloud_error_generic">Google क्लाउड सिंक विफल: %1$s</string>
     <string name="google_cloud_error_before_open">Google Saved Games खुलने से पहले Google क्लाउड सिंक विफल हो गया।</string>
     <string name="cloud_saves_title">क्लाउड सेव</string>
+    <string name="cloud_saves_title_for_provider">%1$s क्लाउड सेव - %2$s</string>
     <string name="cloud_saves_sync_summary">%1$s के पास अभी जो संस्करण है, उसे डाउनलोड करें।</string>
     <string name="cloud_saves_sync_summary_generic">मौजूदा क्लाउड संस्करण डाउनलोड करें।</string>
     <string name="cloud_saves_no_backups">इस गेम के लिए अभी तक कोई बैकअप नहीं है.</string>
@@ -1157,7 +1158,7 @@
     <string name="cloud_saves_steam_sync_helper">नवीनतम सेव डाउनलोड करें</string>
     <string name="cloud_saves_steam_sync_success">Steam Cloud से सिंक किया गया</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud सिंक विफल रहा</string>
-    <string name="cloud_saves_steam_browse_label">Steam ब्राउज़ करें</string>
+    <string name="cloud_saves_steam_browse_label">Steam Cloud सेव देखें</string>
     <string name="cloud_saves_steam_browse_helper">क्लाउड स्टोरेज खोलें</string>
     <string name="cloud_saves_steam_browse_no_browser">Steam पृष्ठ खोलने के लिए कोई ब्राउज़र उपलब्ध नहीं है</string>
     <string name="cloud_saves_steam_import_label">फ़ाइलें आयात करें</string>

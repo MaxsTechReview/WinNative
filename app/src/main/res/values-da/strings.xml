@@ -1091,6 +1091,7 @@ Installeret sti:
     <string name="settings_general_check_for_updates_summary">Søg automatisk efter nye appversioner ved opstart og med jævne mellemrum.</string>
     <string name="setup_wizard_containers">Containeropsætning</string>
     <string name="cloud_saves_title">Cloud-saves</string>
+    <string name="cloud_saves_title_for_provider">%1$s cloud-saves - %2$s</string>
     <string name="cloud_sync_title">Cloud Sync</string>
     <string name="cloud_sync_enabled_summary">Download cloud-saves ved opstart og synkroniser/sikkerhedskopiér dem ved afslutning.</string>
     <string name="cloud_sync_disabled_summary">Start dette spil uden download af cloud-save eller synkronisering ved afslutning.</string>
@@ -1242,7 +1243,7 @@ Installeret sti:
     <string name="cloud_saves_steam_sync_helper">Download seneste gemte spil</string>
     <string name="cloud_saves_steam_sync_success">Synkroniseret fra Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud-synkronisering mislykkedes</string>
-    <string name="cloud_saves_steam_browse_label">Gennemse Steam</string>
+    <string name="cloud_saves_steam_browse_label">Vis Steam Cloud-saves</string>
     <string name="cloud_saves_steam_browse_helper">Åbn cloudlager</string>
     <string name="cloud_saves_steam_browse_no_browser">Ingen browser tilgængelig til at åbne Steam-siden</string>
     <string name="cloud_saves_steam_import_label">Importér filer</string>

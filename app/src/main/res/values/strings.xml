@@ -1151,6 +1151,7 @@ Installed path:
     <string name="google_cloud_error_generic">Google cloud sync failed: %1$s</string>
     <string name="google_cloud_error_before_open">Google cloud sync failed before Google Saved Games could open.</string>
     <string name="cloud_saves_title">Cloud Saves</string>
+    <string name="cloud_saves_title_for_provider">%1$s Cloud Saves - %2$s</string>
     <string name="cloud_saves_sync_summary">Pull the version %1$s has right now.</string>
     <string name="cloud_saves_sync_summary_generic">Pull the current cloud version.</string>
     <string name="cloud_saves_no_backups">No backups yet for this game.</string>
@@ -1227,7 +1228,7 @@ Installed path:
     <string name="cloud_saves_steam_sync_helper">Download latest save</string>
     <string name="cloud_saves_steam_sync_success">Synced from Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Steam Cloud sync failed</string>
-    <string name="cloud_saves_steam_browse_label">Browse Steam</string>
+    <string name="cloud_saves_steam_browse_label">View Steam Cloud Saves</string>
     <string name="cloud_saves_steam_browse_helper">Open cloud storage</string>
     <string name="cloud_saves_steam_browse_no_browser">No browser available to open the Steam page</string>
     <string name="cloud_saves_steam_import_label">Import Files</string>

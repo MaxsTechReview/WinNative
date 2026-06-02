@@ -1091,6 +1091,7 @@ Cale instalata:
     <string name="settings_general_check_for_updates_summary">Verifică automat dacă există versiuni noi ale aplicației la pornire și periodic.</string>
     <string name="setup_wizard_containers">Configurare container</string>
     <string name="cloud_saves_title">Salvări în cloud</string>
+    <string name="cloud_saves_title_for_provider">Salvări în cloud %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronizare în cloud</string>
     <string name="cloud_sync_enabled_summary">Descarcă salvările din cloud la pornire și sincronizează/fă backup la ieșire.</string>
     <string name="cloud_sync_disabled_summary">Pornește acest joc fără descărcarea salvărilor din cloud sau sincronizare la ieșire.</string>
@@ -1242,7 +1243,7 @@ Cale instalata:
     <string name="cloud_saves_steam_sync_helper">Descarcă cea mai recentă salvare</string>
     <string name="cloud_saves_steam_sync_success">Sincronizat din Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Sincronizarea Steam Cloud a eșuat</string>
-    <string name="cloud_saves_steam_browse_label">Răsfoiește Steam</string>
+    <string name="cloud_saves_steam_browse_label">Vezi salvările Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Deschide stocarea în cloud</string>
     <string name="cloud_saves_steam_browse_no_browser">Nu există niciun browser disponibil pentru a deschide pagina Steam</string>
     <string name="cloud_saves_steam_import_label">Importă fișiere</string>

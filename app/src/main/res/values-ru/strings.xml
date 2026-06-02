@@ -1057,6 +1057,7 @@
     <string name="google_cloud_error_generic">Не удалось выполнить облачную синхронизацию Google: %1$s</string>
     <string name="google_cloud_error_before_open">Облачная синхронизация Google не удалась до открытия Google Saved Games.</string>
     <string name="cloud_saves_title">Облачные сохранения</string>
+    <string name="cloud_saves_title_for_provider">Облачные сохранения %1$s - %2$s</string>
     <string name="cloud_saves_sync_summary">Получить версию, которая сейчас есть у %1$s.</string>
     <string name="cloud_saves_sync_summary_generic">Получить текущую облачную версию.</string>
     <string name="cloud_saves_no_backups">Для этой игры пока нет резервных копий.</string>
@@ -1122,7 +1123,7 @@
     <string name="cloud_saves_steam_sync_helper">Скачать последнее сохранение</string>
     <string name="cloud_saves_steam_sync_success">Синхронизировано с Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Не удалось синхронизировать Steam Cloud</string>
-    <string name="cloud_saves_steam_browse_label">Открыть Steam</string>
+    <string name="cloud_saves_steam_browse_label">Просмотреть сохранения Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Открыть облачное хранилище</string>
     <string name="cloud_saves_steam_browse_no_browser">Нет браузера, позволяющего открыть страницу Steam.</string>
     <string name="cloud_saves_steam_import_label">Импортировать файлы</string>

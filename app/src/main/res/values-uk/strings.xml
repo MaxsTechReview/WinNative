@@ -1097,6 +1097,7 @@
     <string name="settings_general_check_for_updates_summary">Автоматично перевіряти нові версії застосунку під час запуску та періодично.</string>
     <string name="setup_wizard_containers">Налаштування контейнера</string>
     <string name="cloud_saves_title">Хмарні збереження</string>
+    <string name="cloud_saves_title_for_provider">Хмарні збереження %1$s - %2$s</string>
     <string name="cloud_sync_title">Хмарна синхронізація</string>
     <string name="cloud_sync_enabled_summary">Завантажувати хмарні збереження під час запуску та синхронізувати/резервувати їх під час виходу.</string>
     <string name="cloud_sync_disabled_summary">Запустити цю гру без завантаження хмарних збережень і синхронізації при виході.</string>
@@ -1248,7 +1249,7 @@
     <string name="cloud_saves_steam_sync_helper">Завантажити найновіше збереження</string>
     <string name="cloud_saves_steam_sync_success">Синхронізовано зі Steam Cloud</string>
     <string name="cloud_saves_steam_sync_failed">Помилка синхронізації Steam Cloud</string>
-    <string name="cloud_saves_steam_browse_label">Переглянути Steam</string>
+    <string name="cloud_saves_steam_browse_label">Переглянути збереження Steam Cloud</string>
     <string name="cloud_saves_steam_browse_helper">Відкрити хмарне сховище</string>
     <string name="cloud_saves_steam_browse_no_browser">Немає доступного браузера, щоб відкрити сторінку Steam</string>
     <string name="cloud_saves_steam_import_label">Імпортувати файли</string>
