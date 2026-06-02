@@ -1332,6 +1332,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_output_cast_button">Połącz wyświetlacz bezprzewodowy</string>
     <string name="session_drawer_output_cast_note">Telewizory tylko z Chromecastem nie mogą wyświetlać rozgrywki na żywo z prywatnym sterowaniem — aby uzyskać najlepszy efekt, użyj wyświetlacza bezprzewodowego lub adaptera USB‑C/HDMI.</string>
     <string name="session_drawer_output_render_note">Tryby zgłaszane przez wyświetlacz zmieniają jego rzeczywiste wyjście (może na chwilę zgasnąć podczas ponownej inicjalizacji). Inne rozdzielczości są renderowane w tym rozmiarze i sprzętowo skalowane do panelu — powyżej natywnej jest ostrzej (supersampling), poniżej działa szybciej.</string>
+    <string name="session_drawer_output_scaling_note">Ten telefon wyświetla obraz w natywnej rozdzielczości %1$s i nie zmienia trybu, więc to ustawia rozdzielczość renderowania — jest ona sprzętowo skalowana do panelu (powyżej natywnej wyostrza, poniżej działa szybciej).</string>
     <string name="session_drawer_output_game_mode">Tryb gry (niskie opóźnienie)</string>
     <string name="session_drawer_output_game_mode_on">Wł.</string>
     <string name="session_drawer_output_game_mode_off">Wył.</string>

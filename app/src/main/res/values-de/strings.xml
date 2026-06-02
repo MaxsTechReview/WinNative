@@ -1326,6 +1326,7 @@ Installierter Pfad:
     <string name="session_drawer_output_cast_button">Drahtloses Display verbinden</string>
     <string name="session_drawer_output_cast_note">Fernseher nur mit Chromecast können kein Live-Gameplay mit privater Steuerung anzeigen — verwende für das beste Ergebnis ein drahtloses Display oder einen USB‑C-/HDMI-Adapter.</string>
     <string name="session_drawer_output_render_note">Die von deinem Display gemeldeten Modi ändern die tatsächliche Ausgabe (es kann kurz schwarz werden, während es neu initialisiert). Andere Auflösungen werden in dieser Größe gerendert und per Hardware auf das Panel skaliert — über der nativen schärfer (Supersampling), darunter schneller.</string>
+    <string name="session_drawer_output_scaling_note">Dieses Telefon gibt das Display in seiner nativen Auflösung %1$s aus und wechselt den Modus nicht; dies legt daher die Renderauflösung fest — sie wird hardwareseitig auf das Panel skaliert (höher als nativ schärft, niedriger läuft schneller).</string>
     <string name="session_drawer_output_game_mode">Spielmodus (geringe Latenz)</string>
     <string name="session_drawer_output_game_mode_on">Ein</string>
     <string name="session_drawer_output_game_mode_off">Aus</string>

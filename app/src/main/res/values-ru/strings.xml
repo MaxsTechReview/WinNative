@@ -1232,6 +1232,7 @@
     <string name="session_drawer_output_cast_button">Подключить беспроводной дисплей</string>
     <string name="session_drawer_output_cast_note">Телевизоры только с Chromecast не могут показывать игру в реальном времени с приватным управлением — для лучшего результата используйте беспроводной дисплей или адаптер USB‑C/HDMI.</string>
     <string name="session_drawer_output_render_note">Режимы, которые сообщает дисплей, меняют его реальный вывод (он может ненадолго погаснуть при повторной инициализации). Другие разрешения рендерятся в этом размере и аппаратно масштабируются на панель — выше нативного резче (суперсэмплинг), ниже быстрее.</string>
+    <string name="session_drawer_output_scaling_note">Этот телефон выводит изображение в собственном разрешении %1$s и не меняет режим, поэтому здесь задаётся разрешение рендеринга — оно аппаратно масштабируется под панель (выше нативного — чётче, ниже — быстрее).</string>
     <string name="session_drawer_output_game_mode">Игровой режим (низкая задержка)</string>
     <string name="session_drawer_output_game_mode_on">Вкл.</string>
     <string name="session_drawer_output_game_mode_off">Выкл.</string>

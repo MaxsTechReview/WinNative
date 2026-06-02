@@ -1326,6 +1326,7 @@ Percorso installato:
     <string name="session_drawer_output_cast_button">Connetti display wireless</string>
     <string name="session_drawer_output_cast_note">Le TV solo Chromecast non possono mostrare il gioco in tempo reale con comandi privati: per il risultato migliore usa un display wireless o un adattatore USB‑C/HDMI.</string>
     <string name="session_drawer_output_render_note">Le modalità segnalate dal display ne cambiano l\'uscita reale (può diventare nero per un istante mentre si reinizializza). Le altre risoluzioni vengono renderizzate a quella dimensione e scalate via hardware sul pannello — sopra la nativa è più nitido (supersampling), sotto è più veloce.</string>
+    <string name="session_drawer_output_scaling_note">Questo telefono invia lo schermo alla sua risoluzione nativa %1$s e non cambia modalità, quindi questo imposta la risoluzione di rendering — viene scalata via hardware sul pannello (oltre la nativa aumenta la nitidezza, sotto va più veloce).</string>
     <string name="session_drawer_output_game_mode">Modalità gioco (bassa latenza)</string>
     <string name="session_drawer_output_game_mode_on">Attiva</string>
     <string name="session_drawer_output_game_mode_off">Disattiva</string>

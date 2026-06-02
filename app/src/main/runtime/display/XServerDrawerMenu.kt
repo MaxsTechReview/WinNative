@@ -343,6 +343,9 @@ data class XServerDrawerState(
     val outputAspectMode: Int = 0,
     val outputGameModeSupported: Boolean = false,
     val outputGameModeEnabled: Boolean = false,
+    // Sink ignored real mode switches — phone is scaling; resolution becomes a render-size control.
+    val outputPanelScaling: Boolean = false,
+    val outputPanelNative: String = "",
     // Display connected but game still on the phone — show the "Send to display" button.
     val outputDisplayAvailable: Boolean = false,
     // Viture XR glasses controls (USB), present only when Viture glasses are connected.
@@ -849,6 +852,8 @@ fun withOutputState(
     aspectMode: Int,
     gameModeSupported: Boolean,
     gameModeEnabled: Boolean,
+    panelScaling: Boolean,
+    panelNative: String,
     displayAvailable: Boolean,
 ): XServerDrawerState {
     val outputItem =
@@ -869,6 +874,8 @@ fun withOutputState(
         outputAspectMode = aspectMode,
         outputGameModeSupported = gameModeSupported,
         outputGameModeEnabled = gameModeEnabled,
+        outputPanelScaling = panelScaling,
+        outputPanelNative = panelNative,
         outputDisplayAvailable = displayAvailable,
     )
 }
@@ -2368,14 +2375,18 @@ private fun OutputActiveControls(
                     onSelected = listener::onOutputResolutionSelected,
                 )
                 Text(
-                    text = stringResource(R.string.session_drawer_output_render_note),
+                    text = if (state.outputPanelScaling) {
+                        stringResource(R.string.session_drawer_output_scaling_note, state.outputPanelNative)
+                    } else {
+                        stringResource(R.string.session_drawer_output_render_note)
+                    },
                     color = DrawerTextSecondary,
                     fontSize = (11f * paneScale).sp,
                     lineHeight = (15f * paneScale).sp,
                 )
             }
         }
-        if (state.outputRefreshLabels.isNotEmpty()) {
+        if (!state.outputPanelScaling && state.outputRefreshLabels.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
                 OutputFieldLabel(stringResource(R.string.session_drawer_output_refresh_rate), paneScale)
                 InputControlsSimpleDropdown(

@@ -734,6 +734,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_output_cast_button">Connect Wireless Display</string>
     <string name="session_drawer_output_cast_note">Chromecast‑only TVs can\'t show live gameplay with private controls — use a wireless display or a USB‑C/HDMI adapter for the best result.</string>
     <string name="session_drawer_output_render_note">Modes your display reports switch its actual output (it may briefly go black while it re‑initializes). Other resolutions render at that size and are hardware‑scaled to the panel — higher than native sharpens (supersampling), lower runs faster.</string>
+    <string name="session_drawer_output_scaling_note">This phone outputs the display at its native %1$s and won\'t switch its mode, so this sets the render resolution — it\'s hardware‑scaled to the panel (higher than native sharpens, lower runs faster).</string>
     <string name="session_drawer_output_game_mode">Game Mode (Low Latency)</string>
     <string name="session_drawer_output_game_mode_on">On</string>
     <string name="session_drawer_output_game_mode_off">Off</string>

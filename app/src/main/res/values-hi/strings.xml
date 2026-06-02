@@ -1263,6 +1263,7 @@
     <string name="session_drawer_output_cast_button">वायरलेस डिस्प्ले कनेक्ट करें</string>
     <string name="session_drawer_output_cast_note">केवल-Chromecast वाले TV निजी नियंत्रण के साथ लाइव गेमप्ले नहीं दिखा सकते — सर्वोत्तम परिणाम के लिए वायरलेस डिस्प्ले या USB‑C/HDMI अडैप्टर का उपयोग करें।</string>
     <string name="session_drawer_output_render_note">आपका डिस्प्ले जिन मोड की रिपोर्ट करता है वे उसके वास्तविक आउटपुट को बदलते हैं (पुनः आरंभ होते समय यह कुछ पल के लिए काला हो सकता है)। अन्य रिज़ॉल्यूशन उसी आकार पर रेंडर होते हैं और हार्डवेयर द्वारा पैनल पर स्केल किए जाते हैं — नेटिव से अधिक पर तीक्ष्ण (सुपरसैंपलिंग), कम पर तेज़।</string>
+    <string name="session_drawer_output_scaling_note">यह फ़ोन डिस्प्ले को उसके मूल %1$s पर भेजता है और उसका मोड नहीं बदलता, इसलिए यह रेंडर रिज़ॉल्यूशन सेट करता है — इसे हार्डवेयर द्वारा पैनल के अनुसार स्केल किया जाता है (मूल से अधिक पर तीक्ष्णता बढ़ती है, कम पर तेज़ चलता है)।</string>
     <string name="session_drawer_output_game_mode">गेम मोड (कम विलंबता)</string>
     <string name="session_drawer_output_game_mode_on">चालू</string>
     <string name="session_drawer_output_game_mode_off">बंद</string>

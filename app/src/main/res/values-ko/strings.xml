@@ -1327,6 +1327,7 @@
     <string name="session_drawer_output_cast_button">무선 디스플레이 연결</string>
     <string name="session_drawer_output_cast_note">Chromecast 전용 TV는 비공개 컨트롤로 실시간 게임플레이를 표시할 수 없습니다 — 최상의 결과를 위해 무선 디스플레이나 USB‑C/HDMI 어댑터를 사용하세요.</string>
     <string name="session_drawer_output_render_note">디스플레이가 보고하는 모드는 실제 출력을 변경합니다(재초기화되는 동안 잠시 검게 표시될 수 있음). 다른 해상도는 해당 크기로 렌더링되어 하드웨어로 패널에 맞게 스케일됩니다 — 기본보다 높으면 더 선명해지고(슈퍼샘플링) 낮으면 더 빨라집니다.</string>
+    <string name="session_drawer_output_scaling_note">이 휴대폰은 디스플레이를 기본 %1$s로 출력하며 모드를 전환하지 않으므로, 이 설정은 렌더링 해상도를 정합니다 — 패널에 맞춰 하드웨어로 스케일링됩니다(기본보다 높으면 선명해지고, 낮으면 더 빠릅니다).</string>
     <string name="session_drawer_output_game_mode">게임 모드 (낮은 지연)</string>
     <string name="session_drawer_output_game_mode_on">켜기</string>
     <string name="session_drawer_output_game_mode_off">끄기</string>

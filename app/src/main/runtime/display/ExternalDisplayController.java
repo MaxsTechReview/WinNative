@@ -83,6 +83,8 @@ public final class ExternalDisplayController {
     private final List<Float> refreshOptions = new ArrayList<>();
     private int selectedRefreshIndex = 0;
     private boolean renderActive = false; // a setFixedSize render buffer is currently in effect
+    private boolean panelScalerLocked = false; // sink ignored a real mode switch — render-scale instead
+    private int modeRequestGen = 0;            // guards a verify against a newer selection superseding it
     private boolean gameMode = true;      // request HDMI ALLM when the sink supports it
     private String lastModesSignature = ""; // detects EDID re-advertisement (e.g. glasses unlocking 120Hz)
 
@@ -321,6 +323,7 @@ public final class ExternalDisplayController {
         boolean wasActive = swapActive;
         swapActive = false;
         renderActive = false;
+        panelScalerLocked = false;
 
         // Clear any render buffer so the phone surface follows the phone layout again.
         fillMode = ViewTransformation.FILL_MODE_FIT;
@@ -397,6 +400,7 @@ public final class ExternalDisplayController {
         selectedResolutionIndex = 0;
         selectedRefreshIndex = 0;
         renderActive = false;
+        panelScalerLocked = false;
         if (externalDisplay == null) return;
 
         Display.Mode current;
@@ -503,12 +507,13 @@ public final class ExternalDisplayController {
         ResEntry res = resolutions.get(clampIndex(selectedResolutionIndex, resolutions.size()));
         float hz = currentSelectedRefresh();
         WindowManager.LayoutParams lp = presentation.getWindow().getAttributes();
+        final int gen = ++modeRequestGen;
 
         // On Viture glasses the panel timing is driven over USB (Android may not even enumerate the
         // mode), so force it via the MCU; the Android calls below then lock the Presentation onto it.
         if (viture.isConnected()) viture.forceRefreshHz(Math.round(hz));
 
-        if (res.physical) {
+        if (res.physical && !panelScalerLocked) {
             Display.Mode best = bestPhysicalMode(res.w, res.h, hz);
             if (best != null) {
                 clearRenderBuffer();
@@ -519,6 +524,7 @@ public final class ExternalDisplayController {
                 renderActive = false;
                 Log.i(TAG, "Physical mode " + res.w + "x" + res.h + "@"
                         + Math.round(best.getRefreshRate()) + " (modeId=" + best.getModeId() + ")");
+                verifyPhysicalSwitch(best, gen);
                 return;
             }
         }
@@ -551,6 +557,59 @@ public final class ExternalDisplayController {
             }
         }
         return best;
+    }
+
+    // After requesting a real switch, confirm the panel actually moved. Some phone display pipelines
+    // (e.g. OnePlus over USB-C/HDMI) silently hold the native timing and hardware-scale — even the
+    // system setUserPreferredDisplayMode can't move them. When that happens, latch into render scaling
+    // so the Output controls stay honest instead of implying a switch that never landed.
+    private void verifyPhysicalSwitch(Display.Mode requested, final int gen) {
+        final int wantW = requested.getPhysicalWidth();
+        final int wantH = requested.getPhysicalHeight();
+        final float wantHz = requested.getRefreshRate();
+        mainHandler.postDelayed(() -> {
+            if (gen != modeRequestGen || !swapActive || externalDisplay == null || panelScalerLocked) {
+                return; // superseded by a newer selection, swap ended, or already known to scale
+            }
+            if (displayManager != null) {
+                Display fresh = displayManager.getDisplay(externalDisplay.getDisplayId());
+                if (fresh != null) externalDisplay = fresh;
+            }
+            Display.Mode now;
+            try {
+                now = externalDisplay.getMode();
+            } catch (Exception e) {
+                return;
+            }
+            if (now == null) return;
+            boolean moved = (now.getPhysicalWidth() == wantW && now.getPhysicalHeight() == wantH)
+                    || Math.abs(now.getRefreshRate() - wantHz) < 1.5f;
+            if (moved) return;
+            panelScalerLocked = true;
+            Log.i(TAG, "Sink ignored mode switch; native " + now.getPhysicalWidth() + "x"
+                    + now.getPhysicalHeight() + "@" + Math.round(now.getRefreshRate())
+                    + " held — using render scaling");
+            applyOutputMode();
+            callbacks.onSwapStateChanged(true);
+        }, 2500L);
+    }
+
+    // True once the connected sink has been observed to ignore a real mode switch (phone is scaling).
+    public boolean isPanelScaling() {
+        return panelScalerLocked;
+    }
+
+    // The panel's actual output mode, e.g. "3440 × 1440 · 60 Hz" — shown when the phone is scaling.
+    public String getPanelNativeSummary() {
+        if (externalDisplay == null) return "";
+        try {
+            Display.Mode m = externalDisplay.getMode();
+            if (m == null) return "";
+            return m.getPhysicalWidth() + " × " + m.getPhysicalHeight()
+                    + " · " + Math.round(m.getRefreshRate()) + " Hz";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void setRenderBuffer(int w, int h) {

@@ -1326,6 +1326,7 @@ Ruta instalada:
     <string name="session_drawer_output_cast_button">Conectar pantalla inalámbrica</string>
     <string name="session_drawer_output_cast_note">Las TV solo con Chromecast no pueden mostrar el juego en vivo con controles privados: usa una pantalla inalámbrica o un adaptador USB‑C/HDMI para el mejor resultado.</string>
     <string name="session_drawer_output_render_note">Los modos que informa tu pantalla cambian su salida real (puede quedar en negro un momento mientras se reinicia). Otras resoluciones se renderizan a ese tamaño y se escalan por hardware al panel: por encima de la nativa se ve más nítido (supermuestreo), por debajo va más rápido.</string>
+    <string name="session_drawer_output_scaling_note">Este teléfono envía la pantalla a su resolución nativa %1$s y no cambia de modo, así que esto define la resolución de renderizado — se escala por hardware al panel (más que la nativa mejora la nitidez, menos va más rápido).</string>
     <string name="session_drawer_output_game_mode">Modo de juego (baja latencia)</string>
     <string name="session_drawer_output_game_mode_on">Activado</string>
     <string name="session_drawer_output_game_mode_off">Desactivado</string>

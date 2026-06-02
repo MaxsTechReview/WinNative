@@ -1326,6 +1326,7 @@ Chemin installé :
     <string name="session_drawer_output_cast_button">Connecter un écran sans fil</string>
     <string name="session_drawer_output_cast_note">Les téléviseurs uniquement Chromecast ne peuvent pas afficher le jeu en direct avec des commandes privées — utilisez un écran sans fil ou un adaptateur USB‑C/HDMI pour un meilleur résultat.</string>
     <string name="session_drawer_output_render_note">Les modes signalés par votre écran changent sa sortie réelle (il peut devenir noir un instant pendant la réinitialisation). Les autres résolutions sont rendues à cette taille et mises à l\'échelle matériellement vers la dalle — au-dessus de la native, c\'est plus net (suréchantillonnage), en dessous, c\'est plus rapide.</string>
+    <string name="session_drawer_output_scaling_note">Ce téléphone affiche l\'écran dans sa résolution native %1$s et ne change pas de mode ; ceci définit donc la résolution de rendu — elle est mise à l\'échelle matérielle vers la dalle (au‑dessus du natif c\'est plus net, en dessous c\'est plus rapide).</string>
     <string name="session_drawer_output_game_mode">Mode jeu (faible latence)</string>
     <string name="session_drawer_output_game_mode_on">Activé</string>
     <string name="session_drawer_output_game_mode_off">Désactivé</string>

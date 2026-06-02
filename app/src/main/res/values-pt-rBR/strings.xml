@@ -1326,6 +1326,7 @@ Caminho instalado:
     <string name="session_drawer_output_cast_button">Conectar tela sem fio</string>
     <string name="session_drawer_output_cast_note">TVs apenas com Chromecast não conseguem exibir o jogo ao vivo com controles privados — use uma tela sem fio ou um adaptador USB‑C/HDMI para o melhor resultado.</string>
     <string name="session_drawer_output_render_note">Os modos que sua tela informa mudam a saída real dela (pode ficar preta por um instante enquanto reinicializa). Outras resoluções são renderizadas nesse tamanho e escalonadas por hardware para o painel — acima da nativa fica mais nítido (supersampling), abaixo fica mais rápido.</string>
+    <string name="session_drawer_output_scaling_note">Este telefone exibe a tela na resolução nativa %1$s e não troca de modo, então isto define a resolução de renderização — ela é escalada por hardware para o painel (acima da nativa deixa mais nítido, abaixo roda mais rápido).</string>
     <string name="session_drawer_output_game_mode">Modo jogo (baixa latência)</string>
     <string name="session_drawer_output_game_mode_on">Ligado</string>
     <string name="session_drawer_output_game_mode_off">Desligado</string>

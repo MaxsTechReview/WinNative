@@ -1326,6 +1326,7 @@ Installeret sti:
     <string name="session_drawer_output_cast_button">Forbind trådløs skærm</string>
     <string name="session_drawer_output_cast_note">Tv\'er med kun Chromecast kan ikke vise live-spil med private knapper — brug en trådløs skærm eller en USB‑C-/HDMI-adapter for det bedste resultat.</string>
     <string name="session_drawer_output_render_note">De tilstande, din skærm rapporterer, ændrer dens faktiske udgang (den kan blive sort et øjeblik, mens den geninitialiserer). Andre opløsninger gengives i den størrelse og skaleres via hardware til panelet — over den oprindelige bliver det skarpere (supersampling), under bliver det hurtigere.</string>
+    <string name="session_drawer_output_scaling_note">Denne telefon sender skærmen ud i dens oprindelige %1$s og skifter ikke tilstand, så dette indstiller renderingsopløsningen — den hardware‑skaleres til panelet (højere end oprindelig giver skarpere billede, lavere kører hurtigere).</string>
     <string name="session_drawer_output_game_mode">Spiltilstand (lav latenstid)</string>
     <string name="session_drawer_output_game_mode_on">Til</string>
     <string name="session_drawer_output_game_mode_off">Fra</string>

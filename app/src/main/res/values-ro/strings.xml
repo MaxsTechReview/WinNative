@@ -1326,6 +1326,7 @@ Cale instalata:
     <string name="session_drawer_output_cast_button">Conectează ecran wireless</string>
     <string name="session_drawer_output_cast_note">Televizoarele doar cu Chromecast nu pot afișa jocul live cu comenzi private — folosește un ecran wireless sau un adaptor USB‑C/HDMI pentru cel mai bun rezultat.</string>
     <string name="session_drawer_output_render_note">Modurile raportate de ecran îi schimbă ieșirea reală (poate deveni negru o clipă în timp ce se reinițializează). Alte rezoluții sunt randate la acea dimensiune și scalate hardware pe panou — peste cea nativă e mai clar (supereșantionare), sub ea e mai rapid.</string>
+    <string name="session_drawer_output_scaling_note">Acest telefon redă afișajul la rezoluția sa nativă %1$s și nu schimbă modul, așa că aceasta setează rezoluția de randare — este scalată hardware pe panou (peste cea nativă crește claritatea, sub ea rulează mai rapid).</string>
     <string name="session_drawer_output_game_mode">Mod joc (latență redusă)</string>
     <string name="session_drawer_output_game_mode_on">Pornit</string>
     <string name="session_drawer_output_game_mode_off">Oprit</string>
