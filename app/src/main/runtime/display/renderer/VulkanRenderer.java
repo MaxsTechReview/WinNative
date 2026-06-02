@@ -61,6 +61,8 @@ public class VulkanRenderer
     public final ViewTransformation viewTransformation = new ViewTransformation();
 
     private final Drawable rootCursorDrawable;
+    // WinMFix: temporary diagnostic — remove before commit.
+    private static boolean lastCursorWasRoot = false;
     private final ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
     private final Texture.UploadBatch textureUploadBatch =
             new Texture.UploadBatch((64 + 1) * Texture.MAX_UPLOAD_RECTS);
@@ -441,6 +443,17 @@ public class VulkanRenderer
                     }
                 } else {
                     cursorDrawable = rootCursorDrawable;
+                }
+
+                boolean curWasRoot = (cursorDrawable == rootCursorDrawable);
+                if (curWasRoot != lastCursorWasRoot) {
+                    lastCursorWasRoot = curWasRoot;
+                    android.util.Log.i("WinMFix", "CURSOR " + (curWasRoot ? "ROOT-arrow" : "game")
+                        + " ptrWin=" + (pointWindow != null ? pointWindow.id : 0)
+                        + " winCursor=" + (cursor != null)
+                        + " ptr=" + x + "," + y
+                        + " winB=" + (pointWindow != null ? pointWindow.getAbsoluteBounds().toShortString() : "n/a")
+                        + " scr=" + xServer.screenInfo.width + "x" + xServer.screenInfo.height);
                 }
 
                 if (cursorDrawable != null) {

@@ -14,7 +14,6 @@ import com.winlator.cmod.runtime.display.xserver.extensions.PresentExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.SyncExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.XInput2Extension;
 import com.winlator.cmod.shared.android.CursorLocker;
-import com.winlator.cmod.shared.math.Mathf;
 import java.nio.charset.Charset;
 import java.util.EnumMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -210,19 +209,42 @@ public class XServer {
 
   public void injectPointerMove(int x, int y) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      int beforeX = pointer.getX();
+      int beforeY = pointer.getY();
       pointer.setPosition(x, y);
+      logMoveAbs(beforeX, beforeY, pointer.getX(), pointer.getY());
     }
+  }
+
+  // WinMFix: temporary diagnostic — remove before commit.
+  private static long lastAbsLogMs = 0;
+
+  private void logMoveAbs(int beforeX, int beforeY, int afterX, int afterY) {
+    boolean jump = Math.abs(afterX - beforeX) > 40 || Math.abs(afterY - beforeY) > 40;
+    long now = System.currentTimeMillis();
+    if (!jump && now - lastAbsLogMs < 300) return;
+    lastAbsLogMs = now;
+    android.util.Log.i("WinMFix", "ABS ptr=" + beforeX + "," + beforeY + "->" + afterX + "," + afterY
+        + " scr=" + screenInfo.width + "x" + screenInfo.height + (jump ? " JUMP" : ""));
   }
 
   public void injectPointerMoveDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      int x = pointer.getX() + dx;
-      int y = pointer.getY() + dy;
+      int beforeX = pointer.getX();
+      int beforeY = pointer.getY();
+      int x = beforeX + dx;
+      int y = beforeY + dy;
 
+      int maxX = screenInfo.width - 1;
+      int maxY = screenInfo.height - 1;
       android.graphics.Rect confinement = grabManager.getConfinementBounds();
       if (confinement != null) {
-        x = (int)Mathf.clamp((double)x, (double)confinement.left, (double)confinement.right - 1.0);
-        y = (int)Mathf.clamp((double)y, (double)confinement.top, (double)confinement.bottom - 1.0);
+        int minX = Math.max(0, confinement.left);
+        int minY = Math.max(0, confinement.top);
+        int maxX2 = Math.min(maxX, confinement.right - 1);
+        int maxY2 = Math.min(maxY, confinement.bottom - 1);
+        x = (int)Mathf.clamp((double)x, (double)minX, (double)maxX2);
+        y = (int)Mathf.clamp((double)y, (double)minY, (double)maxY2);
         pointer.setPosition(x, y);
       } else {
         short softMarginX = (short) (screenInfo.width * 0.05f);
@@ -241,10 +263,30 @@ public class XServer {
         pointer.setY(clampedY);
       }
 
+      logMoveDelta(dx, dy, beforeX, beforeY, confinement);
+
       XInput2Extension xi = getExtension(XInput2Extension.MAJOR_OPCODE);
       if (xi != null) xi.emitRawMotion(2, (double)dx, (double)dy);
     }
     if (renderer != null) renderer.requestCursorRender();
+  }
+
+  // WinMFix: temporary diagnostic — remove before commit.
+  private static long lastMoveLogMs = 0;
+
+  private void logMoveDelta(int dx, int dy, int beforeX, int beforeY, android.graphics.Rect confinement) {
+    int afterX = pointer.getX();
+    int afterY = pointer.getY();
+    boolean clipped = afterX != beforeX + dx || afterY != beforeY + dy;
+    long now = System.currentTimeMillis();
+    long minGap = clipped ? 100 : 300;
+    if (now - lastMoveLogMs < minGap) return;
+    lastMoveLogMs = now;
+    android.util.Log.i("WinMFix", "MOVE d=" + dx + "," + dy
+        + " ptr=" + beforeX + "," + beforeY + "->" + afterX + "," + afterY
+        + " confine=" + (confinement != null ? confinement.toShortString() : "none")
+        + " scr=" + screenInfo.width + "x" + screenInfo.height
+        + (clipped ? " CLIP" : ""));
   }
 
   public void updatePointerForDisplay(int x, int y) {

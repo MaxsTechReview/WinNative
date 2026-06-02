@@ -57,8 +57,17 @@ public abstract class GrabRequests {
       Window confineToWindow = null;
       if (confineToId != 0) {
         confineToWindow = client.xServer.windowManager.getWindow(confineToId);
+        if (confineToWindow != null
+            && confineToWindow.getMapState() != Window.MapState.VIEWABLE) {
+          confineToWindow = null;
+        }
       }
       client.xServer.grabManager.activatePointerGrab(window, ownerEvents, eventMask, client, confineToWindow);
+      android.util.Log.i("WinMFix", "GRAB win=" + window.id
+          + " confine=" + (confineToWindow != null
+              ? (confineToWindow.id + " rect=" + confineToWindow.getAbsoluteBounds().toShortString())
+              : "none")
+          + " scr=" + client.xServer.screenInfo.width + "x" + client.xServer.screenInfo.height);
     }
 
     try (XStreamLock lock = outputStream.lock()) {
@@ -74,5 +83,6 @@ public abstract class GrabRequests {
       XClient client, XInputStream inputStream, XOutputStream outputStream) {
     inputStream.skip(4);
     client.xServer.grabManager.deactivatePointerGrab();
+    android.util.Log.i("WinMFix", "UNGRAB");
   }
 }

@@ -339,12 +339,14 @@ public abstract class WindowRequests {
     short dstX = inputStream.readShort();
     short dstY = inputStream.readShort();
 
+    short beforeX = client.xServer.pointer.getX();
+    short beforeY = client.xServer.pointer.getY();
+
     if (srcWindow != null) {
       if (srcWidth == 0) srcWidth = (short) (srcWindow.getWidth() - srcX);
       if (srcHeight == 0) srcHeight = (short) (srcWindow.getHeight() - srcY);
 
-      short[] localPoint =
-          srcWindow.rootPointToLocal(client.xServer.pointer.getX(), client.xServer.pointer.getY());
+      short[] localPoint = srcWindow.rootPointToLocal(beforeX, beforeY);
       short x = localPoint[0];
       short y = localPoint[1];
       short softMarginX = (short) (client.xServer.screenInfo.width * 0.05f);
@@ -354,17 +356,52 @@ public abstract class WindowRequests {
               && y >= srcY - softMarginY
               && x < (srcX + srcWidth) + softMarginX
               && y < (srcY + srcHeight) + softMarginY;
-      if (!isContained) return;
+      if (!isContained) {
+        logWarp("REJECT", client, srcWindow, dstWindow, dstX, dstY, beforeX, beforeY, beforeX, beforeY, true);
+        return;
+      }
     }
 
+    short targetX, targetY;
     if (dstWindow == null) {
-      client.xServer.pointer.setX(client.xServer.pointer.getX() + dstX);
-      client.xServer.pointer.setY(client.xServer.pointer.getY() + dstY);
+      targetX = (short) (beforeX + dstX);
+      targetY = (short) (beforeY + dstY);
     } else {
       short[] localPoint = dstWindow.localPointToRoot(dstX, dstY);
-      client.xServer.pointer.setX(localPoint[0]);
-      client.xServer.pointer.setY(localPoint[1]);
+      targetX = localPoint[0];
+      targetY = localPoint[1];
     }
+    client.xServer.pointer.setX(targetX);
+    client.xServer.pointer.setY(targetY);
+    logWarp("APPLY", client, srcWindow, dstWindow, dstX, dstY, beforeX, beforeY, targetX, targetY, false);
+  }
+
+  // WinMFix: temporary diagnostic — remove before commit.
+  private static long lastWarpLogMs = 0;
+
+  private static void logWarp(String kind, XClient client, Window srcWindow, Window dstWindow,
+      short dstX, short dstY, short beforeX, short beforeY, short targetX, short targetY, boolean rejected) {
+    int sw = client.xServer.screenInfo.width;
+    int sh = client.xServer.screenInfo.height;
+    boolean outScr = targetX < 0 || targetY < 0 || targetX >= sw || targetY >= sh;
+    boolean outDst = false;
+    String dstB = "n/a";
+    if (dstWindow != null) {
+      android.graphics.Rect b = dstWindow.getAbsoluteBounds();
+      outDst = !b.contains(targetX, targetY);
+      dstB = b.toShortString();
+    }
+    boolean interesting = rejected || outScr || outDst;
+    long now = System.currentTimeMillis();
+    if (!interesting && now - lastWarpLogMs < 200) return;
+    lastWarpLogMs = now;
+    android.util.Log.i("WinMFix", "WARP " + kind
+        + " src=" + (srcWindow != null ? srcWindow.id : 0)
+        + " dst=" + (dstWindow != null ? dstWindow.id : 0)
+        + " dstXY=" + dstX + "," + dstY
+        + " ptr=" + beforeX + "," + beforeY + "->" + targetX + "," + targetY
+        + " dstB=" + dstB + " scr=" + sw + "x" + sh
+        + (rejected ? " REJECT" : "") + (outScr ? " OUTSCR" : "") + (outDst ? " OUTDST" : ""));
   }
 
   public static void setInputFocus(

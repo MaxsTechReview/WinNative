@@ -65,7 +65,16 @@ public class InputDeviceManager
     Window pointWindow =
         xServer.windowManager.findPointWindow(
             xServer.pointer.getClampedX(), xServer.pointer.getClampedY());
-    this.pointWindow = pointWindow != null ? pointWindow : xServer.windowManager.rootWindow;
+    Window resolved = pointWindow != null ? pointWindow : xServer.windowManager.rootWindow;
+    if (resolved != this.pointWindow) {
+      android.util.Log.i("WinMFix", "PTRWIN " + (this.pointWindow != null ? this.pointWindow.id : 0)
+          + "->" + resolved.id
+          + " isRoot=" + (resolved == xServer.windowManager.rootWindow)
+          + " ptr=" + xServer.pointer.getClampedX() + "," + xServer.pointer.getClampedY()
+          + " bounds=" + resolved.getAbsoluteBounds().toShortString()
+          + " scr=" + xServer.screenInfo.width + "x" + xServer.screenInfo.height);
+    }
+    this.pointWindow = resolved;
   }
 
   public Window getPointWindow() {

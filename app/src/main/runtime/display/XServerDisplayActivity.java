@@ -1755,57 +1755,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE:
-                int historySize = event.getHistorySize();
-                float totalRawDx = 0.0f;
-                float totalRawDy = 0.0f;
-
-                // 1. Calculate total movement first to find the speed
-                for (int i = 0; i <= historySize; i++) {
-                    if (i < historySize) {
-                        totalRawDx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
-                        totalRawDy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
-                    } else {
-                        totalRawDx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-                        totalRawDy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-                    }
-                }
-
-                // 3. Stream individual points immediately using the locked-in speed
-                for (int i = 0; i <= historySize; i++) {
-                    float rawDx, rawDy;
-                    if (i < historySize) {
-                        rawDx = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
-                        rawDy = event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
-                    } else {
-                        rawDx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-                        rawDy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-                    }
-
-                    if (rawDx == 0.0f && rawDy == 0.0f) continue;
-
-                    float multiplier = globalCursorSpeed;
-                    if (xServer.isRelativeMouseMovement() && inputControlsView != null) {
-                        ControlsProfile profile = inputControlsView.getProfile();
-                        if (profile != null) {
-                            multiplier *= profile.getCursorSpeed();
-                        }
-                    }
-                    float scaledDx = (xform[0] * rawDx + xform[2] * rawDy) * multiplier;
-                    float scaledDy = (xform[1] * rawDx + xform[3] * rawDy) * multiplier;
-
-                    if (scaledDx != 0.0f || scaledDy != 0.0f) {
-                        if (xServer.isRelativeMouseMovement()) {
-                            int idx = Mathf.roundPoint(scaledDx);
-                            int idy = Mathf.roundPoint(scaledDy);
-                            xServer.getWinHandler().mouseMoveDelta(idx, idy);
-                            touchpadView.updateVisibleRelativeCursor(xServer.pointer.getX() + idx, xServer.pointer.getY() + idy);
-                            xServer.injectPointerMoveDelta(idx, idy);
-                        } else {
-                            int nx = Mathf.roundPoint(xServer.pointer.getX() + scaledDx);
-                            int ny = Mathf.roundPoint(xServer.pointer.getY() + scaledDy);
-                            xServer.injectPointerMove(nx, ny);
-                        }
-                    }
+                int[] delta = getCapturedPointerDelta(event);
+                if (delta[0] == 0 && delta[1] == 0) break;
+                if (xServer.isRelativeMouseMovement()) {
+                    xServer.updatePointerForDisplayDelta(delta[0], delta[1]);
+                    xServer.getWinHandler().mouseMoveDelta(delta[0], delta[1]);
+                } else {
+                    xServer.injectPointerMoveDelta(delta[0], delta[1]);
                 }
                 handled = true;
                 break;
@@ -1823,20 +1779,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private float[] getCapturedPointerDelta(float dx, float dy) {
-        float profileSpeed = 1.0f;
-        if (inputControlsView != null) {
-            ControlsProfile profile = inputControlsView.getProfile();
-            if (profile != null) profileSpeed = profile.getCursorSpeed();
+    private int[] getCapturedPointerDelta(MotionEvent event) {
+        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        if (dx == 0.0f && dy == 0.0f) {
+            dx = event.getX();
+            dy = event.getY();
         }
-
-        float scaledDx = xform[0] * dx + xform[2] * dy;
-        float scaledDy = xform[1] * dx + xform[3] * dy;
-
-        scaledDx *= globalCursorSpeed * profileSpeed;
-        scaledDy *= globalCursorSpeed * profileSpeed;
-
-        return new float[]{scaledDx, scaledDy};
+        return new int[]{
+                (int)(xform[0] * dx + xform[2] * dy),
+                (int)(xform[1] * dx + xform[3] * dy)
+        };
     }
 
     @Override
