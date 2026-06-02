@@ -14,7 +14,6 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
-import com.winlator.cmod.runtime.display.xserver.Pointer;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
