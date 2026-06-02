@@ -3,6 +3,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
 import com.winlator.cmod.feature.stores.steam.data.DepotInfo
+import com.winlator.cmod.feature.stores.steam.data.ManifestInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SpecialGameSaveMapping
 import com.winlator.cmod.feature.stores.steam.service.SteamService
@@ -99,9 +100,7 @@ object SteamUtils {
         }
     }
 
-    /**
-     * Backup steamclient artifacts before any DRM/Steamless manipulation.
-     */
+    // Back up steamclient artifacts before DRM/Steamless manipulation.
     @JvmStatic
     @JvmOverloads
     fun backupSteamclientFiles(
@@ -117,10 +116,7 @@ object SteamUtils {
             val dll = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam/$file")
             val backupFile = File(backupDir, "$file.orig")
             if (dll.exists()) {
-                // Guard against stub-over-real contamination: if the existing backup is
-                // significantly larger than the current file, the current file must be
-                // a Goldberg stub (~200 KB) and overwriting the real-DLL backup (~13 MB)
-                // would permanently lose the pristine copy. Refuse the overwrite.
+                // Refuse to replace a real-DLL backup with a small Goldberg stub.
                 if (backupFile.exists() && backupFile.length() > dll.length() * 2 &&
                     backupFile.length() > 1_000_000) {
                     Timber.w(
@@ -139,14 +135,7 @@ object SteamUtils {
         Timber.i("backupSteamclientFiles complete (appId=$idLog, count=$backupCount)")
     }
 
-    /**
-     * Checks whether the shared Steam client store still contains the real
-     * Valve-signed DLLs, as opposed to Goldberg stubs left behind by an old
-     * ColdClient contamination. Real `steamclient64.dll` is ~13 MB; the Goldberg
-     * stub is ~200 KB. A generous 2 MB floor catches all known stubs.
-     *
-     * Returns true if the core files exist AND look like real Valve DLLs.
-     */
+    // True when the shared Steam store still has real DLLs, not stubs.
     @JvmStatic
     fun isSharedSteamStorePristine(context: Context): Boolean {
         val imageFs = ImageFs.find(context)
@@ -168,9 +157,7 @@ object SteamUtils {
         return true
     }
 
-    /**
-     * Restore steamclient artifacts and clean injected extras if needed.
-     */
+    // Restore steamclient artifacts and clean injected extras if needed.
     @JvmStatic
     @JvmOverloads
     fun restoreSteamclientFiles(
@@ -467,6 +454,51 @@ object SteamUtils {
             Timber.d(e, "Workshop mods generation skipped for appId=$appId")
         }
 
+        val cloudPushed = runCatching {
+            runBlocking {
+                SteamService.pushCloudStateToLibSteamClient(appId)
+            }
+        }
+        if (cloudPushed.isFailure) {
+            Timber.w(cloudPushed.exceptionOrNull(),
+                "Cloud state push FAILED for appId=$appId — clearing mirror to " +
+                "prevent stale data leaking from a previously-launched app")
+            runCatching {
+                com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+                    .setCloudFiles(emptyArray(), IntArray(0), LongArray(0))
+            }
+        }
+
+        runCatching {
+            runBlocking {
+                SteamService.pushAppDlcsToLibSteamClient(appId)
+            }
+        }.onFailure { e ->
+            Timber.d(e, "DLC list push skipped for appId=$appId")
+        }
+
+        runCatching {
+            SteamService.pushAppInstalledDepotsToLibSteamClient(appId)
+        }.onFailure { e ->
+            Timber.d(e, "Installed depots push skipped for appId=$appId")
+        }
+
+        runCatching {
+            runBlocking {
+                SteamService.refreshEncryptedAppTicketForLibSteamClient(appId)
+            }
+        }.onFailure { e ->
+            Timber.d(e, "Encrypted app ticket push skipped for appId=$appId")
+        }
+
+        runCatching {
+            runBlocking {
+                SteamService.prefetchOwnershipTicketForLibSteamClient(appId)
+            }
+        }.onFailure { e ->
+            Timber.d(e, "Ownership ticket pre-fetch skipped for appId=$appId")
+        }
+
         // Special save-location symlinks
         ensureSaveLocationsForGames(context, appId)
     }
@@ -754,6 +786,58 @@ object SteamUtils {
      * Creates a Steam ACF (Application Cache File) manifest for the given app.
      * This allows real Steam to detect the game as installed.
      */
+    private fun resolveManifestForBranch(
+        depot: DepotInfo,
+        branch: String,
+        visitedApps: MutableSet<Int> = mutableSetOf(),
+    ): ManifestInfo? {
+        depot.manifests[branch]?.let { return it }
+        depot.encryptedManifests[branch]?.let { return it }
+
+        if (!branch.equals("public", ignoreCase = true)) {
+            depot.manifests["public"]?.let { return it }
+            depot.encryptedManifests["public"]?.let { return it }
+        }
+
+        val sourceAppId = depot.depotFromApp
+        if (sourceAppId == SteamService.INVALID_APP_ID || !visitedApps.add(sourceAppId)) {
+            return null
+        }
+
+        val sourceDepot = SteamService.getAppInfoOf(sourceAppId)?.depots?.get(depot.depotId) ?: return null
+        return resolveManifestForBranch(sourceDepot, branch, visitedApps)
+    }
+
+    private fun collectInstalledDepotManifests(
+        steamAppId: Int,
+        appInfo: com.winlator.cmod.feature.stores.steam.data.SteamApp,
+        branch: String,
+        installedDepotIds: Set<Int>,
+        installedDlcAppIds: Set<Int>,
+    ): LinkedHashMap<Int, ManifestInfo> {
+        val allKnownDepots = linkedMapOf<Int, DepotInfo>()
+        appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
+        SteamService.getDownloadableDepots(steamAppId).forEach { (depotId, depot) ->
+            allKnownDepots[depotId] = depot
+        }
+
+        val installedDepots = linkedMapOf<Int, ManifestInfo>()
+        allKnownDepots.forEach { (depotId, depotInfo) ->
+            val shouldInclude =
+                depotId in installedDepotIds ||
+                    (
+                        depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
+                            depotInfo.dlcAppId in installedDlcAppIds
+                    )
+            if (!shouldInclude) return@forEach
+
+            resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L }?.let { manifest ->
+                installedDepots[depotId] = manifest
+            }
+        }
+        return installedDepots
+    }
+
     @JvmStatic
     fun createAppManifest(
         context: Context,
@@ -782,6 +866,8 @@ object SteamUtils {
             }
             val gameName = gameDir.name
             val sizeOnDisk = calculateDirectorySize(gameDir)
+            val selectedBranch = SteamService.resolveSelectedBetaName(steamAppId).ifBlank { "public" }
+            val ownerSteamId = PrefManager.steamUserSteamId64.takeIf { it > 0L }?.toString() ?: "0"
 
             // Create symlink from Steam common directory to actual game directory
             val steamGameLink = File(commonDir, gameName)
@@ -794,30 +880,17 @@ object SteamUtils {
                 }
             }
 
-            val buildId = appInfo.branches["public"]?.buildId ?: 0L
-            val downloadableDepots = SteamService.getDownloadableDepots(steamAppId)
+            val buildId = appInfo.branches[selectedBranch]?.buildId ?: appInfo.branches["public"]?.buildId ?: 0L
             val installedDepotIds = SteamService.getInstalledDepotsOf(steamAppId).orEmpty().toSet()
             val installedDlcAppIds = SteamService.getInstalledDlcDepotsOf(steamAppId).orEmpty().toSet()
-
-            val regularDepots = mutableMapOf<Int, DepotInfo>()
-            val sharedDepots = mutableMapOf<Int, DepotInfo>()
-
-            downloadableDepots.forEach { (depotId, depotInfo) ->
-                val isInstalledDepot =
-                    depotId in installedDepotIds ||
-                        (
-                            depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
-                                depotInfo.dlcAppId in installedDlcAppIds
-                        )
-                if (!isInstalledDepot) return@forEach
-
-                val manifest = depotInfo.manifests["public"]
-                if (manifest != null && manifest.gid != 0L) {
-                    regularDepots[depotId] = depotInfo
-                } else {
-                    sharedDepots[depotId] = depotInfo
-                }
-            }
+            val installedDepots =
+                collectInstalledDepotManifests(
+                    steamAppId = steamAppId,
+                    appInfo = appInfo,
+                    branch = selectedBranch,
+                    installedDepotIds = installedDepotIds,
+                    installedDlcAppIds = installedDlcAppIds,
+                )
 
             val acfContent =
                 buildString {
@@ -831,28 +904,32 @@ object SteamUtils {
                     appendLine("\t\"SizeOnDisk\"\t\t\"$sizeOnDisk\"")
                     appendLine("\t\"buildid\"\t\t\"$buildId\"")
 
-                    val actualInstallDir = appInfo.config.installDir.ifEmpty { gameName }
+                    val actualInstallDir = gameName
                     appendLine("\t\"installdir\"\t\t\"${escapeString(actualInstallDir)}\"")
 
-                    appendLine("\t\"LastOwner\"\t\t\"0\"")
+                    appendLine("\t\"LastOwner\"\t\t\"$ownerSteamId\"")
                     appendLine("\t\"BytesToDownload\"\t\t\"0\"")
                     appendLine("\t\"BytesDownloaded\"\t\t\"0\"")
                     appendLine("\t\"AutoUpdateBehavior\"\t\t\"0\"")
                     appendLine("\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"")
                     appendLine("\t\"ScheduledAutoUpdate\"\t\t\"0\"")
 
-                    if (regularDepots.isNotEmpty()) {
+                    if (installedDepots.isNotEmpty()) {
                         appendLine("\t\"InstalledDepots\"")
                         appendLine("\t{")
-                        regularDepots.forEach { (depotId, depotInfo) ->
-                            val manifest = depotInfo.manifests["public"]
+                        installedDepots.forEach { (depotId, manifest) ->
                             appendLine("\t\t\"$depotId\"")
                             appendLine("\t\t{")
-                            appendLine("\t\t\t\"manifest\"\t\t\"${manifest?.gid ?: "0"}\"")
-                            appendLine("\t\t\t\"size\"\t\t\"${manifest?.size ?: 0}\"")
+                            appendLine("\t\t\t\"manifest\"\t\t\"${manifest.gid}\"")
+                            appendLine("\t\t\t\"size\"\t\t\"${manifest.size}\"")
                             appendLine("\t\t}")
                         }
                         appendLine("\t}")
+                    } else if (installedDepotIds.isNotEmpty()) {
+                        Timber.w(
+                            "ACF manifest for appId=$steamAppId has ${installedDepotIds.size} trusted depot(s) " +
+                                "but none could be resolved for branch '$selectedBranch'",
+                        )
                     }
 
                     appendLine("\t\"UserConfig\" { \"language\" \"english\" }")
@@ -864,7 +941,8 @@ object SteamUtils {
             acfFile.writeText(acfContent)
             Timber.i("Created ACF manifest for ${appInfo.name} at ${acfFile.absolutePath}")
 
-            if (sharedDepots.isNotEmpty()) {
+            val hasSharedInstallDepots = appInfo.depots.values.any { it.sharedInstall }
+            if (hasSharedInstallDepots) {
                 val steamworksAcfContent =
                     buildString {
                         appendLine("\"AppState\"")
@@ -1020,7 +1098,6 @@ object SteamUtils {
      * @param appId              Steam app ID
      * @param language           container language (e.g. "english")
      * @param isOffline          whether to write offline=1 in configs.main.ini
-     * @param forceDlc           whether to write unlock_all=1 regardless of installed DLC
      * @param useSteamInput      whether to generate Steam Input controller config
      * @param ticketBase64       encrypted app ticket for online auth (may be null)
      */
@@ -1031,7 +1108,6 @@ object SteamUtils {
         appId: Int,
         language: String = "english",
         isOffline: Boolean = false,
-        forceDlc: Boolean = false,
         useSteamInput: Boolean = false,
         ticketBase64: String? = null,
     ) {
@@ -1071,6 +1147,7 @@ object SteamUtils {
                     ?: "0"
             val accountId =
                 SteamService.userSteamId?.accountID?.toLong()
+                    ?: PrefManager.steamUserSteamId64.takeIf { it != 0L }?.let { it and 0xFFFFFFFFL }
                     ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
                     ?: 0L
 
@@ -1111,7 +1188,7 @@ object SteamUtils {
                     appendLine("branch_name=public")
                     appendLine()
                     appendLine("[app::dlcs]")
-                    appendLine("unlock_all=${if (forceDlc) 1 else 0}")
+                    appendLine("unlock_all=0")
                     dlcIds?.sorted()?.forEach {
                         appendLine("$it=dlc$it")
                         appendedDlcIds.add(it)
@@ -1331,6 +1408,30 @@ object SteamUtils {
     ) {
         try {
             val exeCommandLine = container.execArgs
+
+            com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+                .setLaunchCommandLine(exeCommandLine)
+
+            val appIdInt = appId.toIntOrNull() ?: 0
+            val familyShared: Boolean =
+                if (appIdInt <= 0) {
+                    false
+                } else {
+                    val license = SteamService.getPkgInfoOf(appIdInt)
+                    val selfAcct = PrefManager.steamUserAccountId
+                    val owners   = license?.ownerAccountId.orEmpty()
+                    when {
+                        owners.isEmpty()         -> false
+                        owners.contains(selfAcct) -> false  // direct
+                        owners.any { it in SteamService.familyMembers } -> true
+                        else                     -> false
+                    }
+                }
+            com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
+                .setAppFamilyShared(familyShared)
+            if (familyShared) {
+                Timber.i("Bound app $appId is family-shared (owner outside self)")
+            }
 
             val steamPath = File(imageFs.wineprefix, "drive_c/Program Files (x86)/Steam")
             val userDataPath = File(steamPath, "userdata/$steamUserId64")

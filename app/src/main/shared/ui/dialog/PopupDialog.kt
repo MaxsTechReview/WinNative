@@ -49,7 +49,7 @@ private val DefaultBorder = Color.White.copy(alpha = 0.14f)
 /**
  * Self-contained popup card. Mode is picked from the params:
  * - Confirm: [confirmLabel] + [onConfirm] + [onCancel] → Cancel/Confirm row (swaps to spinner + [progressLabel] mid-flight).
- * - Progress: [progress] in 0f..1f → linear bar + %; `Float.NaN` / negative → indeterminate bar + [progressLabel] or "Working…".
+ * - Progress: [progress] in 0f..1f → linear bar + %; `Float.NaN` / negative → indeterminate bar + [progressLabel] or "Working".
  *
  * [icon] is any Material 3 outline icon (or `null`). Pass [content] to render a custom body between the
  * message and the footer; pass [footer] to override the auto-picked footer entirely (e.g. for dialogs

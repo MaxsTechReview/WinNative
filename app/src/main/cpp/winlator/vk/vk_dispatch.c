@@ -153,6 +153,7 @@ bool vkd_load_instance(VkInstance instance) {
 
     // Queue
     LOAD(QueueSubmit);
+    LOAD(QueueWaitIdle);
     LOAD(QueuePresentKHR);
 
     // Swapchain

@@ -6,10 +6,7 @@ import java.nio.ByteOrder
 import java.security.MessageDigest
 import java.util.zip.Inflater
 
-/**
- * Base class for Epic Games manifest parsing.
- * Supports both binary and JSON manifest formats.
- */
+// Base class for Epic Games binary and JSON manifests.
 sealed class EpicManifest {
     var headerSize: Int = 41
     var sizeCompressed: Int = 0
@@ -19,7 +16,6 @@ sealed class EpicManifest {
     var version: Int = 18
     var data: ByteArray = ByteArray(0)
 
-    // Parsed components
     var meta: ManifestMeta? = null
     var chunkDataList: ChunkDataList? = null
     var fileManifestList: FileManifestList? = null
@@ -32,9 +28,7 @@ sealed class EpicManifest {
         const val HEADER_MAGIC: UInt = 0x44BEC00Cu
         const val DEFAULT_SERIALIZATION_VERSION = 17
 
-        /**
-         * Detects manifest format and returns appropriate parser
-         */
+        // Detects the manifest format and returns its parser.
         fun detect(data: ByteArray): EpicManifest =
             if (data.size >= 4) {
                 val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
@@ -47,14 +41,11 @@ sealed class EpicManifest {
                     JsonManifest()
                 }
             } else {
-                // Try JSON by default for small files
                 Timber.tag("Epic").i("Defaulting to JSON Manifest...")
                 JsonManifest()
             }
 
-        /**
-         * Read and parse complete manifest from bytes
-         */
+        // Reads and parses a complete manifest from bytes.
         fun readAll(data: ByteArray): EpicManifest {
             val manifest = detect(data)
             manifest.read(data)
@@ -69,9 +60,7 @@ sealed class EpicManifest {
 
     abstract fun serialize(): ByteArray
 
-    /**
-     * Get chunk directory based on manifest version
-     */
+    // Returns the chunk directory for the manifest version.
     fun getChunkDir(): String =
         when {
             version >= 15 -> "ChunksV4"
@@ -81,9 +70,7 @@ sealed class EpicManifest {
         }
 }
 
-/**
- * Binary format manifest parser (most common format)
- */
+// Binary format manifest parser.
 class BinaryManifest : EpicManifest() {
     /**
      * Binary manifest parse flow (high-level):
@@ -104,7 +91,6 @@ class BinaryManifest : EpicManifest() {
         buffer.put(data)
         buffer.flip()
 
-        // Read header
         val magic = buffer.int.toUInt()
         if (magic != HEADER_MAGIC) {
             throw IllegalArgumentException("Invalid manifest header magic: 0x${magic.toString(16)}")
@@ -117,16 +103,13 @@ class BinaryManifest : EpicManifest() {
         storedAs = buffer.get()
         version = buffer.int
 
-        // Seek to end of header if we didn't read it all
         if (buffer.position() != headerSize) {
             buffer.position(headerSize)
         }
 
-        // Read body data
         val bodyData = ByteArray(buffer.remaining())
         buffer.get(bodyData)
 
-        // Decompress if necessary
         this.data =
             if (isCompressed) {
                 val inflater = Inflater()
@@ -135,12 +118,10 @@ class BinaryManifest : EpicManifest() {
                 val resultLength = inflater.inflate(decompressed)
                 inflater.end()
 
-                // Validate decompressed length matches expected size
                 if (resultLength != sizeUncompressed) {
                     throw IllegalStateException("Manifest decompression size mismatch: expected $sizeUncompressed, got $resultLength")
                 }
 
-                // Verify hash
                 val md = MessageDigest.getInstance("SHA-1")
                 val computedHash = md.digest(decompressed)
                 if (!computedHash.contentEquals(shaHash)) {
@@ -156,23 +137,18 @@ class BinaryManifest : EpicManifest() {
     override fun parseContents() {
         val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
 
-        // Parse in order: Meta, CDL, FML, CustomFields
         meta = ManifestMeta.read(buffer)
         chunkDataList = ChunkDataList.read(buffer, meta?.featureLevel ?: version)
         fileManifestList = FileManifestList.read(buffer)
         customFields = CustomFields.read(buffer)
 
-        // Clear raw data to save memory
         data = ByteArray(0)
     }
 
     private fun estimateBodySize(): Int {
         var size = 0
-        // Meta section estimate
         meta?.let { size += 10000 }
-        // Chunk data list estimate (~57 bytes per chunk)
         chunkDataList?.let { size += it.elements.size * 57 + 1000 }
-        // File manifest list estimate
         fileManifestList?.let { fml ->
             size +=
                 fml.elements.sumOf { fm ->
@@ -181,22 +157,18 @@ class BinaryManifest : EpicManifest() {
                         fm.chunkParts.size * 28
                 }
         }
-        // Custom fields estimate
         customFields?.let { size += 1000 }
-        return maxOf(size, 256 * 1024) // At least 256KB
+        return maxOf(size, 256 * 1024)
     }
 
     override fun serialize(): ByteArray {
         val bodyStream = java.io.ByteArrayOutputStream()
 
-        // Determine target version
-        // max(default=17, featureLevel), clamped to known range.
-        // For cloud saves we always use 18 (dataVersion=0, no MD5/SHA256 in FML).
+        // Cloud saves use version 18: dataVersion=0, no MD5/SHA256 in FML.
         val targetVersion =
             maxOf(DEFAULT_SERIALIZATION_VERSION, meta?.featureLevel ?: version)
                 .coerceAtMost(21)
 
-        // Ensure metadata reflects the version we'll write into the header
         meta?.featureLevel = targetVersion
 
         // Each section's `write()` does placeholder-then-back-fill of its size field, so it
@@ -429,7 +401,6 @@ data class ManifestMeta(
             writeFString(buffer, uninstallActionArgs)
         }
 
-        // Update size
         val endPos = buffer.position()
         val size = endPos - startPos
         buffer.putInt(sizePos, size)
@@ -491,7 +462,6 @@ data class ChunkDataList(
                 buffer.get(chunk.shaHash)
             }
 
-            // Group numbers (8-bit each)
             cdl.elements.forEach { chunk ->
                 chunk.groupNum = buffer.get().toInt() and 0xFF
             }
@@ -545,7 +515,6 @@ data class ChunkDataList(
             buffer.put(chunk.shaHash)
         }
 
-        // Group numbers (8-bit each)
         elements.forEach { chunk ->
             buffer.put(chunk.groupNum.toByte())
         }
@@ -560,7 +529,6 @@ data class ChunkDataList(
             buffer.putLong(chunk.fileSize)
         }
 
-        // Update size
         val endPos = buffer.position()
         val size = endPos - startPos
         buffer.putInt(sizePos, size)
@@ -798,12 +766,10 @@ data class FileManifestList(
                 val partSizePos = buffer.position()
                 buffer.putInt(0)
 
-                // Write part data
                 part.guid.forEach { buffer.putInt(it) }
                 buffer.putInt(part.offset)
                 buffer.putInt(part.size)
 
-                // Update part size
                 val partEndPos = buffer.position()
                 val partSize = partEndPos - partStartPos
                 buffer.putInt(partSizePos, partSize)
@@ -832,7 +798,6 @@ data class FileManifestList(
             }
         }
 
-        // Update size
         val endPos = buffer.position()
         val size = endPos - startPos
         buffer.putInt(sizePos, size)
@@ -931,7 +896,6 @@ data class CustomFields(
                 val version = buffer.get() // version byte — must be read to match write() layout
                 val count = buffer.int
 
-                // write all keys first, then all values (not interleaved key/value pairs)
                 val keys = Array(count) { readFString(buffer) }
                 val values = Array(count) { readFString(buffer) }
                 keys.forEachIndexed { i, key -> cf[key] = values[i] }
@@ -953,11 +917,9 @@ data class CustomFields(
         buffer.put(0) // version byte — omitting it shifts all subsequent reads by 1 byte
         buffer.putInt(fields.size)
 
-        // write all keys first, then all values (not interleaved key/value pairs)
         fields.keys.forEach { key -> writeFString(buffer, key) }
         fields.values.forEach { value -> writeFString(buffer, value) }
 
-        // Update size
         val endPos = buffer.position()
         val size = endPos - startPos
         buffer.putInt(startPos, size)
@@ -1006,7 +968,6 @@ private fun writeFString(
         return
     }
 
-    // Check if ASCII is sufficient
     val isAscii = str.all { it.code < 128 }
 
     if (isAscii) {

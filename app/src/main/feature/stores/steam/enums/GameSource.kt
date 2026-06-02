@@ -5,5 +5,4 @@ enum class GameSource {
     CUSTOM_GAME,
     GOG,
     EPIC,
-    // Add other platforms here..
 }

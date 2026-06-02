@@ -50,8 +50,9 @@ static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity);
 static bool create_pipelines(VkRenderer* r);
 static void destroy_pipelines(VkRenderer* r);
 static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fallback_height);
+static void destroy_swapchain_resources(VkRenderer* r);
 static void destroy_swapchain(VkRenderer* r);
-static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h);
+static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h, bool need_second);
 static void destroy_offscreen(VkRenderer* r);
 static bool create_sgsr1_resources(VkRenderer* r, uint32_t w, uint32_t h);
 static void destroy_sgsr1_resources(VkRenderer* r);
@@ -73,13 +74,20 @@ VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r) {
         VK_LOGE("vkr_alloc_descriptor_set called before pipelines/pool ready");
         return VK_NULL_HANDLE;
     }
+
+    pthread_mutex_lock(&r->descriptor_mutex);
+    if (r->descriptor_free_count > 0) {
+        VkDescriptorSet set = r->descriptor_free_list[--r->descriptor_free_count];
+        pthread_mutex_unlock(&r->descriptor_mutex);
+        return set;
+    }
+
     VkDescriptorSetAllocateInfo ai = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     ai.descriptorPool = r->descriptor_pool;
     ai.descriptorSetCount = 1;
     ai.pSetLayouts = &r->pipelines.sampler_set_layout;
 
     VkDescriptorSet set = VK_NULL_HANDLE;
-    pthread_mutex_lock(&r->descriptor_mutex);
     VkResult res = vkAllocateDescriptorSets(r->device, &ai, &set);
     if (res != VK_SUCCESS) {
         VK_LOGE("vkAllocateDescriptorSets failed: %d (pool used %u/%u)",
@@ -95,8 +103,12 @@ VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r) {
 void vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set) {
     if (set == VK_NULL_HANDLE) return;
     pthread_mutex_lock(&r->descriptor_mutex);
-    vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
-    if (r->descriptor_pool_used > 0) r->descriptor_pool_used--;
+    if (r->descriptor_free_count < r->descriptor_free_capacity) {
+        r->descriptor_free_list[r->descriptor_free_count++] = set;
+    } else {
+        vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
+        if (r->descriptor_pool_used > 0) r->descriptor_pool_used--;
+    }
     pthread_mutex_unlock(&r->descriptor_mutex);
 }
 
@@ -558,6 +570,10 @@ static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity) {
     }
     r->descriptor_pool_capacity = capacity;
     r->descriptor_pool_used = 0;
+    uint32_t free_cap = capacity < 512 ? capacity : 512;
+    r->descriptor_free_list = calloc(free_cap, sizeof(VkDescriptorSet));
+    r->descriptor_free_count = 0;
+    r->descriptor_free_capacity = r->descriptor_free_list ? free_cap : 0;
     return true;
 }
 
@@ -1108,10 +1124,16 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
                 : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
     sci.presentMode = present_mode;
     sci.clipped = VK_TRUE;
-    if (vkCreateSwapchainKHR(r->device, &sci, NULL, &r->swapchain) != VK_SUCCESS) {
+    VkSwapchainKHR old_sc = r->swapchain;
+    sci.oldSwapchain = old_sc;
+    VkSwapchainKHR new_sc = VK_NULL_HANDLE;
+    if (vkCreateSwapchainKHR(r->device, &sci, NULL, &new_sc) != VK_SUCCESS) {
         VK_LOGE("vkCreateSwapchainKHR failed");
+        if (old_sc) { vkDestroySwapchainKHR(r->device, old_sc, NULL); r->swapchain = VK_NULL_HANDLE; }
         return false;
     }
+    r->swapchain = new_sc;
+    if (old_sc) vkDestroySwapchainKHR(r->device, old_sc, NULL);
 
     uint32_t actual_count = 0;
     if (vkGetSwapchainImagesKHR(r->device, r->swapchain, &actual_count, NULL) != VK_SUCCESS
@@ -1172,7 +1194,7 @@ fail:
     return false;
 }
 
-static void destroy_swapchain(VkRenderer* r) {
+static void destroy_swapchain_resources(VkRenderer* r) {
     for (uint32_t i = 0; i < r->swapchain_image_count; i++) {
         if (r->swapchain_render_finished[i]) {
             vkDestroySemaphore(r->device, r->swapchain_render_finished[i], NULL);
@@ -1188,6 +1210,10 @@ static void destroy_swapchain(VkRenderer* r) {
         }
     }
     r->swapchain_image_count = 0;
+}
+
+static void destroy_swapchain(VkRenderer* r) {
+    destroy_swapchain_resources(r);
     if (r->swapchain) { vkDestroySwapchainKHR(r->device, r->swapchain, NULL); r->swapchain = VK_NULL_HANDLE; }
 }
 
@@ -1278,11 +1304,26 @@ static void destroy_one_offscreen(VkRenderer* r, VkOffscreen* o) {
     memset(o, 0, sizeof(*o));
 }
 
-static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h) {
-    if (r->offscreen_built && r->offscreen[0].width == w && r->offscreen[0].height == h) return true;
+// Builds offscreen[0], plus the second ping-pong target (~8 MB RGBA8 + view/sampler/descriptor/
+// framebuffer) only when need_second. At matching dims, a missing second target is added in
+// place without disturbing offscreen[0].
+static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h, bool need_second) {
+    bool dims_ok = r->offscreen_built
+                && r->offscreen[0].width == w && r->offscreen[0].height == h;
+    bool second_ok = !need_second || r->offscreen[1].image != VK_NULL_HANDLE;
+    if (dims_ok && second_ok) return true;
+
+    if (dims_ok && !second_ok) {  // add second target only (callers drained the queue)
+        if (!create_one_offscreen(r, &r->offscreen[1], w, h, VK_FILTER_LINEAR)) {
+            destroy_one_offscreen(r, &r->offscreen[1]);
+            return false;
+        }
+        return true;
+    }
+
     destroy_offscreen(r);
     if (!create_one_offscreen(r, &r->offscreen[0], w, h, VK_FILTER_LINEAR)) goto fail;
-    if (!create_one_offscreen(r, &r->offscreen[1], w, h, VK_FILTER_LINEAR)) goto fail;
+    if (need_second && !create_one_offscreen(r, &r->offscreen[1], w, h, VK_FILTER_LINEAR)) goto fail;
     r->offscreen_built = true;
     return true;
 
@@ -1675,11 +1716,6 @@ static bool scene_starts_with_sgsr1(const VkScene* s) {
     return s->effect_count > 0 && s->effects[0].type == VK_EFFECT_SGSR1;
 }
 
-// Wait for any frame currently in flight on the graphics queue. Cheaper than
-// vkDeviceWaitIdle for the destroy-and-rebuild paths in record_and_submit_frame: we don't
-// care about non-graphics queue work, only about no live frame still sampling/drawing to
-// the resource we're about to recreate. Caller has already waited on the current frame's
-// fence; this picks up the other in-flight slots.
 static void wait_inflight_frames(VkRenderer* r) {
     VkFence fences[VK_FRAMES_IN_FLIGHT];
     uint32_t count = 0;
@@ -1746,21 +1782,33 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool wants_sgsr1 = scene_starts_with_sgsr1(&snap);
     bool needs_fullres_offscreen = snap.effect_count > 0
         && (!wants_sgsr1 || snap.effect_count > 1);
+    // offscreen[1] is reached only once the chain writes two distinct offscreen buffers: the
+    // effect loop's dst_idx starts at 1 for a non-SGSR chain but at 0 for an SGSR1-led one
+    // (scene goes to the separate SGSR source), so the threshold is >1 normally, >2 for SGSR.
+    bool needs_second_offscreen = needs_fullres_offscreen
+        && snap.effect_count > (wants_sgsr1 ? 2u : 1u);
     VkExtent2D sgsr1_source_extent = wants_sgsr1
         ? compute_sgsr1_source_extent(r, &snap)
         : r->swapchain_extent;
 
-    // Rebuild full-res ping-pong targets only when the chain needs them. SGSR-only renders
-    // into its low-res source and writes directly to the swapchain, so the generic full-res
-    // offscreen pair would just waste memory.
-    // Safe under render_mutex: lifecycle can't be tearing down the swapchain right now.
-    if (needs_fullres_offscreen
-        && (!r->offscreen_built
-            || r->offscreen[0].width != r->swapchain_extent.width
-            || r->offscreen[0].height != r->swapchain_extent.height)) {
-        wait_inflight_frames(r);
-        create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height);
-    } else if (!needs_fullres_offscreen && r->offscreen_built) {
+    // Full-res ping-pong targets exist only when the chain needs them (SGSR-only writes its
+    // low-res source straight to the swapchain). offscreen[1] is grown/freed lazily as the
+    // chain crosses the threshold above; effect counts change on user action, not per frame,
+    // so this doesn't thrash. Safe under render_mutex (no concurrent swapchain teardown).
+    bool offscreen_dims_stale = !r->offscreen_built
+        || r->offscreen[0].width != r->swapchain_extent.width
+        || r->offscreen[0].height != r->swapchain_extent.height;
+    bool second_present = r->offscreen[1].image != VK_NULL_HANDLE;
+    if (needs_fullres_offscreen) {
+        if (offscreen_dims_stale || (needs_second_offscreen && !second_present)) {
+            wait_inflight_frames(r);
+            create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height,
+                             needs_second_offscreen);
+        } else if (!needs_second_offscreen && second_present) {
+            wait_inflight_frames(r);  // chain no longer reaches offscreen[1]; reclaim it
+            destroy_one_offscreen(r, &r->offscreen[1]);
+        }
+    } else if (r->offscreen_built) {
         wait_inflight_frames(r);
         destroy_offscreen(r);
     }
@@ -1786,8 +1834,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool recreate_after_present = false;
     if (acq == VK_ERROR_OUT_OF_DATE_KHR) {
         r->surface_ready = false;
-        vkDeviceWaitIdle(r->device);
-        destroy_swapchain(r);
+        pthread_mutex_lock(&r->queue_mutex);
+        vkQueueWaitIdle(r->graphics_queue);
+        pthread_mutex_unlock(&r->queue_mutex);
+        destroy_swapchain_resources(r);
         r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
         pthread_mutex_unlock(&r->render_mutex);
         return false;
@@ -1808,8 +1858,12 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     bool has_effects = snap.effect_count > 0 && r->offscreen_built;
     if (snap.effect_count > 0) {
-        has_effects = (!needs_fullres_offscreen || r->offscreen_built)
-            && (!wants_sgsr1 || r->sgsr1.built);
+        // Don't enter the effect path if a required target's lazy creation failed (else we'd
+        // record into a null framebuffer).
+        bool full_ok = !needs_fullres_offscreen
+            || (r->offscreen_built
+                && (!needs_second_offscreen || r->offscreen[1].image != VK_NULL_HANDLE));
+        has_effects = full_ok && (!wants_sgsr1 || r->sgsr1.built);
     }
 
     VkClearValue clear = {0};
@@ -1921,8 +1975,10 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bool present_suboptimal = (pr == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
     if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR || present_suboptimal) {
         r->surface_ready = false;
-        vkDeviceWaitIdle(r->device);
-        destroy_swapchain(r);
+        pthread_mutex_lock(&r->queue_mutex);
+        vkQueueWaitIdle(r->graphics_queue);
+        pthread_mutex_unlock(&r->queue_mutex);
+        destroy_swapchain_resources(r);
         r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
     }
 
@@ -1931,12 +1987,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
     r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
-    // No compositor-side FPS pacing here. Frame rate is already bounded by the X dispatch
-    // thread's XClient.enforceAbsoluteFramerate (which gates the game), Choreographer-paced
-    // requestRenderCoalesced (one render request per vsync), and FIFO present mode. Running
-    // a third sleep+busy-spin on the render thread duplicates that pacing for no FPS gain
-    // and burned ~24% of one core on busy-spinning under the GL renderer's behaviour,
-    // measurably regressing in-game 60 FPS caps.
     return true;
 }
 
@@ -1984,6 +2034,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     if (!create_quad_vbo(r)) goto fail;
     if (!vkr_create_sampler(r, VK_NULL_HANDLE, &r->shared_sampler)) goto fail;
     if (!vkr_staging_pool_init(r)) goto fail;
+    vkr_suballoc_init(r);
 
     r->initialized = true;
     return (jlong)(intptr_t)r;
@@ -1991,8 +2042,10 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
 fail:
     VK_LOGE("VulkanRenderer init failed");
     vkr_staging_pool_destroy(r);
+    vkr_suballoc_destroy(r);  // safe if never initialized
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
+    free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->device) vkDestroyDevice(r->device, NULL);
     destroy_debug_messenger(r);
@@ -2027,6 +2080,11 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     vkr_texture_destroy_all_live(r);
     free(r->live_textures);
 
+    // All textures gone -> all spans returned. Reclaim pooled blocks + batch scratch.
+    vkr_suballoc_destroy(r);
+    free(r->batch_entry_scratch);
+    free(r->batch_prepared_scratch);
+
     destroy_sgsr1_resources(r);
     destroy_offscreen(r);
     destroy_swapchain(r);
@@ -2041,6 +2099,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
 
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
+    free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
     if (r->surface) vkDestroySurfaceKHR(r->instance, r->surface, NULL);
     if (r->anw)     ANativeWindow_release(r->anw);
@@ -2408,6 +2467,21 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeUpdate)(JNIEnv* env, jclass clazz, jlong
         ? JNI_TRUE : JNI_FALSE;
 }
 
+// Grow-only scratch for parsed batch entries. Render-thread-only, so unlocked; every element
+// is fully populated before use, so no zeroing. (Mirrors get_prepared_scratch in vk_image.c.)
+static VkTextureBatchUpload* get_entry_scratch(VkRenderer* r, uint32_t count) {
+    if (r->batch_entry_cap < count) {
+        uint32_t new_cap = r->batch_entry_cap ? r->batch_entry_cap : 64;
+        while (new_cap < count) new_cap *= 2;
+        VkTextureBatchUpload* p = realloc(r->batch_entry_scratch,
+                                          (size_t)new_cap * sizeof(VkTextureBatchUpload));
+        if (!p) return NULL;
+        r->batch_entry_scratch = p;
+        r->batch_entry_cap = new_cap;
+    }
+    return r->batch_entry_scratch;
+}
+
 JNIEXPORT jboolean JNICALL TEX_FN(nativeBatchUpdate)(JNIEnv* env, jclass clazz, jlong rendererHandle,
                                                      jobject entriesBuffer,
                                                      jobjectArray dataBuffers,
@@ -2423,7 +2497,7 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeBatchUpdate)(JNIEnv* env, jclass clazz, 
     jsize buffer_count = (*env)->GetArrayLength(env, dataBuffers);
     if (buffer_count < count) return JNI_FALSE;
 
-    VkTextureBatchUpload* uploads = calloc((size_t)count, sizeof(VkTextureBatchUpload));
+    VkTextureBatchUpload* uploads = get_entry_scratch(r, (uint32_t)count);
     if (!uploads) return JNI_FALSE;
 
     for (jint i = 0; i < count; i++) {
@@ -2440,20 +2514,17 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeBatchUpdate)(JNIEnv* env, jclass clazz, 
         memcpy(&dirty_h, e + 32, sizeof(dirty_h));
         memcpy(&data_index, e + 36, sizeof(data_index));
         if (data_index < 0 || data_index >= buffer_count) {
-            free(uploads);
             return JNI_FALSE;
         }
 
         jobject data_buffer = (*env)->GetObjectArrayElement(env, dataBuffers, data_index);
         if (!data_buffer) {
-            free(uploads);
             return JNI_FALSE;
         }
         void* data = (*env)->GetDirectBufferAddress(env, data_buffer);
         jlong data_size = (*env)->GetDirectBufferCapacity(env, data_buffer);
         (*env)->DeleteLocalRef(env, data_buffer);
         if (!data || data_size <= 0) {
-            free(uploads);
             return JNI_FALSE;
         }
 
@@ -2470,7 +2541,6 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeBatchUpdate)(JNIEnv* env, jclass clazz, 
     }
 
     bool ok = vkr_texture_batch_update(r, uploads, (uint32_t)count);
-    free(uploads);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 

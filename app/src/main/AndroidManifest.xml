@@ -192,5 +192,13 @@
             android:name="com.google.android.gms.games.provider.PlayGamesInitProvider"
             tools:node="remove" />
 
+        <receiver
+            android:name="com.winlator.cmod.feature.stores.steam.service.HybridModeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.winnative.cmod.action.HYBRID_MODE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

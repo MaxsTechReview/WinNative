@@ -1590,7 +1590,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         .windowInsetsPadding(WindowInsets.safeDrawing)
                         .padding(horizontal = 18.dp, vertical = 12.dp),
             ) {
-                // ---- Header ----
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1646,7 +1645,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 )
                 Spacer(Modifier.height(12.dp))
 
-                // ---- Content ----
                 BoxWithConstraints(
                     modifier =
                         Modifier
@@ -1707,7 +1705,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 if (transferState.value == null) {
                     Spacer(Modifier.height(10.dp))
 
-                    // ---- Action bar ----
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2112,7 +2109,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val glassBorder = Color.White.copy(alpha = SetupGlassBorderAlpha)
         val mutedDot = Color(0xFF4A5568)
 
-        // Build tab keys/labels
         val tabs =
             buildList {
                 add(TabInfo("recommended", recommendedLabel, turquoise, highlight = true))

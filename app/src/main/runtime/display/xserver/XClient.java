@@ -6,6 +6,7 @@ import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.locks.LockSupport;
 
 public class XClient implements XResourceManager.OnResourceLifecycleListener {
   public final XServer xServer;
@@ -174,24 +175,12 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
       nextFrameTimeNanos = now + targetFrameTime;
     }
 
-    long sleepTime = nextFrameTimeNanos - now;
-
-    // Only sleep if we are actually early by more than 0.5ms (VSync Bias)
-    if (sleepTime > 500_000L) {
-      // Deep sleep for the bulk of the time.
-      // 4ms buffer provides maximum stability against Android OS jitter.
-      if (sleepTime > 4_000_000L) {
-        long sleepMs = (sleepTime - 4_000_000L) / 1_000_000L;
-        try {
-          Thread.sleep(sleepMs);
-        } catch (InterruptedException ignored) {}
-      }
-
-      // High-precision spin for the final 4ms.
-      // This is the "Unity Style" heart-beat that guarantees VSync alignment.
-      while (System.nanoTime() < nextFrameTimeNanos) {
-        // Spin lock for exact nanosecond precision
-      }
+    // Park instead of busy-spinning through the final frame window to reduce sustained heat.
+    long remaining = nextFrameTimeNanos - now;
+    while (remaining > 0) {
+      LockSupport.parkNanos(remaining);
+      if (Thread.interrupted()) break;
+      remaining = nextFrameTimeNanos - System.nanoTime();
     }
 
     // Advance to the next heartbeat

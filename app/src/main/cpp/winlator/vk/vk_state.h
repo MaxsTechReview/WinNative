@@ -41,6 +41,16 @@
 // Texture (drives both regular CPU-uploaded images and AHB imports)
 // ============================================================
 
+// A CPU-uploaded texture's slice of an image sub-allocator block (defined below).
+struct VkMemBlock;
+typedef struct VkSuballoc {
+    struct VkMemBlock* block;        // owning block (NULL => not sub-allocated)
+    VkDeviceMemory     memory;       // == block->memory, cached for vkBindImageMemory
+    VkDeviceSize       bind_offset;  // aligned offset the image is bound at
+    VkDeviceSize       span_offset;  // reserved span start/length, returned on free
+    VkDeviceSize       span_size;
+} VkSuballoc;
+
 typedef struct VkTexture {
     VkImage image;
     VkImageView view;
@@ -63,6 +73,11 @@ typedef struct VkTexture {
     bool external;
     // Prevent duplicate deferred frees if Java schedules destruction more than once.
     bool destroy_scheduled;
+
+    // suballocated: backing comes from the shared sub-allocator (suballoc) and `memory` is
+    // unused. AHB imports and the dedicated fallback leave this false.
+    bool       suballocated;
+    VkSuballoc suballoc;
 } VkTexture;
 
 typedef struct VkTextureBatchUpload {
@@ -254,6 +269,38 @@ typedef struct VkDeviceCaps {
 } VkDeviceCaps;
 
 // ============================================================
+// Image sub-allocator
+// ============================================================
+//
+// CPU-uploaded textures share large DEVICE_LOCAL blocks instead of each taking a dedicated
+// vkAllocateMemory — avoids per-pixmap allocator latency and hitting maxMemoryAllocationCount
+// (~4096 on Adreno) under X-server pixmap churn. Each block has a first-fit free list (offset-
+// sorted, coalesced on free); fully-drained blocks are returned. AHB imports stay dedicated.
+
+#define VK_SUBALLOC_BLOCK_SIZE (32u * 1024u * 1024u)  // 32 MiB default block
+
+typedef struct VkMemRegion {
+    VkDeviceSize        offset;
+    VkDeviceSize        size;
+    struct VkMemRegion* next;       // free list, sorted ascending by offset
+} VkMemRegion;
+
+typedef struct VkMemBlock {
+    VkDeviceMemory     memory;
+    VkDeviceSize       size;
+    uint32_t           memory_type_index;
+    VkMemRegion*       free_list;
+    struct VkMemBlock* next;
+} VkMemBlock;
+
+typedef struct VkImageSuballocator {
+    VkMemBlock*     blocks;
+    VkDeviceSize    block_size;     // size used when carving a new block
+    pthread_mutex_t mutex;          // alloc (producer threads) vs free (render thread)
+    bool            mutex_init;
+} VkImageSuballocator;
+
+// ============================================================
 // Master state
 // ============================================================
 
@@ -329,6 +376,9 @@ typedef struct VkRenderer {
     VkDescriptorPool descriptor_pool;
     uint32_t         descriptor_pool_capacity;
     uint32_t         descriptor_pool_used;
+    VkDescriptorSet* descriptor_free_list;
+    uint32_t         descriptor_free_count;
+    uint32_t         descriptor_free_capacity;
 
     // Graveyard
     VkGraveSlot      graveyard[VK_FRAMES_IN_FLIGHT + 1];
@@ -357,6 +407,16 @@ typedef struct VkRenderer {
 
     // Async upload pool (created in nativeCreate after device).
     VkStagingPool staging_pool;
+
+    // Image sub-allocator for CPU-uploaded textures (created in nativeCreate after device).
+    VkImageSuballocator image_suballoc;
+
+    // Grow-only scratch for the batch upload path (render-thread-only, so unlocked; zero
+    // steady-state heap traffic).
+    VkTextureBatchUpload* batch_entry_scratch;     // nativeBatchUpdate: parsed JNI entries
+    uint32_t              batch_entry_cap;
+    void*                 batch_prepared_scratch;  // vkr_texture_batch_update: PreparedBatchUpload[]
+    uint32_t              batch_prepared_cap;
 
     // Scene state
     VkScene scene;
@@ -404,3 +464,8 @@ bool            vkr_staging_pool_init(VkRenderer* r);
 void            vkr_staging_pool_destroy(VkRenderer* r);
 VkStagingSlot*  vkr_staging_pool_acquire(VkRenderer* r, VkDeviceSize needed);
 void            vkr_staging_pool_release(VkStagingSlot* slot);
+
+// Image sub-allocator lifecycle (alloc/free are static in vk_image.c). Destroy after all
+// textures are released.
+void            vkr_suballoc_init(VkRenderer* r);
+void            vkr_suballoc_destroy(VkRenderer* r);

@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.io.StorageUtils
 import org.json.JSONArray
 
@@ -158,7 +160,7 @@ internal fun StoreWorkshopScreen(
                         WorkshopLoadState.LOADING ->
                             WorkshopStatus(
                                 icon = null,
-                                title = "Loading Workshop items…",
+                                title = stringResource(R.string.workshop_loading_items),
                                 subtitle = "Fetching your subscribed items from Steam.",
                             )
                         WorkshopLoadState.ERROR ->
@@ -300,7 +302,7 @@ private fun WorkshopSearchBar(
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (query.isEmpty()) {
                 Text(
-                    "Search Workshop items…",
+                    stringResource(R.string.workshop_search_items),
                     color = WsTextDim,
                     fontSize = 13.sp,
                 )
@@ -519,7 +521,7 @@ private fun WorkshopActionPill(
 
 /**
  * Parse the JSON array returned by `WnSteamSession.getSubscribedWorkshopItems`
- * (objects keyed publishedFileId / title / previewUrl / fileSizeBytes / …) into
+ * (objects keyed publishedFileId / title / previewUrl / fileSizeBytes / ) into
  * the browser's [StoreWorkshopItem] model. [installedIds] marks which items
  * already have content staged on disk. Returns an empty list on malformed JSON.
  */

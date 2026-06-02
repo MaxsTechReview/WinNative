@@ -71,7 +71,6 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.Pause
@@ -310,6 +309,7 @@ data class XServerDrawerState(
     val invertGyroY: Boolean = false,
     val gyroscopeCardExpanded: Boolean = false,
     val fpsLimit: Int = 0,
+    val maxRefreshRate: Int = 60,
     val screenEffectsCardExpanded: Boolean = false,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
@@ -547,9 +547,6 @@ fun buildXServerDrawerState(
     showMagnifier: Boolean,
     magnifierActive: Boolean,
     showLogs: Boolean,
-    nativeRenderingEnabled: Boolean,
-    nativeRenderingTitle: String,
-    nativeRenderingSubtitle: String,
     hudTransparency: Float = 1.0f,
     hudScale: Float = 1.0f,
     hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
@@ -589,6 +586,7 @@ fun buildXServerDrawerState(
     inputControlsGamepadVibration: Boolean = false,
     cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
+    maxRefreshRate: Int = 60,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -649,13 +647,6 @@ fun buildXServerDrawerState(
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
                 icon = Icons.Outlined.Tune,
                 active = sgsrEnabled || vividEnabled || colorProfile > 0,
-            ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_native_rendering,
-                title = nativeRenderingTitle,
-                subtitle = nativeRenderingSubtitle,
-                icon = Icons.Outlined.Memory,
-                active = nativeRenderingEnabled,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_pause,
@@ -732,6 +723,7 @@ fun buildXServerDrawerState(
         invertGyroY = invertGyroY,
         gyroscopeCardExpanded = gyroscopeCardExpanded,
         fpsLimit = fpsLimit,
+        maxRefreshRate = maxRefreshRate,
         screenEffectsCardExpanded = screenEffectsCardExpanded,
         sgsrEnabled = sgsrEnabled,
         sgsrSharpness = sgsrSharpness,
@@ -787,10 +779,15 @@ internal fun XServerDrawerContent(
     onOpenPaneChange: (DrawerPane?) -> Unit,
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
+    revealCards: Boolean = true,
 ) {
-    // Keep card reveal state stable while switching between panes.
+    // The drawer content stays composed even while the sheet is closed (the host
+    // just translates it off-screen), so opening no longer pays a full
+    // first-composition cost. Drive the staggered card reveal from the sheet's
+    // engaged state so it still replays each time the drawer opens, and stays
+    // stable while switching between panes.
     val cardsRevealed = remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { cardsRevealed.value = true }
+    LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -1434,7 +1431,6 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_disable_mouse -> R.string.session_drawer_rail_label_mouse
         R.id.main_menu_toggle_fullscreen -> R.string.session_drawer_rail_label_fullscreen
         R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
-        R.id.main_menu_native_rendering -> R.string.session_drawer_rail_label_native
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
         R.id.main_menu_logs -> R.string.session_drawer_rail_label_logs
@@ -1559,9 +1555,10 @@ private fun HUDPaneContent(
                     onCheckedChange = listener::onDualSeriesBatteryChanged,
                 )
 
-                FPSLimiterSelection(
+                FPSLimiterCard(
                     currentLimit = state.fpsLimit,
-                    onLimitSelected = listener::onFPSLimitChanged,
+                    maxRefreshRate = state.maxRefreshRate,
+                    onLimitChanged = listener::onFPSLimitChanged,
                 )
             }
             }
@@ -3608,6 +3605,7 @@ private fun DrawerSliderRow(
     steps: Int,
     onValueChange: (Float) -> Unit,
     onValueClick: (() -> Unit)? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
 ) {
     val paneScale = LocalPaneScale.current
     Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {
@@ -3649,6 +3647,7 @@ private fun DrawerSliderRow(
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
+            onValueChangeFinished = onValueChangeFinished,
         )
     }
 }
@@ -3660,6 +3659,7 @@ private fun CompactSlider(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
+    onValueChangeFinished: (() -> Unit)? = null,
 ) {
     var sliderValue by remember(value) { mutableStateOf(value) }
 
@@ -3681,6 +3681,7 @@ private fun CompactSlider(
                 sliderValue = it
                 onValueChange(it)
             },
+            onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             steps = steps,
             modifier = Modifier.fillMaxWidth(0.96f).requiredHeight(20.dp),
@@ -3958,25 +3959,108 @@ private fun DrawerBooleanRow(
     }
 }
 
+private const val FPS_LIMITER_MIN = 30
+private const val FPS_LIMITER_DEFAULT = 60
+
 @Composable
-private fun FPSLimiterSelection(
+private fun FPSLimiterCard(
     currentLimit: Int,
-    onLimitSelected: (Int) -> Unit,
+    maxRefreshRate: Int,
+    onLimitChanged: (Int) -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
-    val limits = listOf(0, 30, 45, 60, 90, 120)
-    val offLabel = stringResource(R.string.session_drawer_fps_limiter_off)
+    val enabled = currentLimit > 0
+    val maxFps = maxRefreshRate.coerceAtLeast(FPS_LIMITER_MIN)
+    val steps = (maxFps - FPS_LIMITER_MIN - 1).coerceAtLeast(0)
 
-    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-        PaneSectionLabel(stringResource(R.string.session_drawer_fps_limiter))
+    // Slider position is tracked locally so the readout follows the drag and the
+    // last value survives an off/on toggle; the limit/refresh-rate commit is
+    // deferred to release (onValueChangeFinished). Re-seeds when the panel's max
+    // changes — e.g. a mid-game refresh-rate change that clamps the limit.
+    var sliderValue by remember(maxFps) {
+        mutableStateOf(
+            (if (currentLimit > 0) currentLimit else FPS_LIMITER_DEFAULT)
+                .coerceIn(FPS_LIMITER_MIN, maxFps)
+                .toFloat(),
+        )
+    }
 
-        ChipFlow {
-            limits.forEach { limit ->
-                val label = if (limit == 0) offLabel else "$limit"
-                HUDToggleChip(
-                    label = label,
-                    checked = currentLimit == limit,
-                    onClick = { onLimitSelected(limit) },
+    val borderColor by animateColorAsState(
+        targetValue = if (enabled) ActiveCardBorder else RestingCardBorder,
+        animationSpec = tween(140),
+        label = "fpsLimiterCardBorder",
+    )
+    val shape = RoundedCornerShape((14f * paneScale).dp)
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(PaneInnerResting)
+                .border(1.dp, borderColor, shape)
+                .padding(horizontal = (12f * paneScale).dp, vertical = (8f * paneScale).dp),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onLimitChanged(if (enabled) 0 else sliderValue.roundToInt()) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.session_drawer_fps_limiter),
+                    color = DrawerTextPrimary,
+                    fontSize = (14f * paneScale).sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text =
+                        if (enabled) {
+                            "${sliderValue.roundToInt()} FPS"
+                        } else {
+                            stringResource(R.string.session_drawer_fps_limiter_off)
+                        },
+                    color = if (enabled) DrawerAccent else DrawerTextSecondary,
+                    fontSize = (12f * paneScale).sp,
+                    fontWeight = if (enabled) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+            CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { on -> onLimitChanged(if (on) sliderValue.roundToInt() else 0) },
+                    colors = outlinedSwitchColors(DrawerAccent, DrawerTextSecondary),
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = enabled,
+            enter =
+                expandVertically(
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.Top,
+                ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+            exit =
+                shrinkVertically(
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.Top,
+                ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+        ) {
+            Column {
+                Spacer(Modifier.height((6f * paneScale).dp))
+                CompactSlider(
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    valueRange = FPS_LIMITER_MIN.toFloat()..maxFps.toFloat(),
+                    steps = steps,
+                    onValueChangeFinished = { onLimitChanged(sliderValue.roundToInt()) },
                 )
             }
         }

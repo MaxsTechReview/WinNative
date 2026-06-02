@@ -118,7 +118,7 @@ class EpicUpdateManager
                     MarkerUtils.addMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
                     MarkerUtils.removeMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                     downloadInfo.setActive(true)
-                    downloadInfo.updateStatus(DownloadPhase.DOWNLOADING, "Checking for update...")
+                    downloadInfo.updateStatus(DownloadPhase.DOWNLOADING, "Checking for update")
 
                     val plan =
                         buildPlan(
@@ -155,7 +155,7 @@ class EpicUpdateManager
                                 if (plan.scopes.size > 1) {
                                     "Updating ${scope.game.title} (${index + 1}/${plan.scopes.size})"
                                 } else {
-                                    "Updating files..."
+                                    "Updating files"
                                 },
                             )
                             val result =
@@ -187,7 +187,7 @@ class EpicUpdateManager
                     }
 
                     chunkCacheDir.deleteRecursively()
-                    downloadInfo.updateStatus(DownloadPhase.FINALIZING, "Finalizing update...")
+                    downloadInfo.updateStatus(DownloadPhase.FINALIZING, "Finalizing update")
                     finalizeUpdate(game, installPath, installDir, plan)
                     downloadInfo.updateStatus(DownloadPhase.COMPLETE, "Update complete")
                     downloadInfo.updateBytesDownloaded(downloadInfo.getTotalExpectedBytes() - downloadInfo.getBytesDownloaded())

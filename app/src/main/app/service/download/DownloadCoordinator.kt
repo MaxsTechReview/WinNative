@@ -21,45 +21,21 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * Single source of truth for downloads across Steam / Epic / GOG.
- *
- * Responsibilities:
- *  * Enforces a single active download shared across all stores.
- *  * Persists every download as a [DownloadRecord] so they survive app restarts.
- *  * Auto-resumes downloads that were active when the app exited; leaves PAUSED ones paused.
- *
- * Flow of a download:
- *  1. The store-specific service receives a download request from the UI.
- *  2. It calls [requestSlot]. The coordinator persists or updates a DownloadRecord and tells
- *     the caller whether to start now ([Decision.Start]) or wait ([Decision.Queue]).
- *  3. When a download finishes, the store calls [notifyFinished]; the coordinator updates the
- *     record and dispatches the next queued download (if any) via the registered [Dispatcher].
- *  4. UI controls (pause / resume / cancel / clear) call into the coordinator, which mutates
- *     the record and asks the dispatcher to perform the side effect (cancel the running job,
- *     delete partial files, etc.).
+ * Coordinates persisted downloads across stores, allowing one active transfer at a time and
+ * dispatching queued work to each store service.
  */
 object DownloadCoordinator {
     private const val MAX_PARALLEL_DOWNLOADS = 1
 
-    /**
-     * A per-store hook the coordinator uses to start, pause, resume, or cancel an actual
-     * download. Stores register their dispatcher at service startup.
-     */
+    /** Per-store hook for actual download side effects. */
     interface Dispatcher {
-        /**
-         * Start a download that the coordinator just dequeued. The store should look up the
-         * pending request matching this record and launch the actual coroutine. Called from
-         * the coordinator's IO scope.
-         */
+        /** Start a download the coordinator just dequeued. */
         fun startQueued(record: DownloadRecord)
 
-        /** Pause an actively running download, persisting partial files. */
+        /** Pause a running download while keeping partial files. */
         fun pauseRunning(record: DownloadRecord)
 
-        /**
-         * Cancel an actively running download and delete partial files. The coordinator has
-         * already marked the record CANCELLED.
-         */
+        /** Cancel a running download and delete partial files. */
         fun cancelRunning(record: DownloadRecord)
     }
 
@@ -79,12 +55,7 @@ object DownloadCoordinator {
     private val recordChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
     val changes = recordChanges.asSharedFlow()
 
-    /**
-     * True when at least one download is actively transferring. PAUSED and
-     * QUEUED records do not count — nothing is on the wire for them — so a
-     * paused download does not keep the Steam session awake in the
-     * background. Synchronous snapshot read of the current record state.
-     */
+    /** True only while a download is actively transferring. */
     fun hasActiveDownload(): Boolean =
         recordsState.value.any { it.status == DownloadRecord.STATUS_DOWNLOADING }
 
@@ -95,8 +66,7 @@ object DownloadCoordinator {
 
     fun registerDispatcher(store: String, dispatcher: Dispatcher) {
         dispatchers[store] = dispatcher
-        // A newly-registered dispatcher might have queued records waiting from a previous
-        // process or from a moment ago when it wasn't available yet. Drain the queue.
+        // Pick up queued records that were waiting for this dispatcher.
         if (dao != null) {
             scope.launch { tick() }
         }
@@ -113,12 +83,7 @@ object DownloadCoordinator {
         data class Queue(val record: DownloadRecord) : Decision()
     }
 
-    /**
-     * Persist a download request and decide whether to start it immediately or queue it. The
-     * caller (a store service) should inspect the result; on Start it should launch the actual
-     * download, on Queue it should create a UI entry showing QUEUED status and wait for the
-     * coordinator to dispatch via [Dispatcher.startQueued].
-     */
+    /** Persist a request and decide whether it starts now or waits in the queue. */
     suspend fun requestSlot(
         store: String,
         storeGameId: String,
@@ -136,11 +101,7 @@ object DownloadCoordinator {
             val now = System.currentTimeMillis()
             val existing = daoRef.findByStoreGame(store, storeGameId)
 
-            // Re-entry guard: tick() promotes a QUEUED record to DOWNLOADING and then
-            // dispatches it to the store, which calls back into requestSlot via the public
-            // download API. The slot was already granted by tick(); without this short
-            // circuit we'd count the record against itself, decide there are no free slots,
-            // and rewrite it back to QUEUED — making Resume hang at "Queued" forever.
+            // tick() may dispatch into code that calls requestSlot again; keep the granted slot.
             if (existing != null && existing.status == DownloadRecord.STATUS_DOWNLOADING) {
                 return@withLock Decision.Start(existing)
             }
@@ -176,14 +137,7 @@ object DownloadCoordinator {
                     val id = daoRef.upsert(newRecord)
                     newRecord.copy(id = id)
                 } else {
-                    // We only reach here for re-enqueue cases (record was COMPLETE/CANCELLED/
-                    // FAILED/PAUSED/QUEUED — anything but DOWNLOADING, which short-circuits
-                    // above). For a re-enqueue the caller is fully respecifying the request,
-                    // so OVERWRITE the row with the new values. Previously we did
-                    // `selectedDlcs.ifEmpty { existing.selectedDlcs }` which was ambiguous —
-                    // an empty list (user wants base game only) was indistinguishable from
-                    // "caller didn't supply", so old DLC selections leaked through to a fresh
-                    // download.
+                    // Re-enqueue replaces request fields so empty DLC selection means base game only.
                     val updated =
                         existing.copy(
                             title = title,
@@ -207,7 +161,7 @@ object DownloadCoordinator {
         }
     }
 
-    /** Update progress for a running download. Lightweight; runs without locking the queue. */
+    /** Update progress without locking the queue. */
     fun updateProgress(store: String, storeGameId: String, bytesDownloaded: Long, bytesTotal: Long) {
         val daoRef = dao ?: return
         scope.launch {
@@ -227,10 +181,7 @@ object DownloadCoordinator {
         }
     }
 
-    /**
-     * Notify the coordinator that a download has terminated (success / fail / cancel / pause).
-     * The coordinator persists the new status and starts the next queued download.
-     */
+    /** Persist a terminal status and start the next queued download. */
     suspend fun notifyFinished(
         store: String,
         storeGameId: String,
@@ -243,11 +194,11 @@ object DownloadCoordinator {
             daoRef.updateStatus(record.id, finalStatus, error)
             refreshState(daoRef)
         }
-        // Drain the queue outside the lock to avoid re-entrancy with dispatcher callbacks.
+        // Drain after releasing the lock so dispatcher callbacks can re-enter.
         tick()
     }
 
-    /** Pause a running download. Marks PAUSED and asks the dispatcher to cancel its job. */
+    /** Mark a download PAUSED and ask its dispatcher to stop work. */
     suspend fun pause(store: String, storeGameId: String) {
         val daoRef = dao ?: return
         val record = daoRef.findByStoreGame(store, storeGameId) ?: return
@@ -271,7 +222,7 @@ object DownloadCoordinator {
         running.forEach { pause(it.store, it.storeGameId) }
     }
 
-    /** Resume a paused / queued / failed download. */
+    /** Resume a paused, queued, or failed download. */
     suspend fun resume(store: String, storeGameId: String) {
         val daoRef = dao ?: return
         val record = daoRef.findByStoreGame(store, storeGameId) ?: return
@@ -292,15 +243,14 @@ object DownloadCoordinator {
 
     suspend fun resumeAll() {
         val daoRef = dao ?: return
-        // Include FAILED: the dispatcher preserves resume breadcrumbs on
-        // failure, so a Resume All click continues from where they left off.
+        // FAILED downloads keep enough state for Resume All to continue them.
         val toResume =
             daoRef.findByStatus(DownloadRecord.STATUS_PAUSED) +
                 daoRef.findByStatus(DownloadRecord.STATUS_FAILED)
         toResume.forEach { resume(it.store, it.storeGameId) }
     }
 
-    /** Cancel a download and delete partial files via the dispatcher. */
+    /** Cancel a download and ask its dispatcher to delete partial files. */
     suspend fun cancel(store: String, storeGameId: String) {
         val daoRef = dao ?: return
         val record = daoRef.findByStoreGame(store, storeGameId) ?: return
@@ -321,14 +271,13 @@ object DownloadCoordinator {
         cancellable.forEach { cancel(it.store, it.storeGameId) }
     }
 
-    /** Remove finished records (COMPLETE / CANCELLED / FAILED) from the table. */
+    /** Remove finished records from the table. */
     suspend fun clear() {
         val daoRef = dao ?: return
         mutex.withLock {
             daoRef.deleteFinished()
             refreshState(daoRef)
         }
-        // Notify the Downloads tab to refresh.
         PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(0, false))
     }
 
@@ -337,10 +286,7 @@ object DownloadCoordinator {
         runBlocking { clear() }
     }
 
-    /**
-     * Drain the queue: while there are free slots and queued records, dispatch the oldest one
-     * to its store-specific dispatcher.
-     */
+    /** Dispatch queued records while slots are available. */
     suspend fun tick() {
         val daoRef = dao ?: return
         val toStart = mutableListOf<DownloadRecord>()
@@ -351,12 +297,7 @@ object DownloadCoordinator {
 
             for (record in queued) {
                 if (activeCount >= MAX_PARALLEL_DOWNLOADS) break
-                // Don't promote a record whose store has not registered its
-                // dispatcher yet (the store service is still starting up).
-                // Promoting it to DOWNLOADING here would strand it: dispatch
-                // fails, and a later tick() only scans QUEUED records so it
-                // would never be retried. registerDispatcher() runs tick()
-                // again once the dispatcher is available, picking it up then.
+                // Keep records QUEUED until their store dispatcher is ready.
                 if (dispatchers[record.store] == null) continue
                 val started = record.copy(status = DownloadRecord.STATUS_DOWNLOADING, updatedAt = now)
                 daoRef.update(started)
@@ -366,8 +307,7 @@ object DownloadCoordinator {
             refreshState(daoRef)
         }
 
-        // Dispatch outside the lock so dispatchers can synchronously call back into the
-        // coordinator if needed.
+        // Dispatch outside the lock so callbacks can re-enter safely.
         toStart.forEach { record ->
             val dispatcher = dispatchers[record.store]
             if (dispatcher != null) {
@@ -382,38 +322,27 @@ object DownloadCoordinator {
         }
     }
 
-    /**
-     * Called once on app startup. Records that were DOWNLOADING when the process died are
-     * moved back to QUEUED (auto-resume); PAUSED records stay PAUSED until the user resumes
-     * them. Then the queue is drained.
-     *
-     * Idempotent: subsequent calls within the same process are no-ops.
-     */
+    /** Restore interrupted downloads once per process and drain the queue. */
     suspend fun onAppStart() {
         if (startupRestored) return
         startupRestored = true
         val daoRef = dao ?: return
         mutex.withLock {
-            // DOWNLOADING -> QUEUED (auto-resume on next launch).
+            // Auto-resume interrupted active downloads.
             daoRef.replaceStatus(DownloadRecord.STATUS_DOWNLOADING, DownloadRecord.STATUS_QUEUED)
             refreshState(daoRef)
         }
         tick()
     }
 
-    /** Triggers onAppStart from a non-coroutine caller. */
+    /** Trigger startup restoration from a non-coroutine caller. */
     fun attemptStartupRestoration() {
         if (startupRestored) return
         scope.launch { onAppStart() }
     }
 
-    /**
-     * Called by AppTerminationHelper when the app is exiting. Does NOT pause everything — it
-     * leaves DOWNLOADING records in DOWNLOADING state so they auto-resume on next launch, and
-     * leaves PAUSED records PAUSED.
-     */
+    /** Exit hook; statuses are already persisted during each transition. */
     fun onAppExit() {
-        // Nothing to persist here — every status transition was already written to the DAO.
     }
 
     private suspend fun refreshState(daoRef: DownloadRecordDao) {
@@ -427,16 +356,13 @@ object DownloadCoordinator {
         scope.launch { tick() }
     }
 
-    /** Initialize records flow on startup. Safe to call multiple times. */
+    /** Initialize records flow on startup. */
     suspend fun loadInitial() {
         val daoRef = dao ?: return
         refreshState(daoRef)
     }
 
-    /**
-     * Look up the persisted record for a given store+gameId. Useful for resume to recover the
-     * original install path / dlcs / language without going through the in-memory params map.
-     */
+    /** Look up a persisted record by store and game id. */
     suspend fun findRecord(store: String, storeGameId: String): DownloadRecord? {
         val daoRef = dao ?: return null
         return daoRef.findByStoreGame(store, storeGameId)

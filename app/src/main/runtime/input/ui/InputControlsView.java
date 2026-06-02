@@ -474,8 +474,14 @@ public class InputControlsView extends View {
     activeTouchElements.clear();
   }
 
+  public void cancelContinuousMouseMove() {
+    mouseMoveOffsetX = 0f;
+    mouseMoveOffsetY = 0f;
+  }
+
   public synchronized void cancelActiveTouches() {
     releaseActiveTouchElements();
+    cancelContinuousMouseMove();
   }
 
   public int getMaxWidth() {
@@ -484,7 +490,11 @@ public class InputControlsView extends View {
 
   @Override
   protected void onDetachedFromWindow() {
-    if (mouseMoveTimer != null) mouseMoveTimer.cancel();
+    cancelContinuousMouseMove();
+    if (mouseMoveTimer != null) {
+      mouseMoveTimer.cancel();
+      mouseMoveTimer = null;
+    }
     super.onDetachedFromWindow();
   }
 

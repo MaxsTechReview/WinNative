@@ -7,6 +7,9 @@ import com.winlator.cmod.shared.io.FileUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class XEnvironment implements Iterable<EnvironmentComponent> {
   private static final String TAG = "XEnvironment";
@@ -60,9 +63,47 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
   public void startEnvironmentComponents() {
     FileUtils.clear(getTmpDir());
     Log.d(TAG, "Starting " + components.size() + " environment component(s)");
-    for (EnvironmentComponent environmentComponent : this) {
-      Log.d(TAG, "Starting component " + environmentComponent.getClass().getSimpleName());
-      environmentComponent.start();
+
+    // GuestProgramLauncherComponent forks the game process and reads every
+    // other component's sockets/state — it must start LAST and remain serial.
+    // Every preceding component (XServer, audio, shm, network info, Steam
+    // client) is a self-contained service; start them in parallel.
+    ArrayList<EnvironmentComponent> parallelStart = new ArrayList<>();
+    EnvironmentComponent launcher = null;
+    for (EnvironmentComponent c : components) {
+      if (c instanceof GuestProgramLauncherComponent) {
+        launcher = c;
+      } else {
+        parallelStart.add(c);
+      }
+    }
+
+    if (parallelStart.size() <= 1) {
+      for (EnvironmentComponent c : parallelStart) {
+        Log.d(TAG, "Starting component " + c.getClass().getSimpleName());
+        c.start();
+      }
+    } else {
+      ExecutorService pool = Executors.newFixedThreadPool(parallelStart.size());
+      ArrayList<Future<?>> futures = new ArrayList<>(parallelStart.size());
+      for (EnvironmentComponent c : parallelStart) {
+        final EnvironmentComponent comp = c;
+        futures.add(pool.submit(() -> {
+          Log.d(TAG, "Starting component " + comp.getClass().getSimpleName());
+          comp.start();
+        }));
+      }
+      pool.shutdown();
+      for (Future<?> f : futures) {
+        try { f.get(); } catch (Throwable t) {
+          Log.e(TAG, "Component start failed", t);
+        }
+      }
+    }
+
+    if (launcher != null) {
+      Log.d(TAG, "Starting component " + launcher.getClass().getSimpleName());
+      launcher.start();
     }
     Log.d(TAG, "Environment component startup finished");
   }

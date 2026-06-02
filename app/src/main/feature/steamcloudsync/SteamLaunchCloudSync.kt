@@ -5,6 +5,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.stores.steam.data.PostSyncInfo
+import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
+import com.winlator.cmod.feature.stores.steam.enums.SyncResult
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.runtime.container.Shortcut
@@ -36,20 +39,57 @@ object SteamLaunchCloudSync {
 
         SteamCloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
 
-        if (!SteamCloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
-            statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
-            SteamCloudSyncHelper.downloadCloudSaves(activity, shortcut)
-            statusSink.show(activity.getString(R.string.preloader_initializing))
-            return
+        statusSink.show(activity.getString(R.string.preloader_checking_cloud))
+        val initialSync =
+            runCatching {
+                SteamCloudSyncHelper.syncBeforeLaunchBlocking(activity, shortcut, SaveLocation.None)
+            }.onFailure { e ->
+                Timber.tag("SteamLaunchCloudSync").w(e, "Steam launch cloud sync failed")
+            }.getOrNull()
+
+        when (initialSync?.syncResult) {
+            SyncResult.Success,
+            SyncResult.UpToDate,
+            null,
+            -> {
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            SyncResult.Conflict -> {
+                showConflictAndResolve(activity, shortcut, statusSink, initialSync)
+                return
+            }
+            SyncResult.PendingOperations -> {
+                Timber.tag("SteamLaunchCloudSync").w(
+                    "Steam launch cloud sync has pending remote operations for %s: %s",
+                    shortcut.name,
+                    initialSync.pendingRemoteOperations,
+                )
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            else -> {
+                Timber.tag("SteamLaunchCloudSync").w(
+                    "Steam launch cloud sync returned %s for %s",
+                    initialSync.syncResult,
+                    shortcut.name,
+                )
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
         }
+    }
 
-        val probe = SteamCloudSyncHelper.probeCloudConflict(activity, shortcut)
-        if (!probe.differs) return
-
+    private fun showConflictAndResolve(
+        activity: Activity,
+        shortcut: Shortcut,
+        statusSink: StatusSink,
+        initialSync: PostSyncInfo,
+    ) {
         val dialogLatch = CountDownLatch(1)
         var useCloud = false
         var keepBackup = false
-        val timestamps = probe.timestamps
+        val timestamps = SteamCloudSyncHelper.timestampsFromSyncInfo(activity, shortcut, initialSync)
 
         // If the activity is destroyed (back-to-launcher, system kill, finish())
         // while the dialog is up, the latch must still count down or this thread
@@ -102,23 +142,20 @@ object SteamLaunchCloudSync {
 
         activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
 
-        if (!useCloud) {
-            // Steam protocol: "Use Local" means "my local version wins." Push it up to
-            // overwrite cloud so subsequent syncs don't keep seeing the same conflict.
-            // Without this, exit-sync next launch finds local≠cloud again → Retry 3/3 →
-            // confusion. The Steam Client itself sends ClientConflictResolution_Notification
-            // (chose_local_files=true) followed by an upload batch — we mirror that here.
-            statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
-            runCatching { SteamCloudSyncHelper.uploadLocalSavesBlocking(activity, shortcut) }
-                .onFailure { Timber.tag("SteamLaunchCloudSync").w(it, "Use-Local upload to Steam Cloud failed") }
-            statusSink.show(activity.getString(R.string.preloader_initializing))
-            return
-        }
-        if (keepBackup) {
+        if (keepBackup && useCloud) {
             backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
         }
-        statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
-        SteamCloudSyncHelper.downloadCloudSaves(activity, shortcut)
+        val preferredSave = if (useCloud) SaveLocation.Remote else SaveLocation.Local
+        statusSink.show(
+            activity.getString(
+                if (useCloud) R.string.preloader_downloading_cloud else R.string.preloader_uploading_cloud,
+            ),
+        )
+        runCatching {
+            SteamCloudSyncHelper.syncBeforeLaunchBlocking(activity, shortcut, preferredSave)
+        }.onFailure { e ->
+            Timber.tag("SteamLaunchCloudSync").w(e, "Steam conflict resolution sync failed")
+        }
         statusSink.show(activity.getString(R.string.preloader_initializing))
     }
 

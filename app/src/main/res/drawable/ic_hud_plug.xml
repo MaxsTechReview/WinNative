@@ -1,0 +1,30 @@
+<!--
+  Material 3 style outlined plug, drawn in the HUD next to the live charging
+  wattage (replaces the old green "CHRG" text). White strokes so it can be
+  tinted at runtime via Drawable.setTint().
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- The two prongs -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M9,2.5L9,6.5 M15,2.5L15,6.5" />
+    <!-- Plug body, narrowing toward the cord -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M6.5,6.5L17.5,6.5L17.5,12L14.5,15.5L9.5,15.5L6.5,12Z" />
+    <!-- The cord -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M12,15.5L12,21.5" />
+</vector>

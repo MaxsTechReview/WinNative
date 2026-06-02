@@ -130,6 +130,7 @@ typedef struct VkDispatch {
 
     // Queue
     PFN_vkQueueSubmit QueueSubmit;
+    PFN_vkQueueWaitIdle QueueWaitIdle;
     PFN_vkQueuePresentKHR QueuePresentKHR;
 
     // Swapchain
@@ -254,6 +255,7 @@ void vkd_unload(void);
 #define vkCmdCopyBufferToImage vkd.CmdCopyBufferToImage
 
 #define vkQueueSubmit vkd.QueueSubmit
+#define vkQueueWaitIdle vkd.QueueWaitIdle
 #define vkQueuePresentKHR vkd.QueuePresentKHR
 
 #define vkCreateSwapchainKHR vkd.CreateSwapchainKHR

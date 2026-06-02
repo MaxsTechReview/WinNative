@@ -25,6 +25,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.pm.PackageInfoCompat;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -146,6 +147,17 @@ public abstract class AppUtils {
       insetsController.setSystemBarsBehavior(
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
+  }
+
+  // Like hideSystemUI but skips the per-call insets relayout when bars are already hidden.
+  // Safe to call every animation frame.
+  public static void hideSystemUIIfVisible(final Activity activity) {
+    final View decorView = activity.getWindow().getDecorView();
+    final WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(decorView);
+    if (insets != null && !insets.isVisible(WindowInsetsCompat.Type.systemBars())) {
+      return;
+    }
+    hideSystemUI(activity);
   }
 
   public static void showSystemUI(final Activity activity) {

@@ -2,20 +2,17 @@ package com.winlator.cmod.runtime.display.renderer;
 
 import android.util.Log;
 import androidx.annotation.Keep;
+import com.winlator.cmod.runtime.system.ApplicationLogGate;
 import com.winlator.cmod.runtime.display.xserver.Drawable;
 import java.nio.ByteBuffer;
 
-/**
+/*
  * Vulkan-backed AHardwareBuffer texture.
  *
- * <p>Two creation paths:
- * <ul>
- *   <li><b>Local</b>: {@link #GPUImage(short, short)} allocates a CPU-mappable BGRA AHB,
- *       locks it for CPU read+write (so the X server can push pixels), and lazily imports it
- *       as a sampleable VkImage on first {@link #allocateTexture}.</li>
- *   <li><b>Imported</b>: {@link #GPUImage(int)} reads an existing AHB handle from a Unix
- *       socket (DRI3 zero-copy path); no CPU mapping.</li>
- * </ul>
+ * Local images create a CPU-mappable BGRA buffer for X server pixel writes,
+ * then import it as a sampleable Vulkan image on demand.
+ *
+ * Imported images use an existing DRI3 buffer from a Unix socket without CPU mapping.
  */
 public class GPUImage extends Texture {
     private static final String TAG = "GPUImage";
@@ -44,9 +41,11 @@ public class GPUImage extends Texture {
                 ahbPtr = 0;
                 virtualData = null;
             } else {
-                Log.i(TAG, "AHB allocated and CPU mapped: " + width + "x" + height
-                        + " stride=" + Short.toUnsignedInt(stride)
-                        + " ptr=0x" + Long.toHexString(ahbPtr));
+                if (ApplicationLogGate.isEnabled()) {
+                    Log.i(TAG, "AHB allocated and CPU mapped: " + width + "x" + height
+                            + " stride=" + Short.toUnsignedInt(stride)
+                            + " ptr=0x" + Long.toHexString(ahbPtr));
+                }
             }
         } catch (Throwable e) {
             Log.e(TAG, "Failed to create AHB-backed GPUImage", e);
@@ -59,8 +58,10 @@ public class GPUImage extends Texture {
             cpuAccessible = false;
             ahbPtr = nativeAhbImportFromSocket(socketFd);
             if (ahbPtr != 0) {
-                Log.i(TAG, "AHB loaded from DRI3 socket fd=" + socketFd
-                        + " ptr=0x" + Long.toHexString(ahbPtr));
+                if (ApplicationLogGate.isEnabled()) {
+                    Log.i(TAG, "AHB loaded from DRI3 socket fd=" + socketFd
+                            + " ptr=0x" + Long.toHexString(ahbPtr));
+                }
             } else {
                 Log.w(TAG, "AHB import from DRI3 socket failed for fd=" + socketFd);
             }
@@ -86,15 +87,17 @@ public class GPUImage extends Texture {
                     + " ahb=0x" + Long.toHexString(ahbPtr));
         } else {
             handleGeneration = getRendererGeneration();
-            Log.i(TAG, "AHB imported into Vulkan texture: " + width + "x" + height
-                    + " tex=0x" + Long.toHexString(nativeHandle));
+            if (ApplicationLogGate.isEnabled()) {
+                Log.i(TAG, "AHB imported into Vulkan texture: " + width + "x" + height
+                        + " tex=0x" + Long.toHexString(nativeHandle));
+            }
         }
     }
 
     @Override
     public void updateFromDrawable(Drawable drawable) {
         if (!isAllocated()) allocateTexture(drawable.width, drawable.height, null);
-        // AHB-backed image is GPU-shared with the producer; no upload needed.
+        // The producer already shares this AHB with the GPU, so there is no CPU upload.
         needsUpdate = false;
     }
 
@@ -145,11 +148,13 @@ public class GPUImage extends Texture {
         final short size = 8;
         GPUImage probe = null;
         try {
-            Log.i(TAG, "Probing AHB Vulkan support");
+            if (ApplicationLogGate.isEnabled()) Log.i(TAG, "Probing AHB Vulkan support");
             probe = new GPUImage(size, size);
             probe.allocateTexture(size, size, null);
             supported = probe.isValid() && probe.getNativeHandle() != 0;
-            Log.i(TAG, "AHB Vulkan support probe result: supported=" + supported);
+            if (ApplicationLogGate.isEnabled()) {
+                Log.i(TAG, "AHB Vulkan support probe result: supported=" + supported);
+            }
         } catch (Throwable e) {
             supported = false;
             Log.e(TAG, "AHB Vulkan support probe failed", e);

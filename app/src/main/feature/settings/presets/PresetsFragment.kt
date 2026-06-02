@@ -261,9 +261,7 @@ class PresetsFragment : Fragment() {
         super.onSaveInstanceState(outState)
     }
 
-    // ========================================================================
     // State builders
-    // ========================================================================
 
     /**
      * Re-loads each engine's presets + resolved selection + env-var values from the
@@ -436,9 +434,7 @@ class PresetsFragment : Fragment() {
         return plainText.ifBlank { getString(R.string.container_presets_no_description) }
     }
 
-    // ========================================================================
     // Persistence helpers
-    // ========================================================================
 
     private fun setSelectedPreset(
         engine: PresetEngine,
@@ -532,9 +528,7 @@ class PresetsFragment : Fragment() {
 
     private fun sanitizePresetName(rawName: String): String = rawName.trim().replace(Regex("[,|]+"), "")
 
-    // ========================================================================
     // Engine metadata
-    // ========================================================================
 
     private val PresetEngine.preferenceKey: String
         get() =

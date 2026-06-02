@@ -46,6 +46,12 @@ import kotlin.math.roundToInt
 
 const val XSERVER_DRAWER_EDGE_SWIPE_DP = 35
 
+// Horizontal swipe distance to open the drawer; shared with XServerDisplayActivity.
+const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
+
+// Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
+const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
+
 private val DrawerWidth = 340.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
@@ -107,7 +113,9 @@ private fun XServerDisplayHost(
             0f
         }
     val drawerOpenOffset = 0f
-    val drawerSheetVisible = drawerWidthPx <= 0f ||
+    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
+    // to trigger the card-reveal animation; the content itself is always composed.
+    val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
     val dialogVisible = false
@@ -161,6 +169,7 @@ private fun XServerDisplayHost(
                             if (dialogVisible || drawerWidthPx <= 0f) return@awaitEachGesture
 
                             val edgeWidthPx = XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx()
+                            val openTriggerPx = XSERVER_DRAWER_OPEN_TRIGGER_DP.dp.toPx()
                             val canStartFromHere =
                                 if (stateHolder.isDrawerOpen) {
                                     down.position.x >= drawerWidthPx &&
@@ -199,7 +208,8 @@ private fun XServerDisplayHost(
                                         if (stateHolder.isDrawerOpen) {
                                             totalDx < -viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
                                         } else {
-                                            totalDx > viewConfiguration.touchSlop && totalDx > abs(totalDy)
+                                            totalDx > openTriggerPx &&
+                                                totalDx > abs(totalDy) * XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO
                                         }
                                     if (horizontalDragClaimed) {
                                         gestureClaimed = true
@@ -288,17 +298,20 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                if (drawerSheetVisible) {
-                    XServerDrawerContent(
-                        state = stateHolder.state,
-                        taskManagerState = stateHolder.taskManagerState,
-                        logsState = stateHolder.logsState,
-                        openPane = stateHolder.openPane,
-                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                        listener = listener,
-                        onDismiss = { stateHolder.closeDrawer() },
-                    )
-                }
+                // Keep the drawer content composed at all times. When closed the sheet
+                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
+                // but the composition stays warm — opening becomes a cheap slide instead
+                // of rebuilding the whole tree on the first animation frame.
+                XServerDrawerContent(
+                    state = stateHolder.state,
+                    taskManagerState = stateHolder.taskManagerState,
+                    logsState = stateHolder.logsState,
+                    openPane = stateHolder.openPane,
+                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                    listener = listener,
+                    onDismiss = { stateHolder.closeDrawer() },
+                    revealCards = drawerEngaged,
+                )
             }
         }
     }

@@ -44,7 +44,7 @@ class GOGVerifyManager
                     PluviaApp.events.emitJava(AndroidEvent.DownloadStatusChanged(gameIdInt, true))
                     downloadInfo.setActive(true)
                     downloadInfo.isCancelling = false
-                    downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Preparing verification...")
+                    downloadInfo.updateStatus(DownloadPhase.VERIFYING, "Preparing verification")
 
                     // Read locally-persisted manifest metadata to pin verification to the installed build.
                     val localManifest = GOGManifestUtils.readLocalManifest(installPath)

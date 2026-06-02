@@ -3,9 +3,11 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.winlator.cmod.feature.stores.steam.data.SteamApp
 import com.winlator.cmod.feature.stores.steam.service.SteamService.Companion.INVALID_PKG_ID
+import kotlin.math.min
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -41,6 +43,54 @@ interface SteamAppDao {
 
     @Query("SELECT * FROM steam_app WHERE id = :appId")
     suspend fun findApp(appId: Int): SteamApp?
+
+    /* ----------------------------------------------------------
+       INTERNAL bulk queries — keep abstract. Public wrappers
+       below chunk inputs so we never exceed SQLite's 999-bind
+       ceiling (SQLITE_MAX_VARS).
+       ---------------------------------------------------------- */
+
+    @Query("SELECT * FROM steam_app WHERE id IN (:appIds)")
+    suspend fun _findApps(appIds: List<Int>): List<SteamApp>
+
+    @Query("SELECT id FROM steam_app WHERE id IN (:appIds)")
+    suspend fun _findExistingIds(appIds: List<Int>): List<Int>
+
+    @Query("UPDATE steam_app SET package_id = :packageId WHERE id IN (:appIds)")
+    suspend fun _setPackageIdForApps(appIds: List<Int>, packageId: Int)
+
+    @Transaction
+    suspend fun findApps(appIds: List<Int>): List<SteamApp> {
+        if (appIds.isEmpty()) return emptyList()
+        val out = ArrayList<SteamApp>(appIds.size)
+        for (i in appIds.indices step SQLITE_MAX_VARS) {
+            val end = min(i + SQLITE_MAX_VARS, appIds.size)
+            out.addAll(_findApps(appIds.subList(i, end)))
+        }
+        return out
+    }
+
+    @Transaction
+    suspend fun findExistingIds(appIds: List<Int>): List<Int> {
+        if (appIds.isEmpty()) return emptyList()
+        val out = ArrayList<Int>(appIds.size)
+        for (i in appIds.indices step SQLITE_MAX_VARS) {
+            val end = min(i + SQLITE_MAX_VARS, appIds.size)
+            out.addAll(_findExistingIds(appIds.subList(i, end)))
+        }
+        return out
+    }
+
+    @Transaction
+    suspend fun setPackageIdForApps(appIds: List<Int>, packageId: Int) {
+        if (appIds.isEmpty()) return
+        // packageId consumes one bind slot, so chunk size is SQLITE_MAX_VARS - 1.
+        val chunk = SQLITE_MAX_VARS - 1
+        for (i in appIds.indices step chunk) {
+            val end = min(i + chunk, appIds.size)
+            _setPackageIdForApps(appIds.subList(i, end), packageId)
+        }
+    }
 
     @Query(
         "SELECT * FROM steam_app AS app WHERE dlc_for_app_id = :appId AND depots <> '{}' AND " +
