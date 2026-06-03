@@ -183,7 +183,14 @@ public class ControllerAssignmentDialog {
           });
 
       vibrateBoxes[i].setOnCheckedChangeListener(
-          (b, checked) -> controllerManager.setVibrationEnabled(slotIndex, checked));
+          (b, checked) -> {
+            controllerManager.setVibrationEnabled(slotIndex, checked);
+            // Push the per-player choice into the live WinHandler state so it takes
+            // effect immediately, instead of only after an activity restart.
+            if (winHandler != null) {
+              winHandler.setVibrationEnabledForSlot(slotIndex, checked);
+            }
+          });
 
       resetButtons[i].setOnClickListener(
           v -> {

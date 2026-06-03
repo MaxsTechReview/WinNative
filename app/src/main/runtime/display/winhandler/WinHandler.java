@@ -94,7 +94,10 @@ public class WinHandler {
   private LocalServerSocket vibrationServer;
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
-  private boolean globalVibrationEnabled = true;
+  // Master rumble gate: written on the UI thread (menu toggle / constructor),
+  // read on the vibration-listener thread in triggerVibration(), so keep it
+  // volatile to guarantee a toggle is seen promptly.
+  private volatile boolean globalVibrationEnabled = true;
   private int fallbackSlot = -1;
   private ExternalController currentController;
   private final GamepadState outputGamepadState = new GamepadState();
@@ -161,17 +164,37 @@ public class WinHandler {
     this.inputManager = (InputManager) activity.getSystemService(Context.INPUT_SERVICE);
     this.inputManager.registerInputDeviceListener(this.inputDeviceListener, null);
     this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    boolean anySlotEnabled = false;
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
       String key = "vibration_slot_" + i;
       String legacyKey = "vibrate_slot_" + i;
       if (this.preferences.contains(key)) {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, true);
       } else {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, true);
+      }
+      if (this.vibrationEnabledSlots[i]) {
+        anySlotEnabled = true;
       }
     }
     this.globalVibrationEnabled =
-        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false);
+        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+    // Self-heal the regression from "Disable control vibration by default" (#403):
+    // that commit defaulted every per-slot flag to false, but the in-game master
+    // toggle only flips globalVibrationEnabled, so triggerVibration's per-slot gate
+    // silently blocked all rumble. A master switch that is ON while every slot is
+    // OFF is the stale-pref signature (never an intentional config), so re-enable
+    // every slot and persist it. An intentional per-player mute keeps at least one
+    // slot enabled, so it is detected by anySlotEnabled and left untouched.
+    if (this.globalVibrationEnabled && !anySlotEnabled) {
+      SharedPreferences.Editor editor = this.preferences.edit();
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+      editor.apply();
+    }
   }
 
   public int preAssignConnectedControllers() {
@@ -1179,7 +1202,20 @@ public class WinHandler {
 
   public void setGlobalVibrationEnabled(boolean enabled) {
     this.globalVibrationEnabled = enabled;
-    this.preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+    SharedPreferences.Editor editor = this.preferences.edit();
+    editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled);
+    if (enabled) {
+      // The master switch is authoritative: turning rumble on enables it for every
+      // slot so a single toggle "just works", overriding any stale per-slot prefs.
+      // Players can still be muted individually afterwards from the Controller
+      // Manager (ControllerAssignmentDialog -> setVibrationEnabledForSlot).
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+    }
+    editor.apply();
   }
 
   public int getMaxControllers() {
