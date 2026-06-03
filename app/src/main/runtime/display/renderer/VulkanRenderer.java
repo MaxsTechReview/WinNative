@@ -288,6 +288,31 @@ public class VulkanRenderer
             XForm.identity(sceneXform);
         }
 
+        // Fullscreen stretch with a game window smaller than the desktop: stretch the active game
+        // content rect to fill the surface, so the game fills the screen instead of sitting in a
+        // sub-region. The touch mapping (TouchpadView), the cursor (drawn via this same sceneXform),
+        // and the cursor confinement all use the same rect, so the drag range and the game's own
+        // cursor line up. This runs after the branch chain because the magnifier path is the active
+        // one (magnifierEnabled is always true; computeMagnifierPan returns identity at zoom <= 1).
+        // Only engages in fullscreen-stretch mode while not magnifying, and is a no-op when the
+        // content already fills the desktop (matched resolution / no dominant window).
+        if (fullscreen && magnifierZoom <= 1.0f && !screenOffsetYRelativeToCursor) {
+            int screenW = xServer.screenInfo.width;
+            int screenH = xServer.screenInfo.height;
+            android.graphics.Rect content;
+            try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+                content = xServer.windowManager.getActiveContentBounds();
+            }
+            int cw = content.width();
+            int ch = content.height();
+            if (cw > 0 && ch > 0
+                    && (content.left != 0 || content.top != 0 || cw != screenW || ch != screenH)) {
+                float sx = (float) screenW / (float) cw;
+                float sy = (float) screenH / (float) ch;
+                XForm.makeTransform(sceneXform, -content.left * sx, -content.top * sy, sx, sy, 0);
+            }
+        }
+
         final ByteBuffer buf = sceneBuf;
 
         // Viewport

@@ -101,6 +101,57 @@ public class WindowManager extends XResourceManager {
     return list;
   }
 
+  /**
+   * Single source of truth for "the area the game actually occupies on screen". Returns the root
+   * bounds of the dominant game-content window when it is a strict sub-rectangle of the screen
+   * (i.e. a game rendering at a lower resolution than the container, which Wine places as a smaller
+   * window inside the fixed virtual desktop). Otherwise returns the full screen rect.
+   *
+   * <p>The renderer (presentation), the touch input mapping, and the cursor confinement all consult
+   * this so they agree on the same rectangle: that is what keeps a game that does not fill the
+   * desktop from leaving the cursor confined to a sub-region with a mismatched drag range. When the
+   * game fills the desktop (matched resolution) this returns the full screen, so the result is a
+   * no-op and existing behavior is unchanged.
+   *
+   * <p>Caller must hold the WINDOW_MANAGER lock.
+   */
+  public android.graphics.Rect getActiveContentBounds() {
+    int screenW = rootWindow.getWidth();
+    int screenH = rootWindow.getHeight();
+    android.graphics.Rect full = new android.graphics.Rect(0, 0, screenW, screenH);
+    if (screenW <= 0 || screenH <= 0) return full;
+
+    // Ignore small/transient windows (dialogs, tooltips): only a window covering a meaningful
+    // fraction of the screen is a candidate for "the game".
+    long minArea = (long) screenW * (long) screenH / 4L;
+    Window best = null;
+    long bestArea = 0;
+    for (int i = 0; i < windows.size(); i++) {
+      Window w = windows.valueAt(i);
+      if (w == null || w == rootWindow) continue;
+      if (!w.isInputOutput()) continue;
+      if (w.getMapState() != Window.MapState.VIEWABLE) continue;
+      if (w.getContent() == null) continue;
+      int ww = w.getWidth();
+      int wh = w.getHeight();
+      if (ww <= 0 || wh <= 0) continue;
+      long area = (long) ww * (long) wh;
+      if (area < minArea || area <= bestArea) continue;
+      bestArea = area;
+      best = w;
+    }
+    if (best == null) return full;
+
+    int left = Math.max(0, best.getRootX());
+    int top = Math.max(0, best.getRootY());
+    int right = Math.min(screenW, best.getRootX() + best.getWidth());
+    int bottom = Math.min(screenH, best.getRootY() + best.getHeight());
+    if (right - left <= 0 || bottom - top <= 0) return full;
+    // Only override when the content is genuinely smaller than the screen; otherwise no-op.
+    if (left == 0 && top == 0 && right >= screenW && bottom >= screenH) return full;
+    return new android.graphics.Rect(left, top, right, bottom);
+  }
+
   public Window findWindowWithProcessId(int processId) {
     for (int i = 0; i < windows.size(); i++) {
       Window window = windows.valueAt(i);

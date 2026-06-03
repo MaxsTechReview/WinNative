@@ -17,6 +17,8 @@ import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.renderer.ViewTransformation
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags
 import com.winlator.cmod.runtime.display.xserver.Pointer
+import com.winlator.cmod.runtime.display.xserver.Window
+import com.winlator.cmod.runtime.display.xserver.WindowManager
 import com.winlator.cmod.runtime.display.xserver.XServer
 import com.winlator.cmod.shared.android.AppUtils
 import com.winlator.cmod.shared.math.Mathf
@@ -72,6 +74,24 @@ class TouchpadView(
         }
     }
 
+    // Recompute the touch->guest transform on the main thread when the game's content rect may have
+    // changed (e.g. the game changed its render resolution and Wine resized its window). Debounced.
+    private val xformRefreshRunnable = Runnable {
+        if (width > 0 && height > 0) {
+            updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        }
+    }
+    private fun scheduleXformRefresh() {
+        longPressHandler.removeCallbacks(xformRefreshRunnable)
+        longPressHandler.postDelayed(xformRefreshRunnable, UPDATE_FORM_DELAYED_TIME.toLong())
+    }
+    private val windowModificationListener = object : WindowManager.OnWindowModificationListener {
+        override fun onUpdateWindowGeometry(window: Window, resized: Boolean) { if (resized) scheduleXformRefresh() }
+        override fun onMapWindow(window: Window) { scheduleXformRefresh() }
+        override fun onUnmapWindow(window: Window) { scheduleXformRefresh() }
+        override fun onDestroyWindow(window: Window) { scheduleXformRefresh() }
+    }
+
     init {
         layoutParams = FrameLayout.LayoutParams(-1, -1)
         background = createTransparentBg()
@@ -80,9 +100,16 @@ class TouchpadView(
         isFocusableInTouchMode = true
         pointerIcon = PointerIcon.load(resources, R.drawable.hidden_pointer_arrow)
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        xServer.windowManager.addOnWindowModificationListener(windowModificationListener)
         setOnGenericMotionListener { _, event ->
             if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) handleStylusHoverEvent(event) else false
         }
+    }
+
+    override fun onDetachedFromWindow() {
+        longPressHandler.removeCallbacks(xformRefreshRunnable)
+        xServer.windowManager.removeOnWindowModificationListener(windowModificationListener)
+        super.onDetachedFromWindow()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -92,14 +119,40 @@ class TouchpadView(
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
+        // renderer can be null during teardown; the debounced refresh below may fire then. Bail safely.
+        val renderer = xServer.renderer ?: return
         val viewTransformation = ViewTransformation()
         viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight)
         val invAspect = 1.0f / viewTransformation.aspect
-        if (!xServer.renderer!!.isFullscreen) {
+        if (!renderer.isFullscreen) {
             XForm.makeTranslation(xform, -viewTransformation.viewOffsetX.toFloat(), -viewTransformation.viewOffsetY.toFloat())
             XForm.scale(xform, invAspect, invAspect)
         } else {
-            XForm.makeScale(xform, innerWidth.toFloat() / outerWidth.toFloat(), innerHeight.toFloat() / outerHeight.toFloat())
+            // Fullscreen (stretch): map touch onto the active game-content rect (the same rect the
+            // renderer fills and the cursor is confined to), so dragging the surface ranges over the
+            // game window even when it is smaller than the desktop. No-op when content fills desktop.
+            var cx = 0
+            var cy = 0
+            var cw = innerWidth
+            var ch = innerHeight
+            try {
+                xServer.lock(XServer.Lockable.WINDOW_MANAGER).use {
+                    val content = xServer.windowManager.activeContentBounds
+                    if (content.width() > 0 && content.height() > 0) {
+                        cx = content.left
+                        cy = content.top
+                        cw = content.width()
+                        ch = content.height()
+                    }
+                }
+            } catch (ignored: Throwable) {
+            }
+            XForm.set(
+                xform,
+                cw.toFloat() / outerWidth.toFloat(), 0f,
+                0f, ch.toFloat() / outerHeight.toFloat(),
+                cx.toFloat(), cy.toFloat()
+            )
         }
     }
 
