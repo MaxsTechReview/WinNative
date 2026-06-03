@@ -2127,6 +2127,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             dx = event.getX();
             dy = event.getY();
         }
+        // Scale captured/external-mouse deltas through the same transform as touch, so the external
+        // mouse maps to guest space (and the content rect when the game renders smaller than the
+        // desktop) instead of moving in raw, over-fast surface pixels.
+        if (touchpadView != null) {
+            return touchpadView.transformRelativeDelta(dx, dy);
+        }
         return new int[]{
                 (int)(xform[0] * dx + xform[2] * dy),
                 (int)(xform[1] * dx + xform[3] * dy)

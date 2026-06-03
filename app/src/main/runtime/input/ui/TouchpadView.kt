@@ -121,32 +121,54 @@ class TouchpadView(
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
         // renderer can be null during teardown; the debounced refresh below may fire then. Bail safely.
         val renderer = xServer.renderer ?: return
-        val viewTransformation = ViewTransformation()
-        viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight)
-        val invAspect = 1.0f / viewTransformation.aspect
-        if (!renderer.isFullscreen) {
-            XForm.makeTranslation(xform, -viewTransformation.viewOffsetX.toFloat(), -viewTransformation.viewOffsetY.toFloat())
-            XForm.scale(xform, invAspect, invAspect)
-        } else {
-            // Fullscreen (stretch): map touch onto the active game-content rect (the same rect the
-            // renderer fills and the cursor is confined to), so dragging the surface ranges over the
-            // game window even when it is smaller than the desktop. No-op when content fills desktop.
-            var cx = 0
-            var cy = 0
-            var cw = innerWidth
-            var ch = innerHeight
-            try {
-                xServer.lock(XServer.Lockable.WINDOW_MANAGER).use {
-                    val content = xServer.windowManager.activeContentBounds
-                    if (content.width() > 0 && content.height() > 0) {
-                        cx = content.left
-                        cy = content.top
-                        cw = content.width()
-                        ch = content.height()
-                    }
+
+        // Active game-content rect (shared with the renderer + cursor confinement). Defaults to the
+        // full screen; when that holds, every branch below reduces to the original transform (no-op).
+        var cx = 0
+        var cy = 0
+        var cw = innerWidth
+        var ch = innerHeight
+        var contentFit = false
+        try {
+            xServer.lock(XServer.Lockable.WINDOW_MANAGER).use {
+                val content = xServer.windowManager.activeContentBounds
+                val confined = xServer.grabManager.confinementBounds != null
+                // Match the renderer's gate: in windowed (non-fullscreen) mode only fit when the game
+                // confined the pointer, so a passive large windowed app is never remapped.
+                if (content.width() > 0 && content.height() > 0 &&
+                    (content.left != 0 || content.top != 0 ||
+                        content.width() != innerWidth || content.height() != innerHeight) &&
+                    (renderer.isFullscreen || confined)) {
+                    cx = content.left
+                    cy = content.top
+                    cw = content.width()
+                    ch = content.height()
+                    contentFit = true
                 }
-            } catch (ignored: Throwable) {
             }
+        } catch (ignored: Throwable) {
+        }
+
+        if (!renderer.isFullscreen) {
+            if (contentFit) {
+                // Letterbox the content rect (aspect-correct) into the surface and inverse-map touch,
+                // so a finger maps onto the smaller game's centered region — the exact inverse of the
+                // renderer's content-letterbox viewport.
+                val aspect = Math.min(outerWidth.toFloat() / cw, outerHeight.toFloat() / ch)
+                val inv = 1.0f / aspect
+                val vx = (outerWidth - cw * aspect) * 0.5f
+                val vy = (outerHeight - ch * aspect) * 0.5f
+                XForm.set(xform, inv, 0f, 0f, inv, cx - vx * inv, cy - vy * inv)
+            } else {
+                val viewTransformation = ViewTransformation()
+                viewTransformation.update(outerWidth, outerHeight, innerWidth, innerHeight)
+                val invAspect = 1.0f / viewTransformation.aspect
+                XForm.makeTranslation(xform, -viewTransformation.viewOffsetX.toFloat(), -viewTransformation.viewOffsetY.toFloat())
+                XForm.scale(xform, invAspect, invAspect)
+            }
+        } else {
+            // Fullscreen (stretch): map touch onto the content rect. When content == full screen
+            // (cx=0, cw=innerWidth) this is exactly the original makeScale(innerW/outerW, innerH/outerH).
             XForm.set(
                 xform,
                 cw.toFloat() / outerWidth.toFloat(), 0f,
@@ -155,6 +177,18 @@ class TouchpadView(
             )
         }
     }
+
+    /**
+     * Maps a relative (delta) input vector through the current touch transform's scale, so
+     * captured/external mouse deltas reach guest space the same way a touch drag does (including the
+     * content-rect fit when the game renders smaller than the desktop). Only the scale of [xform] is
+     * used (translation is irrelevant for deltas). Call on the UI thread.
+     */
+    fun transformRelativeDelta(dx: Float, dy: Float): IntArray =
+        intArrayOf(
+            (xform[0] * dx + xform[2] * dy).toInt(),
+            (xform[1] * dx + xform[3] * dy).toInt()
+        )
 
     fun updateVisibleRelativeCursor(x: Int, y: Int) {
         xServer.renderer?.updateVisualCursorPosition(x, y)
@@ -329,7 +363,7 @@ class TouchpadView(
                 if (event.isFromSource(8194)) {
                     val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                     if (xServer.isRelativeMouseMovement) {
-                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                        xServer.winHandler.mouseEvent(MouseEventFlags.MOVE or MouseEventFlags.ABSOLUTE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
                         updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                     } else {
                         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
@@ -390,7 +424,7 @@ class TouchpadView(
     private fun handleTouchDown(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
         if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE or MouseEventFlags.ABSOLUTE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
             updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
         } else {
             xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
@@ -403,7 +437,7 @@ class TouchpadView(
     private fun handleTouchMove(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
         if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE or MouseEventFlags.ABSOLUTE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
             updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
         } else {
             xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
@@ -564,7 +598,7 @@ class TouchpadView(
             2, 7 -> {
                 val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
                 if (xServer.isRelativeMouseMovement) {
-                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
+                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE or MouseEventFlags.ABSOLUTE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
                     updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
                 } else {
                     xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())

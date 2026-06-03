@@ -288,25 +288,34 @@ public class VulkanRenderer
             XForm.identity(sceneXform);
         }
 
-        // Fullscreen stretch with a game window smaller than the desktop: stretch the active game
-        // content rect to fill the surface, so the game fills the screen instead of sitting in a
-        // sub-region. The touch mapping (TouchpadView), the cursor (drawn via this same sceneXform),
-        // and the cursor confinement all use the same rect, so the drag range and the game's own
-        // cursor line up. This runs after the branch chain because the magnifier path is the active
-        // one (magnifierEnabled is always true; computeMagnifierPan returns identity at zoom <= 1).
-        // Only engages in fullscreen-stretch mode while not magnifying, and is a no-op when the
-        // content already fills the desktop (matched resolution / no dominant window).
-        if (fullscreen && magnifierZoom <= 1.0f && !screenOffsetYRelativeToCursor) {
+        // Content-fit: when a game renders smaller than the desktop it becomes a sub-window in the
+        // fixed virtual desktop. Stretch its content rect to fill (fullscreen) or to an aspect-correct
+        // letterbox (windowed) so it fills the presented area; the touch mapping (TouchpadView), the
+        // cursor (drawn via this same sceneXform), and the cursor confinement all use the same rect,
+        // so the drag range and the game's own cursor line up. Runs after the branch chain because
+        // the magnifier path is the active one (magnifierEnabled is always true; computeMagnifierPan
+        // returns identity at zoom <= 1). Skipped while magnifying; a no-op when the content already
+        // fills the desktop (matched resolution / no dominant window), so existing games are unchanged.
+        android.graphics.Rect content = null;
+        boolean contentFit = false;
+        if (magnifierZoom <= 1.0f && !screenOffsetYRelativeToCursor) {
             int screenW = xServer.screenInfo.width;
             int screenH = xServer.screenInfo.height;
-            android.graphics.Rect content;
+            boolean confined;
             try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
                 content = xServer.windowManager.getActiveContentBounds();
+                confined = xServer.grabManager.getConfinementBounds() != null;
             }
             int cw = content.width();
             int ch = content.height();
+            // In windowed (non-fullscreen) mode only fit when the game has actually confined the
+            // pointer (ClipCursor) — so a passive large windowed app on the desktop is never zoomed
+            // or cropped. In fullscreen-stretch the user explicitly asked to fill the screen, so the
+            // dominant content window is enough.
             if (cw > 0 && ch > 0
-                    && (content.left != 0 || content.top != 0 || cw != screenW || ch != screenH)) {
+                    && (content.left != 0 || content.top != 0 || cw != screenW || ch != screenH)
+                    && (fullscreen || confined)) {
+                contentFit = true;
                 float sx = (float) screenW / (float) cw;
                 float sy = (float) screenH / (float) ch;
                 XForm.makeTransform(sceneXform, -content.left * sx, -content.top * sy, sx, sy, 0);
@@ -322,6 +331,15 @@ public class VulkanRenderer
             viewY = 0;
             viewW = surfaceWidth;
             viewH = surfaceHeight;
+        } else if (contentFit) {
+            // Letterbox the content rect into the surface, aspect-correct for the content (not the
+            // whole desktop), so the smaller game fills the centered region instead of a sub-corner.
+            float aspect = Math.min((float) surfaceWidth / content.width(),
+                                    (float) surfaceHeight / content.height());
+            viewW = (int) Math.ceil(content.width() * aspect);
+            viewH = (int) Math.ceil(content.height() * aspect);
+            viewX = (int) ((surfaceWidth - content.width() * aspect) * 0.5f);
+            viewY = (int) ((surfaceHeight - content.height() * aspect) * 0.5f);
         } else {
             viewX = viewTransformation.viewOffsetX;
             viewY = viewTransformation.viewOffsetY;
