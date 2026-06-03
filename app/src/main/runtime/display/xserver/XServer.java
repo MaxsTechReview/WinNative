@@ -219,8 +219,40 @@ public class XServer {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       int beforeX = pointer.getX();
       int beforeY = pointer.getY();
-      pointer.setPosition(x, y);
+      applyGuestPointerPosition(x, y);
       logMoveAbs(beforeX, beforeY, pointer.getX(), pointer.getY());
+    }
+  }
+
+  /**
+   * Single source of truth for placing the guest-visible pointer in absolute coordinates. Honors an
+   * active confine-to grab (game ClipCursor) as a HARD clamp; otherwise clamps to the screen with a
+   * soft margin so the guest still sees motion that pushes "into" the edge (erases the invisible
+   * barrier), while the stored/reported position stays inside the screen.
+   *
+   * <p>Must be called while holding WINDOW_MANAGER + INPUT_DEVICE locks.
+   */
+  void applyGuestPointerPosition(int x, int y) {
+    android.graphics.Rect confinement = grabManager.getConfinementBounds();
+    if (confinement != null) {
+      int minX = Math.max(0, confinement.left);
+      int minY = Math.max(0, confinement.top);
+      int maxX = Math.min(screenInfo.width - 1, confinement.right - 1);
+      int maxY = Math.min(screenInfo.height - 1, confinement.bottom - 1);
+      x = (int) Mathf.clamp((double) x, (double) minX, (double) maxX);
+      y = (int) Mathf.clamp((double) y, (double) minY, (double) maxY);
+      pointer.setPosition(x, y);
+    } else {
+      short softMarginX = (short) (screenInfo.width * 0.05f);
+      short softMarginY = (short) (screenInfo.height * 0.05f);
+      x = (int) Mathf.clamp((double) x, (double) -softMarginX, (double) (screenInfo.width - 1) + softMarginX);
+      y = (int) Mathf.clamp((double) y, (double) -softMarginY, (double) (screenInfo.height - 1) + softMarginY);
+      pointer.setPosition(x, y);
+
+      int clampedX = (int) Mathf.clamp((double) x, 0.0, (double) (screenInfo.width - 1));
+      int clampedY = (int) Mathf.clamp((double) y, 0.0, (double) (screenInfo.height - 1));
+      pointer.setX(clampedX);
+      pointer.setY(clampedY);
     }
   }
 
@@ -240,36 +272,9 @@ public class XServer {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       int beforeX = pointer.getX();
       int beforeY = pointer.getY();
-      int x = beforeX + dx;
-      int y = beforeY + dy;
 
-      int maxX = screenInfo.width - 1;
-      int maxY = screenInfo.height - 1;
       android.graphics.Rect confinement = grabManager.getConfinementBounds();
-      if (confinement != null) {
-        int minX = Math.max(0, confinement.left);
-        int minY = Math.max(0, confinement.top);
-        int maxX2 = Math.min(maxX, confinement.right - 1);
-        int maxY2 = Math.min(maxY, confinement.bottom - 1);
-        x = (int)Mathf.clamp((double)x, (double)minX, (double)maxX2);
-        y = (int)Mathf.clamp((double)y, (double)minY, (double)maxY2);
-        pointer.setPosition(x, y);
-      } else {
-        short softMarginX = (short) (screenInfo.width * 0.05f);
-        short softMarginY = (short) (screenInfo.height * 0.05f);
-        x = (int)Mathf.clamp((double)x, (double)-softMarginX, (double)(screenInfo.width - 1) + softMarginX);
-        y = (int)Mathf.clamp((double)y, (double)-softMarginY, (double)(screenInfo.height - 1) + softMarginY);
-        pointer.setPosition(x, y);
-
-        int clampedX = x;
-        int clampedY = y;
-        if (x < 0) clampedX = 0;
-        else if (x > screenInfo.width - 1) clampedX = screenInfo.width - 1;
-        if (y < 0) clampedY = 0;
-        else if (y > screenInfo.height - 1) clampedY = screenInfo.height - 1;
-        pointer.setX(clampedX);
-        pointer.setY(clampedY);
-      }
+      applyGuestPointerPosition(beforeX + dx, beforeY + dy);
 
       logMoveDelta(dx, dy, beforeX, beforeY, confinement);
 
