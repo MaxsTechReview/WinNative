@@ -780,6 +780,16 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan-valideringslag</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Genstart skærmen for at anvende.</string>
     <string name="settings_debug_share_logs">Del logfiler</string>
+    <string name="settings_debug_delete_logs">Slet logfiler</string>
+    <string name="settings_debug_share_all_logs_short">Del alle</string>
+    <string name="settings_debug_delete_logs_short">Slet</string>
+    <string name="settings_debug_delete_all_logs_short">Slet alle</string>
+    <string name="settings_debug_open_logs_folder_short">Åbn loghåndtering</string>
+    <string name="settings_debug_logs_deleted">Logfiler slettet</string>
+    <string name="settings_debug_delete_logs_confirm_title">Slet logfiler?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Dette sletter permanent alle gemte logfiler (%1$s). Det kan ikke fortrydes.</string>
+    <string name="settings_debug_logs_browser_title">Logfiler</string>
+    <string name="settings_debug_log_truncated">Viser de sidste %1$s af denne logfil</string>
     <string name="settings_debug_logs_subject">WinNative-logfiler (%1$s)</string>
     <string name="settings_debug_no_logs_available">Ingen fejlfindingslogfiler tilgængelige. Aktiver fejlfindingsindstillinger først og start et spil.</string>
     <string name="settings_debug_capture_failed">Kunne ikke indfange logfiler: %1$s</string>

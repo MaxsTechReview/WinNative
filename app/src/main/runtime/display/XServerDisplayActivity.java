@@ -128,7 +128,6 @@ import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import com.winlator.cmod.shared.android.FixedFontScaleAppCompatActivity;
 import com.winlator.cmod.runtime.input.ui.InputControlsView;
 import com.winlator.cmod.runtime.input.ui.TouchpadView;
-import com.winlator.cmod.runtime.system.LogFileUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.OnGetProcessInfoListener;
 import com.winlator.cmod.runtime.display.winhandler.ProcessInfo;
@@ -279,8 +278,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private float globalCursorSpeed = 1.0f;
     private MagnifierView magnifierView;
     private Callback<String> logStreamSink;
-    private BufferedWriter logStreamWriter;
-    private File logStreamFile;
+    private com.winlator.cmod.runtime.system.SessionLogWriter sessionLogWriter;
     private int taskAffinityMask = 0;
     private int taskAffinityMaskWoW64 = 0;
     private int frameRatingWindowId = -1;
@@ -872,7 +870,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return platformInsets != null ? platformInsets : windowInsets;
         });
 
-        enableLogsMenu = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
+        enableLogsMenu = preferences.getBoolean("enable_wine_debug", false)
+                || preferences.getBoolean("enable_box64_logs", false)
+                || preferences.getBoolean("enable_fexcore_logs", false);
         // Native rendering (DRI3) is always on; the toggle was removed. Hardcoded so stale "use_dri3=false" prefs can't disable it.
         isNativeRenderingEnabled = true;
         displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
@@ -1108,7 +1108,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         ProcessHelper.removeAllDebugCallbacks();
         if (enableLogsMenu) {
-            LogFileUtils.setFilename(getExecutable());
             attachLogStreamSink();
         }
 
@@ -2514,14 +2513,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void attachLogStreamSink() {
-        try {
-            logStreamFile = LogFileUtils.getLogFile(this);
-            logStreamWriter = new BufferedWriter(new FileWriter(logStreamFile));
-        } catch (IOException e) {
-            Log.w("XServerLogs", "Failed to open log file writer", e);
-            logStreamWriter = null;
-            logStreamFile = null;
-        }
+        boolean box64LogsEnabled = preferences.getBoolean("enable_box64_logs", false);
+        boolean fexLogsEnabled = preferences.getBoolean("enable_fexcore_logs", false);
+        boolean wineDebugEnabled = preferences.getBoolean("enable_wine_debug", false);
+        boolean arm64ec = wineInfo != null && wineInfo.isArm64EC();
+        String emulator = container != null ? container.getEmulator() : null;
+        boolean usesWowbox64 = emulator != null && emulator.equalsIgnoreCase("wowbox64");
+        boolean fexActive = arm64ec && !usesWowbox64;
+        boolean box64Active = !fexActive;
+
+        sessionLogWriter = com.winlator.cmod.runtime.system.SessionLogWriter.create(
+                this,
+                getExecutable(),
+                box64LogsEnabled,
+                fexLogsEnabled,
+                wineDebugEnabled,
+                box64Active,
+                fexActive);
+
         Callback<String> sink = new Callback<String>() {
             @Override
             public synchronized void call(String line) {
@@ -2529,15 +2538,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         + "]  " + line.replace("\n", "");
                 XServerDrawerStateHolder holder = drawerStateHolder;
                 if (holder != null) holder.appendLogLine(stamped);
-                BufferedWriter writer = logStreamWriter;
-                if (writer != null) {
-                    try {
-                        writer.write(stamped);
-                        writer.write("\n");
-                        writer.flush();
-                    } catch (IOException ignored) {
-                    }
-                }
+                com.winlator.cmod.runtime.system.SessionLogWriter writer = sessionLogWriter;
+                if (writer != null) writer.write(stamped);
             }
         };
         logStreamSink = sink;
@@ -2545,60 +2547,80 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void shareLogStream() {
-        try {
-            File shareDir = new File(getCacheDir(), "log_shares");
-            if (!shareDir.exists()) shareDir.mkdirs();
-            String stamp = (String) DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date());
-            File shareFile = new File(shareDir, "session_logs_" + stamp + ".txt");
+        new Thread(() -> {
+            try {
+                com.winlator.cmod.runtime.system.SessionLogWriter writer = sessionLogWriter;
+                if (writer != null) writer.flush();
 
-            BufferedWriter writer = logStreamWriter;
-            if (writer != null) {
-                try {
-                    writer.flush();
-                } catch (IOException ignored) {
-                }
-            }
+                File shareDir = new File(getCacheDir(), "log_shares");
+                if (!shareDir.exists()) shareDir.mkdirs();
+                String stamp = (String) DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date());
 
-            File source = logStreamFile;
-            boolean wrote = false;
-            if (source != null && source.exists() && source.length() > 0) {
-                try (java.io.InputStream in = new java.io.FileInputStream(source);
-                     java.io.OutputStream out = new java.io.FileOutputStream(shareFile)) {
-                    byte[] buf = new byte[8192];
-                    int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                    out.flush();
-                    wrote = true;
-                }
-            }
+                // Collect every persisted log (box64, fexcore, wine, logcat, ...) so
+                // the share carries each emulator's own .txt file, not just one stream.
+                File[] logFiles = com.winlator.cmod.runtime.system.LogManager.getShareableLogFiles(this);
 
-            if (!wrote) {
-                XServerDrawerStateHolder holder = drawerStateHolder;
-                List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
-                if (lines.isEmpty()) {
-                    WinToast.show(this, getString(R.string.session_drawer_logs_share_empty));
-                    return;
-                }
-                try (BufferedWriter out = new BufferedWriter(new FileWriter(shareFile))) {
-                    for (String line : lines) {
-                        out.write(line);
-                        out.write("\n");
+                final File shareFile;
+                final String mimeType;
+
+                if (logFiles != null && logFiles.length > 0) {
+                    File zipFile = new File(shareDir, "session_logs_" + stamp + ".zip");
+                    try (java.util.zip.ZipOutputStream zos =
+                                 new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zipFile))) {
+                        for (File file : logFiles) {
+                            if (file == null || !file.isFile()) continue;
+                            zos.putNextEntry(new java.util.zip.ZipEntry(file.getName()));
+                            try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+                                byte[] buf = new byte[8192];
+                                int n;
+                                while ((n = in.read(buf)) > 0) zos.write(buf, 0, n);
+                            }
+                            zos.closeEntry();
+                        }
                     }
+                    shareFile = zipFile;
+                    mimeType = "application/zip";
+                } else {
+                    // Nothing persisted yet — fall back to the in-memory pane buffer.
+                    XServerDrawerStateHolder holder = drawerStateHolder;
+                    List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
+                    if (lines.isEmpty()) {
+                        runOnUiThread(() ->
+                                WinToast.show(this, getString(R.string.session_drawer_logs_share_empty)));
+                        return;
+                    }
+                    File textFile = new File(shareDir, "session_logs_" + stamp + ".txt");
+                    try (BufferedWriter out = new BufferedWriter(new FileWriter(textFile))) {
+                        for (String line : lines) {
+                            out.write(line);
+                            out.write("\n");
+                        }
+                    }
+                    shareFile = textFile;
+                    mimeType = "text/plain";
                 }
-            }
 
-            String authority = getPackageName() + ".tileprovider";
-            Uri uri = FileProvider.getUriForFile(this, authority, shareFile);
-            Intent shareIntent = new Intent(Intent.ACTION_SEND);
-            shareIntent.setType("text/plain");
-            shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
-            shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.session_drawer_logs_share_subject));
-            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(shareIntent, getString(R.string.session_drawer_logs_share_chooser)));
-        } catch (Exception e) {
-            Log.w("XServerLogs", "Failed to share log stream", e);
-            WinToast.show(this, getString(R.string.session_drawer_logs_share_failed));
-        }
+                runOnUiThread(() -> {
+                    try {
+                        String authority = getPackageName() + ".tileprovider";
+                        Uri uri = FileProvider.getUriForFile(this, authority, shareFile);
+                        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType(mimeType);
+                        shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+                        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.session_drawer_logs_share_subject));
+                        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.session_drawer_logs_share_chooser)));
+                    } catch (Exception e) {
+                        Log.w("XServerLogs", "Failed to share log stream", e);
+                        WinToast.show(this, getString(R.string.session_drawer_logs_share_failed));
+                    }
+                });
+            } catch (Exception e) {
+                Log.w("XServerLogs", "Failed to share log stream", e);
+                runOnUiThread(() ->
+                        WinToast.show(this, getString(R.string.session_drawer_logs_share_failed)));
+            }
+        }).start();
     }
 
     private void cleanupDebugDialog(String trigger) {
@@ -2611,16 +2633,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
             logStreamSink = null;
         }
-        BufferedWriter writer = logStreamWriter;
+        com.winlator.cmod.runtime.system.SessionLogWriter writer = sessionLogWriter;
         if (writer != null) {
-            try {
-                writer.close();
-            } catch (IOException ignored) {
-            } finally {
-                logStreamWriter = null;
-            }
+            writer.close();
+            sessionLogWriter = null;
         }
-        logStreamFile = null;
     }
 
     private void stopXServer(String trigger) {
@@ -2633,10 +2650,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    // SIGTERM->SIGKILL grace before end-of-session process kill. In PlanW the
-    // launcher already closed+saved the game before we reach here, so only Wine
-    // infra stubs remain — shorten it for that case; other sessions keep 2s so a
-    // slow save-on-exit isn't cut short.
     private long sessionTerminateGraceMs() {
         try {
             if (isSteamShortcut()

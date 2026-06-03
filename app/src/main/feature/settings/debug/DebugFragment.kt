@@ -10,22 +10,26 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.Density
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
-import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
+import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.util.ArrayUtils
 import org.json.JSONArray
 import java.io.File
@@ -59,105 +63,117 @@ class DebugFragment : Fragment() {
                             surface = Color(0xFF1E252E),
                         ),
                 ) {
-                    DebugScreen(
-                        state = debugState,
-                        wineChannelOptions = wineChannelOptions,
-                        onAppDebugChanged = { checked ->
-                            preferences.edit { putBoolean("enable_app_debug", checked) }
-                            com.winlator.cmod.runtime.system.ApplicationLogGate
-                                .setEnabled(checked)
-                            if (checked) {
-                                com.winlator.cmod.runtime.system.LogManager
-                                    .startAppLogging(ctx)
-                            } else {
-                                com.winlator.cmod.runtime.system.LogManager
-                                    .stopAppLogging()
+                    // Lock the font scale to the app's fixed size so the screen ignores
+                    // the device's system font-size / accessibility scaling, matching the
+                    // pattern used by Game Settings and Cloud Saves.
+                    val fixedDensity = Density(LocalDensity.current.density, fontScale = 1f)
+                    CompositionLocalProvider(LocalDensity provides fixedDensity) {
+                        DebugScreen(
+                            state = debugState,
+                            wineChannelOptions = wineChannelOptions,
+                            onAppDebugChanged = { checked ->
+                                preferences.edit { putBoolean("enable_app_debug", checked) }
+                                com.winlator.cmod.runtime.system.ApplicationLogGate
+                                    .setEnabled(checked)
+                                if (checked) {
+                                    com.winlator.cmod.runtime.system.LogManager
+                                        .startAppLogging(ctx)
+                                } else {
+                                    com.winlator.cmod.runtime.system.LogManager
+                                        .stopAppLogging()
+                                    com.winlator.cmod.runtime.system.LogManager
+                                        .updateLoggingState(ctx)
+                                }
+                                refresh()
+                            },
+                            onWineDebugChanged = { checked ->
+                                preferences.edit { putBoolean("enable_wine_debug", checked) }
                                 com.winlator.cmod.runtime.system.LogManager
                                     .updateLoggingState(ctx)
-                            }
-                            refresh()
-                        },
-                        onWineDebugChanged = { checked ->
-                            preferences.edit { putBoolean("enable_wine_debug", checked) }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onWineChannelsChanged = { channels ->
-                            preferences.edit { putString("wine_debug_channels", channels.joinToString(",")) }
-                            refresh()
-                        },
-                        onResetWineChannels = {
-                            val defaults =
-                                SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS
-                                    .split(",")
-                                    .filter { it.isNotBlank() }
-                            preferences.edit { putString("wine_debug_channels", defaults.joinToString(",")) }
-                            refresh()
-                        },
-                        onRemoveWineChannel = { channel ->
-                            val remaining = debugState.wineChannels.filterNot { it == channel }
-                            preferences.edit { putString("wine_debug_channels", remaining.joinToString(",")) }
-                            refresh()
-                        },
-                        onBox64LogsChanged = { checked ->
-                            preferences.edit { putBoolean("enable_box64_logs", checked) }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onFexcoreLogsChanged = { checked ->
-                            preferences.edit { putBoolean("enable_fexcore_logs", checked) }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onSteamLogsChanged = { checked ->
-                            com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs = checked
-                            if (checked &&
-                                timber.log.Timber
-                                    .forest()
-                                    .isEmpty()
-                            ) {
-                                timber.log.Timber.plant(timber.log.Timber.DebugTree())
-                            }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onInputLogsChanged = { checked ->
-                            preferences.edit { putBoolean("enable_input_logs", checked) }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onDownloadLogsChanged = { checked ->
-                            preferences.edit { putBoolean("enable_download_logs", checked) }
-                            com.winlator.cmod.runtime.system.LogManager
-                                .updateLoggingState(ctx)
-                            refresh()
-                        },
-                        onVulkanValidationLayersChanged = { checked ->
-                            preferences.edit { putBoolean("enable_vulkan_validation_layers", checked) }
-                            refresh()
-                        },
-                        onWnHybridModeChanged = { checked ->
-                            com.winlator.cmod.feature.stores.steam.utils.PrefManager
-                                .wnHybridMode = checked
-                            com.winlator.cmod.feature.stores.steam.service
-                                .SteamService.setHybridModeRuntime(checked)
-                            WinToast.show(
-                                ctx,
-                                if (checked) {
-                                    "WN Hybrid mode ON — libsteamclient.so is now the Steam session"
-                                } else {
-                                    "WN Hybrid mode OFF — wn-steam-client resumed"
-                                },
-                            )
-                            refresh()
-                        },
-                        onShareLogs = { shareLogs() },
-                    )
+                                refresh()
+                            },
+                            onWineChannelsChanged = { channels ->
+                                preferences.edit { putString("wine_debug_channels", channels.joinToString(",")) }
+                                refresh()
+                            },
+                            onResetWineChannels = {
+                                val defaults =
+                                    SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS
+                                        .split(",")
+                                        .filter { it.isNotBlank() }
+                                preferences.edit { putString("wine_debug_channels", defaults.joinToString(",")) }
+                                refresh()
+                            },
+                            onRemoveWineChannel = { channel ->
+                                val remaining = debugState.wineChannels.filterNot { it == channel }
+                                preferences.edit { putString("wine_debug_channels", remaining.joinToString(",")) }
+                                refresh()
+                            },
+                            onBox64LogsChanged = { checked ->
+                                preferences.edit { putBoolean("enable_box64_logs", checked) }
+                                com.winlator.cmod.runtime.system.LogManager
+                                    .updateLoggingState(ctx)
+                                refresh()
+                            },
+                            onFexcoreLogsChanged = { checked ->
+                                preferences.edit { putBoolean("enable_fexcore_logs", checked) }
+                                com.winlator.cmod.runtime.system.LogManager
+                                    .updateLoggingState(ctx)
+                                refresh()
+                            },
+                            onSteamLogsChanged = { checked ->
+                                com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs = checked
+                                if (checked &&
+                                    timber.log.Timber
+                                        .forest()
+                                        .isEmpty()
+                                ) {
+                                    timber.log.Timber.plant(timber.log.Timber.DebugTree())
+                                }
+                                com.winlator.cmod.runtime.system.LogManager
+                                    .updateLoggingState(ctx)
+                                refresh()
+                            },
+                            onInputLogsChanged = { checked ->
+                                preferences.edit { putBoolean("enable_input_logs", checked) }
+                                com.winlator.cmod.runtime.system.LogManager
+                                    .updateLoggingState(ctx)
+                                refresh()
+                            },
+                            onDownloadLogsChanged = { checked ->
+                                preferences.edit { putBoolean("enable_download_logs", checked) }
+                                com.winlator.cmod.runtime.system.LogManager
+                                    .updateLoggingState(ctx)
+                                refresh()
+                            },
+                            onVulkanValidationLayersChanged = { checked ->
+                                preferences.edit { putBoolean("enable_vulkan_validation_layers", checked) }
+                                refresh()
+                            },
+                            onWnHybridModeChanged = { checked ->
+                                com.winlator.cmod.feature.stores.steam.utils.PrefManager
+                                    .wnHybridMode = checked
+                                com.winlator.cmod.feature.stores.steam.service
+                                    .SteamService
+                                    .setHybridModeRuntime(checked)
+                                WinToast.show(
+                                    ctx,
+                                    if (checked) {
+                                        "WN Hybrid mode ON — libsteamclient.so is now the Steam session"
+                                    } else {
+                                        "WN Hybrid mode OFF — wn-steam-client resumed"
+                                    },
+                                )
+                                refresh()
+                            },
+                            onShareLogs = { shareLogs() },
+                            onDeleteLogs = { deleteLogs() },
+                            onListLogFiles = { listLogFiles() },
+                            onReadLogFile = { entry -> readLogFile(entry) },
+                            onShareLogFile = { entry -> shareLogFile(entry) },
+                            onDeleteLogFile = { entry -> deleteLogFile(entry) },
+                        )
+                    }
                 }
             }
         }
@@ -188,6 +204,11 @@ class DebugFragment : Fragment() {
                 downloadLogs = preferences.getBoolean("enable_download_logs", false),
                 vulkanValidationLayers = preferences.getBoolean("enable_vulkan_validation_layers", false),
                 wnHybridMode = com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnHybridMode,
+                logsSize =
+                    StorageUtils.formatDecimalSize(
+                        com.winlator.cmod.runtime.system.LogManager
+                            .getShareableLogsSize(requireContext()),
+                    ),
             )
     }
 
@@ -247,6 +268,97 @@ class DebugFragment : Fragment() {
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
         }
+    }
+
+    private fun deleteLogs() {
+        val ctx = requireContext()
+        val files =
+            com.winlator.cmod.runtime.system.LogManager
+                .getShareableLogFiles(ctx)
+
+        if (files.isEmpty()) {
+            WinToast.show(ctx, R.string.settings_debug_no_logs_available)
+            return
+        }
+
+        com.winlator.cmod.runtime.system.LogManager
+            .deleteShareableLogs(ctx)
+        WinToast.show(ctx, R.string.settings_debug_logs_deleted)
+        refresh()
+    }
+
+    /** Lists current log files, newest first, for the in-app browser. */
+    private fun listLogFiles(): List<LogFileEntry> {
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+        return com.winlator.cmod.runtime.system.LogManager
+            .getShareableLogFiles(requireContext())
+            .filter { it.isFile }
+            .sortedByDescending { it.lastModified() }
+            .map { file ->
+                LogFileEntry(
+                    name = file.name,
+                    sizeText = StorageUtils.formatDecimalSize(file.length()),
+                    dateText = dateFormat.format(java.util.Date(file.lastModified())),
+                    absolutePath = file.absolutePath,
+                )
+            }
+    }
+
+    /**
+     * Reads a log file for display, capped at the last 512 KB so a huge log
+     * can't exhaust memory. Logs are most useful from the tail (most recent
+     * lines), so we keep the end rather than the start.
+     */
+    private fun readLogFile(entry: LogFileEntry): String {
+        val file = File(entry.absolutePath)
+        if (!file.isFile) return ""
+        val cap = 512L * 1024
+        return try {
+            if (file.length() <= cap) {
+                file.readText()
+            } else {
+                java.io.RandomAccessFile(file, "r").use { raf ->
+                    raf.seek(file.length() - cap)
+                    val bytes = ByteArray(cap.toInt())
+                    raf.readFully(bytes)
+                    getString(R.string.settings_debug_log_truncated, StorageUtils.formatDecimalSize(cap)) +
+                        "\n\n" + String(bytes)
+                }
+            }
+        } catch (e: Exception) {
+            getString(R.string.settings_debug_capture_failed, e.message ?: "")
+        }
+    }
+
+    /** Shares a single log file from the in-app browser. */
+    private fun shareLogFile(entry: LogFileEntry) {
+        val ctx = requireContext()
+        val file = File(entry.absolutePath)
+        if (!file.isFile) {
+            WinToast.show(ctx, R.string.settings_debug_no_logs_available)
+            return
+        }
+        try {
+            val authority = "${ctx.packageName}.tileprovider"
+            val uri = FileProvider.getUriForFile(ctx, authority, file)
+            val shareIntent =
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, file.name)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.settings_debug_share_logs)))
+        } catch (e: Exception) {
+            WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+        }
+    }
+
+    /** Deletes a single log file from the in-app browser. */
+    private fun deleteLogFile(entry: LogFileEntry) {
+        File(entry.absolutePath).delete()
+        // Keep the Delete-all button's size label in sync with the new total.
+        refresh()
     }
 
     companion object {

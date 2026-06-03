@@ -847,6 +847,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Слои валидации Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Перезапустите дисплей, чтобы применить.</string>
     <string name="settings_debug_share_logs">Поделиться журналами</string>
+    <string name="settings_debug_delete_logs">Удалить журналы</string>
+    <string name="settings_debug_share_all_logs_short">Поделиться всеми</string>
+    <string name="settings_debug_delete_logs_short">Удалить</string>
+    <string name="settings_debug_delete_all_logs_short">Удалить все</string>
+    <string name="settings_debug_open_logs_folder_short">Открыть диспетчер журналов</string>
+    <string name="settings_debug_logs_deleted">Журналы удалены</string>
+    <string name="settings_debug_delete_logs_confirm_title">Удалить журналы?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Это навсегда удалит все сохраненные файлы журналов (%1$s). Действие нельзя отменить.</string>
+    <string name="settings_debug_logs_browser_title">Журналы</string>
+    <string name="settings_debug_log_truncated">Показаны последние %1$s этого журнала</string>
     <string name="settings_debug_logs_subject">Журналы WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Журналы отладки отсутствуют. Сначала включите параметры отладки и запустите игру.</string>
     <string name="settings_debug_capture_failed">Не удалось записать журналы: %1$s</string>

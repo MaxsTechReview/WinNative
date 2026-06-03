@@ -1046,13 +1046,27 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        // Screen Size
-        SettingDropdown(
-            label = stringResource(R.string.container_config_screen_size),
-            entries = state.screenSizeEntries.value,
-            selectedIndex = state.selectedScreenSize.intValue,
-            onSelected = { state.selectedScreenSize.intValue = it }
-        )
+        // Screen Size + Refresh Rate on one row (refresh rate only for per-game)
+        Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+            Box(Modifier.weight(1f)) {
+                SettingDropdown(
+                    label = stringResource(R.string.container_config_screen_size),
+                    entries = state.screenSizeEntries.value,
+                    selectedIndex = state.selectedScreenSize.intValue,
+                    onSelected = { state.selectedScreenSize.intValue = it }
+                )
+            }
+            if (!isContainer) {
+                Box(Modifier.weight(1f)) {
+                    SettingDropdown(
+                        label = stringResource(R.string.settings_general_refresh_rate),
+                        entries = state.refreshRateEntries.value,
+                        selectedIndex = state.selectedRefreshRate.intValue,
+                        onSelected = { state.selectedRefreshRate.intValue = it }
+                    )
+                }
+            }
+        }
 
         // Custom resolution fields when "Custom" is selected (index 0)
         if (state.selectedScreenSize.intValue == 0) {
@@ -1078,16 +1092,6 @@ private fun GeneralSection(
                     )
                 }
             }
-        }
-
-        if (!isContainer) {
-            Spacer(Modifier.height(SettingItemGap))
-            SettingDropdown(
-                label = stringResource(R.string.settings_general_refresh_rate),
-                entries = state.refreshRateEntries.value,
-                selectedIndex = state.selectedRefreshRate.intValue,
-                onSelected = { state.selectedRefreshRate.intValue = it }
-            )
         }
     }
 
@@ -1117,7 +1121,9 @@ private fun GeneralSection(
 
     if (!isContainer) {
         Spacer(Modifier.height(SettingSectionGap))
-        SettingGroup {
+        // Tighter vertical padding: the FPS limiter is a single switch row when
+        // collapsed, so the default card padding feels oversized top/bottom.
+        SettingGroup(verticalPadding = SettingTightGap) {
             val fpsMin = 30
             // Cap the slider at the panel's highest supported refresh rate, parsed
             // from the refresh-rate entries (e.g. "120 Hz"); fall back to 60.
@@ -1398,24 +1404,31 @@ private fun GraphicsDriverConfigCard(
                     }
                 }
 
-                Spacer(Modifier.height(SettingItemGap))
+                // BCn emulation Type/Cache only apply when emulation is enabled;
+                // hide both when "BCn Emulation" is set to "none".
+                val bcnEmulationActive = !state.gfxBcnEmulationEntries.value
+                    .getOrElse(state.gfxSelectedBcnEmulation.intValue) { "" }
+                    .equals("none", ignoreCase = true)
+                if (bcnEmulationActive) {
+                    Spacer(Modifier.height(SettingItemGap))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
-                    Box(Modifier.weight(1f)) {
-                        SettingDropdown(
-                            label = stringResource(R.string.container_graphics_bcn_emulation_type),
-                            entries = state.gfxBcnEmulationTypeEntries.value,
-                            selectedIndex = state.gfxSelectedBcnEmulationType.intValue,
-                            onSelected = { state.gfxSelectedBcnEmulationType.intValue = it }
-                        )
-                    }
-                    Box(Modifier.weight(1f)) {
-                        SettingDropdown(
-                            label = stringResource(R.string.container_graphics_bcn_emulation_cache),
-                            entries = state.gfxBcnEmulationCacheEntries.value,
-                            selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
-                            onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_bcn_emulation_type),
+                                entries = state.gfxBcnEmulationTypeEntries.value,
+                                selectedIndex = state.gfxSelectedBcnEmulationType.intValue,
+                                onSelected = { state.gfxSelectedBcnEmulationType.intValue = it }
+                            )
+                        }
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_bcn_emulation_cache),
+                                entries = state.gfxBcnEmulationCacheEntries.value,
+                                selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
+                                onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
+                            )
+                        }
                     }
                 }
 
@@ -3623,6 +3636,7 @@ private fun EmulatorSectionHeader(title: String, usage: String?) {
 @Composable
 private fun SettingGroup(
     modifier: Modifier = Modifier,
+    verticalPadding: Dp = SettingGroupPadding,
     content: @Composable () -> Unit
 ) {
     Column(
@@ -3631,7 +3645,7 @@ private fun SettingGroup(
             .clip(RoundedCornerShape(SettingGroupCorner))
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
-            .padding(SettingGroupPadding)
+            .padding(horizontal = SettingGroupPadding, vertical = verticalPadding)
     ) {
         content()
     }

@@ -934,6 +934,16 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan Validation Layers</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Restart display to apply.</string>
     <string name="settings_debug_share_logs">Share Logs</string>
+    <string name="settings_debug_delete_logs">Delete Logs</string>
+    <string name="settings_debug_share_all_logs_short">Share all</string>
+    <string name="settings_debug_delete_logs_short">Delete</string>
+    <string name="settings_debug_delete_all_logs_short">Delete all</string>
+    <string name="settings_debug_open_logs_folder_short">Open Logs Manager</string>
+    <string name="settings_debug_logs_deleted">Logs deleted</string>
+    <string name="settings_debug_delete_logs_confirm_title">Delete Logs?</string>
+    <string name="settings_debug_delete_logs_confirm_message">This permanently deletes all saved log files (%1$s). This can\'t be undone.</string>
+    <string name="settings_debug_logs_browser_title">Logs</string>
+    <string name="settings_debug_log_truncated">Showing last %1$s of this log</string>
     <string name="settings_debug_logs_subject">WinNative Logs (%1$s)</string>
     <string name="settings_debug_no_logs_available">No debug logs available. Enable debugging options first and launch a game.</string>
     <string name="settings_debug_capture_failed">Failed to capture logs: %1$s</string>

@@ -3,8 +3,6 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import androidx.preference.PreferenceManager
-import com.winlator.cmod.app.config.SettingsConfig
-import com.winlator.cmod.shared.io.FileUtils
 import java.io.Closeable
 import java.io.File
 
@@ -13,21 +11,9 @@ object LogManager {
     private var logcatProcess: Process? = null
     private var appLogProcess: Process? = null
 
-    /**
-     * Returns the external logs directory: /sdcard/WinNative/logs
-     * Falls back to cache dir if external storage is unavailable.
-     */
     @JvmStatic
     fun getLogsDir(context: Context): File {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        val customUri = prefs.getString("winlator_path_uri", null)
-        val baseDir =
-            if (customUri != null) {
-                val customPath = FileUtils.getFilePathFromUri(context, android.net.Uri.parse(customUri))
-                if (customPath != null) File(customPath) else File(SettingsConfig.DEFAULT_WINLATOR_PATH)
-            } else {
-                File(SettingsConfig.DEFAULT_WINLATOR_PATH)
-            }
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
         val dir = File(baseDir, "logs")
         if (!dir.exists()) dir.mkdirs()
         return dir
@@ -50,13 +36,6 @@ object LogManager {
         }
     }
 
-    // ── Log Rotation ──────────────────────────────────────────────────
-
-    /**
-     * Call when the app starts fresh (not just returning from a game).
-     * Renames all `.log` files to `.old.log` so the previous session's
-     * logs are preserved until the next full launch.
-     */
     @JvmStatic
     fun rotateLogsOnAppStart(context: Context) {
         if (!isAnyLoggingEnabled(context)) return
@@ -69,11 +48,6 @@ object LogManager {
         }
     }
 
-    /**
-     * Call when starting a new game/container session.
-     * Deletes ALL old logs (.old.log) and clears current .log files
-     * so fresh logs are captured for this run.
-     */
     @JvmStatic
     fun prepareForNewSession(context: Context) {
         val logsDir = getLogsDir(context)
@@ -124,13 +98,6 @@ object LogManager {
         logsDir.listFiles()?.forEach { it.delete() }
     }
 
-    // ── Application Debug (PID logcat) ───────────────────────────────
-
-    /**
-     * Starts capturing logs for the WinNative application process (by PID).
-     * Writes to `application.log` in real-time so that crash data is
-     * persisted even if the process terminates unexpectedly.
-     */
     @JvmStatic
     fun startAppLogging(context: Context) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -190,9 +157,6 @@ object LogManager {
         }
     }
 
-    /**
-     * Collects all shareable log files (both .log and .old.log).
-     */
     @JvmStatic
     fun getShareableLogFiles(context: Context): Array<File> {
         val logsDir = getLogsDir(context)
@@ -202,4 +166,12 @@ object LogManager {
                 it.isFile && (it.name.endsWith(".log") || it.name.endsWith(".old.log") || it.name.endsWith(".txt"))
             }?.toTypedArray() ?: emptyArray()
     }
+
+    /** Total size in bytes of all shareable log files (the same set that Share Logs collects). */
+    @JvmStatic
+    fun getShareableLogsSize(context: Context): Long = getShareableLogFiles(context).sumOf { it.length() }
+
+    /** Deletes all shareable log files. Returns the number of files removed. */
+    @JvmStatic
+    fun deleteShareableLogs(context: Context): Int = getShareableLogFiles(context).count { it.delete() }
 }

@@ -1,14 +1,23 @@
 /* Settings > Debug screen — Jetpack Compose / Material3.
  * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,11 +25,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,21 +49,29 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,19 +80,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // Palette (mirrors StoresScreen)
 private val BgDark = Color(0xFF18181D)
@@ -98,6 +127,16 @@ data class DebugState(
     val downloadLogs: Boolean = false,
     val vulkanValidationLayers: Boolean = false,
     val wnHybridMode: Boolean = false,
+    val logsSize: String = "0 B",
+)
+
+// One file shown in the in-app logs browser (the Open Logs viewer, used on all
+// Android versions since the OS won't let a file manager into Android/data).
+data class LogFileEntry(
+    val name: String,
+    val sizeText: String,
+    val dateText: String,
+    val absolutePath: String,
 )
 
 // Root
@@ -118,8 +157,14 @@ fun DebugScreen(
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
+    onDeleteLogs: () -> Unit,
+    onListLogFiles: () -> List<LogFileEntry>,
+    onReadLogFile: (LogFileEntry) -> String,
+    onShareLogFile: (LogFileEntry) -> Unit,
+    onDeleteLogFile: (LogFileEntry) -> Unit,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
+    var showLogsBrowser by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
@@ -135,6 +180,21 @@ fun DebugScreen(
                 onWineChannelsChanged(selected)
                 showChannelsDialog = false
             },
+        )
+    }
+
+    if (showLogsBrowser) {
+        // Fetch the file list once when the browser opens.
+        val initialFiles = remember { onListLogFiles() }
+        LogsBrowserDialog(
+            initialFiles = initialFiles,
+            logsSize = state.logsSize,
+            onReadLogFile = onReadLogFile,
+            onShareAllLogs = onShareLogs,
+            onDeleteAllLogs = onDeleteLogs,
+            onShareLogFile = onShareLogFile,
+            onDeleteLogFile = onDeleteLogFile,
+            onDismiss = { showLogsBrowser = false },
         )
     }
 
@@ -258,17 +318,23 @@ fun DebugScreen(
             )
         }
 
-        item(key = "experimental_section") {
-            SectionLabel("Experimental", modifier = Modifier.padding(top = 8.dp))
-        }
-
-
-        item(key = "tools_section") {
-            SectionLabel(stringResource(R.string.settings_debug_section_tools), modifier = Modifier.padding(top = 8.dp))
-        }
-
-        item(key = "share_logs_button") {
-            ShareLogsButton(onClick = onShareLogs)
+        item(key = "log_actions_row") {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Delete-all now lives inside the Open-Logs browser header (to the left
+                // of Share all), so this row is just the entry point into the browser.
+                LogActionButton(
+                    icon = Icons.Outlined.FolderOpen,
+                    label = stringResource(R.string.settings_debug_open_logs_folder_short),
+                    accentColor = Accent,
+                    // Always use the in-app viewer. The OS blocks file managers from
+                    // browsing Android/data on Android 11+, so the in-app browser is
+                    // the only consistent experience across every Android version.
+                    onClick = { showLogsBrowser = true },
+                )
+            }
         }
 
         item(key = "bottom_spacer") {
@@ -697,23 +763,34 @@ private fun SelectableChannelChip(
     }
 }
 
-// Share logs button
+// Log action button (Delete / Open). The two share one row, each an equal half
+// of the width. Each is a compact dark tile that mirrors the screen's card look:
+// a dark fill with a faint accent-tinted border and the icon in a small accent
+// box to the left of the label. An optional sublabel shows the current log size
+// beneath the label.
 @Composable
-private fun ShareLogsButton(onClick: () -> Unit) {
+private fun RowScope.LogActionButton(
+    icon: ImageVector,
+    label: String,
+    accentColor: Color,
+    onClick: () -> Unit,
+    sublabel: String? = null,
+) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "shareScale",
+        label = "logActionScale",
     )
-    Box(
+    Row(
         modifier =
             Modifier
-                .fillMaxWidth()
+                .weight(1f)
+                .fillMaxHeight()
                 .scale(scale)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Accent.copy(alpha = 0.12f))
-                .border(1.dp, Accent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -723,23 +800,585 @@ private fun ShareLogsButton(onClick: () -> Unit) {
                         },
                         onTap = { onClick() },
                     )
-                }.padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
+                }.padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier =
+                Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(accentColor.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
-                imageVector = Icons.Outlined.Share,
+                imageVector = icon,
                 contentDescription = null,
-                tint = Accent,
+                tint = accentColor,
                 modifier = Modifier.size(16.dp),
             )
-            Spacer(Modifier.width(8.dp))
+        }
+        Spacer(Modifier.width(9.dp))
+        Column {
             Text(
-                text = stringResource(R.string.settings_debug_share_logs),
-                color = Accent,
-                fontSize = 14.sp,
+                text = label,
+                color = TextPrimary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            if (sublabel != null) {
+                Text(
+                    text = sublabel,
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+// In-app logs browser — the "Open Logs" viewer used on every Android version
+// (the OS won't let a file manager into the app's Android/data directory). The
+// app owns the directory, so it can list, view, share, and delete files directly.
+@Composable
+private fun LogsBrowserDialog(
+    initialFiles: List<LogFileEntry>,
+    logsSize: String,
+    onReadLogFile: (LogFileEntry) -> String,
+    onShareAllLogs: () -> Unit,
+    onDeleteAllLogs: () -> Unit,
+    onShareLogFile: (LogFileEntry) -> Unit,
+    onDeleteLogFile: (LogFileEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var files by remember { mutableStateOf(initialFiles) }
+    var selected by remember { mutableStateOf<LogFileEntry?>(null) }
+    var showDeleteAllConfirm by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        BoxWithConstraints(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            val availableHeight = maxHeight
+            Box(
+                modifier =
+                    Modifier
+                        .widthIn(max = 560.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = availableHeight)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxHeight()) {
+                    AnimatedContent(
+                        targetState = selected,
+                        transitionSpec = {
+                            val forward = targetState != null
+                            val direction =
+                                if (forward) {
+                                    AnimatedContentTransitionScope.SlideDirection.Left
+                                } else {
+                                    AnimatedContentTransitionScope.SlideDirection.Right
+                                }
+                            (slideIntoContainer(direction, tween(280)) + fadeIn(tween(280)))
+                                .togetherWith(
+                                    slideOutOfContainer(direction, tween(280)) + fadeOut(tween(280)),
+                                )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        label = "logsBrowserNav",
+                    ) { target ->
+                        if (target == null) {
+                            LogFileListView(
+                                files = files,
+                                onOpen = { selected = it },
+                                onShareAllLogs = onShareAllLogs,
+                                onDeleteAllLogs = { showDeleteAllConfirm = true },
+                                onShareLogFile = onShareLogFile,
+                                onDeleteLogFile = { entry ->
+                                    onDeleteLogFile(entry)
+                                    files = files.filterNot { it.absolutePath == entry.absolutePath }
+                                },
+                                onClose = onDismiss,
+                            )
+                        } else {
+                            LogDetailView(
+                                entry = target,
+                                onBack = { selected = null },
+                                onClose = onDismiss,
+                                onReadLogFile = onReadLogFile,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDeleteAllConfirm) {
+        Dialog(onDismissRequest = { showDeleteAllConfirm = false }) {
+            PopupDialog(
+                title = stringResource(R.string.settings_debug_delete_logs_confirm_title),
+                message = stringResource(R.string.settings_debug_delete_logs_confirm_message, logsSize),
+                confirmLabel = stringResource(R.string.settings_debug_delete_logs_short),
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                icon = Icons.Outlined.Delete,
+                accentColor = Warning,
+                onCancel = { showDeleteAllConfirm = false },
+                onConfirm = {
+                    showDeleteAllConfirm = false
+                    onDeleteAllLogs()
+                    files = emptyList()
+                },
             )
         }
     }
 }
+
+// Small accent pill in the logs-browser header that shares all logs at once
+// (the same action the standalone Share button used to perform).
+@Composable
+private fun LogsHeaderShareAll(onClick: () -> Unit) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        label = "shareAllScale",
+    )
+    Row(
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Share,
+            contentDescription = null,
+            tint = Accent,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.settings_debug_share_all_logs_short),
+            color = Accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        label = "deleteAllScale",
+    )
+    Row(
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, Warning.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.DeleteSweep,
+            contentDescription = null,
+            tint = Warning,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.settings_debug_delete_all_logs_short),
+            color = Warning,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun LogsHeaderIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    tint: Color = TextSecondary,
+    iconSize: Dp = 18.dp,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(onTap = { onClick() })
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.LogFileList(
+    files: List<LogFileEntry>,
+    onOpen: (LogFileEntry) -> Unit,
+    onShare: (LogFileEntry) -> Unit,
+    onDelete: (LogFileEntry) -> Unit,
+) {
+    if (files.isEmpty()) {
+        Text(
+            text = stringResource(R.string.settings_debug_no_logs_available),
+            color = TextSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(vertical = 24.dp),
+        )
+        return
+    }
+    LazyColumn(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(files, key = { it.absolutePath }) { entry ->
+            LogFileRow(
+                entry = entry,
+                onOpen = { onOpen(entry) },
+                onShare = { onShare(entry) },
+                onDelete = { onDelete(entry) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LogFileRow(
+    entry: LogFileEntry,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(IconBoxBg)
+                .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                .pointerInput(entry.absolutePath) {
+                    detectTapGestures(onTap = { onOpen() })
+                }.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = entry.name,
+                color = TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${entry.sizeText} · ${entry.dateText}",
+                color = TextSecondary,
+                fontSize = 11.sp,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        LogRowIconButton(
+            icon = Icons.Outlined.Share,
+            tint = Accent,
+            contentDescription = stringResource(R.string.settings_debug_share_logs),
+            onClick = onShare,
+        )
+        Spacer(Modifier.width(12.dp))
+        LogRowIconButton(
+            icon = Icons.Outlined.Delete,
+            tint = Warning,
+            contentDescription = stringResource(R.string.settings_debug_delete_logs),
+            onClick = onDelete,
+        )
+    }
+}
+
+@Composable
+private fun LogRowIconButton(
+    icon: ImageVector,
+    tint: Color,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(onTap = { onClick() })
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun LogFileListView(
+    files: List<LogFileEntry>,
+    onOpen: (LogFileEntry) -> Unit,
+    onShareAllLogs: () -> Unit,
+    onDeleteAllLogs: () -> Unit,
+    onShareLogFile: (LogFileEntry) -> Unit,
+    onDeleteLogFile: (LogFileEntry) -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_debug_logs_browser_title),
+                color = TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            LogsHeaderDeleteAll(onClick = onDeleteAllLogs)
+            Spacer(Modifier.width(16.dp))
+            LogsHeaderShareAll(onClick = onShareAllLogs)
+            Spacer(Modifier.width(8.dp))
+            LogsHeaderIcon(
+                icon = Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.common_ui_close),
+                onClick = onClose,
+                tint = TextPrimary,
+                iconSize = 22.dp,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        LogFileList(
+            files = files,
+            onOpen = onOpen,
+            onShare = onShareLogFile,
+            onDelete = onDeleteLogFile,
+        )
+    }
+}
+
+@Composable
+private fun LogDetailView(
+    entry: LogFileEntry,
+    onBack: () -> Unit,
+    onClose: () -> Unit,
+    onReadLogFile: (LogFileEntry) -> String,
+) {
+    var content by remember(entry.absolutePath) { mutableStateOf<String?>(null) }
+    LaunchedEffect(entry.absolutePath) {
+        content = withContext(Dispatchers.IO) { onReadLogFile(entry) }
+    }
+    val titleAlpha by animateFloatAsState(
+        targetValue = if (content != null) 1f else 0f,
+        animationSpec = tween(durationMillis = 320),
+        label = "logTitleFade",
+    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LogsHeaderIcon(
+                icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = stringResource(R.string.common_ui_back),
+                onClick = onBack,
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = entry.name,
+                color = TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .alpha(titleAlpha),
+            )
+            Spacer(Modifier.width(6.dp))
+            LogsHeaderIcon(
+                icon = Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.common_ui_close),
+                onClick = onClose,
+                tint = TextPrimary,
+                iconSize = 22.dp,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        LogContentBody(
+            content = content,
+            entry = entry,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun LogContentBody(
+    content: String?,
+    entry: LogFileEntry,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        AnimatedVisibility(
+            visible = content == null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            CircularProgressIndicator(
+                color = Accent,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(40.dp),
+            )
+        }
+        AnimatedVisibility(
+            visible = content != null,
+            enter = fadeIn(animationSpec = tween(durationMillis = 320)),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "${entry.sizeText} · ${entry.dateText}",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                val logScrollState = rememberScrollState()
+                val scrollbarAlpha by animateFloatAsState(
+                    targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
+                    animationSpec =
+                        tween(
+                            durationMillis = if (logScrollState.isScrollInProgress) 150 else 500,
+                            delayMillis = if (logScrollState.isScrollInProgress) 0 else 300,
+                        ),
+                    label = "scrollbarAlpha",
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SurfaceDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                            .verticalScrollbar(logScrollState, TextSecondary.copy(alpha = 0.6f)) { scrollbarAlpha }
+                            .padding(10.dp)
+                            .verticalScroll(logScrollState),
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = content.orEmpty(),
+                            color = TextPrimary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.verticalScrollbar(
+    scrollState: ScrollState,
+    thumbColor: Color,
+    width: Dp = 3.dp,
+    minThumbHeight: Dp = 24.dp,
+    edgePadding: Dp = 5.dp,
+    alpha: () -> Float = { 1f },
+): Modifier =
+    drawWithContent {
+        drawContent()
+        val thumbAlpha = alpha().coerceIn(0f, 1f)
+        val maxValue = scrollState.maxValue
+        if (maxValue <= 0 || thumbAlpha <= 0f) return@drawWithContent
+        val widthPx = width.toPx()
+        val padPx = edgePadding.toPx()
+        val viewportHeight = size.height
+        val trackHeight = (viewportHeight - 2 * padPx).coerceAtLeast(0f)
+        val contentHeight = viewportHeight + maxValue
+        val thumbHeight =
+            (trackHeight * (viewportHeight / contentHeight))
+                .coerceIn(minThumbHeight.toPx().coerceAtMost(trackHeight), trackHeight)
+        val thumbOffsetY = padPx + (scrollState.value.toFloat() / maxValue) * (trackHeight - thumbHeight)
+        drawRoundRect(
+            color = thumbColor,
+            topLeft = Offset(size.width - widthPx - padPx, thumbOffsetY),
+            size = Size(widthPx, thumbHeight),
+            cornerRadius = CornerRadius(widthPx / 2f, widthPx / 2f),
+            alpha = thumbAlpha,
+        )
+    }
