@@ -266,6 +266,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String startupSelection;
     private WineInfo wineInfo;
     private final EnvVars envVars = new EnvVars();
+    // True when the user picked a launch exe that differs from the app's Steam-configured
+    // launch entry. In that case the in-Wine launcher skips Steam's LaunchApp (which would
+    // spawn the configured entry, e.g. a pre-launcher) and CreateProcess'es the selected
+    // exe directly. Recomputed per launch in getWineStartCommand(); consumed where the
+    // WN_STEAM_* launcher env is published.
+    private boolean wnSteamDirectExeOverride = false;
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
@@ -5526,6 +5532,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         envVars.put("WN_STEAM_STEAMID", planWSid);
                         envVars.put("WN_STEAM_TOKEN", planWTok);
                         envVars.put("WN_STEAM_APPID", String.valueOf(bsAppId));
+                        if (wnSteamDirectExeOverride) {
+                            envVars.put("WN_STEAM_DIRECT_EXE", "1");
+                            Log.i("XServerDisplayActivity",
+                                    "Steam Launcher: WN_STEAM_DIRECT_EXE=1 — user-overridden "
+                                    + "launch exe; launcher will CreateProcess the selected exe "
+                                    + "directly (Steam LaunchApp skipped)");
+                        }
                         File planWCa = new File(container.getRootDir(),
                                 ".wine/drive_c/Program Files (x86)/Steam/wnsteam_cacert.pem");
                         if (planWCa.exists() && planWCa.length() > 0) {
@@ -6641,6 +6654,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             if (gameSource.equals("STEAM")) {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
+                // Reset per launch; set below once the launch exe is resolved.
+                wnSteamDirectExeOverride = false;
                 String steamExtraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
                 steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
 
@@ -6691,6 +6706,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     // Goldberg launches through steamapps/common to avoid drive-letter drift.
                     String gameDirName = (gameInstPath != null) ? new File(gameInstPath).getName() : "";
                     String relativeExe = resolveRelativeGameExe(appId, gameInstPath);
+                    // If the resolved exe isn't the app's Steam-configured launch entry, the
+                    // user overrode it — tell the launcher to skip LaunchApp (which would spawn
+                    // the configured entry) and start the selected exe directly.
+                    wnSteamDirectExeOverride = isUserOverriddenSteamExe(appId, relativeExe);
 
                     if (!relativeExe.isEmpty() && !gameDirName.isEmpty()) {
                         String steamGameExe = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\"
@@ -7197,6 +7216,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return resolvedAbsolutePath
                 .substring(gameInstallPrefix.length())
                 .replace(File.separatorChar, '/');
+    }
+
+    /**
+     * True when the resolved launch exe differs from the app's Steam-configured launch
+     * entry ({@link SteamBridge#getInstalledExe}, i.e. the appinfo {@code config.launch}
+     * target Steam's LaunchApp would spawn). In that case the in-Wine launcher must skip
+     * LaunchApp and CreateProcess the user's selected exe directly. Returns {@code false}
+     * when the configured entry is unknown, so the default LaunchApp path is preserved.
+     */
+    private boolean isUserOverriddenSteamExe(int appId, String resolvedRelativeExe) {
+        if (resolvedRelativeExe == null || resolvedRelativeExe.isEmpty()) return false;
+        String steamDefaultExe = SteamBridge.getInstalledExe(appId);
+        if (steamDefaultExe == null || steamDefaultExe.isEmpty()) return false;
+        String resolved = exeBaseName(resolvedRelativeExe);
+        String configured = exeBaseName(steamDefaultExe);
+        return !resolved.isEmpty() && !configured.isEmpty()
+                && !resolved.equalsIgnoreCase(configured);
+    }
+
+    /** Base file name of a Windows/Unix exe path (handles both '\\' and '/' separators). */
+    private static String exeBaseName(String path) {
+        if (path == null) return "";
+        String normalized = path.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        if (slash >= 0) normalized = normalized.substring(slash + 1);
+        return normalized.trim();
     }
 
     private String resolveRelativeGameExe(int appId, String gameInstPath) {

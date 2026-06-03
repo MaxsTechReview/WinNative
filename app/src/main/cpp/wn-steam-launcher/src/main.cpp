@@ -1161,7 +1161,22 @@ int main(int argc, char** argv) {
     bool launchedViaApp = false;
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";
-    if (engine && appId != 0) {
+
+    // When the user overrides the launch target (picks their own exe instead of the
+    // app's Steam-configured launch entry), Steam's LaunchApp would still spawn the
+    // configured entry (e.g. a pre-launcher), not the chosen exe — so skip LaunchApp
+    // entirely and start the selected exe directly via CreateProcess. The Steam session
+    // (login/steamservice/cloud) is already established above, and the game's
+    // SteamAPI_Init attaches to it through the inherited SteamAppId env.
+    const char* directExeEnv = getenv("WN_STEAM_DIRECT_EXE");
+    const bool directExe = directExeEnv && directExeEnv[0] != '\0';
+
+    if (directExe) {
+        log_line("[wn-launcher] WN_STEAM_DIRECT_EXE set — user-selected exe \"%s\"; "
+                 "skipping Steam LaunchApp, launching directly via CreateProcess",
+                 exeName);
+        launchFailureReason = "direct-exe mode (LaunchApp skipped by override)";
+    } else if (engine && appId != 0) {
         void** engine_vt = *(void***) engine;
         typedef void* (WN_THISCALL *GetIClientAppManagerFn)(void* self, int hUser, int hPipe);
         GetIClientAppManagerFn getAppMgr = (GetIClientAppManagerFn)
@@ -1370,9 +1385,14 @@ int main(int argc, char** argv) {
     // "LaunchApp dispatched … never appeared … falling back to CreateProcess"
     // markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
     if (!launchedViaApp) {
-        log_line("[wn-launcher] LaunchApp dispatched but \"%s\" never appeared "
-                 "— falling back to CreateProcess (%s)",
-                 exeName, launchFailureReason);
+        if (directExe) {
+            log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "
+                     "CreateProcess (Steam LaunchApp skipped)", exeName);
+        } else {
+            log_line("[wn-launcher] LaunchApp dispatched but \"%s\" never appeared "
+                     "— falling back to CreateProcess (%s)",
+                     exeName, launchFailureReason);
+        }
         launchedViaFallback = create_process_game(gameExe, exeName);
     }
 
