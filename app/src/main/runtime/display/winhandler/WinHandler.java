@@ -86,7 +86,13 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
-  private Map<Integer, Integer> deviceToSlot = new HashMap();
+  // ConcurrentHashMap (not HashMap): triggerVibration() iterates this map on the
+  // vibration-listener thread while the input thread mutates it (controller
+  // hotplug / slot rebalance). A plain HashMap's fail-fast iterator would throw
+  // ConcurrentModificationException, which is uncaught in the listener loop and
+  // would kill the vibration thread (silently stopping all rumble). The weakly
+  // consistent iterator here never throws. No null keys/values are ever stored.
+  private Map<Integer, Integer> deviceToSlot = new java.util.concurrent.ConcurrentHashMap<>();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
   private Set<Integer> usedSlots = new HashSet();
