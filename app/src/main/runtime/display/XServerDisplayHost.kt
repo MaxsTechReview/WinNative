@@ -115,13 +115,14 @@ private fun XServerDisplayHost(
             with(density) { px.toDp() }.coerceIn(24.dp, 56.dp)
         }
     val viewConfiguration = LocalViewConfiguration.current
-    var drawerOffsetPx by remember { mutableFloatStateOf(0f) }
+    val closedFallbackPx = with(density) { -(DrawerWidth + DrawerStartPadding).toPx() }
+    var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
     var drawerWidthPx by remember { mutableFloatStateOf(0f) }
     val drawerClosedOffset =
         if (drawerWidthPx > 0f) {
             -drawerWidthPx - with(density) { DrawerStartPadding.toPx() }
         } else {
-            0f
+            closedFallbackPx
         }
     val drawerOpenOffset = 0f
     // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
@@ -139,7 +140,7 @@ private fun XServerDisplayHost(
     }
 
     LaunchedEffect(drawerWidthPx) {
-        if (drawerWidthPx > 0f && drawerOffsetPx == 0f && !stateHolder.isDrawerOpen) {
+        if (drawerWidthPx > 0f && drawerOffsetPx < 0f && !stateHolder.isDrawerOpen) {
             drawerOffsetPx = drawerClosedOffset
         }
     }
