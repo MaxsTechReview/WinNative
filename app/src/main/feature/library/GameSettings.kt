@@ -1046,7 +1046,6 @@ private fun GeneralSection(
     Spacer(Modifier.height(SettingSectionGap))
 
     SettingGroup {
-        // Screen Size + Refresh Rate on one row (refresh rate only for per-game)
         Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingDropdown(
@@ -1121,8 +1120,6 @@ private fun GeneralSection(
 
     if (!isContainer) {
         Spacer(Modifier.height(SettingSectionGap))
-        // Tighter vertical padding: the FPS limiter is a single switch row when
-        // collapsed, so the default card padding feels oversized top/bottom.
         SettingGroup(verticalPadding = SettingTightGap) {
             val fpsMin = 30
             // Cap the slider at the panel's highest supported refresh rate, parsed
@@ -1404,8 +1401,6 @@ private fun GraphicsDriverConfigCard(
                     }
                 }
 
-                // BCn emulation Type/Cache only apply when emulation is enabled;
-                // hide both when "BCn Emulation" is set to "none".
                 val bcnEmulationActive = !state.gfxBcnEmulationEntries.value
                     .getOrElse(state.gfxSelectedBcnEmulation.intValue) { "" }
                     .equals("none", ignoreCase = true)

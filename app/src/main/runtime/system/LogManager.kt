@@ -167,11 +167,11 @@ object LogManager {
             }?.toTypedArray() ?: emptyArray()
     }
 
-    /** Total size in bytes of all shareable log files (the same set that Share Logs collects). */
+    /** Total bytes of all shareable log files. */
     @JvmStatic
     fun getShareableLogsSize(context: Context): Long = getShareableLogFiles(context).sumOf { it.length() }
 
-    /** Deletes all shareable log files. Returns the number of files removed. */
+    /** Deletes all shareable log files; returns the count removed. */
     @JvmStatic
     fun deleteShareableLogs(context: Context): Int = getShareableLogFiles(context).count { it.delete() }
 }

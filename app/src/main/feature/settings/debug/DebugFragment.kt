@@ -63,9 +63,6 @@ class DebugFragment : Fragment() {
                             surface = Color(0xFF1E252E),
                         ),
                 ) {
-                    // Lock the font scale to the app's fixed size so the screen ignores
-                    // the device's system font-size / accessibility scaling, matching the
-                    // pattern used by Game Settings and Cloud Saves.
                     val fixedDensity = Density(LocalDensity.current.density, fontScale = 1f)
                     CompositionLocalProvider(LocalDensity provides fixedDensity) {
                         DebugScreen(
@@ -287,7 +284,7 @@ class DebugFragment : Fragment() {
         refresh()
     }
 
-    /** Lists current log files, newest first, for the in-app browser. */
+    /** Log files, newest first. */
     private fun listLogFiles(): List<LogFileEntry> {
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
         return com.winlator.cmod.runtime.system.LogManager
@@ -304,11 +301,7 @@ class DebugFragment : Fragment() {
             }
     }
 
-    /**
-     * Reads a log file for display, capped at the last 512 KB so a huge log
-     * can't exhaust memory. Logs are most useful from the tail (most recent
-     * lines), so we keep the end rather than the start.
-     */
+    /** Reads a log file, capped at the last 512 KB (the tail). */
     private fun readLogFile(entry: LogFileEntry): String {
         val file = File(entry.absolutePath)
         if (!file.isFile) return ""
@@ -330,7 +323,7 @@ class DebugFragment : Fragment() {
         }
     }
 
-    /** Shares a single log file from the in-app browser. */
+    /** Shares one log file. */
     private fun shareLogFile(entry: LogFileEntry) {
         val ctx = requireContext()
         val file = File(entry.absolutePath)
@@ -354,10 +347,9 @@ class DebugFragment : Fragment() {
         }
     }
 
-    /** Deletes a single log file from the in-app browser. */
+    /** Deletes one log file. */
     private fun deleteLogFile(entry: LogFileEntry) {
         File(entry.absolutePath).delete()
-        // Keep the Delete-all button's size label in sync with the new total.
         refresh()
     }
 
