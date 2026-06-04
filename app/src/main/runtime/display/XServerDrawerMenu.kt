@@ -3004,7 +3004,7 @@ private fun TaskManagerActionPopup(
                     .widthIn(min = (150f * paneScale).dp, max = (240f * paneScale).dp)
                     .clip(shape)
                     .background(PaneSurfaceColor)
-                    .border(1.dp, DrawerAccent.copy(alpha = 0.45f), shape)
+                    .border(1.dp, RestingCardBorder, shape)
                     .padding((5f * paneScale).dp),
             verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
             content = content,
