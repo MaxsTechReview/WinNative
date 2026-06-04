@@ -16,7 +16,7 @@ object GlassesManager {
         val refreshHz: Int = 120,
         val brightness: Int = -1, // -1 = full (100%) until the user picks a level
         val volume: Int = -1,     // -1 = full (100%) until the user picks a level
-        val sunblock: Boolean = false,
+        val sunblock: Boolean = true, // glasses ship with the film on; match that by default
         val threeD: Boolean = false,
         val renderHeight: Int = 0, // 0 = native panel resolution; otherwise a render-scaling height
     )
@@ -104,7 +104,7 @@ object GlassesManager {
             p.getInt("refreshHz", 120),
             p.getInt("brightness", -1),
             p.getInt("volume", -1),
-            p.getBoolean("sunblock", false),
+            p.getBoolean("sunblock", true),
             p.getBoolean("threeD", false),
             p.getInt("renderHeight", 0),
         )
