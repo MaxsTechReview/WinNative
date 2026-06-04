@@ -2017,84 +2017,117 @@ class UnifiedActivity :
     private fun GlassesSettingsSheet(onDismiss: () -> Unit) {
         val gm = com.winlator.cmod.runtime.display.GlassesManager
         val settings by gm.settings.collectAsState()
-        Dialog(onDismissRequest = onDismiss) {
+        val brightnessMax = gm.brightnessMax()
+        val volumeMax = gm.volumeMax()
+        val brightness = if (settings.brightness < 0) brightnessMax else settings.brightness
+        val volume = if (settings.volume < 0) volumeMax else settings.volume
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
             androidx.compose.material3.Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = SurfaceDark,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(0.82f),
             ) {
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
-                        .padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Accent, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Accent, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text(gm.modelName(), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text(gm.modelName(), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.glasses_panel_refresh), color = TextSecondary, fontSize = 13.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(60, 90, 120).forEach { hz ->
-                                val selected = settings.refreshHz == hz
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(if (selected) Accent else TextSecondary.copy(alpha = 0.15f))
-                                        .clickable { gm.setRefreshHz(hz) }
-                                        .padding(vertical = 11.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text("$hz Hz", color = if (selected) SurfaceDark else TextPrimary,
-                                        fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                GlassesLabel(stringResource(R.string.glasses_panel_refresh))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(60, 90, 120).forEach { hz ->
+                                        val selected = settings.refreshHz == hz
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(11.dp))
+                                                .background(if (selected) Accent else TextSecondary.copy(alpha = 0.12f))
+                                                .clickable { gm.setRefreshHz(hz) }
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text("$hz", color = if (selected) SurfaceDark else TextPrimary,
+                                                fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
                                 }
+                            }
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_brightness),
+                                brightness, brightnessMax) { gm.setBrightness(it) }
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_volume),
+                                volume, volumeMax) { gm.setVolume(it) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                GlassesToggleTile(stringResource(R.string.glasses_panel_sunblock),
+                                    settings.sunblock, Modifier.weight(1f)) { gm.setSunblock(it) }
+                                GlassesToggleTile(stringResource(R.string.session_drawer_output_3d),
+                                    settings.threeD, Modifier.weight(1f)) { gm.set3D(it) }
                             }
                         }
                     }
-                    GlassesSlider(stringResource(R.string.session_drawer_output_brightness),
-                        settings.brightness.coerceAtLeast(0), gm.brightnessMax()) { gm.setBrightness(it) }
-                    GlassesSlider(stringResource(R.string.session_drawer_output_volume),
-                        settings.volume, gm.volumeMax()) { gm.setVolume(it) }
-                    GlassesToggle(stringResource(R.string.glasses_panel_sunblock), settings.sunblock) { gm.setSunblock(it) }
-                    GlassesToggle(stringResource(R.string.session_drawer_output_3d), settings.threeD) { gm.set3D(it) }
                 }
             }
         }
     }
 
     @Composable
-    private fun GlassesSlider(label: String, value: Int, max: Int, onChange: (Int) -> Unit) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    private fun GlassesLabel(text: String) {
+        Text(text, color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+
+    @Composable
+    private fun GlassesPercentSlider(label: String, level: Int, max: Int, onChange: (Int) -> Unit) {
+        val pct = if (max > 0) Math.round(level * 100f / max) else 0
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(label, color = TextSecondary, fontSize = 13.sp)
-                Text("$value / $max", color = TextPrimary, fontSize = 13.sp)
+                GlassesLabel(label)
+                Text("$pct%", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
             androidx.compose.material3.Slider(
-                value = value.toFloat(),
+                value = level.toFloat(),
                 onValueChange = { onChange(it.roundToInt()) },
                 valueRange = 0f..max.toFloat(),
                 steps = (max - 1).coerceAtLeast(0),
                 colors = androidx.compose.material3.SliderDefaults.colors(
-                    thumbColor = Accent, activeTrackColor = Accent),
+                    thumbColor = Accent,
+                    activeTrackColor = Accent,
+                    inactiveTrackColor = TextSecondary.copy(alpha = 0.2f),
+                ),
             )
         }
     }
 
     @Composable
-    private fun GlassesToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    private fun GlassesToggleTile(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+        Column(
+            modifier = modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(if (checked) Accent.copy(alpha = 0.16f) else TextSecondary.copy(alpha = 0.08f))
+                .clickable { onChange(!checked) }
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(label, color = TextPrimary, fontSize = 15.sp)
+            Text(label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             androidx.compose.material3.Switch(
                 checked = checked,
                 onCheckedChange = onChange,
-                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Accent),
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Accent,
+                ),
             )
         }
     }

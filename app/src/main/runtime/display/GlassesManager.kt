@@ -14,8 +14,8 @@ object GlassesManager {
 
     data class Settings(
         val refreshHz: Int = 120,
-        val brightness: Int = -1, // -1 = leave at the panel default until the user sets it
-        val volume: Int = 4,
+        val brightness: Int = -1, // -1 = full (100%) until the user picks a level
+        val volume: Int = -1,     // -1 = full (100%) until the user picks a level
         val sunblock: Boolean = false,
         val threeD: Boolean = false,
         val renderHeight: Int = 0, // 0 = native panel resolution; otherwise a render-scaling height
@@ -56,7 +56,7 @@ object GlassesManager {
 
     fun currentRefreshHz(): Int = _settings.value.refreshHz
     fun currentBrightness(): Int = _settings.value.brightness.let { if (it >= 0) it else brightnessMax() }
-    fun currentVolume(): Int = _settings.value.volume
+    fun currentVolume(): Int = _settings.value.volume.let { if (it >= 0) it else volumeMax() }
     fun isSunblock(): Boolean = _settings.value.sunblock
     fun is3D(): Boolean = _settings.value.threeD
     fun currentRenderHeight(): Int = _settings.value.renderHeight
@@ -74,8 +74,8 @@ object GlassesManager {
         val s = _settings.value
         viture?.let { v ->
             v.forceRefreshHz(s.refreshHz)
-            if (s.brightness >= 0) v.setBrightness(s.brightness)
-            v.setVolume(s.volume)
+            v.setBrightness(if (s.brightness < 0) v.brightnessMax() else s.brightness)
+            v.setVolume(if (s.volume < 0) v.volumeMax() else s.volume)
             v.setFilm(if (s.sunblock) 1 else 0)
             v.set3D(s.threeD)
         }
@@ -103,7 +103,7 @@ object GlassesManager {
         return Settings(
             p.getInt("refreshHz", 120),
             p.getInt("brightness", -1),
-            p.getInt("volume", 4),
+            p.getInt("volume", -1),
             p.getBoolean("sunblock", false),
             p.getBoolean("threeD", false),
             p.getInt("renderHeight", 0),
