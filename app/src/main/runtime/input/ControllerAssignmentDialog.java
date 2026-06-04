@@ -185,7 +185,7 @@ public class ControllerAssignmentDialog {
       vibrateBoxes[i].setOnCheckedChangeListener(
           (b, checked) -> {
             controllerManager.setVibrationEnabled(slotIndex, checked);
-            // Apply to live WinHandler state so it takes effect without an activity restart.
+            // Apply live so it takes effect without an activity restart.
             if (winHandler != null) {
               winHandler.setVibrationEnabledForSlot(slotIndex, checked);
             }

@@ -2625,8 +2625,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 if (!shareDir.exists()) shareDir.mkdirs();
                 String stamp = (String) DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date());
 
-                // Collect every persisted log (box64, fexcore, wine, logcat, ...) so
-                // the share carries each emulator's own .txt file, not just one stream.
                 File[] logFiles = com.winlator.cmod.runtime.system.LogManager.getShareableLogFiles(this);
 
                 final File shareFile;
@@ -2650,7 +2648,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     shareFile = zipFile;
                     mimeType = "application/zip";
                 } else {
-                    // Nothing persisted yet — fall back to the in-memory pane buffer.
                     XServerDrawerStateHolder holder = drawerStateHolder;
                     List<String> lines = holder != null ? holder.snapshotLogLines() : new ArrayList<>();
                     if (lines.isEmpty()) {
@@ -4155,6 +4152,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onTaskManagerEndProcess(String name) {
                         if (winHandler != null) winHandler.killProcess(name);
+                    }
+
+                    @Override
+                    public void onTaskManagerBringToFront(String name) {
+                        if (winHandler != null) winHandler.bringToFront(name);
+                        closeDrawerMenu();
                     }
 
                     @Override

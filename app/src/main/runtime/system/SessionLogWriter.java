@@ -13,7 +13,7 @@ import java.util.Date;
 public final class SessionLogWriter {
   private static final String TAG = "SessionLogWriter";
 
-  /** Keep only the newest N session files per category to bound storage use. */
+  /** Max session files kept per category. */
   private static final int MAX_SESSION_FILES_PER_CATEGORY = 15;
 
   private BufferedWriter box64Writer;
@@ -36,8 +36,6 @@ public final class SessionLogWriter {
       String exe = sanitize(executable);
       String stamp = DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date()).toString();
 
-      // Both toggles on but only one emulator runs: route to the active one so
-      // we don't create a misleading empty file for the inactive emulator.
       boolean routeBox64 = box64LogsEnabled;
       boolean routeFex = fexLogsEnabled;
       if (box64LogsEnabled && fexLogsEnabled) {
@@ -72,7 +70,7 @@ public final class SessionLogWriter {
     return new BufferedWriter(new FileWriter(file));
   }
 
-  /** Routes one (already timestamped) log line to every open session file. */
+  /** Writes one line to every open session file. */
   public synchronized void write(String line) {
     writeTo(box64Writer, line);
     writeTo(fexWriter, line);
@@ -127,7 +125,7 @@ public final class SessionLogWriter {
     return base.isEmpty() ? "session" : base;
   }
 
-  /** Deletes the oldest session files for a category beyond the retention cap. */
+  /** Prunes session files beyond the retention cap. */
   private static void prune(File logsDir, String category) {
     File[] files =
         logsDir.listFiles(

@@ -365,6 +365,12 @@ object ContainerCreation {
             ContentProfile.ContentType.CONTENT_TYPE_BOX64
         }
 
+    @JvmStatic
+    fun defaultDxWrapperConfig(
+        contentsManager: ContentsManager,
+        isArm64Ec: Boolean,
+    ): String = buildDefaultDxWrapperConfig(contentsManager, isArm64Ec)
+
     private fun buildDefaultDxWrapperConfig(
         contentsManager: ContentsManager,
         isArm64Ec: Boolean,

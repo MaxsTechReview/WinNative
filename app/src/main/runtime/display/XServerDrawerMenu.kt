@@ -22,7 +22,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -134,10 +137,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeBackground
 import com.winlator.cmod.shared.theme.WinNativeOutline
@@ -525,6 +535,8 @@ interface XServerDrawerActionListener {
 
     fun onTaskManagerEndProcess(name: String)
 
+    fun onTaskManagerBringToFront(name: String)
+
     fun onTaskManagerSetAffinity(pid: Int, affinityMask: Int)
 
     fun onTaskManagerNewTask(command: String)
@@ -662,12 +674,6 @@ fun buildXServerDrawerState(
                 subtitle = "",
                 icon = Icons.Outlined.PictureInPictureAlt,
             ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_task_manager,
-                title = context.getString(R.string.session_task_title),
-                subtitle = "",
-                icon = Icons.AutoMirrored.Outlined.ViewList,
-            ),
         )
 
     if (showMagnifier) {
@@ -680,6 +686,14 @@ fun buildXServerDrawerState(
                 active = magnifierActive,
             )
     }
+
+    items +=
+        XServerDrawerItem(
+            itemId = R.id.main_menu_task_manager,
+            title = context.getString(R.string.session_task_title),
+            subtitle = "",
+            icon = Icons.AutoMirrored.Outlined.ViewList,
+        )
 
     if (showLogs) {
         items.add(
@@ -2306,6 +2320,7 @@ private fun TaskManagerPaneContent(
                                             listener.onTaskManagerSetAffinity(process.pid, affinityMask)
                                         },
                                         onEndProcess = { processPendingEnd = process },
+                                        onBringToFront = { listener.onTaskManagerBringToFront(process.name) },
                                     )
                                 }
                             }
@@ -2958,6 +2973,102 @@ private fun sanitizeTaskAffinityMask(affinityMask: Int, coreCount: Int): Int {
     return if (sanitizedMask != 0) sanitizedMask else fullMask
 }
 
+private class TaskManagerPopupPositionProvider(private val gapPx: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val x = anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val below = anchorBounds.bottom + gapPx
+        val y =
+            if (below + popupContentSize.height <= windowSize.height) {
+                below
+            } else {
+                (anchorBounds.top - popupContentSize.height - gapPx).coerceAtLeast(0)
+            }
+        return IntOffset(x, y)
+    }
+}
+
+@Composable
+private fun TaskManagerActionPopup(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (!expanded) return
+    val paneScale = LocalPaneScale.current
+    val density = LocalDensity.current
+    val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
+    val shape = RoundedCornerShape((12f * paneScale).dp)
+    Popup(
+        popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .width(IntrinsicSize.Max)
+                    .widthIn(min = (150f * paneScale).dp, max = (240f * paneScale).dp)
+                    .clip(shape)
+                    .background(PaneSurfaceColor)
+                    .border(1.dp, RestingCardBorder, shape)
+                    .padding((5f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun TaskManagerActionPopupItem(
+    label: String,
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "taskManagerPopupItem",
+    )
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, RestingCardBorder, shape)
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((16f * paneScale).dp),
+            )
+        }
+        Text(
+            text = label,
+            color = DrawerTextPrimary,
+            fontSize = (13f * paneScale).sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun TaskManagerEndProcessDialog(
     process: TaskManagerProcess,
@@ -3063,24 +3174,33 @@ private fun TaskManagerEndProcessDialog(
     }
 }
 
+private val NEW_TASK_PRESETS = listOf("Wfm.exe", "Winecfg.exe", "Regedit.exe", "Taskmgr.exe", "Services.exe")
+
 @Composable
 private fun TaskManagerNewTaskDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var command by remember { mutableStateOf("taskmgr.exe") }
+    val customLabel = stringResource(R.string.session_task_custom_value)
+    var selectedLabel by remember { mutableStateOf(NEW_TASK_PRESETS.first()) }
+    var customMode by remember { mutableStateOf(false) }
+    var customText by remember { mutableStateOf("") }
+    var dropdownExpanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val shape = RoundedCornerShape(14.dp)
+    val fieldShape = RoundedCornerShape(10.dp)
 
     fun submit() {
-        val trimmed = command.trim()
-        if (trimmed.isNotEmpty()) onConfirm(trimmed)
+        val command = if (customMode) customText.trim() else selectedLabel.trim().lowercase()
+        if (command.isNotEmpty()) onConfirm(command)
     }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
+    LaunchedEffect(customMode) {
+        if (customMode) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
     }
 
     Dialog(
@@ -3130,39 +3250,104 @@ private fun TaskManagerNewTaskDialog(
                     )
                 }
 
-                OutlinedTextField(
-                    value = command,
-                    onValueChange = { command = it },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .focusRequester(focusRequester),
-                    singleLine = true,
-                    textStyle =
-                        androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
-                            color = DrawerTextPrimary,
-                            fontSize = 13.sp,
-                        ),
-                    colors =
-                        OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = DrawerAccent,
-                            unfocusedBorderColor = RestingCardBorder,
-                            focusedTextColor = DrawerTextPrimary,
-                            unfocusedTextColor = DrawerTextPrimary,
-                            focusedContainerColor = PaneInnerResting,
-                            unfocusedContainerColor = PaneInnerResting,
-                            cursorColor = DrawerAccent,
-                        ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions =
-                        KeyboardActions(
-                            onDone = {
-                                keyboardController?.hide()
-                                submit()
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (customMode) {
+                        OutlinedTextField(
+                            value = customText,
+                            onValueChange = { customText = it },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .focusRequester(focusRequester),
+                            singleLine = true,
+                            textStyle =
+                                androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
+                                    color = DrawerTextPrimary,
+                                    fontSize = 13.sp,
+                                ),
+                            colors =
+                                OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = DrawerAccent,
+                                    unfocusedBorderColor = RestingCardBorder,
+                                    focusedTextColor = DrawerTextPrimary,
+                                    unfocusedTextColor = DrawerTextPrimary,
+                                    focusedContainerColor = PaneInnerResting,
+                                    unfocusedContainerColor = PaneInnerResting,
+                                    cursorColor = DrawerAccent,
+                                ),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = DrawerTextSecondary,
+                                    modifier =
+                                        Modifier
+                                            .size(22.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                            ) { dropdownExpanded = true },
+                                )
                             },
-                        ),
-                )
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions =
+                                KeyboardActions(
+                                    onDone = {
+                                        keyboardController?.hide()
+                                        submit()
+                                    },
+                                ),
+                        )
+                    } else {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(fieldShape)
+                                    .background(PaneInnerResting)
+                                    .border(1.dp, RestingCardBorder, fieldShape)
+                                    .clickable { dropdownExpanded = true }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = selectedLabel,
+                                color = DrawerTextPrimary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.ArrowDropDown,
+                                contentDescription = null,
+                                tint = DrawerTextSecondary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+                    TaskManagerActionPopup(
+                        expanded = dropdownExpanded,
+                        onDismiss = { dropdownExpanded = false },
+                    ) {
+                        NEW_TASK_PRESETS.forEach { item ->
+                            TaskManagerActionPopupItem(
+                                label = item,
+                                onClick = {
+                                    selectedLabel = item
+                                    customMode = false
+                                    dropdownExpanded = false
+                                },
+                            )
+                        }
+                        TaskManagerActionPopupItem(
+                            label = customLabel,
+                            onClick = {
+                                customMode = true
+                                dropdownExpanded = false
+                            },
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3265,6 +3450,7 @@ private fun TaskManagerProcessHeader() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskManagerProcessCard(
     process: TaskManagerProcess,
@@ -3274,12 +3460,14 @@ private fun TaskManagerProcessCard(
     onToggleAffinity: () -> Unit,
     onAffinityMaskChanged: (Int) -> Unit,
     onEndProcess: () -> Unit,
+    onBringToFront: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val shape = RoundedCornerShape((8f * paneScale).dp)
     val displayName = if (process.isWow64) "${process.name} *32" else process.name
     val interactionSource = remember { MutableInteractionSource() }
     val pressed = interactionSource.collectIsPressedAsState().value
+    var menuExpanded by remember { mutableStateOf(false) }
     val bgColor by animateColorAsState(
         targetValue = if (pressed) PaneInnerPressed else PaneInnerResting,
         animationSpec = tween(120),
@@ -3299,43 +3487,60 @@ private fun TaskManagerProcessCard(
                 .background(bgColor)
                 .border(1.dp, borderColor, shape),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onToggleAffinity,
-                    )
-                    .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = displayName,
-                color = DrawerTextPrimary,
-                fontSize = (12f * paneScale).sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = process.pid.toString(),
-                color = DrawerTextSecondary,
-                fontSize = (12f * paneScale).sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier.width((54f * paneScale).dp),
-            )
-            Text(
-                text = process.memoryFormatted,
-                color = DrawerTextSecondary,
-                fontSize = (12f * paneScale).sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier.width((78f * paneScale).dp),
-            )
-            Spacer(modifier = Modifier.width((10f * paneScale).dp))
-            TaskManagerEndButton(onClick = onEndProcess)
+        Box {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onToggleAffinity,
+                            onLongClick = { menuExpanded = true },
+                        )
+                        .padding(horizontal = (8f * paneScale).dp, vertical = (6f * paneScale).dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = displayName,
+                    color = DrawerTextPrimary,
+                    fontSize = (12f * paneScale).sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = process.pid.toString(),
+                    color = DrawerTextSecondary,
+                    fontSize = (12f * paneScale).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width((54f * paneScale).dp),
+                )
+                Text(
+                    text = process.memoryFormatted,
+                    color = DrawerTextSecondary,
+                    fontSize = (12f * paneScale).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width((78f * paneScale).dp),
+                )
+                Spacer(modifier = Modifier.width((10f * paneScale).dp))
+                TaskManagerEndButton(onClick = onEndProcess)
+            }
+
+            TaskManagerActionPopup(
+                expanded = menuExpanded,
+                onDismiss = { menuExpanded = false },
+            ) {
+                TaskManagerActionPopupItem(
+                    label = stringResource(R.string.session_task_bring_to_front),
+                    icon = Icons.Outlined.Monitor,
+                    onClick = {
+                        menuExpanded = false
+                        onBringToFront()
+                    },
+                )
+            }
         }
 
         AnimatedVisibility(

@@ -130,8 +130,6 @@ data class DebugState(
     val logsSize: String = "0 B",
 )
 
-// One file shown in the in-app logs browser (the Open Logs viewer, used on all
-// Android versions since the OS won't let a file manager into Android/data).
 data class LogFileEntry(
     val name: String,
     val sizeText: String,
@@ -184,7 +182,6 @@ fun DebugScreen(
     }
 
     if (showLogsBrowser) {
-        // Fetch the file list once when the browser opens.
         val initialFiles = remember { onListLogFiles() }
         LogsBrowserDialog(
             initialFiles = initialFiles,
@@ -323,15 +320,10 @@ fun DebugScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Delete-all now lives inside the Open-Logs browser header (to the left
-                // of Share all), so this row is just the entry point into the browser.
                 LogActionButton(
                     icon = Icons.Outlined.FolderOpen,
                     label = stringResource(R.string.settings_debug_open_logs_folder_short),
                     accentColor = Accent,
-                    // Always use the in-app viewer. The OS blocks file managers from
-                    // browsing Android/data on Android 11+, so the in-app browser is
-                    // the only consistent experience across every Android version.
                     onClick = { showLogsBrowser = true },
                 )
             }
@@ -763,11 +755,6 @@ private fun SelectableChannelChip(
     }
 }
 
-// Log action button (Delete / Open). The two share one row, each an equal half
-// of the width. Each is a compact dark tile that mirrors the screen's card look:
-// a dark fill with a faint accent-tinted border and the icon in a small accent
-// box to the left of the label. An optional sublabel shows the current log size
-// beneath the label.
 @Composable
 private fun RowScope.LogActionButton(
     icon: ImageVector,
@@ -841,9 +828,6 @@ private fun RowScope.LogActionButton(
     }
 }
 
-// In-app logs browser — the "Open Logs" viewer used on every Android version
-// (the OS won't let a file manager into the app's Android/data directory). The
-// app owns the directory, so it can list, view, share, and delete files directly.
 @Composable
 private fun LogsBrowserDialog(
     initialFiles: List<LogFileEntry>,
@@ -953,8 +937,6 @@ private fun LogsBrowserDialog(
     }
 }
 
-// Small accent pill in the logs-browser header that shares all logs at once
-// (the same action the standalone Share button used to perform).
 @Composable
 private fun LogsHeaderShareAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
