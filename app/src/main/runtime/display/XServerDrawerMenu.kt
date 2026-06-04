@@ -658,12 +658,6 @@ fun buildXServerDrawerState(
                 subtitle = "",
                 icon = Icons.Outlined.PictureInPictureAlt,
             ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_task_manager,
-                title = context.getString(R.string.session_task_title),
-                subtitle = "",
-                icon = Icons.AutoMirrored.Outlined.ViewList,
-            ),
         )
 
     if (showMagnifier) {
@@ -676,6 +670,14 @@ fun buildXServerDrawerState(
                 active = magnifierActive,
             )
     }
+
+    items +=
+        XServerDrawerItem(
+            itemId = R.id.main_menu_task_manager,
+            title = context.getString(R.string.session_task_title),
+            subtitle = "",
+            icon = Icons.AutoMirrored.Outlined.ViewList,
+        )
 
     if (showLogs) {
         items.add(
