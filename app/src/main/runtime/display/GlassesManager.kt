@@ -21,7 +21,7 @@ object GlassesManager {
         val renderHeight: Int = 0, // 0 = native panel resolution; otherwise a render-scaling height
     )
 
-    fun interface Listener { fun onGlassesChanged() }
+    fun interface Listener { fun onGlassesChanged(connectionChanged: Boolean) }
 
     private var viture: VitureGlasses? = null
     private var prefs: SharedPreferences? = null
@@ -67,7 +67,7 @@ object GlassesManager {
     private fun onConnectionChanged(c: Boolean) {
         _connected.value = c
         if (c) applyAll()
-        notifyListeners()
+        notifyListeners(true)
     }
 
     private fun applyAll() {
@@ -93,10 +93,12 @@ object GlassesManager {
         val next = transform(_settings.value)
         _settings.value = next
         save(next)
-        notifyListeners()
+        notifyListeners(false)
     }
 
-    private fun notifyListeners() { listeners.forEach { it.onGlassesChanged() } }
+    private fun notifyListeners(connectionChanged: Boolean) {
+        listeners.forEach { it.onGlassesChanged(connectionChanged) }
+    }
 
     private fun load(): Settings {
         val p = prefs ?: return Settings()

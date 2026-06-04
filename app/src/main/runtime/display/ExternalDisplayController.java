@@ -110,10 +110,13 @@ public final class ExternalDisplayController {
         this.displayManager = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
         GlassesManager.INSTANCE.init(activity);
         this.viture = GlassesManager.INSTANCE.glasses();
-        this.glassesListener = () -> {
-            // On (re)connect or a settings change, re-apply the selected mode so the refresh lands.
-            if (viture != null && viture.isConnected() && swapActive) applyOutputMode();
-            callbacks.onSwapStateChanged(swapActive);
+        this.glassesListener = (connectionChanged) -> {
+            // Only re-apply the mode / re-render on (re)connect — not on every slider tick, which would
+            // storm the drawer recompose and the display-mode command while dragging.
+            if (connectionChanged) {
+                if (viture != null && viture.isConnected() && swapActive) applyOutputMode();
+                callbacks.onSwapStateChanged(swapActive);
+            }
         };
         GlassesManager.INSTANCE.addListener(glassesListener);
     }
