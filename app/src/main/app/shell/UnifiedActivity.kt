@@ -2063,18 +2063,18 @@ class UnifiedActivity :
                                     }
                                 }
                             }
-                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_brightness),
-                                brightness, brightnessMax) { gm.setBrightness(it) }
-                        }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_volume),
-                                volume, volumeMax) { gm.setVolume(it) }
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 GlassesToggleTile(stringResource(R.string.glasses_panel_sunblock),
                                     settings.sunblock, Modifier.weight(1f)) { gm.setSunblock(it) }
                                 GlassesToggleTile(stringResource(R.string.session_drawer_output_3d),
                                     settings.threeD, Modifier.weight(1f)) { gm.set3D(it) }
                             }
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_brightness),
+                                brightness, brightnessMax) { gm.setBrightness(it) }
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_volume),
+                                volume, volumeMax) { gm.setVolume(it) }
                         }
                     }
                 }
