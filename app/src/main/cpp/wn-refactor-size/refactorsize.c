@@ -1,16 +1,5 @@
-/*
- * refactorsize.exe - borderless-fullscreen toggle for the foreground guest window.
- *
- * Ports the real logic of the "ToggleFullscreen" AutoIt trick: strip the active
- * window's caption/frame styles and resize it to fill the screen (fixes games that
- * open windowed-with-a-titlebar instead of true fullscreen); restore on toggle-off.
- * Run by WinNative via WinHandler.exec with a single arg: "on" or "off".
- * State is persisted between invocations in %TEMP%\refactorsize.dat.
- *
- * Build (from this directory):
- *   x86_64-w64-mingw32-gcc -O2 -s -mwindows refactorsize.c \
- *     -o ../../assets/winnative/refactorsize.exe -luser32
- */
+/* Borderless-fullscreen toggle for the foreground guest window (arg "on"/"off").
+ * Build: x86_64-w64-mingw32-gcc -O2 -s -mwindows refactorsize.c -o ../../assets/winnative/refactorsize.exe -luser32 */
 #include <windows.h>
 #include <stdint.h>
 
