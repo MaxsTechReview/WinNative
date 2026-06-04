@@ -780,6 +780,16 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan-Validierungsebenen</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Display neu starten, um die Änderung anzuwenden.</string>
     <string name="settings_debug_share_logs">Protokolle teilen</string>
+    <string name="settings_debug_delete_logs">Protokolle löschen</string>
+    <string name="settings_debug_share_all_logs_short">Alle teilen</string>
+    <string name="settings_debug_delete_logs_short">Löschen</string>
+    <string name="settings_debug_delete_all_logs_short">Alle löschen</string>
+    <string name="settings_debug_open_logs_folder_short">Protokollverwaltung öffnen</string>
+    <string name="settings_debug_logs_deleted">Protokolle gelöscht</string>
+    <string name="settings_debug_delete_logs_confirm_title">Protokolle löschen?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Dadurch werden alle gespeicherten Protokolldateien (%1$s) dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="settings_debug_logs_browser_title">Protokolle</string>
+    <string name="settings_debug_log_truncated">Die letzten %1$s dieses Protokolls werden angezeigt</string>
     <string name="settings_debug_logs_subject">WinNative-Protokolle (%1$s)</string>
     <string name="settings_debug_no_logs_available">Keine Debug-Protokolle verfügbar. Bitte zuerst Debug-Optionen aktivieren und ein Spiel starten.</string>
     <string name="settings_debug_capture_failed">Protokolle konnten nicht erfasst werden: %1$s</string>

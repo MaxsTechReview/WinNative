@@ -780,6 +780,16 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Livelli di validazione Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Riavvia il display per applicare.</string>
     <string name="settings_debug_share_logs">Condividi log</string>
+    <string name="settings_debug_delete_logs">Elimina log</string>
+    <string name="settings_debug_share_all_logs_short">Condividi tutto</string>
+    <string name="settings_debug_delete_logs_short">Elimina</string>
+    <string name="settings_debug_delete_all_logs_short">Elimina tutto</string>
+    <string name="settings_debug_open_logs_folder_short">Apri gestione log</string>
+    <string name="settings_debug_logs_deleted">Log eliminati</string>
+    <string name="settings_debug_delete_logs_confirm_title">Eliminare i log?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Questo elimina definitivamente tutti i file di log salvati (%1$s). Non può essere annullato.</string>
+    <string name="settings_debug_logs_browser_title">Log</string>
+    <string name="settings_debug_log_truncated">Visualizzazione degli ultimi %1$s di questo log</string>
     <string name="settings_debug_logs_subject">Log WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nessun log di debug disponibile. Attiva prima le opzioni di debug e avvia un gioco.</string>
     <string name="settings_debug_capture_failed">Impossibile acquisire i log: %1$s</string>

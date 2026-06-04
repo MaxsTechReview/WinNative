@@ -780,6 +780,16 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Camadas de Validação Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Reinicie a exibição para aplicar.</string>
     <string name="settings_debug_share_logs">Compartilhar Logs</string>
+    <string name="settings_debug_delete_logs">Excluir logs</string>
+    <string name="settings_debug_share_all_logs_short">Compartilhar tudo</string>
+    <string name="settings_debug_delete_logs_short">Excluir</string>
+    <string name="settings_debug_delete_all_logs_short">Excluir tudo</string>
+    <string name="settings_debug_open_logs_folder_short">Abrir gerenciador de logs</string>
+    <string name="settings_debug_logs_deleted">Logs excluídos</string>
+    <string name="settings_debug_delete_logs_confirm_title">Excluir logs?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Isso exclui permanentemente todos os arquivos de log salvos (%1$s). Não é possível desfazer.</string>
+    <string name="settings_debug_logs_browser_title">Logs</string>
+    <string name="settings_debug_log_truncated">Mostrando os últimos %1$s deste log</string>
     <string name="settings_debug_logs_subject">Logs do WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nenhum log de depuração disponível. Ative as opções de depuração primeiro e inicie um jogo.</string>
     <string name="settings_debug_capture_failed">Falha ao capturar logs: %1$s</string>

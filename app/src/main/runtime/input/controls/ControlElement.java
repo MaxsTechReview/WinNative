@@ -106,6 +106,7 @@ public class ControlElement {
   private Range range;
   private byte orientation;
   private PointF currentPosition;
+  private PointF trackpadOrigin;
   private int customColor = -1;
   private RangeScroller scroller;
   private CubicBezierInterpolator interpolator;
@@ -1423,6 +1424,8 @@ return boundingBox;
         if (type == Type.TRACKPAD) {
           if (currentPosition == null) currentPosition = new PointF();
           currentPosition.set(x, y);
+          if (trackpadOrigin == null) trackpadOrigin = new PointF();
+          trackpadOrigin.set(x, y);
         }
         return handleTouchMove(pointerId, x, y);
       }
@@ -1553,18 +1556,20 @@ return boundingBox;
       } else if (type == Type.TRACKPAD) {
         Binding firstBinding = getBindingAt(0);
         if (firstBinding.isGamepad()) {
-          if (interpolator == null) interpolator = new CubicBezierInterpolator();
-          interpolator.set(0.075f, 0.95f, 0.45f, 0.95f);
-          float valueX = deltaX;
-          float valueY = deltaY;
-          if (Math.abs(valueX) > TRACKPAD_ACCELERATION_THRESHOLD) valueX *= STICK_SENSITIVITY;
-          if (Math.abs(valueY) > TRACKPAD_ACCELERATION_THRESHOLD) valueY *= STICK_SENSITIVITY;
-          float interpX =
-              interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueX / TRACKPAD_MAX_SPEED)));
-          float interpY =
-              interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueY / TRACKPAD_MAX_SPEED)));
-          float finalX = Mathf.clamp(Mathf.sign(valueX) * interpX, -1, 1);
-          float finalY = Mathf.clamp(Mathf.sign(valueY) * interpY, -1, 1);
+          if (trackpadOrigin == null) trackpadOrigin = new PointF(x, y);
+          float offsetX = x - trackpadOrigin.x;
+          float offsetY = y - trackpadOrigin.y;
+          float distance = (float) Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+          float finalX = 0;
+          float finalY = 0;
+          if (distance > 0) {
+            float magnitude = Math.min(distance / radius, 1.0f);
+            if (magnitude > STICK_DEAD_ZONE) {
+              float scaled = (magnitude - STICK_DEAD_ZONE) / (1.0f - STICK_DEAD_ZONE);
+              finalX = (offsetX / distance) * scaled;
+              finalY = (offsetY / distance) * scaled;
+            }
+          }
           inputControlsView.handleStickInput(firstBinding, finalX, finalY);
           for (byte i = 0; i < 4; i++) {
             this.states[i] = true;
@@ -1691,6 +1696,7 @@ return boundingBox;
           inputControlsView.handleStickInput(firstBinding, 0.0f, 0.0f);
         }
         currentPosition = null;
+        trackpadOrigin = null;
       }
 
       inputControlsView.invalidate();

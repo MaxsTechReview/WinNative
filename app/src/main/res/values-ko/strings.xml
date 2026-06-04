@@ -780,6 +780,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan 검증 레이어</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">적용하려면 디스플레이를 다시 시작하세요.</string>
     <string name="settings_debug_share_logs">로그 공유</string>
+    <string name="settings_debug_delete_logs">로그 삭제</string>
+    <string name="settings_debug_share_all_logs_short">모두 공유</string>
+    <string name="settings_debug_delete_logs_short">삭제</string>
+    <string name="settings_debug_delete_all_logs_short">모두 삭제</string>
+    <string name="settings_debug_open_logs_folder_short">로그 관리자 열기</string>
+    <string name="settings_debug_logs_deleted">로그가 삭제되었습니다</string>
+    <string name="settings_debug_delete_logs_confirm_title">로그를 삭제할까요?</string>
+    <string name="settings_debug_delete_logs_confirm_message">저장된 모든 로그 파일(%1$s)을 영구적으로 삭제합니다. 되돌릴 수 없습니다.</string>
+    <string name="settings_debug_logs_browser_title">로그</string>
+    <string name="settings_debug_log_truncated">이 로그의 마지막 %1$s 표시 중</string>
     <string name="settings_debug_logs_subject">WinNative 로그 (%1$s)</string>
     <string name="settings_debug_no_logs_available">사용 가능한 디버그 로그가 없습니다. 먼저 디버그 옵션을 활성화하고 게임을 실행하세요.</string>
     <string name="settings_debug_capture_failed">로그 캡처 실패: %1$s</string>

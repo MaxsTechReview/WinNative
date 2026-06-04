@@ -1175,8 +1175,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
     }
 
+    private fun initialDxWrapperConfig(): String =
+        container?.getDXWrapperConfig()
+            ?: ContainerCreation.defaultDxWrapperConfig(contentsManager, isArm64EC)
+
     private fun loadDxvkConfigState() {
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
         state.dxvkDdrawWrapperEntries.value =
@@ -1198,7 +1202,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
         if (!isArm64EC) originalItems.removeAll { it.contains("arm64ec") }
         state.dxvkVersionEntries.value = originalItems
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
     }
@@ -1210,7 +1214,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             items.add(profile.verName + "-" + profile.verCode)
         }
         state.dxvkVkd3dVersionEntries.value = items
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
     }

@@ -780,6 +780,16 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_debug_vulkan_validation_layers_title">Couches de validation Vulkan</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">Redémarrez l\'affichage pour appliquer.</string>
     <string name="settings_debug_share_logs">Partager les journaux</string>
+    <string name="settings_debug_delete_logs">Supprimer les journaux</string>
+    <string name="settings_debug_share_all_logs_short">Tout partager</string>
+    <string name="settings_debug_delete_logs_short">Supprimer</string>
+    <string name="settings_debug_delete_all_logs_short">Tout supprimer</string>
+    <string name="settings_debug_open_logs_folder_short">Ouvrir le gestionnaire des journaux</string>
+    <string name="settings_debug_logs_deleted">Journaux supprimés</string>
+    <string name="settings_debug_delete_logs_confirm_title">Supprimer les journaux ?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Cela supprime définitivement tous les fichiers journaux enregistrés (%1$s). Cette action est irréversible.</string>
+    <string name="settings_debug_logs_browser_title">Journaux</string>
+    <string name="settings_debug_log_truncated">Affichage des derniers %1$s de ce journal</string>
     <string name="settings_debug_logs_subject">Journaux WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Aucun journal de débogage disponible. Activez d\'abord les options de débogage puis lancez un jeu.</string>
     <string name="settings_debug_capture_failed">Échec de la capture des journaux : %1$s</string>

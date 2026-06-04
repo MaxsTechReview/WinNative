@@ -780,6 +780,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan 驗證層</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">重新啟動顯示以套用。</string>
     <string name="settings_debug_share_logs">分享日誌</string>
+    <string name="settings_debug_delete_logs">刪除日誌</string>
+    <string name="settings_debug_share_all_logs_short">全部分享</string>
+    <string name="settings_debug_delete_logs_short">刪除</string>
+    <string name="settings_debug_delete_all_logs_short">全部刪除</string>
+    <string name="settings_debug_open_logs_folder_short">開啟日誌管理器</string>
+    <string name="settings_debug_logs_deleted">日誌已刪除</string>
+    <string name="settings_debug_delete_logs_confirm_title">刪除日誌？</string>
+    <string name="settings_debug_delete_logs_confirm_message">這會永久刪除所有已儲存的日誌檔案（%1$s）。此操作無法復原。</string>
+    <string name="settings_debug_logs_browser_title">日誌</string>
+    <string name="settings_debug_log_truncated">正在顯示此日誌的最後 %1$s</string>
     <string name="settings_debug_logs_subject">WinNative 日誌 (%1$s)</string>
     <string name="settings_debug_no_logs_available">沒有可用的除錯日誌。請先啟用除錯選項並啟動遊戲。</string>
     <string name="settings_debug_capture_failed">無法擷取日誌：%1$s</string>

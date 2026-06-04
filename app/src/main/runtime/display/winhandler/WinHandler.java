@@ -10,6 +10,7 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import androidx.preference.PreferenceManager;
@@ -20,6 +21,8 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
+import com.winlator.cmod.runtime.input.rumble.GamepadRumbleManager;
+import com.winlator.cmod.runtime.input.rumble.GcmRumbleMode;
 import com.winlator.cmod.shared.util.StringUtils;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -86,7 +89,8 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
-  private Map<Integer, Integer> deviceToSlot = new HashMap();
+  // ConcurrentHashMap: input thread mutates while the vibration thread iterates (avoid CME).
+  private Map<Integer, Integer> deviceToSlot = new java.util.concurrent.ConcurrentHashMap<>();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
   private Set<Integer> usedSlots = new HashSet();
@@ -94,7 +98,9 @@ public class WinHandler {
   private LocalServerSocket vibrationServer;
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
-  private boolean globalVibrationEnabled = true;
+  // volatile: UI thread writes, vibration thread reads.
+  private volatile boolean globalVibrationEnabled = true;
+  private volatile GcmRumbleMode gcmRumbleMode = GcmRumbleMode.DISABLED;
   private int fallbackSlot = -1;
   private ExternalController currentController;
   private final GamepadState outputGamepadState = new GamepadState();
@@ -111,6 +117,7 @@ public class WinHandler {
   private ExternalController lastGyroTargetController;
   private Runnable pendingVirtualGamepadRebalance;
   private final Map<Integer, Runnable> pendingDeviceReleases = new HashMap<>();
+  private final GamepadRumbleManager gamepadRumbleManager;
   private final InputManager.InputDeviceListener inputDeviceListener =
       new InputManager.InputDeviceListener() {
         @Override
@@ -159,19 +166,38 @@ public class WinHandler {
   public WinHandler(XServerDisplayActivity activity) {
     this.activity = activity;
     this.inputManager = (InputManager) activity.getSystemService(Context.INPUT_SERVICE);
+    this.gamepadRumbleManager = new GamepadRumbleManager(activity, this.inputHandler);
     this.inputManager.registerInputDeviceListener(this.inputDeviceListener, null);
     this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    boolean anySlotEnabled = false;
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
       String key = "vibration_slot_" + i;
       String legacyKey = "vibrate_slot_" + i;
       if (this.preferences.contains(key)) {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, true);
       } else {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, true);
+      }
+      if (this.vibrationEnabledSlots[i]) {
+        anySlotEnabled = true;
       }
     }
     this.globalVibrationEnabled =
-        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false);
+        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+    // Heal stale #403 prefs: master on + all slots off → re-enable all.
+    if (this.globalVibrationEnabled && !anySlotEnabled) {
+      SharedPreferences.Editor editor = this.preferences.edit();
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+      editor.apply();
+    }
+    this.gcmRumbleMode =
+        GcmRumbleMode.fromPrefValue(
+            this.preferences.getString(GcmRumbleMode.PREF_KEY, GcmRumbleMode.DISABLED.toPrefValue()));
+    this.gamepadRumbleManager.setMode(this.gcmRumbleMode);
   }
 
   public int preAssignConnectedControllers() {
@@ -1047,6 +1073,9 @@ public class WinHandler {
       this.fakeInputBasePath = fakeInputPath;
       Log.d("WinHandler", "FakeInputWriter base path set: " + fakeInputPath);
       startVibrationListener();
+      if (this.gcmRumbleMode != GcmRumbleMode.DISABLED) {
+        this.gamepadRumbleManager.requestPermissionIfNeeded();
+      }
     }
   }
 
@@ -1096,6 +1125,19 @@ public class WinHandler {
       return;
     }
     if (slot >= 0 && slot < MAX_CONTROLLERS && !this.vibrationEnabledSlots[slot]) {
+      return;
+    }
+
+    // GameSir GCM-mode pads expose no Android vibrator; route them through the GCM manager first.
+    InputDevice physicalInputDevice = getPhysicalInputDeviceForSlot(slot);
+    if (this.gcmRumbleMode != GcmRumbleMode.DISABLED
+        && this.gamepadRumbleManager.handleRumble(
+            slot, physicalInputDevice, strong, weak, durationMs)) {
+      return;
+    }
+
+    // Suppress the phone fallback for GCM-owned devices so they don't double-rumble.
+    if (this.gcmRumbleMode != GcmRumbleMode.DISABLED && isGcmManagedDevice(physicalInputDevice)) {
       return;
     }
 
@@ -1157,6 +1199,38 @@ public class WinHandler {
     }
   }
 
+  private InputDevice getPhysicalInputDeviceForSlot(int slot) {
+    for (Map.Entry<Integer, Integer> entry : this.deviceToSlot.entrySet()) {
+      if (entry.getValue() != slot || entry.getKey() == OSC_DEVICE_ID) {
+        continue;
+      }
+      InputDevice device = InputDevice.getDevice(entry.getKey());
+      if (device != null) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  private boolean isGcmManagedDevice(InputDevice device) {
+    if (device == null) return false; // OSC/virtual slot: keep the phone fallback
+    if (device.getVendorId() != GamepadRumbleManager.GAMESIR_VENDOR_ID) return false;
+    if (gcmRumbleMode == GcmRumbleMode.ALL) return true;
+    // KNOWN: models with a driver — X5s (BLE), G8+ MFi (USB), X3 Pro (BLE).
+    int pid = device.getProductId();
+    return pid == 0x1119 || pid == 274 || pid == 0x0106;
+  }
+
+  public GcmRumbleMode getGcmRumbleMode() {
+    return this.gcmRumbleMode;
+  }
+
+  public void setGcmRumbleMode(GcmRumbleMode mode) {
+    this.gcmRumbleMode = mode;
+    this.preferences.edit().putString(GcmRumbleMode.PREF_KEY, mode.toPrefValue()).apply();
+    this.gamepadRumbleManager.setMode(mode);
+  }
+
   public boolean isVibrationEnabledForSlot(int slot) {
     return slot >= 0 && slot < MAX_CONTROLLERS && this.vibrationEnabledSlots[slot];
   }
@@ -1179,7 +1253,17 @@ public class WinHandler {
 
   public void setGlobalVibrationEnabled(boolean enabled) {
     this.globalVibrationEnabled = enabled;
-    this.preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+    SharedPreferences.Editor editor = this.preferences.edit();
+    editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled);
+    if (enabled) {
+      // Master switch enables every slot, overriding stale per-slot prefs.
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+    }
+    editor.apply();
   }
 
   public int getMaxControllers() {

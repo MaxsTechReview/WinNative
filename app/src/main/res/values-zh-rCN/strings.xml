@@ -780,6 +780,16 @@
     <string name="settings_debug_vulkan_validation_layers_title">Vulkan 验证层</string>
     <string name="settings_debug_vulkan_validation_layers_subtitle">重启显示以应用。</string>
     <string name="settings_debug_share_logs">分享日志</string>
+    <string name="settings_debug_delete_logs">删除日志</string>
+    <string name="settings_debug_share_all_logs_short">全部分享</string>
+    <string name="settings_debug_delete_logs_short">删除</string>
+    <string name="settings_debug_delete_all_logs_short">全部删除</string>
+    <string name="settings_debug_open_logs_folder_short">打开日志管理器</string>
+    <string name="settings_debug_logs_deleted">日志已删除</string>
+    <string name="settings_debug_delete_logs_confirm_title">删除日志？</string>
+    <string name="settings_debug_delete_logs_confirm_message">这将永久删除所有已保存的日志文件（%1$s）。此操作无法撤销。</string>
+    <string name="settings_debug_logs_browser_title">日志</string>
+    <string name="settings_debug_log_truncated">正在显示此日志的最后 %1$s</string>
     <string name="settings_debug_logs_subject">WinNative 日志 (%1$s)</string>
     <string name="settings_debug_no_logs_available">没有可用的调试日志。请先启用调试选项并启动游戏。</string>
     <string name="settings_debug_capture_failed">无法捕获日志：%1$s</string>
