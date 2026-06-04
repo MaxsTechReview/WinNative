@@ -86,7 +86,8 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
-  private Map<Integer, Integer> deviceToSlot = new HashMap();
+  // ConcurrentHashMap: iterated on the vibration thread while the input thread mutates it (avoids CME killing rumble).
+  private Map<Integer, Integer> deviceToSlot = new java.util.concurrent.ConcurrentHashMap<>();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
   private Set<Integer> usedSlots = new HashSet();
@@ -94,7 +95,8 @@ public class WinHandler {
   private LocalServerSocket vibrationServer;
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
-  private boolean globalVibrationEnabled = true;
+  // volatile: written on the UI thread, read on the vibration-listener thread.
+  private volatile boolean globalVibrationEnabled = true;
   private int fallbackSlot = -1;
   private ExternalController currentController;
   private final GamepadState outputGamepadState = new GamepadState();
@@ -161,17 +163,31 @@ public class WinHandler {
     this.inputManager = (InputManager) activity.getSystemService(Context.INPUT_SERVICE);
     this.inputManager.registerInputDeviceListener(this.inputDeviceListener, null);
     this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    boolean anySlotEnabled = false;
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
       String key = "vibration_slot_" + i;
       String legacyKey = "vibrate_slot_" + i;
       if (this.preferences.contains(key)) {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(key, true);
       } else {
-        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, false);
+        this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, true);
+      }
+      if (this.vibrationEnabledSlots[i]) {
+        anySlotEnabled = true;
       }
     }
     this.globalVibrationEnabled =
-        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false);
+        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+    // Heal stale #403 prefs: master on with every slot off is never intentional, so re-enable all slots.
+    if (this.globalVibrationEnabled && !anySlotEnabled) {
+      SharedPreferences.Editor editor = this.preferences.edit();
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+      editor.apply();
+    }
   }
 
   public int preAssignConnectedControllers() {
@@ -1179,7 +1195,17 @@ public class WinHandler {
 
   public void setGlobalVibrationEnabled(boolean enabled) {
     this.globalVibrationEnabled = enabled;
-    this.preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
+    SharedPreferences.Editor editor = this.preferences.edit();
+    editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled);
+    if (enabled) {
+      // Master switch is authoritative: enabling rumble enables every slot, overriding stale per-slot prefs.
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+    }
+    editor.apply();
   }
 
   public int getMaxControllers() {
