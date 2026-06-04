@@ -360,6 +360,9 @@ data class XServerDrawerState(
     val outputVitureFilm: Int = 0,
     val outputVitureSupports3D: Boolean = false,
     val outputViture3D: Boolean = false,
+    val outputVitureSupportsVolume: Boolean = false,
+    val outputVitureVolume: Int = 0,
+    val outputVitureVolumeMax: Int = 8,
 )
 
 class XServerDrawerStateHolder(
@@ -559,6 +562,8 @@ interface XServerDrawerActionListener {
     fun onOutputVitureFilm(level: Int)
 
     fun onOutputViture3D(enabled: Boolean)
+
+    fun onOutputVitureVolume(level: Int)
 
     fun onOutputReturnToPhone()
 
@@ -895,6 +900,9 @@ fun withVitureState(
     film: Int,
     supports3D: Boolean,
     threeD: Boolean,
+    supportsVolume: Boolean,
+    volume: Int,
+    volumeMax: Int,
 ): XServerDrawerState =
     state.copy(
         outputVitureConnected = true,
@@ -907,6 +915,9 @@ fun withVitureState(
         outputVitureFilm = film,
         outputVitureSupports3D = supports3D,
         outputViture3D = threeD,
+        outputVitureSupportsVolume = supportsVolume,
+        outputVitureVolume = volume,
+        outputVitureVolumeMax = volumeMax,
     )
 
 @Composable
@@ -2506,6 +2517,16 @@ private fun OutputGlassesCard(
                     }
                 }
             }
+        }
+        if (state.outputVitureSupportsVolume) {
+            DrawerSliderRow(
+                label = stringResource(R.string.session_drawer_output_volume),
+                valueText = "${state.outputVitureVolume}/${state.outputVitureVolumeMax}",
+                value = state.outputVitureVolume.toFloat(),
+                valueRange = 0f..state.outputVitureVolumeMax.toFloat(),
+                steps = (state.outputVitureVolumeMax - 1).coerceAtLeast(0),
+                onValueChange = { listener.onOutputVitureVolume(it.roundToInt()) },
+            )
         }
         if (state.outputVitureSupports3D) {
             Column(verticalArrangement = Arrangement.spacedBy((6f * paneScale).dp)) {

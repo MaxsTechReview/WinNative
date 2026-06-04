@@ -1346,6 +1346,7 @@ Ruta instalada:
     <string name="session_drawer_output_brightness">Brillo</string>
     <string name="session_drawer_output_shade">Sombra (atenuación)</string>
     <string name="session_drawer_output_3d">3D (lado a lado)</string>
+    <string name="session_drawer_output_volume">Volumen</string>
     <string name="session_drawer_output_glasses_note">Se envía directamente a tus gafas Viture por USB.</string>
 </resources>
 

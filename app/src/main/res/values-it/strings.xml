@@ -1346,6 +1346,7 @@ Percorso installato:
     <string name="session_drawer_output_brightness">Luminosità</string>
     <string name="session_drawer_output_shade">Oscuramento</string>
     <string name="session_drawer_output_3d">3D (affiancato)</string>
+    <string name="session_drawer_output_volume">Volume</string>
     <string name="session_drawer_output_glasses_note">Inviato direttamente ai tuoi occhiali Viture via USB.</string>
 </resources>
 

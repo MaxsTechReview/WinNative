@@ -1346,6 +1346,7 @@ Chemin installé :
     <string name="session_drawer_output_brightness">Luminosité</string>
     <string name="session_drawer_output_shade">Teinte (assombrissement)</string>
     <string name="session_drawer_output_3d">3D (côte à côte)</string>
+    <string name="session_drawer_output_volume">Volume</string>
     <string name="session_drawer_output_glasses_note">Envoyé directement à vos lunettes Viture via USB.</string>
 </resources>
 

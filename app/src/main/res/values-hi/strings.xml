@@ -1283,5 +1283,6 @@
     <string name="session_drawer_output_brightness">चमक</string>
     <string name="session_drawer_output_shade">शेड (मंद करना)</string>
     <string name="session_drawer_output_3d">3D (साइड-बाय-साइड)</string>
+    <string name="session_drawer_output_volume">वॉल्यूम</string>
     <string name="session_drawer_output_glasses_note">USB के माध्यम से सीधे आपके Viture ग्लासेस पर भेजा गया।</string>
 </resources>

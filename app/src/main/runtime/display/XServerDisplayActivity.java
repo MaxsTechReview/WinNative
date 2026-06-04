@@ -3772,7 +3772,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         externalDisplayController.vitureFilmStepped(),
                         externalDisplayController.getVitureFilm(),
                         externalDisplayController.vitureSupports3D(),
-                        externalDisplayController.isViture3D());
+                        externalDisplayController.isViture3D(),
+                        externalDisplayController.vitureSupportsVolume(),
+                        externalDisplayController.getVitureVolume(),
+                        externalDisplayController.getVitureVolumeMax());
             }
         }
 
@@ -3980,6 +3983,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             externalDisplayController.setViture3D(enabled);
                             renderDrawerMenu();
                         }
+                    }
+
+                    @Override
+                    public void onOutputVitureVolume(int level) {
+                        if (externalDisplayController != null) externalDisplayController.setVitureVolume(level);
                     }
 
                     @Override

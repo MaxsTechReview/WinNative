@@ -101,6 +101,7 @@ public final class ExternalDisplayController {
     private int vitureBrightness = -1; // last-set (lazily initialised to max on first read)
     private int vitureFilm = 0;
     private boolean viture3D = false;
+    private int vitureVolume = -1; // last-set (lazily initialised to half on first read)
 
     public ExternalDisplayController(Activity activity, FrameLayout phoneFrame,
                                      XServerSurfaceView gameView, Callbacks callbacks) {
@@ -709,6 +710,24 @@ public final class ExternalDisplayController {
 
     public boolean isViture3D() {
         return viture3D;
+    }
+
+    public boolean vitureSupportsVolume() {
+        return viture.supportsVolume();
+    }
+
+    public int getVitureVolumeMax() {
+        return viture.volumeMax();
+    }
+
+    public int getVitureVolume() {
+        if (vitureVolume < 0) vitureVolume = viture.volumeMax() / 2;
+        return vitureVolume;
+    }
+
+    public void setVitureVolume(int level) {
+        vitureVolume = level;
+        viture.setVolume(level);
     }
 
     public void setVitureBrightness(int level) {

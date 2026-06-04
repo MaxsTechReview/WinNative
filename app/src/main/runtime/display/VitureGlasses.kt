@@ -39,6 +39,8 @@ class VitureGlasses(private val context: Context) {
         private const val MSG_BRIGHTNESS_BEAST = 0x0122
         private const val MSG_FILM_BINARY = 0x000E     // One: clear/dark only
         private const val MSG_FILM_STEPPED = 0x0330    // newer: 0..8 steps
+        private const val MSG_VOLUME = 0x0033
+        private const val MSG_VOLUME_BEAST = 0x0201
 
         // Display-mode bytes the firmware accepts (1080p family).
         const val MODE_1080P_60 = 0x31
@@ -63,6 +65,7 @@ class VitureGlasses(private val context: Context) {
     private var commandInterface: UsbInterface? = null
     private var controlInterface: UsbInterface? = null
     private var outEndpoint: UsbEndpoint? = null
+    private var inEndpoint: UsbEndpoint? = null   // MCU INT-IN (ep 0x82) — state reports / verify
     private var productId = 0
     private var permissionPending = false
     private var listener: ConnectionListener? = null
@@ -121,6 +124,7 @@ class VitureGlasses(private val context: Context) {
         commandInterface = null
         controlInterface = null
         outEndpoint = null
+        inEndpoint = null
         if (wasConnected) listener?.onVitureConnectionChanged(false)
     }
 
@@ -177,6 +181,15 @@ class VitureGlasses(private val context: Context) {
         }
     }
 
+    // Glasses hardware volume (0..15 on Beast, else 0..8).
+    fun setVolume(level: Int): Boolean {
+        val msg = if (isBeast()) MSG_VOLUME_BEAST else MSG_VOLUME
+        return send(msg, byteArrayOf(level.coerceIn(0, volumeMax()).toByte(), 0))
+    }
+
+    fun supportsVolume(): Boolean = isConnected()
+    fun volumeMax(): Int = if (isBeast()) 15 else 8
+
     // ── USB plumbing ───────────────────────────────────────────────────────
 
     private fun findVitureDevice(): UsbDevice? =
@@ -229,6 +242,7 @@ class VitureGlasses(private val context: Context) {
         commandInterface = cmd.first
         controlInterface = ctrl
         outEndpoint = cmd.second
+        inEndpoint = findInEndpoint(cmd.first)
         productId = device.productId
         Log.i(TAG, "Viture ${modelName()} opened: pid=${productId.toHex16()} cmdIface=${cmd.first.id} class=${cmd.first.interfaceClass} outEp=0x%02X(%s) ctrlIface=%s"
             .format(cmd.second.address, epType(cmd.second.type), ctrl?.id?.toString() ?: "-"))
@@ -266,6 +280,24 @@ class VitureGlasses(private val context: Context) {
             if (intf.interfaceClass == cls) return intf
         }
         return null
+    }
+
+    // The command interface's interrupt-IN endpoint (ep 0x82) — carries MCU state reports.
+    private fun findInEndpoint(intf: UsbInterface): UsbEndpoint? {
+        for (e in 0 until intf.endpointCount) {
+            val ep = intf.getEndpoint(e)
+            if (ep.direction == UsbConstants.USB_DIR_IN) return ep
+        }
+        return null
+    }
+
+    // Read one MCU report (FF FD | crc | len | 0000 | seq | msgId | flag | value) if one is queued.
+    fun readState(timeoutMs: Int = 200): ByteArray? {
+        val conn = connection ?: return null
+        val ep = inEndpoint ?: return null
+        val buf = ByteArray(PACKET_SIZE)
+        val n = conn.bulkTransfer(ep, buf, buf.size, timeoutMs)
+        return if (n > 0) buf.copyOf(n) else null
     }
 
     private fun logInterfaces(device: UsbDevice) {
