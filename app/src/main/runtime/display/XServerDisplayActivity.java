@@ -4080,6 +4080,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
+                    public void onTaskManagerBringToFront(String name) {
+                        if (winHandler != null) winHandler.bringToFront(name);
+                        closeDrawerMenu();
+                    }
+
+                    @Override
                     public void onTaskManagerSetAffinity(int pid, int affinityMask) {
                         if (winHandler != null) {
                             winHandler.setProcessAffinity(pid, affinityMask);
