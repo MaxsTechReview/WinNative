@@ -12,10 +12,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDialog
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -32,6 +37,7 @@ import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -43,10 +49,10 @@ import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.runtime.wine.EnvVars
+import com.winlator.cmod.runtime.wine.LocaleEnv
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.util.KeyValueSet
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
 import com.winlator.cmod.shared.util.StringUtils
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
@@ -56,10 +62,16 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
 import com.winlator.cmod.runtime.display.environment.ImageFs
-import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import kotlinx.coroutines.*
+import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.dialog.WinNativeComposeDialogs
+import android.os.Environment
 
 /**
  * Compose replacement for the legacy `ContainerDetailFragment`. Reuses
@@ -85,7 +97,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private val manager = ContainerManager(context)
     private val contentsManager = ContentsManager(context)
     private var isArm64EC = false
-    private val preloaderDialog: PreloaderDialog = PreloaderDialog(activity)
+    private val creatingPopup: ContainerProgressPopup =
+        ContainerProgressPopup(activity, R.string.containers_list_creating)
 
     // Parallel id/display lists for presets and wine versions.
     private var box64PresetIds = mutableListOf<String>()
@@ -96,6 +109,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     // Drives working copy, mirrored into state.drivesList via syncDrivesState.
     private val drivesWorking = mutableListOf<DriveDraft>()
     private var pendingDriveIndex: Int = -1
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val wallpaperPickerLauncher: ActivityResultLauncher<Array<String>>? =
         (activity as? ComponentActivity)?.activityResultRegistry?.register(
@@ -114,7 +128,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 WinToast.show(
                     context,
                     context.getString(R.string.settings_containers_error_saving_wallpaper),
-                    Toast.LENGTH_SHORT,
+                    dialog.window?.decorView,
                 )
             }
         }
@@ -138,6 +152,9 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 setDimAmount(0.5f)
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    isNavigationBarContrastEnforced = false
+                }
             }
             // Centralize cleanup so back-button dismissal follows the same
             // path as Save/Cancel and still fires onFinished (important for
@@ -145,6 +162,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             setOnDismissListener {
                 AppUtils.hideKeyboard(activity)
                 wallpaperPickerLauncher?.unregister()
+                scope.cancel()
                 onFinished?.run()
             }
         }
@@ -246,7 +264,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 val wineInfo = WineInfo.fromIdentifier(context, contentsManager, identifier)
                 isArm64EC = wineInfo.isArm64EC()
                 state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
-                applyDefaultContainerName(wineInfo)
+                applyDefaultContainerName(wineInfo, identifier)
                 // Box64 list depends on arch (box64 vs wowbox64 entries).
                 rebuildEmulatorLists()
                 loadBox64Versions()
@@ -283,6 +301,14 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
             override fun onPickWallpaper() {
                 wallpaperPickerLauncher?.launch(arrayOf("image/*"))
+            }
+
+            override fun onExportSaves() {
+                showExportSavesConfirmation()
+            }
+
+            override fun onImportSaves() {
+                showImportSavesConfirmation()
             }
         }
     }
@@ -384,9 +410,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.isSteamGame.value = false
 
         state.execArgs.value = c?.getExecArgs() ?: ""
-        state.lcAll.value = c?.getLC_ALL() ?: (
-            Locale.getDefault().language + "_" + Locale.getDefault().country + ".UTF-8"
-            )
+        state.lcAll.value = c?.getLC_ALL().takeUnless { it.isNullOrEmpty() }
+            ?: LocaleEnv.deriveFromDevice()
 
         val cpuCount = Runtime.getRuntime().availableProcessors()
         state.cpuCount.intValue = cpuCount
@@ -637,7 +662,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val archChanged = isArm64EC != wineInfo.isArm64EC()
         isArm64EC = wineInfo.isArm64EC()
         state.wineVersionDisplay.value = formatWineVersionDisplay(wineInfo)
-        applyDefaultContainerName(wineInfo)
+        applyDefaultContainerName(wineInfo, selectedIdentifier)
 
         rebuildEmulatorLists()
         // Always reset emulator selections when populating for the first time
@@ -668,7 +693,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val c = container
         val name = state.name.value.trim()
         if (name.isEmpty()) {
-            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), Toast.LENGTH_SHORT)
+            WinToast.show(context, context.getString(R.string.common_ui_name_cannot_be_empty), dialog.window?.decorView)
             return
         }
 
@@ -776,7 +801,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             dismiss()
         } else {
             try {
-                val data = JSONObject()
+                val data = ContainerCreation.buildLaunchReadyData(
+                    context,
+                    contentsManager,
+                    name,
+                    selectedWineStr,
+                )
                 data.put("name", name)
                 data.put("screenSize", screenSize)
                 data.put("envVars", envVarsStr)
@@ -805,21 +835,21 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("lc_all", state.lcAll.value)
                 data.put("execArgs", state.execArgs.value)
 
-                preloaderDialog.show(R.string.containers_list_creating)
+                creatingPopup.show()
                 ImageFs.find(File(context.filesDir, "imagefs"))
 
-                manager.createContainerAsync(data, contentsManager) { newContainer ->
+                ContainerCreation.createContainerAsync(manager, contentsManager, data) { newContainer ->
                     if (newContainer != null) {
                         saveMouseWarpOverride(newContainer)
                     } else {
                         WinToast.show(context, R.string.setup_wizard_unable_to_install_system_files)
                     }
-                    preloaderDialog.close()
+                    creatingPopup.close()
                     dismiss()
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "Error creating container", e)
-                preloaderDialog.close()
+                creatingPopup.close()
                 WinToast.show(
                     context,
                     context.getString(R.string.common_ui_error_with_message, e.message ?: ""),
@@ -968,14 +998,22 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         return if (archLabel.isNotEmpty()) "$base ($archLabel)" else base
     }
 
-    private fun applyDefaultContainerName(wineInfo: WineInfo, force: Boolean = false) {
+    private fun applyDefaultContainerName(
+        wineInfo: WineInfo,
+        wineVersionIdentifier: String? = null,
+        force: Boolean = false,
+    ) {
         if (container != null) return
 
         val currentName = state.name.value.trim()
-        val defaultName = wineInfo.toString()
+        val defaultName =
+            wineVersionIdentifier
+                ?.let { ContainerCreation.displayNameForWineVersion(context, contentsManager, it) }
+                ?: wineInfo.toString()
+        val uniqueDefault = ContainerCreation.uniqueName(manager, defaultName)
         if (force || currentName.isEmpty() || currentName == autogeneratedContainerName) {
-            state.name.value = defaultName
-            autogeneratedContainerName = defaultName
+            state.name.value = uniqueDefault
+            autogeneratedContainerName = uniqueDefault
         }
     }
 
@@ -1033,6 +1071,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             context.resources.getStringArray(R.array.device_memory_entries).toList()
         state.gfxPresentModeEntries.value =
             context.resources.getStringArray(R.array.present_mode_entries).toList()
+        state.gfxCompositorPresentModeEntries.value =
+            context.resources.getStringArray(R.array.compositor_present_mode_entries).toList()
         state.gfxResourceTypeEntries.value =
             context.resources.getStringArray(R.array.resource_type_entries).toList()
         state.gfxBcnEmulationEntries.value =
@@ -1062,6 +1102,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         selectByValue(state.gfxGpuNameEntries.value, config.get("gpuName") ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config.get("maxDeviceMemory") ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config.get("presentMode") ?: "mailbox", state.gfxSelectedPresentMode)
+        selectByValue(state.gfxCompositorPresentModeEntries.value, config.get("compositorPresentMode") ?: "fifo", state.gfxSelectedCompositorPresentMode)
         selectByValue(state.gfxResourceTypeEntries.value, config.get("resourceType") ?: "auto", state.gfxSelectedResourceType)
         selectByValue(state.gfxBcnEmulationEntries.value, config.get("bcnEmulation") ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config.get("bcnEmulationType") ?: "compute", state.gfxSelectedBcnEmulationType)
@@ -1134,8 +1175,12 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
     }
 
+    private fun initialDxWrapperConfig(): String =
+        container?.getDXWrapperConfig()
+            ?: ContainerCreation.defaultDxWrapperConfig(contentsManager, isArm64EC)
+
     private fun loadDxvkConfigState() {
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
         state.dxvkDdrawWrapperEntries.value =
@@ -1157,7 +1202,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
         if (!isArm64EC) originalItems.removeAll { it.contains("arm64ec") }
         state.dxvkVersionEntries.value = originalItems
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(originalItems, config.get("version"), state.dxvkSelectedVersion)
     }
@@ -1169,7 +1214,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             items.add(profile.verName + "-" + profile.verCode)
         }
         state.dxvkVkd3dVersionEntries.value = items
-        val configStr = container?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
+        val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         selectByIdentifier(items, config.get("vkd3dVersion"), state.dxvkSelectedVkd3dVersion)
     }
@@ -1211,6 +1256,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" }
         )
         val presentMode = state.gfxPresentModeEntries.value.getOrElse(state.gfxSelectedPresentMode.intValue) { "mailbox" }
+        val compositorPresentMode = state.gfxCompositorPresentModeEntries.value.getOrElse(state.gfxSelectedCompositorPresentMode.intValue) { "fifo" }
         val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
         val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
         val resourceType = state.gfxResourceTypeEntries.value.getOrElse(state.gfxSelectedResourceType.intValue) { "auto" }
@@ -1221,7 +1267,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
             "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
             "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
-            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
+            "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName;" +
+            "compositorPresentMode=$compositorPresentMode"
     }
 
     private fun buildDxvkConfigFromState(): String {
@@ -1496,10 +1543,214 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     }
 
     fun dismiss() {
-        // Cleanup (launcher unregister, keyboard hide, onFinished) runs in
         // the Dialog.OnDismissListener so back-button dismissal takes the
         // same path as Save/Cancel.
         dialog.dismiss()
+    }
+
+    private fun exportSaves(onComplete: () -> Unit) {
+        val container = this.container ?: run {
+            onComplete()
+            return
+        }
+        val sanitizedName = container.name.replace(" ", "_")
+        val date = SimpleDateFormat("MMddyyyy_HHmmss", Locale.US).format(Date())
+        val zipName = "${sanitizedName}_${date}.zip"
+        val exportDir = File(Environment.getExternalStorageDirectory(), "WinNative/saves")
+        if (!exportDir.exists()) exportDir.mkdirs()
+        val zipFile = File(exportDir, zipName)
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                zipFile.outputStream().use { os ->
+                    java.util.zip.ZipOutputStream(java.io.BufferedOutputStream(os)).use { zos ->
+                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                        if (usersDir.exists()) {
+                            zos.putNextEntry(java.util.zip.ZipEntry("${usersDir.name}/"))
+                            zos.closeEntry()
+                            zipDir(usersDir, usersDir.name, zos)
+                        }
+
+                        val programDataDir = File(container.getRootDir(), ".wine/drive_c/ProgramData")
+                        if (programDataDir.exists()) {
+                            zos.putNextEntry(java.util.zip.ZipEntry("${programDataDir.name}/"))
+                            zos.closeEntry()
+                            zipDir(programDataDir, programDataDir.name, zos)
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    onComplete()
+                    WinToast.show(context, context.getString(R.string.saves_export_success_path, "/WinNative/saves"), dialog.window?.decorView)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onComplete()
+                    WinToast.show(context, context.getString(R.string.saves_import_export_exported_failed, e.message), dialog.window?.decorView)
+                }
+            }
+        }
+    }
+
+    private fun isExcluded(name: String): Boolean {
+        if (name.isEmpty()) return false
+        val excludedFolders = setOf(
+            "Contacts", "Desktop", "Downloads", "Favorites", "Links",
+            "Music", "Pictures", "Searches", "Temp", "Videos", "Package Cache", "Templates"
+        )
+        if (excludedFolders.any { it.equals(name, ignoreCase = true) }) return true
+        if (name.contains("Microsoft", ignoreCase = true)) return true
+        if (name.contains("Windows", ignoreCase = true)) return true
+        return false
+    }
+
+    private fun isPathExcluded(path: String): Boolean {
+        return path.split('/').any { isExcluded(it) }
+    }
+
+    private fun zipDir(
+        dir: File,
+        baseName: String,
+        zos: java.util.zip.ZipOutputStream,
+    ) {
+        val children = dir.listFiles() ?: return
+        for (child in children) {
+            if (isExcluded(child.name)) continue
+            val name = if (baseName.isEmpty()) child.name else "$baseName/${child.name}"
+            if (child.isDirectory) {
+                zos.putNextEntry(java.util.zip.ZipEntry("$name/"))
+                zos.closeEntry()
+                zipDir(child, name, zos)
+            } else {
+                zos.putNextEntry(java.util.zip.ZipEntry(name))
+                child.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            }
+        }
+    }
+
+    private fun showExportSavesConfirmation() {
+        showSavesPopupConfirmation(
+            title = context.getString(R.string.saves_export_warning_title),
+            message = context.getString(R.string.saves_export_warning_body),
+            confirmLabel = context.getString(R.string.common_ui_export),
+            progressLabel = context.getString(R.string.common_ui_exporting),
+        ) { dismiss ->
+            exportSaves(onComplete = dismiss)
+        }
+    }
+
+    private fun showImportSavesConfirmation() {
+        showSavesPopupConfirmation(
+            title = context.getString(R.string.saves_import_warning_title),
+            message = context.getString(R.string.saves_import_warning_body),
+            confirmLabel = context.getString(R.string.common_ui_import),
+        ) { dismiss ->
+            dismiss()
+            DirectoryPickerDialog.showFile(
+                activity,
+                title = context.getString(R.string.common_ui_import),
+                allowedExtensions = setOf("zip"),
+            ) { pickedPath ->
+                importSaves(File(pickedPath))
+            }
+        }
+    }
+
+    private fun showSavesPopupConfirmation(
+        title: String,
+        message: String,
+        confirmLabel: String,
+        progressLabel: String? = null,
+        onConfirm: (dismiss: () -> Unit) -> Unit,
+    ) {
+        val dialog = AppCompatDialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+            setCancelable(true)
+            setCanceledOnTouchOutside(true)
+            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        }
+        val dismiss = { dialog.dismiss() }
+        val composeView = ComposeView(activity).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent {
+                WinNativeTheme {
+                    PopupDialog(
+                        title = title,
+                        message = message,
+                        confirmLabel = confirmLabel,
+                        progressLabel = progressLabel,
+                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                        onConfirm = { onConfirm(dismiss) },
+                        onCancel = dismiss,
+                    )
+                }
+            }
+        }
+        dialog.setContentView(composeView)
+        dialog.show()
+    }
+
+    private fun importSaves(zipFile: File) {
+        val container = this.container ?: return
+        scope.launch(Dispatchers.IO) {
+            val loadingDialog = withContext(Dispatchers.Main) {
+                WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_loading))
+            }
+            try {
+                zipFile.inputStream().use { isStream ->
+                    java.util.zip.ZipInputStream(java.io.BufferedInputStream(isStream)).use { zis ->
+                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                        val xuserDir = File(usersDir, "xuser")
+
+                        var ze: java.util.zip.ZipEntry?
+                        while (zis.nextEntry.also { ze = it } != null) {
+                            val entry = ze!!
+                            val name = entry.name
+
+                            if (isPathExcluded(name)) {
+                                zis.closeEntry()
+                                continue
+                            }
+
+                            var destFile: File? = null
+
+                            if (name.startsWith("users/")) {
+                                destFile = File(usersDir.parentFile, name)
+                            } else if (name.startsWith("ProgramData/")) {
+                                destFile = File(usersDir.parentFile, name)
+                            } else if (name.startsWith("xuser/")) {
+                                destFile = File(usersDir, name)
+                            } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
+                                destFile = File(xuserDir, name)
+                            }
+
+                            if (destFile != null) {
+                                if (entry.isDirectory) {
+                                    destFile.mkdirs()
+                                } else {
+                                    destFile.parentFile?.mkdirs()
+                                    destFile.outputStream().use { zis.copyTo(it) }
+                                }
+                            }
+                            zis.closeEntry()
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    loadingDialog?.dismiss()
+                    WinToast.show(context, R.string.saves_import_export_imported, dialog.window?.decorView)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    loadingDialog?.dismiss()
+                    WinToast.show(context, context.getString(R.string.saves_import_export_imported_failed, e.message), dialog.window?.decorView)
+                }
+            }
+        }
     }
 
     companion object {

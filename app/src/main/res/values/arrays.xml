@@ -49,6 +49,7 @@
         <item>None</item>
     </string-array>
     <string-array name="dxvk_version_entries">
+        <item>None</item>
     </string-array>
     <string-array name="device_memory_entries">
     <item>0 (Default)</item>
@@ -65,6 +66,11 @@
         <item>fifo</item>
         <item>immediate</item>
         <item>relaxed</item>
+    </string-array>
+    <string-array name="compositor_present_mode_entries">
+        <item>fifo</item>
+        <item>mailbox</item>
+        <item>immediate</item>
     </string-array>
     <string-array name="resource_type_entries">
         <item>auto</item>
@@ -111,11 +117,6 @@
     </string-array>
     <string-array name="fexcore_version_entries">
     </string-array>
-    <string-array name="steam_type_entries">
-        <item>Normal - No optimizations</item>
-        <item>Light - Disables overlay, shaders, UI extras</item>
-        <item>Ultralight - Maximum performance, minimal features</item>
-    </string-array>
     <string-array name="dinput_mapper_type_entries">
         <item>@string/container_config_dinput_legacy</item>
         <item>@string/container_config_dinput_modern</item>
@@ -139,6 +140,7 @@
     <string-array name="some_lc_all">
         <item>ar_EG</item>
         <item>ar_SA</item>
+        <item>da_DK</item>
         <item>de_AT</item>
         <item>de_CH</item>
         <item>de_DE</item>
@@ -159,10 +161,13 @@
         <item>it_IT</item>
         <item>ja_JP</item>
         <item>ko_KR</item>
+        <item>pl_PL</item>
         <item>pt_BR</item>
         <item>pt_PT</item>
+        <item>ro_RO</item>
         <item>ru_RU</item>
         <item>ru_UA</item>
+        <item>uk_UA</item>
         <item>zh_CN</item>
         <item>zh_HK</item>
         <item>zh_SG</item>

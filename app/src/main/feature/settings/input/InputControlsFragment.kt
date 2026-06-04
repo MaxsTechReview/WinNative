@@ -119,6 +119,7 @@ class InputControlsFragment : Fragment() {
                                 onAddProfile = ::addProfile,
                                 onEditProfile = ::editProfile,
                                 onDuplicateProfile = ::duplicateProfile,
+                                onResetProfile = ::resetProfile,
                                 onRemoveProfile = ::removeProfile,
                                 onDismissDialog = ::dismissComposeDialog,
                                 onConfirmDialog = ::confirmComposeDialog,
@@ -286,6 +287,7 @@ class InputControlsFragment : Fragment() {
             InputControlsScreenState(
                 selectedProfileName = profile?.name,
                 selectedProfileElementCount = profile?.elementCountFromFile ?: 0,
+                selectedProfileCanReset = profile != null && manager.canResetProfile(profile),
                 overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
                 gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
                 gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
@@ -489,6 +491,31 @@ class InputControlsFragment : Fragment() {
             }
         } else {
             WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
+        }
+    }
+
+    private fun resetProfile() {
+        val profile = currentProfile
+        if (profile == null) {
+            WinToast.show(requireContext(), R.string.input_controls_editor_no_profile_selected)
+            return
+        }
+        if (!manager.canResetProfile(profile)) {
+            WinToast.show(requireContext(), R.string.input_controls_editor_reset_unavailable)
+            return
+        }
+        showConfirmDialog(
+            message = getString(R.string.input_controls_editor_confirm_reset_profile),
+            confirmLabel = getString(R.string.common_ui_reset),
+            tone = InputDialogTone.Danger,
+        ) {
+            currentProfile = manager.resetProfile(profile)
+            persistSelectedProfileId()
+            expandedControllerIds.clear()
+            stopControllerInputCapture()
+            refreshVisibleControllers()
+            publishUiState()
+            WinToast.show(requireContext(), R.string.input_controls_editor_profile_reset)
         }
     }
 
@@ -1147,7 +1174,7 @@ class InputControlsFragment : Fragment() {
     companion object {
         private const val ARG_SELECTED_PROFILE_ID = "selectedProfileId"
         private const val INPUT_CONTROLS_URL =
-            "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/main/Profiles/%s"
+            "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/main/Profiles/%s"
         private const val PREF_SELECTED_PROFILE_ID = "input_controls_selected_profile_id"
 
         fun newInstance(profileId: Int = 0): InputControlsFragment =

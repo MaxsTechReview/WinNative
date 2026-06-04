@@ -6,8 +6,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import androidx.core.graphics.ColorUtils;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.xserver.XServer;
@@ -21,9 +23,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ControlElement {
-  public static final float STICK_DEAD_ZONE = 0.05f;
+  public static final float STICK_DEAD_ZONE = 0.15f;
   public static final float DPAD_DEAD_ZONE = 0.3f;
-  public static final float STICK_SENSITIVITY = 2.0f;
+  public static final float STICK_SENSITIVITY = 3.0f;
+  public static final float STICK_CROSS_ZONE = 0.3f;
   public static final float TRACKPAD_MIN_SPEED = 0.8f;
   public static final float TRACKPAD_MAX_SPEED = 20.0f;
   public static final byte TRACKPAD_ACCELERATION_THRESHOLD = 4;
@@ -103,6 +106,7 @@ public class ControlElement {
   private Range range;
   private byte orientation;
   private PointF currentPosition;
+  private PointF trackpadOrigin;
   private int customColor = -1;
   private RangeScroller scroller;
   private CubicBezierInterpolator interpolator;
@@ -228,6 +232,10 @@ public class ControlElement {
     this.boundingBoxNeedsUpdate = true;
   }
 
+  public Binding[] getBindings() {
+    return bindings;
+  }
+
   public Binding getBindingAt(int index) {
     return index < bindings.length ? bindings[index] : Binding.NONE;
   }
@@ -309,7 +317,14 @@ public class ControlElement {
 
   public Rect getBoundingBox() {
     if (boundingBoxNeedsUpdate) computeBoundingBox();
+    // Position and size always come from the ICP profile. VisualStyle (ORIGINAL vs GAMEHUB) only
+    // changes how an element is drawn, never where it sits — GameHub layouts ship as their own ICP.
     return boundingBox;
+  }
+
+  /** Trigger/bumper silhouette for this element when drawn in the GameHub style, or null. */
+  private GameHubLayout.RenderShape gameHubTriggerShape() {
+    return GameHubLayout.triggerShapeFor(GameHubLayout.roleFor(this));
   }
 
   private Rect computeBoundingBox() {
@@ -375,18 +390,38 @@ return boundingBox;
 }
 
   private String getDisplayText() {
+    // Per-element text always wins (user explicit override).
     if (text != null && !text.isEmpty()) {
       return text;
-    } else {
-      Binding binding = getBindingAt(0);
-      String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
-      if (text.length() > 7) {
-        String[] parts = text.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) sb.append(part.charAt(0));
-        return (binding.isMouse() ? "M" : "") + sb;
-      } else return text;
     }
+    Binding binding = getBindingAt(0);
+    // LabelTheme override (Xbox/PS glyphs and shoulder labels) is applied only when the user
+    // hasn't typed a custom label themselves.
+    LabelTheme theme = inputControlsView.getLabelTheme();
+    String themed = theme != null ? theme.labelFor(binding) : null;
+    if (themed != null) return themed;
+    String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
+    if (text.length() > 7) {
+      String[] parts = text.split(" ");
+      StringBuilder sb = new StringBuilder();
+      for (String part : parts) sb.append(part.charAt(0));
+      return (binding.isMouse() ? "M" : "") + sb;
+    } else return text;
+  }
+
+  /**
+   * Returns the effective accent color for this element after applying (in order): per-element
+   * customColor (highest priority — user explicit), LabelTheme color for the primary binding, or
+   * {@code -1} if no override applies (caller should fall back to the overlay primary color).
+   */
+  private int resolveAccentColor() {
+    if (customColor != -1) return customColor;
+    LabelTheme theme = inputControlsView.getLabelTheme();
+    if (theme != null) {
+      int c = theme.colorFor(inputControlsView, getBindingAt(0));
+      if (c != 0) return c;
+    }
+    return -1;
   }
 
   private String getBindingShortText(int index) {
@@ -431,11 +466,16 @@ return boundingBox;
   }
 
   public void draw(Canvas canvas) {
+    if (inputControlsView.getVisualStyle() == VisualStyle.GAMEHUB) {
+      drawGameHub(canvas);
+      return;
+    }
     int snappingSize = inputControlsView.getSnappingSize();
     Paint paint = inputControlsView.getPaint();
     float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
-    int primaryColor = customColor != -1
-        ? ColorUtils.setAlphaComponent(customColor, (int) (Math.min(1.0f,
+    int accent = resolveAccentColor();
+    int primaryColor = accent != -1
+        ? ColorUtils.setAlphaComponent(accent, (int) (Math.min(1.0f,
             inputControlsView.getOverlayOpacity() * 2.0f) * 255))
         : inputControlsView.getPrimaryColor();
     int alpha = (int) (Color.alpha(primaryColor) * effectiveOpacity);
@@ -446,7 +486,7 @@ return boundingBox;
     int secondaryColor = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), highlightAlpha);
 
     paint.setColor(
-        (selected && customColor == -1) ? secondaryColor : primaryColor);
+        (selected && accent == -1) ? secondaryColor : primaryColor);
     paint.setStyle(Paint.Style.STROKE);
     float strokeWidth = snappingSize * 0.25f;
     paint.setStrokeWidth(strokeWidth);
@@ -499,7 +539,7 @@ return boundingBox;
 
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(
-              (selected && customColor == -1)
+              (selected && accent == -1)
                   ? secondaryColor
                   : primaryColor);
           paint.setStrokeWidth(strokeWidth);
@@ -605,7 +645,7 @@ return boundingBox;
 
           paint.setStyle(Paint.Style.STROKE);
           paint.setColor(
-              (selected && customColor == -1)
+              (selected && accent == -1)
                   ? secondaryColor
                   : primaryColor);
           canvas.drawCircle(cx, cy, radius, paint);
@@ -835,6 +875,422 @@ return boundingBox;
     }
   }
 
+  /**
+   * GameHub visual style — dark translucent glass body, light white rim, brighter rim & inner glow
+   * when pressed, soft outer shadow. Used when the user picks the "GameHub" style.
+   *
+   * <p>Geometry (positions, bounding boxes, sticks, dpad arms, radial menu paths) is reused from
+   * the original code; only the paint properties differ.
+   */
+  private void drawGameHub(Canvas canvas) {
+    int snappingSize = inputControlsView.getSnappingSize();
+    Paint paint = inputControlsView.getPaint();
+    float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
+    float overlayOpacity = inputControlsView.getOverlayOpacity();
+    boolean engaged = isEngaged();
+    Rect boundingBox = getBoundingBox();
+
+    int accent = resolveAccentColor();
+    boolean hasAccent = accent != -1;
+
+    float gameHubDim = Math.min(1.0f, 0.5f + overlayOpacity * 0.7f);
+    int fillAlpha = (int) (90 * gameHubDim * effectiveOpacity);
+    int strokeAlpha = (int) (150 * gameHubDim * effectiveOpacity);
+    int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity);
+    int pressedStrokeAlpha = (int) (220 * gameHubDim * effectiveOpacity);
+    int textAlpha = (int) (255 * gameHubDim * effectiveOpacity);
+    int glassEdgeAlpha = (int) (75 * gameHubDim * effectiveOpacity);
+
+    int fillColor = Color.argb(fillAlpha, 0, 0, 0);
+    int strokeColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, Math.max(strokeAlpha, 110))
+        : Color.argb(strokeAlpha, 255, 255, 255);
+    int pressedFillBase = hasAccent ? accent : Color.WHITE;
+    int pressedFillColor = ColorUtils.setAlphaComponent(pressedFillBase, pressedFillAlpha);
+    int pressedStrokeColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, Math.max(pressedStrokeAlpha, 160))
+        : Color.argb(pressedStrokeAlpha, 255, 255, 255);
+    int textColor = hasAccent
+        ? ColorUtils.setAlphaComponent(accent, textAlpha)
+        : Color.argb(textAlpha, 255, 255, 255);
+
+    if (selected && !hasAccent) {
+      int highlightAlpha = (int) (255 * overlayOpacity);
+      strokeColor = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), highlightAlpha);
+    }
+
+    float strokeWidth = Math.max(2f, snappingSize * 0.18f);
+    paint.setStrokeWidth(strokeWidth);
+    paint.setStrokeJoin(Paint.Join.ROUND);
+    paint.setStrokeCap(Paint.Cap.ROUND);
+
+    switch (type) {
+      case BUTTON: {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+        GameHubLayout.RenderShape triggerShape = gameHubTriggerShape();
+        boolean isTrigger = triggerShape != null;
+
+        if (isTrigger) {
+          GameHubLayout.buildTriggerPath(
+              path, triggerShape,
+              boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom);
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(fillColor);
+          canvas.drawPath(path, paint);
+          if (engaged) {
+            paint.setColor(pressedFillColor);
+            canvas.drawPath(path, paint);
+          }
+          drawGameHubGlassOnPath(
+              canvas, paint, path, cx, cy,
+              Math.max(boundingBox.width(), boundingBox.height()) * 0.5f, glassEdgeAlpha);
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+          canvas.drawPath(path, paint);
+        } else {
+          drawGameHubShape(canvas, paint, boundingBox, fillColor, true);
+          if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true);
+          drawGameHubGlassShape(canvas, paint, boundingBox, glassEdgeAlpha);
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+          drawGameHubShape(canvas, paint, boundingBox, 0, false);
+        }
+
+        if (iconId > 0) {
+          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
+        } else {
+          String label = getDisplayText();
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(textColor);
+          paint.setTextSize(
+              Math.min(
+                  getTextSizeForWidth(paint, label, boundingBox.width() - strokeWidth * 2),
+                  snappingSize * 2 * scale));
+          paint.setTextAlign(Paint.Align.CENTER);
+          paint.setFakeBoldText(true);
+          canvas.drawText(label, cx, (cy - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
+          paint.setFakeBoldText(false);
+        }
+        break;
+      }
+      case STICK: {
+        int cx = boundingBox.centerX();
+        int cy = boundingBox.centerY();
+        float ringRadius = boundingBox.height() * 0.5f;
+
+        // Outer ring — solid translucent dark fill matching the button fill alpha so the
+        // joystick shadowing reads with the same weight as the rest of the controls.
+        int ringFillAlpha = fillAlpha;
+        int ringFill = Color.argb(ringFillAlpha, 0, 0, 0);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(ringFill);
+        canvas.drawCircle(cx, cy, ringRadius, paint);
+
+        if (glassEdgeAlpha > 0) {
+          paint.setShader(new RadialGradient(
+              cx, cy, ringRadius,
+              Color.argb(0, 0, 0, 0), Color.argb(glassEdgeAlpha, 0, 0, 0),
+              Shader.TileMode.CLAMP));
+          paint.setStyle(Paint.Style.FILL);
+          canvas.drawCircle(cx, cy, ringRadius, paint);
+          paint.setShader(null);
+        }
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawCircle(cx, cy, ringRadius - strokeWidth * 0.5f, paint);
+
+        float thumbX = engaged ? getCurrentPosition().x : cx;
+        float thumbY = engaged ? getCurrentPosition().y : cy;
+        float thumbRadius = ringRadius * 0.48f;
+        int thumbFillAlpha = (int) ((engaged ? 100 : 77) * gameHubDim * effectiveOpacity);
+        int thumbFill = hasAccent
+            ? ColorUtils.setAlphaComponent(accent, thumbFillAlpha)
+            : Color.argb(thumbFillAlpha, 255, 255, 255);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(thumbFill);
+        canvas.drawCircle(thumbX, thumbY, thumbRadius, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawCircle(thumbX, thumbY, thumbRadius - strokeWidth * 0.5f, paint);
+        break;
+      }
+      case D_PAD: {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+
+        float radius = Math.min(boundingBox.width(), boundingBox.height()) * 0.5f;
+        float[] arrowCenter = new float[2];
+        float arrowGradR = radius * 0.5f;
+        for (int side = 0; side < 4; side++) {
+          path.reset();
+          GameHubLayout.buildDpadArrow(path, side, cx, cy, radius);
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(fillColor);
+          canvas.drawPath(path, paint);
+          if (engaged) {
+            paint.setColor(pressedFillColor);
+            canvas.drawPath(path, paint);
+          }
+          if (glassEdgeAlpha > 0) {
+            GameHubLayout.dpadArrowCenter(side, cx, cy, radius, arrowCenter);
+            drawGameHubGlassOnPath(
+                canvas, paint, path, arrowCenter[0], arrowCenter[1], arrowGradR, glassEdgeAlpha);
+          }
+        }
+        GameHubLayout.buildDpadArrows(path, cx, cy, radius);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawPath(path, paint);
+        break;
+      }
+      case TRACKPAD: {
+        float radius = boundingBox.height() * 0.18f;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(fillColor);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            radius, radius, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        canvas.drawRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            radius, radius, paint);
+        break;
+      }
+      case RADIAL_MENU: {
+        float cx = boundingBox.centerX();
+        float cy = boundingBox.centerY();
+        float radius = boundingBox.width() * 0.5f;
+
+        if (radialMenuExpanded && bindings.length > 0 && radius > 0) {
+          float innerRadius = radius + snappingSize * 0.5f;
+          float outerRadius = boundingBox.width() + (snappingSize * scale);
+          float angleStep = 360.0f / bindings.length;
+
+          if (paths == null || paths.length != bindings.length) {
+            paths = new Path[bindings.length];
+            RectF outerRect = new RectF(cx - outerRadius, cy - outerRadius, cx + outerRadius, cy + outerRadius);
+            RectF innerRect = new RectF(cx - innerRadius, cy - innerRadius, cx + innerRadius, cy + innerRadius);
+
+            for (int i = 0; i < bindings.length; i++) {
+              float startAngle = -90.0f + i * angleStep;
+              paths[i] = new Path();
+              paths[i].arcTo(outerRect, startAngle, angleStep, true);
+              paths[i].arcTo(innerRect, startAngle + angleStep, -angleStep, false);
+              paths[i].close();
+            }
+          }
+
+          if (paths != null && paths.length == bindings.length) {
+            for (int i = 0; i < bindings.length; i++) {
+              boolean isSegmentEngaged = i == activeRadialBindingIndex;
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(isSegmentEngaged ? pressedFillColor : fillColor);
+              canvas.drawPath(paths[i], paint);
+
+              drawGameHubGlassOnPath(canvas, paint, paths[i], cx, cy, outerRadius, glassEdgeAlpha);
+
+              paint.setStyle(Paint.Style.STROKE);
+              paint.setColor(isSegmentEngaged ? pressedStrokeColor : strokeColor);
+              canvas.drawPath(paths[i], paint);
+
+              float middleAngle = (float) Math.toRadians(-90.0f + i * angleStep + angleStep * 0.5f);
+              float labelRadius = (innerRadius + outerRadius) * 0.5f;
+              float labelX = (float) (cx + Math.cos(middleAngle) * labelRadius);
+              float labelY = (float) (cy + Math.sin(middleAngle) * labelRadius);
+
+              String label = getBindingShortText(i);
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(textColor);
+              paint.setTextSize(snappingSize * 1.2f * scale);
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(label, labelX, labelY - ((paint.descent() + paint.ascent()) * 0.5f), paint);
+            }
+          }
+        }
+
+        drawGameHubShape(canvas, paint, boundingBox, fillColor, true);
+        if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true);
+        drawGameHubGlassShape(canvas, paint, boundingBox, glassEdgeAlpha);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        drawGameHubShape(canvas, paint, boundingBox, 0, false);
+
+        if (iconId > 0) {
+          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
+        } else {
+          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), 34);
+        }
+        break;
+      }
+      case RANGE_BUTTON: {
+        Range range = getRange();
+        float radius = snappingSize * 0.75f * scale;
+        float elementSize = scroller.getElementSize();
+        float minTextSize = snappingSize * 2 * scale;
+        float scrollOffset = scroller.getScrollOffset();
+        byte[] rangeIndex = scroller.getRangeIndex();
+        path.reset();
+
+        drawGameHubShape(canvas, paint, boundingBox, fillColor, true, Shape.ROUND_RECT);
+        if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true, Shape.ROUND_RECT);
+        drawGameHubGlassShape(canvas, paint, boundingBox, glassEdgeAlpha, Shape.ROUND_RECT);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(engaged ? pressedStrokeColor : strokeColor);
+        drawGameHubShape(canvas, paint, boundingBox, 0, false, Shape.ROUND_RECT);
+
+        canvas.save();
+        path.addRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            radius, radius, Path.Direction.CW);
+        canvas.clipPath(path);
+
+        if (orientation == 0) {
+          float lineTop = boundingBox.top + strokeWidth * 0.5f;
+          float lineBottom = boundingBox.bottom - strokeWidth * 0.5f;
+          float startX = boundingBox.left - (scrollOffset % elementSize);
+
+          for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
+            int index = i % range.max;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(strokeColor);
+            if (startX > boundingBox.left && startX < boundingBox.right)
+              canvas.drawLine(startX, lineTop, startX, lineBottom, paint);
+            String text = getRangeTextForIndex(range, index);
+            if (startX < boundingBox.right && startX + elementSize > boundingBox.left) {
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(textColor);
+              paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, elementSize - strokeWidth * 2), minTextSize));
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(text, startX + elementSize * 0.5f, (boundingBox.centerY() - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
+            }
+            startX += elementSize;
+          }
+        } else {
+          float lineLeft = boundingBox.left + strokeWidth * 0.5f;
+          float lineRight = boundingBox.right - strokeWidth * 0.5f;
+          float startY = boundingBox.top - (scrollOffset % elementSize);
+
+          for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(strokeColor);
+            if (startY > boundingBox.top && startY < boundingBox.bottom)
+              canvas.drawLine(lineLeft, startY, lineRight, startY, paint);
+            String text = getRangeTextForIndex(range, i);
+            if (startY < boundingBox.bottom && startY + elementSize > boundingBox.top) {
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(textColor);
+              paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, boundingBox.width() - strokeWidth * 2), minTextSize));
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(text, boundingBox.centerX(), startY + elementSize * 0.5f - ((paint.descent() + paint.ascent()) * 0.5f), paint);
+            }
+            startY += elementSize;
+          }
+        }
+        canvas.restore();
+        break;
+      }
+      default:
+        drawOriginalLegacy(canvas);
+        break;
+    }
+  }
+
+  private void drawGameHubShape(Canvas canvas, Paint paint, Rect bb, int color, boolean fill) {
+    drawGameHubShape(canvas, paint, bb, color, fill, shape);
+  }
+
+  private void drawGameHubShape(Canvas canvas, Paint paint, Rect bb, int color, boolean fill, Shape overrideShape) {
+    if (fill) {
+      paint.setStyle(Paint.Style.FILL);
+      paint.setColor(color);
+    }
+    int snappingSize = inputControlsView.getSnappingSize();
+    switch (overrideShape) {
+      case CIRCLE:
+        canvas.drawCircle(bb.centerX(), bb.centerY(), bb.width() * 0.5f, paint);
+        break;
+      case RECT:
+        canvas.drawRect(bb, paint);
+        break;
+      case ROUND_RECT: {
+        float r = bb.height() * 0.5f;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+      case SQUARE: {
+        float r = snappingSize * 0.85f * scale;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+    }
+  }
+
+  private void drawGameHubGlassShape(Canvas canvas, Paint paint, Rect bb, int edgeAlpha) {
+    drawGameHubGlassShape(canvas, paint, bb, edgeAlpha, shape);
+  }
+
+  private void drawGameHubGlassShape(Canvas canvas, Paint paint, Rect bb, int edgeAlpha, Shape overrideShape) {
+    if (edgeAlpha <= 0) return;
+    float cx = bb.exactCenterX();
+    float cy = bb.exactCenterY();
+    float gradR = Math.max(bb.width(), bb.height()) * 0.5f;
+    paint.setShader(new RadialGradient(
+        cx, cy, gradR,
+        Color.argb(0, 0, 0, 0), Color.argb(edgeAlpha, 0, 0, 0),
+        Shader.TileMode.CLAMP));
+    paint.setStyle(Paint.Style.FILL);
+    int snappingSize = inputControlsView.getSnappingSize();
+    switch (overrideShape) {
+      case CIRCLE:
+        canvas.drawCircle(cx, cy, bb.width() * 0.5f, paint);
+        break;
+      case RECT:
+        canvas.drawRect(bb, paint);
+        break;
+      case ROUND_RECT: {
+        float r = bb.height() * 0.5f;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+      case SQUARE: {
+        float r = snappingSize * 0.85f * scale;
+        canvas.drawRoundRect(bb.left, bb.top, bb.right, bb.bottom, r, r, paint);
+        break;
+      }
+    }
+    paint.setShader(null);
+  }
+
+  private void drawGameHubGlassOnPath(
+      Canvas canvas, Paint paint, Path path, float cx, float cy, float gradR, int edgeAlpha) {
+    if (edgeAlpha <= 0 || gradR <= 0) return;
+    paint.setShader(new RadialGradient(
+        cx, cy, gradR,
+        Color.argb(0, 0, 0, 0), Color.argb(edgeAlpha, 0, 0, 0),
+        Shader.TileMode.CLAMP));
+    paint.setStyle(Paint.Style.FILL);
+    canvas.drawPath(path, paint);
+    paint.setShader(null);
+  }
+
+  /**
+   * Fallback to the original draw routine for element types we don't customize in the GameHub
+   * style (RADIAL_MENU, RANGE_BUTTON). This temporarily switches the view's style back to ORIGINAL
+   * just for this draw call.
+   */
+  private void drawOriginalLegacy(Canvas canvas) {
+    VisualStyle saved = inputControlsView.getVisualStyle();
+    try {
+      inputControlsView.setVisualStyleSilent(VisualStyle.ORIGINAL);
+      draw(canvas);
+    } finally {
+      inputControlsView.setVisualStyleSilent(saved);
+    }
+  }
+
   private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId) {
     drawIcon(canvas, cx, cy, width, height, iconId, true);
   }
@@ -968,6 +1424,8 @@ return boundingBox;
         if (type == Type.TRACKPAD) {
           if (currentPosition == null) currentPosition = new PointF();
           currentPosition.set(x, y);
+          if (trackpadOrigin == null) trackpadOrigin = new PointF();
+          trackpadOrigin.set(x, y);
         }
         return handleTouchMove(pointerId, x, y);
       }
@@ -1076,11 +1534,13 @@ return boundingBox;
             this.states[i] = true;
           }
         } else {
+          float adjDeltaX = (Math.abs(deltaX) < Math.abs(deltaY) * STICK_CROSS_ZONE) ? 0 : deltaX;
+          float adjDeltaY = (Math.abs(deltaY) < Math.abs(deltaX) * STICK_CROSS_ZONE) ? 0 : deltaY;
           final boolean[] states = {
-            deltaY <= -STICK_DEAD_ZONE,
-            deltaX >= STICK_DEAD_ZONE,
-            deltaY >= STICK_DEAD_ZONE,
-            deltaX <= -STICK_DEAD_ZONE
+            adjDeltaY <= -STICK_DEAD_ZONE,
+            adjDeltaX >= STICK_DEAD_ZONE,
+            adjDeltaY >= STICK_DEAD_ZONE,
+            adjDeltaX <= -STICK_DEAD_ZONE
           };
 
           for (byte i = 0; i < 4; i++) {
@@ -1096,18 +1556,20 @@ return boundingBox;
       } else if (type == Type.TRACKPAD) {
         Binding firstBinding = getBindingAt(0);
         if (firstBinding.isGamepad()) {
-          if (interpolator == null) interpolator = new CubicBezierInterpolator();
-          interpolator.set(0.075f, 0.95f, 0.45f, 0.95f);
-          float valueX = deltaX;
-          float valueY = deltaY;
-          if (Math.abs(valueX) > TRACKPAD_ACCELERATION_THRESHOLD) valueX *= STICK_SENSITIVITY;
-          if (Math.abs(valueY) > TRACKPAD_ACCELERATION_THRESHOLD) valueY *= STICK_SENSITIVITY;
-          float interpX =
-              interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueX / TRACKPAD_MAX_SPEED)));
-          float interpY =
-              interpolator.getInterpolation(Math.min(1.0f, Math.abs(valueY / TRACKPAD_MAX_SPEED)));
-          float finalX = Mathf.clamp(Mathf.sign(valueX) * interpX, -1, 1);
-          float finalY = Mathf.clamp(Mathf.sign(valueY) * interpY, -1, 1);
+          if (trackpadOrigin == null) trackpadOrigin = new PointF(x, y);
+          float offsetX = x - trackpadOrigin.x;
+          float offsetY = y - trackpadOrigin.y;
+          float distance = (float) Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+          float finalX = 0;
+          float finalY = 0;
+          if (distance > 0) {
+            float magnitude = Math.min(distance / radius, 1.0f);
+            if (magnitude > STICK_DEAD_ZONE) {
+              float scaled = (magnitude - STICK_DEAD_ZONE) / (1.0f - STICK_DEAD_ZONE);
+              finalX = (offsetX / distance) * scaled;
+              finalY = (offsetY / distance) * scaled;
+            }
+          }
           inputControlsView.handleStickInput(firstBinding, finalX, finalY);
           for (byte i = 0; i < 4; i++) {
             this.states[i] = true;
@@ -1139,9 +1601,10 @@ return boundingBox;
 
           if (cursorDx != 0 || cursorDy != 0) {
             XServer xServer = inputControlsView.getXServer();
-            if (xServer.isRelativeMouseMovement())
-              xServer.getWinHandler().mouseEvent(MouseEventFlags.MOVE, cursorDx, cursorDy, 0);
-            else inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
+            if (xServer.isRelativeMouseMovement()) {
+              xServer.updatePointerForDisplayDelta(cursorDx, cursorDy);
+              xServer.getWinHandler().mouseMoveDelta(cursorDx, cursorDy);
+            } else inputControlsView.getXServer().injectPointerMoveDelta(cursorDx, cursorDy);
           }
         }
       } else {
@@ -1233,6 +1696,7 @@ return boundingBox;
           inputControlsView.handleStickInput(firstBinding, 0.0f, 0.0f);
         }
         currentPosition = null;
+        trackpadOrigin = null;
       }
 
       inputControlsView.invalidate();

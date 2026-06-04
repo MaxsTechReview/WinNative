@@ -31,7 +31,8 @@
     <string name="common_ui_icon">Ikon</string>
     <string name="common_ui_duplicate">Dupliker</string>
     <string name="common_ui_credits_and_third_party_apps">Credits og tredjepartsapps</string>
-    <string name="common_ui_loading">Indlæser…</string>
+    <string name="common_ui_loading">Indlæser</string>
+    <string name="common_ui_exporting">Eksporterer</string>
     <string name="common_ui_enable">Aktiver</string>
     <string name="common_ui_disable">Deaktiver</string>
     <string name="common_ui_force">Tving</string>
@@ -42,7 +43,7 @@
     <string name="common_ui_height">Højde</string>
     <string name="common_ui_open_file">Åbn fil</string>
     <string name="common_ui_download_file">Download fil</string>
-    <string name="common_ui_downloading_file">Downloader fil...</string>
+    <string name="common_ui_downloading_file">Downloader fil</string>
     <string name="common_ui_browse">Gennemse</string>
     <string name="common_ui_options">Indstillinger</string>
     <string name="common_ui_export">Eksporter</string>
@@ -105,12 +106,24 @@
     <string name="common_ui_application">Applikation</string>
     <string name="common_ui_check">Tjek</string>
     <string name="store_game_check_for_update">Søg efter opdatering</string>
-    <string name="store_game_checking_for_update">Tjekker...</string>
+    <string name="store_game_checking_for_update">Tjekker</string>
     <string name="store_game_download_update">Download opdatering</string>
     <string name="store_game_no_update_available">Ingen opdatering tilgængelig</string>
     <string name="store_game_update_available">Opdatering tilgængelig</string>
     <string name="store_game_update_check_failed">Kunne ikke tjekke for opdatering</string>
     <string name="store_game_update">Opdater</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Bekræft filer</string>
+    <string name="store_game_verify_started">Bekræfter %1$s — se fanen Downloads</string>
+    <string name="store_game_steam_options">Steam-indstillinger</string>
+    <string name="store_game_verify_complete">Bekræftelse af filer fuldført</string>
+    <string name="store_game_verify_failed_notice">Bekræftelse af filer mislykkedes</string>
+    <string name="store_game_progress_background_hint">Du kan lukke dette — det fortsætter i baggrunden. Se fanen Downloads når som helst.</string>
+    <string name="store_game_checking_updates">Søger efter opdateringer</string>
+    <string name="store_game_no_updates_notice">Ingen opdateringer tilgængelige</string>
+    <string name="store_game_update_complete">Opdatering fuldført</string>
+    <string name="store_game_update_failed_notice">Opdatering mislykkedes</string>
+    <string name="store_game_update_check_failed_notice">Søgning efter opdateringer mislykkedes</string>
     <string name="store_game_download_already_active">Dette spil downloades allerede. Annuller den aktuelle download, før du tilføjer DLC.</string>
     <string name="common_ui_select">Vælg</string>
     <string name="common_ui_select_folder">Vælg mappe</string>
@@ -170,9 +183,14 @@
     <string name="library_games_no_games_hub">Ingen spil installeret\nKlik for at åbne Winlator Backend</string>
     <string name="library_games_installed_badge">INSTALLERET</string>
     <string name="library_games_unknown_game">Ukendt spil</string>
-    <string name="library_games_layouts_header">LAYOUTS</string>
+    <string name="library_games_layouts_header">BIBLIOTEKSLAYOUTS</string>
     <string name="library_games_layout_carousel">Karrusel</string>
     <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_view_options_header">VISNINGSINDSTILLINGER</string>
+    <string name="library_games_immersive_mode">Fordybende tilstand</string>
+    <string name="library_games_immersive_mode_description">Brug det fokuserede spils grafik som baggrund</string>
+    <string name="library_games_immersive_blur">Slør baggrunden</string>
+    <string name="library_games_immersive_blur_description">Anvend en sløringseffekt på den fordybende baggrund</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>
     <string name="library_games_play">Spil</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
@@ -239,9 +257,11 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Ny container</string>
     <string name="containers_list_edit">Rediger container</string>
-    <string name="containers_list_creating">Opretter container…</string>
-    <string name="containers_list_removing">Fjerner container…</string>
-    <string name="containers_list_duplicating">Duplikerer container…</string>
+    <string name="containers_list_creating">Opretter container</string>
+    <string name="containers_list_removing">Fjerner container</string>
+    <string name="containers_list_duplicating">Duplikerer container</string>
+    <string name="containers_list_remove_title">Fjern container</string>
+    <string name="containers_list_duplicate_title">Dupliker container</string>
     <string name="containers_list_confirm_remove">Vil du fjerne denne container?</string>
     <string name="containers_list_confirm_duplicate">Vil du duplikere denne container?</string>
 
@@ -267,17 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Deaktiver XInput (For eksklusiv M/KB-styring)</string>
     <string name="shortcuts_properties_exclusive_input">Eksklusivt input</string>
     <string name="shortcuts_properties_custom_game_settings">Brugerdefinerede spilindstillinger</string>
-    <string name="shortcuts_properties_use_cold_client">Brug ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient er den foretrukne måde at håndtere Steam-emulering og DRM. Det patcher DRM under kørsel uden at ændre spilfiler.</string>
-    <string name="shortcuts_properties_unpack_files">Ældre DRM</string>
-    <string name="shortcuts_properties_unpack_files_description">Fjern SteamStub DRM fra exe-filen på disken. Aktivér kun hvis spillet ikke starter uden det. ColdClient\'s runtime-patcher håndterer de fleste spil automatisk.</string>
-    <string name="shortcuts_properties_force_dlc">Tving DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Aktiver kun hvis DLC\'er ikke bliver fundet eller gemmedata med DLC ikke virker</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Start Steam-klient (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Starter den rigtige Steam-klient i Wine\nKræver en Steam-konto og kan reducere ydeevne\nIkke alle spil virker</string>
-    <string name="shortcuts_properties_steam_type">Steam-klient ydeevne</string>
-    <string name="steam_section_emulator">Steam-emulator (Goldberg)</string>
-    <string name="steam_section_real_client">Rigtig Steam-klient</string>
     <string name="shortcuts_properties_use_steam_input">Brug Steam Input</string>
     <string name="shortcuts_properties_steam_offline_mode">Steam offlinetilstand</string>
     <string name="shortcuts_properties_reset">Nulstil egenskaber</string>
@@ -504,6 +513,8 @@
     <string name="container_graphics_bcn_emulation">BCn-emulering</string>
     <string name="container_graphics_bcn_emulation_type">BCn-emuleringstype</string>
     <string name="container_graphics_bcn_emulation_cache">BCn-emuleringscache</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Superopløsning til spil 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Kantskarphed</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Vil du duplikere denne forudindstilling?</string>
     <string name="container_presets_confirm_remove">Vil du fjerne denne forudindstilling?</string>
@@ -523,7 +534,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Brug DRI3-udvidelse</string>
     <string name="session_xserver_simulate_touch_screen">Simuler touchskærm</string>
     <string name="session_xserver_preferences_button_text">   PRÆFERENCER   </string>
     <string name="session_xserver_extra_keys_config_desc">Her kan du indstille værdien af extra-keys-variablen ligesom i Termux-appen (læs <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">dette</a>) og mere \n
@@ -539,12 +549,6 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_xserver_pref_kbd">Tastatur</string>
     <string name="session_xserver_pref_other">Andet</string>
     <string name="session_xserver_pref_version">Version</string>
-    <string name="session_xserver_use_dri3_description">Deaktivering kan rette grafiske fejl på visse enheder</string>
-    <string name="session_xserver_native_rendering">Native rendering</string>
-    <string name="session_xserver_native_rendering_enabled">DRI3 hardware-rendering</string>
-    <string name="session_xserver_native_rendering_disabled">Software WSI-fallback</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Native rendering aktiveret (træder i kraft ved næste start)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Native rendering deaktiveret (træder i kraft ved næste start)</string>
     <string name="session_xserver_notification_description">WinNative XServer-beskeder</string>
     <string name="session_xserver_notification_content">WinNative kører, luk ikke eller swipe denne notifikation væk</string>
 
@@ -564,6 +568,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_exit_subtitle">Luk den kørende session</string>
     <string name="session_drawer_touchscreen_overlay">Touchskærm-overlay</string>
     <string name="session_drawer_resume">Genoptag</string>
+    <string name="session_drawer_retry">Prøv igen</string>
+    <string name="downloads_no_internet">Ingen internetforbindelse</string>
     <string name="session_drawer_pause">Pause</string>
     <string name="session_drawer_wine_processes_paused">Wine-processer er sat på pause</string>
     <string name="session_drawer_pause_all_wine_processes">Sæt alle Wine-processer på pause</string>
@@ -749,7 +755,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Installation af SoundFont mislykkedes!</string>
     <string name="settings_audio_sound_font_already_exist">Den SoundFont du vil installere eksisterer allerede.</string>
     <string name="settings_audio_unable_to_install_soundfont">Kan ikke installere SoundFont</string>
-    <string name="settings_audio_installing_soundfont">Installerer SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Installerer SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Forkert SoundFont-format.</string>
     <string name="settings_audio_cannot_remove_default">Kan ikke fjerne standard-SoundFont</string>
     <string name="settings_audio_summary">Installer, fjern og vælg den SoundFont der bruges til MIDI-afspilning.</string>
@@ -771,7 +777,19 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
     <string name="settings_debug_download_logs">Download-logfiler</string>
     <string name="settings_debug_download_logs_description">Log download-resolver og WinNative-fallback-hændelser</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-valideringslag</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Genstart skærmen for at anvende.</string>
     <string name="settings_debug_share_logs">Del logfiler</string>
+    <string name="settings_debug_delete_logs">Slet logfiler</string>
+    <string name="settings_debug_share_all_logs_short">Del alle</string>
+    <string name="settings_debug_delete_logs_short">Slet</string>
+    <string name="settings_debug_delete_all_logs_short">Slet alle</string>
+    <string name="settings_debug_open_logs_folder_short">Åbn loghåndtering</string>
+    <string name="settings_debug_logs_deleted">Logfiler slettet</string>
+    <string name="settings_debug_delete_logs_confirm_title">Slet logfiler?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Dette sletter permanent alle gemte logfiler (%1$s). Det kan ikke fortrydes.</string>
+    <string name="settings_debug_logs_browser_title">Logfiler</string>
+    <string name="settings_debug_log_truncated">Viser de sidste %1$s af denne logfil</string>
     <string name="settings_debug_logs_subject">WinNative-logfiler (%1$s)</string>
     <string name="settings_debug_no_logs_available">Ingen fejlfindingslogfiler tilgængelige. Aktiver fejlfindingsindstillinger først og start et spil.</string>
     <string name="settings_debug_capture_failed">Kunne ikke indfange logfiler: %1$s</string>
@@ -803,7 +821,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_empty_subtitle">Installer en pakke eller skift type for at komme i gang.</string>
     <string name="settings_content_container_created">Container oprettet: %1$s</string>
     <string name="settings_content_download_failed">Download mislykkedes.</string>
-    <string name="common_ui_working">Arbejder…</string>
+    <string name="common_ui_working">Arbejder</string>
     <string name="settings_content_desc_wine">Lavet af Wine-projektet; oversætter Win32-kald til native Linux/Android-tjenester.</string>
     <string name="settings_content_desc_proton">Lavet af Valve; en Wine-baseret runtime med spilrettelser til Windows-spil.</string>
     <string name="settings_content_desc_dxvk">Oversætter Direct3D 9-, 10- og 11-grafikkald til Vulkan.</string>
@@ -822,9 +840,14 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_downloading_title">Downloader indhold</string>
     <string name="settings_content_installing_title">Installerer indhold</string>
     <string name="settings_content_extracting_title">Udpakker indhold</string>
-    <string name="settings_content_extracting_detail">Udpakker… (%1$d filer)</string>
-    <string name="settings_content_preparing_package">Forbereder pakke…</string>
+    <string name="settings_content_extracting_detail">Udpakker (%1$d filer)</string>
+    <string name="settings_content_preparing_package">Forbereder pakke</string>
     <string name="settings_content_download_complete">Download fuldført</string>
+    <string name="settings_content_already_installed_title">Komponent allerede installeret</string>
+    <string name="settings_content_already_installed_message">Denne komponent er allerede installeret. Fjern den installerede kopi, før du downloader den igen.
+
+Installeret sti:
+%1$s</string>
     <string name="settings_content_conflicting_title">Modstridende indhold installeret</string>
     <string name="settings_content_conflicting_message">Afinstaller venligst det modstridende indhold før du downloader denne pakke.
 
@@ -833,7 +856,7 @@ Installeret sti:
     <string name="settings_content_cannot_be_trusted">Indholdet kan ikke betros.</string>
     <string name="settings_content_is_incomplete">Indholdet er ufuldstændigt.</string>
     <string name="settings_content_untrusted_files_warning">Advarsel: Det ekstra indhold indeholder upålidelige filer. Generelt bør følgende filer ikke ændres. Beslut venligst om du vil fortsætte med installationen.</string>
-    <string name="settings_content_confirm_remove">Vil du fjerne dette indhold?</string>
+    <string name="settings_content_confirm_remove">Dette sletter komponenten fra din enhed.</string>
     <string name="settings_content_unable_to_remove_in_use">Kan ikke fjerne dette indhold, fordi en container bruger denne Wine.</string>
     <string name="settings_content_download_in_components">Ingen downloadet. Download venligst en i Komponenter.</string>
     <string name="settings_content_types_header">INDHOLDSTYPER</string>
@@ -845,9 +868,12 @@ Installeret sti:
     <string name="settings_drivers_install">Installer drivere</string>
     <string name="settings_drivers_installed_success">Driver installeret.</string>
     <string name="settings_drivers_install_failed">Kunne ikke installere driver.</string>
-    <string name="settings_drivers_confirm_remove">Vil du fjerne denne driver?</string>
+    <string name="settings_drivers_remove_title">Fjern driver?</string>
+    <string name="settings_drivers_confirm_remove">Dette sletter driveren fra din enhed.</string>
+    <string name="settings_drivers_remove_repo_title">Fjern lager?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s fjernes fra din lagerliste.</string>
     <string name="settings_drivers_repo_tap_to_load">Tryk for at indlæse udgivelser</string>
-    <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser…</string>
+    <string name="settings_drivers_repo_loading_releases">Indlæser udgivelser</string>
     <string name="settings_drivers_repo_release_count">%1$d udgivelser indlæst</string>
     <string name="settings_drivers_repo_no_release_assets">Ingen downloadbare ZIP-filer blev fundet i de hentede udgivelser.</string>
     <string name="settings_drivers_repo_fetch_failed">Kunne ikke indlæse GitHub-udgivelser.</string>
@@ -857,7 +883,7 @@ Installeret sti:
     <string name="settings_drivers_manager">Driver-manager</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Installerer systemfiler…</string>
+    <string name="setup_wizard_installing_system_files">Installerer systemfiler</string>
     <string name="setup_wizard_unable_to_install_system_files">Kan ikke installere systemfiler</string>
     <string name="setup_wizard_system_image_not_installed">Systemimage ikke installeret. Installer venligst komponenter først.</string>
     <string name="setup_wizard_recommended_components">Anbefalede komponenter</string>
@@ -926,6 +952,9 @@ Installeret sti:
     <string name="google_cloud_sync_started">Skysynkronisering startet.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Google-tjenester</string>
+    <string name="google_auto_signin_title">Log ind på Google ved opstart</string>
+    <string name="google_auto_signin_summary">Opret automatisk forbindelse til Google Play Spil, når appen starter, så sikkerhedskopier af gemte filer og synkronisering altid er klar. Når den er slået fra, logger appen aldrig ind af sig selv.</string>
+    <string name="google_auto_signin_section">Ved opstart</string>
     <string name="google_cloud_play_games">Google Play Spil</string>
     <string name="google_cloud_status_syncing">Synkroniserer</string>
     <string name="google_cloud_status_connected">Forbundet</string>
@@ -984,22 +1013,30 @@ Installeret sti:
     <string name="saves_import_export_exported_failed">Kunne ikke eksportere gemmedata: %1$s</string>
     <string name="saves_import_export_imported">Gemmedata importeret</string>
     <string name="saves_import_export_imported_failed">Kunne ikke importere gemmedata: %1$s</string>
+    <string name="saves_export_path_summary">Gemte spil eksporteres til /WinNative/saves</string>
+    <string name="saves_export_success_path">Eksporteret til %1$s</string>
+    <string name="saves_export_warning_title">Brug kun dette med brugerdefinerede spil</string>
+    <string name="saves_export_warning_body">Eksporten kan indeholde gemte spil fra butiksinstallerede spil eller spil med cloud-synkronisering.</string>
+    <string name="saves_import_warning_title">Dette overskriver alle gemte spil i denne container</string>
+    <string name="saves_import_warning_body">Når du gendanner en ældre sikkerhedskopi med flere spil, skal du først kopiere nyere gemte spil ind i zip-filen med din filhåndtering.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>
-    <string name="preloader_initializing">Initialiserer…</string>
-    <string name="preloader_launching">Starter…</string>
-    <string name="preloader_closing">Lukker %1$s…</string>
-    <string name="preloader_setup_environment">Opsætter miljø…</string>
-    <string name="preloader_installing_mono">Installerer Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Installerer redistribuerbare filer…</string>
-    <string name="preloader_unpacking_exe">Udpakker spilprogram…</string>
-    <string name="preloader_downloading_cloud">Downloader cloud-gemte data…</string>
-    <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data…</string>
-    <string name="preloader_cloud_downloading">Cloud Sync downloader…</string>
-    <string name="preloader_cloud_backup">Sikkerhedskopierer til Google Drev…</string>
+    <string name="preloader_initializing">Initialiserer</string>
+    <string name="preloader_launching">Starter</string>
+    <string name="preloader_closing">Lukker %1$s</string>
+    <string name="preloader_setup_environment">Opsætter miljø</string>
+    <string name="preloader_retrying_steam_client_download">Prøver at downloade Steam-klienten igen</string>
+    <string name="preloader_installing_mono">Installerer Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Installerer redistribuerbare filer</string>
+    <string name="preloader_unpacking_exe">Udpakker spilprogram</string>
+    <string name="preloader_downloading_cloud">Downloader cloud-gemte data</string>
+    <string name="preloader_syncing_cloud">Synkroniserer cloud-gemte data</string>
+    <string name="preloader_uploading_cloud">Uploader cloud-gemte data</string>
+    <string name="preloader_checking_cloud">Kontrollerer cloud-gemte data</string>
+    <string name="preloader_cloud_sync_retry">%1$s Prøver igen %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Cloud Sync downloader</string>
     <string name="cloud_sync_failed_provider">%1$s cloud-synkronisering mislykkedes.</string>
-    <string name="google_cloud_backup_failed">Sikkerhedskopiering til Google Drev mislykkedes.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1007,13 +1044,6 @@ Installeret sti:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Grafik</string>
-    <string name="container_backups_title">Sikkerhedskopier</string>
-    <string name="container_backups_prompt">Vælg en handling for denne containersikkerhedskopi.</string>
-    <string name="container_backups_backing_up">Sikkerhedskopierer container…</string>
-    <string name="container_backups_restoring">Gendanner container…</string>
-    <string name="container_backups_checking">Kontrollerer containersikkerhedskopier…</string>
-    <string name="container_backups_select_title">Vælg sikkerhedskopi der skal gendannes</string>
-    <string name="container_backups_no_files">Der blev ikke fundet nogen containersikkerhedskopier i Google Drive.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Sekundær binding</string>
     <string name="input_controls_editor_tap_to_switch">Tryk for at skifte</string>
@@ -1023,6 +1053,7 @@ Installeret sti:
     <string name="session_drawer_fps_monitor">FPS-overvågning</string>
     <string name="session_drawer_fps_monitor_subtitle">Vis ydeevnestatistik i realtid</string>
     <string name="session_drawer_dual_series_battery">Dual Series-batteri</string>
+    <string name="session_drawer_hud_frametime_numeric">Vis frametime som tal</string>
     <string name="session_drawer_command_center">Kommandocenter</string>
     <string name="session_drawer_command_center_input">Input</string>
     <string name="session_drawer_command_center_display">Skærm</string>
@@ -1035,7 +1066,6 @@ Installeret sti:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Naturlig</string>
     <string name="session_drawer_color_profile_crt">CRT-effekt</string>
-    <string name="session_drawer_upscaler_dls">Levende</string>
     <string name="session_drawer_calibrate_advanced">Avanceret kalibrering</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>
@@ -1047,7 +1077,6 @@ Installeret sti:
     <string name="session_drawer_rail_label_mouse">Mus</string>
     <string name="session_drawer_rail_label_fullscreen">Fuldskærm</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Nativ</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Opgaver</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1061,24 +1090,23 @@ Installeret sti:
     <string name="session_drawer_logs_share_chooser">Del sessionslogs</string>
     <string name="session_drawer_logs_share_failed">Kunne ikke dele logs</string>
     <string name="session_drawer_logs_share_empty">Ingen loglinjer at dele</string>
-    <string name="session_drawer_super_resolution">Skarphedsfiltre</string>
-    <string name="session_drawer_upscaler_mode">Filter</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">Superopløsning</string>
+    <string name="session_drawer_upscaler_mode">Opskalering</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">Levende</string>
+    <string name="session_drawer_vivid_strength">Levende styrke</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Aktivator</string>
     <string name="settings_general_check_for_updates">Søg efter opdateringer</string>
     <string name="settings_general_check_for_updates_summary">Søg automatisk efter nye appversioner ved opstart og med jævne mellemrum.</string>
     <string name="setup_wizard_containers">Containeropsætning</string>
-    <string name="google_cloud_auto_backup">Automatisk sikkerhedskopi af Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Sikkerhedskopiér automatisk spilsaves til Google Drive hver gang du afslutter et spil.</string>
     <string name="cloud_saves_title">Cloud-saves</string>
-    <string name="cloud_saves_backup">Sikkerhedskopiér cloud-save</string>
-    <string name="cloud_saves_restore">Gendan cloud-save</string>
+    <string name="cloud_saves_title_for_provider">%1$s cloud-saves - %2$s</string>
     <string name="cloud_sync_title">Cloud Sync</string>
     <string name="cloud_sync_enabled_summary">Download cloud-saves ved opstart og synkroniser/sikkerhedskopiér dem ved afslutning.</string>
     <string name="cloud_sync_disabled_summary">Start dette spil uden download af cloud-save eller synkronisering ved afslutning.</string>
-    <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save…</string>
-    <string name="cloud_saves_restoring">Gendanner cloud-save…</string>
+    <string name="cloud_saves_backing_up">Sikkerhedskopierer cloud-save</string>
+    <string name="cloud_saves_restoring">Gendanner cloud-save</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1099,4 +1127,196 @@ Installeret sti:
     <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
+    <!-- Translated batch: cloud saves, downloads queue, session drawer, HUD position, artwork picker, runtime patcher (110 strings) -->
+    <string name="cloud_saves_history_empty">Ingen tidligere saves er sikkerhedskopieret endnu. Erstattede saves og manuelle sikkerhedskopier vises her i 30 dage.</string>
+    <string name="cloud_saves_history_loading">Indlæser save-historik\u2026</string>
+    <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_origin_cloud">cloud</string>
+    <string name="cloud_saves_history_origin_local">lokal</string>
+    <string name="cloud_saves_history_origin_manual">manuel</string>
+    <string name="cloud_saves_history_refresh">Opdater</string>
+    <string name="cloud_saves_history_rename">Omdøb</string>
+    <string name="cloud_saves_history_rename_clear">Ryd</string>
+    <string name="cloud_saves_history_rename_failed">Kunne ikke omdøbe sikkerhedskopi.</string>
+    <string name="cloud_saves_history_rename_hint">f.eks. Bossfight, Før slutningen</string>
+    <string name="cloud_saves_history_rename_save">Gem</string>
+    <string name="cloud_saves_history_rename_success">Sikkerhedskopi omdøbt.</string>
+    <string name="cloud_saves_history_rename_title">Navngiv denne sikkerhedskopi</string>
+    <string name="cloud_saves_history_restore">Gendan</string>
+    <string name="cloud_saves_history_restore_confirm_body">Dette vil erstatte dit nuværende lokale save med sikkerhedskopien fra %1$s.</string>
+    <string name="cloud_saves_history_restore_confirm_title">Gendan denne sikkerhedskopi?</string>
+    <string name="cloud_saves_history_restore_failed">Kunne ikke gendanne denne sikkerhedskopi.</string>
+    <string name="cloud_saves_history_restore_success">Save gendannet fra sikkerhedskopi.</string>
+    <string name="cloud_saves_history_sign_in">Log ind på Google for at se din save-historik.</string>
+    <string name="cloud_saves_history_title">Save-historik</string>
+    <string name="cloud_saves_keep_replaced_backup">Behold en sikkerhedskopi af det erstattede save</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">Hvis du fortryder, kan du gendanne det fra Save-historik.</string>
+    <string name="cloud_saves_no_backups">Ingen sikkerhedskopier endnu for dette spil.</string>
+    <string name="cloud_saves_offline_mode">Deaktiver Cloud Sync</string>
+    <string name="cloud_saves_offline_mode_summary">Stopper al automatisk cloud-aktivitet for dette spil.</string>
+    <string name="cloud_saves_sync_from_provider">Synkroniser fra %1$s Cloud</string>
+    <string name="cloud_saves_sync_from_provider_failed">Kunne ikke downloade save fra %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Administrer GOG-cloudlagringer</string>
+    <string name="cloud_saves_gog_manage_helper">Åbner det officielle GOG-websted</string>
+    <string name="cloud_saves_gog_manage_no_browser">Ingen browser tilgængelig til at åbne siden med GOG-cloudlagringer</string>
+    <string name="cloud_saves_gog_zip_label">Download GOG-cloud-zip</string>
+    <string name="cloud_saves_gog_zip_helper">Gem aktuelle cloudfiler</string>
+    <string name="cloud_saves_gog_zip_success">GOG-cloudlagringer zip-fil gemt.</string>
+    <string name="cloud_saves_gog_zip_failed">Kunne ikke gemme zip-filen med GOG-cloudlagringer.</string>
+    <string name="cloud_saves_gog_zip_empty">Ingen GOG-cloudlagringsfiler fundet.</string>
+    <string name="cloud_saves_sync_from_provider_generic">Synkroniser fra Cloud</string>
+    <string name="cloud_saves_sync_from_provider_success">%1$s cloud-save downloadet.</string>
+    <string name="cloud_saves_syncing_from_provider">Downloader save fra %1$s\u2026</string>
+    <string name="cloud_saves_sync_summary">Hent den version %1$s har lige nu.</string>
+    <string name="cloud_saves_sync_summary_generic">Hent den nuværende cloud-version.</string>
+    <string name="common_ui_exit_app_confirm">Afslut WinNative?</string>
+    <string name="container_surface_effect">Overfladeeffekt</string>
+    <string name="downloads_queue_cancel_download_confirm">Annuller downloaden af %1$s og slet alle downloadede filer?</string>
+    <string name="downloads_queue_paused_resume_hint">Sat på pause – tryk på Fortsæt for at genoptage</string>
+    <string name="downloads_queue_phase_applying_data">Anvender data</string>
+    <string name="downloads_queue_phase_downloading">Downloader</string>
+    <string name="downloads_queue_phase_downloading_file">Downloader [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Afslutter</string>
+    <string name="downloads_queue_phase_patching">Patcher</string>
+    <string name="downloads_queue_phase_preparing">Forbereder</string>
+    <string name="downloads_queue_phase_queued">I kø</string>
+    <string name="downloads_queue_phase_unknown">Ukendt</string>
+    <string name="downloads_queue_phase_unpacking">Udpakker</string>
+    <string name="downloads_queue_phase_updating">Opdaterer</string>
+    <string name="downloads_queue_phase_verifying">Verificerer</string>
+    <string name="downloads_queue_phase_verifying_file">Verificerer [%1$s]</string>
+    <string name="downloads_queue_status_label">Status:</string>
+    <string name="downloads_queue_this_game">dette spil</string>
+    <string name="hud_position_bottom_center">Bund centrum</string>
+    <string name="hud_position_bottom_left">Bund venstre</string>
+    <string name="hud_position_bottom_right">Bund højre</string>
+    <string name="hud_position_left_center">Venstre centrum</string>
+    <string name="hud_position_menu_title">Flyt HUD til</string>
+    <string name="hud_position_right_center">Højre centrum</string>
+    <string name="hud_position_top_center">Top centrum</string>
+    <string name="hud_position_top_left">Top venstre</string>
+    <string name="hud_position_top_right">Top højre</string>
+    <string name="input_controls_editor_number_of_bindings">Antal bindinger</string>
+    <string name="input_controls_editor_opacity">Gennemsigtighed</string>
+    <string name="input_controls_editor_radial_menu">Radialmenu</string>
+    <string name="input_controls_editor_radial_menu_options">Radialmenupunkter</string>
+    <string name="input_controls_tap_to_click">Tryk for at klikke</string>
+    <string name="num_controllers">Antal controllere</string>
+    <string name="session_drawer_controls_section">Kontroller</string>
+    <string name="session_drawer_header_subtitle">Hurtig adgang til kontroller, overlays og sessionsværktøjer</string>
+    <string name="session_drawer_hud_alpha">Alfa</string>
+    <string name="session_drawer_hud_alpha_input_title">Angiv alfa</string>
+    <string name="session_drawer_hud_disabled_hint">Slå overlayet til for at tilpasse det</string>
+    <string name="session_drawer_hud_elements">HUD-elementer</string>
+    <string name="session_drawer_hud_input_hint">Angiv en værdi fra %1$d til %2$d. Værdier over grænsen afskæres.</string>
+    <string name="session_drawer_hud_scale">Skalering</string>
+    <string name="session_drawer_hud_scale_input_title">Angiv skalering</string>
+    <string name="session_drawer_hud_summary">Juster overlay-synlighed og datapunkter</string>
+    <string name="session_drawer_screen_effects">Skærmeffekter</string>
+    <string name="session_drawer_session_section">Session</string>
+    <string name="session_drawer_swipe_hint">Stryg væk for at vende tilbage til spillet</string>
+    <string name="session_gamepad_enable_vibration">Aktiver vibration</string>
+    <string name="session_gyroscope_experimental_mouse_movement">Eksperimentel musebevægelse</string>
+    <string name="session_gyroscope_mouse_scale">Museskalering</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">Museskalering: %1$d%%</string>
+    <string name="settings_other_setup_wizard_summary">Åbn opsætningsguiden igen for at gennemgå tilladelser, systemfiler og standardcontainere.</string>
+    <string name="settings_other_setup_wizard_title">Opsætningsguide</string>
+    <string name="shortcuts_library_artwork_carousel_title">Karusselbillede</string>
+    <string name="shortcuts_library_artwork_change">Skift billede</string>
+    <string name="shortcuts_library_artwork_failed">Kunne ikke indlæse det valgte billede.</string>
+    <string name="shortcuts_library_artwork_game_card_title">Spilkortbillede</string>
+    <string name="shortcuts_library_artwork_grid_title">Gitterbillede</string>
+    <string name="shortcuts_library_artwork_list_title">Listebillede</string>
+    <string name="shortcuts_library_artwork_open_source">Åbn SteamGridDB</string>
+    <string name="shortcuts_library_artwork_selected">Valgt: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Indstil billede</string>
+    <string name="shortcuts_library_artwork_title">Biblioteksbilleder</string>
+    <string name="shortcuts_list_readded_existing">Eksisterende genvej genføjet</string>
+    <string name="shortcuts_properties_runtime_patcher">Runtime DRM Patcher</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injicerer en DRM-patcher-DLL ved opstart. Reducerer FPS – brug kun hvis Legacy Launcher alene fejler.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Vælg mappe til gemte spil</string>
+    <string name="cloud_saves_custom_folder_label">Mappe til gemte spil</string>
+    <string name="cloud_saves_custom_select_folder_summary">Peg på gemmemappen inde i containeren</string>
+    <string name="cloud_saves_custom_no_container">Containeren er ikke tilgængelig for denne genvej</string>
+    <string name="cloud_saves_custom_picker_title">Vælg gemmemappe</string>
+    <string name="cloud_saves_custom_outside_drive_c">Den valgte mappe skal være inde i containerens C:-drev</string>
+    <string name="cloud_saves_custom_path_map_failed">Kunne ikke knytte den valgte mappe til en Windows-sti.</string>
+    <string name="cloud_saves_custom_folder_set">Gemmemappe sat til %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Synkroniser fra Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Download seneste gemte spil</string>
+    <string name="cloud_saves_steam_sync_success">Synkroniseret fra Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Steam Cloud-synkronisering mislykkedes</string>
+    <string name="cloud_saves_steam_browse_label">Vis Steam Cloud-saves</string>
+    <string name="cloud_saves_steam_browse_helper">Åbn cloudlager</string>
+    <string name="cloud_saves_steam_browse_no_browser">Ingen browser tilgængelig til at åbne Steam-siden</string>
+    <string name="cloud_saves_steam_import_label">Importér filer</string>
+    <string name="cloud_saves_steam_import_helper">Gendan downloadede filer</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Filvælger utilgængelig</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Dette downloader Steam Clouds aktuelle gemte filer og overskriver de aktuelle gemte filer.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Ugyldigt app-id</string>
+    <string name="cloud_saves_label_saved">Etiket gemt</string>
+    <string name="downloads_queue_cancel_all_title">Annuller alle downloads?</string>
+    <string name="downloads_queue_cancel_all_warning">Annullering af DLC-, spil- eller opdateringsdownloads kan potentielt beskadige dine spilinstallationer.\n\nEr du sikker på, at du vil annullere alle downloads og slette de filer, der er downloadet indtil nu?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Brug Legacy Launcher</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Ældre Steam-emulering: kører spillet gennem ColdClient-launcheren og fjerner SteamStub DRM fra exe-filen. Brug kun til ældre spil, der ikke virker med Steam Launcher.</string>
+    <string name="steam_section_real_client">WinNative ægte Steam-klient</string>
+    <string name="steam_section_emulator">Ældre Steam-emulator</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Får den emulerede Steam-klient til at melde sig offline, så spillet ikke forsøger onlineforbindelser. Bruges til spil, der hænger ved Steams netværkstjek.</string>
+    <string name="input_controls_select_style">Vælg stil</string>
+    <string name="input_controls_select_label_theme">Knapetiketter</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Indbygget profil - oprettede en kopi, du kan redigere.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Nulstil denne profil til dens oprindelige layout? Alle ændringer, du har lavet, går tabt.</string>
+    <string name="input_controls_editor_profile_reset">Profil nulstillet til dens oprindelige layout.</string>
+    <string name="input_controls_editor_reset_unavailable">Intet oprindeligt snapshot er tilgængeligt for denne profil.</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan-skærmsynkronisering</string>
+    <string name="cloud_sync_disable_title">Deaktiver cloud-gemte spil</string>
+    <string name="cloud_saves_steam_push_label">Upload til Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Tving upload af lokalt gemt spil</string>
+    <string name="cloud_saves_steam_push_success">Gemt spil uploadet til Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Kunne ikke uploade gemt spil til Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden tryk opdater, når du er online igen.</string>
+    <string name="steam_session_refused_event">Steam afviste den cachede session (EResult=%1$d). Log ind igen.</string>
+    <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
+    <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
+    <string name="settings_leaderboard_category">Ydeevne</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Forbereder Steam-miljø</string>
+    <string name="preloader_starting_wine">Starter Wine</string>
+    <string name="preloader_starting_steam_launcher">Starter Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Indlæser Steam-klient</string>
+    <string name="preloader_connecting_to_steam">Opretter forbindelse til Steam</string>
+    <string name="preloader_signing_in_to_steam">Logger ind på Steam</string>
+    <string name="preloader_fetching_game_info">Logget ind — henter spilinfo</string>
+    <string name="preloader_steam_ready">Steam er klar</string>
+    <string name="preloader_updating_game_info">Opdaterer spilinfo</string>
+    <string name="preloader_verifying_install">Bekræfter installation</string>
+    <string name="preloader_scanning_redists">Scanner videredistribuerbare pakker</string>
+    <string name="preloader_installing_redist_single">Installerer videredistribuerbar pakke</string>
+    <string name="preloader_installing_named_redist">Installerer %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Installerer %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Videredistribuerbare pakker klar</string>
+    <string name="preloader_no_redists">Ingen videredistribuerbare pakker at installere</string>
+    <string name="preloader_steam_service_running">Steam-tjenesten kører</string>
+    <string name="preloader_launching_game">Starter %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher fejlede — forbereder ressourcer igen</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher kunne ikke starte. Forbereder igen — genstart venligst</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher nåede spillet, men det startede aldrig</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
+    <string name="workshop_search_items">Søg i Workshop-elementer</string>
+    <string name="common_ui_failed">Mislykket</string>
 </resources>

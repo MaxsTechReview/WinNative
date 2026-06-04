@@ -187,19 +187,9 @@ class DriversFragment : Fragment() {
     private fun defaultRepoList(): List<DriverRepo> =
         listOf(
             DriverRepo(
-                name = WINNATIVE_DRIVERS_REPO_NAME,
-                repoUrl = WINNATIVE_DRIVERS_REPO_URL,
-                apiUrl = WINNATIVE_DRIVERS_API_URL,
-            ),
-            DriverRepo(
-                name = STEVEN_REPO_NAME,
-                repoUrl = STEVEN_REPO_URL,
-                apiUrl = STEVEN_API_URL,
-            ),
-            DriverRepo(
-                name = WHITEBELYASH_REPO_NAME,
-                repoUrl = WHITEBELYASH_REPO_URL,
-                apiUrl = WHITEBELYASH_API_URL,
+                name = WINNATIVE_COMPONENTS_REPO_NAME,
+                repoUrl = WINNATIVE_COMPONENTS_REPO_URL,
+                apiUrl = WINNATIVE_COMPONENTS_API_URL,
             ),
         )
 
@@ -322,8 +312,12 @@ class DriversFragment : Fragment() {
     }
 
     private fun fetchGithubReleases(source: DriverRepo): List<DriverReleaseItem> {
+        val apiUrl = if (source.apiUrl.contains("api.github.com")) {
+            if (source.apiUrl.contains("?")) "${source.apiUrl}&per_page=100" else "${source.apiUrl}?per_page=100"
+        } else source.apiUrl
+
         val connection =
-            (URL(source.apiUrl).openConnection() as HttpURLConnection).apply {
+            (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 15000
                 readTimeout = 15000
@@ -363,9 +357,9 @@ class DriversFragment : Fragment() {
         return buildList {
             for (index in 0 until length()) {
                 val assetObject = optJSONObject(index) ?: continue
-                val assetName = assetObject.optString("name")
+                val assetName = assetObject.optString("name").trim()
                 val downloadUrl = assetObject.optString("browser_download_url")
-                if (!assetName.lowercase(Locale.getDefault()).endsWith(".zip") || downloadUrl.isBlank()) continue
+                if (!assetName.lowercase(Locale.ROOT).endsWith(".zip") || downloadUrl.isBlank()) continue
 
                 add(
                     DriverAssetItem(
@@ -453,6 +447,11 @@ class DriversFragment : Fragment() {
             )
         publishState()
 
+        // Hold the app process alive across this download so screen lock can't
+        // interrupt it. installDriverPackage owns its own keep-alive scope.
+        val keepAliveTag = "drivers_download_${asset.downloadUrl}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "driver_${System.currentTimeMillis()}.zip")
             val success =
@@ -482,24 +481,28 @@ class DriversFragment : Fragment() {
                     }
                 }
 
-            if (!isAdded || view == null) {
-                output.delete()
-                clearDownloadProgress()
-                return@launch
-            }
+            try {
+                if (!isAdded || view == null) {
+                    output.delete()
+                    clearDownloadProgress()
+                    return@launch
+                }
 
-            if (!success) {
-                output.delete()
-                clearDownloadProgress()
-                WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
-                return@launch
-            }
+                if (!success) {
+                    output.delete()
+                    clearDownloadProgress()
+                    WinToast.show(requireContext(), R.string.settings_drivers_repo_download_failed)
+                    return@launch
+                }
 
-            installDriverPackage(
-                uri = Uri.fromFile(output),
-                sourceAssetName = asset.name,
-                onComplete = { output.delete() },
-            )
+                installDriverPackage(
+                    uri = Uri.fromFile(output),
+                    sourceAssetName = asset.name,
+                    onComplete = { output.delete() },
+                )
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, keepAliveTag)
+            }
         }
     }
 
@@ -518,31 +521,40 @@ class DriversFragment : Fragment() {
             ),
         )
 
+        // Keep the process alive across the install (driver extraction +
+        // move). Released after the lifecycleScope coroutine finishes.
+        val installKeepAliveTag = "drivers_install_${sourceAssetName ?: uri}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, installKeepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
-            val installedDriverId =
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        adrenotoolsManager.installDriver(uri, sourceAssetName)
-                    }.getOrDefault("")
+            try {
+                val installedDriverId =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            adrenotoolsManager.installDriver(uri, sourceAssetName)
+                        }.getOrDefault("")
+                    }
+
+                if (!isAdded || view == null) {
+                    clearDownloadProgress()
+                    onComplete?.invoke()
+                    return@launch
                 }
 
-            if (!isAdded || view == null) {
                 clearDownloadProgress()
                 onComplete?.invoke()
-                return@launch
+
+                if (installedDriverId.isBlank()) {
+                    WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
+                    return@launch
+                }
+
+                SetupWizardActivity.recordInstalledDriver(requireContext(), installedDriverId)
+                refreshInstalledDrivers()
+                publishState()
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, installKeepAliveTag)
             }
-
-            clearDownloadProgress()
-            onComplete?.invoke()
-
-            if (installedDriverId.isBlank()) {
-                WinToast.show(requireContext(), R.string.settings_drivers_install_failed)
-                return@launch
-            }
-
-            SetupWizardActivity.recordInstalledDriver(requireContext(), installedDriverId)
-            refreshInstalledDrivers()
-            publishState()
         }
     }
 
@@ -557,17 +569,9 @@ class DriversFragment : Fragment() {
     }
 
     companion object {
-        private const val WINNATIVE_DRIVERS_REPO_NAME = "WinNative Turnip Drivers"
-        private const val WINNATIVE_DRIVERS_REPO_URL = "https://github.com/WinNative-Emu/Drivers/releases"
-        private const val WINNATIVE_DRIVERS_API_URL = "https://api.github.com/repos/WinNative-Emu/Drivers/releases"
-
-        private const val STEVEN_REPO_NAME = "StevenMXZ/Adreno-Tools-Drivers"
-        private const val STEVEN_REPO_URL = "https://github.com/StevenMXZ/Adreno-Tools-Drivers/releases"
-        private const val STEVEN_API_URL = "https://api.github.com/repos/StevenMXZ/Adreno-Tools-Drivers/releases"
-
-        private const val WHITEBELYASH_REPO_NAME = "whitebelyash/freedreno_turnip-CI"
-        private const val WHITEBELYASH_REPO_URL = "https://github.com/whitebelyash/freedreno_turnip-CI/releases"
-        private const val WHITEBELYASH_API_URL = "https://api.github.com/repos/whitebelyash/freedreno_turnip-CI/releases"
+        private const val WINNATIVE_COMPONENTS_REPO_NAME = "WinNative Components"
+        private const val WINNATIVE_COMPONENTS_REPO_URL = "https://github.com/nicholasx417/WinNative-Components/releases"
+        private const val WINNATIVE_COMPONENTS_API_URL = "https://api.github.com/repos/nicholasx417/WinNative-Components/releases"
     }
 }
 

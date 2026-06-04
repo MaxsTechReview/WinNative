@@ -20,6 +20,13 @@ class DownloadFailedException(
     message: String,
 ) : CancellationException(message)
 
+/** Marker for transient WN-Steam-Client depot-transfer failures (network blip, edge
+ *  hiccup) that the dispatcher should retry. Distinct from setup/entitlement errors
+ *  which must fail fast. */
+class WnDownloadTransientException(
+    message: String,
+) : Exception(message)
+
 class DownloadInfo(
     val jobCount: Int = 1,
     val gameId: Int,
@@ -227,6 +234,28 @@ class DownloadInfo(
         }
     }
 
+    /**
+     * Set the absolute downloaded-bytes total. Used by the native WN-Steam
+     * depot downloader: its per-depot cumulative counters are the source of
+     * truth, so the global is the *sum* of them, set directly. Adding a delta
+     * derived from the native counter (as [updateBytesDownloaded] would)
+     * double-counts on resume — the native counter restarts at 0 every
+     * write_depot call and re-counts already-verified bytes, which pushed the
+     * progress bar past 100% during the verify pass.
+     */
+    fun setBytesDownloaded(
+        totalBytes: Long,
+        timestampMs: Long = System.currentTimeMillis(),
+    ) {
+        if (!isActive) return
+        val clamped = if (totalBytes < 0L) 0L else totalBytes
+        bytesDownloaded.set(clamped)
+        if (timestampMs - lastSpeedSampleMs >= SPEED_SAMPLE_INTERVAL_MS) {
+            lastSpeedSampleMs = timestampMs
+            addSpeedSample(timestampMs, clamped)
+        }
+    }
+
     fun updateStatusMessage(message: String?) {
         statusMessage.value = message
     }
@@ -344,6 +373,12 @@ class DownloadInfo(
     fun getDisplayBytesProgress(): Pair<Long, Long> {
         val displayTotal = displayTotalExpectedBytes.get()
         if (displayTotal <= 0L) return getBytesProgress()
+
+        // A finished download is fully downloaded by definition. The byte
+        // accumulator can legitimately be 0 here — e.g. a resumed download
+        // whose depots were all already on disk and skipped, firing no
+        // progress callbacks — so derive the display value from the phase.
+        if (status.value == DownloadPhase.COMPLETE) return displayTotal to displayTotal
 
         val displayDownloaded = (getProgress().coerceIn(0f, 1f) * displayTotal.toFloat()).toLong()
         return displayDownloaded.coerceIn(0L, displayTotal) to displayTotal
@@ -488,6 +523,39 @@ class DownloadInfo(
                     isDaemon = true
                 }
             }
+
+        /**
+         * Overwrite the snapshot from a plain map. Swallows IO errors —
+         * the in-memory state is the truth; the next progress tick rewrites.
+         */
+        fun persistDepotBytes(appDirPath: String, depotBytes: Map<Int, Long>) {
+            synchronized(PERSISTENCE_IO_LOCK) {
+                try {
+                    val dir = File(appDirPath, PERSISTENCE_DIR)
+                    if (!dir.exists()) dir.mkdirs()
+                    val file = File(dir, PERSISTENCE_FILE)
+                    val sb = java.lang.StringBuilder()
+                    sb.append('{')
+                    var first = true
+                    for ((depotId, bytes) in depotBytes) {
+                        if (!first) sb.append(',')
+                        sb.append('"').append(depotId).append("\":")
+                            .append(bytes.coerceAtLeast(0L))
+                        first = false
+                    }
+                    sb.append('}')
+                    val jsonText = sb.toString()
+                    val tempFile = File(dir, "$PERSISTENCE_FILE.tmp")
+                    tempFile.writeText(jsonText)
+                    if (!tempFile.renameTo(file)) {
+                        file.writeText(jsonText)
+                        tempFile.delete()
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to rewrite depot bytes snapshot at $appDirPath")
+                }
+            }
+        }
 
         fun loadPersistedDepotBytes(appDirPath: String): Map<Int, Long> {
             return try {

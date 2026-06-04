@@ -66,6 +66,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import java.util.Locale
 
 private val ContainersBg = Color(0xFF18181D)
@@ -94,15 +96,6 @@ sealed interface ContainersDialogUiState {
         val container: Container,
     ) : ContainersDialogUiState
 
-    data class Backups(
-        val container: Container,
-    ) : ContainersDialogUiState
-
-    data class BackupSelection(
-        val container: Container,
-        val backupNames: List<String>,
-    ) : ContainersDialogUiState
-
     data class StorageInfo(
         val data: ContainerStorageInfoUiState,
     ) : ContainersDialogUiState
@@ -129,16 +122,12 @@ fun ContainersScreen(
     onRunContainer: (Container) -> Unit,
     onEditContainer: (Container) -> Unit,
     onDuplicateContainer: (Container) -> Unit,
-    onShowBackups: (Container) -> Unit,
     onRemoveContainer: (Container) -> Unit,
     onShowInfo: (Container) -> Unit,
     onDismissDialog: () -> Unit,
     onConfirmDuplicateDialog: (Container) -> Unit,
     onConfirmRemoveDialog: (Container) -> Unit,
-    onConfirmBackupDialog: (Container) -> Unit,
-    onConfirmRestoreDialog: (Container) -> Unit,
     onClearCacheDialog: (Container) -> Unit,
-    onBackupSelectionChosen: (Int) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
@@ -179,7 +168,6 @@ fun ContainersScreen(
                     onRun = { onRunContainer(container) },
                     onEdit = { onEditContainer(container) },
                     onDuplicate = { onDuplicateContainer(container) },
-                    onShowBackups = { onShowBackups(container) },
                     onRemove = { onRemoveContainer(container) },
                     onShowInfo = { onShowInfo(container) },
                 )
@@ -193,40 +181,55 @@ fun ContainersScreen(
         }
 
         is ContainersDialogUiState.ConfirmDuplicate -> {
-            ContainersConfirmDialog(
-                message = stringResource(R.string.containers_list_confirm_duplicate),
-                confirmLabel = stringResource(R.string.common_ui_duplicate),
-                confirmColor = ContainersAccent,
-                onDismiss = onDismissDialog,
-                onConfirm = { onConfirmDuplicateDialog(dialog.container) },
-            )
+            Dialog(
+                onDismissRequest = onDismissDialog,
+                properties = DialogProperties(usePlatformDefaultWidth = false),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PopupDialog(
+                        title = stringResource(R.string.containers_list_duplicate_title),
+                        message = stringResource(R.string.containers_list_confirm_duplicate),
+                        confirmLabel = stringResource(R.string.common_ui_duplicate),
+                        onConfirm = { onConfirmDuplicateDialog(dialog.container) },
+                        onCancel = onDismissDialog,
+                        accentColor = ContainersAccent,
+                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    )
+                }
+            }
         }
 
         is ContainersDialogUiState.ConfirmRemove -> {
-            ContainersConfirmDialog(
-                message = stringResource(R.string.containers_list_confirm_remove),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                confirmColor = ContainersDanger,
-                onDismiss = onDismissDialog,
-                onConfirm = { onConfirmRemoveDialog(dialog.container) },
-            )
-        }
-
-        is ContainersDialogUiState.Backups -> {
-            ContainersBackupsDialog(
-                onDismiss = onDismissDialog,
-                onBackup = { onConfirmBackupDialog(dialog.container) },
-                onRestore = { onConfirmRestoreDialog(dialog.container) },
-            )
-        }
-
-        is ContainersDialogUiState.BackupSelection -> {
-            ContainersSelectionDialog(
-                title = stringResource(R.string.container_backups_select_title),
-                options = dialog.backupNames,
-                onDismiss = onDismissDialog,
-                onSelected = onBackupSelectionChosen,
-            )
+            Dialog(
+                onDismissRequest = onDismissDialog,
+                properties = DialogProperties(usePlatformDefaultWidth = false),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PopupDialog(
+                        title = stringResource(R.string.containers_list_remove_title),
+                        message = stringResource(R.string.containers_list_confirm_remove),
+                        confirmLabel = stringResource(R.string.common_ui_remove),
+                        onConfirm = { onConfirmRemoveDialog(dialog.container) },
+                        onCancel = onDismissDialog,
+                        accentColor = ContainersDanger,
+                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    )
+                }
+            }
         }
 
         is ContainersDialogUiState.StorageInfo -> {
@@ -309,11 +312,17 @@ private fun ContainerCard(
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onShowBackups: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val nameFontSize =
+        when {
+            container.name.length > 44 -> 9.sp
+            container.name.length > 34 -> 10.sp
+            container.name.length > 26 -> 11.sp
+            else -> 13.sp
+        }
 
     Column(
         modifier =
@@ -354,13 +363,6 @@ private fun ContainerCard(
                     containerColor = ContainersCard,
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.container_backups_title), color = ContainersTextPrimary) },
-                        onClick = {
-                            menuExpanded = false
-                            onShowBackups()
-                        },
-                    )
-                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.container_config_storage_info), color = ContainersTextPrimary) },
                         onClick = {
                             menuExpanded = false
@@ -388,9 +390,10 @@ private fun ContainerCard(
             Text(
                 text = container.name,
                 color = ContainersTextPrimary,
-                fontSize = 13.sp,
+                fontSize = nameFontSize,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 1,
+                softWrap = false,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
@@ -558,178 +561,6 @@ private fun ContainersDialogButton(
 }
 
 @Composable
-private fun ContainersConfirmDialog(
-    message: String,
-    confirmLabel: String,
-    confirmColor: Color,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        maxWidth = 420.dp,
-    ) {
-        Text(
-            text = message,
-            color = ContainersTextSecondary,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        )
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(ContainersOutline),
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-        ) {
-            ContainersDialogButton(
-                label = stringResource(R.string.common_ui_cancel),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onDismiss,
-            )
-            ContainersDialogButton(
-                label = confirmLabel,
-                primary = false,
-                textColor = confirmColor,
-                backgroundColor = confirmColor.copy(alpha = 0.12f),
-                borderColor = confirmColor.copy(alpha = 0.3f),
-                onClick = onConfirm,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ContainersBackupsDialog(
-    onDismiss: () -> Unit,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit,
-) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        title = stringResource(R.string.container_backups_title),
-        maxWidth = 420.dp,
-    ) {
-        Text(
-            text = stringResource(R.string.container_backups_prompt),
-            color = ContainersTextSecondary,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        )
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(ContainersOutline),
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-        ) {
-            ContainersDialogButton(
-                label = stringResource(R.string.common_ui_cancel),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onDismiss,
-            )
-            ContainersDialogButton(
-                label = stringResource(R.string.google_cloud_restore),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onRestore,
-            )
-            ContainersDialogButton(
-                label = stringResource(R.string.google_cloud_backup),
-                primary = false,
-                textColor = ContainersAccent,
-                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
-                borderColor = ContainersAccent.copy(alpha = 0.3f),
-                onClick = onBackup,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ContainersSelectionDialog(
-    title: String,
-    options: List<String>,
-    onDismiss: () -> Unit,
-    onSelected: (Int) -> Unit,
-) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        title = title,
-        maxWidth = 420.dp,
-    ) {
-        Column {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                        .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                options.forEachIndexed { index, option ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ContainersSubcard)
-                                .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { onSelected(index) },
-                                ).padding(horizontal = 14.dp, vertical = 10.dp),
-                    ) {
-                        Text(
-                            text = option,
-                            color = ContainersTextPrimary,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(ContainersOutline),
-            )
-            Spacer(Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                ContainersDialogButton(
-                    label = stringResource(R.string.common_ui_cancel),
-                    primary = false,
-                    textColor = ContainersTextPrimary,
-                    onClick = onDismiss,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ContainersMessageDialog(
     title: String,
     message: String,
@@ -777,89 +608,93 @@ private fun ContainerStorageInfoDialog(
     onDismiss: () -> Unit,
     onClearCache: () -> Unit,
 ) {
-    ContainersDialogShell(
-        onDismiss = onDismiss,
-        title = stringResource(R.string.container_config_storage_info),
-        iconImage = Icons.Outlined.Info,
-        maxWidth = 500.dp,
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                StorageMetric(
-                    label = stringResource(R.string.container_config_drive_c),
-                    value = formatBytes(state.driveCBytes),
-                )
-                StorageMetric(
-                    label = stringResource(R.string.container_config_cache),
-                    value = formatBytes(state.cacheBytes),
-                )
-                StorageMetric(
-                    label = stringResource(R.string.container_config_total),
-                    value = formatBytes(state.totalBytes),
-                )
-            }
-            Column(
-                modifier = Modifier.widthIn(min = 180.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress = { state.usedPercent.coerceIn(0f, 100f) / 100f },
-                        modifier = Modifier.size(132.dp),
-                        color = ContainersAccent.copy(alpha = 0.38f),
-                        trackColor = ContainersAccent.copy(alpha = 0.12f),
-                        strokeWidth = 18.dp,
-                    )
-                    Text(
-                        text = formatUsedPercent(state.usedPercent),
-                        color = ContainersTextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.container_config_estimated_used_space),
-                    color = ContainersTextSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-        Spacer(Modifier.height(18.dp))
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(ContainersOutline),
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            ContainersDialogButton(
-                label = stringResource(R.string.container_config_clear_cache),
-                primary = false,
-                textColor = ContainersTextPrimary,
-                onClick = onClearCache,
-            )
-            ContainersDialogButton(
-                label = stringResource(R.string.common_ui_ok),
-                primary = true,
-                textColor = ContainersAccent,
-                backgroundColor = ContainersAccent.copy(alpha = 0.12f),
-                borderColor = ContainersAccent.copy(alpha = 0.3f),
-                onClick = onDismiss,
+            PopupDialog(
+                title = stringResource(R.string.container_config_storage_info),
+                icon = Icons.Outlined.Info,
+                accentColor = ContainersAccent,
+                modifier = Modifier.widthIn(min = 320.dp, max = 500.dp),
+                content = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            StorageMetric(
+                                label = stringResource(R.string.container_config_drive_c),
+                                value = formatBytes(state.driveCBytes),
+                            )
+                            StorageMetric(
+                                label = stringResource(R.string.container_config_cache),
+                                value = formatBytes(state.cacheBytes),
+                            )
+                            StorageMetric(
+                                label = stringResource(R.string.container_config_total),
+                                value = formatBytes(state.totalBytes),
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.widthIn(min = 180.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    progress = { state.usedPercent.coerceIn(0f, 100f) / 100f },
+                                    modifier = Modifier.size(132.dp),
+                                    color = ContainersAccent.copy(alpha = 0.38f),
+                                    trackColor = ContainersAccent.copy(alpha = 0.12f),
+                                    strokeWidth = 18.dp,
+                                )
+                                Text(
+                                    text = formatUsedPercent(state.usedPercent),
+                                    color = ContainersTextPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = stringResource(R.string.container_config_estimated_used_space),
+                                color = ContainersTextSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                },
+                footer = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    ) {
+                        PopupTextAction(
+                            label = stringResource(R.string.container_config_clear_cache),
+                            textColor = ContainersTextSecondary,
+                            onClick = onClearCache,
+                        )
+                        PopupTextAction(
+                            label = stringResource(R.string.common_ui_ok),
+                            textColor = ContainersAccent,
+                            onClick = onDismiss,
+                        )
+                    }
+                },
             )
         }
     }

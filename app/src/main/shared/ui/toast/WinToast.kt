@@ -58,6 +58,11 @@ object WinToast {
     }
 
     @JvmStatic
+    fun show(context: Context, text: String, toastDuration: Int, anchor: android.view.View?) {
+        show(context, text, null, toastDurationToMs(toastDuration), anchor)
+    }
+
+    @JvmStatic
     fun show(context: Context, @StringRes textResId: Int, toastDuration: Int) {
         show(context, context.getString(textResId), toastDuration)
     }
@@ -78,9 +83,19 @@ object WinToast {
     }
 
     @JvmStatic
-    fun show(context: Context, text: String, icon: Bitmap?, durationMs: Long) {
+    fun show(context: Context, @StringRes textResId: Int, anchor: android.view.View?) {
+        show(context, context.getString(textResId), anchor)
+    }
+
+    @JvmStatic
+    fun show(context: Context, text: String, anchor: android.view.View?) {
+        show(context, text, null, autoDurationMs(text), anchor)
+    }
+
+    @JvmStatic
+    fun show(context: Context, text: String, icon: Bitmap?, durationMs: Long, anchor: android.view.View? = null) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { show(context, text, icon, durationMs) }
+            mainHandler.post { show(context, text, icon, durationMs, anchor) }
             return
         }
         val activity = resolveActivity(context)
@@ -89,7 +104,7 @@ object WinToast {
             return
         }
         val resolvedIcon = icon ?: getDefaultIcon(activity)
-        showCompose(activity, text, resolvedIcon, durationMs)
+        showCompose(activity, text, resolvedIcon, durationMs, anchor)
     }
 
     private fun getDefaultIcon(context: Context): Bitmap? {
@@ -103,6 +118,7 @@ object WinToast {
         text: String,
         icon: Bitmap?,
         durationMs: Long,
+        anchor: android.view.View? = null
     ) {
         dismissActive()
 
@@ -150,11 +166,13 @@ object WinToast {
             isOutsideTouchable = false
             isClippingEnabled = false
             animationStyle = 0
+            windowLayoutType = WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL
         }
 
         try {
+            val targetAnchor = anchor ?: activity.window.decorView
             popup.showAtLocation(
-                activity.window.decorView,
+                targetAnchor,
                 Gravity.CENTER or Gravity.BOTTOM,
                 0,
                 BOTTOM_OFFSET_PX,

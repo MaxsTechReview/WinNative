@@ -64,7 +64,6 @@ import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -89,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 
 private val BgDark = Color(0xFF18181D)
 private val CardDark = Color(0xFF1C1C2A)
@@ -216,31 +216,39 @@ fun DriversScreen(
     }
 
     driverPendingRemoval?.let { driver ->
-        ConfirmDialog(
-            title = "Remove driver?",
-            message = stringResource(R.string.settings_drivers_confirm_remove),
-            confirmLabel = "Remove",
-            confirmColor = DangerRed,
-            onDismiss = { driverPendingRemoval = null },
-            onConfirm = {
-                onRemoveDriver(driver)
-                driverPendingRemoval = null
-            },
-        )
+        Dialog(onDismissRequest = { driverPendingRemoval = null }) {
+            PopupDialog(
+                title = stringResource(R.string.settings_drivers_remove_title),
+                message = stringResource(R.string.settings_drivers_confirm_remove),
+                confirmLabel = stringResource(R.string.common_ui_remove),
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                icon = Icons.Outlined.Delete,
+                accentColor = DangerRed,
+                onCancel = { driverPendingRemoval = null },
+                onConfirm = {
+                    onRemoveDriver(driver)
+                    driverPendingRemoval = null
+                },
+            )
+        }
     }
 
     repoPendingRemoval?.let { (index, repo) ->
-        ConfirmDialog(
-            title = "Remove repository?",
-            message = "Are you sure you want to remove ${repo.name}?",
-            confirmLabel = "Remove",
-            confirmColor = DangerRed,
-            onDismiss = { repoPendingRemoval = null },
-            onConfirm = {
-                onRepoDeleted(index)
-                repoPendingRemoval = null
-            },
-        )
+        Dialog(onDismissRequest = { repoPendingRemoval = null }) {
+            PopupDialog(
+                title = stringResource(R.string.settings_drivers_remove_repo_title),
+                message = stringResource(R.string.settings_drivers_remove_repo_message, repo.name),
+                confirmLabel = stringResource(R.string.common_ui_remove),
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                icon = Icons.Outlined.Delete,
+                accentColor = DangerRed,
+                onCancel = { repoPendingRemoval = null },
+                onConfirm = {
+                    onRepoDeleted(index)
+                    repoPendingRemoval = null
+                },
+            )
+        }
     }
 
     state.downloadProgress?.let { progress ->
@@ -353,9 +361,7 @@ fun DriversScreen(
     }
 }
 
-// ============================================================================
 // Hero header
-// ============================================================================
 
 @Composable
 private fun HeroHeader(
@@ -547,9 +553,7 @@ private fun HeroButton(
     }
 }
 
-// ============================================================================
 // Section label
-// ============================================================================
 
 @Composable
 private fun SectionLabel(
@@ -566,9 +570,7 @@ private fun SectionLabel(
     )
 }
 
-// ============================================================================
 // Installed driver card
-// ============================================================================
 
 @Composable
 private fun InstalledDriverCard(
@@ -666,9 +668,7 @@ private fun InstalledDriverCard(
     }
 }
 
-// ============================================================================
 // Repo card with inline expandable releases
-// ============================================================================
 
 @Composable
 private fun RepoCard(
@@ -877,9 +877,7 @@ private fun LoadingPlaceholder() {
     )
 }
 
-// ============================================================================
 // Release card with expandable notes + assets
-// ============================================================================
 
 @Composable
 private fun ReleaseCard(
@@ -1086,9 +1084,7 @@ private fun InstalledPill() {
     }
 }
 
-// ============================================================================
 // Generic small controls
-// ============================================================================
 
 @Composable
 private fun IconTapButton(
@@ -1179,9 +1175,7 @@ private fun DialogActionButton(
     }
 }
 
-// ============================================================================
 // Empty state
-// ============================================================================
 
 @Composable
 private fun EmptyRepoCard() {
@@ -1268,54 +1262,7 @@ private fun EmptyState() {
     }
 }
 
-// ============================================================================
 // Dialogs
-// ============================================================================
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    confirmColor: Color,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(22.dp),
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = message,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.height(22.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                ) {
-                    DialogActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
-                    DialogActionButton(label = confirmLabel, textColor = confirmColor, onClick = onConfirm)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun RepoEditDialog(
@@ -1407,9 +1354,7 @@ private fun RepoEditDialog(
     }
 }
 
-// ============================================================================
 // Download / install progress dialog
-// ============================================================================
 
 @Composable
 private fun DownloadProgressDialog(progress: DownloadProgress) {
@@ -1422,90 +1367,16 @@ private fun DownloadProgressDialog(progress: DownloadProgress) {
                 usePlatformDefaultWidth = false,
             ),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .widthIn(max = 360.dp)
-                    .fillMaxWidth(0.88f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = progress.title.uppercase(),
-                    color = TextSecondary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = progress.assetName,
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(14.dp))
-
-                // Thin bar — determinate animates to the target fraction with a short
-                // tween to avoid jittery per-progress-callback repaints; indeterminate
-                // hands off to Material3's built-in slider animation.
-                val barHeight = 5.dp
-                val barShape = RoundedCornerShape(3.dp)
-                if (progress.indeterminate) {
-                    LinearProgressIndicator(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(barHeight)
-                                .clip(barShape),
-                        color = Accent,
-                        trackColor = CardDarker,
-                    )
-                } else {
-                    val smoothed by animateFloatAsState(
-                        targetValue = progress.progress.coerceIn(0f, 1f),
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                        label = "dlProgress",
-                    )
-                    LinearProgressIndicator(
-                        progress = { smoothed },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(barHeight)
-                                .clip(barShape),
-                        color = Accent,
-                        trackColor = CardDarker,
-                        drawStopIndicator = {},
-                        gapSize = 0.dp,
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    val percentText =
-                        if (progress.indeterminate) {
-                            "Working…"
-                        } else {
-                            "${(progress.progress * 100).toInt().coerceIn(0, 100)}%"
-                        }
-                    Text(
-                        text = percentText,
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-        }
+        PopupDialog(
+            title = progress.title,
+            message = progress.assetName,
+            modifier = Modifier
+                .widthIn(max = 360.dp)
+                .fillMaxWidth(0.88f),
+            icon = Icons.Outlined.Download,
+            accentColor = Accent,
+            progress = if (progress.indeterminate) Float.NaN else progress.progress,
+        )
     }
 }
 

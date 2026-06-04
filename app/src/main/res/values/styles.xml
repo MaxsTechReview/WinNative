@@ -83,7 +83,7 @@
         <item name="android:windowBackground">#000000</item>
         <item name="android:colorBackground">#000000</item>
         <item name="android:statusBarColor">#141B24</item>
-        <item name="android:navigationBarColor">#141B24</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/AppWindowAnimationNoAnimation</item>
     </style>
 
@@ -149,6 +149,7 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/ContentDialogAnimation</item>
         <item name="android:dropDownListViewStyle">@style/SpinnerDropDownListView</item>
         <item name="android:colorAccent">@color/settings_accent</item>

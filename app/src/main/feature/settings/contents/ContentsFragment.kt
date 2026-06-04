@@ -16,11 +16,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -50,6 +50,7 @@ class ContentsFragment : Fragment() {
     private val installedSizeFetchesInFlight = mutableSetOf<String>()
 
     private var downloadProgress: ComponentsDownloadProgress? = null
+    private var conflictingContentPath: String? = null
 
     private var autoCreateContainer = true
 
@@ -98,6 +99,10 @@ class ContentsFragment : Fragment() {
                         onRemoveItem = { item ->
                             profilesByKey[item.key]?.let { onRemoveRequested(it) }
                         },
+                        onDismissConflict = {
+                            conflictingContentPath = null
+                            publishState()
+                        },
                         onToggleAutoCreateContainer = { enabled ->
                             autoCreateContainer = enabled
                             PreferenceManager
@@ -136,9 +141,7 @@ class ContentsFragment : Fragment() {
         super.onDestroy()
     }
 
-    // ------------------------------------------------------------------
     // State management
-    // ------------------------------------------------------------------
 
     private fun selectContentType(type: ContentProfile.ContentType) {
         if (type == currentContentType) return
@@ -153,7 +156,7 @@ class ContentsFragment : Fragment() {
             profiles
                 .filter { it.isInstalled }
                 .sortedWith(
-                    compareByDescending<ContentProfile> { it.isInstalled }
+                    compareByDescending<ContentProfile> { it.isOfficial }
                         .thenBy { it.verName.lowercase() }
                         .thenByDescending { it.verCode },
                 )
@@ -161,7 +164,8 @@ class ContentsFragment : Fragment() {
             profiles
                 .filterNot { it.isInstalled }
                 .sortedWith(
-                    compareBy<ContentProfile> { it.verName.lowercase() }
+                    compareByDescending<ContentProfile> { it.isOfficial }
+                        .thenBy { it.verName.lowercase() }
                         .thenByDescending { it.verCode },
                 )
 
@@ -186,6 +190,7 @@ class ContentsFragment : Fragment() {
                 installed = installedItems,
                 available = availableItems,
                 downloadProgress = downloadProgress,
+                conflict = conflictingContentPath?.let(::ComponentsConflict),
                 autoCreateContainer = autoCreateContainer,
             )
 
@@ -243,6 +248,7 @@ class ContentsFragment : Fragment() {
             isInstalled = isInstalled,
             hasRemote = remoteUrl != null,
             sizeBytes = cachedSize,
+            isOfficial = isOfficial,
         )
     }
 
@@ -297,9 +303,7 @@ class ContentsFragment : Fragment() {
         }
     }
 
-    // ------------------------------------------------------------------
     // Actions
-    // ------------------------------------------------------------------
 
     private fun promptInstallFromFile() {
         val activity = activity ?: return
@@ -441,7 +445,6 @@ class ContentsFragment : Fragment() {
                         return
                     }
 
-                    clearDownloadProgress()
                     runOnMain {
                         if (sourceRemoteUrl != null) {
                             manager.registerRemoteProfileAlias(sourceRemoteUrl, profile)
@@ -451,98 +454,137 @@ class ContentsFragment : Fragment() {
                         currentContentType = profile.type
                         publishState()
 
-                        if (autoCreateContainer &&
-                            (
-                                profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                                    profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                        val willAutoCreate = autoCreateContainer && (
+                            profile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                                profile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                        )
+
+                        if (willAutoCreate) {
+                            // Keep the download/install popup open and swap
+                            // its title — avoids a flash between dialogs.
+                            updateDownloadProgress(
+                                title = getString(R.string.containers_list_creating),
+                                message = profile.verName,
+                                indeterminate = true,
                             )
-                        ) {
                             val containerManager = ContainerManager(requireContext())
-
-                            var desiredName =
-                                profile.verName
-                                    .replace("winlator", "", ignoreCase = true)
-                                    .replace("wine", "", ignoreCase = true)
-                                    .replace(Regex("[^a-zA-Z0-9.\\-]"), " ")
-                                    .trim()
-                                    .replace(Regex("\\s+"), " ")
-
-                            if (desiredName.isEmpty()) desiredName = getString(R.string.common_ui_container)
-
-                            var uniqueName = desiredName
-                            var counter = 2
-                            while (containerManager.containers.any { it.name.equals(uniqueName, ignoreCase = true) }) {
-                                uniqueName = "$desiredName $counter"
-                                counter++
-                            }
-
-                            val data =
-                                org.json.JSONObject().apply {
-                                    put("name", uniqueName)
-                                    put("wineVersion", ContentsManager.getEntryName(profile))
-                                }
-
-                            val preloaderDialog =
-                                com.winlator.cmod.shared.ui.dialog
-                                    .PreloaderDialog(activity)
-                            preloaderDialog.show(R.string.containers_list_creating)
-
-                            containerManager.createContainerAsync(data, manager) { newContainer ->
-                                preloaderDialog.close()
+                            ContainerCreation.createContainerForProfileAsync(
+                                requireContext(),
+                                containerManager,
+                                manager,
+                                profile,
+                            ) { newContainer ->
+                                clearDownloadProgress()
                                 if (newContainer != null) {
                                     WinToast.show(
                                         requireContext(),
-                                        getString(R.string.settings_content_container_created, uniqueName),
+                                        getString(R.string.settings_content_container_created, newContainer.name),
                                     )
                                 }
                             }
+                        } else {
+                            clearDownloadProgress()
                         }
                     }
                 }
             }
 
         val extractionProgress =
-            ContentsManager.OnExtractionProgressListener { filesExtracted, _ ->
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_extracting_title),
-                    message = getString(R.string.settings_content_extracting_detail, filesExtracted),
-                    indeterminate = true,
-                )
+            object : ContentsManager.OnExtractionProgressListener {
+                override fun onProgress(
+                    filesExtracted: Int,
+                    currentFileName: String,
+                ) {
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = getString(R.string.settings_content_extracting_detail, filesExtracted),
+                        indeterminate = true,
+                    )
+                }
+
+                override fun prefersByteProgress(): Boolean = true
+
+                override fun onByteProgress(bytesExtracted: Long) {
+                    val ctx = context ?: return
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = android.text.format.Formatter.formatFileSize(ctx, bytesExtracted),
+                        indeterminate = true,
+                    )
+                }
             }
 
+        // Hold the keep-alive across the extraction/install so screen lock
+        // doesn't kill the process mid-extract. The callback above can chain
+        // into finishInstallContent() asynchronously; we release after the
+        // install pipeline finishes (success, failure, or terminal callback).
+        val installKeepAliveTag = "components_install_${uri}_${System.currentTimeMillis()}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, installKeepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
-                .onFailure {
-                    runOnMain {
-                        clearDownloadProgress()
-                        WinToast.show(requireContext(), R.string.input_controls_editor_unable_to_import)
+            try {
+                runCatching { manager.extraContentFile(uri, callback, extractionProgress) }
+                    .onFailure {
+                        runOnMain {
+                            clearDownloadProgress()
+                            WinToast.show(requireContext(), R.string.input_controls_editor_unable_to_import)
+                        }
                     }
-                }
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, installKeepAliveTag)
+            }
         }
     }
 
     private fun showConflictingContentDialog(profile: ContentProfile) {
-        val conflictingPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
-        val dialog = ContentDialog(requireContext())
-        dialog.setTitle(R.string.settings_content_conflicting_title)
-        dialog.setMessage(
-            getString(
-                R.string.settings_content_conflicting_message,
-                conflictingPath,
-            ),
-        )
-        dialog.findViewById<View>(R.id.BTCancel).isVisible = false
-        dialog.show()
+        conflictingContentPath = ContentsManager.getInstallDir(requireContext(), profile).absolutePath
+        publishState()
+    }
+
+    private fun findInstalledProfileFor(profile: ContentProfile): ContentProfile? {
+        manager.syncContents()
+
+        val context = requireContext()
+        val remoteUrl = profile.remoteUrl
+        val installedProfile =
+            manager
+                .getProfiles(profile.type)
+                .orEmpty()
+                .firstOrNull { candidate ->
+                    val sameVersion =
+                        candidate.verName == profile.verName &&
+                            candidate.verCode == profile.verCode
+                    val sameRemote = remoteUrl != null && candidate.remoteUrl == remoteUrl
+
+                    candidate.isInstalled &&
+                        ContentsManager.isInstalled(context, candidate) &&
+                        (sameVersion || sameRemote)
+                }
+
+        return installedProfile
+            ?: profile.takeIf { ContentsManager.isInstalled(context, it) }
     }
 
     private fun downloadRemoteContent(profile: ContentProfile) {
         val remoteUrl = profile.remoteUrl ?: return
+        findInstalledProfileFor(profile)?.let { installedProfile ->
+            publishState()
+            showConflictingContentDialog(installedProfile)
+            return
+        }
+
         updateDownloadProgress(
             title = getString(R.string.settings_content_downloading_title),
             message = profile.verName,
             indeterminate = true,
         )
 
+        // Keep the app process alive while the download/install runs so screen
+        // lock doesn't tear it down. installSelectedContent() owns its own
+        // keep-alive scope; this one covers the download step alone.
+        val keepAliveTag = "components_download_${remoteUrl}"
+        val appCtx = requireContext().applicationContext
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(appCtx, keepAliveTag)
         viewLifecycleOwner.lifecycleScope.launch {
             val output = File(requireContext().cacheDir, "temp_${System.currentTimeMillis()}")
             val success =
@@ -567,26 +609,30 @@ class ContentsFragment : Fragment() {
                     }
                 }
 
-            if (!isAdded || view == null) {
-                output.delete()
-                clearDownloadProgress()
-                return@launch
-            }
+            try {
+                if (!isAdded || view == null) {
+                    output.delete()
+                    clearDownloadProgress()
+                    return@launch
+                }
 
-            if (success) {
-                updateDownloadProgress(
-                    title = getString(R.string.settings_content_extracting_title),
-                    message = profile.verName,
-                    indeterminate = true,
-                )
-                installSelectedContent(
-                    Uri.parse(output.absolutePath),
-                    getString(R.string.settings_content_download_complete),
-                    remoteUrl,
-                )
-            } else if (isAdded) {
-                clearDownloadProgress()
-                WinToast.show(requireContext(), R.string.settings_content_download_failed)
+                if (success) {
+                    updateDownloadProgress(
+                        title = getString(R.string.settings_content_extracting_title),
+                        message = profile.verName,
+                        indeterminate = true,
+                    )
+                    installSelectedContent(
+                        Uri.parse(output.absolutePath),
+                        getString(R.string.settings_content_download_complete),
+                        remoteUrl,
+                    )
+                } else if (isAdded) {
+                    clearDownloadProgress()
+                    WinToast.show(requireContext(), R.string.settings_content_download_failed)
+                }
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(appCtx, keepAliveTag)
             }
         }
     }

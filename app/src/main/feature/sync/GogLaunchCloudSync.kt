@@ -5,11 +5,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
-import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
-import com.winlator.cmod.feature.sync.google.GoogleAuthMode
+import com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager
 import com.winlator.cmod.runtime.container.Shortcut
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -30,21 +27,41 @@ object GogLaunchCloudSync {
         if (shortcut.getExtra("game_source") != "GOG") return
         if (!cloudSyncEnabled || CloudSyncHelper.isOfflineMode(shortcut)) return
 
+        Timber.tag("GogLaunchCloudSync").i("Checking GOG cloud saves before launch for ${shortcut.name}")
         CloudSyncHelper.forceDownloadOnContainerSwap(activity, shortcut)
 
         if (!CloudSyncHelper.hasLocalCloudSaves(activity, shortcut)) {
+            Timber.tag("GogLaunchCloudSync").i("No local GOG cloud-save files found; downloading before launch")
             statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
             CloudSyncHelper.downloadCloudSaves(activity, shortcut)
             statusSink.show(activity.getString(R.string.preloader_initializing))
             return
         }
 
-        if (!CloudSyncHelper.cloudSavesDiffer(activity, shortcut)) return
+        val pendingAction = CloudSyncHelper.getGogPendingSyncAction(activity, shortcut)
+        Timber.tag("GogLaunchCloudSync").i("Pending GOG cloud action before launch: $pendingAction")
+        when (pendingAction) {
+            GOGCloudSavesManager.SyncAction.NONE -> return
+            GOGCloudSavesManager.SyncAction.DOWNLOAD -> {
+                statusSink.show(activity.getString(R.string.preloader_downloading_cloud))
+                CloudSyncHelper.downloadCloudSaves(activity, shortcut)
+                statusSink.show(activity.getString(R.string.preloader_initializing))
+                return
+            }
+            GOGCloudSavesManager.SyncAction.UPLOAD -> {
+                Timber.tag("GogLaunchCloudSync").i(
+                    "Local GOG cloud saves are newer before launch; deferring upload until exit",
+                )
+                return
+            }
+            GOGCloudSavesManager.SyncAction.CONFLICT -> {
+                // Fall through to the conflict dialog below.
+            }
+        }
 
         val dialogLatch = CountDownLatch(1)
         var useCloud = false
         var useLocal = false
-        var keepBackup = false
         val timestamps = CloudSyncHelper.getGogConflictTimestamps(activity, shortcut)
 
         val lifecycle = (activity as? LifecycleOwner)?.lifecycle
@@ -63,9 +80,8 @@ object GogLaunchCloudSync {
             GogCloudConflictDialog.show(
                 activity = activity,
                 timestamps = timestamps,
-                onUseCloud = { keep ->
+                onUseCloud = {
                     useCloud = true
-                    keepBackup = keep
                     dialogLatch.countDown()
                 },
                 onUseLocal = {
@@ -92,9 +108,6 @@ object GogLaunchCloudSync {
 
         when {
             useCloud -> {
-                if (keepBackup) {
-                    backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
-                }
                 statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
                 CloudSyncHelper.downloadCloudSaves(activity, shortcut)
                 statusSink.show(activity.getString(R.string.preloader_initializing))
@@ -104,31 +117,6 @@ object GogLaunchCloudSync {
                 CloudSyncHelper.uploadCloudSaves(activity, shortcut)
                 statusSink.show(activity.getString(R.string.preloader_initializing))
             }
-        }
-    }
-
-    private fun backupDiscardedSave(
-        activity: Activity,
-        shortcut: Shortcut,
-        origin: GameSaveBackupManager.BackupOrigin,
-    ) {
-        val gameId = shortcut.getExtra("gog_id").ifEmpty { shortcut.getExtra("app_id") }.takeIf { it.isNotEmpty() } ?: return
-        val gameName = shortcut.name ?: "Unknown"
-        try {
-            val result =
-                runBlocking(Dispatchers.IO) {
-                    GameSaveBackupManager.backupDiscardedSave(
-                        activity = activity,
-                        gameSource = GameSaveBackupManager.GameSource.GOG,
-                        gameId = gameId,
-                        gameName = gameName,
-                        origin = origin,
-                        authMode = GoogleAuthMode.SILENT,
-                    )
-                }
-            Timber.tag("GogLaunchCloudSync").i("Discarded GOG save backup: %s", result.message)
-        } catch (e: Exception) {
-            Timber.tag("GogLaunchCloudSync").w(e, "Failed to back up discarded GOG save")
         }
     }
 }

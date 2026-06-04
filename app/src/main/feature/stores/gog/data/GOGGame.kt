@@ -27,6 +27,8 @@ data class GOGGame(
     val installPath: String = "",
     @ColumnInfo("image_url")
     val imageUrl: String = "",
+    @ColumnInfo("hero_image_url")
+    val heroImageUrl: String = "",
     @ColumnInfo("icon_url")
     val iconUrl: String = "",
     @ColumnInfo("description")
@@ -70,4 +72,12 @@ data class GOGDownloadInfo(
     val isActive: Boolean = false,
     val isPaused: Boolean = false,
     val error: String? = null,
+)
+
+data class GOGDlcInfo(
+    val id: String,
+    val title: String,
+    val downloadSize: Long = 0,
+    val installSize: Long = 0,
+    val isInstalled: Boolean = false,
 )

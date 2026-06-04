@@ -69,10 +69,10 @@ public class PreloaderDialog {
   }
 
   private void clearLaunchMetadata() {
-    composeState.setGameName("");
-    composeState.setPlatform("");
-    composeState.setContainerName("");
-    composeState.setStableLaunchLayout(false);
+    composeState.setTitle("");
+    composeState.setBadge("");
+    composeState.setSubtitle("");
+    composeState.setStableContentLayout(false);
   }
 
   public synchronized void show(int textResId) {
@@ -100,22 +100,20 @@ public class PreloaderDialog {
     showDialogSafely();
   }
 
-  public synchronized void show(
-      String text, String gameName, String platform, String containerName) {
+  public synchronized void show(String text, String title, String badge, String subtitle) {
     if (dialog == null) create();
     if (dialog == null) return;
     composeState.setText(text);
-    composeState.setGameName(gameName != null ? gameName : "");
-    composeState.setPlatform(platform != null ? platform : "");
-    composeState.setContainerName(containerName != null ? containerName : "");
-    composeState.setStableLaunchLayout(true);
+    composeState.setTitle(title != null ? title : "");
+    composeState.setBadge(badge != null ? badge : "");
+    composeState.setSubtitle(subtitle != null ? subtitle : "");
+    composeState.setStableContentLayout(true);
     composeState.setIndeterminate(true);
     showDialogSafely();
   }
 
-  public synchronized void show(
-      int textResId, String gameName, String platform, String containerName) {
-    show(activity.getString(textResId), gameName, platform, containerName);
+  public synchronized void show(int textResId, String title, String badge, String subtitle) {
+    show(activity.getString(textResId), title, badge, subtitle);
   }
 
   public synchronized void setProgress(int percent) {
@@ -145,19 +143,19 @@ public class PreloaderDialog {
   }
 
   public void showOnUiThread(
-      final String text, final String gameName, final String platform, final String containerName) {
-    uiHandler.post(() -> show(text, gameName, platform, containerName));
+      final String text, final String title, final String badge, final String subtitle) {
+    uiHandler.post(() -> show(text, title, badge, subtitle));
   }
 
   public void showProgressOnUiThread(
       final String text,
-      final String gameName,
-      final String platform,
-      final String containerName,
+      final String title,
+      final String badge,
+      final String subtitle,
       final int percent) {
     uiHandler.post(
         () -> {
-          show(text, gameName, platform, containerName);
+          show(text, title, badge, subtitle);
           composeState.setIndeterminate(false);
           composeState.setProgress(percent);
         });

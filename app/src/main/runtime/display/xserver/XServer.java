@@ -1,7 +1,9 @@
 package com.winlator.cmod.runtime.display.xserver;
 
+import android.util.Log;
 import android.util.SparseArray;
-import com.winlator.cmod.runtime.display.renderer.GLRenderer;
+import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
+import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
 import com.winlator.cmod.runtime.display.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.DRI3Extension;
@@ -15,6 +17,8 @@ import java.util.EnumMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class XServer {
+  private static final String SGSR_RESIZE_TAG = "SGSRResize";
+
   public enum Lockable {
     WINDOW_MANAGER,
     PIXMAP_MANAGER,
@@ -43,7 +47,7 @@ public class XServer {
   public final GrabManager grabManager;
   public final CursorLocker cursorLocker;
   private SHMSegmentManager shmSegmentManager;
-  private GLRenderer renderer;
+  private VulkanRenderer renderer;
   private WinHandler winHandler;
   private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
   private boolean relativeMouseMovement = false;
@@ -106,11 +110,11 @@ public class XServer {
     this.simulateTouchScreen = simulateTouchScreen;
   }
 
-  public GLRenderer getRenderer() {
+  public VulkanRenderer getRenderer() {
     return renderer;
   }
 
-  public void setRenderer(GLRenderer renderer) {
+  public void setRenderer(VulkanRenderer renderer) {
     this.renderer = renderer;
   }
 
@@ -128,6 +132,25 @@ public class XServer {
 
   public void setSHMSegmentManager(SHMSegmentManager shmSegmentManager) {
     this.shmSegmentManager = shmSegmentManager;
+  }
+
+  public boolean resizeScreen(ScreenInfo newScreenInfo) {
+    if (newScreenInfo == null) return false;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.DRAWABLE_MANAGER, Lockable.INPUT_DEVICE)) {
+      String oldScreenInfo = screenInfo.toString();
+      Log.i(SGSR_RESIZE_TAG, "resizeScreen requested: current='" + oldScreenInfo +
+          "' target='" + newScreenInfo + "'");
+      if (screenInfo.width == newScreenInfo.width && screenInfo.height == newScreenInfo.height) {
+        Log.i(SGSR_RESIZE_TAG, "resizeScreen no-op: screen already " + oldScreenInfo);
+        return false;
+      }
+      screenInfo.setSize(newScreenInfo);
+      windowManager.resizeRootWindow(screenInfo.width, screenInfo.height);
+      pointer.setPosition(pointer.getClampedX(), pointer.getClampedY());
+      Log.i(SGSR_RESIZE_TAG, "resizeScreen applied: '" + oldScreenInfo + "' -> '" +
+          screenInfo + "' pointer=" + pointer.getX() + "," + pointer.getY());
+      return true;
+    }
   }
 
   public void stop() {
@@ -187,15 +210,45 @@ public class XServer {
   }
 
   public void injectPointerMove(int x, int y) {
+    if (winHandler != null && relativeMouseMovement) {
+      int flags = MouseEventFlags.MOVE | MouseEventFlags.ABSOLUTE;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
+      winHandler.mouseEvent(flags, x, y, 0);
+    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(x, y);
     }
   }
 
   public void injectPointerMoveDelta(int dx, int dy) {
+    if (winHandler != null && relativeMouseMovement) {
+      int flags = MouseEventFlags.MOVE;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
+      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
+      winHandler.mouseEvent(flags, dx, dy, 0);
+    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(pointer.getX() + dx, pointer.getY() + dy);
     }
+  }
+
+  public void updatePointerForDisplay(int x, int y) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(x);
+      pointer.setY(y);
+    }
+    if (renderer != null) renderer.requestCursorRender();
+  }
+
+  public void updatePointerForDisplayDelta(int dx, int dy) {
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+      pointer.setX(pointer.getX() + dx);
+      pointer.setY(pointer.getY() + dy);
+    }
+    if (renderer != null) renderer.requestCursorRender();
   }
 
   public void injectPointerButtonPress(Pointer.Button buttonCode) {

@@ -16,6 +16,11 @@ public class Drawable extends XResource {
   private ByteBuffer data;
   private boolean directScanout = false;
   private Drawable scanoutSource;
+  private short scanoutX;
+  private short scanoutY;
+  private short presentedSourceWidth;
+  private short presentedSourceHeight;
+  private boolean presentedSourceValid = false;
   private Runnable onDrawListener;
   private Callback<Drawable> onDestroyListener;
   public final Object renderLock = new Object();
@@ -33,6 +38,8 @@ public class Drawable extends XResource {
     if (this.data == null) {
       throw new IllegalStateException("Drawable.data initialized as null!");
     }
+    this.presentedSourceWidth = (short) Math.max(0, Math.min(Short.MAX_VALUE, width));
+    this.presentedSourceHeight = (short) Math.max(0, Math.min(Short.MAX_VALUE, height));
   }
 
   public static Drawable fromBitmap(Bitmap bitmap) {
@@ -58,15 +65,53 @@ public class Drawable extends XResource {
   }
 
   public void setScanoutSource(Drawable scanoutSource) {
+    setScanoutSource(scanoutSource, (short) 0, (short) 0);
+  }
+
+  public void setScanoutSource(Drawable scanoutSource, short x, short y) {
     this.scanoutSource = scanoutSource;
-    if (texture != null) texture.setNeedsUpdate(true);
+    this.scanoutX = x;
+    this.scanoutY = y;
+    markTextureDirty(0, 0, width, height);
     if (onDrawListener != null) onDrawListener.run();
   }
 
   public void clearScanoutSource() {
     if (scanoutSource == null) return;
     scanoutSource = null;
-    if (texture != null) texture.setNeedsUpdate(true);
+    scanoutX = 0;
+    scanoutY = 0;
+    markTextureDirty(0, 0, width, height);
+  }
+
+  public short getScanoutX() {
+    return scanoutX;
+  }
+
+  public short getScanoutY() {
+    return scanoutY;
+  }
+
+  public void setPresentedSourceSize(int width, int height) {
+    this.presentedSourceWidth = (short) Math.max(0, Math.min(Short.MAX_VALUE, width));
+    this.presentedSourceHeight = (short) Math.max(0, Math.min(Short.MAX_VALUE, height));
+    this.presentedSourceValid = this.presentedSourceWidth > 0 && this.presentedSourceHeight > 0;
+  }
+
+  public boolean hasPresentedSourceSize() {
+    return presentedSourceValid;
+  }
+
+  public short getPresentedSourceWidth() {
+    return presentedSourceWidth;
+  }
+
+  public short getPresentedSourceHeight() {
+    return presentedSourceHeight;
+  }
+
+  private void markTextureDirty(int x, int y, int width, int height) {
+    if (texture != null) texture.markDirty(x, y, width, height, this.width, this.height);
   }
 
   public ByteBuffer getData() {
@@ -135,7 +180,11 @@ public class Drawable extends XResource {
     this.data.rewind();
     data.rewind();
 
-    texture.setNeedsUpdate(true);
+    if (depth == 1) {
+      markTextureDirty(0, 0, width, height);
+    } else {
+      markTextureDirty(dstX, dstY, width, height);
+    }
     if (onDrawListener != null) onDrawListener.run();
   }
 
@@ -211,7 +260,7 @@ public class Drawable extends XResource {
     this.data.rewind();
     drawable.data.rewind();
 
-    texture.setNeedsUpdate(true);
+    markTextureDirty(dstX, dstY, width, height);
     if (onDrawListener != null) onDrawListener.run();
   }
 
@@ -230,7 +279,7 @@ public class Drawable extends XResource {
         (short) x, (short) y, (short) width, (short) height, color, this.getStride(), this.data);
     this.data.rewind();
 
-    texture.setNeedsUpdate(true);
+    markTextureDirty(x, y, width, height);
     if (onDrawListener != null) onDrawListener.run();
   }
 
@@ -260,7 +309,11 @@ public class Drawable extends XResource {
 
     this.data.rewind();
 
-    texture.setNeedsUpdate(true);
+    int minX = Math.min(x0, x1);
+    int minY = Math.min(y0, y1);
+    int maxX = Math.max(x0, x1) + lineWidth;
+    int maxY = Math.max(y0, y1) + lineWidth;
+    markTextureDirty(minX, minY, maxX - minX, maxY - minY);
     if (onDrawListener != null) onDrawListener.run();
   }
 
@@ -286,7 +339,7 @@ public class Drawable extends XResource {
         this.data);
     this.data.rewind();
 
-    texture.setNeedsUpdate(true);
+    markTextureDirty(0, 0, width, height);
     if (onDrawListener != null) onDrawListener.run();
   }
 

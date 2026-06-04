@@ -1,8 +1,8 @@
 package com.winlator.cmod.feature.stores.steam.db.converters
 import androidx.room.TypeConverter
-import `in`.dragonbra.javasteam.enums.ELicenseFlags
-import `in`.dragonbra.javasteam.enums.ELicenseType
-import `in`.dragonbra.javasteam.enums.EPaymentMethod
+import com.winlator.cmod.feature.stores.steam.enums.ELicenseFlags
+import com.winlator.cmod.feature.stores.steam.enums.ELicenseType
+import com.winlator.cmod.feature.stores.steam.enums.EPaymentMethod
 import kotlinx.serialization.json.Json
 import java.util.EnumSet
 
@@ -14,13 +14,15 @@ class LicenseConverter {
     fun fromLicenseFlags(licenseFlags: EnumSet<ELicenseFlags>): Int = ELicenseFlags.code(licenseFlags)
 
     @TypeConverter
-    fun toLicenseType(licenseType: Int): ELicenseType = ELicenseType.from(licenseType)
+    fun toLicenseType(licenseType: Int): ELicenseType =
+        ELicenseType.from(licenseType) ?: ELicenseType.NoLicense
 
     @TypeConverter
     fun fromLicenseType(licenseType: ELicenseType): Int = licenseType.code()
 
     @TypeConverter
-    fun toPaymentMethod(paymentMethod: Int): EPaymentMethod = EPaymentMethod.from(paymentMethod)
+    fun toPaymentMethod(paymentMethod: Int): EPaymentMethod =
+        EPaymentMethod.from(paymentMethod) ?: EPaymentMethod.None
 
     @TypeConverter
     fun fromPaymentMethod(paymentMethod: EPaymentMethod): Int = paymentMethod.code()

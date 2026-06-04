@@ -1,5 +1,5 @@
 package com.winlator.cmod.feature.stores.steam.data
-import `in`.dragonbra.javasteam.enums.EPersonaState
+import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
 
 /**
  * This class serves to update your steam's profile icon on the main library screen and settings dialog.

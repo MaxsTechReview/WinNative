@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.BatteryManager;
@@ -17,8 +18,12 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.TextPaint;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.ImageSpan;
+import android.text.style.MetricAffectingSpan;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
@@ -50,6 +55,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   public static final String PREF_HUD_POS_Y = "hud_position_y";
   public static final String PREF_HUD_HAS_POSITION = "hud_has_position";
   public static final String PREF_HUD_DUAL_SERIES_BATTERY = "hud_dual_series_battery";
+  public static final String PREF_HUD_FRAMETIME_NUMERIC = "hud_frametime_numeric";
   public static final String PREF_HUD_SCALE = "hud_scale";
   public static final String PREF_HUD_ALPHA = "hud_alpha";
   public static final String PREF_HUD_ELEMENTS = "hud_elements";
@@ -72,6 +78,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final int C_CPU;
   private final int C_DIVISOR;
   private final int C_FPS_OK;
+  private final int C_WARM;
+  private final int C_HOT;
   private final int C_GPU;
   private final int C_RAM;
   private final int C_TEMP;
@@ -86,7 +94,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int cpuFailCount;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
-  private float currentMs;
+  private volatile float currentMs;
   private boolean enableBattTemp;
   private boolean enableCpu;
   private boolean enableRam;
@@ -94,17 +102,41 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean enableGpu;
   private boolean enableGraph;
   private boolean enableRenderer;
-  private int frameCount;
+  private volatile FrameObserver frameObserver;
   private int gpuFailCount;
   private volatile int gpuLoad;
+
+  /**
+   * Listener for raw per-present frame events. Fires on the X server render thread on
+   * every call to {@link #update()} regardless of HUD visibility — that way perf
+   * recording and leaderboard stats still work when the HUD is hidden. Implementations
+   * must be cheap (a single atomic op + array write is the budget).
+   */
+  public interface FrameObserver {
+    void onFramePresent(long nanoTime);
+  }
+
+  /**
+   * Install or remove the frame observer. Passing null clears it. Replacing an
+   * existing observer is allowed (last-writer-wins); this is intentional for cases
+   * where the activity replaces the FrameRating instance mid-session.
+   */
+  public void setFrameObserver(FrameObserver observer) {
+    this.frameObserver = observer;
+  }
   private FrametimeGraphView graphView;
   private boolean isNativeActive;
   private boolean isStatsRunning;
-  private float lastFPS;
-  private long lastFrameNano;
+  private volatile boolean isCharging;
+  private volatile float lastFPS;
+  private volatile long lastFrameNano;
+  private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
-  private long lastTime;
+  private long lastHudRedraw;
   private volatile String ramText;
+  private final long[] frameTimesNano = new long[MAX_FRAME_SAMPLES];
+  private int frameTimesStart;
+  private int frameTimesCount;
   private String rendererName;
   private String gpuName;
   private final View sep0, sep1, sep2, sep3, sep4, sep5;
@@ -115,6 +147,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private final TextView tvBat;
   private final TextView tvTemp;
   private final TextView tvFpsBig;
+  private final TextView tvFrametime;
   private final FrameLayout graphContainer;
   private Handler statsHandler;
   private Runnable statsRunnable;
@@ -127,6 +160,11 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int lastGoodGpuLoad = -1;
   private long lastGoodGpuTime = 0;
   private static final long GPU_CACHE_DURATION_MS = 5000;
+  private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
+  private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
+  private static final long HUD_REFRESH_MS = 1000L;
+  private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
+  private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
   // Mode 0: horizontal, no backdrop
@@ -136,7 +174,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int displayMode = 0;
   private static final int MODE_COUNT = 4;
   private GradientDrawable backdropDrawable;
+  // Outlined plug glyph shown next to the battery wattage while charging (lazily loaded + tinted).
+  private Drawable plugIcon;
   private boolean dualSeriesBattery;
+  private boolean frametimeNumericMode;
 
   public FrameRating(Context context, HashMap graphicsDriverConfig) {
     this(context, graphicsDriverConfig, null);
@@ -149,10 +190,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   public FrameRating(
       Context context, HashMap graphicsDriverConfig, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    this.lastTime = 0L;
     this.lastGraphRedraw = 0L;
     this.lastFrameNano = 0L;
-    this.frameCount = 0;
+    this.lastPrimaryFrameNano = 0L;
+    this.lastHudRedraw = 0L;
+    this.frameTimesStart = 0;
+    this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
     this.enableFps = true;
@@ -167,7 +210,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.batteryWatts = -1.0f;
     this.cpuTemp = -1;
     this.ramText = "N/A";
-    this.rendererName = "OpenGL";
+    this.rendererName = "Vulkan";
     this.gpuName = null;
     this.canReadGpu = true;
     this.canReadCpu = true;
@@ -185,10 +228,13 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.C_TEMP = Color.parseColor("#EF5350");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
+    this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
+    this.C_HOT = Color.parseColor("#FF1744"); // TMP value when battery is hot (>=45C)
     this.C_DIVISOR = Color.parseColor("#616161");
     this.context = context;
     this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
-    this.isNativeActive = this.preferences.getBoolean("use_dri3", true);
+    // Native rendering (DRI3) is always on; the toggle was removed.
+    this.isNativeActive = true;
     this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
     setOrientation(LinearLayout.HORIZONTAL);
     setLayoutParams(
@@ -203,6 +249,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.tvBat = view.findViewById(R.id.TVBat);
     this.tvTemp = view.findViewById(R.id.TVTemp);
     this.tvFpsBig = view.findViewById(R.id.TVFpsBig);
+    this.tvFrametime = view.findViewById(R.id.TVFrametime);
     this.graphContainer = view.findViewById(R.id.FLGraphContainer);
     this.sep0 = view.findViewById(R.id.Sep0);
     this.sep1 = view.findViewById(R.id.Sep1);
@@ -215,7 +262,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.graphContainer.addView(this.graphView);
     }
     if (this.tvRenderer != null) {
-      this.tvRenderer.setText("OpenGL");
+      this.tvRenderer.setText("Vulkan");
     }
     if (this.tvFpsBig != null) {
       this.tvFpsBig.setText("60");
@@ -272,11 +319,11 @@ public class FrameRating extends LinearLayout implements Runnable {
           public void run() {
             if (isStatsRunning) {
               FrameRating.this.run();
-              uiRefreshHandler.postDelayed(this, 500L);
+              uiRefreshHandler.postDelayed(this, HUD_REFRESH_MS);
             }
           }
         };
-    this.uiRefreshHandler.postDelayed(this.uiRefreshRunnable, 500L);
+    this.uiRefreshHandler.postDelayed(this.uiRefreshRunnable, HUD_REFRESH_MS);
   }
 
   private void stopStatsUpdate() {
@@ -457,6 +504,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private void loadPersistedHudPreferences() {
     this.displayMode = this.preferences.getInt(PREF_HUD_DISPLAY_MODE, 0);
     this.dualSeriesBattery = this.preferences.getBoolean(PREF_HUD_DUAL_SERIES_BATTERY, false);
+    this.frametimeNumericMode = this.preferences.getBoolean(PREF_HUD_FRAMETIME_NUMERIC, false);
     this.currentAnchor = this.preferences.getInt(PREF_HUD_ANCHOR, ANCHOR_NONE);
   }
 
@@ -784,6 +832,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       tvTemp,
       sep5,
       tvFpsBig,
+      tvFrametime,
       graphContainer
     };
     for (View v : views) {
@@ -793,6 +842,17 @@ public class FrameRating extends LinearLayout implements Runnable {
           lp.width = graphW;
           lp.height = graphH;
           lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
+        } else if (v == tvFrametime) {
+          lp.width = LayoutParams.WRAP_CONTENT;
+          lp.height = LayoutParams.WRAP_CONTENT;
+          lp.setMargins(horizontal ? 4 : 0, horizontal ? 0 : 4, 0, 0);
+        } else if (v == tvFpsBig) {
+          lp.width = LayoutParams.WRAP_CONTENT;
+          lp.height = LayoutParams.WRAP_CONTENT;
+          lp.setMargins(0, 0, 0, 0);
+          // Centre the big FPS number across the HUD width when stacked
+          // vertically; inherit the container gravity when horizontal (-1).
+          lp.gravity = horizontal ? -1 : Gravity.CENTER_HORIZONTAL;
         } else {
           lp.width = LayoutParams.WRAP_CONTENT;
           lp.height = LayoutParams.WRAP_CONTENT;
@@ -802,6 +862,7 @@ public class FrameRating extends LinearLayout implements Runnable {
       }
     }
 
+    applyFrametimeDisplayVisibility();
     updateSeparators(horizontal);
     requestLayout();
   }
@@ -817,8 +878,6 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.rendererName = "DXVK";
     } else if (r.contains("turnip")) {
       this.rendererName = "Turnip";
-    } else if (r.contains("virgl")) {
-      this.rendererName = "VirGL";
     } else if (r.contains("zink")) {
       this.rendererName = "Zink";
     } else if (r.contains("llvmpipe") || r.contains("software")) {
@@ -853,8 +912,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
   private void updateRendererText() {
     if (this.tvRenderer != null) {
-      String text = this.rendererName + (this.isNativeActive ? "+" : "");
-      this.tvRenderer.setText(text);
+      this.tvRenderer.setText(this.rendererName);
       this.tvRenderer.setVisibility(this.enableRenderer ? View.VISIBLE : View.GONE);
       updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
     }
@@ -924,10 +982,12 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
-  public void reset() {
-    this.frameCount = 0;
-    this.lastTime = 0L;
+  public synchronized void reset() {
     this.lastFrameNano = 0L;
+    this.lastPrimaryFrameNano = 0L;
+    this.lastHudRedraw = 0L;
+    this.frameTimesStart = 0;
+    this.frameTimesCount = 0;
     this.lastFPS = 0.0f;
     this.currentMs = 0.0f;
     post(this);
@@ -959,6 +1019,24 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.dualSeriesBattery = dualSeriesBattery;
     this.preferences.edit().putBoolean(PREF_HUD_DUAL_SERIES_BATTERY, dualSeriesBattery).apply();
     post(this);
+  }
+
+  public void setFrametimeNumericMode(boolean numeric) {
+    this.frametimeNumericMode = numeric;
+    this.preferences.edit().putBoolean(PREF_HUD_FRAMETIME_NUMERIC, numeric).apply();
+    post(this::applyFrametimeDisplayVisibility);
+    post(this);
+  }
+
+  private void applyFrametimeDisplayVisibility() {
+    boolean showNumeric = this.enableGraph && this.frametimeNumericMode;
+    boolean showGraph = this.enableGraph && !this.frametimeNumericMode;
+    if (this.tvFrametime != null) {
+      this.tvFrametime.setVisibility(showNumeric ? View.VISIBLE : View.GONE);
+    }
+    if (this.graphContainer != null) {
+      this.graphContainer.setVisibility(showGraph ? View.VISIBLE : View.GONE);
+    }
   }
 
   public void toggleElement(int elementIndex, boolean visible) {
@@ -997,9 +1075,7 @@ public class FrameRating extends LinearLayout implements Runnable {
         break;
       case 6:
         this.enableGraph = visible;
-        if (this.graphContainer != null) {
-          this.graphContainer.setVisibility(v);
-        }
+        applyFrametimeDisplayVisibility();
         break;
     }
     updateSeparators(getOrientation() == LinearLayout.HORIZONTAL);
@@ -1032,43 +1108,110 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (sep5 != null) sep5.setVisibility(vTmp && vFps ? View.VISIBLE : View.GONE);
   }
 
-  /**
-   * Called by the X server rendering loop for each application window content change. This is the
-   * primary FPS source — counts actual game frame updates.
-   */
-  public void update() {
+  /** Called when the guest submits a new frame to the X presentation path. */
+  public void recordGameFrame(boolean primarySource, int serial) {
+    // Notify observer before any visibility gating so perf recording / leaderboard stats keep
+    // working when the HUD is hidden. Cheap path; observer is typically a single AtomicLong
+    // increment plus an ArrayList add.
+    FrameObserver obs = this.frameObserver;
+    if (obs != null) {
+      obs.onFramePresent(System.nanoTime());
+    }
     if (getVisibility() != View.VISIBLE) {
       return;
     }
-    if (this.lastTime == 0) {
-      this.lastTime = SystemClock.elapsedRealtime();
-    }
-    long time = SystemClock.elapsedRealtime();
-    if (time >= this.lastTime + 500) {
-      this.lastFPS = (this.frameCount * 1000f) / (time - this.lastTime);
-      post(this);
-      this.lastTime = time;
-      this.frameCount = 0;
-    }
-    this.frameCount++;
     long nowNano = System.nanoTime();
-    if (this.lastFrameNano == 0) {
+
+    synchronized (this) {
+      if (primarySource) {
+        if (this.lastPrimaryFrameNano == 0
+            || nowNano - this.lastPrimaryFrameNano >= FALLBACK_SUPPRESSION_NS) {
+          this.lastFrameNano = 0L;
+          this.frameTimesStart = 0;
+          this.frameTimesCount = 0;
+        }
+        this.lastPrimaryFrameNano = nowNano;
+      } else if (this.lastPrimaryFrameNano > 0
+          && nowNano - this.lastPrimaryFrameNano < FALLBACK_SUPPRESSION_NS) {
+        return;
+      }
+
+      if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano < MIN_FRAME_INTERVAL_NS) {
+        return;
+      }
+      if (this.lastFrameNano == 0) {
+        this.lastFrameNano = nowNano;
+      }
+      float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
       this.lastFrameNano = nowNano;
-    }
-    float ms = (nowNano - this.lastFrameNano) / 1000000.0f;
-    this.lastFrameNano = nowNano;
-    if (this.enableGraph && ms > 0.0f && ms < 500.0f) {
-      this.currentMs = ms;
-      if (time - this.lastGraphRedraw >= 50) {
-        if (this.graphView != null) {
+
+      long time = SystemClock.elapsedRealtime();
+      appendFrameTimeLocked(nowNano);
+      trimFrameTimesLocked(nowNano - FPS_CALC_INTERVAL_NS);
+      updateRollingFpsLocked();
+      boolean shouldRedrawHud = false;
+      if (time - this.lastHudRedraw >= HUD_REFRESH_MS) shouldRedrawHud = true;
+
+      if (ms > 0.0f && ms < 500.0f) {
+        this.currentMs = ms;
+      }
+      long frametimeRedrawInterval = this.frametimeNumericMode ? 500L : 50L;
+      if (this.enableGraph && ms > 0.0f && ms < 500.0f
+          && time - this.lastGraphRedraw >= frametimeRedrawInterval) {
+        if (!this.frametimeNumericMode && this.graphView != null) {
           this.graphView.addFrame(ms);
           this.graphView.postInvalidate();
+        } else if (this.frametimeNumericMode && this.tvFrametime != null) {
+          final float msSnapshot = ms;
+          this.tvFrametime.post(
+              () -> this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", msSnapshot)));
         }
         this.lastGraphRedraw = time;
       }
-    } else if (!this.enableGraph && ms > 0.0f && ms < 500.0f) {
-      this.currentMs = ms;
+
+      if (!shouldRedrawHud && time - this.lastHudRedraw < HUD_REFRESH_MS) {
+        return;
+      }
+      this.lastHudRedraw = time;
     }
+    post(this);
+  }
+
+  public void recordGameFrame() {
+    recordGameFrame(false, 0);
+  }
+
+  private void appendFrameTimeLocked(long nowNano) {
+    int index = (this.frameTimesStart + this.frameTimesCount) % MAX_FRAME_SAMPLES;
+    if (this.frameTimesCount == MAX_FRAME_SAMPLES) {
+      this.frameTimesStart = (this.frameTimesStart + 1) % MAX_FRAME_SAMPLES;
+      index = (this.frameTimesStart + this.frameTimesCount - 1) % MAX_FRAME_SAMPLES;
+    } else {
+      this.frameTimesCount++;
+    }
+    this.frameTimesNano[index] = nowNano;
+  }
+
+  private void trimFrameTimesLocked(long oldestAllowedNano) {
+    while (this.frameTimesCount > 0
+        && this.frameTimesNano[this.frameTimesStart] < oldestAllowedNano) {
+      this.frameTimesStart = (this.frameTimesStart + 1) % MAX_FRAME_SAMPLES;
+      this.frameTimesCount--;
+    }
+  }
+
+  private void updateRollingFpsLocked() {
+    if (this.frameTimesCount <= 1) {
+      this.lastFPS = 0.0f;
+      return;
+    }
+
+    long first = this.frameTimesNano[this.frameTimesStart];
+    int lastIndex = (this.frameTimesStart + this.frameTimesCount - 1) % MAX_FRAME_SAMPLES;
+    long last = this.frameTimesNano[lastIndex];
+    long elapsedNano = last - first;
+    this.lastFPS =
+        elapsedNano > 0 ? ((this.frameTimesCount - 1) * 1000000000.0f) / elapsedNano : 0.0f;
   }
 
   private long readSysFs(String path) {
@@ -1207,6 +1350,9 @@ public class FrameRating extends LinearLayout implements Runnable {
           int temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
           if (temp > 0) this.cpuTemp = temp / 10;
           else this.cpuTemp = -1;
+
+          int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+          this.isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
         }
         this.battFailCount = 0;
       } catch (Exception e) {
@@ -1224,8 +1370,12 @@ public class FrameRating extends LinearLayout implements Runnable {
     // Watchdog: reset FPS if no frames arrived for > 1.5s
     long nowNano = System.nanoTime();
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
-      this.lastFPS = 0.0f;
-      this.currentMs = 0.0f;
+      synchronized (this) {
+        this.lastFPS = 0.0f;
+        this.currentMs = 0.0f;
+        this.frameTimesStart = 0;
+        this.frameTimesCount = 0;
+      }
     }
 
     if (this.enableGpu && this.tvGpuLoad != null) {
@@ -1264,10 +1414,15 @@ public class FrameRating extends LinearLayout implements Runnable {
                 : this.batteryWatts;
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "BAT ", this.C_BAT);
+        // While charging, prefix the live wattage with an outlined plug glyph
+        // instead of the old "CHRG" placeholder text.
+        if (this.isCharging) {
+          appendPlugIcon(b);
+        }
         append(
             b,
             displayedBatteryWatts >= 0.0f
-                ? String.format(Locale.US, "%.1fW", displayedBatteryWatts)
+                ? String.format(Locale.US, "%.1fw", displayedBatteryWatts)
                 : "N/A",
             this.C_VALUE);
         this.tvBat.setText(b);
@@ -1276,7 +1431,15 @@ public class FrameRating extends LinearLayout implements Runnable {
       if (this.tvTemp != null) {
         SpannableStringBuilder b = new SpannableStringBuilder();
         append(b, "TMP ", this.C_TEMP);
-        append(b, this.cpuTemp >= 0 ? this.cpuTemp + "°C" : "N/A", this.C_VALUE);
+        if (this.cpuTemp >= 0) {
+          // Battery temperature: amber in the warm range, red once hot.
+          int tempColor =
+              this.cpuTemp >= 45 ? this.C_HOT : this.cpuTemp >= 40 ? this.C_WARM : this.C_VALUE;
+          append(b, this.cpuTemp + "°", tempColor);
+          appendSmall(b, "C", tempColor, 0.7f);
+        } else {
+          append(b, "N/A", this.C_VALUE);
+        }
         this.tvTemp.setText(b);
         this.tvTemp.setVisibility(View.VISIBLE);
       }
@@ -1291,6 +1454,14 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvFpsBig.setVisibility(View.VISIBLE);
     } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);
 
+    if (this.enableGraph && this.frametimeNumericMode && this.tvFrametime != null) {
+      this.tvFrametime.setText(String.format(Locale.US, "%.1f ms", this.currentMs));
+      this.tvFrametime.setTextColor(this.C_FPS_OK);
+      this.tvFrametime.setVisibility(View.VISIBLE);
+    } else if (this.tvFrametime != null) {
+      this.tvFrametime.setVisibility(View.GONE);
+    }
+
     if (getOrientation() == LinearLayout.HORIZONTAL) updateSeparators(true);
   }
 
@@ -1298,6 +1469,113 @@ public class FrameRating extends LinearLayout implements Runnable {
     int start = b.length();
     b.append(t);
     b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
+  }
+
+  /**
+   * Like {@link #append} but renders the text at {@code scale} of the surrounding size and raises
+   * it so the smaller glyph's top lines up with the full-size text (used for the "C" unit).
+   */
+  private void appendSmall(SpannableStringBuilder b, String t, int c, float scale) {
+    int start = b.length();
+    b.append(t);
+    b.setSpan(new ForegroundColorSpan(c), start, b.length(), 33);
+    b.setSpan(new SmallRaisedSpan(scale), start, b.length(), 33);
+  }
+
+  /**
+   * Renders text at a reduced size, shifted up so its top aligns with the cap height of the
+   * surrounding full-size text instead of resting on the shared baseline.
+   */
+  private static class SmallRaisedSpan extends MetricAffectingSpan {
+    private final float scale;
+
+    SmallRaisedSpan(float scale) {
+      this.scale = scale;
+    }
+
+    @Override
+    public void updateDrawState(TextPaint tp) {
+      apply(tp);
+    }
+
+    @Override
+    public void updateMeasureState(TextPaint tp) {
+      apply(tp);
+    }
+
+    private void apply(TextPaint tp) {
+      float fullAscent = tp.ascent(); // negative: distance from baseline to top of full text
+      tp.setTextSize(tp.getTextSize() * scale);
+      // Negative baselineShift moves the glyph up; align the smaller top with the full-size top.
+      tp.baselineShift += (int) (fullAscent - tp.ascent());
+    }
+  }
+
+  /**
+   * Append the outlined plug glyph (tinted to the charging colour) followed by a small gap.
+   * The glyph rides on a single placeholder space that the {@link ImageSpan} draws over; a
+   * second visible space separates it from the wattage that follows. Falls back to a textual
+   * "⚡" marker if the drawable can't be loaded.
+   */
+  private void appendPlugIcon(SpannableStringBuilder b) {
+    Drawable plug = getPlugIcon();
+    if (plug == null) {
+      append(b, "⚡ ", this.C_FPS_OK);
+      return;
+    }
+    int start = b.length();
+    b.append(" "); // placeholder rendered as the plug icon
+    b.setSpan(new CenteredImageSpan(plug), start, b.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+    b.append(" "); // gap before the wattage
+  }
+
+  /** Lazily load, size (to the battery text height) and tint the plug drawable; cached. */
+  private Drawable getPlugIcon() {
+    if (this.plugIcon == null && this.context != null) {
+      Drawable d = this.context.getDrawable(R.drawable.ic_hud_plug);
+      if (d != null) {
+        d = d.mutate();
+        // Render the glyph slightly larger than the battery text so it reads clearly.
+        final float scale = 1.3f;
+        float base =
+            this.tvBat != null && this.tvBat.getTextSize() > 0
+                ? this.tvBat.getTextSize()
+                : TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP, 10f, getResources().getDisplayMetrics());
+        int size = Math.round(base * scale);
+        d.setBounds(0, 0, size, size);
+        d.setTint(this.C_FPS_OK);
+        this.plugIcon = d;
+      }
+    }
+    return this.plugIcon;
+  }
+
+  /** {@link ImageSpan} that vertically centres its drawable on the text instead of the baseline. */
+  private static class CenteredImageSpan extends ImageSpan {
+    CenteredImageSpan(Drawable drawable) {
+      super(drawable, ImageSpan.ALIGN_BOTTOM);
+    }
+
+    @Override
+    public void draw(
+        Canvas canvas,
+        CharSequence text,
+        int start,
+        int end,
+        float x,
+        int top,
+        int y,
+        int bottom,
+        Paint paint) {
+      Drawable d = getDrawable();
+      Paint.FontMetricsInt fm = paint.getFontMetricsInt();
+      int transY = y + (fm.descent + fm.ascent) / 2 - d.getBounds().height() / 2;
+      canvas.save();
+      canvas.translate(x, transY);
+      d.draw(canvas);
+      canvas.restore();
+    }
   }
 
   private class FrametimeGraphView extends View {

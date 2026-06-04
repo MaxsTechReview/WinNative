@@ -3,12 +3,9 @@
 /* Settings > Other screen — Jetpack Compose / Material3.
  * Uses a LazyColumn for the main content so the screen scrolls natively in Compose. */
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,8 +51,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
@@ -83,6 +78,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette (mirrors DebugScreen / StoresScreen)
@@ -107,12 +103,13 @@ data class OtherSettingsState(
     val winlatorPath: String = "",
     val shortcutExportPath: String = "",
     val cursorSpeedPercent: Int = 100,
-    val useDRI3: Boolean = true,
     val cursorLock: Boolean = false,
     val xinputDisabled: Boolean = false,
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
+    val recordPerformanceToFile: Boolean = false,
+    val enableBackgroundSession: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
 
@@ -148,12 +145,13 @@ fun OtherSettingsScreen(
     onPickWinlatorPath: () -> Unit,
     onPickShortcutExportPath: () -> Unit,
     onCursorSpeedChanged: (Int) -> Unit,
-    onUseDRI3Changed: (Boolean) -> Unit,
     onCursorLockChanged: (Boolean) -> Unit,
     onXinputDisabledChanged: (Boolean) -> Unit,
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
+    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
+    onEnableBackgroundSessionChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
 ) {
@@ -260,16 +258,6 @@ fun OtherSettingsScreen(
             )
         }
 
-        item(key = "use_dri3_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.session_xserver_use_dri3_extension),
-                subtitle = stringResource(R.string.session_xserver_use_dri3_description),
-                icon = Icons.Outlined.Visibility,
-                checked = state.useDRI3,
-                onCheckedChange = onUseDRI3Changed,
-            )
-        }
-
         item(key = "cursor_lock_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_cursor_lock_title),
@@ -292,6 +280,16 @@ fun OtherSettingsScreen(
 
         item(key = "integration_section") {
             SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
+        }
+
+        item(key = "background_session_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_general_background),
+                subtitle = "Keep session alive while in background",
+                icon = Icons.Outlined.Visibility,
+                checked = state.enableBackgroundSession,
+                onCheckedChange = onEnableBackgroundSessionChanged,
+            )
         }
 
         item(key = "file_provider_card") {
@@ -321,6 +319,23 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.ContentCopy,
                 checked = state.shareClipboard,
                 onCheckedChange = onShareClipboardChanged,
+            )
+        }
+
+        item(key = "perf_leaderboard_section") {
+            SectionLabel(
+                stringResource(R.string.settings_leaderboard_category),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        item(key = "record_perf_to_file_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_hud_record_to_file_title),
+                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
+                icon = Icons.Outlined.Speed,
+                checked = state.recordPerformanceToFile,
+                onCheckedChange = onRecordPerformanceToFileChanged,
             )
         }
 
@@ -418,7 +433,6 @@ private fun SettingsToggleCard(
     }
 }
 
-// Check for Updates card: switch + "Check Now" inline button
 @Composable
 private fun UpdatesCard(
     checked: Boolean,
@@ -908,90 +922,27 @@ private fun CursorSpeedCard(
     }
 }
 
-// Reinstall imagefs confirm dialog (Compose replacement for ContentDialog.confirm)
 @Composable
 private fun ReinstallImagefsConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(24.dp),
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(IconBoxBg),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Autorenew,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(19.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = stringResource(R.string.settings_general_reinstall_imagefs),
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                ) {
-                    SmallActionButton(
-                        label = stringResource(R.string.common_ui_cancel),
-                        textColor = TextSecondary,
-                        onClick = onDismiss,
-                    )
-                    SmallActionButton(
-                        label = stringResource(R.string.common_ui_reinstall),
-                        textColor = Accent,
-                        onClick = onConfirm,
-                    )
-                }
-            }
-        }
+        PopupDialog(
+            title = stringResource(R.string.settings_general_reinstall_imagefs),
+            message = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
+            icon = Icons.Outlined.Autorenew,
+            confirmLabel = stringResource(R.string.common_ui_reinstall),
+            onConfirm = onConfirm,
+            onCancel = onDismiss,
+            accentColor = Accent,
+            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+        )
     }
 }
 
-// ImageFS install progress dialog (non-dismissable, shown while reinstall is running)
 @Composable
 private fun ImagefsInstallProgressDialog(percent: Int) {
-    val safePercent = percent.coerceIn(0, 100)
-    // Smoothly interpolate the bar between discrete progress updates from the install callback.
-    val animatedProgress by animateFloatAsState(
-        targetValue = safePercent / 100f,
-        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
-        label = "imagefsBarProgress",
-    )
-    // Animate the percent label alongside the bar so the number ticks smoothly too.
-    val animatedPercent by animateIntAsState(
-        targetValue = safePercent,
-        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
-        label = "imagefsPercentLabel",
-    )
     Dialog(
         onDismissRequest = { /* non-dismissable */ },
         properties =
@@ -1000,71 +951,14 @@ private fun ImagefsInstallProgressDialog(percent: Int) {
                 dismissOnClickOutside = false,
             ),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(24.dp),
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(IconBoxBg),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Autorenew,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(19.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.setup_wizard_installing_system_files),
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = stringResource(R.string.settings_other_keep_app_open),
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = "$animatedPercent%",
-                        color = Accent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                    color = Accent,
-                    trackColor = SurfaceDark,
-                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-                    gapSize = 0.dp,
-                    drawStopIndicator = {},
-                )
-            }
-        }
+        PopupDialog(
+            title = stringResource(R.string.setup_wizard_installing_system_files),
+            message = stringResource(R.string.settings_other_keep_app_open),
+            icon = Icons.Outlined.Autorenew,
+            accentColor = Accent,
+            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            progress = percent.coerceIn(0, 100) / 100f,
+        )
     }
 }
 

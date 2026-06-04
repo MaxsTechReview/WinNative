@@ -9,7 +9,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.os.Build;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -22,8 +21,8 @@ import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
 import com.winlator.cmod.runtime.input.controls.GamepadState;
-import com.winlator.cmod.runtime.input.rumble.GcmRumbleMode;
 import com.winlator.cmod.runtime.input.rumble.GamepadRumbleManager;
+import com.winlator.cmod.runtime.input.rumble.GcmRumbleMode;
 import com.winlator.cmod.shared.util.StringUtils;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -64,6 +63,7 @@ public class WinHandler {
   private static final int OSC_DEVICE_ID = -1;
   private static final short SERVER_PORT = 7947;
   private static final long VIRTUAL_REBALANCE_AFTER_PHYSICAL_DISCONNECT_MS = 200;
+  private static final long PHYSICAL_DISCONNECT_DEBOUNCE_MS = 400;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
   private final XServerDisplayActivity activity;
@@ -89,7 +89,8 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
-  private Map<Integer, Integer> deviceToSlot = new HashMap();
+  // ConcurrentHashMap: input thread mutates while the vibration thread iterates (avoid CME).
+  private Map<Integer, Integer> deviceToSlot = new java.util.concurrent.ConcurrentHashMap<>();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
   private Set<Integer> usedSlots = new HashSet();
@@ -97,8 +98,9 @@ public class WinHandler {
   private LocalServerSocket vibrationServer;
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
-  private boolean globalVibrationEnabled = true;
-  private GcmRumbleMode gcmRumbleMode = GcmRumbleMode.DISABLED;
+  // volatile: UI thread writes, vibration thread reads.
+  private volatile boolean globalVibrationEnabled = true;
+  private volatile GcmRumbleMode gcmRumbleMode = GcmRumbleMode.DISABLED;
   private int fallbackSlot = -1;
   private ExternalController currentController;
   private final GamepadState outputGamepadState = new GamepadState();
@@ -114,22 +116,52 @@ public class WinHandler {
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
   private Runnable pendingVirtualGamepadRebalance;
+  private final Map<Integer, Runnable> pendingDeviceReleases = new HashMap<>();
   private final GamepadRumbleManager gamepadRumbleManager;
   private final InputManager.InputDeviceListener inputDeviceListener =
       new InputManager.InputDeviceListener() {
         @Override
         public void onInputDeviceAdded(int deviceId) {
+          WinHandler.this.cancelPendingDeviceRelease(deviceId);
           WinHandler.this.assignConnectedDeviceIfPossible(deviceId, "hotplug");
         }
 
         @Override
         public void onInputDeviceRemoved(int deviceId) {
-          WinHandler.this.releaseSlot(deviceId);
+          WinHandler.this.scheduleDeviceRelease(deviceId);
         }
 
         @Override
         public void onInputDeviceChanged(int deviceId) {}
       };
+
+  private final class MouseMoveAction implements Runnable {
+    private int dx;
+    private int dy;
+
+    MouseMoveAction(int dx, int dy) {
+      this.dx = dx;
+      this.dy = dy;
+    }
+
+    void addDelta(int dx, int dy) {
+      this.dx += dx;
+      this.dy += dy;
+    }
+
+    @Override
+    public void run() {
+      int remainingX = dx;
+      int remainingY = dy;
+      while (remainingX != 0 || remainingY != 0) {
+        int stepX = clampMouseDelta(remainingX);
+        int stepY = clampMouseDelta(remainingY);
+        sendMouseEventPacket(MouseEventFlags.MOVE, stepX, stepY, 0);
+        remainingX -= stepX;
+        remainingY -= stepY;
+      }
+    }
+  }
 
   public WinHandler(XServerDisplayActivity activity) {
     this.activity = activity;
@@ -137,6 +169,7 @@ public class WinHandler {
     this.gamepadRumbleManager = new GamepadRumbleManager(activity, this.inputHandler);
     this.inputManager.registerInputDeviceListener(this.inputDeviceListener, null);
     this.preferences = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    boolean anySlotEnabled = false;
     for (int i = 0; i < MAX_CONTROLLERS; i++) {
       String key = "vibration_slot_" + i;
       String legacyKey = "vibrate_slot_" + i;
@@ -145,9 +178,22 @@ public class WinHandler {
       } else {
         this.vibrationEnabledSlots[i] = this.preferences.getBoolean(legacyKey, true);
       }
+      if (this.vibrationEnabledSlots[i]) {
+        anySlotEnabled = true;
+      }
     }
     this.globalVibrationEnabled =
-        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, false);
+        this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
+    // Heal stale #403 prefs: master on + all slots off → re-enable all.
+    if (this.globalVibrationEnabled && !anySlotEnabled) {
+      SharedPreferences.Editor editor = this.preferences.edit();
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+      editor.apply();
+    }
     this.gcmRumbleMode =
         GcmRumbleMode.fromPrefValue(
             this.preferences.getString(GcmRumbleMode.PREF_KEY, GcmRumbleMode.DISABLED.toPrefValue()));
@@ -211,9 +257,17 @@ public class WinHandler {
     }
 
     if (this.usedSlots.size() >= MAX_CONTROLLERS) {
-      Log.d(
-          "WinHandler", "Ignoring device " + deviceId + " from " + source + ": slot limit reached.");
-      return false;
+      // Still allow a reconnecting / sub-device that will reuse an existing
+      // physical controller's slot instead of consuming a new one. Without this,
+      // a transient remove/add while all four slots are full would be dropped.
+      android.view.InputDevice probe = android.view.InputDevice.getDevice(deviceId);
+      String descriptor = probe != null ? probe.getDescriptor() : null;
+      if (descriptor == null || !this.descriptorToSlot.containsKey(descriptor)) {
+        Log.d(
+            "WinHandler",
+            "Ignoring device " + deviceId + " from " + source + ": slot limit reached.");
+        return false;
+      }
     }
 
     android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
@@ -373,19 +427,39 @@ public class WinHandler {
     }
     addAction(
         () -> {
-          try {
-            this.sendData.rewind();
-            this.sendData.put((byte) 7);
-            this.sendData.putInt(10);
-            this.sendData.putInt(flags);
-            this.sendData.putShort((short) dx);
-            this.sendData.putShort((short) dy);
-            this.sendData.putShort((short) wheelDelta);
-            this.sendData.put((byte) ((flags & 1) != 0 ? 1 : 0));
-            sendPacket(CLIENT_PORT);
-          } catch (IOException ignored) {
-          }
+          sendMouseEventPacket(flags, dx, dy, wheelDelta);
+          XServer xServer = activity.getXServer();
+          if (xServer != null && xServer.getRenderer() != null)
+            xServer.getRenderer().requestRenderCoalesced();
         });
+  }
+
+  public void mouseMoveDelta(final int dx, final int dy) {
+    if (!this.initReceived) {
+      return;
+    }
+    addMouseMoveAction(dx, dy);
+  }
+
+  private void sendMouseEventPacket(final int flags, final int dx, final int dy, final int wheelDelta) {
+    try {
+      this.sendData.rewind();
+      this.sendData.put((byte) 7);
+      this.sendData.putInt(10);
+      this.sendData.putInt(flags);
+      this.sendData.putShort((short) dx);
+      this.sendData.putShort((short) dy);
+      this.sendData.putShort((short) wheelDelta);
+      this.sendData.put((byte) ((flags & 1) != 0 ? 1 : 0));
+      sendPacket(CLIENT_PORT);
+    } catch (IOException ignored) {
+    }
+  }
+
+  private int clampMouseDelta(int value) {
+    if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
+    if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
+    return value;
   }
 
   public void keyboardEvent(final byte vkey, final int flags) {
@@ -436,6 +510,19 @@ public class WinHandler {
     }
   }
 
+  private void addMouseMoveAction(int dx, int dy) {
+    synchronized (this.actions) {
+      if (!this.running) return;
+      Runnable last = this.actions.peekLast();
+      if (last instanceof MouseMoveAction) {
+        ((MouseMoveAction) last).addDelta(dx, dy);
+      } else {
+        this.actions.add(new MouseMoveAction(dx, dy));
+      }
+      this.actions.notifyAll();
+    }
+  }
+
   public OnGetProcessInfoListener getOnGetProcessInfoListener() {
     return this.onGetProcessInfoListener;
   }
@@ -451,17 +538,21 @@ public class WinHandler {
     this.sendExecutor.execute(
         () -> {
           while (true) {
+            Runnable action;
             synchronized (this.actions) {
-              while (this.running && this.initReceived && !this.actions.isEmpty()) {
-                this.actions.poll().run();
+              while (this.running && (!this.initReceived || this.actions.isEmpty())) {
+                try {
+                  this.actions.wait();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
               }
               if (!this.running) return;
-              try {
-                this.actions.wait();
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-              }
+              action = this.actions.poll();
+            }
+            if (action != null) {
+              action.run();
             }
           }
         });
@@ -529,13 +620,19 @@ public class WinHandler {
         XServer xServer = this.activity.getXServer();
         xServer.pointer.setX(x);
         xServer.pointer.setY(y);
+        if (xServer.getRenderer() != null) {
+          xServer.getRenderer().requestCursorRender();
+        } else {
+          this.activity.getXServerView().requestTransientRender(100);
+        }
         return;
       default:
         return;
     }
   }
 
-  public void start() {
+  public synchronized void start() {
+    if (running) return;
     try {
       this.localhost = InetAddress.getLocalHost();
     } catch (UnknownHostException e) {
@@ -571,6 +668,8 @@ public class WinHandler {
     setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
     maybeClearGyroTarget(GAMEPAD_SOURCE_VIRTUAL, null);
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {
@@ -605,6 +704,8 @@ public class WinHandler {
     maybeClearGyroTarget(GAMEPAD_SOURCE_CONTROLLER, controller);
     writeControllerGamepadState(
         controller, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, controller));
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
   private void writeControllerGamepadState(
@@ -696,7 +797,7 @@ public class WinHandler {
     ensureWriterForSlot(slot);
   }
 
-  private boolean moveVirtualGamepadToSlot(int targetSlot) {
+  private boolean moveVirtualGamepadToSlot(int targetSlot, boolean releaseVacatedSlot) {
     Integer currentSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
     if (currentSlot == null) {
       return false;
@@ -711,7 +812,15 @@ public class WinHandler {
 
     ensureWriterForSlot(targetSlot);
     if (this.writers[currentSlot] != null) {
-      this.writers[currentSlot].reset();
+      if (releaseVacatedSlot && !isPhysicalSlotOccupied(currentSlot)) {
+        // The virtual pad is leaving this slot for good (consolidation, not a
+        // hand-off to an incoming physical pad). Tear it down so winebus sees the
+        // device disappear instead of a phantom stuck-at-neutral controller.
+        this.writers[currentSlot].destroy();
+        this.writers[currentSlot] = null;
+      } else {
+        this.writers[currentSlot].reset();
+      }
     }
 
     this.deviceToSlot.put(OSC_DEVICE_ID, targetSlot);
@@ -737,7 +846,7 @@ public class WinHandler {
     if (preferredVirtualSlot == -1) {
       releaseSlot(OSC_DEVICE_ID);
     } else if (preferredVirtualSlot != virtualSlot) {
-      moveVirtualGamepadToSlot(preferredVirtualSlot);
+      moveVirtualGamepadToSlot(preferredVirtualSlot, true);
     }
   }
 
@@ -787,7 +896,7 @@ public class WinHandler {
           if (this.pendingVirtualGamepadRebalance != null) {
             return existing;
           }
-          moveVirtualGamepadToSlot(preferredVirtualSlot);
+          moveVirtualGamepadToSlot(preferredVirtualSlot, true);
           Integer updatedSlot = this.deviceToSlot.get(deviceId);
           return updatedSlot != null ? updatedSlot : -1;
         }
@@ -842,7 +951,7 @@ public class WinHandler {
     Integer virtualSlot = this.deviceToSlot.get(OSC_DEVICE_ID);
     if (virtualSlot != null && virtualSlot == preferredPhysicalSlot) {
       int relocatedVirtualSlot = findPreferredVirtualSlot(null);
-      moveVirtualGamepadToSlot(relocatedVirtualSlot);
+      moveVirtualGamepadToSlot(relocatedVirtualSlot, false);
     }
 
     bindDeviceToSlot(deviceId, descriptor, preferredPhysicalSlot);
@@ -910,6 +1019,49 @@ public class WinHandler {
     }
   }
 
+  private void scheduleDeviceRelease(int deviceId) {
+    if (deviceId == OSC_DEVICE_ID) {
+      releaseSlot(deviceId);
+      return;
+    }
+    // Debounce transient Android remove/add churn (Bluetooth flaps, sub-device
+    // re-enumeration). A real unplug stays gone and is released after the delay;
+    // a quick reconnect re-seats onto the same slot via descriptorToSlot before
+    // the writer is ever torn down, so the guest never sees a disconnect.
+    cancelPendingDeviceRelease(deviceId);
+    Runnable release =
+        new Runnable() {
+          @Override
+          public void run() {
+            pendingDeviceReleases.remove(deviceId);
+            releaseSlot(deviceId);
+          }
+        };
+    pendingDeviceReleases.put(deviceId, release);
+    this.inputHandler.postDelayed(release, PHYSICAL_DISCONNECT_DEBOUNCE_MS);
+    Log.d(
+        "WinHandler",
+        "Device "
+            + deviceId
+            + " removed; scheduling slot release in "
+            + PHYSICAL_DISCONNECT_DEBOUNCE_MS
+            + "ms (debounce). Reconnect within window keeps the slot.");
+  }
+
+  private void cancelPendingDeviceRelease(int deviceId) {
+    Runnable pending = pendingDeviceReleases.remove(deviceId);
+    if (pending != null) {
+      this.inputHandler.removeCallbacks(pending);
+    }
+  }
+
+  private void cancelAllPendingDeviceReleases() {
+    for (Runnable pending : pendingDeviceReleases.values()) {
+      this.inputHandler.removeCallbacks(pending);
+    }
+    pendingDeviceReleases.clear();
+  }
+
   public void setXInputDisabled(boolean disabled) {
     this.xinputDisabled = disabled;
     this.xinputDisabledInitialized = true;
@@ -931,27 +1083,8 @@ public class WinHandler {
     if (this.vibrationRunning) {
       return;
     }
-    // If a previous executor is still alive (its thread may have created the socket AFTER
-    // closeFakeInputWriter() checked vibrationServer==null), shut it down and close any
-    // socket it left open before we try to bind the same abstract address again.
-    ExecutorService previousExecutor = this.vibrationExecutor;
-    if (previousExecutor != null) {
-      previousExecutor.shutdownNow();
-      try {
-        previousExecutor.awaitTermination(300, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException ignored) {
-        Thread.currentThread().interrupt();
-      }
-    }
-    if (this.vibrationServer != null) {
-      try {
-        this.vibrationServer.close();
-      } catch (IOException ignored) {
-      }
-      this.vibrationServer = null;
-    }
-
     this.vibrationRunning = true;
+
     this.vibrationExecutor = Executors.newSingleThreadExecutor();
     this.vibrationExecutor.execute(
         () -> {
@@ -995,6 +1128,7 @@ public class WinHandler {
       return;
     }
 
+    // GameSir GCM-mode pads expose no Android vibrator; route them through the GCM manager first.
     InputDevice physicalInputDevice = getPhysicalInputDeviceForSlot(slot);
     if (this.gcmRumbleMode != GcmRumbleMode.DISABLED
         && this.gamepadRumbleManager.handleRumble(
@@ -1002,8 +1136,7 @@ public class WinHandler {
       return;
     }
 
-    // Suppress phone/device fallback only for devices that GCM is responsible for (and OSC).
-    // Non-GameSir devices fall through to the standard vibrator as usual.
+    // Suppress the phone fallback for GCM-owned devices so they don't double-rumble.
     if (this.gcmRumbleMode != GcmRumbleMode.DISABLED && isGcmManagedDevice(physicalInputDevice)) {
       return;
     }
@@ -1088,6 +1221,16 @@ public class WinHandler {
     return pid == 0x1119 || pid == 274 || pid == 0x0106;
   }
 
+  public GcmRumbleMode getGcmRumbleMode() {
+    return this.gcmRumbleMode;
+  }
+
+  public void setGcmRumbleMode(GcmRumbleMode mode) {
+    this.gcmRumbleMode = mode;
+    this.preferences.edit().putString(GcmRumbleMode.PREF_KEY, mode.toPrefValue()).apply();
+    this.gamepadRumbleManager.setMode(mode);
+  }
+
   public boolean isVibrationEnabledForSlot(int slot) {
     return slot >= 0 && slot < MAX_CONTROLLERS && this.vibrationEnabledSlots[slot];
   }
@@ -1110,17 +1253,17 @@ public class WinHandler {
 
   public void setGlobalVibrationEnabled(boolean enabled) {
     this.globalVibrationEnabled = enabled;
-    this.preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).apply();
-  }
-
-  public GcmRumbleMode getGcmRumbleMode() {
-    return this.gcmRumbleMode;
-  }
-
-  public void setGcmRumbleMode(GcmRumbleMode mode) {
-    this.gcmRumbleMode = mode;
-    this.preferences.edit().putString(GcmRumbleMode.PREF_KEY, mode.toPrefValue()).apply();
-    this.gamepadRumbleManager.setMode(mode);
+    SharedPreferences.Editor editor = this.preferences.edit();
+    editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled);
+    if (enabled) {
+      // Master switch enables every slot, overriding stale per-slot prefs.
+      for (int i = 0; i < MAX_CONTROLLERS; i++) {
+        this.vibrationEnabledSlots[i] = true;
+        editor.putBoolean("vibration_slot_" + i, true);
+        editor.putBoolean("vibrate_slot_" + i, true);
+      }
+    }
+    editor.apply();
   }
 
   public int getMaxControllers() {
@@ -1129,6 +1272,7 @@ public class WinHandler {
 
   public void closeFakeInputWriter() {
     cancelPendingVirtualGamepadRebalance();
+    cancelAllPendingDeviceReleases();
     if (this.inputManager != null && this.inputDeviceListener != null) {
       this.inputManager.unregisterInputDeviceListener(this.inputDeviceListener);
     }
@@ -1321,6 +1465,9 @@ public class WinHandler {
       writeControllerGamepadState(targetController, gyroActive);
     }
 
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+
     this.lastGyroTargetSource = gyroActive ? targetSource : GAMEPAD_SOURCE_NONE;
     this.lastGyroTargetController =
         gyroActive && targetSource == GAMEPAD_SOURCE_CONTROLLER ? targetController : null;
@@ -1344,7 +1491,7 @@ public class WinHandler {
     int dx = (int) this.accumulatedGyroX;
     int dy = (int) this.accumulatedGyroY;
     if (dx != 0 || dy != 0) {
-      mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
+      mouseMoveDelta(dx, dy);
       this.accumulatedGyroX -= dx;
       this.accumulatedGyroY -= dy;
     }

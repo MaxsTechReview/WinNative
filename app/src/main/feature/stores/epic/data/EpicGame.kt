@@ -60,6 +60,10 @@ data class EpicGame(
     val cloudSaveEnabled: Boolean = false,
     @ColumnInfo("save_folder")
     val saveFolder: String = "",
+    @ColumnInfo("cloud_include_list")
+    val cloudIncludeList: String = "",
+    @ColumnInfo("cloud_exclude_list")
+    val cloudExcludeList: String = "",
     // Third-party platform management (EA, Ubisoft)
     @ColumnInfo("third_party_managed_app")
     val thirdPartyManagedApp: String = "",

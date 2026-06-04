@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.winlator.cmod.BuildConfig
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.wine.WineUtils
@@ -16,103 +17,27 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.concurrent.thread
 
-/**
- * Manages Steam client download, extraction, and Steamless DRM patching.
- */
+// Manages ColdClient and Steamless support assets.
 object SteamClientManager {
     private const val TAG = "SteamClientManager"
     private const val COMPONENTS_BASE_URL = "https://github.com/maxjivi05/Components/releases/download/Components"
-
-    interface DownloadProgressListener {
-        fun onProgress(progress: Float)
-
-        fun onComplete(
-            success: Boolean,
-            error: String?,
-        )
-    }
 
     interface ShellCommandRunner {
         fun exec(command: String): String
     }
 
     @JvmStatic
-    fun isSteamDownloaded(context: Context): Boolean {
-        val steamFile = File(context.filesDir, "steam.tzst")
-        return steamFile.exists() && steamFile.length() > 0
-    }
-
-    @JvmStatic
-    fun isSteamInstalled(context: Context): Boolean {
-        val imageFs = ImageFs.find(context)
-        val steamExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steam.exe")
-        val steamClient = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient.dll")
-        val steamClient64 = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient64.dll")
-        return steamExe.exists() && steamClient.exists() && steamClient64.exists()
-    }
-
-    @JvmStatic
     fun isColdClientInstalled(context: Context): Boolean {
         val imageFs = ImageFs.find(context)
         val loaderExe = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/steamclient_loader_x64.exe")
-        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/steamclient_extra_x64.dll")
+        val extraDll = File(imageFs.rootDir, "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls/StubDRM64.dll")
         return loaderExe.exists() && loaderExe.length() > 0 && extraDll.exists() && extraDll.length() > 0
-    }
-
-    @JvmStatic
-    fun downloadSteam(
-        context: Context,
-        listener: DownloadProgressListener?,
-    ) {
-        thread(name = "SteamDownloader") {
-            val dest = File(context.filesDir, "steam.tzst")
-            val tmp = File("${dest.absolutePath}.part")
-            var success = false
-            var error: String? = null
-
-            val urls = downloadUrlsFor("steam.tzst")
-            for (urlStr in urls) {
-                try {
-                    Log.d(TAG, "Attempting download from: $urlStr")
-                    downloadFile(urlStr, tmp, listener)
-
-                    if (tmp.exists() && tmp.length() > 0) {
-                        if (!tmp.renameTo(dest)) {
-                            Files.copy(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                            tmp.delete()
-                        }
-                        success = true
-                        Log.d(TAG, "Steam download completed: ${dest.length()} bytes")
-                        break
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Download failed from $urlStr: ${e.message}")
-                    error = e.message
-                    tmp.delete()
-                }
-            }
-
-            if (!success) {
-                val finalError = error ?: "All download sources failed"
-                Handler(Looper.getMainLooper()).post {
-                    WinToast.show(context, "Steam download failed: $finalError. Try disabling VPN.", Toast.LENGTH_LONG)
-                }
-            }
-
-            listener?.let { l ->
-                Handler(Looper.getMainLooper()).post {
-                    l.onComplete(success, error)
-                }
-            }
-        }
     }
 
     private fun downloadFile(
         urlStr: String,
         dest: File,
-        listener: DownloadProgressListener?,
     ) {
         var conn: HttpURLConnection? = null
         try {
@@ -126,24 +51,17 @@ object SteamClientManager {
                 throw Exception("HTTP $responseCode")
             }
 
-            val total = conn.contentLength.toLong()
-            var downloaded = 0L
-
             conn.inputStream.use { input ->
                 FileOutputStream(dest).use { output ->
                     val buf = ByteArray(8192)
                     var bytesRead: Int
                     while (input.read(buf).also { bytesRead = it } >= 0) {
                         output.write(buf, 0, bytesRead)
-                        downloaded += bytesRead
-                        if (listener != null && total > 0) {
-                            val progress = downloaded.toFloat() / total
-                            Handler(Looper.getMainLooper()).post { listener.onProgress(progress) }
-                        }
                     }
                 }
             }
 
+            val total = conn.contentLength.toLong()
             if (total > 0 && dest.length() != total) {
                 dest.delete()
                 throw Exception("Incomplete download: ${dest.length()}/$total")
@@ -181,7 +99,7 @@ object SteamClientManager {
         for (urlStr in downloadUrlsFor(fileName)) {
             try {
                 Log.d(TAG, "Downloading $fileName from: $urlStr")
-                downloadFile(urlStr, tmp, null)
+                downloadFile(urlStr, tmp)
                 if (tmp.exists() && tmp.length() > 0) {
                     if (!tmp.renameTo(dest)) {
                         Files.copy(tmp.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
@@ -204,53 +122,30 @@ object SteamClientManager {
     }
 
     @JvmStatic
-    fun extractSteam(context: Context): Boolean {
-        if (isSteamInstalled(context)) return true
-
-        val steamFile = File(context.filesDir, "steam.tzst")
-        if (!steamFile.exists()) return false
-
-        val imageFs = ImageFs.find(context)
-        return try {
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                steamFile,
-                imageFs.rootDir,
-                null,
-            )
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract steam archive: ${e.message}")
-            false
-        }
-    }
-
-    @JvmStatic
-    fun forceExtractSteam(context: Context): Boolean {
-        val steamFile = File(context.filesDir, "steam.tzst")
-        if (!steamFile.exists()) return false
-
-        val imageFs = ImageFs.find(context)
-        return try {
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                steamFile,
-                imageFs.rootDir,
-                null,
-            )
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to force extract steam archive: ${e.message}")
-            false
-        }
-    }
-
-    @JvmStatic
     fun extractColdClientSupport(context: Context): Boolean {
-        if (isColdClientInstalled(context)) return true
-
         val imageFs = ImageFs.find(context)
         val expFile = File(context.filesDir, "experimental-drm.tzst")
+        val stampFile = File(context.filesDir, "experimental-drm.version")
+
+        // Refresh extracted ColdClient only when the bundled version changes.
+        val bundledVersion = BuildConfig.COLD_CLIENT_VERSION
+        val installedVersion = runCatching { stampFile.readText().trim() }.getOrNull()
+        val outdated = installedVersion != bundledVersion
+
+        if (isColdClientInstalled(context) && !outdated) return true
+
+        if (outdated) {
+            Log.i(TAG, "ColdClient version changed ($installedVersion -> $bundledVersion); refreshing")
+            expFile.delete()
+            // Remove stale injected DLLs before re-extraction.
+            runCatching {
+                File(
+                    imageFs.rootDir,
+                    "${ImageFs.WINEPREFIX}/drive_c/Program Files (x86)/Steam/extra_dlls",
+                ).deleteRecursively()
+            }
+        }
+
         if (!expFile.exists()) {
             try {
                 context.assets.open("experimental-drm.tzst").use { input ->
@@ -258,7 +153,7 @@ object SteamClientManager {
                         input.copyTo(output)
                     }
                 }
-                Log.d(TAG, "Copied bundled experimental-drm.tzst to filesDir")
+                Log.d(TAG, "Copied bundled experimental-drm.tzst to filesDir ($bundledVersion)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to copy bundled experimental-drm.tzst: ${e.message}")
                 return false
@@ -272,55 +167,13 @@ object SteamClientManager {
                 imageFs.rootDir,
                 null,
             )
+            runCatching { stampFile.writeText(bundledVersion) }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract ColdClient support archive: ${e.message}")
             false
         }
     }
-
-    /**
-     * Ensures Steam client files are ready: downloads steam.tzst if missing,
-     * then extracts it. This is a blocking call and should be run from a worker thread.
-     * @return true if Steam client is ready to use
-     */
-    @JvmStatic
-    fun ensureSteamReady(context: Context): Boolean {
-        // Already installed?
-        if (isSteamInstalled(context)) {
-            Log.d(TAG, "Steam client already installed")
-            return true
-        }
-
-        // Need to download?
-        if (!isSteamDownloaded(context)) {
-            Log.d(TAG, "Steam files not found, downloading...")
-            Handler(Looper.getMainLooper()).post {
-                WinToast.show(context, "Downloading Steam client...", Toast.LENGTH_SHORT)
-            }
-
-            if (!ensureArchiveReady(context, "steam.tzst", "Failed to download Steam client")) {
-                return false
-            }
-        }
-
-        // Extract
-        Log.d(TAG, "Extracting steam files...")
-        val success = extractSteam(context)
-        if (success) {
-            Log.d(TAG, "Steam client extracted successfully")
-            Handler(Looper.getMainLooper()).post {
-                WinToast.show(context, "Steam client ready", Toast.LENGTH_SHORT)
-            }
-        } else {
-            Log.e(TAG, "Failed to extract steam.tzst")
-        }
-        return success
-    }
-
-    @JvmStatic
-    fun ensureRealSteamSupportReady(context: Context): Boolean =
-        ensureArchiveReady(context, "steam-token.tzst", "Failed to download Steam token helper")
 
     @JvmStatic
     fun ensureColdClientSupportReady(context: Context): Boolean = extractColdClientSupport(context)
@@ -347,7 +200,6 @@ object SteamClientManager {
             }
         }
 
-        // Ensure the correct Mono MSI is available (downloads if needed)
         val monoMsi = ensureMonoMsi(context)
         if (monoMsi == null) {
             Log.w(TAG, "Mono MSI not available; Steamless may fail if .NET is needed")
@@ -408,7 +260,6 @@ object SteamClientManager {
             val output = shellRunner.exec(command)
             Log.d(TAG, "Steamless CLI output: $output")
 
-            // Validate CLI reported success before swapping files
             val steamlessSuccess = output.lowercase().contains("successfully unpacked")
 
             val unixPath = exePath.replace('\\', '/')
@@ -434,7 +285,7 @@ object SteamClientManager {
                 Log.d(TAG, "Swapped exe with unpacked version")
                 return true
             } else if (!steamlessSuccess && unpackedExe.exists()) {
-                // Existing .unpacked.exe from prior run — use it even if CLI failed this time
+                // Reuse a prior unpack when the CLI fails this run.
                 if (!originalExe.exists() && hostExe.exists()) {
                     Files.copy(hostExe.toPath(), originalExe.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 }
@@ -458,14 +309,7 @@ object SteamClientManager {
         }
     }
 
-    /**
-     * Detects the Mono version expected by the current Wine build by scanning
-     * mscoree.dll for the version string pattern (e.g. "9.3.0", "10.4.1").
-     *
-     * @param containerWinePath The Wine/Proton install path for the container's active build.
-     *                          If provided, this build is checked first before falling back to others.
-     * Returns null if the version cannot be determined.
-     */
+    // Detect the Mono version expected by the current Wine build.
     @JvmStatic
     @JvmOverloads
     fun detectRequiredMonoVersion(
@@ -475,10 +319,8 @@ object SteamClientManager {
         val imageFs = ImageFs.find(context)
         val contentsDir = File(context.filesDir, "contents")
 
-        // Build candidate list, prioritizing the container's active Wine build
         val candidates = mutableListOf<File>()
 
-        // Priority 1: Container's own Wine/Proton build
         if (containerWinePath != null) {
             val wineDir = File(containerWinePath)
             candidates.add(File(wineDir, "lib/wine/aarch64-windows/mscoree.dll"))
@@ -487,7 +329,6 @@ object SteamClientManager {
             Log.d(TAG, "Mono detection: prioritizing container Wine path: $containerWinePath")
         }
 
-        // Priority 2: All installed Wine and Proton builds under files/contents/
         for (typeDir in listOf(File(contentsDir, "Wine"), File(contentsDir, "Proton"))) {
             typeDir.listFiles()?.forEach { buildDir ->
                 candidates.add(File(buildDir, "lib/wine/aarch64-windows/mscoree.dll"))
@@ -496,7 +337,6 @@ object SteamClientManager {
             }
         }
 
-        // Priority 3: Legacy fallback via imageFs.winePath (imagefs/opt/...)
         val winePath = imageFs.winePath
         if (winePath != null) {
             candidates.add(File(winePath, "lib/wine/x86_64-windows/mscoree.dll"))
@@ -519,14 +359,10 @@ object SteamClientManager {
         return extractMonoVersionFromDll(mscoree)
     }
 
-    /**
-     * Extracts the Mono version string from an mscoree.dll file.
-     */
     private fun extractMonoVersionFromDll(mscoree: File): String? =
         try {
             val bytes = mscoree.readBytes()
 
-            // Strategy 1: Search ISO-8859-1 for "wine-mono-X.Y.Z" (ASCII strings in DLL)
             val content = String(bytes, Charsets.ISO_8859_1)
             val pattern = Regex("wine-mono-(\\d+\\.\\d+\\.\\d+)")
             var match = pattern.find(content)
@@ -534,7 +370,6 @@ object SteamClientManager {
                 Log.d(TAG, "Mono version found via ISO-8859-1 wine-mono pattern")
             }
 
-            // Strategy 2: Search UTF-16LE for "wine-mono-X.Y.Z" (wide strings in DLL)
             if (match == null) {
                 val content16 = String(bytes, Charsets.UTF_16LE)
                 match = pattern.find(content16)
@@ -543,8 +378,7 @@ object SteamClientManager {
                 }
             }
 
-            // Strategy 3: Bare version after "found installed support package" marker
-            // The format varies: "%s\x00X.Y.Z" or "%s\n\x00X.Y.Z"
+            // Some builds store a bare version after this marker.
             if (match == null) {
                 val barePattern = Regex("found installed support package %s[\\n\\r]*\\x00(\\d+\\.\\d+\\.\\d+)\\x00")
                 match = barePattern.find(content)
@@ -566,11 +400,7 @@ object SteamClientManager {
             null
         }
 
-    /**
-     * Returns the path to the correct Mono MSI for the current Wine build.
-     * Downloads it from dl.winehq.org if not already present.
-     * Returns null if version detection fails or download fails.
-     */
+    // Return or download the Mono MSI for the current Wine build.
     @JvmStatic
     @JvmOverloads
     fun ensureMonoMsi(
@@ -590,7 +420,6 @@ object SteamClientManager {
 
         Log.i(TAG, "Required Mono version: $version (expected MSI: $msiName)")
 
-        // Log what's currently in the mono directory
         val existingFiles = monoDir.listFiles()
         if (existingFiles.isNullOrEmpty()) {
             Log.i(TAG, "Mono directory is empty, need to download $msiName")
@@ -599,9 +428,8 @@ object SteamClientManager {
             existingFiles.forEach { f -> Log.i(TAG, "  ${f.name} (${f.length()} bytes)") }
         }
 
-        // Clean up leftover .tmp files and MSIs no longer used by any container
         val containerManager = ContainerManager(context)
-        val usedVersions = mutableSetOf(version) // always keep the version we're about to install
+        val usedVersions = mutableSetOf(version)
         for (c in containerManager.containers) {
             val v = c.getExtra("mono_version", null)
             if (v != null) usedVersions.add(v)
@@ -626,51 +454,71 @@ object SteamClientManager {
             return msiFile
         }
 
-        // Download the correct version
-        val downloadUrl = "https://dl.winehq.org/wine/wine-mono/$version/$msiName"
-        Log.i(TAG, "Downloading Mono $version from $downloadUrl")
+        val (major, minor, patch) = version.split('.').map { it.toInt() }
+        val candidates = mutableListOf<String>()
+        candidates.add(version)
+        for (p in (patch - 1) downTo 0) candidates.add("$major.$minor.$p")
+        for (m in (minor - 1) downTo 0) candidates.add("$major.$m.0")
 
-        return try {
-            val tmpFile = File(monoDir, "$msiName.tmp")
-            val url = URL(downloadUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 30_000
-            connection.readTimeout = 60_000
-            connection.instanceFollowRedirects = true
-
-            if (connection.responseCode != 200) {
-                Log.e(TAG, "Failed to download Mono MSI: HTTP ${connection.responseCode}")
-                connection.disconnect()
-                return null
+        var downloaded: File? = null
+        for (candidate in candidates) {
+            val candidateMsiName = "wine-mono-$candidate-x86.msi"
+            val candidateMsiFile = File(monoDir, candidateMsiName)
+            if (candidateMsiFile.exists() && candidateMsiFile.length() > 0) {
+                Log.i(TAG, "Mono MSI v$candidate already on disk (substitute for v$version): ${candidateMsiFile.length()} B")
+                chmodIfExists(candidateMsiFile)
+                downloaded = candidateMsiFile
+                break
             }
-
-            connection.inputStream.use { input ->
-                FileOutputStream(tmpFile).use { output ->
-                    input.copyTo(output, bufferSize = 65536)
+            val downloadUrl = "https://dl.winehq.org/wine/wine-mono/$candidate/$candidateMsiName"
+            Log.i(TAG, "Trying Mono $candidate from $downloadUrl")
+            try {
+                val tmpFile = File(monoDir, "$candidateMsiName.tmp")
+                val url = URL(downloadUrl)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 30_000
+                connection.readTimeout = 60_000
+                connection.instanceFollowRedirects = true
+                val code = connection.responseCode
+                if (code != 200) {
+                    Log.w(TAG, "Mono $candidate -> HTTP $code, trying next candidate")
+                    connection.disconnect()
+                    continue
                 }
+                connection.inputStream.use { input ->
+                    FileOutputStream(tmpFile).use { output ->
+                        input.copyTo(output, bufferSize = 65536)
+                    }
+                }
+                connection.disconnect()
+                if (tmpFile.renameTo(candidateMsiFile)) {
+                    chmodIfExists(candidateMsiFile)
+                    Log.i(TAG, "Mono $candidate downloaded (${candidateMsiFile.length()} B)")
+                    downloaded = candidateMsiFile
+                    break
+                } else {
+                    Log.e(TAG, "Rename failed for $candidateMsiName.tmp")
+                    tmpFile.delete()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Mono $candidate download error, trying next: ${e.message}")
             }
-            connection.disconnect()
-
-            // Rename tmp to final
-            if (tmpFile.renameTo(msiFile)) {
-                chmodIfExists(msiFile)
-                Log.i(TAG, "Mono $version downloaded successfully (${msiFile.length()} bytes)")
-                msiFile
-            } else {
-                Log.e(TAG, "Failed to rename tmp file to $msiName")
-                tmpFile.delete()
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to download Mono $version", e)
-            null
         }
+        if (downloaded != null) return downloaded
+
+        val anyExistingMsi = monoDir.listFiles()?.firstOrNull {
+            it.name.matches(monoMsiPattern) && it.length() > 0
+        }
+        if (anyExistingMsi != null) {
+            Log.w(TAG, "Mono $version not downloadable; falling back to existing ${anyExistingMsi.name}")
+            chmodIfExists(anyExistingMsi)
+            return anyExistingMsi
+        }
+        Log.e(TAG, "Mono $version download failed and no fallback MSI exists; game launch will lack .NET runtime")
+        return null
     }
 
-    /**
-     * Returns the Wine Z:\ path to the Mono MSI for use in msiexec commands.
-     * Ensures the correct version is downloaded first.
-     */
+    // Return the Wine Z:\ path to the Mono MSI, downloading it if needed.
     @JvmStatic
     @JvmOverloads
     fun getMonoMsiWinePath(
@@ -681,12 +529,14 @@ object SteamClientManager {
         return "Z:\\opt\\mono-gecko-offline\\${msiFile.name}"
     }
 
-    /**
-     * Get encrypted app ticket as base64, blocking wrapper for Java callers.
-     * Returns null if not logged in or ticket unavailable.
-     */
+    // Blocking Java wrapper for encrypted app tickets.
     @JvmStatic
     fun getEncryptedAppTicketBase64Blocking(appId: Int): String? {
+        // CM round-trips can take tens of seconds; never block the main thread.
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            Log.e(TAG, "getEncryptedAppTicketBase64Blocking called on the main thread — refusing")
+            return null
+        }
         return try {
             val service = com.winlator.cmod.feature.stores.steam.service.SteamService.instance ?: return null
             kotlinx.coroutines.runBlocking {
@@ -698,9 +548,6 @@ object SteamClientManager {
         }
     }
 
-    /**
-     * Check if user is currently logged into Steam.
-     */
     @JvmStatic
     fun isSteamLoggedIn(): Boolean =
         try {

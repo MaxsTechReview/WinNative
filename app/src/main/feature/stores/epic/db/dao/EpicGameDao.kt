@@ -99,7 +99,9 @@ interface EpicGameDao {
                         id = existingGame.id,
                         isInstalled = existingGame.isInstalled,
                         installPath = existingGame.installPath,
-                        installSize = existingGame.installSize,
+                        installSize = existingGame.installSize.takeIf { it > 0L } ?: newGame.installSize,
+                        downloadSize = existingGame.downloadSize.takeIf { it > 0L } ?: newGame.downloadSize,
+                        version = existingGame.version.ifBlank { newGame.version },
                         lastPlayed = existingGame.lastPlayed,
                         playTime = existingGame.playTime,
                     )

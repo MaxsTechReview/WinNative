@@ -32,6 +32,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
+import androidx.compose.runtime.getValue
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
@@ -155,6 +156,9 @@ class ShortcutSettingsComposeDialog private constructor(
                 setDimAmount(0.5f)
                 addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    isNavigationBarContrastEnforced = false
+                }
                 // Blur-behind is applied in show() post-attach to avoid flicker.
             }
         }
@@ -185,14 +189,13 @@ class ShortcutSettingsComposeDialog private constructor(
         }
         dialog.setContentView(composeView)
 
-        // Auto-dismiss when activity is destroyed
+        // Auto-dismiss when activity is destroyed.
         (activity as LifecycleOwner).lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
                 if (dialog.isShowing) dialog.dismiss()
             }
         })
 
-        // Load content-dependent data on background thread
         loadContentsAsync()
     }
 
@@ -284,7 +287,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
             override fun onGfxDriverVersionChanged(versionIndex: Int) {
                 loadExtensionsForVersion(versionIndex)
-                // Update version display
                 val versions = state.gfxDriverVersionEntries.value
                 state.graphicsDriverVersion.value = versions.getOrElse(versionIndex) { "" }
             }
@@ -336,20 +338,15 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
-    // Data Loading
-    // ------------------------------------------------------------------
 
     private fun loadInitialData() {
         val container = shortcut.container
 
-        // General
         state.name.value = shortcut.name
         state.launchExePath.value = resolveInitialLaunchExePath()
         state.launchExeDisplayPath.value = resolveLaunchExeDisplayPath(state.launchExePath.value)
         syncLibraryArtworkState()
 
-        // Input
         val inputType = Integer.parseInt(
             getShortcutSetting("inputType", container.getInputType().toString())
         )
@@ -366,17 +363,15 @@ class ShortcutSettingsComposeDialog private constructor(
         val gameSource = shortcut.getExtra("game_source", "")
         state.isSteamGame.value = gameSource == "STEAM" || gameSource == "steam"
         if (state.isSteamGame.value) {
-            state.useColdClient.value = getShortcutSetting(
-                "useColdClient", if (container.isUseColdClient) "1" else "0") == "1"
-            state.launchRealSteam.value = getShortcutSetting(
-                "launchRealSteam", if (container.isLaunchRealSteam) "1" else "0") == "1"
+            state.steamLauncher.value =
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW
+            // Legacy Launcher is on if either underlying setting was previously on.
+            state.useLegacyLauncher.value =
+                getShortcutSetting("useColdClient", if (container.isUseColdClient) "1" else "0") == "1" ||
+                getShortcutSetting("unpackFiles", if (container.isUnpackFiles) "1" else "0") == "1"
             state.useSteamInput.value = shortcut.getExtra("useSteamInput", "0") == "1"
-            state.forceDlc.value = getShortcutSetting(
-                "forceDlc", if (container.isForceDlc) "1" else "0") == "1"
             state.steamOfflineMode.value = getShortcutSetting(
                 "steamOfflineMode", if (container.isSteamOfflineMode) "1" else "0") == "1"
-            state.unpackFiles.value = getShortcutSetting(
-                "unpackFiles", if (container.isUnpackFiles) "1" else "0") == "1"
             state.runtimePatcher.value = getShortcutSetting(
                 "runtimePatcher", if (container.isRuntimePatcher) "1" else "0") == "1"
         }
@@ -462,6 +457,19 @@ class ShortcutSettingsComposeDialog private constructor(
         // FPS Limit
         val savedFpsLimit = shortcut.getExtra("fpsLimit", "0")
         state.fpsLimit.intValue = savedFpsLimit.toIntOrNull() ?: 0
+
+        // SGSR 1 per-game shortcut settings
+        state.sgsrEnabled.value = shortcut.getExtra("sgsrEnabled", "0") == "1"
+        state.sgsrUpscaleMode.intValue =
+            shortcut.getExtra("sgsrUpscaleMode", shortcut.getExtra("sgsr_upscale_mode", "1"))
+                .toIntOrNull()
+                ?.coerceIn(1, 6)
+                ?: 1
+        state.sgsrSharpness.intValue =
+            shortcut.getExtra("sgsrSharpness", shortcut.getExtra("sgsr_sharpness", "100"))
+                .toIntOrNull()
+                ?.coerceIn(0, 100)
+                ?: 100
 
         // Graphics driver (basic entries - will be updated after contents sync)
         val graphicsDriverArr =
@@ -581,15 +589,6 @@ class ShortcutSettingsComposeDialog private constructor(
         val themeIdx = desktopThemeArr.indexOfFirst { it.equals(themePart, ignoreCase = true) }
         state.selectedDesktopTheme.intValue = if (themeIdx >= 0) themeIdx else 0
 
-        // Steam type entries
-        if (state.isSteamGame.value) {
-            val steamTypeArr =
-                context.resources.getStringArray(R.array.steam_type_entries).toList()
-            state.steamTypeEntries.value = steamTypeArr
-            val savedSteamType = getShortcutSetting("steamType", container.getSteamType())
-            selectByValue(steamTypeArr, savedSteamType, state.selectedSteamType)
-        }
-
         // Show Box64/FEXCore frames based on saved emulator selection immediately,
         // before the async content sync runs
         updateEmulatorFrameVisibility()
@@ -651,9 +650,7 @@ class ShortcutSettingsComposeDialog private constructor(
         loadWineD3DConfigState()
     }
 
-    // ------------------------------------------------------------------
     // Helper load methods
-    // ------------------------------------------------------------------
 
     private fun loadMidiSoundFonts() {
         // Use a temporary Spinner to leverage MidiManager.loadSFSpinner
@@ -956,9 +953,6 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
-    // Save Settings
-    // ------------------------------------------------------------------
 
     private fun saveSettings() {
         // Compare against the target container (post-switch) so unchanged
@@ -1173,10 +1167,10 @@ class ShortcutSettingsComposeDialog private constructor(
                     resolveLaunchExeFile(launchExePath)?.takeIf { it.isFile }?.let { exeFile ->
                         val gameFolder = LibraryShortcutUtils.detectCustomGameFolder(exeFile)
                         shortcut.putExtra("custom_game_folder", gameFolder.absolutePath)
-                        updateCustomShortcutExecLine(gameFolder, exeFile)
+                        updateCustomShortcutExecLine(container, gameFolder, exeFile)
                     }
                 } else if (gameSource == "EPIC" || gameSource == "GOG") {
-                    updateStoreShortcutExecLine(gameSource, launchExePath)
+                    updateStoreShortcutExecLine(container, gameSource, launchExePath)
                 }
             }
 
@@ -1203,6 +1197,17 @@ class ShortcutSettingsComposeDialog private constructor(
             val fpsLimit = state.fpsLimit.intValue
             shortcut.putExtra("fpsLimit", if (fpsLimit > 0) fpsLimit.toString() else null)
 
+            // SGSR 1 is a shortcut-only setting, not a container override.
+            if (state.sgsrEnabled.value) {
+                shortcut.putExtra("sgsrEnabled", "1")
+                shortcut.putExtra("sgsrUpscaleMode", state.sgsrUpscaleMode.intValue.coerceIn(1, 6).toString())
+                shortcut.putExtra("sgsrSharpness", state.sgsrSharpness.intValue.coerceIn(0, 100).toString())
+            } else {
+                shortcut.putExtra("sgsrEnabled", null)
+                shortcut.putExtra("sgsrUpscaleMode", null)
+                shortcut.putExtra("sgsrSharpness", null)
+            }
+
             // Desktop Theme — stored as compound "THEME,TYPE,COLOR" string
             if (state.desktopThemeEntries.value.isNotEmpty()) {
                 val desktopThemeEntries = state.desktopThemeEntries.value
@@ -1221,25 +1226,21 @@ class ShortcutSettingsComposeDialog private constructor(
 
             // Steam options
             if (state.isSteamGame.value) {
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW =
+                    state.steamLauncher.value
+                shortcut.putExtra("launchRealSteam", null)
+                shortcut.putExtra("steamType", null)
+                // "Use Legacy Launcher" drives both the ColdClient launcher and
+                // SteamStub DRM unpacking; persist both keys from the one toggle.
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     "useColdClient",
-                    if (state.useColdClient.value) "1" else "0",
+                    if (state.useLegacyLauncher.value) "1" else "0",
                     if (container.isUseColdClient) "1" else "0"
-                )
-                hasContainerOverride = hasContainerOverride or saveOverride(
-                    "launchRealSteam",
-                    if (state.launchRealSteam.value) "1" else "0",
-                    if (container.isLaunchRealSteam) "1" else "0"
                 )
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     "useSteamInput",
                     if (state.useSteamInput.value) "1" else "0",
                     container.getExtra("useSteamInput", "0")
-                )
-                hasContainerOverride = hasContainerOverride or saveOverride(
-                    "forceDlc",
-                    if (state.forceDlc.value) "1" else "0",
-                    if (container.isForceDlc) "1" else "0"
                 )
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     "steamOfflineMode",
@@ -1248,7 +1249,7 @@ class ShortcutSettingsComposeDialog private constructor(
                 )
                 hasContainerOverride = hasContainerOverride or saveOverride(
                     "unpackFiles",
-                    if (state.unpackFiles.value) "1" else "0",
+                    if (state.useLegacyLauncher.value) "1" else "0",
                     if (container.isUnpackFiles) "1" else "0"
                 )
                 hasContainerOverride = hasContainerOverride or saveOverride(
@@ -1256,16 +1257,6 @@ class ShortcutSettingsComposeDialog private constructor(
                     if (state.runtimePatcher.value) "1" else "0",
                     if (container.isRuntimePatcher) "1" else "0"
                 )
-
-                val steamTypeEntries = state.steamTypeEntries.value
-                val stIdx = state.selectedSteamType.intValue
-                if (stIdx in steamTypeEntries.indices) {
-                    hasContainerOverride = hasContainerOverride or saveOverride(
-                        "steamType",
-                        steamTypeEntries[stIdx],
-                        container.getSteamType()
-                    )
-                }
             }
 
             // Container defaults flag
@@ -1323,9 +1314,7 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
-    // ------------------------------------------------------------------
     // Helper methods
-    // ------------------------------------------------------------------
 
     private fun addShortcutToScreen(shortcut: Shortcut): ShortcutsFragment.PinShortcutResult {
         if (shortcut.getExtra("uuid").isEmpty()) shortcut.genUUID()
@@ -1473,15 +1462,19 @@ class ShortcutSettingsComposeDialog private constructor(
             .replace(File.separatorChar, '/')
     }
 
-    private fun updateStoreShortcutExecLine(gameSource: String, launchExePath: String) {
+    private fun updateStoreShortcutExecLine(
+        targetContainer: Container,
+        gameSource: String,
+        launchExePath: String,
+    ) {
         val exeFile = File(launchExePath).takeIf { it.isFile } ?: return
         val gameInstallPath = shortcut.getExtra("game_install_path")
         val mappedPath =
             gameInstallPath
                 .takeIf { it.isNotBlank() && File(it).isDirectory }
-                ?.let { WineUtils.getDriveCGameWindowsPath(shortcut.container, gameSource, it, exeFile.absolutePath) }
+                ?.let { WineUtils.getDriveCGameWindowsPath(targetContainer, gameSource, it, exeFile.absolutePath) }
                 ?.takeIf { it.isNotBlank() }
-                ?: WineUtils.hostPathToRootWinePath(shortcut.container, exeFile.absolutePath)
+                ?: WineUtils.hostPathToRootWinePath(targetContainer, exeFile.absolutePath)
                     .takeIf { it.isNotBlank() }
                 ?: return
 
@@ -1501,15 +1494,19 @@ class ShortcutSettingsComposeDialog private constructor(
         FileUtils.writeString(shortcut.file, content.toString())
     }
 
-    private fun updateCustomShortcutExecLine(gameFolder: File, exeFile: File) {
+    private fun updateCustomShortcutExecLine(
+        targetContainer: Container,
+        gameFolder: File,
+        exeFile: File,
+    ) {
         val mappedPath =
             WineUtils.getDriveCGameWindowsPath(
-                shortcut.container,
+                targetContainer,
                 "CUSTOM",
                 gameFolder.absolutePath,
                 exeFile.absolutePath,
             )?.takeIf { it.isNotBlank() }
-                ?: WineUtils.hostPathToRootWinePath(shortcut.container, exeFile.absolutePath)
+                ?: WineUtils.hostPathToRootWinePath(targetContainer, exeFile.absolutePath)
                     .takeIf { it.isNotBlank() }
                 ?: return
 
@@ -1568,39 +1565,19 @@ class ShortcutSettingsComposeDialog private constructor(
         when (target) {
             LibraryArtworkTarget.GAME_CARD -> {
                 state.gameCardArtworkSelected.value = file != null
-                state.gameCardArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.gameCardArtworkSummary.value = ""
             }
             LibraryArtworkTarget.GRID -> {
                 state.gridArtworkSelected.value = file != null
-                state.gridArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.gridArtworkSummary.value = ""
             }
             LibraryArtworkTarget.CAROUSEL -> {
                 state.carouselArtworkSelected.value = file != null
-                state.carouselArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.carouselArtworkSummary.value = ""
             }
             LibraryArtworkTarget.LIST -> {
                 state.listArtworkSelected.value = file != null
-                state.listArtworkSummary.value =
-                    if (file != null) {
-                        context.getString(R.string.shortcuts_library_artwork_selected, file.name)
-                    } else {
-                        ""
-                    }
+                state.listArtworkSummary.value = ""
             }
         }
     }
@@ -1799,6 +1776,7 @@ class ShortcutSettingsComposeDialog private constructor(
             state.gfxMaxDeviceMemoryEntries.value.getOrElse(state.gfxSelectedMaxDeviceMemory.intValue) { "0" }
         )
         val presentMode = state.gfxPresentModeEntries.value.getOrElse(state.gfxSelectedPresentMode.intValue) { "mailbox" }
+        val compositorPresentMode = state.gfxCompositorPresentModeEntries.value.getOrElse(state.gfxSelectedCompositorPresentMode.intValue) { "fifo" }
         val syncFrame = if (state.gfxSyncFrame.value) "1" else "0"
         val disablePresentWait = if (state.gfxDisablePresentWait.value) "1" else "0"
         val resourceType = state.gfxResourceTypeEntries.value.getOrElse(state.gfxSelectedResourceType.intValue) { "auto" }
@@ -1810,7 +1788,8 @@ class ShortcutSettingsComposeDialog private constructor(
                 "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
                 "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
                 "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
-                "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName"
+                "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName;" +
+                "compositorPresentMode=$compositorPresentMode"
     }
 
     private fun buildDxvkConfigFromState(): String {
@@ -1842,16 +1821,15 @@ class ShortcutSettingsComposeDialog private constructor(
             container.getGraphicsDriverConfig()
         val config = GraphicsDriverConfigUtils.parseGraphicsDriverConfig(configStr)
 
-        // Load dropdown entries from resource arrays
         state.gfxVulkanVersionEntries.value = context.resources.getStringArray(R.array.vulkan_version_entries).toList()
         state.gfxMaxDeviceMemoryEntries.value = context.resources.getStringArray(R.array.device_memory_entries).toList()
         state.gfxPresentModeEntries.value = context.resources.getStringArray(R.array.present_mode_entries).toList()
+        state.gfxCompositorPresentModeEntries.value = context.resources.getStringArray(R.array.compositor_present_mode_entries).toList()
         state.gfxResourceTypeEntries.value = context.resources.getStringArray(R.array.resource_type_entries).toList()
         state.gfxBcnEmulationEntries.value = context.resources.getStringArray(R.array.bcn_emulation_entries).toList()
         state.gfxBcnEmulationTypeEntries.value = context.resources.getStringArray(R.array.bcn_emulation_type_entries).toList()
         state.gfxBcnEmulationCacheEntries.value = context.resources.getStringArray(R.array.bcn_emulation_cache_entries).toList()
 
-        // Load GPU names
         val gpuNames = mutableListOf("Device")
         try {
             val gpuNameList = FileUtils.readString(context, AssetPaths.GPU_CARDS)
@@ -1869,11 +1847,11 @@ class ShortcutSettingsComposeDialog private constructor(
         // Load driver versions (will be populated after contents sync)
         loadGraphicsDriverVersions(container)
 
-        // Set selections from config
         selectByValue(state.gfxVulkanVersionEntries.value, config["vulkanVersion"] ?: "1.3", state.gfxSelectedVulkanVersion)
         selectByValue(state.gfxGpuNameEntries.value, config["gpuName"] ?: "Device", state.gfxSelectedGpuName)
         selectByNumber(state.gfxMaxDeviceMemoryEntries.value, config["maxDeviceMemory"] ?: "0", state.gfxSelectedMaxDeviceMemory)
         selectByValue(state.gfxPresentModeEntries.value, config["presentMode"] ?: "mailbox", state.gfxSelectedPresentMode)
+        selectByValue(state.gfxCompositorPresentModeEntries.value, config["compositorPresentMode"] ?: "fifo", state.gfxSelectedCompositorPresentMode)
         selectByValue(state.gfxResourceTypeEntries.value, config["resourceType"] ?: "auto", state.gfxSelectedResourceType)
         selectByValue(state.gfxBcnEmulationEntries.value, config["bcnEmulation"] ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config["bcnEmulationType"] ?: "compute", state.gfxSelectedBcnEmulationType)
@@ -1882,7 +1860,6 @@ class ShortcutSettingsComposeDialog private constructor(
         state.gfxSyncFrame.value = config["syncFrame"] == "1"
         state.gfxDisablePresentWait.value = config["disablePresentWait"] == "1"
 
-        // Update version display
         state.graphicsDriverVersion.value = config["version"] ?: ""
     }
 
@@ -1912,7 +1889,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.gfxDriverVersionEntries.value = versions
 
-        // Set initial selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("graphicsDriverConfig", container.getGraphicsDriverConfig())
         else
@@ -1924,7 +1900,6 @@ class ShortcutSettingsComposeDialog private constructor(
             if (idx >= 0) state.gfxSelectedDriverVersion.intValue = idx
         }
 
-        // Load extensions for the currently selected version
         loadExtensionsForVersion(state.gfxSelectedDriverVersion.intValue)
     }
 
@@ -1970,13 +1945,10 @@ class ShortcutSettingsComposeDialog private constructor(
         // DDraw wrapper from resources
         state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
 
-        // Load DXVK versions
         loadDxvkVersions(container)
 
-        // Load VKD3D versions
         loadVkd3dVersions(container)
 
-        // Set selections from config
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)
         selectByIdentifier(state.dxvkDdrawWrapperEntries.value, config.get("ddrawrapper"), state.dxvkSelectedDdrawWrapper)
 
@@ -1993,14 +1965,12 @@ class ShortcutSettingsComposeDialog private constructor(
             originalItems.add(entryName.substring(firstDash + 1))
         }
 
-        // Remove arm64ec items if not applicable
         if (!isArm64EC) {
             originalItems.removeAll { it.contains("arm64ec") }
         }
 
         state.dxvkVersionEntries.value = originalItems
 
-        // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
@@ -2022,7 +1992,6 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.dxvkVkd3dVersionEntries.value = items
 
-        // Set selection from config
         val configStr = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("dxwrapperConfig", container.getDXWrapperConfig())
         else
@@ -2047,7 +2016,6 @@ class ShortcutSettingsComposeDialog private constructor(
         val selectedVkd3d = if (versionIndex in vkd3dEntries.indices) vkd3dEntries[versionIndex] else "None"
 
         if (selectedVkd3d != "None") {
-            // Filter DXVK versions to major >= 2
             val allVersions = state.dxvkVersionEntries.value
             val semver = Regex("(\\d+)\\.(\\d+)(?:\\.(\\d+))?")
             val filtered = allVersions.filter { v ->
@@ -2207,17 +2175,12 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         if (state.isSteamGame.value) {
-            state.useColdClient.value = container.isUseColdClient
-            state.launchRealSteam.value = container.isLaunchRealSteam
-            state.forceDlc.value = container.isForceDlc
+            state.steamLauncher.value =
+                com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnPlanW
+            state.useLegacyLauncher.value = container.isUseColdClient || container.isUnpackFiles
             state.steamOfflineMode.value = container.isSteamOfflineMode
-            state.unpackFiles.value = container.isUnpackFiles
             state.runtimePatcher.value = container.isRuntimePatcher
             state.useSteamInput.value = container.getExtra("useSteamInput", "0") == "1"
-            val steamTypeArr = state.steamTypeEntries.value
-            if (steamTypeArr.isNotEmpty()) {
-                selectByValue(steamTypeArr, container.getSteamType(), state.selectedSteamType)
-            }
         }
     }
 
@@ -2259,7 +2222,6 @@ class ShortcutSettingsComposeDialog private constructor(
         }
         state.wined3dGpuNameEntries.value = gpuNames
 
-        // Set selections from config
         state.wined3dSelectedCsmt.intValue = if (config.get("csmt") == "3") 0 else 1
         state.wined3dSelectedStrictShaderMath.intValue = if (config.get("strict_shader_math") == "1") 0 else 1
         selectByValue(state.wined3dOffscreenRenderingModeEntries.value, config.get("OffscreenRenderingMode"), state.wined3dSelectedOffscreenRenderingMode)
@@ -2286,9 +2248,7 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
 
-    // ------------------------------------------------------------------
     // Show / Dismiss
-    // ------------------------------------------------------------------
 
     fun show() {
         dialog.show()

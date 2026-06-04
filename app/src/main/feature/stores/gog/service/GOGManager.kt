@@ -4,9 +4,11 @@ import android.net.Uri
 import androidx.core.net.toUri
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
+import com.winlator.cmod.feature.stores.common.StoreArtworkCache
 import com.winlator.cmod.feature.stores.common.StoreInstallPathSafety
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocation
 import com.winlator.cmod.feature.stores.gog.data.GOGCloudSavesLocationTemplate
+import com.winlator.cmod.feature.stores.gog.data.GOGDlcInfo
 import com.winlator.cmod.feature.stores.gog.data.GOGGame
 import com.winlator.cmod.feature.stores.gog.data.LibraryItem
 import com.winlator.cmod.feature.stores.gog.db.dao.GOGGameDao
@@ -52,56 +54,44 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.winlator.cmod.feature.stores.gog.api.GOGApiClient as GOGContentApiClient
+import com.winlator.cmod.feature.stores.gog.api.GOGManifestParser as GOGContentManifestParser
 import com.winlator.cmod.shared.io.FileUtils as WinlatorFileUtils
 
-/**
- * Data class to hold size information from gogdl info command
- */
-data class GameSizeInfo(
-    val downloadSize: Long,
-    val diskSize: Long,
+data class GOGManifestSizes(
+    val installSize: Long = 0L,
+    val downloadSize: Long = 0L,
 )
 
-/**
- * Unified manager for GOG game and library operations.
- *
- * Responsibilities:
- * - Database CRUD for GOG games
- * - Library syncing from GOG API
- * - Game downloads and installation
- * - Installation verification
- * - Executable discovery
- * - Wine launch commands
- * - File system operations
- *
- * Uses GOGPythonBridge for all GOGDL command execution.
- * Uses GOGAuthManager for authentication checks.
- */
+data class GOGSaveSyncConfig(
+    val clientId: String,
+    val clientSecret: String,
+    val locations: List<GOGCloudSavesLocationTemplate>,
+)
+
+// Coordinates GOG library, install, verification, launch, and sync operations.
 @Singleton
 class GOGManager
     @Inject
     constructor(
         private val gogGameDao: GOGGameDao,
         @ApplicationContext private val context: Context,
+        private val gogContentApiClient: GOGContentApiClient,
+        private val gogContentManifestParser: GOGContentManifestParser,
     ) {
-        // Thread-safe cache for download sizes
         private val downloadSizeCache = ConcurrentHashMap<String, String>()
         private val REFRESH_BATCH_SIZE = 10
+        private val GOG_PLACEHOLDER_PRODUCT_ID = "2147483047"
 
-        // Cache for remote config API responses (clientId -> save locations)
-        // This avoids fetching the same config multiple times
         private val remoteConfigCache = ConcurrentHashMap<String, List<GOGCloudSavesLocationTemplate>>()
 
-        // Timestamp storage for sync state (gameId_locationName -> timestamp)
-        // Persisted to disk to survive app restarts
+        // Persisted cloud-save sync state.
         private val syncTimestamps = ConcurrentHashMap<String, String>()
         private val timestampFile = File(context.filesDir, "gog_sync_timestamps.json")
 
-        // Track active sync operations to prevent concurrent syncs
         private val activeSyncs = ConcurrentHashMap.newKeySet<String>()
 
         init {
-            // Load persisted cloudsave timestamps on initialization
             loadCloudSaveTimestampsFromDisk()
         }
 
@@ -142,6 +132,384 @@ class GOGManager
                     emptySet()
                 }
             }
+
+        suspend fun getOwnedDlcsForGame(
+            gameId: String,
+            language: String,
+        ): List<GOGDlcInfo> =
+            withContext(Dispatchers.IO) {
+                try {
+                    val selectedBuild =
+                        selectPreferredBuild(gameId)
+                            ?: return@withContext emptyList()
+                    val manifestResult = gogContentApiClient.fetchManifest(selectedBuild.link)
+                    if (manifestResult.isFailure) {
+                        Timber.tag("GOG").w(manifestResult.exceptionOrNull(), "Failed to fetch manifest for DLC list: $gameId")
+                        return@withContext emptyList()
+                    }
+
+                    val manifest = manifestResult.getOrThrow()
+                    val ownedProductIds = getAllGameIds()
+                    val installedDlcIds = getInstalledDlcIds(gameId)
+
+                    coroutineScope {
+                        val dlcProductIds =
+                            gogContentManifestParser
+                                .findDLCProducts(manifest)
+                                .filter { it.productId in ownedProductIds }
+                                .map { it.productId }
+                                .toSet()
+                        val manifestSizesByProduct =
+                            calculateManifestSizesByProduct(
+                                selectedBuild = selectedBuild,
+                                manifest = manifest,
+                                language = language,
+                                productIds = dlcProductIds,
+                                ownedProductIds = ownedProductIds,
+                            )
+
+                        gogContentManifestParser
+                            .findDLCProducts(manifest)
+                            .filter { it.productId in ownedProductIds }
+                            .map { product ->
+                                async {
+                                    val sizeInfo = manifestSizesByProduct[product.productId] ?: GOGManifestSizes()
+                                    val productDetailsSize =
+                                        GOGApiClient
+                                            .getGameById(context, product.productId, expanded = listOf("downloads"))
+                                            .getOrNull()
+                                            ?.downloadSize
+                                            ?: 0L
+                                    val resolvedSizeInfo = sizeInfo.withProductDetailsFallback(productDetailsSize)
+                                    GOGDlcInfo(
+                                        id = product.productId,
+                                        title = product.name,
+                                        downloadSize = maxOf(resolvedSizeInfo.downloadSize, productDetailsSize),
+                                        installSize = maxOf(resolvedSizeInfo.installSize, productDetailsSize),
+                                        isInstalled = product.productId in installedDlcIds,
+                                    )
+                                }
+                            }.map { it.await() }
+                            .sortedBy { it.title.lowercase(Locale.ROOT) }
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("GOG").w(e, "Failed to get owned DLC for game $gameId")
+                    emptyList()
+                }
+            }
+
+        suspend fun getInstallableSelectedManifestSizes(
+            gameId: String,
+            language: String,
+            selectedDlcIds: Collection<Int> = emptyList(),
+        ): GOGManifestSizes =
+            withContext(Dispatchers.IO) {
+                try {
+                    val selectedBuild = selectPreferredBuild(gameId) ?: return@withContext GOGManifestSizes()
+                    val manifest =
+                        gogContentApiClient
+                            .fetchManifest(selectedBuild.link)
+                            .getOrNull()
+                            ?: return@withContext fallbackGameManifestSizes(gameId)
+                    val baseProductId = manifest.baseProductId.ifBlank { gameId }
+                    val requestedProductIds =
+                        buildSet {
+                            add(baseProductId)
+                            selectedDlcIds.mapTo(this) { it.toString() }
+                        }
+                    val selectedManifestSizes =
+                        calculateSelectedManifestSizes(
+                            selectedBuild = selectedBuild,
+                            manifest = manifest,
+                            language = language,
+                            productIds = requestedProductIds,
+                            ownedProductIds = getAllGameIds(),
+                        )
+                    val productDetailsSizes =
+                        getProductDetailsDownloadSizes(
+                            gameId = gameId,
+                            productIds = requestedProductIds,
+                        )
+                    selectedManifestSizes
+                        .withProductDetailsFallback(productDetailsSizes.values.sum())
+                        .takeIf { it.installSize > 0L || it.downloadSize > 0L }
+                        ?: fallbackGameManifestSizes(gameId)
+                } catch (e: Exception) {
+                    Timber.tag("GOG").w(e, "Failed to calculate selected manifest sizes for game $gameId")
+                    fallbackGameManifestSizes(gameId)
+                }
+            }
+
+        suspend fun getDlcOnlyManifestSizes(
+            gameId: String,
+            dlcId: Int,
+            language: String,
+        ): GOGManifestSizes =
+            withContext(Dispatchers.IO) {
+                try {
+                    val selectedBuild = selectPreferredBuild(gameId) ?: return@withContext GOGManifestSizes()
+                    val manifest =
+                        gogContentApiClient
+                            .fetchManifest(selectedBuild.link)
+                            .getOrNull()
+                            ?: return@withContext GOGManifestSizes()
+                    val manifestSize =
+                        calculateManifestSizesByProduct(
+                            selectedBuild = selectedBuild,
+                            manifest = manifest,
+                            language = language,
+                            productIds = setOf(dlcId.toString()),
+                            ownedProductIds = getAllGameIds(),
+                        )[dlcId.toString()] ?: GOGManifestSizes()
+                    val productDetailsSize =
+                        GOGApiClient
+                            .getGameById(context, dlcId.toString(), expanded = listOf("downloads"))
+                            .getOrNull()
+                            ?.downloadSize
+                            ?: 0L
+                    GOGManifestSizes(
+                        downloadSize = maxOf(manifestSize.withProductDetailsFallback(productDetailsSize).downloadSize, productDetailsSize),
+                        installSize = maxOf(manifestSize.withProductDetailsFallback(productDetailsSize).installSize, productDetailsSize),
+                    )
+                } catch (e: Exception) {
+                    Timber.tag("GOG").w(e, "Failed to calculate DLC manifest size for game $gameId DLC $dlcId")
+                    GOGManifestSizes()
+                }
+            }
+
+        private suspend fun getProductDetailsDownloadSizes(
+            gameId: String,
+            productIds: Set<String>,
+        ): Map<String, Long> =
+            coroutineScope {
+                productIds
+                    .map { productId ->
+                        async {
+                            val size =
+                                if (productId == gameId) {
+                                    getGameFromDbById(gameId)?.downloadSize ?: 0L
+                                } else {
+                                    GOGApiClient
+                                        .getGameById(context, productId, expanded = listOf("downloads"))
+                                        .getOrNull()
+                                        ?.downloadSize
+                                        ?: 0L
+                                }
+                            productId to size
+                        }
+                    }.map { it.await() }
+                    .filter { it.second > 0L }
+                    .toMap()
+            }
+
+        private suspend fun fallbackGameManifestSizes(gameId: String): GOGManifestSizes {
+            val game = getGameFromDbById(gameId)
+            return GOGManifestSizes(
+                downloadSize = game?.downloadSize ?: 0L,
+                installSize = game?.installSize ?: 0L,
+            )
+        }
+
+        private suspend fun calculateManifestSizesByProduct(
+            selectedBuild: com.winlator.cmod.feature.stores.gog.api.GOGBuild,
+            manifest: com.winlator.cmod.feature.stores.gog.api.GOGManifestMeta,
+            language: String,
+            productIds: Set<String>,
+            ownedProductIds: Set<String>,
+        ): Map<String, GOGManifestSizes> {
+            if (productIds.isEmpty()) return emptyMap()
+
+            val (languageDepots, effectiveLanguage) = gogContentManifestParser.filterDepotsByLanguage(manifest, language)
+            val candidateDepots =
+                gogContentManifestParser
+                    .filterDepotsByOwnership(languageDepots, ownedProductIds)
+
+            if (candidateDepots.isEmpty()) return emptyMap()
+
+            val sizes = productIds.associateWith { GOGManifestSizes() }.toMutableMap()
+            if (selectedBuild.generation == 1 && manifest.productTimestamp != null) {
+                for (depot in candidateDepots) {
+                    val productId = depot.productId
+                    if (productId !in productIds) continue
+                    val depotJson =
+                        gogContentApiClient
+                            .fetchDepotManifestV1(
+                                productId = depot.productId,
+                                platform = selectedBuild.platform,
+                                timestamp = manifest.productTimestamp,
+                                manifestHash = depot.manifest,
+                            ).getOrNull()
+                            ?: continue
+                    val size =
+                        gogContentManifestParser
+                            .parseV1DepotManifest(depotJson)
+                            .filterNot { it.isSupport }
+                            .sumOf { it.size.coerceAtLeast(0L) }
+                    sizes[productId] =
+                        sizes.getValue(productId).let {
+                            GOGManifestSizes(
+                                downloadSize = it.downloadSize + size,
+                                installSize = it.installSize + size,
+                            )
+                        }
+                }
+                return sizes
+            }
+
+            val seenDownloadChunksByProduct = productIds.associateWith { mutableSetOf<String>() }
+            for (depot in candidateDepots) {
+                val depotManifest =
+                    gogContentApiClient
+                        .fetchDepotManifest(depot.manifest)
+                        .getOrNull()
+                        ?: continue
+                depotManifest.files.forEach { file ->
+                    if (file.isSupportFile()) return@forEach
+                    val productId = effectiveProductId(file.productId, depot.productId)
+                    if (productId !in productIds) return@forEach
+
+                    val seenDownloadChunks = seenDownloadChunksByProduct.getValue(productId)
+                    val downloadSize =
+                        file.chunks.sumOf {
+                            if (seenDownloadChunks.add(it.compressedMd5)) {
+                                (it.compressedSize ?: it.size).coerceAtLeast(0L)
+                            } else {
+                                0L
+                            }
+                        }
+                    val installSize = file.chunks.sumOf { it.size }
+                    sizes[productId] =
+                        sizes.getValue(productId).let {
+                            GOGManifestSizes(
+                                downloadSize = it.downloadSize + downloadSize,
+                                installSize = it.installSize + installSize,
+                            )
+                        }
+                }
+            }
+
+            Timber.tag("GOG").d("Calculated manifest sizes for ${sizes.size} product(s) using $effectiveLanguage")
+            return sizes
+        }
+
+        private suspend fun calculateSelectedManifestSizes(
+            selectedBuild: com.winlator.cmod.feature.stores.gog.api.GOGBuild,
+            manifest: com.winlator.cmod.feature.stores.gog.api.GOGManifestMeta,
+            language: String,
+            productIds: Set<String>,
+            ownedProductIds: Set<String>,
+        ): GOGManifestSizes {
+            if (productIds.isEmpty()) return GOGManifestSizes()
+
+            val (languageDepots, effectiveLanguage) = gogContentManifestParser.filterDepotsByLanguage(manifest, language)
+            val candidateDepots =
+                gogContentManifestParser
+                    .filterDepotsByOwnership(languageDepots, ownedProductIds)
+                    .filter { it.productId in productIds }
+
+            if (candidateDepots.isEmpty()) return GOGManifestSizes()
+
+            var downloadSize = 0L
+            var installSize = 0L
+
+            if (selectedBuild.generation == 1 && manifest.productTimestamp != null) {
+                for (depot in candidateDepots) {
+                    val depotJson =
+                        gogContentApiClient
+                            .fetchDepotManifestV1(
+                                productId = depot.productId,
+                                platform = selectedBuild.platform,
+                                timestamp = manifest.productTimestamp,
+                                manifestHash = depot.manifest,
+                            ).getOrNull()
+                            ?: continue
+                    val size =
+                        gogContentManifestParser
+                            .parseV1DepotManifest(depotJson)
+                            .filterNot { it.isSupport }
+                            .sumOf { it.size.coerceAtLeast(0L) }
+                    downloadSize += size
+                    installSize += size
+                }
+                return GOGManifestSizes(downloadSize = downloadSize, installSize = installSize)
+            }
+
+            val seenDownloadChunks = mutableSetOf<String>()
+            for (depot in candidateDepots) {
+                val depotManifest =
+                    gogContentApiClient
+                        .fetchDepotManifest(depot.manifest)
+                        .getOrNull()
+                        ?: continue
+                depotManifest.files.forEach { file ->
+                    if (file.isSupportFile()) return@forEach
+                    val productId = effectiveProductId(file.productId, depot.productId)
+                    if (productId !in productIds) return@forEach
+
+                    file.chunks.forEach { chunk ->
+                        if (seenDownloadChunks.add(chunk.compressedMd5)) {
+                            downloadSize += (chunk.compressedSize ?: chunk.size).coerceAtLeast(0L)
+                        }
+                        installSize += chunk.size.coerceAtLeast(0L)
+                    }
+                }
+            }
+
+            Timber.tag("GOG").d("Calculated selected manifest size using $effectiveLanguage")
+            return GOGManifestSizes(downloadSize = downloadSize, installSize = installSize)
+        }
+
+        private fun effectiveProductId(
+            fileProductId: String?,
+            depotProductId: String,
+        ): String =
+            when (fileProductId) {
+                null, "", GOG_PLACEHOLDER_PRODUCT_ID -> depotProductId
+                else -> fileProductId
+            }
+
+        private fun GOGManifestSizes.withProductDetailsFallback(productDetailsDownloadSize: Long): GOGManifestSizes {
+            val fallbackSize = productDetailsDownloadSize.coerceAtLeast(0L)
+            val resolvedDownloadSize = downloadSize.takeIf { it > 0L } ?: fallbackSize
+            val resolvedInstallSize = installSize.takeIf { it > 0L } ?: resolvedDownloadSize
+            return GOGManifestSizes(
+                downloadSize = resolvedDownloadSize,
+                installSize = resolvedInstallSize,
+            )
+        }
+
+        suspend fun getInstalledDlcIds(gameId: String): Set<String> =
+            withContext(Dispatchers.IO) {
+                val game = getGameFromDbById(gameId) ?: return@withContext emptySet()
+                val installPath =
+                    when {
+                        game.installPath.isNotBlank() -> game.installPath
+                        game.title.isNotBlank() -> getGameInstallPath(gameId, game.title)
+                        else -> ""
+                    }
+                if (installPath.isBlank()) emptySet() else GOGManifestUtils.getInstalledDlcIds(File(installPath))
+            }
+
+        private suspend fun selectPreferredBuild(gameId: String): com.winlator.cmod.feature.stores.gog.api.GOGBuild? {
+            val platform = "windows"
+            val gen2Result = gogContentApiClient.getBuildsForGame(gameId, platform, generation = 2)
+            if (gen2Result.isSuccess) {
+                gogContentManifestParser
+                    .selectBuild(gen2Result.getOrThrow().items, preferredGeneration = 2, platform = platform)
+                    ?.let { return it }
+            }
+
+            val gen1Result = gogContentApiClient.getBuildsForGame(gameId, platform, generation = 1)
+            if (gen1Result.isSuccess) {
+                return gogContentManifestParser.selectBuild(
+                    gen1Result.getOrThrow().items,
+                    preferredGeneration = 1,
+                    platform = platform,
+                )
+            }
+
+            return null
+        }
 
         suspend fun startBackgroundSync(context: Context): Result<Unit> =
             withContext(Dispatchers.IO) {
@@ -206,15 +574,25 @@ class GOGManager
 
                     val ignoredGameId = "1801418160" // Hidden ID for GOG Galaxy that we should ignore.
 
-                    // Get existing game IDs from database to avoid re-fetching
+                    // Get existing game IDs from database to avoid re-fetching, except when
+                    // older rows are missing the dedicated hero artwork added in DB v7.
+                    val existingGamesMissingHero =
+                        gogGameDao
+                            .getAllAsList()
+                            .filter { it.heroImageUrl.isBlank() }
+                            .map { it.id }
+                            .toSet()
                     val existingGameIds = gogGameDao.getAllGameIdsIncludingExcluded().toMutableSet()
                     existingGameIds.add(ignoredGameId)
 
                     Timber.tag("GOG").d("Found ${existingGameIds.size} games already in database")
 
-                    // Filter to only new games that need details fetched
-                    val newGameIds = gameIds.filter { it !in existingGameIds }
-                    Timber.tag("GOG").d("${newGameIds.size} new games need details fetched")
+                    val newGameIds =
+                        (
+                            gameIds.filter { it !in existingGameIds } +
+                                gameIds.filter { it in existingGamesMissingHero }
+                        ).distinct()
+                    Timber.tag("GOG").d("${newGameIds.size} games need details fetched")
 
                     if (newGameIds.isEmpty()) {
                         val detectedCount = detectAndUpdateExistingInstallations()
@@ -291,6 +669,7 @@ class GOGManager
                 exclude = exclude,
                 slug = parsedGame.slug,
                 imageUrl = parsedGame.imageUrl,
+                heroImageUrl = parsedGame.heroImageUrl,
                 iconUrl = parsedGame.iconUrl,
                 description = parsedGame.description,
                 releaseDate = parsedGame.releaseDate,
@@ -318,7 +697,6 @@ class GOGManager
                 var detectedCount = 0
 
                 try {
-                    // Check both internal and external storage paths
                     val pathsToCheck =
                         listOf(
                             GOGConstants.internalGOGGamesPath,
@@ -339,7 +717,6 @@ class GOGManager
                             try {
                                 val detectedGame = detectGameFromDirectory(installDir)
                                 if (detectedGame != null) {
-                                    // Update database with installation info
                                     val existingGame = getGameFromDbById(detectedGame.id)
                                     if (existingGame != null && !existingGame.isInstalled) {
                                         val updatedGame =
@@ -516,7 +893,6 @@ class GOGManager
                         )
                     Timber.i("Deleted $deletedShortcuts GOG shortcuts for game $gameId")
 
-                    // Delete game files
                     if (installDir.exists()) {
                         val success = installDir.deleteRecursively()
                         if (success) {
@@ -539,8 +915,8 @@ class GOGManager
                             Timber.d("Updated database: game marked as not installed")
                         }
                     }
+                    StoreArtworkCache.deleteGame(context, "gog", gameId)
 
-                    // Trigger library refresh event
                     com.winlator.cmod.app.PluviaApp.events.emitJava(
                         com.winlator.cmod.feature.stores.steam.events.AndroidEvent
                             .LibraryInstallStatusChanged(libraryItem.gameId),
@@ -559,7 +935,18 @@ class GOGManager
             libraryItem: LibraryItem,
         ): Boolean {
             try {
-                val appDirPath = getAppDirPath(libraryItem.appId)
+                val gameId = libraryItem.gameId.toString()
+                val game = runBlocking { getGameFromDbById(gameId) }
+                val appDirPath =
+                    game?.installPath?.takeIf { it.isNotBlank() }
+                        ?: getGameInstallPath(gameId, libraryItem.name)
+
+                // Trust DB.isInstalled when set, only verify the install directory still exists.
+                // Avoids flipping isInstalled=false during verify/update when DOWNLOAD_IN_PROGRESS
+                // is temporarily set on an already-installed game.
+                if (game != null && game.isInstalled && game.installPath.isNotBlank()) {
+                    return File(game.installPath).isDirectory
+                }
 
                 // Use marker-based approach
                 val isDownloadComplete = MarkerUtils.hasMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
@@ -567,11 +954,8 @@ class GOGManager
 
                 val isInstalled = isDownloadComplete && !isDownloadInProgress
 
-                // Update database if status changed
-                val gameId = libraryItem.gameId.toString()
-                val game = runBlocking { getGameFromDbById(gameId) }
-                if (game != null && isInstalled != game.isInstalled) {
-                    val installPath = if (isInstalled) getGameInstallPath(gameId, libraryItem.name) else ""
+                if (game != null && (isInstalled != game.isInstalled || (isInstalled && game.installPath != appDirPath))) {
+                    val installPath = if (isInstalled) appDirPath else ""
                     val updatedGame = game.copy(isInstalled = isInstalled, installPath = installPath)
                     runBlocking { gogGameDao.update(updatedGame) }
                 }
@@ -600,6 +984,14 @@ class GOGManager
                 return Pair(false, "Install path is not a directory")
             }
 
+            if (!MarkerUtils.hasMarker(installPath, Marker.DOWNLOAD_COMPLETE_MARKER)) {
+                return Pair(false, "Download is not marked complete")
+            }
+
+            if (MarkerUtils.hasMarker(installPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)) {
+                return Pair(false, "Download is still in progress")
+            }
+
             val contents = installDir.listFiles()
             if (contents == null || contents.isEmpty()) {
                 return Pair(false, "Install directory is empty")
@@ -609,7 +1001,6 @@ class GOGManager
             return Pair(true, null)
         }
 
-        // Get the exe. There is a v1 and v2 depending on the age of the game.
         suspend fun getInstalledExe(libraryItem: LibraryItem): String =
             withContext(Dispatchers.IO) {
                 val gameId = libraryItem.gameId.toString()
@@ -682,7 +1073,6 @@ class GOGManager
                 return null
             }
 
-            // Check current directory first
             val infoFile =
                 directory.listFiles()?.find {
                     it.isFile &&
@@ -814,7 +1204,6 @@ class GOGManager
                     execFile.absolutePath,
                 ) ?: WineUtils.getWindowsPath(container, execFile.absolutePath)
 
-            // Set working directory
             val execWorkingDir = execFile.parentFile
             if (execWorkingDir != null) {
                 guestProgramLauncherComponent.setWorkingDir(execWorkingDir)
@@ -897,10 +1286,7 @@ class GOGManager
                 if (productId.isEmpty()) continue
 
                 val exePathWin = "$gameDriveLetter:\\$isiRelativePathWin"
-                // HACK: /DIR and /supportDir point to a \"rootdir\" folder inside ISI, which is a symlink
-                // to the actual game install root (created during redist download). This gives
-                // scriptinterpreter a full path with drive + folder name while still resolving
-                // to the game directory that the drive letter is mapped to.
+                // scriptinterpreter needs a drive-qualified folder; rootdir resolves to the game root.
                 val dirAndSupport = "$gameDriveLetter:\\_CommonRedist\\ISI\\rootdir"
                 val args =
                     listOf(
@@ -924,9 +1310,6 @@ class GOGManager
             return parts
         }
 
-        // ==========================================================================
-        // CLOUD SAVES
-        // ==========================================================================
 
         /**
          * Read GOG game info file and extract clientId
@@ -983,13 +1366,13 @@ class GOGManager
          * @param context Android context
          * @param appId Game app ID
          * @param installPath Game install path
-         * @return Pair of (clientSecret, List of save location templates), or null if cloud saves not enabled or API call fails
+         * @return Cloud save configuration, or null if the game cannot be mapped to a Galaxy client
          */
         suspend fun getSaveSyncLocation(
             context: Context,
             appId: String,
             installPath: String,
-        ): Pair<String, List<GOGCloudSavesLocationTemplate>>? =
+        ): GOGSaveSyncConfig? =
             withContext(Dispatchers.IO) {
                 try {
                     Timber.tag("GOG").d("[Cloud Saves] Getting save sync location for $appId")
@@ -997,20 +1380,19 @@ class GOGManager
                     val infoJson = readInfoFile(appId, installPath)
 
                     if (infoJson == null) {
-                        Timber.tag("GOG").w("[Cloud Saves] Cannot get save sync location: info file not found")
-                        return@withContext null
+                        Timber.tag("GOG").w("[Cloud Saves] Info file not found for game $gameId; trying build metadata")
                     }
 
-                    // Extract clientId from info file
-                    val clientId = infoJson.optString("clientId", "")
+                    val cloudCredentials = GOGApiClient.getCloudCredentials(context, gameId.toString(), installPath)
+                    val clientId = infoJson?.optString("clientId", "")?.ifEmpty { cloudCredentials?.clientId.orEmpty() }
+                        ?: cloudCredentials?.clientId.orEmpty()
                     if (clientId.isEmpty()) {
-                        Timber.tag("GOG").w("[Cloud Saves] No clientId found in info file for game $gameId")
+                        Timber.tag("GOG").w("[Cloud Saves] No clientId found for game $gameId")
                         return@withContext null
                     }
                     Timber.tag("GOG").d("[Cloud Saves] Client ID: $clientId")
 
-                    // Get clientSecret from build metadata
-                    val clientSecret = GOGApiClient.getClientSecret(context, gameId.toString(), installPath) ?: ""
+                    val clientSecret = cloudCredentials?.clientSecret.orEmpty()
                     if (clientSecret.isEmpty()) {
                         Timber.tag("GOG").w("[Cloud Saves] No clientSecret available for game $gameId")
                     } else {
@@ -1024,7 +1406,7 @@ class GOGManager
                                 "GOG",
                             ).d("[Cloud Saves] Using cached save locations for clientId $clientId (${cachedLocations.size} locations)")
                         // Cache only contains locations, we still need to fetch clientSecret fresh
-                        return@withContext Pair(clientSecret, cachedLocations)
+                        return@withContext GOGSaveSyncConfig(clientId, clientSecret, cachedLocations)
                     }
 
                     // Android runs games through Wine, so always use Windows platform
@@ -1044,47 +1426,46 @@ class GOGManager
                     response.use {
                         if (!response.isSuccessful) {
                             Timber.tag("GOG").w("[Cloud Saves] Failed to fetch remote config: HTTP ${response.code}")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
                         Timber.tag("GOG").d("[Cloud Saves] Successfully fetched remote config")
 
                         val responseBody = response.body?.string()
                         if (responseBody == null) {
                             Timber.tag("GOG").w("[Cloud Saves] Empty response body from remote config")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
                         val configJson = JSONObject(responseBody)
 
-                        // Parse response: content.Windows.cloudStorage.locations
                         val content = configJson.optJSONObject("content")
                         if (content == null) {
                             Timber.tag("GOG").w("[Cloud Saves] No 'content' field in remote config response")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
 
                         val platformContent = content.optJSONObject(syncPlatform)
                         if (platformContent == null) {
                             Timber.tag("GOG").d("[Cloud Saves] No cloud storage config for platform $syncPlatform")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
 
                         val cloudStorage = platformContent.optJSONObject("cloudStorage")
                         if (cloudStorage == null) {
                             Timber.tag("GOG").d("[Cloud Saves] No cloudStorage field for platform $syncPlatform")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
 
                         val enabled = cloudStorage.optBoolean("enabled", false)
                         if (!enabled) {
                             Timber.tag("GOG").d("[Cloud Saves] Cloud saves not enabled for game $gameId")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
                         Timber.tag("GOG").d("[Cloud Saves] Cloud saves are enabled for game $gameId")
 
                         val locationsArray = cloudStorage.optJSONArray("locations")
                         if (locationsArray == null || locationsArray.length() == 0) {
                             Timber.tag("GOG").d("[Cloud Saves] No save locations configured for game $gameId")
-                            return@withContext null
+                            return@withContext GOGSaveSyncConfig(clientId, clientSecret, emptyList())
                         }
                         Timber.tag("GOG").d("[Cloud Saves] Found ${locationsArray.length()} location(s) in config")
 
@@ -1108,7 +1489,7 @@ class GOGManager
                         }
 
                         Timber.tag("GOG").i("[Cloud Saves] Found ${locations.size} save location(s) for game $gameId")
-                        return@withContext Pair(clientSecret, locations)
+                        return@withContext GOGSaveSyncConfig(clientId, clientSecret, locations)
                     }
                 } catch (e: Exception) {
                     Timber.tag("GOG").e(e, "[Cloud Saves] Failed to get save sync location for appId $appId")
@@ -1127,6 +1508,7 @@ class GOGManager
             context: Context,
             appId: String,
             gameTitle: String,
+            targetContainerId: Int? = null,
         ): List<GOGCloudSavesLocation>? =
             withContext(Dispatchers.IO) {
                 try {
@@ -1146,32 +1528,34 @@ class GOGManager
                     }
                     Timber.tag("GOG").d("[Cloud Saves] Game install path: $installPath")
 
-                    // Get clientId from info file
-                    val infoJson = readInfoFile(appId, installPath)
-                    val clientId = infoJson?.optString("clientId", "") ?: ""
-                    if (clientId.isEmpty()) {
-                        Timber.tag("GOG").w("[Cloud Saves] No clientId found in info file for game $gameId")
-                        return@withContext null
-                    }
-                    Timber.tag("GOG").d("[Cloud Saves] Client ID: $clientId")
-
                     // Fetch save locations from API (Android runs games through Wine, so always Windows)
                     Timber.tag("GOG").d("[Cloud Saves] Fetching save locations from API")
                     val result = getSaveSyncLocation(context, appId, installPath)
+                    if (result == null) {
+                        Timber.tag("GOG").w("[Cloud Saves] Could not resolve cloud save config for game $gameId")
+                        return@withContext null
+                    }
+
+                    val clientId = result.clientId
+                    if (clientId.isEmpty()) {
+                        Timber.tag("GOG").w("[Cloud Saves] No clientId found for game $gameId")
+                        return@withContext null
+                    }
+                    Timber.tag("GOG").d("[Cloud Saves] Client ID: $clientId")
 
                     val clientSecret: String
                     val locations: List<GOGCloudSavesLocationTemplate>
 
                     // If no locations from API, use default Windows path
-                    if (result == null || result.second.isEmpty()) {
-                        clientSecret = ""
+                    if (result.locations.isEmpty()) {
+                        clientSecret = result.clientSecret
                         Timber.tag("GOG").d("[Cloud Saves] No save locations from API, using default for game $gameId")
                         val defaultLocation = "%LOCALAPPDATA%/GOG.com/Galaxy/Applications/$clientId/Storage/Shared/Files"
                         Timber.tag("GOG").d("[Cloud Saves] Using default location: $defaultLocation")
                         locations = listOf(GOGCloudSavesLocationTemplate("__default", defaultLocation))
                     } else {
-                        clientSecret = result.first
-                        locations = result.second
+                        clientSecret = result.clientSecret
+                        locations = result.locations
                         Timber.tag("GOG").i("[Cloud Saves] Retrieved ${locations.size} save location(s) from API")
                     }
 
@@ -1188,20 +1572,15 @@ class GOGManager
                         var resolvedPath = PathType.resolveGOGPathVariables(locationTemplate.location, installPath)
                         Timber.tag("GOG").d("[Cloud Saves] After GOG variable resolution: $resolvedPath")
 
-                        // Map GOG Windows path to device path using PathType
-                        // Pass appId to ensure we use the correct container-specific wine prefix
-                        resolvedPath = PathType.toAbsPathForGOG(context, resolvedPath, appId)
+                        resolvedPath = PathType.toAbsPathForGOG(context, resolvedPath, appId, targetContainerId)
                         Timber.tag("GOG").d("[Cloud Saves] After path mapping to Wine prefix: $resolvedPath")
 
-                        // Normalize path to resolve any '..' or '.' components
-                        try {
-                            val normalizedPath = File(resolvedPath).canonicalPath
-                            // Ensure trailing slash for directories
-                            resolvedPath = if (!normalizedPath.endsWith("/")) "$normalizedPath/" else normalizedPath
-                            Timber.tag("GOG").d("[Cloud Saves] After normalization: $resolvedPath")
-                        } catch (e: Exception) {
-                            Timber.tag("GOG").w(e, "[Cloud Saves] Failed to normalize path, using as-is: $resolvedPath")
-                        }
+                        // Manual normalization — File.canonicalPath would follow symlinks
+                        // and bail on missing intermediates.
+                        resolvedPath = normalizeGogPathSegments(resolvedPath)
+                        resolvedPath = resolveExistingPathCaseInsensitive(File(resolvedPath)).absolutePath
+                        if (!resolvedPath.endsWith("/")) resolvedPath = "$resolvedPath/"
+                        Timber.tag("GOG").d("[Cloud Saves] After normalization: $resolvedPath")
 
                         resolvedLocations.add(
                             GOGCloudSavesLocation(
@@ -1307,9 +1686,7 @@ class GOGManager
             }
         }
 
-        // ==========================================================================
-        // FILE SYSTEM & PATHS
-        // ==========================================================================
+        // File system and paths
 
         fun getAppDirPath(appId: String): String {
             val gameId = ContainerUtils.extractGameIdFromContainerId(appId)
@@ -1327,4 +1704,51 @@ class GOGManager
             gameId: String,
             gameTitle: String,
         ): String = GOGConstants.getGameInstallPath(gameTitle)
+
+        private fun normalizeGogPathSegments(path: String): String {
+            val unified = path.replace('\\', '/')
+            val absolute = unified.startsWith('/')
+            val parts = unified.split('/').filter { it.isNotEmpty() }
+            val stack = ArrayDeque<String>()
+            for (part in parts) {
+                when (part) {
+                    "." -> Unit
+                    ".." ->
+                        if (stack.isNotEmpty() && stack.last() != "..") {
+                            stack.removeLast()
+                        } else if (!absolute) {
+                            stack.addLast("..")
+                        }
+                    else -> stack.addLast(part)
+                }
+            }
+            val joined = stack.joinToString("/")
+            return if (absolute) "/$joined" else joined
+        }
+
+        private fun resolveExistingPathCaseInsensitive(path: File): File {
+            if (path.exists()) return path
+            val absolute = path.absoluteFile
+            val parts = absolute.path.split(File.separatorChar, '/', '\\').filter { it.isNotEmpty() }
+            if (parts.isEmpty()) return path
+            var current =
+                if (absolute.path.startsWith(File.separator)) {
+                    File(File.separator)
+                } else {
+                    File(parts.first()).also { if (it.exists()) return@also }
+                }
+            val startIndex = if (absolute.path.startsWith(File.separator)) 0 else 1
+            for (index in startIndex until parts.size) {
+                val part = parts[index]
+                val direct = File(current, part)
+                current =
+                    if (direct.exists()) {
+                        direct
+                    } else {
+                        current.listFiles()?.firstOrNull { it.name.equals(part, ignoreCase = true) }
+                            ?: direct
+                    }
+            }
+            return current
+        }
     }

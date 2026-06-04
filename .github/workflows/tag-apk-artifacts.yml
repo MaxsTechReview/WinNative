@@ -68,6 +68,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Install Rust Android target
+        run: rustup target add aarch64-linux-android
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:

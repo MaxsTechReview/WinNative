@@ -1,25 +1,42 @@
 package com.winlator.cmod.feature.steamcloudsync
 
 import android.content.Context
+import com.winlator.cmod.feature.stores.steam.data.PostSyncInfo
 import com.winlator.cmod.feature.stores.steam.enums.PathType
 import com.winlator.cmod.feature.stores.steam.enums.SaveLocation
 import com.winlator.cmod.feature.stores.steam.enums.SyncResult
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.utils.ContainerUtils
 import com.winlator.cmod.feature.stores.steam.utils.FileUtils
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 object SteamCloudSyncHelper {
-    private fun formatTimestamp(timestampMs: Long?): String {
-        if (timestampMs == null || timestampMs <= 0L) return "Unknown"
+    private const val LABEL_NO_LOCAL_SAVES = "No local saves"
+    private const val LABEL_NO_CLOUD_SAVES = "No cloud saves"
+    private const val LABEL_CLOUD_UNREACHABLE = "Cloud unreachable"
+
+    private fun formatTimestamp(
+        timestampMs: Long?,
+        emptyLabel: String,
+    ): String {
+        if (timestampMs == null || timestampMs <= 0L) return emptyLabel
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
     }
 
@@ -50,15 +67,16 @@ object SteamCloudSyncHelper {
         shortcut: Shortcut,
     ): Boolean {
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return forceDownloadById(context, appId)
+        return forceDownloadById(context, appId, shortcut.container)
     }
 
     suspend fun forceDownloadById(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): Boolean =
         try {
-            val prefixToPath = steamPrefixResolver(context, appId)
+            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
             val syncInfo =
                 SteamService
                     .forceSyncUserFiles(
@@ -68,7 +86,16 @@ object SteamCloudSyncHelper {
                         overrideLocalChangeNumber = -1,
                     ).await()
 
-            syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+            val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+            if (ok) {
+                probeCache.remove(appId)
+                runCatching {
+                    SteamService.pushCloudStateToLibSteamClient(appId)
+                }.onFailure { e ->
+                    Timber.w(e, "forceDownloadById: libsteamclient mirror refresh failed for app=%d", appId)
+                }
+            }
+            ok
         } catch (e: Exception) {
             Timber.e(e, "Failed to force Steam cloud download for appId=%d", appId)
             false
@@ -82,19 +109,18 @@ object SteamCloudSyncHelper {
         if (shortcut.getExtra("game_source") != "STEAM") return false
         val appId = shortcut.getExtra("app_id")
         if (appId.isEmpty()) return false
+        val appIdInt = appId.toIntOrNull() ?: return false
 
-        val prefs = context.getSharedPreferences("cloud_sync_state", Context.MODE_PRIVATE)
-        if (prefs.contains("synced_STEAM_$appId")) return true
-
-        return hasActualLocalSaves(context, appId.toIntOrNull() ?: return false)
+        return hasActualLocalSaves(context, appIdInt, shortcut.container)
     }
 
     fun hasActualLocalSaves(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): Boolean {
         val appInfo = SteamService.getAppInfoOf(appId) ?: return false
-        val prefixToPath = steamPrefixResolver(context, appId)
+        val prefixToPath = steamPrefixResolver(context, appId, containerHint)
 
         val userDataPath = Paths.get(prefixToPath(PathType.SteamUserData.name))
         if (FileUtils.anyFileMatches(userDataPath, "*", maxDepth = 5)) return true
@@ -139,9 +165,10 @@ object SteamCloudSyncHelper {
     private fun getNewestActualLocalCloudSaveTimestamp(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): Long? {
         val appInfo = SteamService.getAppInfoOf(appId) ?: return null
-        val prefixToPath = steamPrefixResolver(context, appId)
+        val prefixToPath = steamPrefixResolver(context, appId, containerHint)
 
         val userDataNewest =
             newestTimestampInFiles(
@@ -182,15 +209,14 @@ object SteamCloudSyncHelper {
         }
     }
 
-    /**
-     * Holds both the diff result and the newest remote timestamp from a single
-     * `getAppFileListChange` call so the launch-time prompt doesn't need to
-     * round-trip Steam separately for each.
-     */
+    /** Result of one conflict probe for the launch-time sync prompt. */
     data class CloudConflictProbe(
         val differs: Boolean,
         val timestamps: SteamCloudConflictTimestamps,
     )
+
+    private const val PROBE_CACHE_TTL_MS = 60_000L
+    private val probeCache = ConcurrentHashMap<Int, Pair<Long, CloudConflictProbe>>()
 
     @JvmStatic
     fun probeCloudConflict(
@@ -201,31 +227,57 @@ object SteamCloudSyncHelper {
         if (appId == null || !hasLocalCloudSaves(context, shortcut)) {
             return CloudConflictProbe(
                 differs = false,
-                timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
+                timestamps = SteamCloudConflictTimestamps(LABEL_NO_LOCAL_SAVES, LABEL_NO_CLOUD_SAVES),
             )
         }
+        probeCache[appId]?.let { (ts, cached) ->
+            if (System.currentTimeMillis() - ts < PROBE_CACHE_TTL_MS) return cached
+        }
+        activateContainer(context, shortcut.container)
         return runBlocking {
             try {
-                val snapshot = SteamService.fetchCloudConflictSnapshot(appId)
-                val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId)
+                val snapshot = SteamService.fetchCloudConflictSnapshot(appId, context)
+                val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId, shortcut.container)
                 val localTracked =
                     SteamService.getTrackedCloudSaveFiles(appId)?.maxOfOrNull { it.timestamp }
-                CloudConflictProbe(
-                    differs = snapshot?.differs ?: true,
+                val localTs = localActual ?: localTracked
+                val cloudLabel =
+                    when {
+                        snapshot == null -> LABEL_CLOUD_UNREACHABLE
+                        else -> formatTimestamp(snapshot.newestRemoteTimestamp, LABEL_NO_CLOUD_SAVES)
+                    }
+                val probe = CloudConflictProbe(
+                    differs = snapshot?.differs ?: false,
                     timestamps =
                         SteamCloudConflictTimestamps(
-                            localTimestampLabel = formatTimestamp(localActual ?: localTracked),
-                            cloudTimestampLabel = formatTimestamp(snapshot?.newestRemoteTimestamp),
+                            localTimestampLabel = formatTimestamp(localTs, LABEL_NO_LOCAL_SAVES),
+                            cloudTimestampLabel = cloudLabel,
                         ),
                 )
+                if (snapshot != null) probeCache[appId] = System.currentTimeMillis() to probe
+                probe
             } catch (e: Exception) {
                 Timber.e(e, "Steam cloud conflict probe failed for %s", shortcut.name)
                 CloudConflictProbe(
-                    differs = true,
-                    timestamps = SteamCloudConflictTimestamps("Unknown", "Unknown"),
+                    differs = false,
+                    timestamps = SteamCloudConflictTimestamps(LABEL_NO_LOCAL_SAVES, LABEL_CLOUD_UNREACHABLE),
                 )
             }
         }
+    }
+
+    fun timestampsFromSyncInfo(
+        context: Context,
+        shortcut: Shortcut,
+        syncInfo: PostSyncInfo?,
+    ): SteamCloudConflictTimestamps {
+        if (syncInfo == null || (syncInfo.localTimestamp <= 0L && syncInfo.remoteTimestamp <= 0L)) {
+            return getConflictTimestamps(context, shortcut)
+        }
+        return SteamCloudConflictTimestamps(
+            localTimestampLabel = formatTimestamp(syncInfo.localTimestamp, LABEL_NO_LOCAL_SAVES),
+            cloudTimestampLabel = formatTimestamp(syncInfo.remoteTimestamp, LABEL_NO_CLOUD_SAVES),
+        )
     }
 
     @JvmStatic
@@ -236,21 +288,25 @@ object SteamCloudSyncHelper {
         val appId = shortcut.getExtra("app_id").toIntOrNull()
         return runBlocking {
             try {
-                val localActual = appId?.let { getNewestActualLocalCloudSaveTimestamp(context, it) }
+                val localActual = appId?.let { getNewestActualLocalCloudSaveTimestamp(context, it, shortcut.container) }
                 val localTracked =
                     appId
                         ?.let { SteamService.getTrackedCloudSaveFiles(it) }
                         ?.maxOfOrNull { it.timestamp }
-                val remoteNewest =
-                    appId
-                        ?.let { SteamService.getNewestRemoteCloudSaveTimestamp(it) }
+                val snapshot = appId?.let { SteamService.fetchCloudConflictSnapshot(it, context) }
+                val cloudLabel =
+                    when {
+                        appId == null -> LABEL_NO_CLOUD_SAVES
+                        snapshot == null -> LABEL_CLOUD_UNREACHABLE
+                        else -> formatTimestamp(snapshot.newestRemoteTimestamp, LABEL_NO_CLOUD_SAVES)
+                    }
                 SteamCloudConflictTimestamps(
-                    localTimestampLabel = formatTimestamp(localActual ?: localTracked),
-                    cloudTimestampLabel = formatTimestamp(remoteNewest),
+                    localTimestampLabel = formatTimestamp(localActual ?: localTracked, LABEL_NO_LOCAL_SAVES),
+                    cloudTimestampLabel = cloudLabel,
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to build Steam cloud conflict timestamps for %s", shortcut.name)
-                SteamCloudConflictTimestamps("Unknown", "Unknown")
+                SteamCloudConflictTimestamps(LABEL_NO_LOCAL_SAVES, LABEL_CLOUD_UNREACHABLE)
             }
         }
     }
@@ -262,9 +318,102 @@ object SteamCloudSyncHelper {
     ): Boolean {
         if (shortcut.getExtra("game_source") != "STEAM") return false
         val result = runBlocking { forceDownload(context, shortcut) }
-        if (result) markCloudSaveSynced(context, shortcut.getExtra("app_id"))
+        if (result) {
+            markCloudSaveSynced(context, shortcut.getExtra("app_id"), shortcut.container)
+        }
         Timber.i("Steam cloud save download for %s: %s", shortcut.name, result)
         return result
+    }
+
+    suspend fun syncBeforeLaunch(
+        context: Context,
+        shortcut: Shortcut,
+        preferredSave: SaveLocation = SaveLocation.None,
+        ignorePendingOperations: Boolean = false,
+    ): PostSyncInfo? {
+        if (shortcut.getExtra("game_source") != "STEAM") return null
+        val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return null
+        val prefixToPath = steamPrefixResolver(context, appId, shortcut.container)
+        val syncInfo =
+            SteamService
+                .beginLaunchApp(
+                    appId = appId,
+                    preferredSave = preferredSave,
+                    ignorePendingOperations = ignorePendingOperations,
+                    prefixToPath = prefixToPath,
+                    isOffline = isOfflineMode(shortcut),
+                ).await()
+
+        if (syncInfo.syncResult == SyncResult.Success || syncInfo.syncResult == SyncResult.UpToDate) {
+            probeCache.remove(appId)
+            runCatching {
+                SteamService.pushCloudStateToLibSteamClient(appId)
+            }.onFailure { e ->
+                Timber.w(e, "syncBeforeLaunch: libsteamclient cloud refresh failed for app=%d", appId)
+            }
+        }
+        return syncInfo
+    }
+
+    fun syncBeforeLaunchBlocking(
+        context: Context,
+        shortcut: Shortcut,
+        preferredSave: SaveLocation = SaveLocation.None,
+        ignorePendingOperations: Boolean = false,
+    ): PostSyncInfo? =
+        runBlocking(Dispatchers.IO) {
+            syncBeforeLaunch(context, shortcut, preferredSave, ignorePendingOperations)
+        }
+
+    /**
+     * Uploads local Steam save files for [appId] so they overwrite Steam Cloud.
+     *
+     * Used after "Use Local" in the launch-time conflict dialog. The explicit upload bumps
+     * Steam's local change number and prevents the same conflict from recurring.
+     */
+    suspend fun uploadLocalSaves(
+        context: Context,
+        appId: Int,
+        containerHint: Container? = null,
+    ): Boolean =
+        try {
+            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
+            val syncInfo =
+                SteamService
+                    .forceSyncUserFiles(
+                        appId = appId,
+                        prefixToPath = prefixToPath,
+                        preferredSave = SaveLocation.Local,
+                        overrideLocalChangeNumber = -1,
+                    ).await()
+            val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+            if (ok) {
+                probeCache.remove(appId)
+                CoroutineScope(Dispatchers.IO).launch {
+                    runCatching {
+                        SteamSaveSnapshotManager.recordSnapshot(
+                            context,
+                            appId,
+                            GameSaveBackupManager.BackupOrigin.LOCAL,
+                            containerHint,
+                        )
+                    }.onFailure { Timber.w(it, "Snapshot after Use-Local upload failed for appId=%d", appId) }
+                }
+            }
+            ok
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to upload local Steam saves for appId=%d", appId)
+            false
+        }
+
+    @JvmStatic
+    fun uploadLocalSavesBlocking(
+        context: Context,
+        shortcut: Shortcut,
+    ): Boolean {
+        if (shortcut.getExtra("game_source") != "STEAM") return false
+        val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
+        return runBlocking { uploadLocalSaves(context, appId, shortcut.container) }
     }
 
     @JvmStatic
@@ -274,7 +423,7 @@ object SteamCloudSyncHelper {
     ): Boolean {
         val appId = gameId.toIntOrNull() ?: return false
         val result = runBlocking { forceDownloadById(context, appId) }
-        if (result) markCloudSaveSynced(context, gameId)
+        if (result) markCloudSaveSynced(context, gameId, ContainerUtils.getUsableContainerOrNull(context, gameId))
         Timber.i("Steam cloud save download for %s: %s", gameId, result)
         return result
     }
@@ -282,20 +431,60 @@ object SteamCloudSyncHelper {
     private fun markCloudSaveSynced(
         context: Context,
         appId: String,
+        container: Container?,
     ) {
         if (appId.isEmpty()) return
         val prefs = context.getSharedPreferences("cloud_sync_state", Context.MODE_PRIVATE)
-        prefs.edit().putLong("synced_STEAM_$appId", System.currentTimeMillis()).apply()
+        prefs.edit().putString("synced_STEAM_$appId", containerFingerprint(container)).apply()
+    }
+
+    private fun containerFingerprint(container: Container?): String {
+        if (container == null) return "none"
+        val root = container.rootDir ?: return "id-${container.id}"
+        val wineDir = File(root, ".wine")
+        val sig = if (wineDir.exists()) wineDir.lastModified() else 0L
+        return "${container.id}:$sig"
     }
 
     private fun steamPrefixResolver(
         context: Context,
         appId: Int,
+        containerHint: Container? = null,
     ): (String) -> String {
+        // PathType resolves Windows-side save roots through the active `home/xuser`
+        // symlink. Activate the game's container first so launcher restores, manual syncs,
+        // and pre-launch checks do not read or write another game's wineprefix.
+        //
+        // Prefer the shortcut container when available. The appId fallback is only for
+        // callers that do not have shortcut context.
+        activateContainerForCloudOp(context, appId, containerHint)
+
         val accountId =
             SteamService.userSteamId?.accountID?.toLong()
+                ?: PrefManager.steamUserSteamId64.takeIf { it != 0L }?.let { it and 0xFFFFFFFFL }
                 ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
                 ?: 0L
         return { prefix -> PathType.from(prefix).toAbsPath(context, appId, accountId) }
+    }
+
+    private fun activateContainerForCloudOp(
+        context: Context,
+        appId: Int,
+        containerHint: Container?,
+    ) {
+        val target =
+            containerHint
+                ?: ContainerUtils.getUsableContainerOrNull(context, appId.toString())
+                ?: return
+        activateContainer(context, target)
+    }
+
+    private fun activateContainer(
+        context: Context,
+        container: Container,
+    ) {
+        runCatching {
+            ContainerManager(context).activateContainer(container)
+        }.onFailure { Timber.w(it, "Failed to activate container id=%d", container.id) }
     }
 }

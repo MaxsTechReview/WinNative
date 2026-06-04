@@ -139,6 +139,20 @@
         android:shadowDy="1"
         android:shadowRadius="1"
         android:fontFamily="monospace"/>
+    <TextView
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:textColor="#76ff03"
+        android:id="@+id/TVFrametime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:text="0.0ms"
+        android:shadowColor="#ff000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="1"
+        android:fontFamily="monospace"/>
     <FrameLayout
         android:id="@+id/FLGraphContainer"
         android:background="@android:color/transparent"

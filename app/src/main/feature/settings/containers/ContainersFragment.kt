@@ -20,7 +20,6 @@ import androidx.fragment.app.Fragment
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
-import com.winlator.cmod.feature.sync.google.ContainerBackupManager
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentsManager
@@ -28,23 +27,16 @@ import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.ui.dialog.PreloaderDialog
+import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import java.io.File
 import kotlin.math.roundToInt
 
 class ContainersFragment : Fragment() {
     private lateinit var manager: ContainerManager
-    private lateinit var preloaderDialog: PreloaderDialog
 
     private var screenState by mutableStateOf(ContainersScreenState())
-    private var pendingBackups = emptyList<ContainerBackupManager.DriveBackupFile>()
     private var storageScanToken = 0L
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        preloaderDialog = PreloaderDialog(requireActivity())
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -68,16 +60,12 @@ class ContainersFragment : Fragment() {
                         onRunContainer = ::runContainer,
                         onEditContainer = ::editContainer,
                         onDuplicateContainer = ::duplicateContainer,
-                        onShowBackups = ::showContainerBackupsDialog,
                         onRemoveContainer = ::removeContainer,
                         onShowInfo = ::showContainerInfo,
                         onDismissDialog = ::dismissDialog,
                         onConfirmDuplicateDialog = ::performDuplicateContainer,
                         onConfirmRemoveDialog = ::performRemoveContainer,
-                        onConfirmBackupDialog = ::startContainerBackup,
-                        onConfirmRestoreDialog = ::startContainerRestore,
                         onClearCacheDialog = ::clearContainerCache,
-                        onBackupSelectionChosen = ::restoreBackupByIndex,
                     )
                 }
             }
@@ -105,7 +93,7 @@ class ContainersFragment : Fragment() {
 
     private fun openAddContainer() {
         val context = context ?: return
-        if (!ImageFs.find(context).isValid) {
+        if (!ImageFs.find(context).isUpToDate) {
             WinToast.show(context, R.string.setup_wizard_system_image_not_installed, Toast.LENGTH_LONG)
             return
         }
@@ -158,112 +146,19 @@ class ContainersFragment : Fragment() {
         startStorageScan(container)
     }
 
-    private fun showContainerBackupsDialog(container: Container) {
-        screenState = screenState.copy(dialog = ContainersDialogUiState.Backups(container))
-    }
-
-    private fun startContainerBackup(container: Container) {
-        dismissDialog()
-        preloaderDialog.show(R.string.container_backups_backing_up)
-        ContainerBackupManager.backupContainer(requireActivity(), container) { result ->
-            preloaderDialog.close()
-            screenState =
-                screenState.copy(
-                    dialog =
-                        ContainersDialogUiState.Message(
-                            title = getString(R.string.container_backups_title),
-                            message = result.message,
-                        ),
-                )
-        }
-    }
-
-    private fun startContainerRestore(container: Container) {
-        dismissDialog()
-        preloaderDialog.show(R.string.container_backups_checking)
-        ContainerBackupManager.prepareRestore(requireActivity(), container) { preparation ->
-            if (!isAdded) {
-                preloaderDialog.close()
-                return@prepareRestore
-            }
-
-            if (!preparation.success) {
-                preloaderDialog.close()
-                screenState =
-                    screenState.copy(
-                        dialog =
-                            ContainersDialogUiState.Message(
-                                title = getString(R.string.container_backups_title),
-                                message = preparation.message,
-                            ),
-                    )
-                return@prepareRestore
-            }
-
-            if (preparation.matchedFile != null) {
-                executeContainerRestore(container, preparation.matchedFile)
-                return@prepareRestore
-            }
-
-            preloaderDialog.close()
-            showBackupSelectionDialog(container, preparation.candidates)
-        }
-    }
-
-    private fun showBackupSelectionDialog(
-        container: Container,
-        backups: List<ContainerBackupManager.DriveBackupFile>?,
-    ) {
-        if (backups.isNullOrEmpty()) {
-            screenState =
-                screenState.copy(
-                    dialog =
-                        ContainersDialogUiState.Message(
-                            title = getString(R.string.container_backups_title),
-                            message = getString(R.string.container_backups_no_files),
-                        ),
-                )
-            return
-        }
-
-        pendingBackups = backups
-        screenState =
-            screenState.copy(
-                dialog =
-                    ContainersDialogUiState.BackupSelection(
-                        container = container,
-                        backupNames = backups.map { it.name },
-                    ),
-            )
-    }
-
-    private fun executeContainerRestore(
-        container: Container,
-        driveFile: ContainerBackupManager.DriveBackupFile,
-    ) {
-        dismissDialog()
-        preloaderDialog.show(R.string.container_backups_restoring)
-        ContainerBackupManager.restoreContainerFromDriveFile(requireActivity(), container, driveFile) { result ->
-            preloaderDialog.close()
-            screenState =
-                screenState.copy(
-                    dialog =
-                        ContainersDialogUiState.Message(
-                            title = getString(R.string.container_backups_title),
-                            message = result.message,
-                        ),
-                )
-        }
-    }
-
     private fun performDuplicateContainer(container: Container) {
         dismissDialog()
-        preloaderDialog.show(R.string.containers_list_duplicating, false)
+        val duplicatingPopup = ContainerProgressPopup(
+            requireActivity(),
+            R.string.containers_list_duplicating,
+            indeterminate = false,
+        )
+        duplicatingPopup.show()
         manager.duplicateContainerAsync(container, { progress ->
-            preloaderDialog.setProgress(progress)
+            duplicatingPopup.setProgress(progress)
         }) {
-            preloaderDialog.setProgress(100)
-            preloaderDialog.closeWithDelay(600)
+            duplicatingPopup.setProgress(100)
+            duplicatingPopup.closeWithDelay(600)
             Handler(Looper.getMainLooper()).postDelayed({
                 loadContainersList()
             }, 600)
@@ -273,14 +168,16 @@ class ContainersFragment : Fragment() {
     private fun performRemoveContainer(container: Container) {
         val ctx = context ?: return
         dismissDialog()
-        preloaderDialog.show(R.string.containers_list_removing)
+        val removingPopup =
+            ContainerProgressPopup(requireActivity(), R.string.containers_list_removing)
+        removingPopup.show()
         for (shortcut in manager.loadShortcuts()) {
             if (shortcut.container == container) {
                 ShortcutsFragment.disableShortcutOnScreen(ctx, shortcut)
             }
         }
         manager.removeContainerAsync(container) {
-            preloaderDialog.close()
+            removingPopup.close()
             loadContainersList()
         }
     }
@@ -297,12 +194,6 @@ class ContainersFragment : Fragment() {
                 showContainerInfo(container)
             }
         }.start()
-    }
-
-    private fun restoreBackupByIndex(index: Int) {
-        val dialog = screenState.dialog as? ContainersDialogUiState.BackupSelection ?: return
-        val backup = pendingBackups.getOrNull(index) ?: return
-        executeContainerRestore(dialog.container, backup)
     }
 
     private fun dismissDialog() {

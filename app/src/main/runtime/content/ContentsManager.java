@@ -25,7 +25,7 @@ import org.json.JSONObject;
 public class ContentsManager {
   public static final String PROFILE_NAME = "profile.json";
   public static final String REMOTE_PROFILES =
-      "https://raw.githubusercontent.com/Xnick417x/winlator-nightly-wcp/refs/heads/main/contents.json";
+      "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json";
   private static final long EXTRACTION_PROGRESS_INTERVAL_MS = 120L;
   public static final String[] DXVK_TRUST_FILES = {
     "${system32}/d3d8.dll",
@@ -116,6 +116,12 @@ public class ContentsManager {
    */
   public interface OnExtractionProgressListener {
     void onProgress(int filesExtracted, String currentFileName);
+
+    default boolean prefersByteProgress() {
+      return false;
+    }
+
+    default void onByteProgress(long bytesExtracted) {}
   }
 
   public void setRemoteProfiles(String json) {
@@ -130,6 +136,8 @@ public class ContentsManager {
           remoteProfile.type = ContentProfile.ContentType.getTypeByName(object.getString("type"));
           remoteProfile.verName = object.getString("verName");
           remoteProfile.verCode = object.getInt("verCode");
+          remoteProfile.isOfficial =
+              parseOfficialFlag(object.opt(ContentProfile.MARK_OFFICIAL));
           remoteProfiles.add(remoteProfile);
         } catch (JSONException e) {
           e.printStackTrace();
@@ -139,6 +147,18 @@ public class ContentsManager {
       e.printStackTrace();
     }
     syncContents();
+  }
+
+  /**
+   * Interprets the optional "official" marker. Accepts a string ("1"/"true"/"yes"), a number
+   * (non-zero), or a boolean so the contents.json author can use whichever form is convenient.
+   */
+  private static boolean parseOfficialFlag(Object value) {
+    if (value == null) return false;
+    if (value instanceof Boolean) return (Boolean) value;
+    if (value instanceof Number) return ((Number) value).intValue() != 0;
+    String s = value.toString().trim();
+    return s.equals("1") || s.equalsIgnoreCase("true") || s.equalsIgnoreCase("yes");
   }
 
   public void syncContents() {
@@ -223,22 +243,12 @@ public class ContentsManager {
 
     File file = getTmpDir(context);
 
-    // Count extracted files for progress
     final int[] fileCount = {0};
+    final long[] extractedBytes = {0L};
     final long[] lastProgressUpdateMs = {0L};
     OnExtractFileListener extractListener =
-        progressListener != null
-            ? (destination, size) -> {
-              fileCount[0]++;
-              long now = System.currentTimeMillis();
-              if (fileCount[0] <= 3
-                  || now - lastProgressUpdateMs[0] >= EXTRACTION_PROGRESS_INTERVAL_MS) {
-                progressListener.onProgress(fileCount[0], destination.getName());
-                lastProgressUpdateMs[0] = now;
-              }
-              return destination;
-            }
-            : null;
+        createExtractionProgressListener(
+            progressListener, fileCount, extractedBytes, lastProgressUpdateMs);
 
     boolean ret;
     TarCompressorUtils.Type primaryType = detectCompressionType(context, uri);
@@ -250,6 +260,7 @@ public class ContentsManager {
     ret = TarCompressorUtils.extract(primaryType, context, uri, file, extractListener);
     if (!ret) {
       fileCount[0] = 0;
+      extractedBytes[0] = 0L;
       lastProgressUpdateMs[0] = 0L;
       ret = TarCompressorUtils.extract(fallbackType, context, uri, file, extractListener);
     }
@@ -307,6 +318,50 @@ public class ContentsManager {
     }
 
     callback.onSucceed(profile);
+  }
+
+  private static OnExtractFileListener createExtractionProgressListener(
+      OnExtractionProgressListener progressListener,
+      int[] fileCount,
+      long[] extractedBytes,
+      long[] lastProgressUpdateMs) {
+    if (progressListener == null) return null;
+
+    if (progressListener.prefersByteProgress()) {
+      return new OnExtractFileListener() {
+        @Override
+        public File onExtractFile(File destination, long size) {
+          return destination;
+        }
+
+        @Override
+        public boolean mapsExtractedFiles() {
+          return false;
+        }
+
+        @Override
+        public boolean reportsExtractedBytesOnly() {
+          return true;
+        }
+
+        @Override
+        public void onExtractedBytes(long size) {
+          if (size <= 0) return;
+          extractedBytes[0] += size;
+          progressListener.onByteProgress(extractedBytes[0]);
+        }
+      };
+    }
+
+    return (destination, size) -> {
+      fileCount[0]++;
+      long now = System.currentTimeMillis();
+      if (fileCount[0] <= 3 || now - lastProgressUpdateMs[0] >= EXTRACTION_PROGRESS_INTERVAL_MS) {
+        progressListener.onProgress(fileCount[0], destination.getName());
+        lastProgressUpdateMs[0] = now;
+      }
+      return destination;
+    };
   }
 
   public void finishInstallContent(ContentProfile profile, OnInstallFinishedCallback callback) {
@@ -403,6 +458,7 @@ public class ContentsManager {
       profile.verCode = verCode;
       profile.desc = desc;
       profile.fileList = fileList;
+      profile.isOfficial = parseOfficialFlag(profileJSONObject.opt(ContentProfile.MARK_OFFICIAL));
       profile.isInstalled = isInstalled(context, profile);
       return profile;
     } catch (Exception e) {
@@ -619,6 +675,9 @@ public class ContentsManager {
   private void mergeRemoteMetadata(ContentProfile localProfile, ContentProfile remoteProfile) {
     if (localProfile.remoteUrl == null) {
       localProfile.remoteUrl = remoteProfile.remoteUrl;
+    }
+    if (remoteProfile.isOfficial) {
+      localProfile.isOfficial = true;
     }
     localProfile.isInstalled = true;
   }

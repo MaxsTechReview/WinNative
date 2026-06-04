@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -31,6 +32,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -46,7 +48,13 @@ import kotlin.math.roundToInt
 
 const val XSERVER_DRAWER_EDGE_SWIPE_DP = 35
 
-private val DrawerWidth = 340.dp
+// Horizontal swipe distance to open the drawer; shared with XServerDisplayActivity.
+const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
+
+// Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
+const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
+
+private val DrawerWidth = 312.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
@@ -97,17 +105,29 @@ private fun XServerDisplayHost(
 ) {
     val animationScope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val context = LocalContext.current
+    // systemBars insets are zeroed on this view, so read the real status-bar height.
+    val statusBarHeight =
+        remember(context, density) {
+            val res = context.resources
+            val id = res.getIdentifier("status_bar_height", "dimen", "android")
+            val px = if (id > 0) res.getDimensionPixelSize(id) else 0
+            with(density) { px.toDp() }.coerceIn(24.dp, 56.dp)
+        }
     val viewConfiguration = LocalViewConfiguration.current
-    var drawerOffsetPx by remember { mutableFloatStateOf(0f) }
+    val closedFallbackPx = with(density) { -(DrawerWidth + DrawerStartPadding).toPx() }
+    var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
     var drawerWidthPx by remember { mutableFloatStateOf(0f) }
     val drawerClosedOffset =
         if (drawerWidthPx > 0f) {
             -drawerWidthPx - with(density) { DrawerStartPadding.toPx() }
         } else {
-            0f
+            closedFallbackPx
         }
     val drawerOpenOffset = 0f
-    val drawerSheetVisible = drawerWidthPx <= 0f ||
+    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
+    // to trigger the card-reveal animation; the content itself is always composed.
+    val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
     val dialogVisible = false
@@ -120,7 +140,7 @@ private fun XServerDisplayHost(
     }
 
     LaunchedEffect(drawerWidthPx) {
-        if (drawerWidthPx > 0f && drawerOffsetPx == 0f && !stateHolder.isDrawerOpen) {
+        if (drawerWidthPx > 0f && drawerOffsetPx < 0f && !stateHolder.isDrawerOpen) {
             drawerOffsetPx = drawerClosedOffset
         }
     }
@@ -151,7 +171,7 @@ private fun XServerDisplayHost(
     }
 
     WinNativeTheme {
-        Box(
+        BoxWithConstraints(
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -161,6 +181,7 @@ private fun XServerDisplayHost(
                             if (dialogVisible || drawerWidthPx <= 0f) return@awaitEachGesture
 
                             val edgeWidthPx = XSERVER_DRAWER_EDGE_SWIPE_DP.dp.toPx()
+                            val openTriggerPx = XSERVER_DRAWER_OPEN_TRIGGER_DP.dp.toPx()
                             val canStartFromHere =
                                 if (stateHolder.isDrawerOpen) {
                                     down.position.x >= drawerWidthPx &&
@@ -199,7 +220,8 @@ private fun XServerDisplayHost(
                                         if (stateHolder.isDrawerOpen) {
                                             totalDx < -viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
                                         } else {
-                                            totalDx > viewConfiguration.touchSlop && totalDx > abs(totalDy)
+                                            totalDx > openTriggerPx &&
+                                                totalDx > abs(totalDy) * XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO
                                         }
                                     if (horizontalDragClaimed) {
                                         gestureClaimed = true
@@ -255,6 +277,17 @@ private fun XServerDisplayHost(
                         }
                     },
         ) {
+            val drawerTopInset = statusBarHeight + 2.dp
+            val originalHeight = maxHeight - DrawerVerticalPadding * 2
+            val drawerHeight = maxHeight - drawerTopInset - DrawerVerticalPadding
+            val evenScale =
+                if (originalHeight > 0.dp) {
+                    (drawerHeight / originalHeight).coerceIn(0.6f, 1f)
+                } else {
+                    1f
+                }
+            val scaledDrawerWidth = DrawerWidth * evenScale
+
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 AndroidView(
                     factory = { displayFrame },
@@ -275,9 +308,9 @@ private fun XServerDisplayHost(
                 modifier =
                     Modifier
                         .zIndex(2f)
-                        .padding(start = DrawerStartPadding, top = DrawerVerticalPadding, bottom = DrawerVerticalPadding)
+                        .padding(start = DrawerStartPadding, top = drawerTopInset, bottom = DrawerVerticalPadding)
                         .fillMaxHeight()
-                        .width(DrawerWidth)
+                        .width(scaledDrawerWidth)
                         .onSizeChanged { size ->
                             drawerWidthPx = size.width.toFloat()
                         }
@@ -288,17 +321,20 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                if (drawerSheetVisible) {
-                    XServerDrawerContent(
-                        state = stateHolder.state,
-                        taskManagerState = stateHolder.taskManagerState,
-                        logsState = stateHolder.logsState,
-                        openPane = stateHolder.openPane,
-                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                        listener = listener,
-                        onDismiss = { stateHolder.closeDrawer() },
-                    )
-                }
+                // Keep the drawer content composed at all times. When closed the sheet
+                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
+                // but the composition stays warm — opening becomes a cheap slide instead
+                // of rebuilding the whole tree on the first animation frame.
+                XServerDrawerContent(
+                    state = stateHolder.state,
+                    taskManagerState = stateHolder.taskManagerState,
+                    logsState = stateHolder.logsState,
+                    openPane = stateHolder.openPane,
+                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                    listener = listener,
+                    onDismiss = { stateHolder.closeDrawer() },
+                    revealCards = drawerEngaged,
+                )
             }
         }
     }

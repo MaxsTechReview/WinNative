@@ -13,7 +13,6 @@ object ContainerUtils {
      * Extracts the game ID from a container ID string
      */
     fun extractGameIdFromContainerId(containerId: String): Int {
-        // Remove duplicate suffix like (1), (2) if present
         val idWithoutSuffix =
             if (containerId.contains("(")) {
                 containerId.substringBefore("(")

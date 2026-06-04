@@ -27,12 +27,19 @@ import com.winlator.cmod.shared.io.FileUtils;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GuestProgramLauncherComponent extends EnvironmentComponent {
+  private static final String TAG = "GuestProgramLauncherComponent";
+  private static final String DEPENDENCY_LOG_TAG = "CurlDeps";
+  private static final long DEPENDENCY_CHECK_TIMEOUT_MS = 1500L;
+  private static final Object lock = new Object();
+  private static final AtomicBoolean dependencyCheckScheduled = new AtomicBoolean(false);
   private String guestExecutable;
   private int pid = -1;
   private String[] bindingPaths;
@@ -41,13 +48,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private String box64Preset = Box64Preset.PERFORMANCE;
   private String fexcorePreset = FEXCorePreset.PERFORMANCE;
   private Callback<Integer> terminationCallback;
-  private static final Object lock = new Object();
   private final ContentsManager contentsManager;
   private final ContentProfile wineProfile;
   private Container container;
   private final Shortcut shortcut;
   private File workingDir;
-  private String steamType = Container.STEAM_TYPE_NORMAL;
   private Runnable preUnpackCallback;
 
   public static File ensureImageFsNativeLibrary(
@@ -141,28 +146,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
   public void setContainer(Container container) {
     this.container = container;
-  }
-
-  public String getSteamType() {
-    return steamType;
-  }
-
-  public void setSteamType(String steamType) {
-    if (steamType == null) {
-      this.steamType = Container.STEAM_TYPE_NORMAL;
-      return;
-    }
-    String normalized = steamType.toLowerCase();
-    switch (normalized) {
-      case Container.STEAM_TYPE_LIGHT:
-        this.steamType = Container.STEAM_TYPE_LIGHT;
-        break;
-      case Container.STEAM_TYPE_ULTRALIGHT:
-        this.steamType = Container.STEAM_TYPE_ULTRALIGHT;
-        break;
-      default:
-        this.steamType = Container.STEAM_TYPE_NORMAL;
-    }
   }
 
   public String execShellCommand(String command) {
@@ -268,27 +251,54 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
     try {
       Log.d("GuestProgramLauncherComponent", "Shell command is " + finalCommand);
-      java.lang.Process process =
+      final java.lang.Process process =
           Runtime.getRuntime()
               .exec(
                   finalCommand,
                   envVars.toStringArray(),
                   workingDir != null ? workingDir : imageFs.getRootDir());
+
+      // stderr MUST be drained concurrently with stdout. Wine emits a steady
+      // stream of `fixme:`/`err:` lines; if nothing reads stderr, the kernel
+      // pipe buffer (64 KiB) fills and the child blocks forever on its next
+      // stderr write — even if we're only interested in stdout. Sequential
+      // "drain stdout, then stderr" deadlocks the same way, just less often.
+      final boolean captureStderr = includeStderr;
+      Thread stderrPump =
+          new Thread(
+              () -> {
+                try (BufferedReader er =
+                    new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                  String l;
+                  while ((l = er.readLine()) != null) {
+                    if (captureStderr) {
+                      synchronized (output) {
+                        output.append(l).append('\n');
+                      }
+                    }
+                  }
+                } catch (IOException ignored) {
+                  // child closed stderr or we were interrupted — both are fine
+                }
+              },
+              "execShellCommand-stderr-pump");
+      stderrPump.setDaemon(true);
+      stderrPump.start();
+
       try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()));
-          BufferedReader errorReader =
-              new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+          new BufferedReader(new InputStreamReader(process.getInputStream()))) {
         String line;
         while ((line = reader.readLine()) != null) {
-          output.append(line).append("\n");
-        }
-        if (includeStderr) {
-          while ((line = errorReader.readLine()) != null) {
-            output.append(line).append("\n");
+          synchronized (output) {
+            output.append(line).append('\n');
           }
         }
       }
       process.waitFor();
+      // Stderr pump exits on its own when the child closes its stderr fd
+      // (which happens at process exit). Give it a brief grace period to
+      // append any tail lines before we return.
+      stderrPump.join(200);
     } catch (Exception e) {
       output.append("Error: ").append(e.getMessage());
     }
@@ -303,14 +313,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String box64Version = container.getBox64Version();
     if (box64Version == null) box64Version = "";
 
-    if (shortcut != null) box64Version = shortcut.getExtra("box64Version", box64Version);
+    if (shortcut != null) box64Version = shortcut.getSettingExtra("box64Version", box64Version);
 
     Log.i(
         "GuestProgramLauncherComponent",
         "Launch runtime selected: Box64 version=" + box64Version);
 
     File rootDir = imageFs.getRootDir();
-    boolean box64Missing = !new File(rootDir, "/usr/bin/box64").exists();
+    boolean box64Missing = !new File(rootDir, "usr/bin/box64").exists();
 
     if (box64Missing || !box64Version.equals(container.getExtra("box64Version"))) {
       if (box64Version.isEmpty()) {
@@ -338,7 +348,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     }
 
     // Set execute permissions for box64 just in case
-    File box64File = new File(rootDir, "/usr/bin/box64");
+    File box64File = new File(rootDir, "usr/bin/box64");
     if (box64File.exists()) {
       FileUtils.chmod(box64File, 0755);
     }
@@ -361,10 +371,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (fexcoreVersion == null) fexcoreVersion = "";
 
     if (shortcut != null) {
-      emulator = shortcut.getExtra("emulator", emulator);
-      emulator64 = shortcut.getExtra("emulator64", emulator64);
-      wowbox64Version = shortcut.getExtra("box64Version", wowbox64Version);
-      fexcoreVersion = shortcut.getExtra("fexcoreVersion", fexcoreVersion);
+      emulator = shortcut.getSettingExtra("emulator", emulator);
+      emulator64 = shortcut.getSettingExtra("emulator64", emulator64);
+      wowbox64Version = shortcut.getSettingExtra("box64Version", wowbox64Version);
+      fexcoreVersion = shortcut.getSettingExtra("fexcoreVersion", fexcoreVersion);
     }
 
     boolean usesWowbox64 = emulator.equalsIgnoreCase("wowbox64");
@@ -478,76 +488,140 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   @Override
   public void start() {
     synchronized (lock) {
+      long startTime = System.currentTimeMillis();
       if (wineInfo.isArm64EC()) {
         extractEmulatorsDlls();
       } else extractBox64Files();
       copyDefaultBox64RCFile();
-      checkDependencies();
+      scheduleDependencyCheck();
 
       // Run Steamless DRM stripping if configured (must happen after box64 is ready
       // but before the game exe is launched)
       if (preUnpackCallback != null) {
         try {
-          Log.d(
-              "GuestProgramLauncherComponent",
-              "Running preUnpack callback (Steamless DRM stripping)");
+          Log.d(TAG, "Running preUnpack callback (Steamless DRM stripping)");
           preUnpackCallback.run();
         } catch (Exception e) {
-          Log.e("GuestProgramLauncherComponent", "preUnpack callback failed", e);
+          Log.e(TAG, "preUnpack callback failed", e);
         }
       }
 
       pid = execGuestProgram();
-      Log.d("GuestProgramLauncherComponent", "Guest process started with pid=" + pid);
+      Log.d(
+          TAG,
+          "Guest process started with pid="
+              + pid
+              + " after launch prep "
+              + (System.currentTimeMillis() - startTime)
+              + "ms");
     }
+  }
+
+  private void scheduleDependencyCheck() {
+    if (!dependencyCheckScheduled.compareAndSet(false, true)) return;
+
+    Thread thread =
+        new Thread(
+            () -> Log.d(DEPENDENCY_LOG_TAG, checkDependencies()),
+            "GuestDependencyCheck");
+    thread.setDaemon(true);
+    thread.start();
   }
 
   private void copyDefaultBox64RCFile() {
     Context context = environment.getContext();
     ImageFs imageFs = ImageFs.find(context);
     File rootDir = imageFs.getRootDir();
-    String assetPath;
-    switch (steamType) {
-      case Container.STEAM_TYPE_LIGHT:
-        assetPath = "box86_64/lightsteam.box64rc";
-        break;
-      case Container.STEAM_TYPE_ULTRALIGHT:
-        assetPath = "box86_64/ultralightsteam.box64rc";
-        break;
-      default:
-        assetPath = "box86_64/default.box64rc";
-        break;
-    }
+    String assetPath = "box86_64/default.box64rc";
     FileUtils.copy(context, assetPath, new File(rootDir, "/etc/config.box64rc"));
   }
 
   private String checkDependencies() {
     String curlPath = environment.getImageFs().getRootDir().getPath() + "/usr/lib/libXau.so";
-    String lddCommand = "ldd " + curlPath;
-
     StringBuilder output = new StringBuilder("Checking Curl dependencies...\n");
+    java.lang.Process process = null;
+    Thread stdoutPump = null;
+    Thread stderrPump = null;
 
     try {
-      java.lang.Process process = Runtime.getRuntime().exec(lddCommand);
-      try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()));
-          BufferedReader errorReader =
-              new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          output.append(line).append("\n");
-        }
-        while ((line = errorReader.readLine()) != null) {
-          output.append(line).append("\n");
+      process = Runtime.getRuntime().exec(new String[] {"ldd", curlPath});
+      stdoutPump = createDependencyPump(process.getInputStream(), output);
+      stderrPump = createDependencyPump(process.getErrorStream(), output);
+
+      stdoutPump.start();
+      stderrPump.start();
+
+      long deadline = System.currentTimeMillis() + DEPENDENCY_CHECK_TIMEOUT_MS;
+      while (true) {
+        try {
+          int exitCode = process.exitValue();
+          synchronized (output) {
+            output.append("ldd exit code: ").append(exitCode).append("\n");
+          }
+          break;
+        } catch (IllegalThreadStateException ignored) {
+          if (System.currentTimeMillis() >= deadline) {
+            synchronized (output) {
+              output
+                  .append("Timed out after ")
+                  .append(DEPENDENCY_CHECK_TIMEOUT_MS)
+                  .append("ms; skipping blocking dependency probe\n");
+            }
+            process.destroy();
+            break;
+          }
+
+          try {
+            Thread.sleep(50L);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            synchronized (output) {
+              output.append("Dependency probe interrupted\n");
+            }
+            process.destroy();
+            break;
+          }
         }
       }
-      process.waitFor();
     } catch (Exception e) {
       output.append("Error running ldd: ").append(e.getMessage());
+    } finally {
+      joinDependencyPump(stdoutPump);
+      joinDependencyPump(stderrPump);
     }
 
-    Log.d("CurlDeps", output.toString()); // Log the full dependency output
     return output.toString();
+  }
+
+  private Thread createDependencyPump(InputStream stream, StringBuilder output) {
+    Thread pump =
+        new Thread(
+            () -> {
+              try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                  synchronized (output) {
+                    output.append(line).append("\n");
+                  }
+                }
+              } catch (IOException e) {
+                synchronized (output) {
+                  output.append("Error reading dependency output: ").append(e.getMessage()).append("\n");
+                }
+              }
+            },
+            "GuestDependencyPump");
+    pump.setDaemon(true);
+    return pump;
+  }
+
+  private void joinDependencyPump(Thread pump) {
+    if (pump == null) return;
+    try {
+      pump.join(200L);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   @Override
@@ -766,6 +840,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
     boolean enableBox64Logs = preferences.getBoolean("enable_box64_logs", false);
+    boolean enableFexcoreLogs = preferences.getBoolean("enable_fexcore_logs", false);
     boolean openWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
     boolean shareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 
@@ -779,6 +854,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     addBox64EnvVars(envVars, enableBox64Logs);
     envVars.putAll(FEXCorePresetManager.getEnvVars(context, fexcorePreset));
+
+    if (enableFexcoreLogs) {
+      // FEXCore is silent by default. Enable logging to stderr so its output is
+      // captured by the in-game logs pane and the per-session fexcore_*.txt log.
+      envVars.put("FEX_SILENTLOG", "0");
+      envVars.put("FEX_OUTPUTLOG", "stderr");
+    }
 
     String renderer = GPUInformation.getRenderer(null, null);
 
@@ -967,6 +1049,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     };
     ld_preload = appendFirstExistingPreload(ld_preload, cryptoCandidates);
 
+
     File devInputDir = new File(imageFs.getRootDir(), "dev/input");
     devInputDir.mkdirs();
     FakeInputWriter.prepareRingSlots(devInputDir, 4);
@@ -1000,14 +1083,14 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     String emulator = container.getEmulator();
     String emulator64 = container.getEmulator64();
     if (shortcut != null) {
-      emulator = shortcut.getExtra("emulator", container.getEmulator());
-      emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
+      emulator = shortcut.getSettingExtra("emulator", container.getEmulator());
+      emulator64 = shortcut.getSettingExtra("emulator64", container.getEmulator64());
     }
 
     if (wineInfo.isArm64EC()) {
       emulator64 = container.getEmulator64();
       if (shortcut != null) {
-        emulator64 = shortcut.getExtra("emulator64", container.getEmulator64());
+        emulator64 = shortcut.getSettingExtra("emulator64", container.getEmulator64());
       }
     }
 

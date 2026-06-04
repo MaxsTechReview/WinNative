@@ -14,6 +14,8 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Executors;
 
 public abstract class ProcessHelper {
   private static final String TAG = "ProcessHelper";
@@ -93,6 +95,25 @@ public abstract class ProcessHelper {
     if (PRINT_DEBUG) Log.d("ProcessHelper", "Process resumed with pid: " + pid);
   }
 
+  /**
+   * Best-effort write of /proc/[pid]/oom_score_adj for one of our own
+   * children. SIGSTOP'd processes are otherwise prime OOM-kill targets during
+   * long screen-locked windows; this lowers their kill priority so the OS
+   * leaves a manually-paused wine session alone over multi-minute windows.
+   * Note: On Android 7.0+ this is often blocked by the OS for non-root users.
+   */
+  public static void setOomScoreAdj(int pid, int score) {
+    if (pid <= 0) return;
+    java.io.File f = new java.io.File("/proc/" + pid + "/oom_score_adj");
+    try (java.io.FileWriter w = new java.io.FileWriter(f, false)) {
+      w.write(Integer.toString(score));
+      if (PRINT_DEBUG) Log.d(TAG, "Successfully set oom_score_adj to " + score + " for pid " + pid);
+    } catch (Throwable t) {
+      // Some Android versions deny writes even for our own children.
+      if (PRINT_DEBUG) Log.d(TAG, "oom_score_adj write failed for pid " + pid + ": " + t.getMessage());
+    }
+  }
+
   public static void terminateProcess(int pid) {
     Process.sendSignal(pid, SIGTERM);
     if (PRINT_DEBUG) Log.d("ProcessHelper", "Process terminated with pid: " + pid);
@@ -165,11 +186,63 @@ public abstract class ProcessHelper {
     return finalRemaining;
   }
 
+  // Aggressive OOM protection for paused wine processes. -1000 marks the
+  // process as oom_score_adj OOM_SCORE_ADJ_MIN, telling the kernel never to
+  // kill it on memory pressure. We restore to 0 (default) on resume so a
+  // running wine process is back to normal priority.
+  private static final int OOM_SCORE_ADJ_PROTECT = -1000;
+  private static final int OOM_SCORE_ADJ_DEFAULT = 0;
+
+  private static final String[] CORE_PROCESS_FILTERS = {
+    "wineserver",
+    "winhandler",
+    "services.exe",
+    "rpcss.exe",
+    "explorer.exe",
+    "winedevice.exe",
+    "plugplay.exe",
+    "wfm.exe",
+    "conhost.exe",
+    "steam.exe",
+    "steamwebhelper.exe",
+    "webhelper.exe"
+  };
+
+  private static boolean isCoreProcess(String normalizedData) {
+    for (String filter : CORE_PROCESS_FILTERS) {
+      if (normalizedData.contains(filter)) return true;
+    }
+    return false;
+  }
+
+  public static void protectAllWineProcesses() {
+    ArrayList<String> processes = listRunningWineProcesses();
+    for (String process : processes) {
+      setOomScoreAdj(Integer.parseInt(process), OOM_SCORE_ADJ_PROTECT);
+    }
+  }
+
   public static void pauseAllWineProcesses() {
+    File proc = new File("/proc");
     ArrayList<String> processes = listRunningWineProcesses();
     if (!processes.isEmpty()) Log.d(TAG, "Pausing session processes: " + processes);
     for (String process : processes) {
-      suspendProcess(Integer.parseInt(process));
+      int pid = Integer.parseInt(process);
+
+      // Check if this is a core infrastructure process
+      String statData = readProcStat(proc, process);
+      String cmdlineData = readProcCmdline(proc, process);
+      String normalized = (statData + " " + cmdlineData).toLowerCase();
+
+      // Make the OS never OOM-kill the paused process if possible.
+      setOomScoreAdj(pid, OOM_SCORE_ADJ_PROTECT);
+
+      if (isCoreProcess(normalized)) {
+        if (PRINT_DEBUG) Log.d(TAG, "Skipping SIGSTOP for core process: " + process + " (" + normalized + ")");
+        continue;
+      }
+
+      suspendProcess(pid);
     }
   }
 
@@ -177,7 +250,9 @@ public abstract class ProcessHelper {
     ArrayList<String> processes = listRunningWineProcesses();
     if (!processes.isEmpty()) Log.d(TAG, "Resuming session processes: " + processes);
     for (String process : processes) {
-      resumeProcess(Integer.parseInt(process));
+      int pid = Integer.parseInt(process);
+      resumeProcess(pid);
+      setOomScoreAdj(pid, OOM_SCORE_ADJ_DEFAULT);
     }
   }
 
@@ -211,9 +286,28 @@ public abstract class ProcessHelper {
       pb.directory(workingDir);
       pb.environment().putAll(EnvironmentManager.getEnvVars());
       if (debugCallbacks.isEmpty()) {
-        File nullFile = new File("/dev/null");
-        pb.redirectError(nullFile);
-        pb.redirectOutput(nullFile);
+        String wineDebug = EnvironmentManager.getEnvVars().get("WINEDEBUG");
+        boolean wineDebugActive = wineDebug != null
+                && !wineDebug.isEmpty()
+                && !wineDebug.equals("-all");
+        Log.i("ProcessHelper",
+                "exec wine-debug branch: WINEDEBUG='" + wineDebug + "' active=" + wineDebugActive
+                        + " cmd=" + command.substring(0, Math.min(80, command.length())));
+        if (wineDebugActive) {
+          File logFile = new File("/data/data/com.winnative.cmod/files/wine_stderr.log");
+          try {
+            if (logFile.exists() && logFile.length() > 16 * 1024 * 1024) logFile.delete();
+          } catch (Exception ignored) {}
+          pb.redirectErrorStream(true);
+          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+          Log.i("ProcessHelper", "exec wine-debug: redirecting stderr+stdout to " + logFile.getAbsolutePath());
+        } else {
+          File nullFile = new File("/dev/null");
+          pb.redirectError(nullFile);
+          pb.redirectOutput(nullFile);
+        }
+      } else {
+        Log.i("ProcessHelper", "exec: debugCallbacks non-empty (" + debugCallbacks.size() + "), routing wine stderr to logcat");
       }
       java.lang.Process process = pb.start();
       if (!debugCallbacks.isEmpty()) {

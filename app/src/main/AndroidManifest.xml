@@ -7,20 +7,22 @@
     <uses-feature
         android:glEsVersion="0x00020000"
         android:required="true" />
+    <!-- USB host for GameSir GCM vendor rumble (e.g. G8+); optional so non-OTG devices still install -->
     <uses-feature
         android:name="android.hardware.usb.host"
         android:required="false" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+    <!-- Bluetooth LE for GameSir GCM rumble (e.g. X5s) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
@@ -31,6 +33,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -133,6 +137,21 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Need for keep the container alive when the process is paused,
+             also required to prevent the system from killing a component download/install
+             is in flight. -->
+        <service
+            android:name="com.winlator.cmod.runtime.system.SessionKeepAliveService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|dataSync"
+            android:stopWithTask="false">
+
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Required to prevent the container from closing even when the process is paused."/>
+        </service>
+
         <!-- AppCompat per-app language backport storage (pre-Android 13) -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
@@ -183,6 +202,14 @@
         <provider
             android:name="com.google.android.gms.games.provider.PlayGamesInitProvider"
             tools:node="remove" />
+
+        <receiver
+            android:name="com.winlator.cmod.feature.stores.steam.service.HybridModeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.winnative.cmod.action.HYBRID_MODE" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

@@ -139,10 +139,6 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putFloat("cursor_speed", percent / 100f) }
                             refresh()
                         },
-                        onUseDRI3Changed = { checked ->
-                            preferences.edit { putBoolean("use_dri3", checked) }
-                            refresh()
-                        },
                         onCursorLockChanged = { checked ->
                             preferences.edit { putBoolean("cursor_lock", checked) }
                             refresh()
@@ -162,6 +158,14 @@ class OtherSettingsFragment : Fragment() {
                         },
                         onShareClipboardChanged = { checked ->
                             preferences.edit { putBoolean("share_android_clipboard", checked) }
+                            refresh()
+                        },
+                        onRecordPerformanceToFileChanged = { checked ->
+                            preferences.edit { putBoolean("hud_record_to_file", checked) }
+                            refresh()
+                        },
+                        onEnableBackgroundSessionChanged = { checked ->
+                            preferences.edit { putBoolean("enable_background_session", checked) }
                             refresh()
                         },
                         onRunSetupWizard = {
@@ -222,12 +226,13 @@ class OtherSettingsFragment : Fragment() {
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
                         .coerceIn(10, 200),
-                useDRI3 = preferences.getBoolean("use_dri3", true),
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
+                recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
+                enableBackgroundSession = preferences.getBoolean("enable_background_session", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
             )
     }
@@ -272,7 +277,15 @@ class OtherSettingsFragment : Fragment() {
 
                 override fun onFinished(success: Boolean) {
                     main.post {
-                        uiState = uiState.copy(imagefsInstallProgress = null)
+                        if (success) {
+                            uiState = uiState.copy(imagefsInstallProgress = 100)
+                            main.postDelayed(
+                                { uiState = uiState.copy(imagefsInstallProgress = null) },
+                                500L,
+                            )
+                        } else {
+                            uiState = uiState.copy(imagefsInstallProgress = null)
+                        }
                     }
                 }
             },

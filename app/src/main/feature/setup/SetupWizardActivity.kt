@@ -11,8 +11,11 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -111,30 +114,24 @@ import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.settings.DriversFragment
 import com.winlator.cmod.feature.settings.ContainerSettingsComposeDialog
 import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
-import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.runtime.content.ContentsManager
+import com.winlator.cmod.runtime.content.AdrenotoolsManager
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
-import com.winlator.cmod.shared.io.FileUtils
-import com.winlator.cmod.shared.io.TarCompressorUtils
-import com.winlator.cmod.shared.io.TarCompressorUtils.Type
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import com.winlator.cmod.shared.theme.WinNativeTheme
-import com.winlator.cmod.shared.util.OnExtractFileListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -190,7 +187,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         private const val KEY_LAST_CONTENT_PREFIX = "last_content_"
         private const val KEY_DEFAULT_JSON_CACHE = "default_json_cache"
         private const val DEFAULT_JSON_URL =
-            "https://github.com/Xnick417x/winlator-nightly-wcp/blob/main/default.json"
+            "https://github.com/nicholasx417/WinNative-Components/blob/main/default.json"
 
         @JvmStatic
         fun isSetupComplete(context: Context): Boolean = prefs(context).getBoolean(KEY_SETUP_COMPLETE, false)
@@ -253,7 +250,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
 
         @JvmStatic
-        fun getLastInstalledDriverId(context: Context): String = prefs(context).getString(KEY_LAST_DRIVER_ID, "") ?: ""
+        fun getLastInstalledDriverId(context: Context): String {
+            val lastId = prefs(context).getString(KEY_LAST_DRIVER_ID, "") ?: ""
+            if (lastId.isBlank() || lastId == "System") return ""
+
+            val manager = AdrenotoolsManager(context)
+            val installed = manager.enumarateInstalledDrivers()
+            if (installed.contains(lastId)) return lastId
+
+            return if (installed.isNotEmpty()) {
+                val first = installed[0]
+                recordInstalledDriver(context, first)
+                first
+            } else {
+                recordInstalledDriver(context, "")
+                ""
+            }
+        }
 
         @JvmStatic
         fun recordInstalledContent(
@@ -392,7 +405,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val fallbackType: ContentProfile.ContentType,
         val fallbackUrl: String,
         val fallbackNameHint: String,
-        val containerDisplayName: (ContentProfile) -> String,
         val persistContainerId: (Context, Int) -> Unit,
     )
 
@@ -415,50 +427,50 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             PackageSpec(
                 label = "DXVK 2.7.1 GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
                 nameHint = "dxvk-2.7.1-gplasync",
             ),
             PackageSpec(
                 label = "DXVK 2.7.1 ARM64EC GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
                 nameHint = "Dxvk-2.7.1-arm64ec-gplasync",
             ),
             PackageSpec(
-                label = "VKD3D Proton 3.0b",
+                label = "VKD3D Proton 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Vk3dk/Vk3dk-proton-3.0b.wcp",
-                nameHint = "Vk3dk-proton-3.0b",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-VKD3D/Vkd3d-proton-3.0.1.wcp",
+                nameHint = "Vkd3d-proton-3.0.1",
             ),
             PackageSpec(
-                label = "VKD3D ARM64EC 3.0b",
+                label = "VKD3D ARM64EC 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Arm64ec-Vk3dk/Vk3dk-arm64ec-3.0b.wcp",
-                nameHint = "Vk3dk-arm64ec-3.0b",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-arm64ec-VKD3D/Vkd3d-arm64ec-3.0.1.wcp",
+                nameHint = "Vk3dk-arm64ec-3.0.1",
             ),
             PackageSpec(
                 label = "DXVK 2.4.1 pre-reg",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
                 nameHint = "Dxvk-2.4.1-pre-reg",
             ),
             PackageSpec(
-                label = "FEX 2604",
+                label = "FEX 2605",
                 type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-FEX/FEX-2604.wcp",
-                nameHint = "FEX-2604",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-FEX/FEX-2605.wcp",
+                nameHint = "FEX-2605",
             ),
             PackageSpec(
-                label = "Box64 0.4.1 fix",
+                label = "Box64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-Box64/Box64-0.4.1-fix.wcp",
-                nameHint = "Box64-0.4.1-fix",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Box64/Box64-0.4.2.wcp",
+                nameHint = "Box64-0.4.2",
             ),
             PackageSpec(
-                label = "Wowbox64 0.4.1",
+                label = "Wowbox64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                url = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Stable-wowbox64/Wowbox64-0.4.1.wcp",
-                nameHint = "Wowbox64-0.4.1",
+                url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-wowbox64/Wowbox64-0.4.2.wcp",
+                nameHint = "Wowbox64-0.4.2",
             ),
         )
 
@@ -467,11 +479,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended x86-64",
             archToken = "x86_64",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
-            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/Wine/wine-9.20-x86_64.wcp",
+            fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
             fallbackNameHint = "wine-9.20-x86_64",
-            containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} x86-64"
-            },
             persistContainerId = ::saveDefaultX86ContainerId,
         )
 
@@ -499,17 +508,15 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             label = "Recommended ARM64EC",
             archToken = "arm64ec",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
-            fallbackUrl = "https://github.com/Xnick417x/winlator-nightly-wcp/releases/download/GameNative/Proton-10-arm64ec-coffincolors.wcp",
+            fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
             fallbackNameHint = "Proton-10-arm64ec-coffincolors",
-            containerDisplayName = { profile ->
-                "${runtimeDisplayLabel(profile)} ARM64EC"
-            },
             persistContainerId = ::saveDefaultArm64ContainerId,
         )
 
     private val storageGranted = mutableStateOf(false)
     private val notifGranted = mutableStateOf(false)
     private val notifDenied = mutableStateOf(false)
+    private val backgroundSessionEnabled = mutableStateOf(false)
 
     private val pageIndex = mutableIntStateOf(0)
     private val imageFsInstalling = mutableStateOf(false)
@@ -536,14 +543,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         ) {
             storageGranted.value = hasStoragePermission()
         }
-
     private val notifPermLauncher =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
             notifGranted.value = granted
             notifDenied.value = !granted
-            if (!granted && Build.VERSION.SDK_INT >= 33 &&
+            if (granted) {
+                backgroundSessionEnabled.value = true
+                prefs(this).edit().putBoolean("enable_background_session", true).apply()
+            } else if (Build.VERSION.SDK_INT >= 33 &&
                 !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
             ) {
                 openNotificationSettings()
@@ -561,6 +570,17 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.clearFlags(
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
+        )
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         returnToCaller = intent?.getBooleanExtra(EXTRA_RETURN_TO_CALLER, false) == true
         val forceShow = intent?.getBooleanExtra(EXTRA_FORCE_SHOW, false) == true
 
@@ -572,13 +592,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             refreshWizardState()
         }
 
-        if (!forceShow && isSetupComplete(this) && ImageFs.find(this).isValid) {
+        if (!forceShow && isSetupComplete(this) && ImageFs.find(this).isUpToDate) {
             launchApp()
             return
         }
 
         storageGranted.value = hasStoragePermission()
         notifGranted.value = hasNotificationPermissionSilently()
+        backgroundSessionEnabled.value = prefs(this).getBoolean("enable_background_session", false)
         refreshWizardState()
         loadAdvancedProfiles()
 
@@ -602,14 +623,17 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         storageGranted.value = hasStoragePermission()
         val notificationsEnabled = hasNotificationPermissionSilently()
         notifGranted.value = notificationsEnabled
-        if (notificationsEnabled) notifDenied.value = false
+        if (notificationsEnabled) {
+            notifDenied.value = false
+        }
+        backgroundSessionEnabled.value = prefs(this).getBoolean("enable_background_session", false)
         refreshWizardState()
         refreshRecommendedPackageCache()
     }
 
     private fun refreshWizardState() {
         val imageFs = ImageFs.find(this)
-        imageFsDone.value = imageFs.isValid && imageFs.version >= ImageFsInstaller.LATEST_VERSION.toInt()
+        imageFsDone.value = imageFs.isUpToDate
 
         val preferences = prefs(this)
         val containerManager = ContainerManager(this)
@@ -677,6 +701,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     }
 
     private fun requestNotifications() {
+        if (hasNotificationPermissionSilently()) {
+            backgroundSessionEnabled.value = true
+            prefs(this).edit().putBoolean("enable_background_session", true).apply()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= 33 && applicationInfo.targetSdkVersion >= 33) {
             if (notifDenied.value) {
                 openNotificationSettings()
@@ -712,96 +742,43 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         wizardError.value = null
         imageFsInstalling.value = true
         imageFsProgress.intValue = 0
-        val imageFs = ImageFs.find(this)
-        val rootDir = imageFs.rootDir
 
-        Executors.newSingleThreadExecutor().execute {
-            try {
-                clearRootDir(rootDir)
+        val keepAliveTag = "imagefs_install"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
 
-                val compressionRatio = 22
-                var contentLength = 0L
-                val assetSize = FileUtils.getSize(this, "imagefs.txz")
-                contentLength +=
-                    if (assetSize > 0) {
-                        (assetSize * (100.0f / compressionRatio)).toLong()
-                    } else {
-                        800_000_000L
-                    }
-
-                try {
-                    val versions = resources.getStringArray(R.array.wine_entries)
-                    versions.forEach { version ->
-                        val versionSize = FileUtils.getSize(this, "$version.txz")
-                        contentLength +=
-                            if (versionSize > 0) {
-                                (versionSize * (100.0f / compressionRatio)).toLong()
-                            } else {
-                                100_000_000L
-                            }
-                    }
-                } catch (_: Exception) {
-                }
-
-                val totalSize = AtomicLong()
-                val listener =
-                    OnExtractFileListener { file, size ->
-                        if (size > 0) {
-                            val total = totalSize.addAndGet(size)
-                            val percent = ((total.toFloat() / contentLength) * 100f).toInt().coerceIn(0, 100)
-                            runOnUiThread { imageFsProgress.intValue = percent }
-                        }
-                        file
-                    }
-
-                val success =
-                    TarCompressorUtils.extract(
-                        Type.XZ,
-                        this,
-                        "imagefs.txz",
-                        rootDir,
-                        listener,
-                    )
-
-                if (!success) {
+        ImageFsInstaller.installFromAssets(
+            this,
+            object : ImageFsInstaller.ProgressListener {
+                override fun onProgress(percent: Int) {
                     runOnUiThread {
-                        imageFsInstalling.value = false
-                        wizardError.value = "ImageFS extraction failed. Check available storage and try again."
+                        imageFsProgress.intValue = percent.coerceIn(0, 100)
                     }
-                    return@execute
                 }
 
-                try {
-                    resources.getStringArray(R.array.wine_entries).forEach { version ->
-                        val outFile = File(rootDir, "/opt/$version")
-                        outFile.mkdirs()
-                        TarCompressorUtils.extract(Type.XZ, this, "$version.txz", outFile, listener)
+                override fun onFinished(success: Boolean) {
+                    runOnUiThread {
+                        imageFsProgress.intValue = if (success) 100 else imageFsProgress.intValue
+                        if (success) {
+                            window.decorView.postDelayed(
+                                {
+                                    imageFsInstalling.value = false
+                                    imageFsDone.value = true
+                                    refreshWizardState()
+                                },
+                                500L,
+                            )
+                        } else {
+                            imageFsInstalling.value = false
+                            wizardError.value = "ImageFS install failed. Check available storage and try again."
+                        }
+                        com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                            applicationContext,
+                            keepAliveTag,
+                        )
                     }
-                } catch (_: Exception) {
                 }
-
-                try {
-                    val manager = AdrenotoolsManager(this)
-                    resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).forEach { driver ->
-                        manager.extractDriverFromResources(driver)
-                    }
-                } catch (_: Exception) {
-                }
-
-                imageFs.createImgVersionFile(ImageFsInstaller.LATEST_VERSION.toInt())
-                runOnUiThread {
-                    imageFsProgress.intValue = 100
-                    imageFsInstalling.value = false
-                    imageFsDone.value = true
-                    refreshWizardState()
-                }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    imageFsInstalling.value = false
-                    wizardError.value = "ImageFS install failed: ${e.message}"
-                }
-            }
-        }
+            },
+        )
     }
 
     private suspend fun downloadAndInstallPackage(
@@ -809,14 +786,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         index: Int,
         total: Int,
     ): ContentProfile? {
-        transferState.value =
+        val title = getString(R.string.setup_wizard_recommended_components)
+        updateTransferState(
             TransferState(
-                title = getString(R.string.setup_wizard_recommended_components),
+                title = title,
                 detail = getString(R.string.setup_wizard_downloading, spec.label),
                 currentIndex = index + 1,
                 total = total,
                 progress = 0f,
-            )
+            ),
+        )
 
         val downloaded =
             downloadFileToCache(
@@ -824,27 +803,30 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 url = spec.url,
                 currentIndex = index + 1,
                 total = total,
+                title = title,
             ) ?: return null
 
         // Show 100% briefly so the bar visually completes before switching
-        transferState.value =
+        updateTransferState(
             TransferState(
-                title = getString(R.string.setup_wizard_recommended_components),
+                title = title,
                 detail = getString(R.string.setup_wizard_downloading, spec.label),
                 currentIndex = index + 1,
                 total = total,
                 progress = 1f,
-            )
+            ),
+        )
         kotlinx.coroutines.delay(500)
 
-        transferState.value =
+        updateTransferState(
             TransferState(
-                title = getString(R.string.setup_wizard_recommended_components),
+                title = title,
                 detail = getString(R.string.setup_wizard_installing_package, spec.label),
                 currentIndex = index + 1,
                 total = total,
                 progress = null,
-            )
+            ),
+        )
 
         val profile = installDownloadedPackage(downloaded, spec.url)
         downloaded.delete()
@@ -856,15 +838,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         url: String,
         currentIndex: Int,
         total: Int,
+        title: String = label,
     ): File? =
         withContext(Dispatchers.IO) {
             val sanitized = label.lowercase().replace(Regex("[^a-z0-9]+"), "_")
             val output = File(cacheDir, "wizard_${System.currentTimeMillis()}_$sanitized.wcp")
             val listener =
                 Downloader.DownloadListener { downloadedBytes, totalBytes ->
-                    transferState.value =
+                    updateTransferState(
                         TransferState(
-                            title = transferState.value?.title ?: label,
+                            title = title,
                             detail = getString(R.string.setup_wizard_downloading, label),
                             currentIndex = currentIndex,
                             total = total,
@@ -874,11 +857,36 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 } else {
                                     null
                                 },
-                        )
+                        ),
+                    )
                 }
             val success = Downloader.downloadFileWinNativeFirst(url, output, listener)
             if (success) output else null
         }
+
+    private fun updateTransferState(next: TransferState?) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            transferState.value = next
+        } else {
+            runOnUiThread { transferState.value = next }
+        }
+    }
+
+    private fun updateWizardError(message: String?) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            wizardError.value = message
+        } else {
+            runOnUiThread { wizardError.value = message }
+        }
+    }
+
+    private fun updateRecommendedUrls(urls: Set<String>) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            recommendedUrlsState.value = urls
+        } else {
+            runOnUiThread { recommendedUrlsState.value = urls }
+        }
+    }
 
     private fun installDownloadedPackage(
         file: File,
@@ -943,36 +951,59 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         return if (failed) null else installedProfile
     }
 
-    private fun resolveRecommendedComponentSpecs(): List<PackageSpec> {
-        val componentTypes =
-            setOf(
-                ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-            )
-        val remoteSpecs =
-            fetchRecommendedPackages()
-                .filter { it.type in componentTypes }
-                .map {
-                    PackageSpec(
-                        label = it.verName,
-                        type = it.type,
-                        url = it.remoteUrl,
-                        nameHint = it.verName,
-                    )
+    private fun loadAdvancedProfiles() {
+        if (advancedProfiles.isNotEmpty()) return
+        lifecycleScope.launch {
+            val profiles =
+                withContext(Dispatchers.IO) {
+                    // 1. Fetch recommended (default.json)
+                    val recommended = fetchRecommendedPackages()
+
+                    // 2. Fetch full catalog (content.json)
+                    val fullCatalog =
+                        parseRecommendedPackages(
+                            Downloader.downloadString(ContentsManager.REMOTE_PROFILES),
+                        )
+
+                    // 3. Merge: start with recommended, then add any full catalog entries not already present
+                    val seen = recommended.map { it.remoteUrl }.toMutableSet()
+                    val merged = recommended.toMutableList()
+                    for (spec in fullCatalog) {
+                        if (spec.remoteUrl !in seen) {
+                            seen.add(spec.remoteUrl)
+                            merged.add(spec)
+                        }
+                    }
+
+                    // 4. Emergency Fallback: If everything failed and we have no profiles, use hardcoded ones
+                    if (merged.isEmpty()) {
+                        merged.addAll(getFallbackRemoteSpecs())
+                    }
+                    merged
                 }
-        return remoteSpecs.ifEmpty { recommendedComponents }
+            advancedProfiles.clear()
+            advancedProfiles.addAll(profiles)
+            refreshAdvancedInstalledSet()
+        }
     }
+
+    private fun getFallbackRemoteSpecs(): List<RemotePackageSpec> =
+        buildList {
+            recommendedComponents.forEach {
+                add(RemotePackageSpec(it.type, it.label, it.url))
+            }
+            add(RemotePackageSpec(x86ProtonSpec.fallbackType, x86ProtonSpec.label, x86ProtonSpec.fallbackUrl))
+            add(RemotePackageSpec(arm64ProtonSpec.fallbackType, arm64ProtonSpec.label, arm64ProtonSpec.fallbackUrl))
+        }
 
     private fun resolveRecommendedRuntimeSpec(spec: RuntimeSpec): PackageSpec {
         val resolved =
-            fetchRecommendedPackages().firstOrNull {
-                (
-                    it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                        it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
-                ) &&
+            advancedProfiles.firstOrNull {
+                isRecommendedSpec(it) &&
+                    (
+                        it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
+                            it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
+                    ) &&
                     it.verName.contains(spec.archToken, ignoreCase = true)
             }
 
@@ -999,13 +1030,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             prefs(this).edit().putString(KEY_DEFAULT_JSON_CACHE, json).apply()
             val specs = parseRecommendedPackages(json)
             if (specs.isNotEmpty()) {
-                recommendedUrlsState.value = specs.map { it.remoteUrl }.toSet()
+                updateRecommendedUrls(specs.map { it.remoteUrl }.toSet())
             }
             return specs
         }
         val cached = getCachedRecommendedPackages()
         if (cached.isNotEmpty()) {
-            recommendedUrlsState.value = cached.map { it.remoteUrl }.toSet()
+            updateRecommendedUrls(cached.map { it.remoteUrl }.toSet())
         }
         return cached
     }
@@ -1068,178 +1099,20 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         desiredName: String,
     ): Container {
         val containerManager = ContainerManager(this)
-        containerManager.containers.firstOrNull { it.name == desiredName }?.let {
-            val resolvedWineVersion = ContentsManager.getEntryName(profile)
-            if (it.wineVersion != resolvedWineVersion) {
-                it.setWineVersion(resolvedWineVersion)
-                it.putExtra("wineprefixNeedsUpdate", "t")
-                it.saveData()
-            }
-            applyRecommendedContainerDefaults(it)
-            return it
-        }
-
         val contentsManager = ContentsManager(this)
         contentsManager.syncContents()
-        val data =
-            JSONObject().apply {
-                put("name", desiredName)
-                put("wineVersion", ContentsManager.getEntryName(profile))
-            }
 
-        return requireNotNull(containerManager.createContainer(data, contentsManager)) {
-            "Unable to create container for ${profile.verName}"
-        }.also {
-            applyRecommendedContainerDefaults(it)
-        }
-    }
-
-    private fun applyRecommendedContainerDefaults(container: Container) {
-        val contentsManager = ContentsManager(this)
-        contentsManager.syncContents()
-        val wineInfo = WineInfo.fromIdentifier(this, contentsManager, container.wineVersion)
-        val isArm64 = wineInfo.isArm64EC
-        val normalizedDrives =
-            com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
+        return requireNotNull(
+            ContainerCreation.getOrCreateContainerForProfile(
                 this,
-                container.drives ?: Container.DEFAULT_DRIVES,
-            )
-
-        container.setGraphicsDriver(Container.DEFAULT_GRAPHICS_DRIVER)
-        container.setCPUList(Container.getFallbackCPUList())
-        container.setCPUListWoW64(Container.getFallbackCPUListWoW64())
-        container.setDrives(normalizedDrives)
-        container.setGraphicsDriverConfig(
-            replaceDelimitedConfigValue(
-                Container.DEFAULT_GRAPHICSDRIVERCONFIG,
-                ';',
-                "version",
-                resolvePreferredDriverVersion(),
+                containerManager,
+                contentsManager,
+                profile,
+                desiredName,
             ),
-        )
-        container.setDXWrapper(Container.DEFAULT_DXWRAPPER)
-        container.setDXWrapperConfig(
-            replaceDelimitedConfigValue(
-                replaceDelimitedConfigValue(
-                    Container.DEFAULT_DXWRAPPERCONFIG,
-                    ',',
-                    "version",
-                    resolvePreferredContentVersion(
-                        contentsManager,
-                        ContentProfile.ContentType.CONTENT_TYPE_DXVK,
-                        "",
-                        if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                        if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
-                    ),
-                ),
-                ',',
-                "vkd3dVersion",
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
-                    "None",
-                    if (isArm64) Regex("arm64ec", RegexOption.IGNORE_CASE) else null,
-                    if (isArm64) null else Regex("arm64ec", RegexOption.IGNORE_CASE),
-                ),
-            ),
-        )
-
-        if (isArm64) {
-            container.setEmulator("fexcore")
-            container.setEmulator64("fexcore")
-            container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
-                    "",
-                ),
-            )
-            container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    "",
-                ),
-            )
-        } else {
-            container.setEmulator("box64")
-            container.setEmulator64("box64")
-            container.setBox64Version(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_BOX64,
-                    "",
-                ),
-            )
-            container.setFEXCoreVersion(
-                resolvePreferredContentVersion(
-                    contentsManager,
-                    ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
-                    "",
-                ),
-            )
+        ) {
+            "Unable to create container for ${profile.verName}"
         }
-
-        container.saveData()
-    }
-
-    private fun resolvePreferredDriverVersion(): String {
-        val adrenotoolsManager = AdrenotoolsManager(this)
-        val installedDrivers = adrenotoolsManager.enumarateInstalledDrivers()
-        val preferredDriver = getLastInstalledDriverId(this)
-        if (preferredDriver.isNotBlank() && installedDrivers.contains(preferredDriver)) {
-            return preferredDriver
-        }
-        return "System"
-    }
-
-    private fun resolvePreferredContentVersion(
-        manager: ContentsManager,
-        type: ContentProfile.ContentType,
-        fallback: String,
-        includePattern: Regex? = null,
-        excludePattern: Regex? = null,
-    ): String {
-        val preferenceKey = "last_content_${type.toString().lowercase()}"
-        val preferred = prefs(this).getString(preferenceKey, "") ?: ""
-        val installedProfiles = manager.getProfiles(type).orEmpty().filter { it.isInstalled }
-        val matchingProfiles =
-            installedProfiles
-                .filter { profile ->
-                    val versionName = profile.verName
-                    (includePattern == null || includePattern.containsMatchIn(versionName)) &&
-                        (excludePattern == null || !excludePattern.containsMatchIn(versionName))
-                }.ifEmpty { installedProfiles }
-
-        if (preferred.isNotBlank() && matchingProfiles.any { contentVersionIdentifier(it) == preferred }) {
-            return preferred
-        }
-
-        val newestInstalled =
-            matchingProfiles.maxWithOrNull(
-                compareBy<ContentProfile> { it.verCode }.thenBy { it.verName.lowercase() },
-            )
-        return newestInstalled?.let(::contentVersionIdentifier) ?: fallback
-    }
-
-    private fun replaceDelimitedConfigValue(
-        config: String,
-        delimiter: Char,
-        key: String,
-        value: String,
-    ): String {
-        val parts = config.split(delimiter).toMutableList()
-        var replaced = false
-        for (index in parts.indices) {
-            if (parts[index].startsWith("$key=")) {
-                parts[index] = "$key=$value"
-                replaced = true
-            }
-        }
-        if (!replaced) {
-            parts += "$key=$value"
-        }
-        return parts.joinToString(delimiter.toString())
     }
 
     private fun isPackageInstalled(
@@ -1256,35 +1129,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 supportFragmentManager,
                 SetupWizardDriversDialogFragment.TAG,
             )
-        }
-    }
-
-    private fun loadAdvancedProfiles() {
-        if (advancedProfiles.isNotEmpty()) return
-        lifecycleScope.launch {
-            val profiles =
-                withContext(Dispatchers.IO) {
-                    // Fetch recommended (default.json) for marking recommendations
-                    val recommended = fetchRecommendedPackages()
-                    // Fetch full catalog (content.json) for all categories
-                    val fullCatalog =
-                        parseRecommendedPackages(
-                            Downloader.downloadString(ContentsManager.REMOTE_PROFILES),
-                        )
-                    // Merge: start with recommended, then add any full catalog entries not already present
-                    val seen = recommended.map { it.remoteUrl }.toMutableSet()
-                    val merged = recommended.toMutableList()
-                    for (spec in fullCatalog) {
-                        if (spec.remoteUrl !in seen) {
-                            seen.add(spec.remoteUrl)
-                            merged.add(spec)
-                        }
-                    }
-                    merged
-                }
-            advancedProfiles.clear()
-            advancedProfiles.addAll(profiles)
-            refreshAdvancedInstalledSet()
         }
     }
 
@@ -1319,139 +1163,164 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 .filter { isRecommendedSpec(it) && it.verName !in advancedInstalledSet }
         if (pending.isEmpty()) return
 
+        val keepAliveTag = "install_recommended_${System.currentTimeMillis()}"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         lifecycleScope.launch {
-            wizardError.value = null
-            for ((index, spec) in pending.withIndex()) {
-                val profile =
-                    withContext(Dispatchers.IO) {
-                        try {
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = 0f,
+            updateWizardError(null)
+            try {
+                for ((index, spec) in pending.withIndex()) {
+                    val title = getString(R.string.setup_wizard_recommended_components)
+                    val profile =
+                        withContext(Dispatchers.IO) {
+                            try {
+                                updateTransferState(
+                                    TransferState(
+                                        title = title,
+                                        detail = getString(R.string.setup_wizard_downloading, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = 0f,
+                                    ),
                                 )
-                            val downloaded =
-                                downloadFileToCache(
-                                    label = spec.verName,
-                                    url = spec.remoteUrl,
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                )
-                            if (downloaded == null) return@withContext null
+                                val downloaded =
+                                    downloadFileToCache(
+                                        label = spec.verName,
+                                        url = spec.remoteUrl,
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        title = title,
+                                    )
+                                if (downloaded == null) return@withContext null
 
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = 1f,
+                                updateTransferState(
+                                    TransferState(
+                                        title = title,
+                                        detail = getString(R.string.setup_wizard_downloading, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = 1f,
+                                    ),
                                 )
-                            kotlinx.coroutines.delay(500)
+                                kotlinx.coroutines.delay(500)
 
-                            transferState.value =
-                                TransferState(
-                                    title = getString(R.string.setup_wizard_recommended_components),
-                                    detail = getString(R.string.setup_wizard_installing_package, spec.verName),
-                                    currentIndex = index + 1,
-                                    total = pending.size,
-                                    progress = null,
+                                updateTransferState(
+                                    TransferState(
+                                        title = title,
+                                        detail = getString(R.string.setup_wizard_installing_package, spec.verName),
+                                        currentIndex = index + 1,
+                                        total = pending.size,
+                                        progress = null,
+                                    ),
                                 )
 
-                            val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
-                            downloaded.delete()
-                            if (installed == null) {
-                                wizardError.value =
-                                    lastInstallFailureMessage
-                                        ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
+                                val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
+                                downloaded.delete()
+                                if (installed == null) {
+                                    updateWizardError(
+                                        lastInstallFailureMessage
+                                            ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName),
+                                    )
+                                }
+                                installed
+                            } catch (e: Exception) {
+                                updateWizardError(
+                                    getString(
+                                        R.string.setup_wizard_install_failed_reason,
+                                        e.message ?: getString(R.string.common_ui_unknown_error),
+                                    ),
+                                )
+                                null
                             }
-                            installed
-                        } catch (e: Exception) {
-                            wizardError.value =
-                                getString(
-                                    R.string.setup_wizard_install_failed_reason,
-                                    e.message ?: getString(R.string.common_ui_unknown_error),
-                                )
-                            null
                         }
+                    if (profile != null) {
+                        if (spec.verName !in advancedInstalledSet) {
+                            advancedInstalledSet.add(spec.verName)
+                        }
+                    } else {
+                        break
                     }
-                if (profile != null) {
-                    if (spec.verName !in advancedInstalledSet) {
-                        advancedInstalledSet.add(spec.verName)
-                    }
-                } else {
-                    break
                 }
+                updateTransferState(null)
+                refreshAdvancedInstalledSet()
+                refreshWizardState()
+            } finally {
+                com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                    applicationContext,
+                    keepAliveTag,
+                )
             }
-            transferState.value = null
-            refreshAdvancedInstalledSet()
-            refreshWizardState()
         }
     }
 
     private fun installAdvancedComponent(spec: RemotePackageSpec) {
         if (transferState.value != null) return
+        val keepAliveTag = "install_advanced_${spec.remoteUrl}"
+        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         lifecycleScope.launch {
             wizardError.value = null
+            val title = spec.verName
             val profile =
                 withContext(Dispatchers.IO) {
                     try {
-                        transferState.value =
+                        updateTransferState(
                             TransferState(
-                                title = spec.verName,
+                                title = title,
                                 detail = getString(R.string.downloads_queue_preparing_download),
                                 currentIndex = 1,
                                 total = 1,
-                            )
+                            ),
+                        )
                         val downloaded =
                             downloadFileToCache(
                                 label = spec.verName,
                                 url = spec.remoteUrl,
                                 currentIndex = 1,
                                 total = 1,
+                                title = title,
                             )
                         if (downloaded == null) return@withContext null
 
                         // Show 100% briefly so the bar visually completes
-                        transferState.value =
+                        updateTransferState(
                             TransferState(
-                                title = spec.verName,
+                                title = title,
                                 detail = getString(R.string.setup_wizard_downloading, spec.verName),
                                 currentIndex = 1,
                                 total = 1,
                                 progress = 1f,
-                            )
+                            ),
+                        )
                         kotlinx.coroutines.delay(500)
 
-                        transferState.value =
+                        updateTransferState(
                             TransferState(
-                                title = spec.verName,
+                                title = title,
                                 detail = getString(R.string.setup_wizard_installing),
                                 currentIndex = 1,
                                 total = 1,
                                 progress = null,
-                            )
+                            ),
+                        )
 
                         val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
                         downloaded.delete()
                         if (installed == null) {
-                            wizardError.value =
+                            updateWizardError(
                                 lastInstallFailureMessage
-                                    ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName)
+                                    ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName),
+                            )
                         }
                         installed
                     } catch (e: Exception) {
-                        wizardError.value =
+                        updateWizardError(
                             getString(
                                 R.string.setup_wizard_install_failed_reason,
                                 e.message ?: getString(R.string.common_ui_unknown_error),
-                            )
+                            ),
+                        )
                         null
                     } finally {
-                        transferState.value = null
+                        updateTransferState(null)
                     }
                 }
             if (profile != null) {
@@ -1462,6 +1331,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 refreshAdvancedInstalledSet()
                 refreshWizardState()
             }
+            com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
+                applicationContext,
+                keepAliveTag,
+            )
         }
     }
 
@@ -1491,17 +1364,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             finish()
         } else {
             launchApp()
-        }
-    }
-
-    private fun clearRootDir(rootDir: File) {
-        if (rootDir.isDirectory) {
-            rootDir.listFiles()?.forEach { file ->
-                if (file.isDirectory && file.name == "home") return@forEach
-                FileUtils.delete(file)
-            }
-        } else {
-            rootDir.mkdirs()
         }
     }
 
@@ -1728,7 +1590,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         .windowInsetsPadding(WindowInsets.safeDrawing)
                         .padding(horizontal = 18.dp, vertical = 12.dp),
             ) {
-                // ---- Header ----
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1784,7 +1645,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 )
                 Spacer(Modifier.height(12.dp))
 
-                // ---- Content ----
                 BoxWithConstraints(
                     modifier =
                         Modifier
@@ -1845,7 +1705,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 if (transferState.value == null) {
                     Spacer(Modifier.height(10.dp))
 
-                    // ---- Action bar ----
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2164,10 +2023,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier = mod,
                 title = stringResource(R.string.common_ui_notifications),
                 subtitle = stringResource(R.string.common_ui_optional),
-                completed = notifGranted.value,
+                completed = backgroundSessionEnabled.value,
                 buttonLabel =
                     when {
-                        notifGranted.value -> stringResource(R.string.setup_wizard_granted)
+                        backgroundSessionEnabled.value -> stringResource(R.string.setup_wizard_granted)
                         notifDenied.value -> stringResource(R.string.setup_wizard_denied)
                         else -> stringResource(R.string.setup_wizard_allow)
                     },
@@ -2250,7 +2109,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val glassBorder = Color.White.copy(alpha = SetupGlassBorderAlpha)
         val mutedDot = Color(0xFF4A5568)
 
-        // Build tab keys/labels
         val tabs =
             buildList {
                 add(TabInfo("recommended", recommendedLabel, turquoise, highlight = true))
@@ -2747,7 +2605,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         compact: Boolean = false,
     ) {
         val entryName = ContentsManager.getEntryName(profile)
-        val displayName = runtimeDisplayLabel(profile)
+        val displayName = ContainerCreation.displayNameForProfile(profile)
         val isArm64 = profile.verName.contains("arm64ec", ignoreCase = true)
         val archLabel = if (isArm64) "ARM64EC" else "x86-64"
 
@@ -2832,7 +2690,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                         }
                                         c
                                     } catch (e: Exception) {
-                                        wizardError.value = "Container creation failed: ${e.message}"
+                                        updateWizardError("Container creation failed: ${e.message}")
                                         null
                                     }
                                 }
@@ -3045,20 +2903,4 @@ private fun resolveJsonDownloadUrl(url: String): String {
     }
 
     return "https://raw.githubusercontent.com/$ownerRepo/$branch/$filePath"
-}
-
-private fun runtimeDisplayLabel(profile: ContentProfile): String {
-    val prefix =
-        when (profile.type) {
-            ContentProfile.ContentType.CONTENT_TYPE_WINE -> "Wine"
-            ContentProfile.ContentType.CONTENT_TYPE_PROTON -> "Proton"
-            else -> profile.type.toString()
-        }
-    val version =
-        Regex("(?i)(?:wine|proton)-([0-9]+(?:\\.[0-9]+)?)")
-            .find(profile.verName)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?: profile.verName
-    return "$prefix $version"
 }

@@ -31,7 +31,8 @@
     <string name="common_ui_icon">Icone</string>
     <string name="common_ui_duplicate">Duplicar</string>
     <string name="common_ui_credits_and_third_party_apps">Creditos e aplicativos de terceiros</string>
-    <string name="common_ui_loading">Carregando…</string>
+    <string name="common_ui_loading">Carregando</string>
+    <string name="common_ui_exporting">Exportando</string>
     <string name="common_ui_enable">Ativar</string>
     <string name="common_ui_disable">Desativar</string>
     <string name="common_ui_force">Forcar</string>
@@ -42,7 +43,7 @@
     <string name="common_ui_height">Altura</string>
     <string name="common_ui_open_file">Abrir Arquivo</string>
     <string name="common_ui_download_file">Baixar Arquivo</string>
-    <string name="common_ui_downloading_file">Baixando Arquivo...</string>
+    <string name="common_ui_downloading_file">Baixando Arquivo</string>
     <string name="common_ui_browse">Navegar</string>
     <string name="common_ui_options">Opcoes</string>
     <string name="common_ui_export">Exportar</string>
@@ -105,12 +106,24 @@
     <string name="common_ui_application">Aplicativo</string>
     <string name="common_ui_check">Verificar</string>
     <string name="store_game_check_for_update">Verificar atualização</string>
-    <string name="store_game_checking_for_update">Verificando...</string>
+    <string name="store_game_checking_for_update">Verificando</string>
     <string name="store_game_download_update">Baixar atualização</string>
     <string name="store_game_no_update_available">Nenhuma atualização disponível</string>
     <string name="store_game_update_available">Atualização disponível</string>
     <string name="store_game_update_check_failed">Falha ao verificar atualização</string>
     <string name="store_game_update">Atualizar</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Verificar arquivos</string>
+    <string name="store_game_verify_started">Verificando %1$s — confira a aba Downloads</string>
+    <string name="store_game_steam_options">Opções do Steam</string>
+    <string name="store_game_verify_complete">Verificação de arquivos concluída</string>
+    <string name="store_game_verify_failed_notice">Falha na verificação de arquivos</string>
+    <string name="store_game_progress_background_hint">Você pode fechar isto — continuará em segundo plano. Confira a aba Downloads quando quiser.</string>
+    <string name="store_game_checking_updates">Verificando atualizações</string>
+    <string name="store_game_no_updates_notice">Nenhuma atualização disponível</string>
+    <string name="store_game_update_complete">Atualização concluída</string>
+    <string name="store_game_update_failed_notice">Falha na atualização</string>
+    <string name="store_game_update_check_failed_notice">Falha ao verificar atualizações</string>
     <string name="store_game_download_already_active">Este jogo já está sendo baixado. Cancele o download atual antes de adicionar DLC.</string>
     <string name="common_ui_select">Selecionar</string>
     <string name="common_ui_select_folder">Selecionar pasta</string>
@@ -170,9 +183,14 @@
     <string name="library_games_no_games_hub">Nenhum Jogo Instalado\nClique para abrir o Backend do Winlator</string>
     <string name="library_games_installed_badge">INSTALADO</string>
     <string name="library_games_unknown_game">Jogo Desconhecido</string>
-    <string name="library_games_layouts_header">LAYOUTS</string>
+    <string name="library_games_layouts_header">LAYOUTS DA BIBLIOTECA</string>
     <string name="library_games_layout_carousel">Carrossel</string>
     <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">OPÇÕES DE VISUALIZAÇÃO</string>
+    <string name="library_games_immersive_mode">Modo imersivo</string>
+    <string name="library_games_immersive_mode_description">Usar a arte do jogo em foco como plano de fundo</string>
+    <string name="library_games_immersive_blur">Desfocar o plano de fundo</string>
+    <string name="library_games_immersive_blur_description">Aplicar um efeito de desfoque ao plano de fundo imersivo</string>
     <string name="library_games_custom_game">Jogo Personalizado</string>
     <string name="library_games_play">Jogar</string>
     <string name="library_games_add_custom_game">Adicionar Jogo Personalizado</string>
@@ -239,9 +257,11 @@
     <!-- Containers > List -->
     <string name="containers_list_new">Novo Container</string>
     <string name="containers_list_edit">Editar Container</string>
-    <string name="containers_list_creating">Criando Container…</string>
-    <string name="containers_list_removing">Removendo Container…</string>
-    <string name="containers_list_duplicating">Duplicando Container…</string>
+    <string name="containers_list_creating">Criando Container</string>
+    <string name="containers_list_removing">Removendo Container</string>
+    <string name="containers_list_duplicating">Duplicando Container</string>
+    <string name="containers_list_remove_title">Remover container</string>
+    <string name="containers_list_duplicate_title">Duplicar container</string>
     <string name="containers_list_confirm_remove">Deseja remover este container?</string>
     <string name="containers_list_confirm_duplicate">Deseja duplicar este container?</string>
 
@@ -267,17 +287,6 @@
     <string name="shortcuts_properties_disable_xinput">Desativar Xinput (Para Controle Exclusivo de M/T)</string>
     <string name="shortcuts_properties_exclusive_input">Entrada Exclusiva</string>
     <string name="shortcuts_properties_custom_game_settings">Configuracoes Personalizadas do Jogo</string>
-    <string name="shortcuts_properties_use_cold_client">Usar ColdClient Launcher</string>
-    <string name="shortcuts_properties_use_cold_client_description">ColdClient é a forma preferida de lidar com emulação Steam e DRM. Ele corrige o DRM em tempo de execução sem modificar os arquivos do jogo.</string>
-    <string name="shortcuts_properties_unpack_files">DRM Legado</string>
-    <string name="shortcuts_properties_unpack_files_description">Remove o DRM SteamStub do exe no disco. Ative apenas se o jogo não iniciar sem isso. O patcher de runtime do ColdClient lida com a maioria dos jogos automaticamente.</string>
-    <string name="shortcuts_properties_force_dlc">Forcar DLC</string>
-    <string name="shortcuts_properties_force_dlc_description">Ative apenas se as DLCs nao forem detectadas ou saves com DLC nao estiverem funcionando</string>
-    <string name="shortcuts_properties_launch_steam_client_beta">Iniciar Cliente Steam (Beta)</string>
-    <string name="shortcuts_properties_launch_steam_client_description">Inicia o cliente real do Steam no Wine\nRequer uma conta Steam e pode reduzir o desempenho\nNem todos os jogos funcionam</string>
-    <string name="shortcuts_properties_steam_type">Desempenho do cliente Steam</string>
-    <string name="steam_section_emulator">Emulador Steam (Goldberg)</string>
-    <string name="steam_section_real_client">Cliente Steam real</string>
     <string name="shortcuts_properties_use_steam_input">Usar Entrada Steam</string>
     <string name="shortcuts_properties_steam_offline_mode">Modo Offline do Steam</string>
     <string name="shortcuts_properties_reset">Redefinir Propriedades</string>
@@ -504,6 +513,8 @@
     <string name="container_graphics_bcn_emulation">Emulacao BCn</string>
     <string name="container_graphics_bcn_emulation_type">Tipo de Emulacao BCn</string>
     <string name="container_graphics_bcn_emulation_cache">Cache de Emulacao BCn</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Super-resolução para jogos 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Nitidez das bordas</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Deseja duplicar esta predefinicao?</string>
     <string name="container_presets_confirm_remove">Deseja remover esta predefinicao?</string>
@@ -523,7 +534,6 @@
 
     <!-- Session > XServer -->
     <string name="session_xserver_title">XServer</string>
-    <string name="session_xserver_use_dri3_extension">Usar extensao DRI3</string>
     <string name="session_xserver_simulate_touch_screen">Simular tela sensivel ao toque</string>
     <string name="session_xserver_preferences_button_text">   PREFERENCIAS   </string>
     <string name="session_xserver_extra_keys_config_desc">Aqui voce pode definir o valor da variavel extra-keys como no aplicativo Termux (leia <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">isto</a>) e mais \n
@@ -539,12 +549,6 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_xserver_pref_kbd">Teclado</string>
     <string name="session_xserver_pref_other">Outro</string>
     <string name="session_xserver_pref_version">Versao</string>
-    <string name="session_xserver_use_dri3_description">Desativar pode corrigir falhas graficas em alguns dispositivos</string>
-    <string name="session_xserver_native_rendering">Renderizacao Nativa</string>
-    <string name="session_xserver_native_rendering_enabled">Renderizacao por hardware DRI3</string>
-    <string name="session_xserver_native_rendering_disabled">Fallback de WSI por software</string>
-    <string name="session_xserver_native_rendering_enabled_toast">Renderizacao nativa ativada (tera efeito no proximo inicio)</string>
-    <string name="session_xserver_native_rendering_disabled_toast">Renderizacao nativa desativada (tera efeito no proximo inicio)</string>
     <string name="session_xserver_notification_description">Mensagens do XServer do WinNative</string>
     <string name="session_xserver_notification_content">WinNative está em execução, não feche ou deslize esta notificação</string>
 
@@ -564,6 +568,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_exit_subtitle">Fechar a sessao em execucao</string>
     <string name="session_drawer_touchscreen_overlay">Sobreposicao da Tela Sensivel ao Toque</string>
     <string name="session_drawer_resume">Retomar</string>
+    <string name="session_drawer_retry">Tentar novamente</string>
+    <string name="downloads_no_internet">Sem conexão com a internet</string>
     <string name="session_drawer_pause">Pausar</string>
     <string name="session_drawer_wine_processes_paused">Processos do Wine estao pausados</string>
     <string name="session_drawer_pause_all_wine_processes">Pausar todos os processos do Wine</string>
@@ -749,7 +755,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_audio_sound_font_installed_failed">Falha ao instalar SoundFont!</string>
     <string name="settings_audio_sound_font_already_exist">O SoundFont que voce deseja instalar ja existe.</string>
     <string name="settings_audio_unable_to_install_soundfont">Nao foi possivel instalar o SoundFont</string>
-    <string name="settings_audio_installing_soundfont">Instalando SoundFont…</string>
+    <string name="settings_audio_installing_soundfont">Instalando SoundFont</string>
     <string name="settings_audio_sound_font_bad_format">Formato de SoundFont invalido.</string>
     <string name="settings_audio_cannot_remove_default">Nao e possivel remover o SoundFont padrao</string>
     <string name="settings_audio_summary">Instalar, remover e escolher o SoundFont usado para reproducao MIDI.</string>
@@ -771,7 +777,19 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada do gamepad, toque e teclado</string>
     <string name="settings_debug_download_logs">Logs de Download</string>
     <string name="settings_debug_download_logs_description">Registrar eventos do resolvedor de download e fallback do WinNative</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Camadas de Validação Vulkan</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Reinicie a exibição para aplicar.</string>
     <string name="settings_debug_share_logs">Compartilhar Logs</string>
+    <string name="settings_debug_delete_logs">Excluir logs</string>
+    <string name="settings_debug_share_all_logs_short">Compartilhar tudo</string>
+    <string name="settings_debug_delete_logs_short">Excluir</string>
+    <string name="settings_debug_delete_all_logs_short">Excluir tudo</string>
+    <string name="settings_debug_open_logs_folder_short">Abrir gerenciador de logs</string>
+    <string name="settings_debug_logs_deleted">Logs excluídos</string>
+    <string name="settings_debug_delete_logs_confirm_title">Excluir logs?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Isso exclui permanentemente todos os arquivos de log salvos (%1$s). Não é possível desfazer.</string>
+    <string name="settings_debug_logs_browser_title">Logs</string>
+    <string name="settings_debug_log_truncated">Mostrando os últimos %1$s deste log</string>
     <string name="settings_debug_logs_subject">Logs do WinNative (%1$s)</string>
     <string name="settings_debug_no_logs_available">Nenhum log de depuração disponível. Ative as opções de depuração primeiro e inicie um jogo.</string>
     <string name="settings_debug_capture_failed">Falha ao capturar logs: %1$s</string>
@@ -803,7 +821,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_content_empty_subtitle">Instale um pacote ou mude o tipo para começar.</string>
     <string name="settings_content_container_created">Contêiner criado: %1$s</string>
     <string name="settings_content_download_failed">Falha no download.</string>
-    <string name="common_ui_working">Processando…</string>
+    <string name="common_ui_working">Processando</string>
     <string name="settings_content_desc_wine">Criado pelo projeto Wine; traduz chamadas Win32 para serviços nativos Linux/Android.</string>
     <string name="settings_content_desc_proton">Criado pela Valve; runtime baseado no Wine com patches para jogos Windows.</string>
     <string name="settings_content_desc_dxvk">Traduz chamadas gráficas Direct3D 9, 10 e 11 para Vulkan.</string>
@@ -822,9 +840,14 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_content_downloading_title">Baixando Conteudo</string>
     <string name="settings_content_installing_title">Instalando Conteudo</string>
     <string name="settings_content_extracting_title">Extraindo Conteudo</string>
-    <string name="settings_content_extracting_detail">Extraindo… (%1$d arquivos)</string>
-    <string name="settings_content_preparing_package">Preparando pacote…</string>
+    <string name="settings_content_extracting_detail">Extraindo (%1$d arquivos)</string>
+    <string name="settings_content_preparing_package">Preparando pacote</string>
     <string name="settings_content_download_complete">Download concluido</string>
+    <string name="settings_content_already_installed_title">Componente ja instalado</string>
+    <string name="settings_content_already_installed_message">Este componente ja esta instalado. Remova a copia instalada antes de baixa-lo novamente.
+
+Caminho instalado:
+%1$s</string>
     <string name="settings_content_conflicting_title">Conteudo Conflitante Instalado</string>
     <string name="settings_content_conflicting_message">Por favor, desinstale o conteudo conflitante antes de baixar este pacote.
 
@@ -833,7 +856,7 @@ Caminho instalado:
     <string name="settings_content_cannot_be_trusted">O conteudo nao e confiavel.</string>
     <string name="settings_content_is_incomplete">O conteudo esta incompleto.</string>
     <string name="settings_content_untrusted_files_warning">Aviso: O conteudo adicional contem arquivos nao confiaveis. Geralmente, os seguintes arquivos nao devem ser modificados. Por favor, decida se deseja prosseguir com a instalacao.</string>
-    <string name="settings_content_confirm_remove">Deseja remover este conteudo?</string>
+    <string name="settings_content_confirm_remove">Isso excluirá o componente do seu dispositivo.</string>
     <string name="settings_content_unable_to_remove_in_use">Nao e possivel remover este conteudo, porque um container esta usando este Wine atualmente.</string>
     <string name="settings_content_download_in_components">Nenhum baixado. Por favor, baixe um em Componentes.</string>
     <string name="settings_content_types_header">TIPOS DE CONTEUDO</string>
@@ -845,9 +868,12 @@ Caminho instalado:
     <string name="settings_drivers_install">Instalar Drivers</string>
     <string name="settings_drivers_installed_success">Driver instalado com sucesso.</string>
     <string name="settings_drivers_install_failed">Falha ao instalar driver.</string>
-    <string name="settings_drivers_confirm_remove">Deseja remover este driver?</string>
+    <string name="settings_drivers_remove_title">Remover driver?</string>
+    <string name="settings_drivers_confirm_remove">Isso excluirá o driver do seu dispositivo.</string>
+    <string name="settings_drivers_remove_repo_title">Remover repositório?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s será removido da sua lista de repositórios.</string>
     <string name="settings_drivers_repo_tap_to_load">Toque para carregar versoes</string>
-    <string name="settings_drivers_repo_loading_releases">Carregando versoes…</string>
+    <string name="settings_drivers_repo_loading_releases">Carregando versoes</string>
     <string name="settings_drivers_repo_release_count">%1$d versoes carregadas</string>
     <string name="settings_drivers_repo_no_release_assets">Nenhum arquivo ZIP disponivel para download foi encontrado nas versoes obtidas.</string>
     <string name="settings_drivers_repo_fetch_failed">Nao foi possivel carregar as versoes do GitHub.</string>
@@ -857,7 +883,7 @@ Caminho instalado:
     <string name="settings_drivers_manager">Gerenciador de Drivers</string>
 
     <!-- Setup > Wizard -->
-    <string name="setup_wizard_installing_system_files">Instalando Arquivos do Sistema…</string>
+    <string name="setup_wizard_installing_system_files">Instalando Arquivos do Sistema</string>
     <string name="setup_wizard_unable_to_install_system_files">Nao foi possivel instalar os arquivos do sistema</string>
     <string name="setup_wizard_system_image_not_installed">Imagem do sistema nao instalada. Por favor, instale os componentes primeiro.</string>
     <string name="setup_wizard_recommended_components">Componentes Recomendados</string>
@@ -926,6 +952,9 @@ Caminho instalado:
     <string name="google_cloud_sync_started">Sincronizacao na nuvem iniciada.</string>
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Servicos Google</string>
+    <string name="google_auto_signin_title">Entrar no Google ao iniciar</string>
+    <string name="google_auto_signin_summary">Conecte-se automaticamente ao Google Play Games quando o app é iniciado para que os backups de saves e a sincronização estejam sempre prontos. Quando desativado, o app nunca entra sozinho.</string>
+    <string name="google_auto_signin_section">Ao iniciar</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">Sincronizando</string>
     <string name="google_cloud_status_connected">Conectado</string>
@@ -984,22 +1013,30 @@ Caminho instalado:
     <string name="saves_import_export_exported_failed">Falha ao exportar saves: %1$s</string>
     <string name="saves_import_export_imported">Saves importados com sucesso</string>
     <string name="saves_import_export_imported_failed">Falha ao importar saves: %1$s</string>
+    <string name="saves_export_path_summary">Os saves serão exportados para /WinNative/saves</string>
+    <string name="saves_export_success_path">Exportado para %1$s</string>
+    <string name="saves_export_warning_title">Use isto apenas com jogos personalizados</string>
+    <string name="saves_export_warning_body">A exportação pode incluir saves de jogos instalados por lojas ou com sincronização em nuvem.</string>
+    <string name="saves_import_warning_title">Isso substituirá todos os saves neste contêiner</string>
+    <string name="saves_import_warning_body">Ao restaurar um backup antigo com vários jogos, copie primeiro os saves mais recentes para o zip com seu gerenciador de arquivos.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contêiner</string>
-    <string name="preloader_initializing">Inicializando…</string>
-    <string name="preloader_launching">Iniciando…</string>
-    <string name="preloader_closing">Fechando %1$s…</string>
-    <string name="preloader_setup_environment">Configurando ambiente…</string>
-    <string name="preloader_installing_mono">Instalando Wine Mono v%1$s…</string>
-    <string name="preloader_installing_redist">Instalando redistribuíveis…</string>
-    <string name="preloader_unpacking_exe">Descompactando executável do jogo…</string>
-    <string name="preloader_downloading_cloud">Baixando saves na nuvem…</string>
-    <string name="preloader_syncing_cloud">Sincronizando saves na nuvem…</string>
-    <string name="preloader_cloud_downloading">Download da sincronização na nuvem…</string>
-    <string name="preloader_cloud_backup">Fazendo backup do save no Google Drive…</string>
+    <string name="preloader_initializing">Inicializando</string>
+    <string name="preloader_launching">Iniciando</string>
+    <string name="preloader_closing">Fechando %1$s</string>
+    <string name="preloader_setup_environment">Configurando ambiente</string>
+    <string name="preloader_retrying_steam_client_download">Tentando baixar o cliente Steam novamente</string>
+    <string name="preloader_installing_mono">Instalando Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Instalando redistribuíveis</string>
+    <string name="preloader_unpacking_exe">Descompactando executável do jogo</string>
+    <string name="preloader_downloading_cloud">Baixando saves na nuvem</string>
+    <string name="preloader_syncing_cloud">Sincronizando saves na nuvem</string>
+    <string name="preloader_uploading_cloud">Enviando saves para a nuvem</string>
+    <string name="preloader_checking_cloud">Verificando saves na nuvem</string>
+    <string name="preloader_cloud_sync_retry">%1$s Tentativa %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Download da sincronização na nuvem</string>
     <string name="cloud_sync_failed_provider">Sincronização na nuvem do %1$s falhou.</string>
-    <string name="google_cloud_backup_failed">Backup no Google Drive falhou.</string>
     <string name="preloader_platform_steam">Steam</string>
     <string name="preloader_platform_epic">Epic Games</string>
     <string name="preloader_platform_gog">GOG</string>
@@ -1007,13 +1044,6 @@ Caminho instalado:
 
     <!-- Missing translations -->
     <string name="common_ui_graphics">Gráficos</string>
-    <string name="container_backups_title">Backups</string>
-    <string name="container_backups_prompt">Escolha uma ação para este backup do contêiner.</string>
-    <string name="container_backups_backing_up">Fazendo backup do contêiner…</string>
-    <string name="container_backups_restoring">Restaurando contêiner…</string>
-    <string name="container_backups_checking">Verificando backups do contêiner…</string>
-    <string name="container_backups_select_title">Selecione o backup para restaurar</string>
-    <string name="container_backups_no_files">Nenhum backup de contêiner foi encontrado no Google Drive.</string>
     <string name="steam_section_title">Steam</string>
     <string name="binding_secondary">Vinculação secundária</string>
     <string name="input_controls_editor_tap_to_switch">Toque para alternar</string>
@@ -1023,6 +1053,7 @@ Caminho instalado:
     <string name="session_drawer_fps_monitor">Monitor de FPS</string>
     <string name="session_drawer_fps_monitor_subtitle">Mostrar estatísticas de desempenho em tempo real</string>
     <string name="session_drawer_dual_series_battery">Bateria Dual Series</string>
+    <string name="session_drawer_hud_frametime_numeric">Mostrar frametime como número</string>
     <string name="session_drawer_command_center">Central de comandos</string>
     <string name="session_drawer_command_center_input">Entrada</string>
     <string name="session_drawer_command_center_display">Tela</string>
@@ -1035,7 +1066,6 @@ Caminho instalado:
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
     <string name="session_drawer_color_profile_crt">Efeito CRT</string>
-    <string name="session_drawer_upscaler_dls">Vívido</string>
     <string name="session_drawer_calibrate_advanced">Calibração avançada</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Giro</string>
@@ -1047,7 +1077,6 @@ Caminho instalado:
     <string name="session_drawer_rail_label_mouse">Mouse</string>
     <string name="session_drawer_rail_label_fullscreen">Tela cheia</string>
     <string name="session_drawer_rail_label_pip">PiP</string>
-    <string name="session_drawer_rail_label_native">Nativo</string>
     <string name="session_drawer_rail_label_magnifier">Zoom</string>
     <string name="session_drawer_rail_label_task_manager">Tarefas</string>
     <string name="session_drawer_rail_label_logs">Logs</string>
@@ -1061,24 +1090,23 @@ Caminho instalado:
     <string name="session_drawer_logs_share_chooser">Compartilhar logs da sessão</string>
     <string name="session_drawer_logs_share_failed">Falha ao compartilhar logs</string>
     <string name="session_drawer_logs_share_empty">Não há linhas de log para compartilhar</string>
-    <string name="session_drawer_super_resolution">Filtros de Nitidez</string>
-    <string name="session_drawer_upscaler_mode">Filtro</string>
-    <string name="session_drawer_upscaler_fsr">FSR 1</string>
+    <string name="session_drawer_super_resolution">Super-resolução</string>
+    <string name="session_drawer_upscaler_mode">Upscaler</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_vivid">Vívido</string>
+    <string name="session_drawer_vivid_strength">Intensidade do vívido</string>
     <string name="session_drawer_main_menu_title">Menu</string>
     <string name="session_gyroscope_activator">Ativador</string>
     <string name="settings_general_check_for_updates">Verificar atualizações</string>
     <string name="settings_general_check_for_updates_summary">Verifique automaticamente novas versões do app ao iniciar e periodicamente.</string>
     <string name="setup_wizard_containers">Configuração do contêiner</string>
-    <string name="google_cloud_auto_backup">Backup automático do Cloud Sync</string>
-    <string name="google_cloud_auto_backup_summary">Faça backup automático dos salvamentos do jogo no Google Drive sempre que sair de um jogo.</string>
     <string name="cloud_saves_title">Salvamentos na nuvem</string>
-    <string name="cloud_saves_backup">Fazer backup do salvamento na nuvem</string>
-    <string name="cloud_saves_restore">Restaurar salvamento na nuvem</string>
+    <string name="cloud_saves_title_for_provider">Salvamentos na nuvem de %1$s - %2$s</string>
     <string name="cloud_sync_title">Sincronização na nuvem</string>
     <string name="cloud_sync_enabled_summary">Baixe os salvamentos na nuvem ao iniciar e sincronize/faça backup deles ao sair.</string>
     <string name="cloud_sync_disabled_summary">Inicie este jogo sem baixar salvamentos na nuvem nem sincronizar ao sair.</string>
-    <string name="cloud_saves_backing_up">Fazendo backup do salvamento na nuvem…</string>
-    <string name="cloud_saves_restoring">Restaurando salvamento na nuvem…</string>
+    <string name="cloud_saves_backing_up">Fazendo backup do salvamento na nuvem</string>
+    <string name="cloud_saves_restoring">Restaurando salvamento na nuvem</string>
 
     <!-- Synced Box64/FEXCore environment help strings -->
     <string name="box64_env_var_help__aes">Exposes AES CPU capabilities to the guest.</string>
@@ -1099,4 +1127,197 @@ Caminho instalado:
     <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Backpatches kernel-handled unaligned atomics to reduce kernel context switches.</string>
     <string name="fexcore_env_var_help__maxinst">Maximum number of instructions stored in a compiled block.</string>
     <string name="fexcore_env_var_help__strictinprocesssplitlocks">Uses a strict process-wide lock for split unaligned atomic accesses.</string>
+    <!-- Translated batch (110 strings) -->
+    <string name="cloud_saves_history_empty">Nenhum save anterior com backup ainda. Saves substituídos e backups manuais aparecerão aqui por 30 dias.</string>
+    <string name="cloud_saves_history_loading">Carregando histórico de saves\u2026</string>
+    <string name="cloud_saves_history_origin_auto">auto</string>
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_origin_cloud">nuvem</string>
+    <string name="cloud_saves_history_origin_local">local</string>
+    <string name="cloud_saves_history_origin_manual">manual</string>
+    <string name="cloud_saves_history_refresh">Atualizar</string>
+    <string name="cloud_saves_history_rename">Renomear</string>
+    <string name="cloud_saves_history_rename_clear">Limpar</string>
+    <string name="cloud_saves_history_rename_failed">Não foi possível renomear o backup.</string>
+    <string name="cloud_saves_history_rename_hint">ex.: Luta com chefe, Antes do final</string>
+    <string name="cloud_saves_history_rename_save">Salvar</string>
+    <string name="cloud_saves_history_rename_success">Backup renomeado.</string>
+    <string name="cloud_saves_history_rename_title">Nomear este backup</string>
+    <string name="cloud_saves_history_restore">Restaurar</string>
+    <string name="cloud_saves_history_restore_confirm_body">Isso substituirá seu save local atual pelo backup de %1$s.</string>
+    <string name="cloud_saves_history_restore_confirm_title">Restaurar este backup?</string>
+    <string name="cloud_saves_history_restore_failed">Não foi possível restaurar este backup.</string>
+    <string name="cloud_saves_history_restore_success">Save restaurado do backup.</string>
+    <string name="cloud_saves_history_sign_in">Faça login no Google para ver seu histórico de saves.</string>
+    <string name="cloud_saves_history_title">Histórico de Saves</string>
+    <string name="cloud_saves_keep_replaced_backup">Manter backup do save substituído</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">Se mudar de ideia, você pode restaurá-lo pelo Histórico de Saves.</string>
+    <string name="cloud_saves_no_backups">Nenhum backup ainda para este jogo.</string>
+    <string name="cloud_saves_offline_mode">Desativar Sincronização com a Nuvem</string>
+    <string name="cloud_saves_offline_mode_summary">Interrompe toda atividade automática na nuvem para este jogo.</string>
+    <string name="cloud_saves_sync_from_provider">Sincronizar da Nuvem %1$s</string>
+    <string name="cloud_saves_sync_from_provider_failed">Não foi possível baixar o save de %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Gerenciar saves na nuvem GOG</string>
+    <string name="cloud_saves_gog_manage_helper">Abre o site oficial da GOG</string>
+    <string name="cloud_saves_gog_manage_no_browser">Nenhum navegador disponível para abrir a página de saves na nuvem GOG</string>
+    <string name="cloud_saves_gog_zip_label">Baixar ZIP da nuvem GOG</string>
+    <string name="cloud_saves_gog_zip_helper">Salvar arquivos atuais da nuvem</string>
+    <string name="cloud_saves_gog_zip_success">ZIP dos saves na nuvem GOG salvo.</string>
+    <string name="cloud_saves_gog_zip_failed">Não foi possível salvar o ZIP dos saves na nuvem GOG.</string>
+    <string name="cloud_saves_gog_zip_empty">Nenhum arquivo de save na nuvem GOG encontrado.</string>
+    <string name="cloud_saves_sync_from_provider_generic">Sincronizar da Nuvem</string>
+    <string name="cloud_saves_sync_from_provider_success">Save na nuvem do %1$s baixado.</string>
+    <string name="cloud_saves_syncing_from_provider">Baixando save de %1$s\u2026</string>
+    <string name="cloud_saves_sync_summary">Baixar a versão que o %1$s tem agora.</string>
+    <string name="cloud_saves_sync_summary_generic">Baixar a versão atual na nuvem.</string>
+    <string name="common_ui_exit_app_confirm">Sair do WinNative?</string>
+    <string name="container_surface_effect">Efeito de Superfície</string>
+    <string name="downloads_queue_cancel_download_confirm">Cancelar o download de %1$s e excluir todos os arquivos baixados?</string>
+    <string name="downloads_queue_paused_resume_hint">Pausado - toque em Retomar para continuar</string>
+    <string name="downloads_queue_phase_applying_data">Aplicando dados</string>
+    <string name="downloads_queue_phase_downloading">Baixando</string>
+    <string name="downloads_queue_phase_downloading_file">Baixando [%1$s]</string>
+    <string name="downloads_queue_phase_finalizing">Finalizando</string>
+    <string name="downloads_queue_phase_patching">Aplicando patch</string>
+    <string name="downloads_queue_phase_preparing">Preparando</string>
+    <string name="downloads_queue_phase_queued">Na fila</string>
+    <string name="downloads_queue_phase_unknown">Desconhecido</string>
+    <string name="downloads_queue_phase_unpacking">Descompactando</string>
+    <string name="downloads_queue_phase_updating">Atualizando</string>
+    <string name="downloads_queue_phase_verifying">Verificando</string>
+    <string name="downloads_queue_phase_verifying_file">Verificando [%1$s]</string>
+    <string name="downloads_queue_status_label">Status:</string>
+    <string name="downloads_queue_this_game">este jogo</string>
+    <string name="hud_position_bottom_center">Centro Inferior</string>
+    <string name="hud_position_bottom_left">Inferior Esquerdo</string>
+    <string name="hud_position_bottom_right">Inferior Direito</string>
+    <string name="hud_position_left_center">Centro Esquerdo</string>
+    <string name="hud_position_menu_title">Mover HUD para</string>
+    <string name="hud_position_right_center">Centro Direito</string>
+    <string name="hud_position_top_center">Centro Superior</string>
+    <string name="hud_position_top_left">Superior Esquerdo</string>
+    <string name="hud_position_top_right">Superior Direito</string>
+    <string name="input_controls_editor_number_of_bindings">Número de Mapeamentos</string>
+    <string name="input_controls_editor_opacity">Opacidade</string>
+    <string name="input_controls_editor_radial_menu">Menu Radial</string>
+    <string name="input_controls_editor_radial_menu_options">Opções do Menu Radial</string>
+    <string name="input_controls_tap_to_click">Toque para Clicar</string>
+    <string name="num_controllers">Número de Controles</string>
+    <string name="session_drawer_controls_section">Controles</string>
+    <string name="session_drawer_header_subtitle">Acesso rápido a controles, sobreposições e ferramentas de sessão</string>
+    <string name="session_drawer_hud_alpha">Alpha</string>
+    <string name="session_drawer_hud_alpha_input_title">Definir Alpha</string>
+    <string name="session_drawer_hud_disabled_hint">Ative a sobreposição para personalizá-la</string>
+    <string name="session_drawer_hud_elements">Elementos do HUD</string>
+    <string name="session_drawer_hud_input_hint">Insira um valor de %1$d a %2$d. Valores acima do limite são limitados ao máximo.</string>
+    <string name="session_drawer_hud_scale">Escala</string>
+    <string name="session_drawer_hud_scale_input_title">Definir Escala</string>
+    <string name="session_drawer_hud_summary">Ajuste a visibilidade da sobreposição e os dados exibidos</string>
+    <string name="session_drawer_screen_effects">Efeitos de Tela</string>
+    <string name="session_drawer_session_section">Sessão</string>
+    <string name="session_drawer_swipe_hint">Deslize para voltar ao jogo</string>
+    <string name="session_gamepad_enable_vibration">Ativar Vibração</string>
+    <string name="session_gyroscope_experimental_mouse_movement">Movimento de Mouse Experimental</string>
+    <string name="session_gyroscope_mouse_scale">Escala do Mouse</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">Escala do Mouse: %1$d%%</string>
+    <string name="settings_other_setup_wizard_summary">Abra o assistente de configuração novamente para revisar permissões, arquivos do sistema e contêineres padrão.</string>
+    <string name="settings_other_setup_wizard_title">Assistente de Configuração</string>
+    <string name="shortcuts_library_artwork_carousel_title">Imagem do Carrossel</string>
+    <string name="shortcuts_library_artwork_change">Alterar imagem</string>
+    <string name="shortcuts_library_artwork_failed">Falha ao carregar a imagem selecionada.</string>
+    <string name="shortcuts_library_artwork_game_card_title">Imagem do Card do Jogo</string>
+    <string name="shortcuts_library_artwork_grid_title">Imagem da Grade</string>
+    <string name="shortcuts_library_artwork_list_title">Imagem da Lista</string>
+    <string name="shortcuts_library_artwork_open_source">Abrir SteamGridDB</string>
+    <string name="shortcuts_library_artwork_selected">Selecionada: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Definir imagem</string>
+    <string name="shortcuts_library_artwork_title">Arte da Biblioteca</string>
+    <string name="shortcuts_list_readded_existing">Atalho existente readicionado</string>
+    <string name="shortcuts_properties_runtime_patcher">Patcher DRM em Tempo de Execução</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injeta uma DLL de patch DRM ao iniciar. Reduz FPS — use apenas se o inicializador legado sozinho falhar.</string>
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Selecionar pasta de saves</string>
+    <string name="cloud_saves_custom_folder_label">Pasta de saves</string>
+    <string name="cloud_saves_custom_select_folder_summary">Aponte para o diretório de saves dentro do contêiner</string>
+    <string name="cloud_saves_custom_no_container">Contêiner indisponível para este atalho</string>
+    <string name="cloud_saves_custom_picker_title">Selecionar pasta de saves</string>
+    <string name="cloud_saves_custom_outside_drive_c">A pasta selecionada deve estar dentro da unidade C: do contêiner</string>
+    <string name="cloud_saves_custom_path_map_failed">Não foi possível mapear a pasta selecionada para um caminho do Windows.</string>
+    <string name="cloud_saves_custom_folder_set">Pasta de saves definida como %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Sincronizar do Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Baixar save mais recente</string>
+    <string name="cloud_saves_steam_sync_success">Sincronizado do Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Falha na sincronização do Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_label">Ver salvamentos do Steam Cloud</string>
+    <string name="cloud_saves_steam_browse_helper">Abrir armazenamento em nuvem</string>
+    <string name="cloud_saves_steam_browse_no_browser">Nenhum navegador disponível para abrir a página do Steam</string>
+    <string name="cloud_saves_steam_import_label">Importar arquivos</string>
+    <string name="cloud_saves_steam_import_helper">Restaurar arquivos baixados</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Seletor de arquivos indisponível</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Isso baixará os arquivos de save atuais do Steam Cloud e substituirá os arquivos de save atuais.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">ID de app inválido</string>
+    <string name="cloud_saves_label_saved">Rótulo salvo</string>
+    <string name="downloads_queue_cancel_all_title">Cancelar todos os downloads?</string>
+    <string name="downloads_queue_cancel_all_warning">Cancelar downloads de DLC, jogo ou atualização pode corromper suas instalações de jogos.\n\nTem certeza de que deseja cancelar todos os downloads e excluir os arquivos baixados até agora?</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Usar inicializador legado</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Emulação Steam legada: executa o jogo pelo inicializador ColdClient e remove o DRM SteamStub do exe. Use apenas em jogos antigos que não funcionam com o Steam Launcher.</string>
+    <string name="steam_section_real_client">Cliente Steam real do WinNative</string>
+    <string name="steam_section_emulator">Emulador Steam legado</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Faz o cliente Steam emulado informar que está offline, para que o jogo não tente conexões online. Use em jogos que travam na verificação de rede do Steam.</string>
+    <string name="input_controls_select_style">Selecionar estilo</string>
+    <string name="input_controls_select_label_theme">Rótulos dos botões</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Perfil integrado - uma cópia editável foi criada.</string>
+    <string name="input_controls_editor_confirm_reset_profile">Redefinir este perfil para o layout original? Todas as alterações feitas serão perdidas.</string>
+    <string name="input_controls_editor_profile_reset">Perfil redefinido para o layout original.</string>
+    <string name="input_controls_editor_reset_unavailable">Nenhum snapshot original está disponível para este perfil.</string>
+    <string name="container_graphics_compositor_present_mode">Sincronização de tela Vulkan</string>
+    <string name="cloud_sync_disable_title">Desativar salvamentos na nuvem</string>
+    <string name="cloud_saves_steam_push_label">Enviar para Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Forçar upload do salvamento local</string>
+    <string name="cloud_saves_steam_push_success">Salvamento enviado para Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Não foi possível enviar o salvamento para Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud está inacessível no momento. Reconectando em segundo plano toque em atualizar quando estiver online novamente.</string>
+    <string name="steam_session_refused_event">Steam recusou a sessão em cache (EResult=%1$d). Entre novamente.</string>
+    <string name="settings_hud_record_to_file_title">Gravar desempenho em arquivo</string>
+    <string name="settings_hud_record_to_file_summary">Grava métricas por segundo de FPS, CPU, GPU, temperatura e bateria em /WinNative/logs/ durante o jogo.</string>
+    <string name="settings_leaderboard_category">Desempenho</string>
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_preparing_steam_environment">Preparando ambiente Steam</string>
+    <string name="preloader_starting_wine">Iniciando Wine</string>
+    <string name="preloader_starting_steam_launcher">Iniciando Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Carregando cliente Steam</string>
+    <string name="preloader_connecting_to_steam">Conectando ao Steam</string>
+    <string name="preloader_signing_in_to_steam">Entrando no Steam</string>
+    <string name="preloader_fetching_game_info">Conectado — buscando informações do jogo</string>
+    <string name="preloader_steam_ready">Steam pronto</string>
+    <string name="preloader_updating_game_info">Atualizando informações do jogo</string>
+    <string name="preloader_verifying_install">Verificando instalação</string>
+    <string name="preloader_scanning_redists">Procurando redistribuíveis</string>
+    <string name="preloader_installing_redist_single">Instalando redistribuível</string>
+    <string name="preloader_installing_named_redist">Instalando %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Instalando %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Redistribuíveis prontos</string>
+    <string name="preloader_no_redists">Nenhum redistribuível para instalar</string>
+    <string name="preloader_steam_service_running">Serviço Steam em execução</string>
+    <string name="preloader_launching_game">Iniciando %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher falhou — preparando recursos novamente</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher não pôde iniciar. Preparando novamente — inicie de novo</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher chegou ao jogo, mas ele não iniciou</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Carregando itens do Workshop</string>
+    <string name="workshop_search_items">Buscar itens do Workshop</string>
+    <string name="common_ui_failed">Falhou</string>
 </resources>
+

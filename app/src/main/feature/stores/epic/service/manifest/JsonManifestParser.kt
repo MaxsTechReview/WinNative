@@ -28,7 +28,6 @@ class JsonManifestParser {
             manifest.version = blobToNum(json.optString("ManifestFileVersion", "013000000000"))
             manifest.storedAs = 0 // JSON manifests are never compressed
 
-            // Parse components
             manifest.meta = parseManifestMeta(json)
             manifest.chunkDataList = parseChunkDataList(json, manifest.version)
             manifest.fileManifestList = parseFileManifestList(json)
@@ -105,17 +104,14 @@ class JsonManifestParser {
                 // Parse file hash - each 3 digits represents a byte
                 fm.hash = blobToByteArray(fileJson.optString("FileHash", "0"), 20) // 160-bit SHA1
 
-                // Parse flags
                 var flags = 0
                 if (fileJson.optBoolean("bIsReadOnly", false)) flags = flags or 0x1
                 if (fileJson.optBoolean("bIsCompressed", false)) flags = flags or 0x2
                 if (fileJson.optBoolean("bIsUnixExecutable", false)) flags = flags or 0x4
                 fm.flags = flags
 
-                // Parse install tags
                 fm.installTags = jsonArrayToStringList(fileJson.optJSONArray("InstallTags"))
 
-                // Parse chunk parts
                 val chunkParts = fileJson.optJSONArray("FileChunkParts") ?: JSONArray()
                 var fileOffset = 0L
 
@@ -252,11 +248,9 @@ class JsonManifestParser {
          * Convert GUID hex string to int array
          */
         private fun guidFromJson(guidHex: String): IntArray {
-            // Remove any dashes and ensure it's 32 hex chars
             val cleanHex = guidHex.replace("-", "")
             val bytes = hexStringToByteArray(cleanHex)
 
-            // Convert to big-endian int array (4 ints)
             val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
             return IntArray(4) { buffer.int }
         }
