@@ -444,11 +444,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
         sensorManager.unregisterListener(gyroListener);
         boolean orientationMode = preferences.getBoolean("gyro_orientation_enabled", false);
-        Sensor sensor = gyroSensor;
-        if (orientationMode) {
-            // Fall back to the raw gyroscope (rate mode) if the device has no rotation vector.
-            sensor = gyroRotationSensor != null ? gyroRotationSensor : gyroSensor;
-        }
+        boolean mouseMode = preferences.getBoolean("mouse_gyro_enabled", false);
+        // Gyro-mouse is rate-based (needs the gyroscope), so it wins over orientation mode;
+        // orientation uses the rotation vector, falling back to the gyroscope if absent.
+        Sensor sensor =
+                (orientationMode && !mouseMode && gyroRotationSensor != null)
+                        ? gyroRotationSensor
+                        : gyroSensor;
         if (sensor != null) {
             sensorManager.registerListener(gyroListener, sensor, SensorManager.SENSOR_DELAY_GAME);
         }
