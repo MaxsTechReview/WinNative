@@ -249,8 +249,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
-    // Phone gauge HUD shown (with touch controls disabled) while a physical controller is connected.
-    private ComposeView performanceHudView;
+    // Phone gauge HUD (rendered by the Compose host) shown with touch controls disabled while a
+    // physical controller + external display are active.
     private boolean controllerHudMode = false;
     private android.hardware.input.InputManager.InputDeviceListener hudControllerListener;
     private boolean isTapToClickEnabled = true;
@@ -439,7 +439,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             configChangedCallback.run();
             configChangedCallback = null;
         }
-        if (controllerHudMode) applyHudLayout();
     }
 
     private int getRefreshRateOverride() {
@@ -5941,13 +5940,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         rootView.addView(frameRating);
         if (perfController != null) perfController.attachToFrameRating(frameRating);
 
-        performanceHudView = new ComposeView(this);
-        performanceHudView.setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP));
-        com.winlator.cmod.runtime.display.PerformanceHudKt.mountPerformanceHud(performanceHudView);
-        performanceHudView.setVisibility(View.GONE);
-        performanceHudView.setOnTouchListener((v, e) -> true);
-        rootView.addView(performanceHudView);
         setupControllerHudDetection();
 
         boolean shouldStretch = "1".equals(getShortcutSetting("fullscreenStretched",
@@ -6233,16 +6225,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (connected == controllerHudMode) return;
         controllerHudMode = connected;
         runOnUiThread(() -> {
+            com.winlator.cmod.runtime.display.PerformanceHudState.setVisible(connected);
             if (connected) {
                 if (inputControlsView != null) inputControlsView.setVisibility(View.GONE);
                 if (frameRating != null) frameRating.setVisibility(View.GONE);
-                if (performanceHudView != null) {
-                    applyHudLayout();
-                    performanceHudView.setVisibility(View.VISIBLE);
-                    performanceHudView.bringToFront();
-                }
             } else {
-                if (performanceHudView != null) performanceHudView.setVisibility(View.GONE);
                 if (effectiveShowFPS && frameRating != null) frameRating.setVisibility(View.VISIBLE);
                 if (inputControlsView != null && hasActiveTouchscreenProfile()
                         && preferences.getBoolean("show_touchscreen_controls_enabled", false)) {
@@ -6250,21 +6237,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
         });
-    }
-
-    // Half the screen: left half in landscape, top half in portrait. The touchpad keeps the other half.
-    private void applyHudLayout() {
-        if (performanceHudView == null) return;
-        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-        int w = dm.widthPixels;
-        int h = dm.heightPixels;
-        FrameLayout.LayoutParams lp;
-        if (w >= h) {
-            lp = new FrameLayout.LayoutParams(w / 2, ViewGroup.LayoutParams.MATCH_PARENT, android.view.Gravity.START);
-        } else {
-            lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h / 2, android.view.Gravity.TOP);
-        }
-        performanceHudView.setLayoutParams(lp);
     }
 
     private void applyTouchscreenOverlayPreference() {
@@ -6371,7 +6343,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void startTouchscreenTimeout() {
         if (inputControlsView == null || touchpadView == null) return;
         touchpadView.setOnTouchListener(null);
-        if (hasActiveTouchscreenProfile()) {
+        if (!controllerHudMode && hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
         }
     }
@@ -6397,6 +6369,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             winHandler.sendGamepadState();
         }
         startTouchscreenTimeout();
+        // In controller-HUD mode the on-screen controls stay hidden even though the profile is set.
+        if (controllerHudMode) inputControlsView.setVisibility(View.GONE);
     }
 
     private void hideInputControls() {

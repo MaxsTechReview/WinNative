@@ -47,6 +47,11 @@ object PerformanceHudState {
 
     private val _state = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = _state.asStateFlow()
+    private val _visible = MutableStateFlow(false)
+    val visible: StateFlow<Boolean> = _visible.asStateFlow()
+
+    @JvmStatic
+    fun setVisible(v: Boolean) { _visible.value = v }
 
     @JvmStatic
     fun updateEnabled(enabled: BooleanArray) {
@@ -72,11 +77,6 @@ private val HudBad = Color(0xFFFF5A5A)
 private val HudText = Color(0xFFF0F4FF)
 private val HudSub = Color(0xFF7A8FA8)
 private val HudTrack = Color(0x33FFFFFF)
-
-// Mount the gauge HUD into a ComposeView from the Java activity.
-fun mountPerformanceHud(view: androidx.compose.ui.platform.ComposeView) {
-    view.setContent { PerformanceHudOverlay() }
-}
 
 private data class GaugeSpec(val label: String, val value: String, val fraction: Float, val color: Color)
 

@@ -9,6 +9,10 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -310,6 +314,35 @@ private fun XServerDisplayHost(
                             .zIndex(0f),
                     update = {},
                 )
+            }
+
+            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own
+            // touches so the rest stays a trackpad. Rendered in the host (not a nested ComposeView).
+            val perfHudVisible by PerformanceHudState.visible.collectAsState()
+            if (perfHudVisible) {
+                val landscape =
+                    LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                Box(
+                    modifier =
+                        Modifier
+                            .zIndex(1f)
+                            .then(
+                                if (landscape) {
+                                    Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart)
+                                } else {
+                                    Modifier.fillMaxWidth().fillMaxHeight(0.5f).align(Alignment.TopCenter)
+                                },
+                            )
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent().changes.forEach { it.consume() }
+                                    }
+                                }
+                            },
+                ) {
+                    PerformanceHudOverlay()
+                }
             }
 
             ModalDrawerSheet(
