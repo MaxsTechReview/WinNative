@@ -325,6 +325,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isPaused = false;
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
+    private boolean isRefactorSizeEnabled = false;
+    private static final long REFACTOR_SIZE_EXE_BYTES = 16384L;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -3746,7 +3748,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getBoolean("touchscreen_haptics_enabled", false),
                 preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true),
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
-                RefreshRateUtils.getMaxSupportedRefreshRate(this)
+                RefreshRateUtils.getMaxSupportedRefreshRate(this),
+                isRefactorSizeEnabled
         );
 
         if (drawerActionListener == null) {
@@ -4557,6 +4560,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 touchpadView.toggleFullscreen();
                 renderDrawerMenu();
                 break;
+            case R.id.main_menu_refactor_size:
+                isRefactorSizeEnabled = !isRefactorSizeEnabled;
+                applyRefactorSize(isRefactorSizeEnabled);
+                renderDrawerMenu();
+                break;
             case R.id.main_menu_pause:
                 if (isPaused) {
                     ProcessHelper.resumeAllWineProcesses();
@@ -4607,6 +4615,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 break;
         }
         return true;
+    }
+
+    private void applyRefactorSize(boolean enabled) {
+        if (winHandler == null || container == null) return;
+        if (enabled) stageRefactorSizeHelper();
+        winHandler.exec("\"C:\\winnative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
+    }
+
+    private void stageRefactorSizeHelper() {
+        try {
+            File dir = new File(container.getRootDir(), ".wine/drive_c/winnative");
+            if (!dir.isDirectory() && !dir.mkdirs()) return;
+            File dst = new File(dir, "refactorsize.exe");
+            if (dst.exists() && dst.length() == REFACTOR_SIZE_EXE_BYTES) return;
+            try (java.io.InputStream in = getAssets().open("winnative/refactorsize.exe");
+                 java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
+                byte[] buf = new byte[64 * 1024];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+            Log.i("XServerDisplayActivity",
+                  "Refactor Size: staged refactorsize.exe (" + dst.length() + " B) at " + dst.getPath());
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Refactor Size: helper staging failed", e);
+        }
     }
 
     private boolean isDisplayReady() {
