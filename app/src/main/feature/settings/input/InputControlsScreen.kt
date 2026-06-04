@@ -143,6 +143,7 @@ data class InputControlsScreenState(
     val overlayOpacity: Int = 40,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
+    val gyroOrientationEnabled: Boolean = false,
     val gyroscopeActivatorLabel: String = "",
     val rightStickGyroEnabled: Boolean = false,
     val gyroMouseEnabled: Boolean = false,
@@ -229,6 +230,7 @@ data class InputControlsScreenActions(
     val onOverlayOpacityChanged: (Int) -> Unit,
     val onGyroscopeEnabledChanged: (Boolean) -> Unit,
     val onGyroscopeModeSelected: (Int) -> Unit,
+    val onGyroOrientationModeChanged: (Boolean) -> Unit,
     val onGyroscopeActivatorClick: () -> Unit,
     val onRightStickGyroChanged: (Boolean) -> Unit,
     val onGyroMouseEnabledChanged: (Boolean) -> Unit,
@@ -1791,6 +1793,23 @@ private fun GyroscopeCard(
                         ),
                     selectedIndex = state.gyroscopeModeIndex,
                     onSelected = actions.onGyroscopeModeSelected,
+                )
+            }
+
+            Spacer(Modifier.height(InputItemGap))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.session_gyroscope_orientation_mode),
+                    color = InputTextSecondary,
+                    fontSize = InputPrimaryTextSize,
+                    modifier = Modifier.weight(1f),
+                )
+                AppSwitch(
+                    checked = state.gyroOrientationEnabled,
+                    onCheckedChange = actions.onGyroOrientationModeChanged,
                 )
             }
 

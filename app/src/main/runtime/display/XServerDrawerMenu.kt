@@ -297,6 +297,7 @@ data class XServerDrawerState(
     val hudCardExpanded: Boolean = false,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
+    val gyroOrientationEnabled: Boolean = false,
     val gyroscopeActivatorLabel: String = "",
     val rightStickGyroEnabled: Boolean = false,
     val gyroMouseEnabled: Boolean = false,
@@ -462,6 +463,8 @@ interface XServerDrawerActionListener {
 
     fun onGyroscopeModeSelected(mode: Int)
 
+    fun onGyroOrientationModeChanged(enabled: Boolean)
+
     fun onGyroscopeActivatorSelected(keycode: Int)
 
     fun onRightStickGyroChanged(enabled: Boolean)
@@ -552,6 +555,7 @@ fun buildXServerDrawerState(
     hudCardExpanded: Boolean = false,
     gyroscopeEnabled: Boolean = false,
     gyroscopeModeIndex: Int = 0,
+    gyroOrientationEnabled: Boolean = false,
     gyroscopeActivatorLabel: String = "",
     rightStickGyroEnabled: Boolean = false,
     gyroMouseEnabled: Boolean = false,
@@ -707,6 +711,7 @@ fun buildXServerDrawerState(
         hudCardExpanded = hudCardExpanded,
         gyroscopeEnabled = gyroscopeEnabled,
         gyroscopeModeIndex = gyroscopeModeIndex,
+        gyroOrientationEnabled = gyroOrientationEnabled,
         gyroscopeActivatorLabel = gyroscopeActivatorLabel,
         rightStickGyroEnabled = rightStickGyroEnabled,
         gyroMouseEnabled = gyroMouseEnabled,
@@ -1605,6 +1610,12 @@ private fun GyroscopePaneContent(
                         }
                     }
                 }
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_gyroscope_orientation_mode),
+                    checked = state.gyroOrientationEnabled,
+                    onCheckedChange = listener::onGyroOrientationModeChanged,
+                )
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))

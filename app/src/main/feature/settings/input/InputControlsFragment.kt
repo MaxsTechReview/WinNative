@@ -137,6 +137,10 @@ class InputControlsFragment : Fragment() {
                                     preferences.edit().putInt("gyro_mode", mode).apply()
                                     publishUiState()
                                 },
+                                onGyroOrientationModeChanged = { enabled ->
+                                    preferences.edit().putBoolean("gyro_orientation_enabled", enabled).apply()
+                                    publishUiState()
+                                },
                                 onGyroscopeActivatorClick = ::showActivatorPicker,
                                 onRightStickGyroChanged = { enabled ->
                                     preferences.edit().putBoolean("process_gyro_with_left_trigger", enabled).apply()
@@ -291,6 +295,7 @@ class InputControlsFragment : Fragment() {
                 overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
                 gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
                 gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
+                gyroOrientationEnabled = preferences.getBoolean("gyro_orientation_enabled", false),
                 gyroscopeActivatorLabel = currentGyroActivatorLabel(),
                 rightStickGyroEnabled = preferences.getBoolean("process_gyro_with_left_trigger", false),
                 gyroMouseEnabled = preferences.getBoolean("mouse_gyro_enabled", false),
