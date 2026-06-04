@@ -86,7 +86,7 @@ public class WinHandler {
   private byte inputType = 4;
   private final List<Integer> gamepadClients = new CopyOnWriteArrayList();
   private FakeInputWriter[] writers = new FakeInputWriter[MAX_CONTROLLERS];
-  // ConcurrentHashMap: iterated on the vibration thread while the input thread mutates it (avoids CME killing rumble).
+  // ConcurrentHashMap: input thread mutates while the vibration thread iterates (avoid CME).
   private Map<Integer, Integer> deviceToSlot = new java.util.concurrent.ConcurrentHashMap<>();
   private Map<String, Integer> descriptorToSlot = new HashMap<>(); // physical device → slot
   private Map<Integer, String> deviceToDescriptor = new HashMap<>(); // deviceId → descriptor
@@ -95,7 +95,7 @@ public class WinHandler {
   private LocalServerSocket vibrationServer;
   private volatile boolean vibrationRunning = false;
   private final boolean[] vibrationEnabledSlots = new boolean[MAX_CONTROLLERS];
-  // volatile: written on the UI thread, read on the vibration-listener thread.
+  // volatile: UI thread writes, vibration thread reads.
   private volatile boolean globalVibrationEnabled = true;
   private int fallbackSlot = -1;
   private ExternalController currentController;
@@ -178,7 +178,7 @@ public class WinHandler {
     }
     this.globalVibrationEnabled =
         this.preferences.getBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, true);
-    // Heal stale #403 prefs: master on with every slot off is never intentional, so re-enable all slots.
+    // Heal stale #403 prefs: master on + all slots off → re-enable all.
     if (this.globalVibrationEnabled && !anySlotEnabled) {
       SharedPreferences.Editor editor = this.preferences.edit();
       for (int i = 0; i < MAX_CONTROLLERS; i++) {
@@ -1198,7 +1198,7 @@ public class WinHandler {
     SharedPreferences.Editor editor = this.preferences.edit();
     editor.putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled);
     if (enabled) {
-      // Master switch is authoritative: enabling rumble enables every slot, overriding stale per-slot prefs.
+      // Master switch enables every slot, overriding stale per-slot prefs.
       for (int i = 0; i < MAX_CONTROLLERS; i++) {
         this.vibrationEnabledSlots[i] = true;
         editor.putBoolean("vibration_slot_" + i, true);
