@@ -2037,7 +2037,7 @@ class UnifiedActivity :
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Accent, modifier = Modifier.size(20.dp))
+                        Icon(Eyeglasses2Icon, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(gm.modelName(), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -2390,7 +2390,7 @@ class UnifiedActivity :
                                     .clickable { showGlassesPanel = true },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Outlined.Visibility, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
+                            Icon(Eyeglasses2Icon, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
                         }
                         Spacer(Modifier.width(8.dp))
                     }
