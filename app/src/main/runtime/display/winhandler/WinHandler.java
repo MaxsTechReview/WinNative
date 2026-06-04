@@ -65,6 +65,8 @@ public class WinHandler {
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
   // Orientation stick gain: ~14 deg tilt = full deflection before per-axis sensitivity.
   private static final float GYRO_ORIENTATION_STICK_GAIN = 4.0f;
+  // Sensitivity offset: a displayed slider value of 100% acts as 200% effective.
+  private static final float GYRO_SENSITIVITY_OFFSET = 1.0f;
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
@@ -1570,8 +1572,9 @@ public class WinHandler {
         this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
     settings.applyToRightStick =
         this.preferences.getBoolean("process_gyro_with_left_trigger", false);
-    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f);
-    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f);
+    // Slider 100% maps to 200% effective (+1.0 offset): the displayed % was too weak on its own.
+    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
+    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
     settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.9f), 0.0f, 0.99f);
     settings.deadzone = clamp(getFloatPreference("gyro_deadzone", 0.05f), 0.0f, 1.0f);
     settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);

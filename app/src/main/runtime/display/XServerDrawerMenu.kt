@@ -1669,19 +1669,19 @@ private fun GyroscopePaneContent(
                 ) {
                     DrawerSliderRow(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
-                        valueText = "${(state.gyroXSensitivity * 100).toInt()}%",
+                        valueText = "${(state.gyroXSensitivity * 100).roundToInt()}%",
                         value = state.gyroXSensitivity,
-                        valueRange = 0f..5f,
-                        steps = 499,
+                        valueRange = 0.1f..2f,
+                        steps = 37,
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
                     DrawerSliderRow(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
-                        valueText = "${(state.gyroYSensitivity * 100).toInt()}%",
+                        valueText = "${(state.gyroYSensitivity * 100).roundToInt()}%",
                         value = state.gyroYSensitivity,
-                        valueRange = 0f..5f,
-                        steps = 499,
+                        valueRange = 0.1f..2f,
+                        steps = 37,
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 

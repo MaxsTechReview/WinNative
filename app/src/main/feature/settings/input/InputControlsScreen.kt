@@ -1901,17 +1901,17 @@ private fun GyroscopeCard(
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
                     value = state.gyroXSensitivity.toFloat(),
-                    valueRange = 0f..500f,
-                    steps = 499,
-                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(0, 500)) },
+                    valueRange = 10f..200f,
+                    steps = 37,
+                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(10, 200)) },
                 )
                 Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
                     value = state.gyroYSensitivity.toFloat(),
-                    valueRange = 0f..500f,
-                    steps = 499,
-                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(0, 500)) },
+                    valueRange = 10f..200f,
+                    steps = 37,
+                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(10, 200)) },
                 )
                 Spacer(Modifier.height(InputCompactGap))
                 SliderField(
