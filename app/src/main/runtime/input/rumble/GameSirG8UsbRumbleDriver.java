@@ -19,6 +19,8 @@ import android.view.InputDevice;
 public class GameSirG8UsbRumbleDriver implements GamepadRumbleDriver {
   private static final int VENDOR_ID = 13623;
   private static final int G8_MFI_PRODUCT_ID = 274;
+  // X3 Pro enumerates over USB but rumbles over BLE, so the BLE driver must own it.
+  private static final int X3_PRO_PRODUCT_ID = 0x0106;
   private static final int VENDOR_INTERFACE_ID = 1;
   private static final int USB_WRITE_TIMEOUT_MS = 2000;
   private static final int RUMBLE_DEADZONE_RAW = 1;
@@ -56,9 +58,11 @@ public class GameSirG8UsbRumbleDriver implements GamepadRumbleDriver {
     if (device.getVendorId() != VENDOR_ID) {
       return false;
     }
+    if (device.getProductId() == X3_PRO_PRODUCT_ID) {
+      return false; // X3 Pro rumbles over BLE; let the BLE driver handle it
+    }
     if (mode == GcmRumbleMode.ALL) {
-      // In ALL mode only claim the device if a USB device with the same VID/PID is actually
-      // connected — this prevents stealing BLE-only devices (e.g. X5s) from the BLE driver.
+      // Only claim if a USB device with this VID/PID is present (don't steal BLE-only models).
       UsbManager usbManager = getUsbManager();
       if (usbManager == null) return false;
       for (UsbDevice usbDevice : usbManager.getDeviceList().values()) {

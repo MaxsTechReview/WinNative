@@ -29,12 +29,13 @@ import java.util.UUID;
 public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
   private static final String TAG = "WinHandler";
   private static final int VENDOR_ID = 0x3537;
-  private static final int PRODUCT_ID = 0x1119;
+  private static final int PRODUCT_ID = 0x1119; // X5s
+  // X3 Pro: wired for input, but rumbles over this same GameSir BLE protocol (char 0x865f).
+  private static final int PRODUCT_ID_X3_PRO = 0x0106;
   private static final int RUMBLE_DEADZONE_RAW = 1;
   private static final int MAX_CONTROLLERS = 4;
   private static final long SCAN_TIMEOUT_MS = 8000;
-  // Official app sends duration=1 with a 200ms heartbeat; we match that so the motor
-  // stops almost immediately on a stop command instead of coasting for 255 units.
+  // Matches the official app: duration=1 + ~200ms heartbeat so the motor stops promptly.
   private static final int RUMBLE_DURATION = 1;
   private static final long HEARTBEAT_INTERVAL_MS = 150;
 
@@ -98,9 +99,14 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
       // Any GameSir BLE device (VID 0x3537)
       return true;
     }
-    // KNOWN: X5s by PID + name
+    // KNOWN: X5s or X3 Pro by PID + name (both rumble over the GameSir BLE GATT protocol).
     String name = device.getName();
-    return device.getProductId() == PRODUCT_ID && name != null && name.contains("GameSir-X5s");
+    if (name == null) {
+      return false;
+    }
+    int pid = device.getProductId();
+    return (pid == PRODUCT_ID && name.contains("GameSir-X5s"))
+        || (pid == PRODUCT_ID_X3_PRO && name.contains("GameSir-X3 Pro"));
   }
 
   @Override
@@ -153,10 +159,7 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
     return handled;
   }
 
-  // GCM COMMAND_IMMEDIATE_VIBRATION (0x04) layout (9 bytes):
-  // [0]=0x04, [1]=lgStrength, [2]=lgDuration, [3]=rgStrength, [4]=rgDuration,
-  // [5]=ltStrength, [6]=ltDuration, [7]=rtStrength, [8]=rtDuration
-  // Official app uses duration=1 with a 200ms heartbeat; we expose it as a parameter.
+  // 9-byte GCM immediate-vibration: [0x04, lgStr, lgDur, rgStr, rgDur, ltStr, ltDur, rtStr, rtDur].
   private static byte[] buildRumbleCommand(
       int leftGrip, int lgDuration, int rightGrip, int rgDuration) {
     return new byte[] {
@@ -283,7 +286,10 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
             if (shouldLogScanResult(device)) {
               Log.d(TAG, "GameSir X5s BLE scan result " + describeDevice(device));
             }
-            if (isCandidate(device)) {
+            // Match device.getName() or the advertised name (getName() can be null on first sight).
+            String advertisedName =
+                result.getScanRecord() != null ? result.getScanRecord().getDeviceName() : null;
+            if (isCandidate(device) || matchesKnownName(advertisedName)) {
               stopScan();
               connect(device);
             }
@@ -626,13 +632,22 @@ public class GameSirX5sBleRumbleDriver implements GamepadRumbleDriver {
       name = device.getName();
     } catch (SecurityException ignored) {
     }
+    return matchesKnownName(name);
+  }
+
+  /** Name-based match (no MAC); works for any unit since all advertise the same local name. */
+  private boolean matchesKnownName(String name) {
     if (name == null) return false;
     if (currentMode == GcmRumbleMode.ALL) {
       // In ALL mode accept any GameSir BLE device
       return name.contains("GameSir") || name.contains("Gamesir");
     }
-    // KNOWN mode: X5s only
-    return name.contains("GamePad05") || name.contains("GameSir-X5s") || name.contains("X5s");
+    // KNOWN mode: X5s or X3 Pro BLE names
+    return name.contains("GamePad05")
+        || name.contains("GameSir-X5s")
+        || name.contains("X5s")
+        || name.contains("GameSir-X3 Pro")
+        || name.contains("X3 Pro");
   }
 
   private boolean shouldLogScanResult(BluetoothDevice device) {

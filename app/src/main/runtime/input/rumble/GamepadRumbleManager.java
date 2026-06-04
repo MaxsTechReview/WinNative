@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GamepadRumbleManager {
+  /** GameSir / Guangzhou Chicken Run USB vendor id (0x3537). */
+  public static final int GAMESIR_VENDOR_ID = 13623;
+
   private static final int MAX_CONTROLLERS = 4;
 
   private final Handler handler;
@@ -19,8 +22,7 @@ public class GamepadRumbleManager {
 
   public GamepadRumbleManager(Context context, Handler handler) {
     this.handler = handler;
-    // USB driver first: when both G8+ USB and X5s BLE are active in ALL mode,
-    // USB takes priority so the BLE driver doesn't claim G8+ USB events.
+    // USB driver first so it wins over BLE for USB-rumble models in ALL mode.
     this.drivers.add(new GameSirG8UsbRumbleDriver(context, handler));
     this.drivers.add(new GameSirX5sBleRumbleDriver(context, handler));
   }

@@ -1080,12 +1080,12 @@ public class WinHandler {
   }
 
   private boolean isGcmManagedDevice(InputDevice device) {
-    if (device == null) return true; // OSC slot — always suppress fallback
-    if (device.getVendorId() != 13623) return false; // not GameSir at all
-    if (gcmRumbleMode == GcmRumbleMode.ALL) return true; // any GameSir in ALL mode
-    // KNOWN mode: only X5s (PID=0x1119) and G8+ MFi (PID=274)
+    if (device == null) return false; // OSC/virtual slot: keep the phone fallback
+    if (device.getVendorId() != GamepadRumbleManager.GAMESIR_VENDOR_ID) return false;
+    if (gcmRumbleMode == GcmRumbleMode.ALL) return true;
+    // KNOWN: models with a driver — X5s (BLE), G8+ MFi (USB), X3 Pro (BLE).
     int pid = device.getProductId();
-    return pid == 0x1119 || pid == 274;
+    return pid == 0x1119 || pid == 274 || pid == 0x0106;
   }
 
   public boolean isVibrationEnabledForSlot(int slot) {

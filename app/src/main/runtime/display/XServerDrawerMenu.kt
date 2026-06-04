@@ -1784,7 +1784,7 @@ private fun InputControlsPaneContent(
                             text = if (state.inputControlsGcmRumbleMode == "all")
                                 "All GameSir devices"
                             else
-                                "G8+ MFi, X5s",
+                                "G8+ MFi, X5s, X3 Pro",
                             color = DrawerTextSecondary,
                             fontSize = (11f * paneScale).sp,
                         )

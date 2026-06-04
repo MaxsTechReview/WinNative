@@ -1,19 +1,11 @@
 package com.winlator.cmod.runtime.input.rumble;
 
 public enum GcmRumbleMode {
-  /** GCM vibration disabled — system/InputDevice vibrator used as usual. */
+  /** Off; use the normal InputDevice/system vibrator. */
   DISABLED,
-
-  /**
-   * GCM vibration for known devices only: GameSir G8+ MFi (USB), GameSir G8 SE (USB), GameSir X5s
-   * (BLE).
-   */
+  /** Known GameSir models only: G8+ MFi (USB), X5s & X3 Pro (BLE). */
   KNOWN,
-
-  /**
-   * GCM vibration for any device with GameSir VID (USB: 0x3537) or any BLE device whose name
-   * contains "GameSir" / "Gamesir". Experimental — may not work on all models.
-   */
+  /** Any GameSir device (experimental). */
   ALL;
 
   public static final String PREF_KEY = "gcm_rumble_mode";
