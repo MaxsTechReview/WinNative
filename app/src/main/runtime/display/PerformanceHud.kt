@@ -78,40 +78,47 @@ fun mountPerformanceHud(view: androidx.compose.ui.platform.ComposeView) {
     view.setContent { PerformanceHudOverlay() }
 }
 
+private data class GaugeSpec(val label: String, val value: String, val fraction: Float, val color: Color)
+
 @Composable
 fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
     val s by PerformanceHudState.state.collectAsState()
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color(0xCC0B0E14))
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+    val gauges = ArrayList<GaugeSpec>(8)
+    if (s.enabled.getOrElse(0) { false }) {
+        gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent))
+    }
+    if (s.enabled.getOrElse(2) { false } && s.gpuLoad >= 0) {
+        gauges.add(GaugeSpec("GPU", "${s.gpuLoad}%", s.gpuLoad / 100f, loadColor(s.gpuLoad)))
+    }
+    if (s.enabled.getOrElse(3) { false } && s.cpuPercent >= 0) {
+        gauges.add(GaugeSpec("CPU", "${s.cpuPercent}%", s.cpuPercent / 100f, loadColor(s.cpuPercent)))
+    }
+    if (s.enabled.getOrElse(4) { false } && s.ramPercent >= 0) {
+        gauges.add(GaugeSpec("RAM", "${s.ramPercent}%", s.ramPercent / 100f, loadColor(s.ramPercent)))
+    }
+    if (s.enabled.getOrElse(6) { false }) {
+        gauges.add(GaugeSpec("ms", String.format("%.1f", s.frametimeMs), 1f - (s.frametimeMs / 33.3f), HudGood))
+    }
+    if (s.enabled.getOrElse(5) { false }) {
+        gauges.add(GaugeSpec("Watt", String.format("%.1f", s.batteryWatts), s.batteryWatts / 12f, HudAccent))
+        if (s.tempC >= 0) gauges.add(GaugeSpec("°C", s.tempC.toString(), s.tempC / 60f, tempColor(s.tempC)))
+    }
+    Box(
+        modifier = modifier.fillMaxSize().background(Color(0xF00A0D13)),
+        contentAlignment = Alignment.Center,
     ) {
-        if (s.enabled.getOrElse(0) { false }) {
-            HudGauge("FPS", s.fps.toInt().toString(), (s.fps / 120f), HudAccent)
-        }
-        if (s.enabled.getOrElse(6) { false }) {
-            HudGauge("ms", String.format("%.1f", s.frametimeMs), 1f - (s.frametimeMs / 33.3f), HudGood)
-        }
-        if (s.enabled.getOrElse(2) { false } && s.gpuLoad >= 0) {
-            HudGauge("GPU", "${s.gpuLoad}%", s.gpuLoad / 100f, loadColor(s.gpuLoad))
-        }
-        if (s.enabled.getOrElse(3) { false } && s.cpuPercent >= 0) {
-            HudGauge("CPU", "${s.cpuPercent}%", s.cpuPercent / 100f, loadColor(s.cpuPercent))
-        }
-        if (s.enabled.getOrElse(4) { false } && s.ramPercent >= 0) {
-            HudGauge("RAM", "${s.ramPercent}%", s.ramPercent / 100f, loadColor(s.ramPercent))
-        }
-        if (s.enabled.getOrElse(5) { false }) {
-            HudGauge("Watt", String.format("%.1f", s.batteryWatts), s.batteryWatts / 12f, HudAccent)
-            if (s.tempC >= 0) HudGauge("°C", s.tempC.toString(), s.tempC / 60f, tempColor(s.tempC))
-        }
-        if (s.enabled.getOrElse(1) { false } && s.renderer.isNotEmpty()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(s.renderer, color = HudText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("API", color = HudSub, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            gauges.chunked(3).forEach { rowGauges ->
+                Row(horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterHorizontally)) {
+                    rowGauges.forEach { g -> HudGauge(g.label, g.value, g.fraction, g.color) }
+                }
+            }
+            if (s.enabled.getOrElse(1) { false } && s.renderer.isNotEmpty()) {
+                Text(s.renderer, color = HudText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -129,9 +136,9 @@ private fun HudGauge(label: String, valueText: String, fraction: Float, accent: 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(58.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(86.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 5.dp.toPx()
+                val stroke = 7.dp.toPx()
                 val inset = stroke / 2f
                 val arcSize = Size(size.width - stroke, size.height - stroke)
                 drawArc(
@@ -145,8 +152,8 @@ private fun HudGauge(label: String, valueText: String, fraction: Float, accent: 
                     style = Stroke(width = stroke, cap = StrokeCap.Round),
                 )
             }
-            Text(valueText, color = HudText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(valueText, color = HudText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         }
-        Text(label, color = HudSub, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = HudSub, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }

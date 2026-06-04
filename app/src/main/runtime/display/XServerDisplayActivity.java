@@ -439,6 +439,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             configChangedCallback.run();
             configChangedCallback = null;
         }
+        if (controllerHudMode) applyHudLayout();
     }
 
     private int getRefreshRateOverride() {
@@ -5929,16 +5930,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
 
         effectiveShowFPS = preferences.getBoolean("fps_monitor_enabled", false);
-        if (effectiveShowFPS) {
-            frameRating = new FrameRating(this, graphicsDriverConfig);
-            frameRating.setRenderer(lastRendererName);
-            if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
-            frameRating.setVisibility(View.VISIBLE);
-            applyHUDSettings();
-            updateHUDRenderMode();
-            rootView.addView(frameRating);
-            if (perfController != null) perfController.attachToFrameRating(frameRating);
-        }
+        // Always create FrameRating so it feeds the phone gauge HUD; its on-screen overlay only shows
+        // when the FPS monitor is enabled.
+        frameRating = new FrameRating(this, graphicsDriverConfig);
+        frameRating.setRenderer(lastRendererName);
+        if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+        frameRating.setVisibility(effectiveShowFPS ? View.VISIBLE : View.GONE);
+        applyHUDSettings();
+        updateHUDRenderMode();
+        rootView.addView(frameRating);
+        if (perfController != null) perfController.attachToFrameRating(frameRating);
 
         performanceHudView = new ComposeView(this);
         performanceHudView.setLayoutParams(new FrameLayout.LayoutParams(
@@ -6234,9 +6235,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         runOnUiThread(() -> {
             if (connected) {
                 if (inputControlsView != null) inputControlsView.setVisibility(View.GONE);
-                if (effectiveShowFPS) {
-                    if (frameRating != null) frameRating.setVisibility(View.GONE);
-                    if (performanceHudView != null) performanceHudView.setVisibility(View.VISIBLE);
+                if (frameRating != null) frameRating.setVisibility(View.GONE);
+                if (performanceHudView != null) {
+                    applyHudLayout();
+                    performanceHudView.setVisibility(View.VISIBLE);
+                    performanceHudView.bringToFront();
                 }
             } else {
                 if (performanceHudView != null) performanceHudView.setVisibility(View.GONE);
@@ -6247,6 +6250,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
         });
+    }
+
+    // Half the screen: left half in landscape, top half in portrait. The touchpad keeps the other half.
+    private void applyHudLayout() {
+        if (performanceHudView == null) return;
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int w = dm.widthPixels;
+        int h = dm.heightPixels;
+        FrameLayout.LayoutParams lp;
+        if (w >= h) {
+            lp = new FrameLayout.LayoutParams(w / 2, ViewGroup.LayoutParams.MATCH_PARENT, android.view.Gravity.START);
+        } else {
+            lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h / 2, android.view.Gravity.TOP);
+        }
+        performanceHudView.setLayoutParams(lp);
     }
 
     private void applyTouchscreenOverlayPreference() {
@@ -9692,7 +9710,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
-        if (!effectiveShowFPS || frameRating == null || window == null) return false;
+        if ((!effectiveShowFPS && !controllerHudMode) || frameRating == null || window == null) return false;
         if (source == WindowManager.FrameSource.UNKNOWN) return false;
         if (frameRatingWindowId == window.id) return true;
         if (isRelatedToFrameRatingWindow(window)) return true;
