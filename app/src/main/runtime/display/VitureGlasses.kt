@@ -141,8 +141,9 @@ class VitureGlasses(private val context: Context) {
 
     fun supportsBrightness(): Boolean = isConnected()
     fun supports3D(): Boolean = isConnected()
-    fun supportsFilm(): Boolean = isConnected() // One = binary shade, newer = stepped
-    fun filmIsStepped(): Boolean = !isOne()
+    fun supportsFilm(): Boolean = isConnected()
+    // Only Beast uses the stepped 0..8 film (msgId 0x0330); every other model is binary on/off (0x000E).
+    fun filmIsStepped(): Boolean = isBeast()
     fun brightnessMax(): Int = if (isOne()) 6 else 8
 
     // ── High-level controls ────────────────────────────────────────────────
