@@ -249,6 +249,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
+    // Phone gauge HUD shown (with touch controls disabled) while a physical controller is connected.
+    private ComposeView performanceHudView;
+    private boolean controllerHudMode = false;
+    private android.hardware.input.InputManager.InputDeviceListener hudControllerListener;
     private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "Vulkan";
@@ -3501,6 +3505,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        if (hudControllerListener != null) {
+            android.hardware.input.InputManager im =
+                    (android.hardware.input.InputManager) getSystemService(Context.INPUT_SERVICE);
+            if (im != null) im.unregisterInputDeviceListener(hudControllerListener);
+            hudControllerListener = null;
+        }
         if (externalDisplayController != null) {
             externalDisplayController.release();
             externalDisplayController = null;
@@ -3808,6 +3818,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onHUDElementToggled(int index, boolean enabled) {
                         hudElements[index] = enabled;
                         if (frameRating != null) frameRating.toggleElement(index, enabled);
+                        com.winlator.cmod.runtime.display.PerformanceHudState.updateEnabled(hudElements);
                         saveHUDSettings();
                         renderDrawerMenu();
                     }
@@ -4602,6 +4613,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
         }
+        com.winlator.cmod.runtime.display.PerformanceHudState.updateEnabled(hudElements);
     }
 
     private void saveHUDSettings() {
@@ -5928,6 +5940,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (perfController != null) perfController.attachToFrameRating(frameRating);
         }
 
+        performanceHudView = new ComposeView(this);
+        performanceHudView.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP));
+        com.winlator.cmod.runtime.display.PerformanceHudKt.mountPerformanceHud(performanceHudView);
+        performanceHudView.setVisibility(View.GONE);
+        performanceHudView.setOnTouchListener((v, e) -> true);
+        rootView.addView(performanceHudView);
+        setupControllerHudDetection();
+
         boolean shouldStretch = "1".equals(getShortcutSetting("fullscreenStretched",
                 container != null && container.isFullscreenStretched() ? "1" : "0"));
 
@@ -5985,6 +6006,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             if (!swapActive && drawerStateHolder != null) {
                                 drawerStateHolder.requestPhoneRelayout();
                             }
+                            evaluateControllerHudMode();
                             renderDrawerMenu();
                         });
                     }
@@ -6180,6 +6202,51 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private boolean hasActiveTouchscreenProfile() {
         return inputControlsView != null && inputControlsView.getProfile() != null;
+    }
+
+    private void setupControllerHudDetection() {
+        android.hardware.input.InputManager im =
+                (android.hardware.input.InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (im == null) return;
+        hudControllerListener = new android.hardware.input.InputManager.InputDeviceListener() {
+            @Override public void onInputDeviceAdded(int id) { evaluateControllerHudMode(); }
+            @Override public void onInputDeviceRemoved(int id) { evaluateControllerHudMode(); }
+            @Override public void onInputDeviceChanged(int id) { evaluateControllerHudMode(); }
+        };
+        im.registerInputDeviceListener(hudControllerListener,
+                new android.os.Handler(android.os.Looper.getMainLooper()));
+        evaluateControllerHudMode();
+    }
+
+    private void evaluateControllerHudMode() {
+        boolean controller =
+                com.winlator.cmod.runtime.input.ControllerHelper.INSTANCE.isControllerConnected();
+        boolean externalDisplay =
+                externalDisplayController != null && externalDisplayController.isSwapActive();
+        updateControllerHudMode(controller && externalDisplay);
+    }
+
+    // Physical controller present -> disable the touch controls and show the gauge HUD; otherwise
+    // restore the normal touch controls + on-screen overlay. The trackpad (touchpadView) stays either way.
+    private void updateControllerHudMode(boolean connected) {
+        if (connected == controllerHudMode) return;
+        controllerHudMode = connected;
+        runOnUiThread(() -> {
+            if (connected) {
+                if (inputControlsView != null) inputControlsView.setVisibility(View.GONE);
+                if (effectiveShowFPS) {
+                    if (frameRating != null) frameRating.setVisibility(View.GONE);
+                    if (performanceHudView != null) performanceHudView.setVisibility(View.VISIBLE);
+                }
+            } else {
+                if (performanceHudView != null) performanceHudView.setVisibility(View.GONE);
+                if (effectiveShowFPS && frameRating != null) frameRating.setVisibility(View.VISIBLE);
+                if (inputControlsView != null && hasActiveTouchscreenProfile()
+                        && preferences.getBoolean("show_touchscreen_controls_enabled", false)) {
+                    inputControlsView.setVisibility(View.VISIBLE);
+                }
+            }
+        });
     }
 
     private void applyTouchscreenOverlayPreference() {

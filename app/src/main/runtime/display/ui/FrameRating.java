@@ -1363,8 +1363,21 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
+  private int ramPercentValue() {
+    try {
+      return Integer.parseInt(this.ramText.replace("%", "").trim());
+    } catch (Exception e) {
+      return -1;
+    }
+  }
+
   @Override
   public void run() {
+    // Feed the phone gauge HUD (single source of truth) even while the on-screen overlay is hidden.
+    com.winlator.cmod.runtime.display.PerformanceHudState.updateValues(
+        this.lastFPS, this.currentMs, this.gpuLoad, this.cpuPercent, ramPercentValue(),
+        (this.dualSeriesBattery && this.batteryWatts >= 0.0f) ? this.batteryWatts * 2.0f : this.batteryWatts,
+        this.cpuTemp, this.rendererName != null ? this.rendererName : "");
     if (getVisibility() != View.VISIBLE) return;
 
     // Watchdog: reset FPS if no frames arrived for > 1.5s
