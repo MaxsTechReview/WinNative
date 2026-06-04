@@ -63,10 +63,8 @@ public class WinHandler {
   private static final long PHYSICAL_DISCONNECT_DEBOUNCE_MS = 400;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
-  // Orientation (tilt-to-position) stick gain. Orientation deltas arrive in radians
-  // relative to the recenter reference; this maps roughly a 28-30 degree tilt to a
-  // full stick deflection (before the user's per-axis sensitivity is applied).
-  private static final float GYRO_ORIENTATION_STICK_GAIN = 2.0f;
+  // Orientation stick gain: ~14 deg tilt = full deflection before per-axis sensitivity.
+  private static final float GYRO_ORIENTATION_STICK_GAIN = 4.0f;
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
@@ -115,13 +113,9 @@ public class WinHandler {
   private boolean gyroActivatorPressed = false;
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
-  // Cached result of the last activation evaluation (set only by the sensor-driven
-  // updateGyroData / updateGyroOrientation). sendGamepadState reads this instead of
-  // re-running the stateful activation, so the toggle edge is advanced from exactly
-  // one place and the query path stays side-effect free (avoids the recursion vector).
+  // Cached activation; read by shouldApplyGyroToTarget so the query stays side-effect free.
   private boolean lastGyroActive = false;
-  // Orientation-mode recenter reference. Captured on the rising edge of activation so
-  // "where you are holding the device when you activate" becomes stick-center.
+  // Orientation recenter reference, captured on the rising edge of activation.
   private boolean gyroOrientationCalibrated = false;
   private float orientationYaw0 = 0.0f;
   private float orientationPitch0 = 0.0f;
@@ -1380,13 +1374,7 @@ public class WinHandler {
     applyGyroStickToTarget(target, nextGyroStickX, nextGyroStickY);
   }
 
-  /**
-   * Orientation (tilt-to-position) gyro path. Driven by TYPE_GAME_ROTATION_VECTOR in
-   * XServerDisplayActivity, which supplies absolute yaw/pitch (radians, already remapped
-   * for the current display rotation). Unlike the rate path, a held tilt produces a
-   * sustained stick deflection because the stick is driven by the angular offset relative
-   * to a recenter reference rather than by angular velocity.
-   */
+  // Tilt-to-position path: drives the stick from absolute yaw/pitch offset, so a held tilt sustains.
   public void updateGyroOrientation(float yaw, float pitch) {
     GyroSettings gyroSettings = getGyroSettings();
     if (!gyroSettings.enabled) {
@@ -1395,8 +1383,6 @@ public class WinHandler {
       return;
     }
 
-    // Orientation mode drives the analog stick; the experimental gyro-mouse path stays
-    // rate-based and is served by updateGyroData when the gyroscope is the active sensor.
     GyroTarget target = resolveActiveGyroTarget(gyroSettings);
     if (target == null) {
       this.gyroOrientationCalibrated = false;
@@ -1405,7 +1391,7 @@ public class WinHandler {
 
     if (target.active) {
       if (!this.gyroOrientationCalibrated) {
-        // Rising edge of activation: capture the current orientation as stick-center.
+        // Rising edge: current pose becomes stick-center.
         this.orientationYaw0 = yaw;
         this.orientationPitch0 = pitch;
         this.gyroOrientationCalibrated = true;
@@ -1435,11 +1421,7 @@ public class WinHandler {
     applyGyroStickToTarget(target, nextGyroStickX, nextGyroStickY);
   }
 
-  /**
-   * Recenters the orientation-mode reference so the device's current pose becomes
-   * stick-center. No-op effect in rate mode. Safe to call from the UI thread; the next
-   * sensor sample recaptures the neutral and the stick converges back to center.
-   */
+  // Recenters orientation mode: next sample recaptures the current pose as stick-center.
   public void recenterGyroOrientation() {
     this.gyroOrientationCalibrated = false;
     this.smoothedGyroX = 0.0f;
@@ -1459,11 +1441,7 @@ public class WinHandler {
     this.gyroOrientationCalibrated = false;
   }
 
-  // Resolves the gyro target (virtual/controller) and evaluates activation exactly once
-  // per sensor sample. Returns null (after clearing any prior overlay) when there is no
-  // usable target, mirroring the original updateGyroData bail-outs. This is the single
-  // call site for the stateful updateGyroActivation, so the activation/toggle edge is
-  // advanced from exactly one place.
+  // Resolves the target and evaluates activation once per sample (sole updateGyroActivation caller).
   private GyroTarget resolveActiveGyroTarget(GyroSettings gyroSettings) {
     int targetSource = resolveGyroTargetSource();
     ExternalController targetController =
@@ -1487,10 +1465,7 @@ public class WinHandler {
     return new GyroTarget(targetSource, targetController, active);
   }
 
-  // Publishes a computed gyro stick value to the resolved target. Extracted verbatim from
-  // the original updateGyroData tail so the rate and orientation paths share it.
-  // STACK-OVERFLOW SAFETY: this only calls clearLastGyroTarget and the leaf write methods;
-  // it must never call back into sendGamepadState / updateGyroData / updateGyroOrientation.
+  // Writes the stick value to the target. Must stay a leaf (no sendGamepadState/updateGyro* calls).
   private void applyGyroStickToTarget(
       GyroTarget target, float nextGyroStickX, float nextGyroStickY) {
     int targetSource = target.source;
@@ -1530,8 +1505,7 @@ public class WinHandler {
         gyroActive && targetSource == GAMEPAD_SOURCE_CONTROLLER ? targetController : null;
   }
 
-  // Normalizes an angle difference to [-pi, pi] so the yaw wrap-around at +/-pi does not
-  // produce a spurious full-scale stick jump.
+  // Normalizes to [-pi, pi] so the yaw wrap at +/-pi doesn't cause a full-scale jump.
   private static float wrapAngle(float radians) {
     return (float) Math.IEEEremainder(radians, 2.0 * Math.PI);
   }
@@ -1551,21 +1525,17 @@ public class WinHandler {
   public void refreshControllerMappings() {}
 
   private void updateGyroDataMouse(float rawGyroX, float rawGyroY, GyroSettings gyroSettings) {
-    // Mouse mode does not drive the analog stick; clear any overlay left behind by a prior
-    // stick-mode session so a stale deflection does not linger on the gamepad.
+    // Mouse mode doesn't use the stick: clear any overlay left by a prior stick session.
     if (this.lastGyroTargetSource != GAMEPAD_SOURCE_NONE) {
       clearLastGyroTarget();
     }
     this.currentGyroStickX = 0.0f;
     this.currentGyroStickY = 0.0f;
 
-    // Gate the gyro-mouse on the activator, matching the stick path. When no gamepad
-    // target is resolvable there is no activator button to read (gyro-mouse used without
-    // any controller), so keep it always-active to preserve that use case.
+    // Gate on the activator; stay always-on when no controller target exists (controllerless use).
     GyroTarget target = resolveActiveGyroTarget(gyroSettings);
     boolean active = target == null || target.active;
     if (!active) {
-      // Drop pending sub-pixel motion so releasing the activator does not fling later.
       this.accumulatedGyroX = 0.0f;
       this.accumulatedGyroY = 0.0f;
       return;
@@ -1670,11 +1640,7 @@ public class WinHandler {
   }
 
   private void setLastGamepadSource(int source, ExternalController controller) {
-    // Do NOT reset gyroToggleEnabled here. The gyro toggle is a global master state, so
-    // clearing it whenever the active input source changes (e.g. an incidental touch event
-    // while a controller is in use) silently turned the gyro off mid-session. The activator
-    // edge flag (gyroActivatorPressed) self-corrects from the per-source button state on the
-    // next sensor sample, so it does not need clearing either.
+    // Don't reset gyroToggleEnabled here: the toggle is global and was dying on source changes.
     this.lastGamepadSource = source;
     if (controller != null) {
       this.currentController = controller;
@@ -1710,8 +1676,7 @@ public class WinHandler {
       return false;
     }
     if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
-      // Gyro-mouse mode does not drive the analog stick, so never overlay it here.
-      return false;
+      return false; // mouse mode doesn't overlay the stick
     }
     int preferredSource = resolveGyroTargetSource();
     if (source != preferredSource) {
@@ -1722,10 +1687,7 @@ public class WinHandler {
       return false;
     }
     GamepadState targetState = getTargetGamepadState(source, controller);
-    // Read the activation result cached by the sensor-driven path instead of re-running
-    // the stateful updateGyroActivation here. Keeping this query side-effect free stops the
-    // activator/toggle edge from being advanced twice and removes the recursion vector
-    // (this method runs inside sendGamepadState).
+    // Use cached activation (no mutation here) to keep this query side-effect free.
     return targetState != null && this.lastGyroActive;
   }
 

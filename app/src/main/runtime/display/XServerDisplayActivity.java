@@ -434,9 +434,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     };
 
-    // Registers the active gyro sensor based on the current mode: TYPE_GAME_ROTATION_VECTOR
-    // for orientation (tilt-to-position) mode, otherwise TYPE_GYROSCOPE (rate) mode. Always
-    // unregisters first so a live mode switch swaps the sensor instead of double-listening.
+    // Registers rotation-vector (orientation mode) or gyroscope (rate mode); unregisters first.
     private void registerGyroSensorIfEnabled() {
         if (sensorManager == null) {
             return;
@@ -456,8 +454,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    // Converts a TYPE_GAME_ROTATION_VECTOR sample into yaw/pitch (radians), remapped for the
-    // current display rotation so tilt axes follow the screen in landscape.
+    // Rotation-vector sample -> yaw/pitch (radians), remapped for display rotation (landscape).
     private void computeGyroOrientation(float[] rotationVector) {
         if (winHandler == null) {
             return;

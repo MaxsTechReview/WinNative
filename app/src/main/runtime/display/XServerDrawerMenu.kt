@@ -1657,8 +1657,8 @@ private fun GyroscopePaneContent(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
                         valueText = "${(state.gyroXSensitivity * 100).toInt()}%",
                         value = state.gyroXSensitivity,
-                        valueRange = 0f..2f,
-                        steps = 199,
+                        valueRange = 0f..5f,
+                        steps = 499,
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
@@ -1666,8 +1666,8 @@ private fun GyroscopePaneContent(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
                         valueText = "${(state.gyroYSensitivity * 100).toInt()}%",
                         value = state.gyroYSensitivity,
-                        valueRange = 0f..2f,
-                        steps = 199,
+                        valueRange = 0f..5f,
+                        steps = 499,
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 
