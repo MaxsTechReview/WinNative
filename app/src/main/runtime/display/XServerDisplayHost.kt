@@ -349,44 +349,6 @@ private fun XServerDisplayHost(
                     revealCards = drawerEngaged,
                 )
             }
-
-            val promptName = stateHolder.externalDisplayPromptName
-            if (promptName != null) {
-                ExternalDisplaySwapDialog(
-                    onSwap = {
-                        stateHolder.externalDisplayPromptName = null
-                        stateHolder.onExternalDisplaySwap?.run()
-                    },
-                    onMirror = {
-                        stateHolder.externalDisplayPromptName = null
-                        stateHolder.onExternalDisplayMirror?.run()
-                    },
-                )
-            }
         }
     }
-}
-
-@Composable
-private fun ExternalDisplaySwapDialog(
-    onSwap: () -> Unit,
-    onMirror: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onMirror,
-        icon = { Icon(Icons.Outlined.Monitor, contentDescription = null) },
-        title = { Text(stringResource(R.string.display_output_prompt_title)) },
-        text = { Text(stringResource(R.string.display_output_prompt_message)) },
-        confirmButton = {
-            TextButton(onClick = onSwap) {
-                Text(stringResource(R.string.display_output_prompt_swap))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onMirror) {
-                Text(stringResource(R.string.display_output_prompt_mirror))
-            }
-        },
-        containerColor = PaneSurfaceColor,
-    )
 }

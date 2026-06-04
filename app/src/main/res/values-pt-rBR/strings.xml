@@ -1356,6 +1356,8 @@ Caminho instalado:
     <string name="session_drawer_output_brightness">Brilho</string>
     <string name="session_drawer_output_shade">Sombra (escurecimento)</string>
     <string name="session_drawer_output_3d">3D (lado a lado)</string>
+    <string name="glasses_panel_refresh">Taxa de atualização</string>
+    <string name="glasses_panel_sunblock">Bloqueio solar</string>
     <string name="session_drawer_output_volume">Volume</string>
     <string name="session_drawer_output_glasses_note">Enviado diretamente para seus óculos Viture via USB.</string>
 </resources>

@@ -1356,6 +1356,8 @@ Cale instalata:
     <string name="session_drawer_output_brightness">Luminozitate</string>
     <string name="session_drawer_output_shade">Umbră (atenuare)</string>
     <string name="session_drawer_output_3d">3D (alăturat)</string>
+    <string name="glasses_panel_refresh">Rată de reîmprospătare</string>
+    <string name="glasses_panel_sunblock">Filtru solar</string>
     <string name="session_drawer_output_volume">Volum</string>
     <string name="session_drawer_output_glasses_note">Trimis direct la ochelarii Viture prin USB.</string>
 </resources>

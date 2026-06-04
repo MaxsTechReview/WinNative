@@ -96,12 +96,10 @@ public final class ExternalDisplayController {
     private int savedPhoneViewWidth = 0;
     private int savedPhoneViewHeight = 0;
 
-    // Viture XR glasses control (USB MCU protocol); only used when actual Viture glasses are connected.
+    // Shared Viture glasses controller + settings (owned app-wide by GlassesManager so the library and
+    // the in-game swap never double-claim the USB); values persist across both.
     private final VitureGlasses viture;
-    private int vitureBrightness = -1; // last-set (lazily initialised to max on first read)
-    private int vitureFilm = 0;
-    private boolean viture3D = false;
-    private int vitureVolume = -1; // last-set (lazily initialised to half on first read)
+    private final GlassesManager.Listener glassesListener;
 
     public ExternalDisplayController(Activity activity, FrameLayout phoneFrame,
                                      XServerSurfaceView gameView, Callbacks callbacks) {
@@ -110,12 +108,14 @@ public final class ExternalDisplayController {
         this.gameView = gameView;
         this.callbacks = callbacks;
         this.displayManager = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
-        this.viture = new VitureGlasses(activity);
-        this.viture.setConnectionListener(connected -> {
-            // When the glasses finish opening, re-apply the selected mode so the refresh command lands.
-            if (connected && swapActive) applyOutputMode();
+        GlassesManager.INSTANCE.init(activity);
+        this.viture = GlassesManager.INSTANCE.glasses();
+        this.glassesListener = () -> {
+            // On (re)connect or a settings change, re-apply the selected mode so the refresh lands.
+            if (viture != null && viture.isConnected() && swapActive) applyOutputMode();
             callbacks.onSwapStateChanged(swapActive);
-        });
+        };
+        GlassesManager.INSTANCE.addListener(glassesListener);
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -126,7 +126,6 @@ public final class ExternalDisplayController {
             displayManager.registerDisplayListener(displayListener, mainHandler);
             listenerRegistered = true;
         }
-        viture.attach();
         maybePromptForDisplay();
     }
 
@@ -148,7 +147,7 @@ public final class ExternalDisplayController {
 
     public void release() {
         stop();
-        viture.detach();
+        GlassesManager.INSTANCE.removeListener(glassesListener);
         exitSwap();
     }
 
@@ -213,7 +212,8 @@ public final class ExternalDisplayController {
                 break;
             }
         }
-        selectedRefreshIndex = closestRateIndex(round1(active.getRefreshRate()));
+        // Keep the glasses' persisted rate; don't snap back to the panel's transient 60Hz boot mode.
+        if (!isVitureSink()) selectedRefreshIndex = closestRateIndex(round1(active.getRefreshRate()));
     }
 
     // ── Discovery ──────────────────────────────────────────────────────────
@@ -266,6 +266,13 @@ public final class ExternalDisplayController {
         return name != null ? name.trim() : "";
     }
 
+    // True when the active sink is Viture glasses (USB control up, or the EDID product name says VITURE).
+    private boolean isVitureSink() {
+        if (viture.isConnected()) return true;
+        String name = describeDisplay(externalDisplay);
+        return !name.isEmpty() && name.toUpperCase(java.util.Locale.ROOT).contains("VITURE");
+    }
+
     // ── Swap / restore ─────────────────────────────────────────────────────
 
     public void enterSwap() {
@@ -314,6 +321,9 @@ public final class ExternalDisplayController {
         applyGameMode();
         applyHighRefreshToPhone();   // reduce phone touch lag
         applyExternalPresentMode();  // non-blocking present so a slow sink can't stall the render thread
+
+        // Glasses already under USB control: push the persisted mode (default 120Hz) now via the MCU.
+        if (viture.isConnected()) applyOutputMode();
 
         callbacks.onSwapStateChanged(true);
     }
@@ -457,7 +467,9 @@ public final class ExternalDisplayController {
         for (float r : STANDARD_REFRESH_RATES) addRate(refreshOptions, r);
         refreshOptions.sort((a, b) -> Float.compare(b, a));
         float nativeRate = current != null ? round1(current.getRefreshRate()) : 60f;
-        selectedRefreshIndex = closestRateIndex(nativeRate);
+        // Glasses default to the persisted rate (120 out of the box); other sinks to their native rate.
+        selectedRefreshIndex = closestRateIndex(
+                isVitureSink() ? GlassesManager.INSTANCE.currentRefreshHz() : nativeRate);
 
         lastModesSignature = modesSignature(externalDisplay);
     }
@@ -491,6 +503,7 @@ public final class ExternalDisplayController {
     public void selectRefreshRate(int index) {
         if (index < 0 || index >= refreshOptions.size()) return;
         selectedRefreshIndex = index;
+        if (isVitureSink()) GlassesManager.INSTANCE.persistRefreshHz(Math.round(refreshOptions.get(index)));
         applyOutputMode();
     }
 
@@ -700,16 +713,15 @@ public final class ExternalDisplayController {
     }
 
     public int getVitureBrightness() {
-        if (vitureBrightness < 0) vitureBrightness = viture.brightnessMax();
-        return vitureBrightness;
+        return GlassesManager.INSTANCE.currentBrightness();
     }
 
     public int getVitureFilm() {
-        return vitureFilm;
+        return GlassesManager.INSTANCE.isSunblock() ? 1 : 0;
     }
 
     public boolean isViture3D() {
-        return viture3D;
+        return GlassesManager.INSTANCE.is3D();
     }
 
     public boolean vitureSupportsVolume() {
@@ -721,28 +733,23 @@ public final class ExternalDisplayController {
     }
 
     public int getVitureVolume() {
-        if (vitureVolume < 0) vitureVolume = viture.volumeMax() / 2;
-        return vitureVolume;
+        return GlassesManager.INSTANCE.currentVolume();
     }
 
     public void setVitureVolume(int level) {
-        vitureVolume = level;
-        viture.setVolume(level);
+        GlassesManager.INSTANCE.setVolume(level);
     }
 
     public void setVitureBrightness(int level) {
-        vitureBrightness = level;
-        viture.setBrightness(level);
+        GlassesManager.INSTANCE.setBrightness(level);
     }
 
     public void setVitureFilm(int level) {
-        vitureFilm = level;
-        viture.setFilm(level);
+        GlassesManager.INSTANCE.setSunblock(level > 0);
     }
 
     public void setViture3D(boolean enabled) {
-        viture3D = enabled;
-        viture.set3D(enabled);
+        GlassesManager.INSTANCE.set3D(enabled);
     }
 
     // ── Phone refresh / present mode (touch-lag mitigation) ────────────────

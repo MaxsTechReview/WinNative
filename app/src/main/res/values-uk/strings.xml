@@ -1362,6 +1362,8 @@
     <string name="session_drawer_output_brightness">Яскравість</string>
     <string name="session_drawer_output_shade">Затемнення</string>
     <string name="session_drawer_output_3d">3D (поруч)</string>
+    <string name="glasses_panel_refresh">Частота оновлення</string>
+    <string name="glasses_panel_sunblock">Світлофільтр</string>
     <string name="session_drawer_output_volume">Гучність</string>
     <string name="session_drawer_output_glasses_note">Надсилається напряму на окуляри Viture через USB.</string>
 </resources>

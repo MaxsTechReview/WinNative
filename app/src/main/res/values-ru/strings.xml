@@ -1262,6 +1262,8 @@
     <string name="session_drawer_output_brightness">Яркость</string>
     <string name="session_drawer_output_shade">Затемнение</string>
     <string name="session_drawer_output_3d">3D (бок о бок)</string>
+    <string name="glasses_panel_refresh">Частота обновления</string>
+    <string name="glasses_panel_sunblock">Светофильтр</string>
     <string name="session_drawer_output_volume">Громкость</string>
     <string name="session_drawer_output_glasses_note">Отправляется напрямую на очки Viture по USB.</string>
 </resources>

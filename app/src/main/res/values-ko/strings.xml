@@ -1357,6 +1357,8 @@
     <string name="session_drawer_output_brightness">밝기</string>
     <string name="session_drawer_output_shade">셰이드(디밍)</string>
     <string name="session_drawer_output_3d">3D(좌우 분할)</string>
+    <string name="glasses_panel_refresh">주사율</string>
+    <string name="glasses_panel_sunblock">햇빛 차단</string>
     <string name="session_drawer_output_volume">볼륨</string>
     <string name="session_drawer_output_glasses_note">USB로 Viture 글래스에 직접 전송됩니다.</string>
 </resources>

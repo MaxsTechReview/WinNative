@@ -396,23 +396,6 @@ class XServerDrawerStateHolder(
     internal var openPane by mutableStateOf<DrawerPane?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
 
-    // Material 3 "Mirror or Swap" prompt shown when an external display connects. Non-null name =
-    // visible; the host renders the dialog and invokes the chosen action. Runnable (not a Kotlin
-    // function type) so the Java activity can pass plain lambdas.
-    var externalDisplayPromptName by mutableStateOf<String?>(null)
-    var onExternalDisplaySwap: Runnable? = null
-    var onExternalDisplayMirror: Runnable? = null
-
-    fun showExternalDisplayPrompt(displayName: String, onSwap: Runnable, onMirror: Runnable) {
-        onExternalDisplaySwap = onSwap
-        onExternalDisplayMirror = onMirror
-        externalDisplayPromptName = displayName
-    }
-
-    fun dismissExternalDisplayPrompt() {
-        externalDisplayPromptName = null
-    }
-
     // Bumped on swap-back so the host re-requests a layout pass on the Compose-hosted display frame.
     var phoneRelayoutTick by mutableStateOf(0)
         private set

@@ -1008,6 +1008,7 @@ class UnifiedActivity :
         }
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
+        com.winlator.cmod.runtime.display.GlassesManager.init(this)
         bootstrapStartupState()
         maybeAutoSignInGoogleOnLaunch()
 
@@ -2013,6 +2014,92 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun GlassesSettingsSheet(onDismiss: () -> Unit) {
+        val gm = com.winlator.cmod.runtime.display.GlassesManager
+        val settings by gm.settings.collectAsState()
+        Dialog(onDismissRequest = onDismiss) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = SurfaceDark,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Accent, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(gm.modelName(), color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.glasses_panel_refresh), color = TextSecondary, fontSize = 13.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(60, 90, 120).forEach { hz ->
+                                val selected = settings.refreshHz == hz
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (selected) Accent else TextSecondary.copy(alpha = 0.15f))
+                                        .clickable { gm.setRefreshHz(hz) }
+                                        .padding(vertical = 11.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("$hz Hz", color = if (selected) SurfaceDark else TextPrimary,
+                                        fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
+                    GlassesSlider(stringResource(R.string.session_drawer_output_brightness),
+                        settings.brightness.coerceAtLeast(0), gm.brightnessMax()) { gm.setBrightness(it) }
+                    GlassesSlider(stringResource(R.string.session_drawer_output_volume),
+                        settings.volume, gm.volumeMax()) { gm.setVolume(it) }
+                    GlassesToggle(stringResource(R.string.glasses_panel_sunblock), settings.sunblock) { gm.setSunblock(it) }
+                    GlassesToggle(stringResource(R.string.session_drawer_output_3d), settings.threeD) { gm.set3D(it) }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun GlassesSlider(label: String, value: Int, max: Int, onChange: (Int) -> Unit) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, color = TextSecondary, fontSize = 13.sp)
+                Text("$value / $max", color = TextPrimary, fontSize = 13.sp)
+            }
+            androidx.compose.material3.Slider(
+                value = value.toFloat(),
+                onValueChange = { onChange(it.roundToInt()) },
+                valueRange = 0f..max.toFloat(),
+                steps = (max - 1).coerceAtLeast(0),
+                colors = androidx.compose.material3.SliderDefaults.colors(
+                    thumbColor = Accent, activeTrackColor = Accent),
+            )
+        }
+    }
+
+    @Composable
+    private fun GlassesToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(label, color = TextPrimary, fontSize = 15.sp)
+            androidx.compose.material3.Switch(
+                checked = checked,
+                onCheckedChange = onChange,
+                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Accent),
+            )
+        }
+    }
+
+    @Composable
     private fun TopBar(
         tabs: List<TabDef>,
         selectedIdx: Int,
@@ -2032,6 +2119,8 @@ class UnifiedActivity :
         val searchFocusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
         val isDownloadsTab = tabs.getOrNull(selectedIdx)?.key == "downloads"
+        val glassesConnected by com.winlator.cmod.runtime.display.GlassesManager.connected.collectAsState()
+        var showGlassesPanel by remember { mutableStateOf(false) }
 
         LaunchedEffect(selectedIdx) {
             if (isSearchExpanded) {
@@ -2258,6 +2347,21 @@ class UnifiedActivity :
 
                     Spacer(Modifier.width(8.dp))
 
+                    if (glassesConnected) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceDark)
+                                    .clickable { showGlassesPanel = true },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Outlined.Visibility, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                    }
+
                     Box(
                         modifier =
                             Modifier
@@ -2277,6 +2381,8 @@ class UnifiedActivity :
                     }
                 }
             }
+
+            if (showGlassesPanel) GlassesSettingsSheet(onDismiss = { showGlassesPanel = false })
 
             AnimatedVisibility(
                 visible = isSearchExpanded && !isDownloadsTab,

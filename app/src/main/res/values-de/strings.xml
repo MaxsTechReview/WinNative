@@ -1356,6 +1356,8 @@ Installierter Pfad:
     <string name="session_drawer_output_brightness">Helligkeit</string>
     <string name="session_drawer_output_shade">Tönung (Abdunkeln)</string>
     <string name="session_drawer_output_3d">3D (Side-by-Side)</string>
+    <string name="glasses_panel_refresh">Bildwiederholrate</string>
+    <string name="glasses_panel_sunblock">Sonnenschutz</string>
     <string name="session_drawer_output_volume">Lautstärke</string>
     <string name="session_drawer_output_glasses_note">Direkt per USB an deine Viture-Brille gesendet.</string>
 </resources>

@@ -3501,7 +3501,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
-        dismissExternalDisplayPrompt();
         if (externalDisplayController != null) {
             externalDisplayController.release();
             externalDisplayController = null;
@@ -5956,13 +5955,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 new ExternalDisplayController.Callbacks() {
                     @Override
                     public void onExternalDisplayConnected(android.view.Display display) {
-                        showExternalDisplayPrompt(display);
+                        // Automatic swap: the game shows only on the external display, controls stay on the phone.
+                        runOnUiThread(() -> {
+                            if (isFinishing() || isDestroyed() || externalDisplayController == null
+                                    || externalDisplayController.isSwapActive()) return;
+                            externalDisplayController.enterSwap();
+                            renderDrawerMenu();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_swapped_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        });
                     }
 
                     @Override
                     public void onExternalDisplayDisconnected() {
                         runOnUiThread(() -> {
-                            dismissExternalDisplayPrompt();
                             android.widget.Toast.makeText(XServerDisplayActivity.this,
                                     R.string.display_output_restored_toast,
                                     android.widget.Toast.LENGTH_SHORT).show();
@@ -5985,32 +5992,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         externalDisplayController.start();
 
         AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
-    }
-
-    private void showExternalDisplayPrompt(android.view.Display display) {
-        runOnUiThread(() -> {
-            if (isFinishing() || isDestroyed()) return;
-            if (externalDisplayController == null || externalDisplayController.isSwapActive()) return;
-            if (drawerStateHolder == null) renderDrawerMenu();
-            if (drawerStateHolder == null) return;
-            // Material 3 "Mirror or Swap" prompt rendered by the Compose host (matches the app style).
-            drawerStateHolder.showExternalDisplayPrompt(
-                    display != null ? display.getName() : "",
-                    () -> { // Swap
-                        if (externalDisplayController != null) {
-                            externalDisplayController.enterSwap();
-                            renderDrawerMenu();
-                            android.widget.Toast.makeText(XServerDisplayActivity.this,
-                                    R.string.display_output_swapped_toast,
-                                    android.widget.Toast.LENGTH_SHORT).show();
-                        }
-                    },
-                    () -> { /* Mirror — keep the system's default mirroring; nothing to do. */ });
-        });
-    }
-
-    private void dismissExternalDisplayPrompt() {
-        if (drawerStateHolder != null) drawerStateHolder.dismissExternalDisplayPrompt();
     }
 
     // Open the system Cast / wireless-display picker; a connected display flows through the swap path.

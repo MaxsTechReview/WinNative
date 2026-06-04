@@ -1356,6 +1356,8 @@
     <string name="session_drawer_output_brightness">亮度</string>
     <string name="session_drawer_output_shade">遮光（變暗）</string>
     <string name="session_drawer_output_3d">3D（左右）</string>
+    <string name="glasses_panel_refresh">更新率</string>
+    <string name="glasses_panel_sunblock">遮光</string>
     <string name="session_drawer_output_volume">音量</string>
     <string name="session_drawer_output_glasses_note">透過 USB 直接傳送到你的 Viture 眼鏡。</string>
 </resources>

@@ -1356,6 +1356,8 @@ Installeret sti:
     <string name="session_drawer_output_brightness">Lysstyrke</string>
     <string name="session_drawer_output_shade">Skygge (dæmpning)</string>
     <string name="session_drawer_output_3d">3D (side om side)</string>
+    <string name="glasses_panel_refresh">Opdateringshastighed</string>
+    <string name="glasses_panel_sunblock">Solfilter</string>
     <string name="session_drawer_output_volume">Lydstyrke</string>
     <string name="session_drawer_output_glasses_note">Sendes direkte til dine Viture-briller via USB.</string>
 </resources>

@@ -746,6 +746,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_output_brightness">Brightness</string>
     <string name="session_drawer_output_shade">Shade (dimming)</string>
     <string name="session_drawer_output_3d">3D (side‑by‑side)</string>
+    <string name="glasses_panel_refresh">Refresh Rate</string>
+    <string name="glasses_panel_sunblock">Sunblock</string>
     <string name="session_drawer_output_volume">Volume</string>
     <string name="session_drawer_output_glasses_note">Sent directly to your Viture glasses over USB.</string>
     <string name="session_drawer_rail_label_keyboard">Keyboard</string>
