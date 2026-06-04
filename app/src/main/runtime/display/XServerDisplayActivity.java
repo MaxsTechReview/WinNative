@@ -384,6 +384,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private Handler  timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable hideControlsRunnable;
 
+    private boolean pendingStartupStretch;
+    private int startupStretchTries;
+    private static final int STARTUP_STRETCH_MAX_TRIES = 150;
+    private final Runnable startupStretchRunnable = () -> applyStartupStretchWhenReady();
+
     private final AtomicBoolean exitRequested = new AtomicBoolean(false);
     private final AtomicBoolean steamExitWatchRunning = new AtomicBoolean(false);
     private final AtomicBoolean activityDestroyed = new AtomicBoolean(false);
@@ -3498,6 +3503,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        pendingStartupStretch = false;
+        timeoutHandler.removeCallbacks(startupStretchRunnable);
         unregisterDisplayChangeListener();
         if (preloaderDialog != null) {
             preloaderDialog.close();
@@ -5820,10 +5827,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         boolean shouldStretch = "1".equals(getShortcutSetting("fullscreenStretched",
                 container != null && container.isFullscreenStretched() ? "1" : "0"));
 
-        if (shouldStretch) {
-            renderer.toggleFullscreen();
-            touchpadView.toggleFullscreen();
-        }
+        pendingStartupStretch = shouldStretch;
+        startupStretchTries = 0;
+        if (shouldStretch) applyStartupStretchWhenReady();
 
         if (shortcut != null) {
             String controlsProfile = shortcut.getExtra("controlsProfile");
@@ -5839,6 +5845,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         startTouchscreenTimeout();
 
         AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
+    }
+
+    private void applyStartupStretchWhenReady() {
+        if (!pendingStartupStretch) return;
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        boolean ready = renderer != null && renderer.getSurfaceWidth() > 0
+                && touchpadView != null && touchpadView.getWidth() > 0;
+        if (ready) {
+            pendingStartupStretch = false;
+            if (!renderer.isFullscreen()) {
+                renderer.toggleFullscreen();
+                touchpadView.toggleFullscreen();
+                renderDrawerMenu();
+            }
+            return;
+        }
+        if (++startupStretchTries > STARTUP_STRETCH_MAX_TRIES) {
+            pendingStartupStretch = false;
+            return;
+        }
+        timeoutHandler.postDelayed(startupStretchRunnable, 32);
     }
 
 
