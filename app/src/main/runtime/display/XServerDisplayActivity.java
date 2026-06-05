@@ -3788,7 +3788,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("gyro_mouse_scale", 50.0f),
                 preferences.getFloat("gyro_x_sensitivity", 1.0f),
                 preferences.getFloat("gyro_y_sensitivity", 1.0f),
-                preferences.getFloat("gyro_smoothing", 0.5f),
+                preferences.getFloat("gyro_smoothing", 0.1f),
                 preferences.getFloat("gyro_deadzone", 0.05f),
                 preferences.getBoolean("invert_gyro_x", false),
                 preferences.getBoolean("invert_gyro_y", false),
