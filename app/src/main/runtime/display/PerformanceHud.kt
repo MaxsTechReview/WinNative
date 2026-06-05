@@ -14,8 +14,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -78,51 +80,84 @@ private val HudText = Color(0xFFF0F4FF)
 private val HudSub = Color(0xFF7A8FA8)
 private val HudTrack = Color(0x33FFFFFF)
 
-private data class GaugeSpec(val label: String, val value: String, val fraction: Float, val color: Color)
+private data class GaugeSpec(
+    val label: String,
+    val value: String,
+    val fraction: Float,
+    val color: Color,
+    val sublabel: String? = null,
+    val sublabelColor: Color = HudSub,
+)
 
 @Composable
 fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
     val s by PerformanceHudState.state.collectAsState()
+    // A gauge stays on screen for as long as its element is enabled; a momentarily-unavailable
+    // value shows N/A rather than dropping the gauge (which would make the row jump around).
     val gauges = ArrayList<GaugeSpec>(8)
     if (s.enabled.getOrElse(0) { false }) {
         gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent))
     }
-    if (s.enabled.getOrElse(2) { false } && s.gpuLoad >= 0) {
-        gauges.add(GaugeSpec("GPU", "${s.gpuLoad}%", s.gpuLoad / 100f, loadColor(s.gpuLoad)))
+    if (s.enabled.getOrElse(2) { false }) {
+        gauges.add(GaugeSpec("GPU", pctText(s.gpuLoad), pctFraction(s.gpuLoad), loadColor(maxOf(s.gpuLoad, 0))))
     }
-    if (s.enabled.getOrElse(3) { false } && s.cpuPercent >= 0) {
-        gauges.add(GaugeSpec("CPU", "${s.cpuPercent}%", s.cpuPercent / 100f, loadColor(s.cpuPercent)))
+    if (s.enabled.getOrElse(3) { false }) {
+        gauges.add(GaugeSpec("CPU", pctText(s.cpuPercent), pctFraction(s.cpuPercent), loadColor(maxOf(s.cpuPercent, 0))))
     }
-    if (s.enabled.getOrElse(4) { false } && s.ramPercent >= 0) {
-        gauges.add(GaugeSpec("RAM", "${s.ramPercent}%", s.ramPercent / 100f, loadColor(s.ramPercent)))
+    if (s.enabled.getOrElse(4) { false }) {
+        gauges.add(GaugeSpec("RAM", pctText(s.ramPercent), pctFraction(s.ramPercent), loadColor(maxOf(s.ramPercent, 0))))
     }
     if (s.enabled.getOrElse(6) { false }) {
         gauges.add(GaugeSpec("ms", String.format("%.1f", s.frametimeMs), 1f - (s.frametimeMs / 33.3f), HudGood))
     }
     if (s.enabled.getOrElse(5) { false }) {
-        gauges.add(GaugeSpec("Watt", String.format("%.1f", s.batteryWatts), s.batteryWatts / 12f, HudAccent))
-        if (s.tempC >= 0) gauges.add(GaugeSpec("°C", s.tempC.toString(), s.tempC / 60f, tempColor(s.tempC)))
+        // Battery + temperature is a single HUD element: watts is the gauge value, temp the sublabel.
+        gauges.add(GaugeSpec(
+            "WATT", if (s.batteryWatts >= 0f) String.format("%.1f", s.batteryWatts) else "N/A",
+            if (s.batteryWatts >= 0f) s.batteryWatts / 12f else 0f, HudAccent,
+            sublabel = if (s.tempC >= 0) "${s.tempC}°C" else null,
+            sublabelColor = if (s.tempC >= 0) tempColor(s.tempC) else HudSub,
+        ))
     }
+    val showRenderer = s.enabled.getOrElse(1) { false } && s.renderer.isNotEmpty()
     Box(
         modifier = modifier.fillMaxSize().background(Color(0xF00A0D13)),
-        contentAlignment = Alignment.Center,
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterVertically),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = if (showRenderer) 48.dp else 0.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             gauges.chunked(3).forEach { rowGauges ->
-                Row(horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterHorizontally)) {
-                    rowGauges.forEach { g -> HudGauge(g.label, g.value, g.fraction, g.color) }
+                Row(horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)) {
+                    rowGauges.forEach { g -> HudGauge(g.label, g.value, g.fraction, g.color, g.sublabel, g.sublabelColor) }
                 }
             }
-            if (s.enabled.getOrElse(1) { false } && s.renderer.isNotEmpty()) {
-                Text(s.renderer, color = HudText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
+        }
+        if (showRenderer) {
+            // Pinned just above the bottom edge so it is never clipped, regardless of gauge count.
+            Text(
+                s.renderer,
+                color = HudAccent,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 18.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color(0x1A1A9FFF))
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            )
         }
     }
 }
+
+private fun pctText(v: Int): String = if (v >= 0) "$v%" else "N/A"
+
+private fun pctFraction(v: Int): Float = if (v >= 0) v / 100f else 0f
 
 private fun loadColor(pct: Int): Color =
     if (pct >= 90) HudBad else if (pct >= 70) HudWarn else HudGood
@@ -131,7 +166,14 @@ private fun tempColor(c: Int): Color =
     if (c >= 45) HudBad else if (c >= 40) HudWarn else HudGood
 
 @Composable
-private fun HudGauge(label: String, valueText: String, fraction: Float, accent: Color) {
+private fun HudGauge(
+    label: String,
+    valueText: String,
+    fraction: Float,
+    accent: Color,
+    sublabel: String? = null,
+    sublabelColor: Color = HudSub,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -155,5 +197,8 @@ private fun HudGauge(label: String, valueText: String, fraction: Float, accent: 
             Text(valueText, color = HudText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         }
         Text(label, color = HudSub, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        if (sublabel != null) {
+            Text(sublabel, color = sublabelColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
     }
 }

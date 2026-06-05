@@ -1392,7 +1392,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
-                if (effectiveShowFPS && frameRating != null) {
+                if ((effectiveShowFPS || controllerHudMode) && frameRating != null) {
                     syncFrameRatingWithExistingWindows();
                 }
             }
@@ -6226,9 +6226,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         controllerHudMode = connected;
         runOnUiThread(() -> {
             com.winlator.cmod.runtime.display.PerformanceHudState.setVisible(connected);
+            if (frameRating != null) frameRating.setHudMirrorActive(connected);
             if (connected) {
                 if (inputControlsView != null) inputControlsView.setVisibility(View.GONE);
                 if (frameRating != null) frameRating.setVisibility(View.GONE);
+                // Lock onto the game window now so FPS/renderer come from it (it's on the external display).
+                syncFrameRatingWithExistingWindows();
             } else {
                 if (effectiveShowFPS && frameRating != null) frameRating.setVisibility(View.VISIBLE);
                 if (inputControlsView != null && hasActiveTouchscreenProfile()
