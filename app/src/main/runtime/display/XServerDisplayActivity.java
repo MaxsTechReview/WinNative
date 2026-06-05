@@ -4644,12 +4644,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void applyRefactorSize(boolean enabled) {
         if (winHandler == null || container == null) return;
         if (enabled) stageRefactorSizeHelper();
-        winHandler.exec("\"C:\\winnative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
+        winHandler.exec("\"C:\\WinNative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
     }
 
     private void stageRefactorSizeHelper() {
         try {
-            File dir = new File(container.getRootDir(), ".wine/drive_c/winnative");
+            File dir = new File(container.getRootDir(), ".wine/drive_c/WinNative");
             if (!dir.isDirectory() && !dir.mkdirs()) return;
             File dst = new File(dir, "refactorsize.exe");
             if (dst.exists() && dst.length() == REFACTOR_SIZE_EXE_BYTES) return;
