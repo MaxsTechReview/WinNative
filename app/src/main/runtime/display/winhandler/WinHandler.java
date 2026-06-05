@@ -1575,8 +1575,9 @@ public class WinHandler {
     // Slider 100% maps to 200% effective (+1.0 offset): the displayed % was too weak on its own.
     settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
     settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
-    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.9f), 0.0f, 0.99f);
-    settings.deadzone = clamp(getFloatPreference("gyro_deadzone", 0.05f), 0.0f, 1.0f);
+    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.5f), 0.0f, 0.99f);
+    // Deadzone forced to 0 while gyro is in use; the saved gyro_deadzone pref is left intact.
+    settings.deadzone = 0.0f;
     settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);
     settings.invertY = this.preferences.getBoolean("invert_gyro_y", false);
     return settings;

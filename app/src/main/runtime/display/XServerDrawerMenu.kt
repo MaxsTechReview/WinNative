@@ -574,7 +574,7 @@ fun buildXServerDrawerState(
     gyroMouseScale: Float = 50.0f,
     gyroXSensitivity: Float = 1.0f,
     gyroYSensitivity: Float = 1.0f,
-    gyroSmoothing: Float = 0.9f,
+    gyroSmoothing: Float = 0.5f,
     gyroDeadzone: Float = 0.05f,
     invertGyroX: Boolean = false,
     invertGyroY: Boolean = false,
@@ -1671,8 +1671,8 @@ private fun GyroscopePaneContent(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
                         valueText = "${(state.gyroXSensitivity * 100).roundToInt()}%",
                         value = state.gyroXSensitivity,
-                        valueRange = 0.1f..2f,
-                        steps = 37,
+                        valueRange = 0.1f..3f,
+                        steps = 0,
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
@@ -1680,8 +1680,8 @@ private fun GyroscopePaneContent(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
                         valueText = "${(state.gyroYSensitivity * 100).roundToInt()}%",
                         value = state.gyroYSensitivity,
-                        valueRange = 0.1f..2f,
-                        steps = 37,
+                        valueRange = 0.1f..3f,
+                        steps = 0,
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 

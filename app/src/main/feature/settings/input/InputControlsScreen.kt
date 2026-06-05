@@ -151,7 +151,7 @@ data class InputControlsScreenState(
     val gyroscopeExpanded: Boolean = false,
     val gyroXSensitivity: Int = 100,
     val gyroYSensitivity: Int = 100,
-    val gyroSmoothing: Int = 90,
+    val gyroSmoothing: Int = 50,
     val gyroDeadzone: Int = 5,
     val invertGyroX: Boolean = false,
     val invertGyroY: Boolean = false,
@@ -1901,17 +1901,17 @@ private fun GyroscopeCard(
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
                     value = state.gyroXSensitivity.toFloat(),
-                    valueRange = 10f..200f,
-                    steps = 37,
-                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(10, 200)) },
+                    valueRange = 10f..300f,
+                    steps = 0,
+                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(10, 300)) },
                 )
                 Spacer(Modifier.height(InputCompactGap))
                 SliderField(
                     label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
                     value = state.gyroYSensitivity.toFloat(),
-                    valueRange = 10f..200f,
-                    steps = 37,
-                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(10, 200)) },
+                    valueRange = 10f..300f,
+                    steps = 0,
+                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(10, 300)) },
                 )
                 Spacer(Modifier.height(InputCompactGap))
                 SliderField(
