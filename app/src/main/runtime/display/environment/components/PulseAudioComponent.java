@@ -171,6 +171,18 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
   }
 
+  public void suspend() {
+    synchronized (lock) {
+      if (pid != -1) ProcessHelper.suspendProcess(pid);
+    }
+  }
+
+  public void resume() {
+    synchronized (lock) {
+      if (pid != -1) ProcessHelper.resumeProcess(pid);
+    }
+  }
+
   private void copyFromLibraryDir(File dst) {
     String[] libs =
         new String[] {
