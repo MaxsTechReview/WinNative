@@ -135,34 +135,6 @@ public class WinHandler {
         public void onInputDeviceChanged(int deviceId) {}
       };
 
-  private final class MouseMoveAction implements Runnable {
-    private int dx;
-    private int dy;
-
-    MouseMoveAction(int dx, int dy) {
-      this.dx = dx;
-      this.dy = dy;
-    }
-
-    void addDelta(int dx, int dy) {
-      this.dx += dx;
-      this.dy += dy;
-    }
-
-    @Override
-    public void run() {
-      int remainingX = dx;
-      int remainingY = dy;
-      while (remainingX != 0 || remainingY != 0) {
-        int stepX = clampMouseDelta(remainingX);
-        int stepY = clampMouseDelta(remainingY);
-        sendMouseEventPacket(MouseEventFlags.MOVE, stepX, stepY, 0);
-        remainingX -= stepX;
-        remainingY -= stepY;
-      }
-    }
-  }
-
   public WinHandler(XServerDisplayActivity activity) {
     this.activity = activity;
     this.inputManager = (InputManager) activity.getSystemService(Context.INPUT_SERVICE);
@@ -435,10 +407,7 @@ public class WinHandler {
   }
 
   public void mouseMoveDelta(final int dx, final int dy) {
-    if (!this.initReceived) {
-      return;
-    }
-    addMouseMoveAction(dx, dy);
+    mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
   }
 
   private void sendMouseEventPacket(final int flags, final int dx, final int dy, final int wheelDelta) {
@@ -454,12 +423,6 @@ public class WinHandler {
       sendPacket(CLIENT_PORT);
     } catch (IOException ignored) {
     }
-  }
-
-  private int clampMouseDelta(int value) {
-    if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
-    if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
-    return value;
   }
 
   public void keyboardEvent(final byte vkey, final int flags) {
@@ -506,19 +469,6 @@ public class WinHandler {
     synchronized (this.actions) {
       if (!this.running) return;
       this.actions.add(action);
-      this.actions.notifyAll();
-    }
-  }
-
-  private void addMouseMoveAction(int dx, int dy) {
-    synchronized (this.actions) {
-      if (!this.running) return;
-      Runnable last = this.actions.peekLast();
-      if (last instanceof MouseMoveAction) {
-        ((MouseMoveAction) last).addDelta(dx, dy);
-      } else {
-        this.actions.add(new MouseMoveAction(dx, dy));
-      }
       this.actions.notifyAll();
     }
   }
@@ -618,12 +568,14 @@ public class WinHandler {
         short x = this.receiveData.getShort();
         short y = this.receiveData.getShort();
         XServer xServer = this.activity.getXServer();
-        xServer.pointer.setX(x);
-        xServer.pointer.setY(y);
-        if (xServer.getRenderer() != null) {
-          xServer.getRenderer().requestCursorRender();
-        } else {
-          this.activity.getXServerView().requestTransientRender(100);
+        if (xServer != null) {
+          xServer.pointer.setX(x);
+          xServer.pointer.setY(y);
+          if (xServer.getRenderer() != null) {
+            xServer.getRenderer().requestCursorRender();
+          } else if (this.activity.getXServerView() != null) {
+            this.activity.getXServerView().requestTransientRender(100);
+          }
         }
         return;
       default:

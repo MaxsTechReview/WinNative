@@ -19,6 +19,8 @@ import java.util.List;
 
 public class SyncExtension implements Extension {
   public static final byte MAJOR_OPCODE = -104;
+  private byte firstEventId;
+  private byte firstErrorId;
   private final SparseBooleanArray fences = new SparseBooleanArray();
   /** Fence ID -> imported sync_file FD currently watched by the dispatcher. */
   private final SparseIntArray waitFds = new SparseIntArray();
@@ -55,12 +57,32 @@ public class SyncExtension implements Extension {
 
   @Override
   public byte getFirstErrorId() {
-    return Byte.MIN_VALUE;
+    return firstErrorId;
   }
 
   @Override
   public byte getFirstEventId() {
-    return 0;
+    return firstEventId;
+  }
+
+  @Override
+  public int getNumEvents() {
+    return 2;
+  }
+
+  @Override
+  public int getNumErrors() {
+    return 2;
+  }
+
+  @Override
+  public void setFirstEventId(byte id) {
+    this.firstEventId = id;
+  }
+
+  @Override
+  public void setFirstErrorId(byte id) {
+    this.firstErrorId = id;
   }
 
   /**

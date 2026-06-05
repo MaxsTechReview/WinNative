@@ -305,7 +305,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void tryCapturePointer() {
-        if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
+        if (touchpadView != null && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
             touchpadView.postDelayed(() -> {
                 if (touchpadView != null) {
                     updatePointerCapture();
@@ -427,6 +427,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
             } else {
                 sensorManager.unregisterListener(gyroListener);
+            }
+        } else if ("cursor_speed".equals(key)) {
+            globalCursorSpeed = sharedPreferences.getFloat("cursor_speed", 1.0f);
+            if (touchpadView != null) {
+                float profileSpeed = 1.0f;
+                if (inputControlsView != null) {
+                    ControlsProfile profile = inputControlsView.getProfile();
+                    if (profile != null) profileSpeed = profile.getCursorSpeed();
+                }
+                touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+            }
+        } else if ("touchscreen_toggle".equals(key)) {
+            if (touchpadView != null) {
+                touchpadView.setSimTouchScreen(sharedPreferences.getBoolean("touchscreen_toggle", false));
             }
         }
     };
@@ -2134,6 +2148,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             dx = event.getX();
             dy = event.getY();
         }
+        dx *= globalCursorSpeed;
+        dy *= globalCursorSpeed;
         return new int[]{
                 (int)(xform[0] * dx + xform[2] * dy),
                 (int)(xform[1] * dx + xform[3] * dy)
@@ -3763,6 +3779,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getString(
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY,
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.DISABLED.toPrefValue()),
+                globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
                 isRefactorSizeEnabled
@@ -4062,6 +4079,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
                         preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onCursorSpeedChanged(float speed) {
+                        globalCursorSpeed = speed;
+                        preferences.edit().putFloat("cursor_speed", speed).apply();
+                        if (touchpadView != null) {
+                            float profileSpeed = 1.0f;
+                            if (inputControlsView != null) {
+                                ControlsProfile profile = inputControlsView.getProfile();
+                                if (profile != null) profileSpeed = profile.getCursorSpeed();
+                            }
+                            touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+                        }
                         renderDrawerMenu();
                     }
 
@@ -4715,7 +4747,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldUsePointerCapture() {
-        return !isPointerCaptureForcedOff && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
+        return !isPointerCaptureForcedOff && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
     }
 
     private void updatePointerCapture() {

@@ -338,6 +338,7 @@ data class XServerDrawerState(
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = true,
     val inputControlsGcmRumbleMode: String = "disabled",
+    val cursorSpeed: Float = 1.0f,
 )
 
 class XServerDrawerStateHolder(
@@ -525,6 +526,8 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsGamepadVibrationChanged(enabled: Boolean)
 
+    fun onCursorSpeedChanged(speed: Float)
+
     fun onInputControlsGcmRumbleModeChanged(mode: String)
 
     fun onInputControlsEditClick()
@@ -597,6 +600,7 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
     inputControlsGcmRumbleMode: String = "disabled",
+    cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
     refactorSizeEnabled: Boolean = false,
@@ -766,6 +770,7 @@ fun buildXServerDrawerState(
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
         inputControlsGcmRumbleMode = inputControlsGcmRumbleMode,
+        cursorSpeed = cursorSpeed,
     )
 }
 
@@ -1823,6 +1828,15 @@ private fun InputControlsPaneContent(
                     title = stringResource(R.string.session_gamepad_enable_vibration),
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
+                )
+
+                DrawerSliderRow(
+                    label = "Mouse sensitivity scale",
+                    valueText = "${Math.round(state.cursorSpeed * 100)}%",
+                    value = state.cursorSpeed * 100f,
+                    valueRange = 10f..300f,
+                    steps = 0,
+                    onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
                 )
 
                 LaunchedEffect(gcmEnabled) {
