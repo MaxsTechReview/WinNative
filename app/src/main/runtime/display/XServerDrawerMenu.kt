@@ -2059,8 +2059,7 @@ private fun InputControlsProfileSelector(
     }
 }
 
-// Drawer-styled dropdown popup for the Controls selectors (profile / style / labels),
-// mirroring the glass popup look used elsewhere in the drawer.
+// Drawer-styled dropdown for the Controls selectors; opens scrolled to the selected option.
 @Composable
 private fun InputControlsOptionsPopup(
     expanded: Boolean,
@@ -2074,6 +2073,11 @@ private fun InputControlsOptionsPopup(
     val density = LocalDensity.current
     val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
     val shape = RoundedCornerShape((12f * paneScale).dp)
+    val scrollState = rememberScrollState()
+    var selectedOffsetPx by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(selectedOffsetPx) {
+        selectedOffsetPx?.let { scrollState.scrollTo(it) }
+    }
     Popup(
         popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
         onDismissRequest = onDismiss,
@@ -2087,18 +2091,27 @@ private fun InputControlsOptionsPopup(
                     .background(PaneSurfaceColor)
                     .border(1.dp, RestingCardBorder, shape)
                     .heightIn(max = (260f * paneScale).dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding((5f * paneScale).dp),
             verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
         ) {
             options.forEachIndexed { index, name ->
+                val isSelected = index == selectedIndex
                 InputControlsOptionItem(
                     label = name,
-                    selected = index == selectedIndex,
+                    selected = isSelected,
                     onClick = {
                         onSelected(index)
                         onDismiss()
                     },
+                    modifier =
+                        if (isSelected) {
+                            Modifier.onGloballyPositioned { coords ->
+                                selectedOffsetPx = coords.boundsInParent().top.roundToInt()
+                            }
+                        } else {
+                            Modifier
+                        },
                 )
             }
         }
@@ -2110,6 +2123,7 @@ private fun InputControlsOptionItem(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -2122,7 +2136,7 @@ private fun InputControlsOptionItem(
     val shape = RoundedCornerShape((8f * paneScale).dp)
     Row(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .clip(shape)
                 .background(bgColor)
