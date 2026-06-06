@@ -73,6 +73,22 @@ public class DRI3Extension implements Extension {
     return 0;
   }
 
+  @Override
+  public int getNumEvents() {
+    return 0;
+  }
+
+  @Override
+  public int getNumErrors() {
+    return 0;
+  }
+
+  @Override
+  public void setFirstEventId(byte id) {}
+
+  @Override
+  public void setFirstErrorId(byte id) {}
+
   private void queryVersion(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
     int clientMajor = inputStream.readInt();

@@ -2,6 +2,7 @@ package com.winlator.cmod.runtime.display.xserver;
 
 import android.util.Log;
 import android.util.SparseArray;
+import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.runtime.display.renderer.VulkanRenderer;
 import com.winlator.cmod.runtime.display.winhandler.MouseEventFlags;
 import com.winlator.cmod.runtime.display.winhandler.WinHandler;
@@ -11,6 +12,7 @@ import com.winlator.cmod.runtime.display.xserver.extensions.Extension;
 import com.winlator.cmod.runtime.display.xserver.extensions.MITSHMExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.PresentExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.SyncExtension;
+import com.winlator.cmod.runtime.display.xserver.extensions.XInput2Extension;
 import com.winlator.cmod.shared.android.CursorLocker;
 import java.nio.charset.Charset;
 import java.util.EnumMap;
@@ -114,6 +116,10 @@ public class XServer {
     return renderer;
   }
 
+  public GrabManager getGrabManager() {
+    return grabManager;
+  }
+
   public void setRenderer(VulkanRenderer renderer) {
     this.renderer = renderer;
   }
@@ -210,29 +216,50 @@ public class XServer {
   }
 
   public void injectPointerMove(int x, int y) {
-    if (winHandler != null && relativeMouseMovement) {
-      int flags = MouseEventFlags.MOVE | MouseEventFlags.ABSOLUTE;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
-      winHandler.mouseEvent(flags, x, y, 0);
-    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setPosition(x, y);
     }
   }
 
   public void injectPointerMoveDelta(int dx, int dy) {
-    if (winHandler != null && relativeMouseMovement) {
-      int flags = MouseEventFlags.MOVE;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) flags |= MouseEventFlags.LEFTDOWN;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) flags |= MouseEventFlags.RIGHTDOWN;
-      if (pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) flags |= MouseEventFlags.MIDDLEDOWN;
-      winHandler.mouseEvent(flags, dx, dy, 0);
-    }
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      pointer.setPosition(pointer.getX() + dx, pointer.getY() + dy);
+      int beforeX = pointer.getX();
+      int beforeY = pointer.getY();
+      int x = beforeX + dx;
+      int y = beforeY + dy;
+
+      int maxX = screenInfo.width - 1;
+      int maxY = screenInfo.height - 1;
+      android.graphics.Rect confinement = grabManager.getConfinementBounds();
+      if (confinement != null) {
+        int minX = Math.max(0, confinement.left);
+        int minY = Math.max(0, confinement.top);
+        int maxX2 = Math.min(maxX, confinement.right - 1);
+        int maxY2 = Math.min(maxY, confinement.bottom - 1);
+        x = Mathf.clamp(x, minX, maxX2);
+        y = Mathf.clamp(y, minY, maxY2);
+        pointer.setPosition(x, y);
+      } else {
+        short softMarginX = (short) (screenInfo.width * 0.05f);
+        short softMarginY = (short) (screenInfo.height * 0.05f);
+        x = Mathf.clamp(x, -softMarginX, (screenInfo.width - 1) + softMarginX);
+        y = Mathf.clamp(y, -softMarginY, (screenInfo.height - 1) + softMarginY);
+        pointer.setPosition(x, y);
+
+        int clampedX = x;
+        int clampedY = y;
+        if (x < 0) clampedX = 0;
+        else if (x > screenInfo.width - 1) clampedX = screenInfo.width - 1;
+        if (y < 0) clampedY = 0;
+        else if (y > screenInfo.height - 1) clampedY = screenInfo.height - 1;
+        pointer.setX(clampedX);
+        pointer.setY(clampedY);
+      }
+
+      XInput2Extension xi = getExtension(XInput2Extension.MAJOR_OPCODE);
+      if (xi != null) xi.emitRawMotion(2, (double)dx, (double)dy);
     }
+    if (renderer != null) renderer.requestCursorRender();
   }
 
   public void updatePointerForDisplay(int x, int y) {
@@ -245,8 +272,20 @@ public class XServer {
 
   public void updatePointerForDisplayDelta(int dx, int dy) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
-      pointer.setX(pointer.getX() + dx);
-      pointer.setY(pointer.getY() + dy);
+      short softMarginX = (short) (screenInfo.width * 0.05f);
+      short softMarginY = (short) (screenInfo.height * 0.05f);
+      int x = Mathf.clamp(pointer.getX() + dx, -softMarginX, (screenInfo.width - 1) + softMarginX);
+      int y = Mathf.clamp(pointer.getY() + dy, -softMarginY, (screenInfo.height - 1) + softMarginY);
+      pointer.setPosition(x, y);
+
+      int clampedX = x;
+      int clampedY = y;
+      if (x < 0) clampedX = 0;
+      else if (x > screenInfo.width - 1) clampedX = screenInfo.width - 1;
+      if (y < 0) clampedY = 0;
+      else if (y > screenInfo.height - 1) clampedY = screenInfo.height - 1;
+      pointer.setX(clampedX);
+      pointer.setY(clampedY);
     }
     if (renderer != null) renderer.requestCursorRender();
   }
@@ -254,12 +293,18 @@ public class XServer {
   public void injectPointerButtonPress(Pointer.Button buttonCode) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setButton(buttonCode, true);
+
+      XInput2Extension xInput2Extension = getExtension(XInput2Extension.MAJOR_OPCODE);
+      if (xInput2Extension != null) xInput2Extension.emitRawButton(2, buttonCode.ordinal() + 1, true);
     }
   }
 
   public void injectPointerButtonRelease(Pointer.Button buttonCode) {
     try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
       pointer.setButton(buttonCode, false);
+
+      XInput2Extension xInput2Extension = getExtension(XInput2Extension.MAJOR_OPCODE);
+      if (xInput2Extension != null) xInput2Extension.emitRawButton(2, buttonCode.ordinal() + 1, false);
     }
   }
 
@@ -279,14 +324,29 @@ public class XServer {
     }
   }
 
-  private void setupExtensions() {
-    extensions.put(BigReqExtension.MAJOR_OPCODE, new BigReqExtension());
-    extensions.put(MITSHMExtension.MAJOR_OPCODE, new MITSHMExtension());
-    if (dri3Enabled) {
-      extensions.put(DRI3Extension.MAJOR_OPCODE, new DRI3Extension());
+  private void registerExtension(Extension ext, int[] nextEventId, int[] nextErrorId) {
+    if (ext.getNumEvents() > 0) {
+      ext.setFirstEventId((byte) nextEventId[0]);
+      nextEventId[0] += ext.getNumEvents();
     }
-    extensions.put(PresentExtension.MAJOR_OPCODE, new PresentExtension());
-    extensions.put(SyncExtension.MAJOR_OPCODE, new SyncExtension());
+    if (ext.getNumErrors() > 0) {
+      ext.setFirstErrorId((byte) nextErrorId[0]);
+      nextErrorId[0] += ext.getNumErrors();
+    }
+    extensions.put(ext.getMajorOpcode(), ext);
+  }
+
+  private void setupExtensions() {
+    int[] nextEventId = {64};
+    int[] nextErrorId = {128};
+    registerExtension(new BigReqExtension(), nextEventId, nextErrorId);
+    registerExtension(new MITSHMExtension(), nextEventId, nextErrorId);
+    if (dri3Enabled) {
+      registerExtension(new DRI3Extension(), nextEventId, nextErrorId);
+    }
+    registerExtension(new PresentExtension(), nextEventId, nextErrorId);
+    registerExtension(new SyncExtension(), nextEventId, nextErrorId);
+    registerExtension(new XInput2Extension(), nextEventId, nextErrorId);
   }
 
   public <T extends Extension> T getExtension(int opcode) {

@@ -36,7 +36,6 @@ public class WindowManager extends XResourceManager {
   }
 
   public final Window rootWindow;
-  private Window confinedWindow;
   private final SparseArray<Window> windows = new SparseArray<>();
   public final DrawableManager drawableManager;
   private Window focusedWindow;
@@ -162,16 +161,6 @@ public class WindowManager extends XResourceManager {
     return focusedWindow;
   }
 
-  public Window getConfinedWindow() {
-    return confinedWindow;
-  }
-
-  public void setConfinedWindow(Window window) {
-    if (confinedWindow != null) confinedWindow.setConfined(false);
-    confinedWindow = window;
-    if (confinedWindow != null) confinedWindow.setConfined(true);
-  }
-
   public void revertFocus() {
     switch (focusRevertTo) {
       case NONE:
@@ -181,7 +170,8 @@ public class WindowManager extends XResourceManager {
         focusedWindow = rootWindow;
         break;
       case PARENT:
-        if (focusedWindow.getParent() != null) focusedWindow = focusedWindow.getParent();
+        if (focusedWindow != null && focusedWindow.getParent() != null)
+          focusedWindow = focusedWindow.getParent();
         break;
     }
   }
@@ -367,8 +357,8 @@ public class WindowManager extends XResourceManager {
     Window sibling = null;
     Window.StackMode stackMode = null;
 
-    for (int index : valueMask) {
-      switch (index) {
+    for (long index : valueMask) {
+      switch ((int) index) {
         case Window.FLAG_X:
           x = (short) inputStream.readInt();
           break;

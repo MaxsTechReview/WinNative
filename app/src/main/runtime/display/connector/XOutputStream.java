@@ -8,6 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class XOutputStream {
   private static final byte[] ZERO = new byte[64];
+  private static final double FP3232_SCALE = 4.294967296E9d;
   public ByteBuffer buffer;
   public final ClientSocket clientSocket;
   private final ReentrantLock lock = new ReentrantLock();
@@ -48,6 +49,11 @@ public class XOutputStream {
   public void writeLong(long value) {
     ensureSpaceIsAvailable(8);
     buffer.putLong(value);
+  }
+
+  public void writeFP3232(double value) {
+    if (Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException("FP3232 value must be finite");
+    writeLong(Math.round(value * FP3232_SCALE));
   }
 
   public void writeString8(String str) {
