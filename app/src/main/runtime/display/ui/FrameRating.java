@@ -224,10 +224,10 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastGoodGpuTime = 0;
     this.isStatsRunning = false;
     this.C_VALUE = Color.parseColor("#FFFFFF");
-    this.C_CPU = Color.parseColor("#F57C00");
-    this.C_RAM = Color.parseColor("#00E5FF");
-    this.C_BAT = Color.parseColor("#E0165A");
-    this.C_TEMP = Color.parseColor("#FF1100");
+    this.C_CPU = Color.parseColor("#FF8200");
+    this.C_RAM = Color.parseColor("#26C6DA");
+    this.C_BAT = Color.parseColor("#E03A94");
+    this.C_TEMP = Color.parseColor("#E53935");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
     this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
