@@ -293,14 +293,17 @@ public abstract class ProcessHelper {
         Log.i("ProcessHelper",
                 "exec wine-debug branch: WINEDEBUG='" + wineDebug + "' active=" + wineDebugActive
                         + " cmd=" + command.substring(0, Math.min(80, command.length())));
-        if (wineDebugActive) {
-          File logFile = new File("/data/data/com.winnative.cmod/files/wine_stderr.log");
+        File wineDebugLog = wineDebugActive ? resolveWineStderrLog() : null;
+        if (wineDebugLog != null) {
           try {
-            if (logFile.exists() && logFile.length() > 16 * 1024 * 1024) logFile.delete();
+            if (wineDebugLog.exists() && wineDebugLog.length() > 16 * 1024 * 1024)
+              wineDebugLog.delete();
           } catch (Exception ignored) {}
           pb.redirectErrorStream(true);
-          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
-          Log.i("ProcessHelper", "exec wine-debug: redirecting stderr+stdout to " + logFile.getAbsolutePath());
+          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(wineDebugLog));
+          Log.i(
+              "ProcessHelper",
+              "exec wine-debug: redirecting stderr+stdout to " + wineDebugLog.getAbsolutePath());
         } else {
           File nullFile = new File("/dev/null");
           pb.redirectError(nullFile);
@@ -329,6 +332,26 @@ public abstract class ProcessHelper {
       Log.e("ProcessHelper", "Error executing command: " + command, e);
     }
     return pid;
+  }
+
+  /**
+   * Resolves the wine-debug stderr/stdout log target inside the current app's own files
+   * directory. This was previously hardcoded to
+   * "/data/data/com.winnative.cmod/files/wine_stderr.log", which only exists for the standard
+   * flavor; on rebranded flavors (e.g. com.tencent.ig, com.ludashi.benchmark) that path belongs to
+   * a different/absent app, so ProcessBuilder.start() threw while opening the redirect and the guest
+   * (wine/proton/steam) process never launched. Deriving the path from the live app context keeps it
+   * writable for every variant. Returns null if the context is unavailable, in which case the caller
+   * discards output instead of failing the spawn.
+   */
+  private static File resolveWineStderrLog() {
+    try {
+      File filesDir = com.winlator.cmod.app.PluviaApp.Companion.getInstance().getFilesDir();
+      if (filesDir != null) return new File(filesDir, "wine_stderr.log");
+    } catch (Throwable t) {
+      Log.w(TAG, "resolveWineStderrLog: app context unavailable; wine debug log disabled", t);
+    }
+    return null;
   }
 
   private static void createDebugThread(final InputStream inputStream) {
