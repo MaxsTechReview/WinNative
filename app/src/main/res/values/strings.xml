@@ -841,6 +841,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_gyroscope_activator_button">Gyroscope Activation Button</string>
     <string name="session_gyroscope_hold">Hold</string>
     <string name="session_gyroscope_toggle">Toggle</string>
+    <string name="session_gyroscope_orientation_mode">Tilt to Aim (Orientation)</string>
     <string name="session_gyroscope_x_sensitivity">X-Axis Sensitivity</string>
     <string name="session_gyroscope_y_sensitivity">Y-Axis Sensitivity</string>
     <string name="session_gyroscope_smoothing">Smoothing</string>

@@ -148,8 +148,8 @@ public class WindowAttributes {
   }
 
   public void update(Bitmask valueMask, XInputStream inputStream, XClient client) {
-    for (int index : valueMask) {
-      switch (index) {
+    for (long index : valueMask) {
+      switch ((int) index) {
         case FLAG_BACKGROUND_PIXEL:
           window.getContent().fillColor(inputStream.readInt());
           break;
