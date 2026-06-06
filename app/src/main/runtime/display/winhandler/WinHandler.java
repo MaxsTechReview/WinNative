@@ -7,7 +7,6 @@ import android.net.LocalServerSocket;
 import android.net.LocalSocket;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
@@ -84,15 +83,6 @@ public class WinHandler {
   private final DatagramPacket sendPacket = new DatagramPacket(this.sendData.array(), 64);
   private final DatagramPacket receivePacket = new DatagramPacket(this.receiveData.array(), 64);
   private final Handler inputHandler = new Handler(Looper.getMainLooper());
-  private static final long VIRTUAL_SEND_THROTTLE_MS = 8;
-  private long lastVirtualSendMs = 0;
-  private boolean virtualSendPending = false;
-  private final Runnable virtualSendFlush =
-      () -> {
-        virtualSendPending = false;
-        lastVirtualSendMs = SystemClock.uptimeMillis();
-        sendGamepadState();
-      };
   private final ArrayDeque<Runnable> actions = new ArrayDeque<>();
   private boolean initReceived = false;
   private volatile boolean running = false;
@@ -642,19 +632,6 @@ public class WinHandler {
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
     XServer xServer = activity.getXServer();
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
-  }
-
-  // Coalesce high-rate virtual stick sends to ~display cadence; buttons stay immediate.
-  public void sendGamepadStateCoalesced() {
-    long now = SystemClock.uptimeMillis();
-    long elapsed = now - lastVirtualSendMs;
-    if (elapsed >= VIRTUAL_SEND_THROTTLE_MS) {
-      lastVirtualSendMs = now;
-      sendGamepadState();
-    } else if (!virtualSendPending) {
-      virtualSendPending = true;
-      inputHandler.postDelayed(virtualSendFlush, VIRTUAL_SEND_THROTTLE_MS - elapsed);
-    }
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {

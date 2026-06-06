@@ -858,7 +858,7 @@ public class InputControlsView extends View {
             batchingUpdates = false;
             WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
             if (anyControlHandled && winHandler != null) {
-              winHandler.sendGamepadStateCoalesced();
+              winHandler.sendGamepadState();
             }
 
             syncCapturedPointers();
