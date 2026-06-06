@@ -334,16 +334,7 @@ public abstract class ProcessHelper {
     return pid;
   }
 
-  /**
-   * Resolves the wine-debug stderr/stdout log target inside the current app's own files
-   * directory. This was previously hardcoded to
-   * "/data/data/com.winnative.cmod/files/wine_stderr.log", which only exists for the standard
-   * flavor; on rebranded flavors (e.g. com.tencent.ig, com.ludashi.benchmark) that path belongs to
-   * a different/absent app, so ProcessBuilder.start() threw while opening the redirect and the guest
-   * (wine/proton/steam) process never launched. Deriving the path from the live app context keeps it
-   * writable for every variant. Returns null if the context is unavailable, in which case the caller
-   * discards output instead of failing the spawn.
-   */
+  /** Wine debug log target in the app's own files dir so it works on every (rebranded) flavor; null if no app context. */
   private static File resolveWineStderrLog() {
     try {
       File filesDir = com.winlator.cmod.app.PluviaApp.Companion.getInstance().getFilesDir();
