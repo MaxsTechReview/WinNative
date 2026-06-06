@@ -224,7 +224,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastGoodGpuTime = 0;
     this.isStatsRunning = false;
     this.C_VALUE = Color.parseColor("#FFFFFF");
-    this.C_CPU = Color.parseColor("#FF6D00");
+    this.C_CPU = Color.parseColor("#F57C00");
     this.C_RAM = Color.parseColor("#00E5FF");
     this.C_BAT = Color.parseColor("#E0165A");
     this.C_TEMP = Color.parseColor("#FF1100");
@@ -507,7 +507,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.displayMode = this.preferences.getInt(PREF_HUD_DISPLAY_MODE, 0);
     this.dualSeriesBattery = this.preferences.getBoolean(PREF_HUD_DUAL_SERIES_BATTERY, false);
     this.frametimeNumericMode = this.preferences.getBoolean(PREF_HUD_FRAMETIME_NUMERIC, false);
-    this.currentAnchor = this.preferences.getInt(PREF_HUD_ANCHOR, ANCHOR_NONE);
+    this.currentAnchor = this.preferences.getInt(PREF_HUD_ANCHOR, ANCHOR_TOP_CENTER);
   }
 
   private void restorePersistedPosition() {
