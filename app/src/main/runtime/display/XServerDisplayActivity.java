@@ -238,6 +238,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     ));
     private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
+    private boolean inputControlsRevealAllowed = false;
     private TouchpadView touchpadView;
     private XEnvironment environment;
     private ComposeView displayHostComposeView;
@@ -1468,6 +1469,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         stopWnLauncherStatusTailer();
                     }
                     winStarted[0] = true;
+                    runOnUiThread(() -> {
+                        inputControlsRevealAllowed = true;
+                        if (inputControlsView != null) {
+                            ControlsProfile activeProfile = inputControlsView.getProfile();
+                            if (activeProfile != null) showInputControls(activeProfile);
+                            else startTouchscreenTimeout();
+                        }
+                    });
                     if (startFullscreenStretched) {
                         timeoutHandler.post(() -> {
                             if (activityDestroyed.get()) return;
@@ -6251,7 +6260,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void startTouchscreenTimeout() {
         if (inputControlsView == null || touchpadView == null) return;
         touchpadView.setOnTouchListener(null);
-        if (hasActiveTouchscreenProfile()) {
+        if (inputControlsRevealAllowed && hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
         }
     }
@@ -6261,8 +6270,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             hideInputControls();
             return;
         }
-        inputControlsView.setVisibility(View.VISIBLE);
-        inputControlsView.requestFocus();
+        if (inputControlsRevealAllowed) {
+            inputControlsView.setVisibility(View.VISIBLE);
+            inputControlsView.requestFocus();
+        }
         inputControlsView.setProfile(profile);
         applyTouchscreenOverlayPreference();
         persistSelectedProfile(profile);
