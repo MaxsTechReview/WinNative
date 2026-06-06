@@ -41,7 +41,7 @@ public class ALSAClient {
   private final Options options;
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 16;
+    public static final int DEFAULT_LATENCY_MILLIS = 0;
     public static final float DEFAULT_VOLUME = 1.0f;
     public static final float MAX_VOLUME = 16.0f;
     public static final float DEFAULT_BASS_BOOST = 0.0f;
@@ -58,25 +58,24 @@ public class ALSAClient {
 
       options.latencyMillis =
           parseInt(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_LATENCY_MS"), envVars.get("WINNATIVE_ALSA_LATENCY_MS")),
+              envVars.get("ANDROID_ALSA_LATENCY_MS"),
               DEFAULT_LATENCY_MILLIS);
       options.latencyMillis = Math.max(0, options.latencyMillis);
 
       options.volume =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_VOLUME"), envVars.get("WINNATIVE_ALSA_VOLUME")),
+              envVars.get("ANDROID_ALSA_VOLUME"),
               DEFAULT_VOLUME);
       options.volume = Math.max(0.0f, Math.min(options.volume, MAX_VOLUME));
 
       options.bassBoost =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_BASS_BOOST"), envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
+              envVars.get("ANDROID_ALSA_BASS_BOOST"),
               DEFAULT_BASS_BOOST);
       options.bassBoost = Math.max(0.0f, Math.min(options.bassBoost, MAX_BASS_BOOST));
 
       String performanceMode =
-          firstNonEmpty(
-              envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"), envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
+          envVars.get("ANDROID_ALSA_PERFORMANCE_MODE");
       if (performanceMode.equalsIgnoreCase("none") || performanceMode.equals("0")) {
         options.performanceMode = AudioTrack.PERFORMANCE_MODE_NONE;
       } else if (performanceMode.equalsIgnoreCase("power_saving") || performanceMode.equals("2")) {
@@ -86,10 +85,6 @@ public class ALSAClient {
       }
 
       return options;
-    }
-
-    private static String firstNonEmpty(String first, String second) {
-      return first != null && !first.isEmpty() ? first : (second != null ? second : "");
     }
 
     private static int parseInt(String value, int fallback) {

@@ -34,8 +34,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
   }
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 40;
-    public static final int DEFAULT_FRAGMENT_MILLIS = 10;
+    public static final int DEFAULT_LATENCY_MILLIS = 0;
+    public static final int DEFAULT_FRAGMENT_MILLIS = 0;
     public static final int DEFAULT_SAMPLE_RATE = 48000;
     public static final int DEFAULT_ALTERNATE_SAMPLE_RATE = 44100;
     public static final int DEFAULT_CHANNELS = 2;
@@ -52,6 +52,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     public int channels = DEFAULT_CHANNELS;
     public float volume = DEFAULT_VOLUME;
     public String performanceMode = PERFORMANCE_MODE_NONE;
+    public boolean performanceModeOverridden = false;
     public boolean sampleRateOverridden = false;
     public boolean alternateSampleRateOverridden = false;
 
@@ -59,26 +60,22 @@ public class PulseAudioComponent extends EnvironmentComponent {
       Options options = new Options();
       if (envVars == null) return options;
 
+      String latencyMillis = envVars.get("PULSE_LATENCY_MSEC");
+      if (latencyMillis.isEmpty()) latencyMillis = envVars.get("ANDROID_PULSE_LATENCY_MS");
       options.latencyMillis =
           Math.max(
               0,
               parseInt(
-                  firstNonEmpty(
-                      envVars.get("WINNATIVE_PULSE_LATENCY_MS"),
-                      envVars.get("PULSE_LATENCY_MSEC")),
+                  latencyMillis,
                   DEFAULT_LATENCY_MILLIS));
       options.fragmentMillis =
           Math.max(
-              1,
+              0,
               parseInt(
-                  firstNonEmpty(
-                      envVars.get("WINNATIVE_PULSE_FRAGMENT_MS"),
-                      envVars.get("ANDROID_PULSE_FRAGMENT_MS")),
+                  envVars.get("ANDROID_PULSE_FRAGMENT_MS"),
                   DEFAULT_FRAGMENT_MILLIS));
       String sampleRate =
-          firstNonEmpty(
-              envVars.get("WINNATIVE_PULSE_SAMPLE_RATE"),
-              envVars.get("ANDROID_PULSE_SAMPLE_RATE"));
+          envVars.get("ANDROID_PULSE_SAMPLE_RATE");
       options.sampleRateOverridden = !sampleRate.isEmpty();
       options.sampleRate =
           Math.max(
@@ -86,9 +83,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
               parseInt(sampleRate, DEFAULT_SAMPLE_RATE));
 
       String alternateSampleRate =
-          firstNonEmpty(
-              envVars.get("WINNATIVE_PULSE_ALTERNATE_SAMPLE_RATE"),
-              envVars.get("ANDROID_PULSE_ALTERNATE_SAMPLE_RATE"));
+          envVars.get("ANDROID_PULSE_ALTERNATE_SAMPLE_RATE");
       options.alternateSampleRateOverridden = !alternateSampleRate.isEmpty();
       options.alternateSampleRate =
           Math.max(
@@ -100,25 +95,20 @@ public class PulseAudioComponent extends EnvironmentComponent {
               Math.min(
                   2,
                   parseInt(
-                      firstNonEmpty(
-                          envVars.get("WINNATIVE_PULSE_CHANNELS"),
-                          envVars.get("ANDROID_PULSE_CHANNELS")),
+                      envVars.get("ANDROID_PULSE_CHANNELS"),
                       DEFAULT_CHANNELS)));
       options.volume =
           Math.max(
               0.0f,
               Math.min(
                   parseFloat(
-                      firstNonEmpty(
-                          envVars.get("WINNATIVE_PULSE_VOLUME"),
-                          envVars.get("ANDROID_PULSE_VOLUME")),
+                      envVars.get("ANDROID_PULSE_VOLUME"),
                       DEFAULT_VOLUME),
                   MAX_VOLUME));
 
       String performanceMode =
-          firstNonEmpty(
-              envVars.get("WINNATIVE_PULSE_AAUDIO_PERFORMANCE_MODE"),
-              envVars.get("ANDROID_PULSE_AAUDIO_PERFORMANCE_MODE"));
+          envVars.get("ANDROID_PULSE_AAUDIO_PERFORMANCE_MODE");
+      options.performanceModeOverridden = !performanceMode.isEmpty();
       if (performanceMode.equalsIgnoreCase(PERFORMANCE_MODE_LOW_LATENCY)
           || performanceMode.equals("12")) {
         options.performanceMode = PERFORMANCE_MODE_LOW_LATENCY;
@@ -130,10 +120,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
       }
 
       return options;
-    }
-
-    private static String firstNonEmpty(String first, String second) {
-      return first != null && !first.isEmpty() ? first : (second != null ? second : "");
     }
 
     private static int parseInt(String value, int fallback) {
@@ -228,25 +214,26 @@ public class PulseAudioComponent extends EnvironmentComponent {
             : getAlternateSampleRate(sampleRate);
     String channelMap = getChannelMap(options.channels);
 
+    ArrayList<String> daemonConfig = new ArrayList<>();
+    daemonConfig.add("high-priority = yes");
+    daemonConfig.add("realtime-scheduling = no");
+    daemonConfig.add("flat-volumes = no");
+    daemonConfig.add("enable-deferred-volume = no");
+    daemonConfig.add("resample-method = speex-float-1");
+    daemonConfig.add("avoid-resampling = yes");
+    daemonConfig.add("default-sample-format = s16le");
+    daemonConfig.add("default-sample-rate = " + sampleRate);
+    daemonConfig.add("alternate-sample-rate = " + alternateSampleRate);
+    daemonConfig.add("default-sample-channels = " + options.channels);
+    daemonConfig.add("default-channel-map = " + channelMap);
+    if (options.fragmentMillis > 0) {
+      daemonConfig.add("default-fragments = 4");
+      daemonConfig.add("default-fragment-size-msec = " + options.fragmentMillis);
+    }
+    daemonConfig.add("");
+
     File daemonConfigFile = new File(configDir, "daemon.conf");
-    FileUtils.writeString(
-        daemonConfigFile,
-        String.join(
-            "\n",
-            "high-priority = yes",
-            "realtime-scheduling = no",
-            "flat-volumes = no",
-            "enable-deferred-volume = no",
-            "resample-method = speex-float-1",
-            "avoid-resampling = yes",
-            "default-sample-format = s16le",
-            "default-sample-rate = " + sampleRate,
-            "alternate-sample-rate = " + alternateSampleRate,
-            "default-sample-channels = " + options.channels,
-            "default-channel-map = " + channelMap,
-            "default-fragments = 4",
-            "default-fragment-size-msec = " + options.fragmentMillis,
-            ""));
+    FileUtils.writeString(daemonConfigFile, String.join("\n", daemonConfig));
 
     File configFile = new File(workingDir, "default.pa");
     FileUtils.writeString(
@@ -263,7 +250,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
 
     String archName = AppUtils.getArchName();
     File modulesDir = new File(workingDir, "modules/" + archName);
-    patchAAudioSinkPerformanceMode(modulesDir);
+    if (options.performanceModeOverridden) patchAAudioSinkPerformanceMode(modulesDir);
     String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "/system/lib";
 
     ArrayList<String> envVars = new ArrayList<>();
@@ -272,7 +259,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     envVars.add("HOME=" + workingDir);
     envVars.add("XDG_CONFIG_HOME=" + new File(workingDir, ".config").getAbsolutePath());
     envVars.add("PULSE_RUNTIME_PATH=" + runtimeDir.getAbsolutePath());
-    envVars.add("PULSE_LATENCY_MSEC=" + options.latencyMillis);
+    if (options.latencyMillis > 0) envVars.add("PULSE_LATENCY_MSEC=" + options.latencyMillis);
     envVars.add("TMPDIR=" + environment.getTmpDir());
 
     copyFromLibraryDir(workingDir);
