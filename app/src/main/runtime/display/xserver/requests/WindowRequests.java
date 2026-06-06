@@ -81,8 +81,8 @@ public abstract class WindowRequests {
       outputStream.writeByte((byte) window.getMapState().ordinal());
       outputStream.writeByte((byte) (window.attributes.isOverrideRedirect() ? 1 : 0));
       outputStream.writeInt(0);
-      outputStream.writeInt(window.getAllEventMasks().getBits());
-      outputStream.writeInt(client.getEventMaskForWindow(window).getBits());
+      outputStream.writeInt((int) window.getAllEventMasks().getBits());
+      outputStream.writeInt((int) client.getEventMaskForWindow(window).getBits());
       outputStream.writeShort((short) window.attributes.getDoNotPropagateMask().getBits());
       outputStream.writeShort((short) 0);
     }
@@ -339,28 +339,39 @@ public abstract class WindowRequests {
     short dstX = inputStream.readShort();
     short dstY = inputStream.readShort();
 
+    short beforeX = client.xServer.pointer.getX();
+    short beforeY = client.xServer.pointer.getY();
+
     if (srcWindow != null) {
       if (srcWidth == 0) srcWidth = (short) (srcWindow.getWidth() - srcX);
       if (srcHeight == 0) srcHeight = (short) (srcWindow.getHeight() - srcY);
 
-      short[] localPoint =
-          srcWindow.rootPointToLocal(client.xServer.pointer.getX(), client.xServer.pointer.getY());
+      short[] localPoint = srcWindow.rootPointToLocal(beforeX, beforeY);
+      short x = localPoint[0];
+      short y = localPoint[1];
+      short softMarginX = (short) (client.xServer.screenInfo.width * 0.05f);
+      short softMarginY = (short) (client.xServer.screenInfo.height * 0.05f);
       boolean isContained =
-          localPoint[0] >= srcX
-              && localPoint[1] >= srcY
-              && localPoint[0] < (srcX + srcWidth)
-              && localPoint[1] < (srcY + srcHeight);
-      if (!isContained) return;
+          x >= srcX - softMarginX
+              && y >= srcY - softMarginY
+              && x < (srcX + srcWidth) + softMarginX
+              && y < (srcY + srcHeight) + softMarginY;
+      if (!isContained) {
+        return;
+      }
     }
 
+    short targetX, targetY;
     if (dstWindow == null) {
-      client.xServer.pointer.setX(client.xServer.pointer.getX() + dstX);
-      client.xServer.pointer.setY(client.xServer.pointer.getY() + dstY);
+      targetX = (short) (beforeX + dstX);
+      targetY = (short) (beforeY + dstY);
     } else {
       short[] localPoint = dstWindow.localPointToRoot(dstX, dstY);
-      client.xServer.pointer.setX(localPoint[0]);
-      client.xServer.pointer.setY(localPoint[1]);
+      targetX = localPoint[0];
+      targetY = localPoint[1];
     }
+    client.xServer.pointer.setX(targetX);
+    client.xServer.pointer.setY(targetY);
   }
 
   public static void setInputFocus(

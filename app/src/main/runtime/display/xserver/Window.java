@@ -50,7 +50,6 @@ public class Window extends XResource {
   private short height;
   private short borderWidth;
   private Window parent;
-  private boolean confined = false;
   public final XClient originClient;
   public final WindowAttributes attributes = new WindowAttributes(this);
   private final SparseArray<Property> properties = new SparseArray<>();
@@ -123,14 +122,6 @@ public class Window extends XResource {
 
   public void setParent(Window parent) {
     this.parent = parent;
-  }
-
-  public boolean isConfined() {
-    return confined;
-  }
-
-  public void setConfined(boolean confined) {
-    this.confined = confined;
   }
 
   public Property getProperty(int id) {
@@ -360,6 +351,12 @@ public class Window extends XResource {
       window = window.parent;
     }
     return rootY;
+  }
+
+  public android.graphics.Rect getAbsoluteBounds() {
+    short rootX = getRootX();
+    short rootY = getRootY();
+    return new android.graphics.Rect(rootX, rootY, width + rootX, height + rootY);
   }
 
   public Window getAncestorWithEventMask(Bitmask eventMask) {

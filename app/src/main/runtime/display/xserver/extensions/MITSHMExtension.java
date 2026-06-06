@@ -20,6 +20,8 @@ import java.nio.ByteBuffer;
 
 public class MITSHMExtension implements Extension {
   public static final byte MAJOR_OPCODE = -101;
+  private byte firstEventId = 0;
+  private byte firstErrorId = 0;
 
   private abstract static class ClientOpcodes {
     private static final byte QUERY_VERSION = 0;
@@ -40,12 +42,32 @@ public class MITSHMExtension implements Extension {
 
   @Override
   public byte getFirstErrorId() {
-    return Byte.MIN_VALUE;
+    return firstErrorId;
   }
 
   @Override
   public byte getFirstEventId() {
-    return 64;
+    return firstEventId;
+  }
+
+  @Override
+  public int getNumEvents() {
+    return 1;
+  }
+
+  @Override
+  public int getNumErrors() {
+    return 1;
+  }
+
+  @Override
+  public void setFirstEventId(byte id) {
+    this.firstEventId = id;
+  }
+
+  @Override
+  public void setFirstErrorId(byte id) {
+    this.firstErrorId = id;
   }
 
   private static void queryVersion(

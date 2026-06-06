@@ -7,8 +7,19 @@
     <uses-feature
         android:glEsVersion="0x00020000"
         android:required="true" />
+    <!-- USB host for GameSir GCM vendor rumble (e.g. G8+); optional so non-OTG devices still install -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Bluetooth LE for GameSir GCM rumble (e.g. X5s) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>

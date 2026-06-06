@@ -37,6 +37,7 @@ public class ALSAClient {
   private float[] bassLowpassState = new float[2];
   private float bassLowpassAlpha = 0.0f;
   private static short framesPerBuffer = 256;
+  private static volatile boolean outputSuspended = false;
   private final Options options;
 
   public static class Options {
@@ -214,6 +215,10 @@ public class ALSAClient {
     }
   }
 
+  public static void setOutputSuspended(boolean suspended) {
+    outputSuspended = suspended;
+  }
+
   public synchronized void writeDataToStream(ByteBuffer data) {
     if (dataType == DataType.S16LE || dataType == DataType.FLOATLE) {
       data.order(ByteOrder.LITTLE_ENDIAN);
@@ -223,7 +228,11 @@ public class ALSAClient {
 
     if (audioTrack != null) {
       data.position(0);
-      applyAudioProcessing(data);
+      if (outputSuspended) {
+        for (int i = data.position(); i < data.limit(); i++) data.put(i, (byte) 0);
+      } else {
+        applyAudioProcessing(data);
+      }
 
       while (data.position() != data.limit()) {
         int bytesWritten;
