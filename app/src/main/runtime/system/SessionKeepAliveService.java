@@ -342,7 +342,7 @@ public class SessionKeepAliveService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("WinNative")
                 .setContentText(content)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
