@@ -90,6 +90,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -193,11 +194,12 @@ private val GlassExitTint = Color(0xFFE07B6B)
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
 private const val PaneScaleMin = 0.78f
+private const val ControlsPaneScaleMin = 0.62f
 private const val PaneScaleReferenceHeightDp = 520f
 private const val PendingTaskAffinityTimeoutMs = 2500L
 
-private fun computePaneScale(availableHeight: Dp): Float =
-    (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(PaneScaleMin, 1f)
+private fun computePaneScale(availableHeight: Dp, minScale: Float = PaneScaleMin): Float =
+    (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(minScale, 1f)
 
 private enum class HUDMetricEditor(
     val minPercent: Int,
@@ -1761,7 +1763,7 @@ private fun InputControlsPaneContent(
     listener: XServerDrawerActionListener,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val paneScale = computePaneScale(maxHeight)
+        val paneScale = computePaneScale(maxHeight, ControlsPaneScaleMin)
         val scrollState = rememberScrollState()
         val gcmEnabled = state.inputControlsGcmRumbleMode != "disabled"
         CompositionLocalProvider(LocalPaneScale provides paneScale) {
@@ -1770,7 +1772,12 @@ private fun InputControlsPaneContent(
                     Modifier
                         .fillMaxWidth()
                         .verticalScroll(scrollState)
-                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                        .padding(
+                            start = (12f * paneScale).dp,
+                            end = (12f * paneScale).dp,
+                            top = (4f * paneScale).dp,
+                            bottom = (12f * paneScale).dp,
+                        ),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
@@ -1855,7 +1862,7 @@ private fun InputControlsPaneContent(
                 }
 
                 DrawerBooleanRow(
-                    title = "GameSir Rumble Hack",
+                    title = "GameSir Controller Rumble",
                     subtitle = "For Android-mode GameSir controllers only",
                     checked = gcmEnabled,
                     onCheckedChange = { enabled ->
@@ -4172,6 +4179,7 @@ private fun DrawerBooleanRow(
     subtitle: String? = null,
 ) {
     val paneScale = LocalPaneScale.current
+    val compact = paneScale < PaneScaleMin
     val rowInteractionSource = remember { MutableInteractionSource() }
     val pressed = rowInteractionSource.collectIsPressedAsState().value
     val switchInteractionSource = remember { MutableInteractionSource() }
@@ -4224,7 +4232,10 @@ private fun DrawerBooleanRow(
                 fontSize = (12f * paneScale).sp,
             )
         }
-        CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        CompositionLocalProvider(
+            LocalRippleConfiguration provides null,
+            LocalMinimumInteractiveComponentSize provides if (compact) Dp.Unspecified else 48.dp,
+        ) {
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
