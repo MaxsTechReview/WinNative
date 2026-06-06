@@ -333,7 +333,7 @@
     <string name="input_controls_select_style">शैली चुनें</string>
     <string name="input_controls_select_label_theme">बटन लेबल</string>
     <string name="input_controls_style_original">मूल</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">मूल</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>

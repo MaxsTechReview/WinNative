@@ -1961,49 +1961,13 @@ private fun InputControlsSimpleDropdown(
             )
         }
 
-        DropdownMenu(
+        InputControlsOptionsPopup(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier =
-                Modifier
-                    .background(PaneSurfaceColor)
-                    .heightIn(max = 280.dp),
-        ) {
-            options.forEachIndexed { index, name ->
-                val isSelected = index == selectedIndex
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = name,
-                            color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    },
-                    trailingIcon =
-                        if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    tint = DrawerAccent,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    onClick = {
-                        onSelected(index)
-                        expanded = false
-                    },
-                    colors =
-                        MenuDefaults.itemColors(
-                            textColor = DrawerTextPrimary,
-                        ),
-                )
-            }
-        }
+            options = options,
+            selectedIndex = selectedIndex,
+            onSelected = onSelected,
+            onDismiss = { expanded = false },
+        )
     }
 }
 
@@ -2066,49 +2030,13 @@ private fun InputControlsProfileSelector(
                 )
             }
 
-            DropdownMenu(
+            InputControlsOptionsPopup(
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier =
-                    Modifier
-                        .background(PaneSurfaceColor)
-                        .heightIn(max = 280.dp),
-            ) {
-                profileNames.forEachIndexed { index, name ->
-                    val isSelected = index == selectedIndex
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = name,
-                                color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            )
-                        },
-                        trailingIcon =
-                            if (isSelected) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Check,
-                                        contentDescription = null,
-                                        tint = DrawerAccent,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                        onClick = {
-                            onProfileSelected(index)
-                            expanded = false
-                        },
-                        colors =
-                            MenuDefaults.itemColors(
-                                textColor = DrawerTextPrimary,
-                            ),
-                    )
-                }
-            }
+                options = profileNames,
+                selectedIndex = selectedIndex,
+                onSelected = onProfileSelected,
+                onDismiss = { expanded = false },
+            )
         }
 
         Box(
@@ -2126,6 +2054,99 @@ private fun InputControlsProfileSelector(
                 contentDescription = stringResource(R.string.common_ui_settings),
                 tint = DrawerTextPrimary,
                 modifier = Modifier.size((20f * paneScale).dp),
+            )
+        }
+    }
+}
+
+// Drawer-styled dropdown popup for the Controls selectors (profile / style / labels),
+// mirroring the glass popup look used elsewhere in the drawer.
+@Composable
+private fun InputControlsOptionsPopup(
+    expanded: Boolean,
+    options: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!expanded) return
+    val paneScale = LocalPaneScale.current
+    val density = LocalDensity.current
+    val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
+    val shape = RoundedCornerShape((12f * paneScale).dp)
+    Popup(
+        popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
+                    .clip(shape)
+                    .background(PaneSurfaceColor)
+                    .border(1.dp, RestingCardBorder, shape)
+                    .heightIn(max = (260f * paneScale).dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding((5f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+        ) {
+            options.forEachIndexed { index, name ->
+                InputControlsOptionItem(
+                    label = name,
+                    selected = index == selectedIndex,
+                    onClick = {
+                        onSelected(index)
+                        onDismiss()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InputControlsOptionItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "inputControlsOptionItem",
+    )
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, if (selected) ActiveCardBorder else RestingCardBorder, shape)
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) DrawerAccent else DrawerTextPrimary,
+            fontSize = (13f * paneScale).sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((16f * paneScale).dp),
             )
         }
     }

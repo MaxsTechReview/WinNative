@@ -1274,7 +1274,7 @@ Installierter Pfad:
     <string name="input_controls_select_style">Stil auswählen</string>
     <string name="input_controls_select_label_theme">Schaltflächenbeschriftungen</string>
     <string name="input_controls_style_original">Original</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">Original</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>
