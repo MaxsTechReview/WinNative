@@ -206,7 +206,7 @@ private enum class HUDMetricEditor(
     val maxPercent: Int,
 ) {
     ALPHA(minPercent = 10, maxPercent = 100),
-    SCALE(minPercent = 50, maxPercent = 200),
+    SCALE(minPercent = 30, maxPercent = 200),
 }
 
 internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS }
@@ -1560,10 +1560,10 @@ private fun HUDPaneContent(
                     label = stringResource(R.string.session_drawer_hud_scale),
                     valueText = "${(state.hudScale * 100).toInt()}%",
                     value = state.hudScale,
-                    valueRange = 0.5f..2.0f,
-                    steps = 14,
+                    valueRange = 0.3f..2.0f,
+                    steps = 16,
                     onValueClick = { activeEditor = HUDMetricEditor.SCALE },
-                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.5f, 2.0f)) },
+                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {

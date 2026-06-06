@@ -57,6 +57,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   public static final String PREF_HUD_DUAL_SERIES_BATTERY = "hud_dual_series_battery";
   public static final String PREF_HUD_FRAMETIME_NUMERIC = "hud_frametime_numeric";
   public static final String PREF_HUD_SCALE = "hud_scale";
+  // Rebase: a stored scale of 1.0 (slider 100%) renders at 1.2x.
+  private static final float HUD_SCALE_BASE = 1.2f;
   public static final String PREF_HUD_ALPHA = "hud_alpha";
   public static final String PREF_HUD_ELEMENTS = "hud_elements";
   public static final String PREF_HUD_ANCHOR = "hud_anchor";
@@ -222,10 +224,10 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.lastGoodGpuTime = 0;
     this.isStatsRunning = false;
     this.C_VALUE = Color.parseColor("#FFFFFF");
-    this.C_CPU = Color.parseColor("#FFAB91");
-    this.C_RAM = Color.parseColor("#90CAF9");
-    this.C_BAT = Color.parseColor("#EF5350");
-    this.C_TEMP = Color.parseColor("#EF5350");
+    this.C_CPU = Color.parseColor("#FF6D00");
+    this.C_RAM = Color.parseColor("#00E5FF");
+    this.C_BAT = Color.parseColor("#E0165A");
+    this.C_TEMP = Color.parseColor("#FF1100");
     this.C_GPU = Color.parseColor("#E040FB");
     this.C_FPS_OK = Color.parseColor("#76FF03");
     this.C_WARM = Color.parseColor("#FFC107"); // TMP value when battery is warm (40-44C)
@@ -270,7 +272,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     // Create backdrop drawable (rounded, semi-transparent black)
     this.backdropDrawable = new GradientDrawable();
-    this.backdropDrawable.setColor(0x80000000); // 50% black
+    this.backdropDrawable.setColor(0xA6000000); // 65% black
     this.backdropDrawable.setCornerRadius(8f);
 
     loadPersistedHudPreferences();
@@ -1008,8 +1010,8 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   public void setHudScale(float scale) {
-    setScaleX(scale);
-    setScaleY(scale);
+    setScaleX(scale * HUD_SCALE_BASE);
+    setScaleY(scale * HUD_SCALE_BASE);
     setPivotX(0);
     setPivotY(0);
     this.preferences.edit().putFloat(PREF_HUD_SCALE, scale).apply();
