@@ -380,6 +380,9 @@ class TouchpadView(
                 xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
                 xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
             } else {
+                if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
+                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                }
                 xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
                 xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
             }
