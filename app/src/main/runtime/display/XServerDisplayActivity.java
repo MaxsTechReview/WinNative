@@ -327,7 +327,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
     private boolean isRefactorSizeEnabled = false;
-    private static final long REFACTOR_SIZE_EXE_BYTES = 16384L;
+    private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {

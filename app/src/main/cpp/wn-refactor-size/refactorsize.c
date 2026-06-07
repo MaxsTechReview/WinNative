@@ -1,5 +1,7 @@
 /* Borderless-fullscreen toggle for the foreground guest window (arg "on"/"off").
- * Build: x86_64-w64-mingw32-gcc -O2 -s -mwindows refactorsize.c -o ../../assets/winnative/refactorsize.exe -luser32 */
+ * Build:
+ *   x86_64-w64-mingw32-windres refactorsize.rc -O coff -o refactorsize.res.o
+ *   x86_64-w64-mingw32-gcc -O2 -s -mwindows refactorsize.c refactorsize.res.o -o ../../assets/winnative/refactorsize.exe -luser32 */
 #include <windows.h>
 #include <stdint.h>
 
@@ -12,10 +14,8 @@ typedef struct {
 } SavedState;
 
 static void state_path(char *buf, int n) {
-    char tmp[MAX_PATH];
-    DWORD len = GetTempPathA(MAX_PATH, tmp);
-    if (len == 0 || len >= MAX_PATH) lstrcpyA(tmp, "C:\\winnative\\");
-    wsprintfA(buf, "%srefactorsize.dat", tmp);
+    (void)n;
+    lstrcpyA(buf, "C:\\ProgramData\\Microsoft\\Windows\\refactorsize.dat");
 }
 
 static int contains(const char *hay, const char *needle) {
@@ -49,6 +49,7 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
         s.style = (long)style;
         s.left = r.left; s.top = r.top; s.right = r.right; s.bottom = r.bottom;
 
+        CreateDirectoryA("C:\\ProgramData\\Microsoft\\Windows", NULL);
         HANDLE f = CreateFileA(path, GENERIC_WRITE, 0, NULL,
                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (f != INVALID_HANDLE_VALUE) {
