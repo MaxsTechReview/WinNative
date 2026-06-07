@@ -176,6 +176,11 @@ public class FrameRating extends LinearLayout implements Runnable {
   private int displayMode = 0;
   private static final int MODE_COUNT = 4;
   private GradientDrawable backdropDrawable;
+  private static final int BACKDROP_BASE_COLOR = 0xA6000000;
+  public static final float BACKDROP_BASE_ALPHA = ((BACKDROP_BASE_COLOR >>> 24) & 0xFF) / 255f;
+  private boolean bgAlphaDecoupled = false;
+  private float readoutAlpha = 1.0f;
+  private float backgroundAlpha = 1.0f;
   // Outlined plug glyph shown next to the battery wattage while charging (lazily loaded + tinted).
   private Drawable plugIcon;
   private boolean dualSeriesBattery;
@@ -272,7 +277,7 @@ public class FrameRating extends LinearLayout implements Runnable {
 
     // Create backdrop drawable (rounded, semi-transparent black)
     this.backdropDrawable = new GradientDrawable();
-    this.backdropDrawable.setColor(0xA6000000); // 65% black
+    this.backdropDrawable.setColor(BACKDROP_BASE_COLOR);
     this.backdropDrawable.setCornerRadius(8f);
 
     loadPersistedHudPreferences();
@@ -1006,7 +1011,37 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   public void setHudAlpha(float alpha) {
-    setAlpha(alpha);
+    this.readoutAlpha = alpha;
+    applyAlpha();
+  }
+
+  public void setHudBackgroundAlpha(float alpha) {
+    this.backgroundAlpha = alpha;
+    applyAlpha();
+  }
+
+  public void setBackgroundAlphaDecoupled(boolean decoupled) {
+    this.bgAlphaDecoupled = decoupled;
+    applyAlpha();
+  }
+
+  private void applyAlpha() {
+    if (bgAlphaDecoupled) {
+      setAlpha(1.0f);
+      setChildrenAlpha(readoutAlpha);
+      int a = Math.max(0, Math.min(255, Math.round(backgroundAlpha * 255f)));
+      backdropDrawable.setColor((a << 24) | (BACKDROP_BASE_COLOR & 0x00FFFFFF));
+    } else {
+      setChildrenAlpha(1.0f);
+      backdropDrawable.setColor(BACKDROP_BASE_COLOR);
+      setAlpha(readoutAlpha);
+    }
+  }
+
+  private void setChildrenAlpha(float alpha) {
+    for (int i = 0; i < getChildCount(); i++) {
+      getChildAt(i).setAlpha(alpha);
+    }
   }
 
   public void setHudScale(float scale) {
