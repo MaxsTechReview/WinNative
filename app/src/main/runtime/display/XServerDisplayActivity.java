@@ -340,7 +340,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean hudBackgroundAlphaDecoupled = false;
     private float hudBackgroundTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
@@ -4632,14 +4632,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     hudBackgroundTransparency = clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA);
                 }
                 hudScale = (float) obj.optDouble("scale", 1.0);
+                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
+                boolean legacyBattTemp = obj.optBoolean("showBattTemp", true);
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
-                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
                 hudElements[3] = obj.optBoolean("showCPU", legacyCpuRam);
                 hudElements[4] = obj.optBoolean("showRAM", legacyCpuRam);
-                hudElements[5] = obj.optBoolean("showBattTemp", true);
-                hudElements[6] = obj.optBoolean("showGraph", true);
+                hudElements[5] = obj.optBoolean("showBattery", legacyBattTemp);
+                hudElements[6] = obj.optBoolean("showTemp", legacyBattTemp);
+                hudElements[7] = obj.optBoolean("showGraph", true);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -4659,8 +4661,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showGPU", hudElements[2]);
             obj.put("showCPU", hudElements[3]);
             obj.put("showRAM", hudElements[4]);
-            obj.put("showBattTemp", hudElements[5]);
-            obj.put("showGraph", hudElements[6]);
+            obj.put("showBattery", hudElements[5]);
+            obj.put("showTemp", hudElements[6]);
+            obj.put("showGraph", hudElements[7]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {

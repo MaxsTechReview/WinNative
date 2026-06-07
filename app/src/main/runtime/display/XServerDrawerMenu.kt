@@ -306,7 +306,7 @@ data class XServerDrawerState(
     val hudBackgroundAlphaEnabled: Boolean = false,
     val hudBackgroundTransparency: Float = 1.0f,
     val hudScale: Float = 1.0f,
-    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
+    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
     val dualSeriesBatteryEnabled: Boolean = false,
     val frametimeNumericEnabled: Boolean = false,
     val hudCardExpanded: Boolean = false,
@@ -578,7 +578,7 @@ fun buildXServerDrawerState(
     hudBackgroundAlphaEnabled: Boolean = false,
     hudBackgroundTransparency: Float = 1.0f,
     hudScale: Float = 1.0f,
-    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
+    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
     dualSeriesBatteryEnabled: Boolean = false,
     frametimeNumericEnabled: Boolean = false,
     hudCardExpanded: Boolean = false,
@@ -1511,8 +1511,10 @@ private fun HUDPaneContent(
             stringResource(R.string.session_drawer_hud_element_cpu),
             stringResource(R.string.session_drawer_hud_element_ram),
             stringResource(R.string.session_drawer_hud_element_battery),
+            stringResource(R.string.session_drawer_hud_element_temp),
             stringResource(R.string.session_drawer_hud_element_graph),
         )
+    val elementOrder = listOf(1, 2, 3, 4, 5, 6, 0, 7)
     val active =
         state.items.firstOrNull { it.itemId == R.id.main_menu_fps_monitor }?.active ?: false
 
@@ -1614,9 +1616,9 @@ private fun HUDPaneContent(
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
                     ChipFlow {
-                        elementNames.forEachIndexed { index, name ->
+                        elementOrder.forEach { index ->
                             HUDToggleChip(
-                                label = name,
+                                label = elementNames[index],
                                 checked = state.hudElements[index],
                                 onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
                             )
