@@ -1115,14 +1115,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
     }
 
-    private fun isPackageInstalled(
-        manager: ContentsManager,
-        spec: PackageSpec,
-    ): Boolean =
-        manager.getProfiles(spec.type).orEmpty().any { profile ->
-            profile.isInstalled && profile.verName.contains(spec.nameHint, ignoreCase = true)
-        }
-
     private fun openDrivers() {
         if (supportFragmentManager.findFragmentByTag(SetupWizardDriversDialogFragment.TAG) == null) {
             SetupWizardDriversDialogFragment().show(
