@@ -142,6 +142,14 @@ public class Shortcut {
     }
   }
 
+  private boolean hasUserCustomArt() {
+    return !getExtra("customLibraryIconPath").isEmpty()
+        || !getExtra("customLibraryHeroArtPath").isEmpty()
+        || !getExtra("customLibraryGridArtPath").isEmpty()
+        || !getExtra("customLibraryCarouselArtPath").isEmpty()
+        || !getExtra("customLibraryListArtPath").isEmpty();
+  }
+
   private void loadCoverArt() {
     // 1. Check if we already have a saved path in the metadata
     if (customCoverArtPath != null && !customCoverArtPath.isEmpty()) {
@@ -163,19 +171,20 @@ public class Shortcut {
       return;
     }
 
-    // 3. SMART AUTO-DISCOVERY
-    // We use the EXE path (this.path) to find the game on your Android storage
-    ImageFs imageFs = ImageFs.find(container.getManager().getContext());
-    File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(this.container, imageFs, this.path);
+    // 3. Auto-extract the EXE icon once at import; skip if user set custom art.
+    if (!hasUserCustomArt() && !"1".equals(getExtra("iconExtracted"))) {
+      ImageFs imageFs = ImageFs.find(container.getManager().getContext());
+      File exeFile = com.winlator.cmod.runtime.wine.WineUtils.getNativePath(this.container, imageFs, this.path);
 
-    if (exeFile != null && exeFile.exists()) {
-      // A. Try extracting the real high-quality icon from the EXE
-      if (PeIconExtractor.INSTANCE.extractAndSave(exeFile, customIconFile)) {
-        this.coverArt = BitmapFactory.decodeFile(customIconFile.getPath());
-        this.customCoverArtPath = customIconFile.getAbsolutePath();
-        putExtra("customCoverArtPath", customCoverArtPath);
-        saveData(); // Save it to the file so we don't have to extract it again
-        return;
+      if (exeFile != null && exeFile.exists()) {
+        if (PeIconExtractor.INSTANCE.extractAndSave(exeFile, customIconFile)) {
+          this.coverArt = BitmapFactory.decodeFile(customIconFile.getPath());
+          this.customCoverArtPath = customIconFile.getAbsolutePath();
+          putExtra("customCoverArtPath", customCoverArtPath);
+          putExtra("iconExtracted", "1");
+          saveData();
+          return;
+        }
       }
     }
 

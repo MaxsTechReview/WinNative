@@ -256,9 +256,31 @@ public abstract class MSLink {
         new File(lnkFilePath.substring(0, lnkFilePath.lastIndexOf(".")) + ".desktop");
     String name = lnkFile.getName().substring(0, lnkFile.getName().lastIndexOf("."));
 
-    // Smart Discovery (Synchronized like main):
+    // Preserve user artwork / identity extras so regeneration never wipes a custom picture.
+    java.util.Map<String, String> existingExtras = new java.util.LinkedHashMap<>();
+    if (desktopFile.exists()) {
+      boolean inExtra = false;
+      for (String line : com.winlator.cmod.shared.io.FileUtils.readLines(desktopFile)) {
+        if (line.contains("[Extra Data]")) {
+          inExtra = true;
+          continue;
+        }
+        if (!inExtra) continue;
+        int eq = line.indexOf('=');
+        if (eq > 0) existingExtras.put(line.substring(0, eq).trim(), line.substring(eq + 1));
+      }
+    }
+    boolean hasCustomArt =
+        existingExtras.containsKey("customCoverArtPath")
+            || existingExtras.containsKey("customLibraryIconPath")
+            || existingExtras.containsKey("customLibraryHeroArtPath")
+            || existingExtras.containsKey("customLibraryGridArtPath")
+            || existingExtras.containsKey("customLibraryCarouselArtPath")
+            || existingExtras.containsKey("customLibraryListArtPath");
+
+    // Extract the EXE icon only when no custom art exists yet.
     String customLibraryIconPath = "";
-    if (exeFile != null && exeFile.exists()) {
+    if (!hasCustomArt && exeFile != null && exeFile.exists()) {
       String safeName =
           lnkFile
               .getName()
@@ -310,7 +332,17 @@ public abstract class MSLink {
         pw.write("launch_exe_path=" + windowsPath + "\n");
       }
       
-      if (!customLibraryIconPath.isEmpty()) {
+      // Re-emit preserved extras (art, identity, per-game settings) not rewritten above.
+      java.util.Set<String> written =
+          new java.util.HashSet<>(
+              java.util.Arrays.asList(
+                  "game_source", "custom_name", "use_container_defaults", "container_id",
+                  "custom_exe", "launch_exe_path", "custom_game_folder"));
+      for (java.util.Map.Entry<String, String> e : existingExtras.entrySet()) {
+        if (!written.contains(e.getKey())) pw.write(e.getKey() + "=" + e.getValue() + "\n");
+      }
+
+      if (!customLibraryIconPath.isEmpty() && !existingExtras.containsKey("customCoverArtPath")) {
         pw.write("customCoverArtPath=" + customLibraryIconPath + "\n");
       }
       return true;

@@ -9452,6 +9452,8 @@ class UnifiedActivity :
                 content.append("launch_exe_path=${detectedLaunchExecutable}\n")
                 content.append("use_container_defaults=1\n")
 
+                appendPreservedArtworkExtras(content, shortcutFile)
+
                 com.winlator.cmod.shared.io.FileUtils
                     .writeString(shortcutFile, content.toString())
 
@@ -9464,6 +9466,30 @@ class UnifiedActivity :
                 withContext(Dispatchers.Main) {
                     launchGame(context, intent)
                 }
+            }
+        }
+    }
+
+    // Carry over user artwork / identity extras when regenerating an existing .desktop.
+    private fun appendPreservedArtworkExtras(
+        content: StringBuilder,
+        shortcutFile: java.io.File,
+    ) {
+        if (!shortcutFile.exists()) return
+        val preserve =
+            setOf(
+                "uuid", "customCoverArtPath", "customLibraryIconPath",
+                "customLibraryHeroArtPath", "customLibraryGridArtPath",
+                "customLibraryCarouselArtPath", "customLibraryListArtPath", "iconExtracted",
+            )
+        var inExtra = false
+        for (line in com.winlator.cmod.shared.io.FileUtils.readLines(shortcutFile)) {
+            if (line.contains("[Extra Data]")) {
+                inExtra = true
+                continue
+            }
+            if (inExtra && line.substringBefore("=", "").trim() in preserve) {
+                content.append(line).append("\n")
             }
         }
     }
@@ -9664,6 +9690,8 @@ class UnifiedActivity :
                 }
                 content.append("use_container_defaults=1\n")
 
+                appendPreservedArtworkExtras(content, shortcutFile)
+
                 com.winlator.cmod.shared.io.FileUtils
                     .writeString(shortcutFile, content.toString())
 
@@ -9860,6 +9888,7 @@ class UnifiedActivity :
                 }
                 content.append("use_container_defaults=1\n")
 
+            appendPreservedArtworkExtras(content, shortcutFile)
             com.winlator.cmod.shared.io.FileUtils
                 .writeString(shortcutFile, content.toString())
             container.saveData()
