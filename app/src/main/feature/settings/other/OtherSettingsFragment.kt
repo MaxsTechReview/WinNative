@@ -225,7 +225,7 @@ class OtherSettingsFragment : Fragment() {
                 cursorSpeedPercent =
                     (preferences.getFloat("cursor_speed", 1.0f) * 100)
                         .toInt()
-                        .coerceIn(10, 200),
+                        .coerceIn(10, 300),
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),

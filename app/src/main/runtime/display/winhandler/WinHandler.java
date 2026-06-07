@@ -66,6 +66,10 @@ public class WinHandler {
   private static final long PHYSICAL_DISCONNECT_DEBOUNCE_MS = 400;
   private static final float GYRO_AXIS_EPSILON = 0.001f;
   private static final float GYRO_TRIGGER_PRESS_THRESHOLD = 0.15f;
+  // Orientation stick gain: ~14 deg tilt = full deflection before per-axis sensitivity.
+  private static final float GYRO_ORIENTATION_STICK_GAIN = 4.0f;
+  // Sensitivity offset: a displayed slider value of 100% acts as 200% effective.
+  private static final float GYRO_SENSITIVITY_OFFSET = 1.0f;
   private final XServerDisplayActivity activity;
   private String fakeInputBasePath;
   private final InputManager inputManager;
@@ -115,6 +119,12 @@ public class WinHandler {
   private boolean gyroActivatorPressed = false;
   private int lastGyroTargetSource = 0;
   private ExternalController lastGyroTargetController;
+  // Cached activation; read by shouldApplyGyroToTarget so the query stays side-effect free.
+  private boolean lastGyroActive = false;
+  // Orientation recenter reference, captured on the rising edge of activation.
+  private boolean gyroOrientationCalibrated = false;
+  private float orientationYaw0 = 0.0f;
+  private float orientationPitch0 = 0.0f;
   private Runnable pendingVirtualGamepadRebalance;
   private final Map<Integer, Runnable> pendingDeviceReleases = new HashMap<>();
   private final GamepadRumbleManager gamepadRumbleManager;
@@ -134,34 +144,6 @@ public class WinHandler {
         @Override
         public void onInputDeviceChanged(int deviceId) {}
       };
-
-  private final class MouseMoveAction implements Runnable {
-    private int dx;
-    private int dy;
-
-    MouseMoveAction(int dx, int dy) {
-      this.dx = dx;
-      this.dy = dy;
-    }
-
-    void addDelta(int dx, int dy) {
-      this.dx += dx;
-      this.dy += dy;
-    }
-
-    @Override
-    public void run() {
-      int remainingX = dx;
-      int remainingY = dy;
-      while (remainingX != 0 || remainingY != 0) {
-        int stepX = clampMouseDelta(remainingX);
-        int stepY = clampMouseDelta(remainingY);
-        sendMouseEventPacket(MouseEventFlags.MOVE, stepX, stepY, 0);
-        remainingX -= stepX;
-        remainingY -= stepY;
-      }
-    }
-  }
 
   public WinHandler(XServerDisplayActivity activity) {
     this.activity = activity;
@@ -435,10 +417,7 @@ public class WinHandler {
   }
 
   public void mouseMoveDelta(final int dx, final int dy) {
-    if (!this.initReceived) {
-      return;
-    }
-    addMouseMoveAction(dx, dy);
+    mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
   }
 
   private void sendMouseEventPacket(final int flags, final int dx, final int dy, final int wheelDelta) {
@@ -454,12 +433,6 @@ public class WinHandler {
       sendPacket(CLIENT_PORT);
     } catch (IOException ignored) {
     }
-  }
-
-  private int clampMouseDelta(int value) {
-    if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
-    if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
-    return value;
   }
 
   public void keyboardEvent(final byte vkey, final int flags) {
@@ -506,19 +479,6 @@ public class WinHandler {
     synchronized (this.actions) {
       if (!this.running) return;
       this.actions.add(action);
-      this.actions.notifyAll();
-    }
-  }
-
-  private void addMouseMoveAction(int dx, int dy) {
-    synchronized (this.actions) {
-      if (!this.running) return;
-      Runnable last = this.actions.peekLast();
-      if (last instanceof MouseMoveAction) {
-        ((MouseMoveAction) last).addDelta(dx, dy);
-      } else {
-        this.actions.add(new MouseMoveAction(dx, dy));
-      }
       this.actions.notifyAll();
     }
   }
@@ -618,12 +578,14 @@ public class WinHandler {
         short x = this.receiveData.getShort();
         short y = this.receiveData.getShort();
         XServer xServer = this.activity.getXServer();
-        xServer.pointer.setX(x);
-        xServer.pointer.setY(y);
-        if (xServer.getRenderer() != null) {
-          xServer.getRenderer().requestCursorRender();
-        } else {
-          this.activity.getXServerView().requestTransientRender(100);
+        if (xServer != null) {
+          xServer.pointer.setX(x);
+          xServer.pointer.setY(y);
+          if (xServer.getRenderer() != null) {
+            xServer.getRenderer().requestCursorRender();
+          } else if (this.activity.getXServerView() != null) {
+            this.activity.getXServerView().requestTransientRender(100);
+          }
         }
         return;
       default:
@@ -1305,6 +1267,10 @@ public class WinHandler {
     this.currentGyroStickY = 0.0f;
     this.gyroToggleEnabled = false;
     this.gyroActivatorPressed = false;
+    this.lastGyroActive = false;
+    this.gyroOrientationCalibrated = false;
+    this.accumulatedGyroX = 0.0f;
+    this.accumulatedGyroY = 0.0f;
     this.lastGyroTargetSource = GAMEPAD_SOURCE_NONE;
     this.lastGyroTargetController = null;
   }
@@ -1385,14 +1351,7 @@ public class WinHandler {
   public void updateGyroData(float rawGyroX, float rawGyroY) {
     GyroSettings gyroSettings = getGyroSettings();
     if (!gyroSettings.enabled) {
-      this.smoothedGyroX = 0.0f;
-      this.smoothedGyroY = 0.0f;
-      this.currentGyroStickX = 0.0f;
-      this.currentGyroStickY = 0.0f;
-      this.gyroToggleEnabled = false;
-      this.gyroActivatorPressed = false;
-      this.accumulatedGyroX = 0.0f;
-      this.accumulatedGyroY = 0.0f;
+      resetGyroRuntimeState();
       clearLastGyroTarget();
       return;
     }
@@ -1417,28 +1376,113 @@ public class WinHandler {
         (this.smoothedGyroY * gyroSettings.smoothing)
             + (rawGyroY * (1.0f - gyroSettings.smoothing));
 
+    GyroTarget target = resolveActiveGyroTarget(gyroSettings);
+    if (target == null) {
+      return;
+    }
+
+    float nextGyroStickX = target.active ? clamp(this.smoothedGyroX, -1.0f, 1.0f) : 0.0f;
+    float nextGyroStickY = target.active ? clamp(this.smoothedGyroY, -1.0f, 1.0f) : 0.0f;
+    applyGyroStickToTarget(target, nextGyroStickX, nextGyroStickY);
+  }
+
+  // Tilt-to-position path: drives the stick from absolute yaw/pitch offset, so a held tilt sustains.
+  public void updateGyroOrientation(float yaw, float pitch) {
+    GyroSettings gyroSettings = getGyroSettings();
+    if (!gyroSettings.enabled) {
+      resetGyroRuntimeState();
+      clearLastGyroTarget();
+      return;
+    }
+
+    GyroTarget target = resolveActiveGyroTarget(gyroSettings);
+    if (target == null) {
+      this.gyroOrientationCalibrated = false;
+      return;
+    }
+
+    if (target.active) {
+      if (!this.gyroOrientationCalibrated) {
+        // Rising edge: current pose becomes stick-center.
+        this.orientationYaw0 = yaw;
+        this.orientationPitch0 = pitch;
+        this.gyroOrientationCalibrated = true;
+      }
+    } else {
+      this.gyroOrientationCalibrated = false;
+    }
+
+    float deltaX = target.active ? wrapAngle(yaw - this.orientationYaw0) : 0.0f;
+    float deltaY = target.active ? wrapAngle(pitch - this.orientationPitch0) : 0.0f;
+
+    if (Math.abs(deltaX) < gyroSettings.deadzone) deltaX = 0.0f;
+    if (Math.abs(deltaY) < gyroSettings.deadzone) deltaY = 0.0f;
+    if (gyroSettings.invertX) deltaX = -deltaX;
+    if (gyroSettings.invertY) deltaY = -deltaY;
+
+    deltaX *= gyroSettings.sensitivityX * GYRO_ORIENTATION_STICK_GAIN;
+    deltaY *= gyroSettings.sensitivityY * GYRO_ORIENTATION_STICK_GAIN;
+
+    this.smoothedGyroX =
+        (this.smoothedGyroX * gyroSettings.smoothing) + (deltaX * (1.0f - gyroSettings.smoothing));
+    this.smoothedGyroY =
+        (this.smoothedGyroY * gyroSettings.smoothing) + (deltaY * (1.0f - gyroSettings.smoothing));
+
+    float nextGyroStickX = target.active ? clamp(this.smoothedGyroX, -1.0f, 1.0f) : 0.0f;
+    float nextGyroStickY = target.active ? clamp(this.smoothedGyroY, -1.0f, 1.0f) : 0.0f;
+    applyGyroStickToTarget(target, nextGyroStickX, nextGyroStickY);
+  }
+
+  // Recenters orientation mode: next sample recaptures the current pose as stick-center.
+  public void recenterGyroOrientation() {
+    this.gyroOrientationCalibrated = false;
+    this.smoothedGyroX = 0.0f;
+    this.smoothedGyroY = 0.0f;
+  }
+
+  private void resetGyroRuntimeState() {
+    this.smoothedGyroX = 0.0f;
+    this.smoothedGyroY = 0.0f;
+    this.currentGyroStickX = 0.0f;
+    this.currentGyroStickY = 0.0f;
+    this.gyroToggleEnabled = false;
+    this.gyroActivatorPressed = false;
+    this.accumulatedGyroX = 0.0f;
+    this.accumulatedGyroY = 0.0f;
+    this.lastGyroActive = false;
+    this.gyroOrientationCalibrated = false;
+  }
+
+  // Resolves the target and evaluates activation once per sample (sole updateGyroActivation caller).
+  private GyroTarget resolveActiveGyroTarget(GyroSettings gyroSettings) {
     int targetSource = resolveGyroTargetSource();
     ExternalController targetController =
         targetSource == GAMEPAD_SOURCE_CONTROLLER ? getPreferredGyroController() : null;
-    if (targetSource == GAMEPAD_SOURCE_NONE) {
+    if (targetSource == GAMEPAD_SOURCE_NONE
+        || (targetSource == GAMEPAD_SOURCE_CONTROLLER && targetController == null)) {
       clearLastGyroTarget();
-      return;
+      this.lastGyroActive = false;
+      return null;
     }
-
-    if (targetSource == GAMEPAD_SOURCE_CONTROLLER && targetController == null) {
-      clearLastGyroTarget();
-      return;
-    }
-
     GamepadState targetState = getTargetGamepadState(targetSource, targetController);
     if (targetState == null) {
       clearLastGyroTarget();
-      return;
+      this.lastGyroActive = false;
+      return null;
     }
+    boolean active =
+        updateGyroActivation(
+            targetState, targetController != null ? targetController.state : null, gyroSettings);
+    this.lastGyroActive = active;
+    return new GyroTarget(targetSource, targetController, active);
+  }
 
-    boolean gyroActive = updateGyroActivation(targetState, targetController != null ? targetController.state : null, gyroSettings);
-    float nextGyroStickX = gyroActive ? clamp(this.smoothedGyroX, -1.0f, 1.0f) : 0.0f;
-    float nextGyroStickY = gyroActive ? clamp(this.smoothedGyroY, -1.0f, 1.0f) : 0.0f;
+  // Writes the stick value to the target. Must stay a leaf (no sendGamepadState/updateGyro* calls).
+  private void applyGyroStickToTarget(
+      GyroTarget target, float nextGyroStickX, float nextGyroStickY) {
+    int targetSource = target.source;
+    ExternalController targetController = target.controller;
+    boolean gyroActive = target.active;
 
     boolean targetChanged =
         targetSource != this.lastGyroTargetSource
@@ -1473,9 +1517,42 @@ public class WinHandler {
         gyroActive && targetSource == GAMEPAD_SOURCE_CONTROLLER ? targetController : null;
   }
 
+  // Normalizes to [-pi, pi] so the yaw wrap at +/-pi doesn't cause a full-scale jump.
+  private static float wrapAngle(float radians) {
+    return (float) Math.IEEEremainder(radians, 2.0 * Math.PI);
+  }
+
+  private static final class GyroTarget {
+    final int source;
+    final ExternalController controller;
+    final boolean active;
+
+    GyroTarget(int source, ExternalController controller, boolean active) {
+      this.source = source;
+      this.controller = controller;
+      this.active = active;
+    }
+  }
+
   public void refreshControllerMappings() {}
 
   private void updateGyroDataMouse(float rawGyroX, float rawGyroY, GyroSettings gyroSettings) {
+    // Mouse mode doesn't use the stick: clear any overlay left by a prior stick session.
+    if (this.lastGyroTargetSource != GAMEPAD_SOURCE_NONE) {
+      clearLastGyroTarget();
+    }
+    this.currentGyroStickX = 0.0f;
+    this.currentGyroStickY = 0.0f;
+
+    // Gate on the activator; stay always-on when no controller target exists (controllerless use).
+    GyroTarget target = resolveActiveGyroTarget(gyroSettings);
+    boolean active = target == null || target.active;
+    if (!active) {
+      this.accumulatedGyroX = 0.0f;
+      this.accumulatedGyroY = 0.0f;
+      return;
+    }
+
     if (Math.abs(rawGyroX) < gyroSettings.deadzone) rawGyroX = 0.0f;
     if (Math.abs(rawGyroY) < gyroSettings.deadzone) rawGyroY = 0.0f;
     if (gyroSettings.invertX) rawGyroX = -rawGyroX;
@@ -1505,10 +1582,12 @@ public class WinHandler {
         this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
     settings.applyToRightStick =
         this.preferences.getBoolean("process_gyro_with_left_trigger", false);
-    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f);
-    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f);
-    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.9f), 0.0f, 0.99f);
-    settings.deadzone = clamp(getFloatPreference("gyro_deadzone", 0.05f), 0.0f, 1.0f);
+    // Slider 100% maps to 200% effective (+1.0 offset): the displayed % was too weak on its own.
+    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
+    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
+    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.1f), 0.0f, 0.99f);
+    // Deadzone forced to 0 while gyro is in use; the saved gyro_deadzone pref is left intact.
+    settings.deadzone = 0.0f;
     settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);
     settings.invertY = this.preferences.getBoolean("invert_gyro_y", false);
     return settings;
@@ -1575,10 +1654,7 @@ public class WinHandler {
   }
 
   private void setLastGamepadSource(int source, ExternalController controller) {
-    if (source != this.lastGamepadSource) {
-      this.gyroToggleEnabled = false;
-      this.gyroActivatorPressed = false;
-    }
+    // Don't reset gyroToggleEnabled here: the toggle is global and was dying on source changes.
     this.lastGamepadSource = source;
     if (controller != null) {
       this.currentController = controller;
@@ -1613,6 +1689,9 @@ public class WinHandler {
     if (!gyroSettings.enabled) {
       return false;
     }
+    if (this.preferences.getBoolean("mouse_gyro_enabled", false)) {
+      return false; // mouse mode doesn't overlay the stick
+    }
     int preferredSource = resolveGyroTargetSource();
     if (source != preferredSource) {
       return false;
@@ -1622,8 +1701,8 @@ public class WinHandler {
       return false;
     }
     GamepadState targetState = getTargetGamepadState(source, controller);
-    // Pass both remapped and raw state to activation check
-    return targetState != null && updateGyroActivation(targetState, controller != null ? controller.state : null, gyroSettings);
+    // Use cached activation (no mutation here) to keep this query side-effect free.
+    return targetState != null && this.lastGyroActive;
   }
 
   private GamepadState getTargetGamepadState(int source, ExternalController controller) {

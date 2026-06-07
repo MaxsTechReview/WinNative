@@ -90,6 +90,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -193,18 +194,19 @@ private val GlassExitTint = Color(0xFFE07B6B)
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
 private const val PaneScaleMin = 0.78f
+private const val ControlsPaneScaleMin = 0.62f
 private const val PaneScaleReferenceHeightDp = 520f
 private const val PendingTaskAffinityTimeoutMs = 2500L
 
-private fun computePaneScale(availableHeight: Dp): Float =
-    (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(PaneScaleMin, 1f)
+private fun computePaneScale(availableHeight: Dp, minScale: Float = PaneScaleMin): Float =
+    (availableHeight.value / PaneScaleReferenceHeightDp).coerceIn(minScale, 1f)
 
 private enum class HUDMetricEditor(
     val minPercent: Int,
     val maxPercent: Int,
 ) {
     ALPHA(minPercent = 10, maxPercent = 100),
-    SCALE(minPercent = 50, maxPercent = 200),
+    SCALE(minPercent = 30, maxPercent = 200),
 }
 
 internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS }
@@ -314,13 +316,14 @@ data class XServerDrawerState(
     val hudCardExpanded: Boolean = false,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
+    val gyroOrientationEnabled: Boolean = false,
     val gyroscopeActivatorLabel: String = "",
     val rightStickGyroEnabled: Boolean = false,
     val gyroMouseEnabled: Boolean = false,
     val gyroMouseScale: Float = 50.0f,
     val gyroXSensitivity: Float = 1.0f,
     val gyroYSensitivity: Float = 1.0f,
-    val gyroSmoothing: Float = 0.9f,
+    val gyroSmoothing: Float = 0.1f,
     val gyroDeadzone: Float = 0.05f,
     val invertGyroX: Boolean = false,
     val invertGyroY: Boolean = false,
@@ -345,6 +348,7 @@ data class XServerDrawerState(
     val inputControlsTouchscreenHaptics: Boolean = false,
     val inputControlsGamepadVibration: Boolean = true,
     val inputControlsGcmRumbleMode: String = "disabled",
+    val cursorSpeed: Float = 1.0f,
     // External display / cast "Output" pane.
     val outputSwapActive: Boolean = false,
     val outputDisplayName: String = "",
@@ -517,6 +521,8 @@ interface XServerDrawerActionListener {
 
     fun onGyroscopeModeSelected(mode: Int)
 
+    fun onGyroOrientationModeChanged(enabled: Boolean)
+
     fun onGyroscopeActivatorSelected(keycode: Int)
 
     fun onRightStickGyroChanged(enabled: Boolean)
@@ -591,6 +597,8 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsGamepadVibrationChanged(enabled: Boolean)
 
+    fun onCursorSpeedChanged(speed: Float)
+
     fun onInputControlsGcmRumbleModeChanged(mode: String)
 
     fun onInputControlsEditClick()
@@ -633,13 +641,14 @@ fun buildXServerDrawerState(
     hudCardExpanded: Boolean = false,
     gyroscopeEnabled: Boolean = false,
     gyroscopeModeIndex: Int = 0,
+    gyroOrientationEnabled: Boolean = false,
     gyroscopeActivatorLabel: String = "",
     rightStickGyroEnabled: Boolean = false,
     gyroMouseEnabled: Boolean = false,
     gyroMouseScale: Float = 50.0f,
     gyroXSensitivity: Float = 1.0f,
     gyroYSensitivity: Float = 1.0f,
-    gyroSmoothing: Float = 0.9f,
+    gyroSmoothing: Float = 0.1f,
     gyroDeadzone: Float = 0.05f,
     invertGyroX: Boolean = false,
     invertGyroY: Boolean = false,
@@ -663,6 +672,7 @@ fun buildXServerDrawerState(
     inputControlsTouchscreenHaptics: Boolean = false,
     inputControlsGamepadVibration: Boolean = true,
     inputControlsGcmRumbleMode: String = "disabled",
+    cursorSpeed: Float = 1.0f,
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
     refactorSizeEnabled: Boolean = false,
@@ -801,6 +811,7 @@ fun buildXServerDrawerState(
         hudCardExpanded = hudCardExpanded,
         gyroscopeEnabled = gyroscopeEnabled,
         gyroscopeModeIndex = gyroscopeModeIndex,
+        gyroOrientationEnabled = gyroOrientationEnabled,
         gyroscopeActivatorLabel = gyroscopeActivatorLabel,
         rightStickGyroEnabled = rightStickGyroEnabled,
         gyroMouseEnabled = gyroMouseEnabled,
@@ -832,6 +843,7 @@ fun buildXServerDrawerState(
         inputControlsTouchscreenHaptics = inputControlsTouchscreenHaptics,
         inputControlsGamepadVibration = inputControlsGamepadVibration,
         inputControlsGcmRumbleMode = inputControlsGcmRumbleMode,
+        cursorSpeed = cursorSpeed,
     )
 }
 
@@ -1687,10 +1699,10 @@ private fun HUDPaneContent(
                     label = stringResource(R.string.session_drawer_hud_scale),
                     valueText = "${(state.hudScale * 100).toInt()}%",
                     value = state.hudScale,
-                    valueRange = 0.5f..2.0f,
-                    steps = 14,
+                    valueRange = 0.3f..2.0f,
+                    steps = 16,
                     onValueClick = { activeEditor = HUDMetricEditor.SCALE },
-                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.5f, 2.0f)) },
+                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
@@ -1774,6 +1786,12 @@ private fun GyroscopePaneContent(
                     }
                 }
 
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_gyroscope_orientation_mode),
+                    checked = state.gyroOrientationEnabled,
+                    onCheckedChange = listener::onGyroOrientationModeChanged,
+                )
+
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))
                     GyroscopeActivatorDropdown(
@@ -1812,19 +1830,19 @@ private fun GyroscopePaneContent(
                 ) {
                     DrawerSliderRow(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
-                        valueText = "${(state.gyroXSensitivity * 100).toInt()}%",
+                        valueText = "${(state.gyroXSensitivity * 100).roundToInt()}%",
                         value = state.gyroXSensitivity,
-                        valueRange = 0f..2f,
-                        steps = 199,
+                        valueRange = 0.01f..3f,
+                        steps = 0,
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
                     DrawerSliderRow(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
-                        valueText = "${(state.gyroYSensitivity * 100).toInt()}%",
+                        valueText = "${(state.gyroYSensitivity * 100).roundToInt()}%",
                         value = state.gyroYSensitivity,
-                        valueRange = 0f..2f,
-                        steps = 199,
+                        valueRange = 0.01f..3f,
+                        steps = 0,
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 
@@ -1884,7 +1902,7 @@ private fun InputControlsPaneContent(
     listener: XServerDrawerActionListener,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val paneScale = computePaneScale(maxHeight)
+        val paneScale = computePaneScale(maxHeight, ControlsPaneScaleMin)
         val scrollState = rememberScrollState()
         val gcmEnabled = state.inputControlsGcmRumbleMode != "disabled"
         CompositionLocalProvider(LocalPaneScale provides paneScale) {
@@ -1893,7 +1911,12 @@ private fun InputControlsPaneContent(
                     Modifier
                         .fillMaxWidth()
                         .verticalScroll(scrollState)
-                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                        .padding(
+                            start = (12f * paneScale).dp,
+                            end = (12f * paneScale).dp,
+                            top = (4f * paneScale).dp,
+                            bottom = (12f * paneScale).dp,
+                        ),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
@@ -1964,12 +1987,21 @@ private fun InputControlsPaneContent(
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
                 )
 
+                DrawerSliderRow(
+                    label = "Mouse sensitivity scale",
+                    valueText = "${Math.round(state.cursorSpeed * 100)}%",
+                    value = state.cursorSpeed * 100f,
+                    valueRange = 10f..300f,
+                    steps = 0,
+                    onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
+                )
+
                 LaunchedEffect(gcmEnabled) {
                     if (gcmEnabled) scrollState.animateScrollTo(Int.MAX_VALUE)
                 }
 
                 DrawerBooleanRow(
-                    title = "GameSir Rumble Hack",
+                    title = "GameSir Controller Rumble",
                     subtitle = "For Android-mode GameSir controllers only",
                     checked = gcmEnabled,
                     onCheckedChange = { enabled ->
@@ -2068,49 +2100,13 @@ private fun InputControlsSimpleDropdown(
             )
         }
 
-        DropdownMenu(
+        InputControlsOptionsPopup(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier =
-                Modifier
-                    .background(PaneSurfaceColor)
-                    .heightIn(max = 280.dp),
-        ) {
-            options.forEachIndexed { index, name ->
-                val isSelected = index == selectedIndex
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = name,
-                            color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    },
-                    trailingIcon =
-                        if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    tint = DrawerAccent,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    onClick = {
-                        onSelected(index)
-                        expanded = false
-                    },
-                    colors =
-                        MenuDefaults.itemColors(
-                            textColor = DrawerTextPrimary,
-                        ),
-                )
-            }
-        }
+            options = options,
+            selectedIndex = selectedIndex,
+            onSelected = onSelected,
+            onDismiss = { expanded = false },
+        )
     }
 }
 
@@ -2173,49 +2169,13 @@ private fun InputControlsProfileSelector(
                 )
             }
 
-            DropdownMenu(
+            InputControlsOptionsPopup(
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier =
-                    Modifier
-                        .background(PaneSurfaceColor)
-                        .heightIn(max = 280.dp),
-            ) {
-                profileNames.forEachIndexed { index, name ->
-                    val isSelected = index == selectedIndex
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = name,
-                                color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            )
-                        },
-                        trailingIcon =
-                            if (isSelected) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Check,
-                                        contentDescription = null,
-                                        tint = DrawerAccent,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                        onClick = {
-                            onProfileSelected(index)
-                            expanded = false
-                        },
-                        colors =
-                            MenuDefaults.itemColors(
-                                textColor = DrawerTextPrimary,
-                            ),
-                    )
-                }
-            }
+                options = profileNames,
+                selectedIndex = selectedIndex,
+                onSelected = onProfileSelected,
+                onDismiss = { expanded = false },
+            )
         }
 
         Box(
@@ -2233,6 +2193,113 @@ private fun InputControlsProfileSelector(
                 contentDescription = stringResource(R.string.common_ui_settings),
                 tint = DrawerTextPrimary,
                 modifier = Modifier.size((20f * paneScale).dp),
+            )
+        }
+    }
+}
+
+// Drawer-styled dropdown for the Controls selectors; opens scrolled to the selected option.
+@Composable
+private fun InputControlsOptionsPopup(
+    expanded: Boolean,
+    options: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!expanded) return
+    val paneScale = LocalPaneScale.current
+    val density = LocalDensity.current
+    val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
+    val shape = RoundedCornerShape((12f * paneScale).dp)
+    val scrollState = rememberScrollState()
+    var selectedOffsetPx by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(selectedOffsetPx) {
+        selectedOffsetPx?.let { scrollState.scrollTo(it) }
+    }
+    Popup(
+        popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
+                    .clip(shape)
+                    .background(PaneSurfaceColor)
+                    .border(1.dp, RestingCardBorder, shape)
+                    .heightIn(max = (260f * paneScale).dp)
+                    .verticalScroll(scrollState)
+                    .padding((5f * paneScale).dp),
+            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+        ) {
+            options.forEachIndexed { index, name ->
+                val isSelected = index == selectedIndex
+                InputControlsOptionItem(
+                    label = name,
+                    selected = isSelected,
+                    onClick = {
+                        onSelected(index)
+                        onDismiss()
+                    },
+                    modifier =
+                        if (isSelected) {
+                            Modifier.onGloballyPositioned { coords ->
+                                selectedOffsetPx = coords.boundsInParent().top.roundToInt()
+                            }
+                        } else {
+                            Modifier
+                        },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InputControlsOptionItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val paneScale = LocalPaneScale.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+    val bgColor by animateColorAsState(
+        targetValue = if (pressed) DrawerAccent.copy(alpha = 0.16f) else PaneInnerResting,
+        animationSpec = tween(120),
+        label = "inputControlsOptionItem",
+    )
+    val shape = RoundedCornerShape((8f * paneScale).dp)
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, if (selected) ActiveCardBorder else RestingCardBorder, shape)
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) DrawerAccent else DrawerTextPrimary,
+            fontSize = (13f * paneScale).sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = DrawerAccent,
+                modifier = Modifier.size((16f * paneScale).dp),
             )
         }
     }
@@ -4620,6 +4687,7 @@ private fun DrawerBooleanRow(
     subtitle: String? = null,
 ) {
     val paneScale = LocalPaneScale.current
+    val compact = paneScale < PaneScaleMin
     val rowInteractionSource = remember { MutableInteractionSource() }
     val pressed = rowInteractionSource.collectIsPressedAsState().value
     val switchInteractionSource = remember { MutableInteractionSource() }
@@ -4672,7 +4740,10 @@ private fun DrawerBooleanRow(
                 fontSize = (12f * paneScale).sp,
             )
         }
-        CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        CompositionLocalProvider(
+            LocalRippleConfiguration provides null,
+            LocalMinimumInteractiveComponentSize provides if (compact) Dp.Unspecified else 48.dp,
+        ) {
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,

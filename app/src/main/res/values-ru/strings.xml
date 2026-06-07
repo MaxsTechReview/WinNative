@@ -345,7 +345,7 @@
     <string name="input_controls_select_style">Выберите стиль</string>
     <string name="input_controls_select_label_theme">Метки кнопок</string>
     <string name="input_controls_style_original">Оригинал</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">Оригинал</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>

@@ -238,6 +238,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     ));
     private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
+    private boolean inputControlsRevealAllowed = false;
     private TouchpadView touchpadView;
     private XEnvironment environment;
     private ComposeView displayHostComposeView;
@@ -309,7 +310,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void tryCapturePointer() {
-        if (touchpadView != null && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
+        if (touchpadView != null && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen())) {
             touchpadView.postDelayed(() -> {
                 if (touchpadView != null) {
                     updatePointerCapture();
@@ -330,7 +331,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
     private boolean isRefactorSizeEnabled = false;
-    private static final long REFACTOR_SIZE_EXE_BYTES = 16384L;
+    private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
+    private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -369,6 +371,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private SensorManager sensorManager;
     private Sensor gyroSensor;
+    private Sensor gyroRotationSensor;
+    private final float[] gyroRotationMatrix = new float[9];
+    private final float[] gyroRemappedMatrix = new float[9];
+    private final float[] gyroOrientationAngles = new float[3];
     private ExternalController controller;
 
     private long startTime;
@@ -412,11 +418,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final SensorEventListener gyroListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
-            if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                float gyroX = event.values[0];
-                float gyroY = event.values[1];
-
-                winHandler.updateGyroData(gyroX, gyroY);
+            if (winHandler == null) {
+                return;
+            }
+            int type = event.sensor.getType();
+            if (type == Sensor.TYPE_GYROSCOPE) {
+                winHandler.updateGyroData(event.values[0], event.values[1]);
+            } else if (type == Sensor.TYPE_GAME_ROTATION_VECTOR) {
+                computeGyroOrientation(event.values);
             }
         }
 
@@ -426,15 +435,94 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     };
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener = (sharedPreferences, key) -> {
-        if ("gyro_enabled".equals(key) || "mouse_gyro_enabled".equals(key)) {
+        if ("gyro_enabled".equals(key) || "mouse_gyro_enabled".equals(key) || "gyro_orientation_enabled".equals(key)) {
             boolean gyroEnabled = sharedPreferences.getBoolean("gyro_enabled", false);
             if (gyroEnabled) {
-                sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
-            } else {
+                registerGyroSensorIfEnabled();
+            } else if (sensorManager != null) {
                 sensorManager.unregisterListener(gyroListener);
+            }
+        } else if ("cursor_speed".equals(key)) {
+            globalCursorSpeed = sharedPreferences.getFloat("cursor_speed", 1.0f);
+            if (touchpadView != null) {
+                float profileSpeed = 1.0f;
+                if (inputControlsView != null) {
+                    ControlsProfile profile = inputControlsView.getProfile();
+                    if (profile != null) profileSpeed = profile.getCursorSpeed();
+                }
+                touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+            }
+        } else if ("touchscreen_toggle".equals(key)) {
+            if (touchpadView != null) {
+                touchpadView.setSimTouchScreen(sharedPreferences.getBoolean("touchscreen_toggle", false));
             }
         }
     };
+
+    // Registers rotation-vector (orientation mode) or gyroscope (rate mode); unregisters first.
+    private void registerGyroSensorIfEnabled() {
+        if (sensorManager == null) {
+            return;
+        }
+        if (!preferences.getBoolean("gyro_enabled", false)) {
+            return;
+        }
+        sensorManager.unregisterListener(gyroListener);
+        boolean orientationMode = preferences.getBoolean("gyro_orientation_enabled", false);
+        boolean mouseMode = preferences.getBoolean("mouse_gyro_enabled", false);
+        // Gyro-mouse is rate-based (needs the gyroscope), so it wins over orientation mode;
+        // orientation uses the rotation vector, falling back to the gyroscope if absent.
+        Sensor sensor =
+                (orientationMode && !mouseMode && gyroRotationSensor != null)
+                        ? gyroRotationSensor
+                        : gyroSensor;
+        if (sensor != null) {
+            sensorManager.registerListener(gyroListener, sensor, SensorManager.SENSOR_DELAY_GAME);
+        }
+    }
+
+    // Rotation-vector sample -> yaw/pitch (radians), remapped for display rotation (landscape).
+    private void computeGyroOrientation(float[] rotationVector) {
+        if (winHandler == null) {
+            return;
+        }
+        SensorManager.getRotationMatrixFromVector(gyroRotationMatrix, rotationVector);
+        int axisX = SensorManager.AXIS_X;
+        int axisY = SensorManager.AXIS_Y;
+        switch (getDisplayRotationForSensors()) {
+            case android.view.Surface.ROTATION_90:
+                axisX = SensorManager.AXIS_Y;
+                axisY = SensorManager.AXIS_MINUS_X;
+                break;
+            case android.view.Surface.ROTATION_180:
+                axisX = SensorManager.AXIS_MINUS_X;
+                axisY = SensorManager.AXIS_MINUS_Y;
+                break;
+            case android.view.Surface.ROTATION_270:
+                axisX = SensorManager.AXIS_MINUS_Y;
+                axisY = SensorManager.AXIS_X;
+                break;
+            default:
+                break;
+        }
+        SensorManager.remapCoordinateSystem(gyroRotationMatrix, axisX, axisY, gyroRemappedMatrix);
+        SensorManager.getOrientation(gyroRemappedMatrix, gyroOrientationAngles);
+        // gyroOrientationAngles = [azimuth(yaw), pitch, roll]
+        winHandler.updateGyroOrientation(gyroOrientationAngles[0], gyroOrientationAngles[1]);
+    }
+
+    private int getDisplayRotationForSensors() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.view.Display display = getDisplay();
+                if (display != null) {
+                    return display.getRotation();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return getWindowManager().getDefaultDisplay().getRotation();
+    }
 
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
@@ -838,13 +926,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        gyroRotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR);
         preferences.registerOnSharedPreferenceChangeListener(prefListener);
 
-        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
-
-        if (gyroEnabled) {
-            sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
-        }
+        registerGyroSensorIfEnabled();
 
 
 
@@ -1390,6 +1475,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         stopWnLauncherStatusTailer();
                     }
                     winStarted[0] = true;
+                    runOnUiThread(() -> {
+                        inputControlsRevealAllowed = true;
+                        if (inputControlsView != null) {
+                            ControlsProfile activeProfile = inputControlsView.getProfile();
+                            if (activeProfile != null) showInputControls(activeProfile);
+                            else startTouchscreenTimeout();
+                        }
+                    });
                     if (startFullscreenStretched) {
                         timeoutHandler.post(() -> {
                             if (activityDestroyed.get()) return;
@@ -2139,6 +2232,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             dx = event.getX();
             dy = event.getY();
         }
+        dx *= globalCursorSpeed;
+        dy *= globalCursorSpeed;
         return new int[]{
                 (int)(xform[0] * dx + xform[2] * dy),
                 (int)(xform[1] * dx + xform[3] * dy)
@@ -2149,11 +2244,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public void onResume() {
         super.onResume();
         applyPreferredRefreshRate();
-        boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
-
-        if (gyroEnabled) {
-            sensorManager.registerListener(gyroListener, gyroSensor, SensorManager.SENSOR_DELAY_GAME);
-        }
+        registerGyroSensorIfEnabled();
 
         boolean cleaningUp = exitRequested.get() || sessionCleanupStarted.get() || activityDestroyed.get();
 
@@ -3750,13 +3841,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudCardExpanded,
                 preferences.getBoolean("gyro_enabled", false),
                 preferences.getInt("gyro_mode", 0),
+                preferences.getBoolean("gyro_orientation_enabled", false),
                 currentGyroActivatorLabel(),
                 preferences.getBoolean("process_gyro_with_left_trigger", false),
                 preferences.getBoolean("mouse_gyro_enabled", false),
                 preferences.getFloat("gyro_mouse_scale", 50.0f),
                 preferences.getFloat("gyro_x_sensitivity", 1.0f),
                 preferences.getFloat("gyro_y_sensitivity", 1.0f),
-                preferences.getFloat("gyro_smoothing", 0.9f),
+                preferences.getFloat("gyro_smoothing", 0.1f),
                 preferences.getFloat("gyro_deadzone", 0.05f),
                 preferences.getBoolean("invert_gyro_x", false),
                 preferences.getBoolean("invert_gyro_y", false),
@@ -3782,6 +3874,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getString(
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.PREF_KEY,
                     com.winlator.cmod.runtime.input.rumble.GcmRumbleMode.DISABLED.toPrefValue()),
+                globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
                 isRefactorSizeEnabled
@@ -3888,6 +3981,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onGyroscopeModeSelected(int mode) {
                         preferences.edit().putInt("gyro_mode", mode).apply();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onGyroOrientationModeChanged(boolean enabled) {
+                        preferences.edit().putBoolean("gyro_orientation_enabled", enabled).apply();
+                        // Swap the active sensor (rate <-> orientation) live.
+                        registerGyroSensorIfEnabled();
                         renderDrawerMenu();
                     }
 
@@ -4200,6 +4301,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsGamepadVibrationChanged(boolean enabled) {
                         preferences.edit().putBoolean(ControllerManager.PREF_VIBRATION_GLOBAL, enabled).commit();
                         if (winHandler != null) winHandler.setGlobalVibrationEnabled(enabled);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onCursorSpeedChanged(float speed) {
+                        globalCursorSpeed = speed;
+                        preferences.edit().putFloat("cursor_speed", speed).apply();
+                        if (touchpadView != null) {
+                            float profileSpeed = 1.0f;
+                            if (inputControlsView != null) {
+                                ControlsProfile profile = inputControlsView.getProfile();
+                                if (profile != null) profileSpeed = profile.getCursorSpeed();
+                            }
+                            touchpadView.setSensitivity(profileSpeed * globalCursorSpeed);
+                        }
                         renderDrawerMenu();
                     }
 
@@ -4677,6 +4793,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         switch (itemId) {
             case R.id.main_menu_gyroscope_reset:
                 if (winHandler != null) {
+                    winHandler.recenterGyroOrientation();
                     winHandler.updateGyroData(0, 0);
                 }
                 break;
@@ -4790,6 +4907,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (winHandler == null || container == null) return;
         if (enabled) stageRefactorSizeHelper();
         winHandler.exec("\"C:\\WinNative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
+        if (!enabled) unstageRefactorSizeHelper();
     }
 
     private void stageRefactorSizeHelper() {
@@ -4809,6 +4927,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Refactor Size: helper staging failed", e);
         }
+    }
+
+    private void unstageRefactorSizeHelper() {
+        final File dst = new File(container.getRootDir(), ".wine/drive_c/WinNative/refactorsize.exe");
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!isRefactorSizeEnabled && dst.exists()) dst.delete();
+        }, REFACTOR_SIZE_UNSTAGE_DELAY_MS);
     }
 
     private boolean isDisplayReady() {
@@ -4854,7 +4979,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldUsePointerCapture() {
-        return !isPointerCaptureForcedOff && hasExternalMouse() && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
+        return !isPointerCaptureForcedOff && (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen());
     }
 
     private void updatePointerCapture() {
@@ -6387,7 +6512,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void startTouchscreenTimeout() {
         if (inputControlsView == null || touchpadView == null) return;
         touchpadView.setOnTouchListener(null);
-        if (!controllerHudMode && hasActiveTouchscreenProfile()) {
+        if (!controllerHudMode && inputControlsRevealAllowed && hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
         }
     }
@@ -6397,8 +6522,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             hideInputControls();
             return;
         }
-        inputControlsView.setVisibility(View.VISIBLE);
-        inputControlsView.requestFocus();
+        if (inputControlsRevealAllowed) {
+            inputControlsView.setVisibility(View.VISIBLE);
+            inputControlsView.requestFocus();
+        }
         inputControlsView.setProfile(profile);
         applyTouchscreenOverlayPreference();
         persistSelectedProfile(profile);

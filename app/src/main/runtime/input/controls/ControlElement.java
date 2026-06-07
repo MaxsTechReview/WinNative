@@ -1581,6 +1581,7 @@ return boundingBox;
             deltaY >= TRACKPAD_MIN_SPEED,
             deltaX <= -TRACKPAD_MIN_SPEED
           };
+
           int cursorDx = 0;
           int cursorDy = 0;
 

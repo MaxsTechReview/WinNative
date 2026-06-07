@@ -1274,7 +1274,7 @@ Percorso installato:
     <string name="input_controls_select_style">Seleziona stile</string>
     <string name="input_controls_select_label_theme">Etichette pulsanti</string>
     <string name="input_controls_style_original">Originale</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">Originale</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>

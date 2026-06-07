@@ -474,6 +474,28 @@ public class InputControlsView extends View {
     activeTouchElements.clear();
   }
 
+  // Release captures whose pointer is no longer reported (missed UP/CANCEL).
+  private void releaseStaleCaptures(MotionEvent event) {
+    boolean removedAny = false;
+    for (int i = activeTouchElements.size() - 1; i >= 0; i--) {
+      int capturedId = activeTouchElements.keyAt(i);
+      boolean stillDown = false;
+      for (int p = 0, count = event.getPointerCount(); p < count; p++) {
+        if (event.getPointerId(p) == capturedId) {
+          stillDown = true;
+          break;
+        }
+      }
+      if (!stillDown) {
+        ControlElement element = activeTouchElements.valueAt(i);
+        if (element != null) element.handleTouchUp(capturedId);
+        activeTouchElements.removeAt(i);
+        removedAny = true;
+      }
+    }
+    if (removedAny) syncCapturedPointers();
+  }
+
   public void cancelContinuousMouseMove() {
     mouseMoveOffsetX = 0f;
     mouseMoveOffsetY = 0f;
@@ -877,6 +899,8 @@ public class InputControlsView extends View {
             break;
           }
       }
+
+      releaseStaleCaptures(event);
     }
     return true;
   }

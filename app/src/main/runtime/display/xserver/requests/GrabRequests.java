@@ -54,11 +54,15 @@ public abstract class GrabRequests {
       status = Status.NOT_VIEWABLE;
     } else {
       status = Status.SUCCESS;
-      client.xServer.grabManager.activatePointerGrab(window, ownerEvents, eventMask, client);
+      Window confineToWindow = null;
       if (confineToId != 0) {
-        Window confineToWindow = client.xServer.windowManager.getWindow(confineToId);
-        client.xServer.windowManager.setConfinedWindow(confineToWindow);
+        confineToWindow = client.xServer.windowManager.getWindow(confineToId);
+        if (confineToWindow != null
+            && confineToWindow.getMapState() != Window.MapState.VIEWABLE) {
+          confineToWindow = null;
+        }
       }
+      client.xServer.grabManager.activatePointerGrab(window, ownerEvents, eventMask, client, confineToWindow);
     }
 
     try (XStreamLock lock = outputStream.lock()) {
@@ -74,6 +78,5 @@ public abstract class GrabRequests {
       XClient client, XInputStream inputStream, XOutputStream outputStream) {
     inputStream.skip(4);
     client.xServer.grabManager.deactivatePointerGrab();
-    client.xServer.windowManager.setConfinedWindow(null);
   }
 }

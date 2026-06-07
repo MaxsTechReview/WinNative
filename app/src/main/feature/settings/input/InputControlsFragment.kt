@@ -137,6 +137,10 @@ class InputControlsFragment : Fragment() {
                                     preferences.edit().putInt("gyro_mode", mode).apply()
                                     publishUiState()
                                 },
+                                onGyroOrientationModeChanged = { enabled ->
+                                    preferences.edit().putBoolean("gyro_orientation_enabled", enabled).apply()
+                                    publishUiState()
+                                },
                                 onGyroscopeActivatorClick = ::showActivatorPicker,
                                 onRightStickGyroChanged = { enabled ->
                                     preferences.edit().putBoolean("process_gyro_with_left_trigger", enabled).apply()
@@ -291,6 +295,7 @@ class InputControlsFragment : Fragment() {
                 overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
                 gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
                 gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
+                gyroOrientationEnabled = preferences.getBoolean("gyro_orientation_enabled", false),
                 gyroscopeActivatorLabel = currentGyroActivatorLabel(),
                 rightStickGyroEnabled = preferences.getBoolean("process_gyro_with_left_trigger", false),
                 gyroMouseEnabled = preferences.getBoolean("mouse_gyro_enabled", false),
@@ -298,7 +303,7 @@ class InputControlsFragment : Fragment() {
                 gyroscopeExpanded = gyroscopeExpanded,
                 gyroXSensitivity = (preferences.getFloat("gyro_x_sensitivity", 1.0f) * 100).toInt(),
                 gyroYSensitivity = (preferences.getFloat("gyro_y_sensitivity", 1.0f) * 100).toInt(),
-                gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.9f) * 100).toInt(),
+                gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.1f) * 100).toInt(),
                 gyroDeadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt(),
                 invertGyroX = preferences.getBoolean("invert_gyro_x", false),
                 invertGyroY = preferences.getBoolean("invert_gyro_y", false),
@@ -808,7 +813,7 @@ class InputControlsFragment : Fragment() {
         val sensorManager = requireContext().getSystemService(Activity.SENSOR_SERVICE) as SensorManager
         val gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) ?: return
 
-        val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.9f)
+        val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.1f)
         val gyroDeadzone = preferences.getFloat("gyro_deadzone", 0.05f)
         val invertGyroX = preferences.getBoolean("invert_gyro_x", false)
         val invertGyroY = preferences.getBoolean("invert_gyro_y", false)

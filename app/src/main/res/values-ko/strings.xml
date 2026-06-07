@@ -1275,7 +1275,7 @@
     <string name="input_controls_select_style">스타일 선택</string>
     <string name="input_controls_select_label_theme">버튼 레이블</string>
     <string name="input_controls_style_original">원본</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">원본</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>

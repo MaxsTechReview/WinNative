@@ -396,16 +396,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val label: String,
         val type: ContentProfile.ContentType,
         val url: String,
-        val nameHint: String,
     )
 
     private data class RuntimeSpec(
         val label: String,
-        val archToken: String,
         val fallbackType: ContentProfile.ContentType,
         val fallbackUrl: String,
-        val fallbackNameHint: String,
-        val persistContainerId: (Context, Int) -> Unit,
     )
 
     private data class RemotePackageSpec(
@@ -428,60 +424,49 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 label = "DXVK 2.7.1 GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.7.1-gplasync.wcp",
-                nameHint = "dxvk-2.7.1-gplasync",
             ),
             PackageSpec(
                 label = "DXVK 2.7.1 ARM64EC GPLAsync",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Arm64ec-Dxvk/Dxvk-2.7.1-arm64ec-gplasync.wcp",
-                nameHint = "Dxvk-2.7.1-arm64ec-gplasync",
             ),
             PackageSpec(
                 label = "VKD3D Proton 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-VKD3D/Vkd3d-proton-3.0.1.wcp",
-                nameHint = "Vkd3d-proton-3.0.1",
             ),
             PackageSpec(
                 label = "VKD3D ARM64EC 3.0.1",
                 type = ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-arm64ec-VKD3D/Vkd3d-arm64ec-3.0.1.wcp",
-                nameHint = "Vk3dk-arm64ec-3.0.1",
             ),
             PackageSpec(
                 label = "DXVK 2.4.1 pre-reg",
                 type = ContentProfile.ContentType.CONTENT_TYPE_DXVK,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Dxvk/Dxvk-2.4.1-pre-reg.wcp",
-                nameHint = "Dxvk-2.4.1-pre-reg",
             ),
             PackageSpec(
                 label = "FEX 2605",
                 type = ContentProfile.ContentType.CONTENT_TYPE_FEXCORE,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-FEX/FEX-2605.wcp",
-                nameHint = "FEX-2605",
             ),
             PackageSpec(
                 label = "Box64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_BOX64,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-Box64/Box64-0.4.2.wcp",
-                nameHint = "Box64-0.4.2",
             ),
             PackageSpec(
                 label = "Wowbox64 0.4.2",
                 type = ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64,
                 url = "https://github.com/nicholasx417/WinNative-Components/releases/download/Stable-wowbox64/Wowbox64-0.4.2.wcp",
-                nameHint = "Wowbox64-0.4.2",
             ),
         )
 
     private val x86ProtonSpec =
         RuntimeSpec(
             label = "Recommended x86-64",
-            archToken = "x86_64",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_WINE,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Wine/wine-9.20-x86_64.wcp",
-            fallbackNameHint = "wine-9.20-x86_64",
-            persistContainerId = ::saveDefaultX86ContainerId,
         )
 
     private val recommendedUrlsState = mutableStateOf<Set<String>>(emptySet())
@@ -506,11 +491,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val arm64ProtonSpec =
         RuntimeSpec(
             label = "Recommended ARM64EC",
-            archToken = "arm64ec",
             fallbackType = ContentProfile.ContentType.CONTENT_TYPE_PROTON,
             fallbackUrl = "https://github.com/nicholasx417/WinNative-Components/releases/download/Proton/Proton-10-arm64ec-coffincolors.wcp",
-            fallbackNameHint = "Proton-10-arm64ec-coffincolors",
-            persistContainerId = ::saveDefaultArm64ContainerId,
         )
 
     private val storageGranted = mutableStateOf(false)
@@ -781,58 +763,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         )
     }
 
-    private suspend fun downloadAndInstallPackage(
-        spec: PackageSpec,
-        index: Int,
-        total: Int,
-    ): ContentProfile? {
-        val title = getString(R.string.setup_wizard_recommended_components)
-        updateTransferState(
-            TransferState(
-                title = title,
-                detail = getString(R.string.setup_wizard_downloading, spec.label),
-                currentIndex = index + 1,
-                total = total,
-                progress = 0f,
-            ),
-        )
-
-        val downloaded =
-            downloadFileToCache(
-                label = spec.label,
-                url = spec.url,
-                currentIndex = index + 1,
-                total = total,
-                title = title,
-            ) ?: return null
-
-        // Show 100% briefly so the bar visually completes before switching
-        updateTransferState(
-            TransferState(
-                title = title,
-                detail = getString(R.string.setup_wizard_downloading, spec.label),
-                currentIndex = index + 1,
-                total = total,
-                progress = 1f,
-            ),
-        )
-        kotlinx.coroutines.delay(500)
-
-        updateTransferState(
-            TransferState(
-                title = title,
-                detail = getString(R.string.setup_wizard_installing_package, spec.label),
-                currentIndex = index + 1,
-                total = total,
-                progress = null,
-            ),
-        )
-
-        val profile = installDownloadedPackage(downloaded, spec.url)
-        downloaded.delete()
-        return profile
-    }
-
     private suspend fun downloadFileToCache(
         label: String,
         url: String,
@@ -996,34 +926,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             add(RemotePackageSpec(arm64ProtonSpec.fallbackType, arm64ProtonSpec.label, arm64ProtonSpec.fallbackUrl))
         }
 
-    private fun resolveRecommendedRuntimeSpec(spec: RuntimeSpec): PackageSpec {
-        val resolved =
-            advancedProfiles.firstOrNull {
-                isRecommendedSpec(it) &&
-                    (
-                        it.type == ContentProfile.ContentType.CONTENT_TYPE_WINE ||
-                            it.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON
-                    ) &&
-                    it.verName.contains(spec.archToken, ignoreCase = true)
-            }
-
-        if (resolved != null) {
-            return PackageSpec(
-                label = spec.label,
-                type = resolved.type,
-                url = resolved.remoteUrl,
-                nameHint = resolved.verName,
-            )
-        }
-
-        return PackageSpec(
-            label = spec.label,
-            type = spec.fallbackType,
-            url = spec.fallbackUrl,
-            nameHint = spec.fallbackNameHint,
-        )
-    }
-
     private fun fetchRecommendedPackages(): List<RemotePackageSpec> {
         val json = Downloader.downloadString(resolveJsonDownloadUrl(DEFAULT_JSON_URL))
         if (!json.isNullOrBlank()) {
@@ -1061,20 +963,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         val cachedJson = prefs(this).getString(KEY_DEFAULT_JSON_CACHE, null)
         return parseRecommendedPackages(cachedJson)
     }
-
-    private fun getCachedRecommendedComponentSpecs(): List<PackageSpec> =
-        getCachedRecommendedPackages()
-            .filter {
-                it.type != ContentProfile.ContentType.CONTENT_TYPE_WINE &&
-                    it.type != ContentProfile.ContentType.CONTENT_TYPE_PROTON
-            }.map {
-                PackageSpec(
-                    label = it.verName,
-                    type = it.type,
-                    url = it.remoteUrl,
-                    nameHint = it.verName,
-                )
-            }
 
     private fun parseRecommendedPackages(json: String?): List<RemotePackageSpec> {
         if (json.isNullOrBlank()) return emptyList()
@@ -1115,14 +1003,6 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
     }
 
-    private fun isPackageInstalled(
-        manager: ContentsManager,
-        spec: PackageSpec,
-    ): Boolean =
-        manager.getProfiles(spec.type).orEmpty().any { profile ->
-            profile.isInstalled && profile.verName.contains(spec.nameHint, ignoreCase = true)
-        }
-
     private fun openDrivers() {
         if (supportFragmentManager.findFragmentByTag(SetupWizardDriversDialogFragment.TAG) == null) {
             SetupWizardDriversDialogFragment().show(
@@ -1139,11 +1019,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         advancedProfiles.forEach { spec ->
             val installedByName =
                 manager.getProfiles(spec.type).orEmpty().any {
-                    it.isInstalled && (
-                        it.verName.equals(spec.verName, ignoreCase = true) ||
-                            it.verName.contains(spec.verName, ignoreCase = true) ||
-                            spec.verName.contains(it.verName, ignoreCase = true)
-                    )
+                    it.isInstalled && it.verName.equals(spec.verName, ignoreCase = true)
                 }
             val installedByUrl = manager.isRemoteUrlInstalled(spec.remoteUrl)
             if (installedByName || installedByUrl) advancedInstalledSet.add(spec.verName)

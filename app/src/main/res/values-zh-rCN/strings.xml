@@ -1274,7 +1274,7 @@
     <string name="input_controls_select_style">选择样式</string>
     <string name="input_controls_select_label_theme">按钮标签</string>
     <string name="input_controls_style_original">原版</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">原版</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>

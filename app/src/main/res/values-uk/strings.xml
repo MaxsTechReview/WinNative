@@ -1280,7 +1280,7 @@
     <string name="input_controls_select_style">Виберіть стиль</string>
     <string name="input_controls_select_label_theme">Мітки кнопок</string>
     <string name="input_controls_style_original">Оригінальний</string>
-    <string name="input_controls_style_gamehub">GameHub</string>
+    <string name="input_controls_style_gamehub">Glass</string>
     <string name="input_controls_label_theme_default">Оригінальний</string>
     <string name="input_controls_label_theme_xbox">Xbox</string>
     <string name="input_controls_label_theme_playstation">PlayStation</string>
