@@ -328,6 +328,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isRelativeMouseMovement = false;
     private boolean isRefactorSizeEnabled = false;
     private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
+    private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -4767,6 +4768,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (winHandler == null || container == null) return;
         if (enabled) stageRefactorSizeHelper();
         winHandler.exec("\"C:\\WinNative\\refactorsize.exe\" " + (enabled ? "on" : "off"));
+        if (!enabled) unstageRefactorSizeHelper();
     }
 
     private void stageRefactorSizeHelper() {
@@ -4786,6 +4788,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Refactor Size: helper staging failed", e);
         }
+    }
+
+    private void unstageRefactorSizeHelper() {
+        final File dst = new File(container.getRootDir(), ".wine/drive_c/WinNative/refactorsize.exe");
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!isRefactorSizeEnabled && dst.exists()) dst.delete();
+        }, REFACTOR_SIZE_UNSTAGE_DELAY_MS);
     }
 
     private boolean isDisplayReady() {
