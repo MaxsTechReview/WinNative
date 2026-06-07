@@ -1599,6 +1599,18 @@ private fun HUDPaneContent(
                     onCheckedChange = listener::onHUDBackgroundAlphaDecoupledChanged,
                 )
 
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_hud_frametime_numeric),
+                    checked = state.frametimeNumericEnabled,
+                    onCheckedChange = listener::onFrametimeNumericChanged,
+                )
+
+                FPSLimiterCard(
+                    currentLimit = state.fpsLimit,
+                    maxRefreshRate = state.maxRefreshRate,
+                    onLimitChanged = listener::onFPSLimitChanged,
+                )
+
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
                     ChipFlow {
@@ -1613,21 +1625,9 @@ private fun HUDPaneContent(
                 }
 
                 DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_hud_frametime_numeric),
-                    checked = state.frametimeNumericEnabled,
-                    onCheckedChange = listener::onFrametimeNumericChanged,
-                )
-
-                DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_dual_series_battery),
                     checked = state.dualSeriesBatteryEnabled,
                     onCheckedChange = listener::onDualSeriesBatteryChanged,
-                )
-
-                FPSLimiterCard(
-                    currentLimit = state.fpsLimit,
-                    maxRefreshRate = state.maxRefreshRate,
-                    onLimitChanged = listener::onFPSLimitChanged,
                 )
             }
             }

@@ -3894,9 +3894,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onHUDBackgroundAlphaDecoupledChanged(boolean enabled) {
                         hudBackgroundAlphaDecoupled = enabled;
-                        if (!enabled) {
-                            hudBackgroundTransparency = clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA);
-                        }
+                        hudBackgroundTransparency = clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA);
                         if (frameRating != null) {
                             frameRating.setHudBackgroundAlpha(hudBackgroundTransparency);
                             frameRating.setBackgroundAlphaDecoupled(enabled);
