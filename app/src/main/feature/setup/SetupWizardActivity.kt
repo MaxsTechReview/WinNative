@@ -1139,11 +1139,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         advancedProfiles.forEach { spec ->
             val installedByName =
                 manager.getProfiles(spec.type).orEmpty().any {
-                    it.isInstalled && (
-                        it.verName.equals(spec.verName, ignoreCase = true) ||
-                            it.verName.contains(spec.verName, ignoreCase = true) ||
-                            spec.verName.contains(it.verName, ignoreCase = true)
-                    )
+                    it.isInstalled && it.verName.equals(spec.verName, ignoreCase = true)
                 }
             val installedByUrl = manager.isRemoteUrlInstalled(spec.remoteUrl)
             if (installedByName || installedByUrl) advancedInstalledSet.add(spec.verName)
