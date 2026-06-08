@@ -726,7 +726,6 @@ fun buildXServerDrawerState(
 
     if (showLogs) {
         items.add(
-            0,
             XServerDrawerItem(
                 itemId = R.id.main_menu_logs,
                 title = context.getString(R.string.session_drawer_logs),
