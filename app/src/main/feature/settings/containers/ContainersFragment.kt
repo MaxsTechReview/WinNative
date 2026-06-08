@@ -30,6 +30,7 @@ import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.dialog.ContainerProgressPopup
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import java.io.File
+import java.nio.file.Files
 import kotlin.math.roundToInt
 
 class ContainersFragment : Fragment() {
@@ -248,6 +249,7 @@ class ContainersFragment : Fragment() {
             val current = stack.removeLast()
             val files = current.listFiles() ?: continue
             for (file in files) {
+                if (Files.isSymbolicLink(file.toPath())) continue
                 if (file.isDirectory) {
                     stack.add(file)
                 } else {
