@@ -674,6 +674,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_summary">Tune overlay visibility and data points</string>
     <string name="session_drawer_hud_disabled_hint">Turn on the overlay to customize it</string>
     <string name="session_drawer_hud_alpha">Alpha</string>
+    <string name="session_drawer_hud_background_alpha">Background Alpha</string>
+    <string name="session_drawer_hud_background">Background</string>
     <string name="session_drawer_hud_scale">Scale</string>
     <string name="session_drawer_hud_elements">HUD Elements</string>
     <string name="session_drawer_hud_element_fps">FPS</string>
@@ -682,6 +684,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_cpu">CPU</string>
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
@@ -693,6 +696,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="hud_position_bottom_center">Bottom Center</string>
     <string name="hud_position_bottom_right">Bottom Right</string>
     <string name="session_drawer_hud_alpha_input_title">Set Alpha</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Set Background Alpha</string>
     <string name="session_drawer_hud_scale_input_title">Set Scale</string>
     <string name="session_drawer_hud_input_hint">Enter a value from %1$d to %2$d. Values above the limit are clamped.</string>
     <string name="session_drawer_command_center">Command Center</string>
