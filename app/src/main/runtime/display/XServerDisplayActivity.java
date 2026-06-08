@@ -337,8 +337,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
+    private boolean hudBackgroundAlphaDecoupled = false;
+    private float hudBackgroundTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true};
     private boolean dualSeriesBattery = false;
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
@@ -3815,6 +3817,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 magnifierView != null,
                 enableLogsMenu,
                 hudTransparency,
+                hudBackgroundAlphaDecoupled,
+                hudBackgroundTransparency,
                 hudScale,
                 hudElements,
                 dualSeriesBattery,
@@ -3879,7 +3883,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onHUDTransparencyChanged(float transparency) {
                         hudTransparency = transparency;
+                        if (!hudBackgroundAlphaDecoupled) {
+                            hudBackgroundTransparency = clampHudAlpha(transparency * FrameRating.BACKDROP_BASE_ALPHA);
+                        }
                         if (frameRating != null) frameRating.setHudAlpha(transparency);
+                        saveHUDSettings();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onHUDBackgroundAlphaDecoupledChanged(boolean enabled) {
+                        hudBackgroundAlphaDecoupled = enabled;
+                        hudBackgroundTransparency = clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA);
+                        if (frameRating != null) {
+                            frameRating.setHudBackgroundAlpha(hudBackgroundTransparency);
+                            frameRating.setBackgroundAlphaDecoupled(enabled);
+                        }
+                        saveHUDSettings();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onHUDBackgroundTransparencyChanged(float transparency) {
+                        hudBackgroundTransparency = transparency;
+                        if (frameRating != null) frameRating.setHudBackgroundAlpha(transparency);
                         saveHUDSettings();
                         renderDrawerMenu();
                     }
@@ -4587,6 +4614,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         colorProfile = preferences.getInt("color_profile", 0);
     }
 
+    private static float clampHudAlpha(float v) {
+        return Math.max(0.1f, Math.min(1.0f, v));
+    }
+
     private void loadHUDSettings() {
         if (container == null) return;
         String json = container.getExtra("hudSettings");
@@ -4594,15 +4625,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             try {
                 JSONObject obj = new JSONObject(json);
                 hudTransparency = (float) obj.optDouble("transparency", 1.0);
+                hudBackgroundAlphaDecoupled = obj.optBoolean("backgroundAlphaDecoupled", false);
+                hudBackgroundTransparency = (float) obj.optDouble("backgroundTransparency",
+                        clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA));
+                if (!hudBackgroundAlphaDecoupled) {
+                    hudBackgroundTransparency = clampHudAlpha(hudTransparency * FrameRating.BACKDROP_BASE_ALPHA);
+                }
                 hudScale = (float) obj.optDouble("scale", 1.0);
+                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
+                boolean legacyBattTemp = obj.optBoolean("showBattTemp", true);
                 hudElements[0] = obj.optBoolean("showFPS", true);
                 hudElements[1] = obj.optBoolean("showRenderer", true);
                 hudElements[2] = obj.optBoolean("showGPU", true);
-                boolean legacyCpuRam = obj.optBoolean("showCpuRam", true);
                 hudElements[3] = obj.optBoolean("showCPU", legacyCpuRam);
                 hudElements[4] = obj.optBoolean("showRAM", legacyCpuRam);
-                hudElements[5] = obj.optBoolean("showBattTemp", true);
-                hudElements[6] = obj.optBoolean("showGraph", true);
+                hudElements[5] = obj.optBoolean("showBattery", legacyBattTemp);
+                hudElements[6] = obj.optBoolean("showTemp", legacyBattTemp);
+                hudElements[7] = obj.optBoolean("showGraph", true);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -4614,14 +4653,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         try {
             JSONObject obj = new JSONObject();
             obj.put("transparency", hudTransparency);
+            obj.put("backgroundAlphaDecoupled", hudBackgroundAlphaDecoupled);
+            obj.put("backgroundTransparency", hudBackgroundTransparency);
             obj.put("scale", hudScale);
             obj.put("showFPS", hudElements[0]);
             obj.put("showRenderer", hudElements[1]);
             obj.put("showGPU", hudElements[2]);
             obj.put("showCPU", hudElements[3]);
             obj.put("showRAM", hudElements[4]);
-            obj.put("showBattTemp", hudElements[5]);
-            obj.put("showGraph", hudElements[6]);
+            obj.put("showBattery", hudElements[5]);
+            obj.put("showTemp", hudElements[6]);
+            obj.put("showGraph", hudElements[7]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -4632,6 +4674,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void applyHUDSettings() {
         if (frameRating != null) {
             frameRating.setHudAlpha(hudTransparency);
+            frameRating.setHudBackgroundAlpha(hudBackgroundTransparency);
+            frameRating.setBackgroundAlphaDecoupled(hudBackgroundAlphaDecoupled);
             frameRating.setHudScale(hudScale);
             frameRating.setDualSeriesBattery(dualSeriesBattery);
             frameRating.setFrametimeNumericMode(frametimeNumericMode);
