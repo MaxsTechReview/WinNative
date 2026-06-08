@@ -207,6 +207,7 @@ private enum class HUDMetricEditor(
 ) {
     ALPHA(minPercent = 10, maxPercent = 100),
     SCALE(minPercent = 30, maxPercent = 200),
+    BACKGROUND_ALPHA(minPercent = 10, maxPercent = 100),
 }
 
 internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS }
@@ -309,8 +310,10 @@ data class XServerDrawerItem(
 data class XServerDrawerState(
     val items: List<XServerDrawerItem>,
     val hudTransparency: Float = 1.0f,
+    val hudBackgroundAlphaEnabled: Boolean = false,
+    val hudBackgroundTransparency: Float = 1.0f,
     val hudScale: Float = 1.0f,
-    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
+    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
     val dualSeriesBatteryEnabled: Boolean = false,
     val frametimeNumericEnabled: Boolean = false,
     val hudCardExpanded: Boolean = false,
@@ -509,6 +512,10 @@ interface XServerDrawerActionListener {
 
     fun onHUDTransparencyChanged(transparency: Float)
 
+    fun onHUDBackgroundAlphaDecoupledChanged(enabled: Boolean)
+
+    fun onHUDBackgroundTransparencyChanged(transparency: Float)
+
     fun onHUDScaleChanged(scale: Float)
 
     fun onDualSeriesBatteryChanged(enabled: Boolean)
@@ -634,8 +641,10 @@ fun buildXServerDrawerState(
     magnifierActive: Boolean,
     showLogs: Boolean,
     hudTransparency: Float = 1.0f,
+    hudBackgroundAlphaEnabled: Boolean = false,
+    hudBackgroundTransparency: Float = 1.0f,
     hudScale: Float = 1.0f,
-    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true),
+    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
     dualSeriesBatteryEnabled: Boolean = false,
     frametimeNumericEnabled: Boolean = false,
     hudCardExpanded: Boolean = false,
@@ -804,6 +813,8 @@ fun buildXServerDrawerState(
     return XServerDrawerState(
         items = items,
         hudTransparency = hudTransparency,
+        hudBackgroundAlphaEnabled = hudBackgroundAlphaEnabled,
+        hudBackgroundTransparency = hudBackgroundTransparency,
         hudScale = hudScale,
         hudElements = hudElements,
         dualSeriesBatteryEnabled = dualSeriesBatteryEnabled,
@@ -1639,8 +1650,10 @@ private fun HUDPaneContent(
             stringResource(R.string.session_drawer_hud_element_cpu),
             stringResource(R.string.session_drawer_hud_element_ram),
             stringResource(R.string.session_drawer_hud_element_battery),
+            stringResource(R.string.session_drawer_hud_element_temp),
             stringResource(R.string.session_drawer_hud_element_graph),
         )
+    val elementOrder = listOf(1, 2, 3, 4, 5, 6, 0, 7)
     val active =
         state.items.firstOrNull { it.itemId == R.id.main_menu_fps_monitor }?.active ?: false
 
@@ -1650,6 +1663,7 @@ private fun HUDPaneContent(
             initialPercent =
                 when (editor) {
                     HUDMetricEditor.ALPHA -> (state.hudTransparency * 100).roundToInt()
+                    HUDMetricEditor.BACKGROUND_ALPHA -> (state.hudBackgroundTransparency * 100).roundToInt()
                     HUDMetricEditor.SCALE -> (state.hudScale * 100).roundToInt()
                 },
             onDismiss = { activeEditor = null },
@@ -1658,6 +1672,9 @@ private fun HUDPaneContent(
                 when (editor) {
                     HUDMetricEditor.ALPHA -> {
                         listener.onHUDTransparencyChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
+                    }
+                    HUDMetricEditor.BACKGROUND_ALPHA -> {
+                        listener.onHUDBackgroundTransparencyChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
                     }
                     HUDMetricEditor.SCALE -> {
                         listener.onHUDScaleChanged(enteredPercent.coerceIn(editor.minPercent, editor.maxPercent) / 100f)
@@ -1690,10 +1707,22 @@ private fun HUDPaneContent(
                     valueText = "${(state.hudTransparency * 100).toInt()}%",
                     value = state.hudTransparency,
                     valueRange = 0.1f..1f,
-                    steps = 8,
+                    steps = 17,
                     onValueClick = { activeEditor = HUDMetricEditor.ALPHA },
-                    onValueChange = { listener.onHUDTransparencyChanged(it.snapToStep(0.1f, 0.1f, 1f)) },
+                    onValueChange = { listener.onHUDTransparencyChanged(it.snapToStep(0.05f, 0.1f, 1f)) },
                 )
+
+                if (state.hudBackgroundAlphaEnabled) {
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_hud_background),
+                        valueText = "${(state.hudBackgroundTransparency * 100).toInt()}%",
+                        value = state.hudBackgroundTransparency,
+                        valueRange = 0.1f..1f,
+                        steps = 17,
+                        onValueClick = { activeEditor = HUDMetricEditor.BACKGROUND_ALPHA },
+                        onValueChange = { listener.onHUDBackgroundTransparencyChanged(it.snapToStep(0.05f, 0.1f, 1f)) },
+                    )
+                }
 
                 DrawerSliderRow(
                     label = stringResource(R.string.session_drawer_hud_scale),
@@ -1705,12 +1734,30 @@ private fun HUDPaneContent(
                     onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
                 )
 
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_hud_background_alpha),
+                    checked = state.hudBackgroundAlphaEnabled,
+                    onCheckedChange = listener::onHUDBackgroundAlphaDecoupledChanged,
+                )
+
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_hud_frametime_numeric),
+                    checked = state.frametimeNumericEnabled,
+                    onCheckedChange = listener::onFrametimeNumericChanged,
+                )
+
+                FPSLimiterCard(
+                    currentLimit = state.fpsLimit,
+                    maxRefreshRate = state.maxRefreshRate,
+                    onLimitChanged = listener::onFPSLimitChanged,
+                )
+
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
                     ChipFlow {
-                        elementNames.forEachIndexed { index, name ->
+                        elementOrder.forEach { index ->
                             HUDToggleChip(
-                                label = name,
+                                label = elementNames[index],
                                 checked = state.hudElements[index],
                                 onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
                             )
@@ -1719,21 +1766,9 @@ private fun HUDPaneContent(
                 }
 
                 DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_hud_frametime_numeric),
-                    checked = state.frametimeNumericEnabled,
-                    onCheckedChange = listener::onFrametimeNumericChanged,
-                )
-
-                DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_dual_series_battery),
                     checked = state.dualSeriesBatteryEnabled,
                     onCheckedChange = listener::onDualSeriesBatteryChanged,
-                )
-
-                FPSLimiterCard(
-                    currentLimit = state.fpsLimit,
-                    maxRefreshRate = state.maxRefreshRate,
-                    onLimitChanged = listener::onFPSLimitChanged,
                 )
             }
             }
@@ -4538,6 +4573,7 @@ private fun HUDMetricInputDialog(
         title =
             when (editor) {
                 HUDMetricEditor.ALPHA -> stringResource(R.string.session_drawer_hud_alpha_input_title)
+                HUDMetricEditor.BACKGROUND_ALPHA -> stringResource(R.string.session_drawer_hud_background_alpha_input_title)
                 HUDMetricEditor.SCALE -> stringResource(R.string.session_drawer_hud_scale_input_title)
             },
         maxWidth = 380.dp,
