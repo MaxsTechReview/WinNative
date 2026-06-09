@@ -599,8 +599,8 @@ public final class ExternalDisplayController {
                 return;
             }
             if (now == null) return;
-            boolean moved = (now.getPhysicalWidth() == wantW && now.getPhysicalHeight() == wantH)
-                    || Math.abs(now.getRefreshRate() - wantHz) < 1.5f;
+            boolean moved = now.getPhysicalWidth() == wantW && now.getPhysicalHeight() == wantH
+                    && Math.abs(now.getRefreshRate() - wantHz) < 1.5f;
             if (moved) return;
             panelScalerLocked = true;
             Log.i(TAG, "Sink ignored mode switch; native " + now.getPhysicalWidth() + "x"

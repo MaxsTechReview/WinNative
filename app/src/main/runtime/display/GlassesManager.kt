@@ -77,7 +77,7 @@ object GlassesManager {
             v.setBrightness(if (s.brightness < 0) v.brightnessMax() else s.brightness)
             v.setVolume(if (s.volume < 0) v.volumeMax() else s.volume)
             v.setFilm(if (s.sunblock) 1 else 0)
-            v.set3D(s.threeD)
+            if (s.threeD) v.set3D(true)
         }
     }
 
@@ -86,7 +86,10 @@ object GlassesManager {
     fun setBrightness(value: Int) { update { it.copy(brightness = value) }; viture?.setBrightness(value) }
     fun setVolume(value: Int) { update { it.copy(volume = value) }; viture?.setVolume(value) }
     fun setSunblock(on: Boolean) { update { it.copy(sunblock = on) }; viture?.setFilm(if (on) 1 else 0) }
-    fun set3D(on: Boolean) { update { it.copy(threeD = on) }; viture?.set3D(on) }
+    fun set3D(on: Boolean) {
+        update { it.copy(threeD = on) }
+        if (on) viture?.set3D(true) else viture?.forceRefreshHz(currentRefreshHz())
+    }
     fun setRenderHeight(height: Int) { update { it.copy(renderHeight = height) } }
 
     private fun update(transform: (Settings) -> Settings) {
