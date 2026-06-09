@@ -1,21 +1,16 @@
 package com.winlator.cmod.runtime.input.ui
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.view.MotionEvent
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.runtime.display.xserver.XServer
 
-// Drives the gamepad right stick from one finger (mouse-like), GameHub-style velocity curve.
 class ScreenTouchStick(context: Context, private val xServer: XServer) {
     private val preferences = PreferenceManager.getDefaultSharedPreferences(context)
-    private val handler = Handler(Looper.getMainLooper())
     private var activePointerId = -1
-    private var lastX = 0f
-    private var lastY = 0f
+    private var originX = 0f
+    private var originY = 0f
     private var sensitivity = DEFAULT_SENSITIVITY
-    private val recenterRunnable = Runnable { push(0f, 0f) }
 
     fun onTouch(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -23,8 +18,8 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
                 if (activePointerId == -1) {
                     val index = event.actionIndex
                     activePointerId = event.getPointerId(index)
-                    lastX = event.getX(index)
-                    lastY = event.getY(index)
+                    originX = event.getX(index)
+                    originY = event.getY(index)
                     sensitivity = readSensitivity()
                     push(0f, 0f)
                 }
@@ -33,15 +28,21 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
                 if (activePointerId != -1) {
                     val index = event.findPointerIndex(activePointerId)
                     if (index >= 0) {
-                        val x = event.getX(index)
-                        val y = event.getY(index)
-                        val ax = curve(x - lastX)
-                        val ay = curve(-(y - lastY))
-                        lastX = x
-                        lastY = y
-                        push(ax, ay)
-                        handler.removeCallbacks(recenterRunnable)
-                        handler.postDelayed(recenterRunnable, RECENTER_TIMEOUT_MS)
+                        val offsetX = event.getX(index) - originX
+                        val offsetY = event.getY(index) - originY
+                        val distance = Math.hypot(offsetX.toDouble(), offsetY.toDouble()).toFloat()
+                        var stickX = 0f
+                        var stickY = 0f
+                        if (distance > 0f) {
+                            val radius = REFERENCE_RADIUS / sensitivity
+                            val magnitude = Math.min(distance / radius, 1.0f)
+                            if (magnitude > DEAD_ZONE) {
+                                val scaled = (magnitude - DEAD_ZONE) / (1.0f - DEAD_ZONE)
+                                stickX = offsetX / distance * scaled
+                                stickY = offsetY / distance * scaled
+                            }
+                        }
+                        push(stickX, stickY)
                     }
                 }
             }
@@ -53,7 +54,6 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
     }
 
     fun releaseAll() {
-        handler.removeCallbacks(recenterRunnable)
         if (activePointerId != -1) {
             activePointerId = -1
             push(0f, 0f)
@@ -68,20 +68,11 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
         preferences.getFloat("screen_touch_rs_sensitivity", DEFAULT_SENSITIVITY)
             .coerceIn(MIN_SENSITIVITY, MAX_SENSITIVITY)
 
-    private fun curve(delta: Float): Float {
-        val scaled = delta * sensitivity / REFERENCE_DELTA
-        if (Math.abs(scaled) < OUTPUT_DEADZONE) return 0f
-        val magnitude = Math.min(Math.abs(scaled), 1.0f)
-        val out = (magnitude * 0.82f + 0.18f) * Math.signum(scaled)
-        return out.coerceIn(-1.0f, 1.0f)
-    }
-
     companion object {
         private const val DEFAULT_SENSITIVITY = 1.25f
         private const val MIN_SENSITIVITY = 0.25f
         private const val MAX_SENSITIVITY = 3.0f
-        private const val REFERENCE_DELTA = 8.0f
-        private const val OUTPUT_DEADZONE = 0.18f
-        private const val RECENTER_TIMEOUT_MS = 80L
+        private const val REFERENCE_RADIUS = 260f
+        private const val DEAD_ZONE = 0.08f
     }
 }
