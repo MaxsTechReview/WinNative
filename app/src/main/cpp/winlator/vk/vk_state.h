@@ -442,6 +442,16 @@ typedef struct VkRenderer {
     PFN_vkCreateDebugUtilsMessengerEXT              fnCreateDebugUtilsMessenger;
     PFN_vkDestroyDebugUtilsMessengerEXT             fnDestroyDebugUtilsMessenger;
 
+    // VK_GOOGLE_display_timing — capability-gated FG present-pacing hint + telemetry (no-op when absent).
+    bool             ext_display_timing;
+    uint64_t         refresh_duration_ns;   // panel vsync period from the swapchain (fallback)
+    uint64_t         fg_present_period_ns;   // target inter-present interval (ns) fed from Java
+    uint64_t         fg_present_deadline_ns; // next clock_nanosleep present deadline
+    uint64_t         fg_vsync_anchor_ns;     // latest Choreographer vsync timestamp (CLOCK_MONOTONIC)
+    uint32_t         fg_present_id;
+    PFN_vkGetRefreshCycleDurationGOOGLE   fnGetRefreshCycleDuration;
+    PFN_vkGetPastPresentationTimingGOOGLE fnGetPastPresentationTiming;
+
     // Async upload pool (created in nativeCreate after device).
     VkStagingPool staging_pool;
 

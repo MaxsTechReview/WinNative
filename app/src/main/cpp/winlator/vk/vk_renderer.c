@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 
 // SPIR-V shader byte arrays generated at build time by glslc + bin2c.cmake.
 #include "shaders/window_vert.spv.h"
@@ -39,6 +40,12 @@
 #include "shaders/motion_comp.spv.h"
 #include "shaders/motion_fp32_comp.spv.h"
 #include "shaders/interpolate_frag.spv.h"
+
+static uint64_t now_monotonic_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
 
 // ============================================================
 // Forward decls
@@ -359,6 +366,7 @@ static bool create_device(VkRenderer* r) {
     bool has_extmem_caps = has_extension(exts, ext_count, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     bool has_queue_fam = has_extension(exts, ext_count, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
     bool has_f16 = has_extension(exts, ext_count, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
+    bool has_display_timing = has_extension(exts, ext_count, VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 
     free(exts);
 
@@ -398,6 +406,10 @@ static bool create_device(VkRenderer* r) {
     if (r->fg_float16_supported) {
         enable[enable_n++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
         f16_feat.shaderFloat16 = VK_TRUE;
+    }
+    if (has_display_timing && enable_n < 16) {
+        enable[enable_n++] = VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME;
+        r->ext_display_timing = true;
     }
     VK_LOGI("Frame generation fp16 support: ext=%d feature=%d", has_f16, r->fg_float16_supported);
 
@@ -461,8 +473,18 @@ static bool create_device(VkRenderer* r) {
             r->ext_ycbcr = false;
         }
     }
+    if (r->ext_display_timing) {
+        r->fnGetRefreshCycleDuration = (PFN_vkGetRefreshCycleDurationGOOGLE)
+            vkGetDeviceProcAddr(r->device, "vkGetRefreshCycleDurationGOOGLE");
+        r->fnGetPastPresentationTiming = (PFN_vkGetPastPresentationTimingGOOGLE)
+            vkGetDeviceProcAddr(r->device, "vkGetPastPresentationTimingGOOGLE");
+        if (!r->fnGetRefreshCycleDuration || !r->fnGetPastPresentationTiming) {
+            VK_LOGW("VK_GOOGLE_display_timing entry points unavailable; FG present timing disabled");
+            r->ext_display_timing = false;
+        }
+    }
 
-    VK_LOGI("Vulkan device created (AHB=%d, Ycbcr=%d)", r->ext_ahb, r->ext_ycbcr);
+    VK_LOGI("Vulkan device created (AHB=%d, Ycbcr=%d, displayTiming=%d)", r->ext_ahb, r->ext_ycbcr, r->ext_display_timing);
     return true;
 }
 
@@ -1281,6 +1303,15 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     }
     r->swapchain = new_sc;
     if (old_sc) vkDestroySwapchainKHR(r->device, old_sc, NULL);
+
+    r->refresh_duration_ns = 0;
+    r->fg_present_deadline_ns = 0;
+    r->fg_present_id = 0;
+    if (r->ext_display_timing && r->fnGetRefreshCycleDuration) {
+        VkRefreshCycleDurationGOOGLE rc = {0};
+        if (r->fnGetRefreshCycleDuration(r->device, r->swapchain, &rc) == VK_SUCCESS)
+            r->refresh_duration_ns = rc.refreshDuration;
+    }
 
     uint32_t actual_count = 0;
     if (vkGetSwapchainImagesKHR(r->device, r->swapchain, &actual_count, NULL) != VK_SUCCESS
@@ -2359,6 +2390,27 @@ static uint64_t g_fg_interp = 0;
 static uint64_t g_fg_plast = 0;
 static uint64_t g_fg_dropped = 0;
 
+// desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
+// Block until the next vsync-aligned present deadline (CLOCK_MONOTONIC absolute sleep).
+static void fg_pace_to_deadline(VkRenderer* r) {
+    if (r->active_present_mode == VK_PRESENT_MODE_FIFO_KHR) return;  // FIFO already vsync-paces
+    uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
+    if (period == 0) return;
+    uint64_t now = now_monotonic_ns();
+    uint64_t prev = r->fg_present_deadline_ns;
+    uint64_t floor_t = (now > prev) ? now : prev;
+    uint64_t anchor = r->fg_vsync_anchor_ns;
+    uint64_t deadline = (anchor != 0 && anchor <= floor_t)
+        ? anchor + ((floor_t - anchor) / period + 1u) * period
+        : floor_t + period;
+    if (deadline > now + 4u * period) deadline = floor_t + period;
+    r->fg_present_deadline_ns = deadline;
+    struct timespec ts;
+    ts.tv_sec  = (time_t)(deadline / 1000000000ull);
+    ts.tv_nsec = (long)(deadline % 1000000000ull);
+    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR) {}
+}
+
 // FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
 // presents an in-between frame; PRESENT_LAST presents the held real frame.
 static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
@@ -2567,6 +2619,16 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     VkPresentInfoKHR pinfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     pinfo.waitSemaphoreCount = 1; pinfo.pWaitSemaphores = &render_finished;
     pinfo.swapchainCount = 1; pinfo.pSwapchains = &r->swapchain; pinfo.pImageIndices = &image_index;
+    VkPresentTimeGOOGLE ptg;
+    VkPresentTimesInfoGOOGLE pti;
+    if (r->ext_display_timing) {
+        ptg.presentID = ++r->fg_present_id;
+        ptg.desiredPresentTime = 0;
+        pti.sType = VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE;
+        pti.pNext = NULL; pti.swapchainCount = 1; pti.pTimes = &ptg;
+        pinfo.pNext = &pti;
+    }
+    fg_pace_to_deadline(r);
     pthread_mutex_lock(&r->queue_mutex);
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pinfo);
     if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) {
@@ -2577,6 +2639,22 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
                     (unsigned long long)g_fg_holds, (unsigned long long)g_fg_interp,
                     (unsigned long long)g_fg_plast, (unsigned long long)g_fg_dropped,
                     (unsigned long long)r->fg_present_count);
+            if (r->ext_display_timing && r->fnGetPastPresentationTiming) {
+                VkPastPresentationTimingGOOGLE pt[16];
+                uint32_t n = 16;
+                VkResult tr = r->fnGetPastPresentationTiming(r->device, r->swapchain, &n, pt);
+                if ((tr == VK_SUCCESS || tr == VK_INCOMPLETE) && n >= 2) {
+                    double avg_ms = (double)(pt[n - 1].actualPresentTime - pt[0].actualPresentTime)
+                                    / (double)(n - 1) / 1.0e6;
+                    int64_t late = 0; uint32_t lc = 0;
+                    for (uint32_t i = 0; i < n; i++)
+                        if (pt[i].desiredPresentTime != 0) {
+                            late += (int64_t)pt[i].actualPresentTime - (int64_t)pt[i].desiredPresentTime; lc++;
+                        }
+                    VK_LOGI("FG timing: samples=%u avgInterval=%.2fms avgLate=%.2fms",
+                            n, avg_ms, lc ? (double)late / (double)lc / 1.0e6 : 0.0);
+                }
+            }
         }
     }
     pthread_mutex_unlock(&r->queue_mutex);
@@ -2913,6 +2991,14 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenParams)(JNIEnv* env, jclass clazz
     r->fg_occ_lo = lo;
     r->fg_occ_hi = hi;
     r->fg_min_step = minStep < 1 ? 1 : (minStep > 8 ? 8 : minStep);
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong vsyncNs) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    r->fg_present_period_ns = periodNs > 0 ? (uint64_t)periodNs : 0;
+    r->fg_vsync_anchor_ns = vsyncNs > 0 ? (uint64_t)vsyncNs : 0;
 }
 
 // Scene byte buffer layout (must mirror VulkanRenderer.java offsets). Native-endian, packed.

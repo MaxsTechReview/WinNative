@@ -214,9 +214,7 @@ public class VulkanRenderer
         synchronized (this) {
             if (nativeHandle != 0) {
                 nativeSetFrameGeneration(nativeHandle, enabled);
-                // Prefer MAILBOX (native falls back to IMMEDIATE, then FIFO). A non-blocking mode lets
-                // FG post above the panel's idle refresh so an adaptive-refresh panel ramps to the
-                // generated rate; under FIFO the scheduler degrades to a safe pass-through.
+                // MAILBOX over-post holds the adaptive panel high; the native clock_nanosleep pacer spaces presents evenly.
                 nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_MAILBOX : requestedPresentMode);
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
             }
@@ -300,6 +298,10 @@ public class VulkanRenderer
             long d = frameTimeNanos - fgLastPumpNs;
             if (d > 0L && d < 100_000_000L) {  // ignore stalls / outliers
                 fgDisplayPeriodNs = fgDisplayPeriodNs == 0L ? d : fgDisplayPeriodNs + (d - fgDisplayPeriodNs) / 8L;
+                if (nativeHandle != 0) {
+                    double th = fgTargetHz();
+                    nativeSetVsyncTiming(nativeHandle, th > 0.0 ? (long) (1.0e9 / th) : fgDisplayPeriodNs, frameTimeNanos);
+                }
             }
         }
         fgLastPumpNs = frameTimeNanos;
@@ -352,9 +354,9 @@ public class VulkanRenderer
         long disp = fgDisplayPeriodNs, game = fgGamePeriodNs;
         if (disp <= 0L || game <= 0L) return 0;
         if (fgActivePresentMode == PRESENT_MODE_FIFO) {
-            // Vsync-locked: only insert what the current refresh affords (floor, never round — rounding
-            // up would cost a real frame). Often a clean pass-through.
-            int slots = (int) Math.floor((double) game / (double) disp);
+            // Vsync-locked: insert what the current refresh affords. Epsilon absorbs EMA jitter so an
+            // exact integer ratio (e.g. 120/30) doesn't floor to one slot short. Never below native.
+            int slots = (int) Math.floor((double) game / (double) disp + 1e-3);
             return Math.max(0, Math.min(maxInterps, slots - 1));
         }
         // Non-blocking: post at the target rate so an adaptive-refresh panel ramps up to it.
@@ -404,7 +406,7 @@ public class VulkanRenderer
             }
             if (frameGenEnabled) {
                 nativeSetFrameGeneration(nativeHandle, true);
-                nativeSetPresentMode(nativeHandle, PRESENT_MODE_MAILBOX);  // off-vsync FG output
+                nativeSetPresentMode(nativeHandle, PRESENT_MODE_MAILBOX);  // over-post hold + native pacer
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
                 pushFrameGenParams();
                 fgPendingReal = false;
@@ -1050,4 +1052,5 @@ public class VulkanRenderer
     private static native boolean nativePresentLast(long handle);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
     private static native int nativeGetActivePresentMode(long handle);
+    private static native void nativeSetVsyncTiming(long handle, long periodNs, long vsyncNs);
 }

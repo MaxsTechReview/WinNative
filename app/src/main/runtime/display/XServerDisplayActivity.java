@@ -611,7 +611,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 // vote it on the surface so the panel holds the refresh. Engine = fps cap, else 60.
                 int engine = runtimeFpsLimit > 0 ? runtimeFpsLimit : 60;
                 int panelMax = RefreshRateUtils.getMaxSupportedRefreshRate(this);
-                int target = Math.min(panelMax, engine * renderer.getFrameGenMultiplier());
+                int target = Math.max(60, Math.min(panelMax, engine * renderer.getFrameGenMultiplier()));
                 renderer.setFrameGenDisplayCap(panelMax);
                 RefreshRateUtils.applyPreferredRefreshRate(this, target, 0);
                 requestSurfaceFrameRate((float) target);
