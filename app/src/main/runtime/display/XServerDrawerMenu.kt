@@ -1996,7 +1996,7 @@ private fun InputControlsPaneContent(
                     label = stringResource(R.string.session_drawer_right_stick_sensitivity),
                     valueText = "${Math.round(rsValue * 100)}%",
                     value = rsValue * 100f,
-                    valueRange = (if (rsMapMode) 25f else 10f)..300f,
+                    valueRange = (if (rsMapMode) 25f else 10f)..200f,
                     steps = 0,
                     onValueChange = { listener.onRightStickSensitivityChanged(it / 100f) },
                 )

@@ -1823,10 +1823,14 @@ public class WinHandler {
           clamp(this.outputGamepadState.thumbRY + this.currentTouchStickY, -1.0f, 1.0f);
     }
     if (applyRsScale) {
-      this.outputGamepadState.thumbRX =
-          clamp(this.outputGamepadState.thumbRX * this.rightStickSensitivity, -1.0f, 1.0f);
-      this.outputGamepadState.thumbRY =
-          clamp(this.outputGamepadState.thumbRY * this.rightStickSensitivity, -1.0f, 1.0f);
+      float rx = this.outputGamepadState.thumbRX;
+      float ry = this.outputGamepadState.thumbRY;
+      float mag = (float) Math.sqrt(rx * rx + ry * ry);
+      if (mag > 0.0f) {
+        float k = Math.min(mag * this.rightStickSensitivity, 1.0f) / mag;
+        this.outputGamepadState.thumbRX = rx * k;
+        this.outputGamepadState.thumbRY = ry * k;
+      }
     }
     return this.outputGamepadState;
   }

@@ -44,7 +44,7 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
                         var stickX = 0f
                         var stickY = 0f
                         if (distance > 0f) {
-                            val radius = surfaceMin * RADIUS_FRACTION / sensitivity
+                            val radius = surfaceMin * RADIUS_FRACTION / (sensitivity + STRENGTH_BIAS)
                             val magnitude = Math.min(distance / radius, 1.0f)
                             if (magnitude > DEAD_ZONE) {
                                 val scaled = (magnitude - DEAD_ZONE) / (1.0f - DEAD_ZONE)
@@ -81,8 +81,9 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
     companion object {
         private const val DEFAULT_SENSITIVITY = 1.25f
         private const val MIN_SENSITIVITY = 0.25f
-        private const val MAX_SENSITIVITY = 3.0f
-        private const val RADIUS_FRACTION = 0.38f
+        private const val MAX_SENSITIVITY = 2.0f
+        private const val STRENGTH_BIAS = 0.5f
+        private const val RADIUS_FRACTION = 0.30f
         private const val DEAD_ZONE = 0.08f
         private const val DEFAULT_SURFACE_MIN = 1080f
     }
