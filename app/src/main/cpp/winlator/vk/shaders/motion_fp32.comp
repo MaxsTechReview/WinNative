@@ -92,5 +92,18 @@ void main() {
         if (localBest < bestCost) { bestCost = localBest; bestD = localBestD; center = localBestD; }
     }
 
-    imageStore(motionField, p, vec4(vec2(bestD) * pc.mvScale, 0.0, 0.0));
+    vec2 sub = vec2(bestD);
+    if (abs(bestD.x) < RMAX) {
+        float cl = blockCost(l, cCenter, bestD + ivec2(-1, 0));
+        float cr = blockCost(l, cCenter, bestD + ivec2( 1, 0));
+        float dd = cl - 2.0 * bestCost + cr;
+        if (dd > 0.0) sub.x += clamp(0.5 * (cl - cr) / dd, -0.5, 0.5);
+    }
+    if (abs(bestD.y) < RMAX) {
+        float cu = blockCost(l, cCenter, bestD + ivec2(0, -1));
+        float cd = blockCost(l, cCenter, bestD + ivec2(0,  1));
+        float dd = cu - 2.0 * bestCost + cd;
+        if (dd > 0.0) sub.y += clamp(0.5 * (cu - cd) / dd, -0.5, 0.5);
+    }
+    imageStore(motionField, p, vec4(sub * pc.mvScale, 0.0, 0.0));
 }

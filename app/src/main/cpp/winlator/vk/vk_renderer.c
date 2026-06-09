@@ -1247,8 +1247,8 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             caps.currentTransform, pre_transform, present_mode);
 
     uint32_t image_count = caps.minImageCount + 1;
-    // Non-blocking modes (MAILBOX/IMMEDIATE) need >=3 images to run ahead of vblank.
-    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 3) image_count = 3;
+    // Non-blocking modes (MAILBOX/IMMEDIATE) need headroom so FG interps aren't dropped at acquire.
+    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 4) image_count = 4;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -2357,6 +2357,7 @@ static void fg_restore_fence(VkRenderer* r, VkFrame* f) {
 static uint64_t g_fg_holds = 0;
 static uint64_t g_fg_interp = 0;
 static uint64_t g_fg_plast = 0;
+static uint64_t g_fg_dropped = 0;
 
 // FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
 // presents an in-between frame; PRESENT_LAST presents the held real frame.
@@ -2436,6 +2437,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     bool recreate_after_present = false;
     if (acq == VK_NOT_READY || acq == VK_TIMEOUT) {
         // No free image right now — drop this interpolated frame (not an error).
+        g_fg_dropped++;
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
@@ -2571,9 +2573,10 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         r->fg_present_count++;
         if (do_interp) g_fg_interp++; else g_fg_plast++;
         if (((g_fg_interp + g_fg_plast) % 120u) == 0u) {
-            VK_LOGI("FG cadence: holds=%llu interp=%llu presentLast=%llu presents=%llu",
+            VK_LOGI("FG cadence: holds=%llu interp=%llu presentLast=%llu dropped=%llu presents=%llu",
                     (unsigned long long)g_fg_holds, (unsigned long long)g_fg_interp,
-                    (unsigned long long)g_fg_plast, (unsigned long long)r->fg_present_count);
+                    (unsigned long long)g_fg_plast, (unsigned long long)g_fg_dropped,
+                    (unsigned long long)r->fg_present_count);
         }
     }
     pthread_mutex_unlock(&r->queue_mutex);

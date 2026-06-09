@@ -12,7 +12,7 @@ layout(location = 0) out vec4 outColor;
 
 layout(set = 0, binding = 0) uniform mediump sampler2D prevFrame;    // frame N-1
 layout(set = 0, binding = 1) uniform mediump sampler2D currFrame;    // frame N
-layout(set = 0, binding = 2) uniform highp   sampler2D motionField;  // rg16f half-res, curr->prev MV in half-res px
+layout(set = 0, binding = 2) uniform highp   sampler2D motionField;  // rgba16f half-res (.xy), curr->prev MV in half-res px
 
 layout(push_constant) uniform PC {
     vec2  resolution;   // full-res target size (pixels)
@@ -28,6 +28,21 @@ bool offFrame(highp vec2 uv) {
     return any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)));
 }
 
+vec2 med3(vec2 a, vec2 b, vec2 c) { return max(min(a, b), min(max(a, b), c)); }
+
+vec2 sampleMV(highp vec2 uv, highp vec2 texel) {
+    vec2 r0 = med3(texture(motionField, uv + texel * vec2(-1.0, -1.0)).xy,
+                   texture(motionField, uv + texel * vec2( 0.0, -1.0)).xy,
+                   texture(motionField, uv + texel * vec2( 1.0, -1.0)).xy);
+    vec2 r1 = med3(texture(motionField, uv + texel * vec2(-1.0,  0.0)).xy,
+                   texture(motionField, uv).xy,
+                   texture(motionField, uv + texel * vec2( 1.0,  0.0)).xy);
+    vec2 r2 = med3(texture(motionField, uv + texel * vec2(-1.0,  1.0)).xy,
+                   texture(motionField, uv + texel * vec2( 0.0,  1.0)).xy,
+                   texture(motionField, uv + texel * vec2( 1.0,  1.0)).xy);
+    return med3(r0, r1, r2);
+}
+
 void main() {
     float t  = clamp(pc.phase > 0.0 ? pc.phase : 0.5, 0.0, 1.0);
     float lo = pc.occlusionLo > 0.0 ? pc.occlusionLo : 0.06;
@@ -35,7 +50,8 @@ void main() {
 
     // motionField is half-res and stores curr->prev displacement in half-res pixels.
     // Normalized displacement = mv_halfPx / mvSize = mv_halfPx * 2 / fullResSize.
-    vec2 mvNorm = texture(motionField, vUV).xy * 2.0 / pc.resolution;
+    highp vec2 mvTexel = 2.0 / pc.resolution;
+    vec2 mvNorm = sampleMV(vUV, mvTexel) * 2.0 / pc.resolution;
 
     // Linear-trajectory motion compensation. For an intermediate pixel p (== vUV)
     // with backward flow mv (curr->prev):
