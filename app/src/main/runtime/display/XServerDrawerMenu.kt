@@ -285,7 +285,7 @@ private val RAIL_PANES =
 private val RAIL_PANE_ITEM_IDS = RAIL_PANES.map { it.itemId }.toSet()
 private val PINNED_BOTTOM_ITEM_IDS = setOf(R.id.main_menu_pause, R.id.main_menu_exit)
 
-private val TopRailTileMinWidth = 64.dp
+private val TopRailTileMinWidth = 60.dp
 private val TopRailTileHorizontalPadding = 10.dp
 private val TopRailTileTopPadding = 6.dp
 private val TopRailTileBottomPadding = 4.dp
@@ -792,7 +792,6 @@ fun buildXServerDrawerState(
 
     if (showLogs) {
         items.add(
-            0,
             XServerDrawerItem(
                 itemId = R.id.main_menu_logs,
                 title = context.getString(R.string.session_drawer_logs),
