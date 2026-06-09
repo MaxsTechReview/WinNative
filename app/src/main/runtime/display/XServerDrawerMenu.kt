@@ -327,6 +327,10 @@ data class XServerDrawerState(
     val fpsLimit: Int = 0,
     val maxRefreshRate: Int = 60,
     val screenEffectsCardExpanded: Boolean = false,
+    val frameGenerationEnabled: Boolean = false,
+    val frameGenerationMultiplier: Int = 2,
+    val frameGenerationQuality: Int = 1,
+    val frameGenerationSmoothing: Float = 0.5f,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
     val vividEnabled: Boolean = false,
@@ -512,6 +516,14 @@ interface XServerDrawerActionListener {
 
     fun onScreenEffectsCardExpandedChanged(expanded: Boolean)
 
+    fun onFrameGenerationEnabledChanged(enabled: Boolean)
+
+    fun onFrameGenerationMultiplierSelected(multiplier: Int)
+
+    fun onFrameGenerationQualitySelected(quality: Int)
+
+    fun onFrameGenerationSmoothingChanged(smoothing: Float)
+
     fun onSGSREnabledChanged(enabled: Boolean)
 
     fun onSGSRSharpnessChanged(sharpness: Int)
@@ -619,6 +631,10 @@ fun buildXServerDrawerState(
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
     refactorSizeEnabled: Boolean = false,
+    frameGenerationEnabled: Boolean = false,
+    frameGenerationMultiplier: Int = 2,
+    frameGenerationQuality: Int = 1,
+    frameGenerationSmoothing: Float = 0.5f,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -770,6 +786,10 @@ fun buildXServerDrawerState(
         fpsLimit = fpsLimit,
         maxRefreshRate = maxRefreshRate,
         screenEffectsCardExpanded = screenEffectsCardExpanded,
+        frameGenerationEnabled = frameGenerationEnabled,
+        frameGenerationMultiplier = frameGenerationMultiplier,
+        frameGenerationQuality = frameGenerationQuality,
+        frameGenerationSmoothing = frameGenerationSmoothing,
         sgsrEnabled = sgsrEnabled,
         sgsrSharpness = sgsrSharpness,
         vividEnabled = vividEnabled,
@@ -967,6 +987,8 @@ private fun TopRail(
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
 
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
+    // Tile bounds are Row-relative, so the indicator (in the un-scrolled parent) subtracts the scroll.
+    val railScroll = rememberScrollState()
 
     val selectedKey =
         when (openPane) {
@@ -1016,10 +1038,12 @@ private fun TopRail(
             Box(
                 modifier =
                     Modifier
-                        .offset(
-                            x = indicatorX + underlineHorizontalInset,
-                            y = indicatorTileHeight - underlineThickness,
-                        )
+                        .offset {
+                            IntOffset(
+                                x = (indicatorX + underlineHorizontalInset).roundToPx() - railScroll.value,
+                                y = (indicatorTileHeight - underlineThickness).roundToPx(),
+                            )
+                        }
                         .width((indicatorWidth - underlineHorizontalInset * 2).coerceAtLeast(0.dp))
                         .height(underlineThickness)
                         .graphicsLayer { alpha = indicatorAlpha }
@@ -1029,7 +1053,7 @@ private fun TopRail(
         }
 
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier.horizontalScroll(railScroll),
             horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2317,6 +2341,67 @@ private fun ScreenEffectsPaneContent(
                                 valueRange = 0f..100f,
                                 steps = 99,
                                 onValueChange = { listener.onSGSRSharpnessChanged(it.roundToInt().coerceIn(0, 100)) },
+                            )
+                        }
+                    }
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_rail_label_frame_generation),
+                        checked = state.frameGenerationEnabled,
+                        onCheckedChange = listener::onFrameGenerationEnabledChanged,
+                    )
+
+                    AnimatedVisibility(
+                        visible = state.frameGenerationEnabled,
+                        enter =
+                            expandVertically(
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                expandFrom = Alignment.Top,
+                            ) + fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                        exit =
+                            shrinkVertically(
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                shrinkTowards = Alignment.Top,
+                            ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_multiplier))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                            ) {
+                                listOf(2, 3, 4).forEach { multiplier ->
+                                    HUDToggleChip(
+                                        label = "${multiplier}×",
+                                        checked = state.frameGenerationMultiplier == multiplier,
+                                        onClick = { listener.onFrameGenerationMultiplierSelected(multiplier) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_quality))
+                            val qualityLabels =
+                                listOf(
+                                    stringResource(R.string.session_drawer_frame_generation_quality_performance),
+                                    stringResource(R.string.session_drawer_frame_generation_quality_balanced),
+                                    stringResource(R.string.session_drawer_frame_generation_quality_quality),
+                                )
+                            ChipFlow {
+                                qualityLabels.forEachIndexed { index, label ->
+                                    HUDToggleChip(
+                                        label = label,
+                                        checked = state.frameGenerationQuality == index,
+                                        onClick = { listener.onFrameGenerationQualitySelected(index) },
+                                    )
+                                }
+                            }
+                            DrawerSliderRow(
+                                label = stringResource(R.string.session_drawer_frame_generation_smoothness),
+                                valueText = "${(state.frameGenerationSmoothing * 100).roundToInt()}%",
+                                value = state.frameGenerationSmoothing,
+                                valueRange = 0f..1f,
+                                steps = 0,
+                                onValueChange = listener::onFrameGenerationSmoothingChanged,
                             )
                         }
                     }

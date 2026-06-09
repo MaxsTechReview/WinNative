@@ -1319,5 +1319,14 @@ Chemin installé :
     <string name="workshop_loading_items">Chargement des éléments du Workshop</string>
     <string name="workshop_search_items">Rechercher des éléments du Workshop</string>
     <string name="common_ui_failed">Échec</string>
+    <string name="session_drawer_rail_label_frame_generation">Frame Gen</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicateur</string>
+    <string name="session_drawer_frame_generation_quality">Préréglage de qualité</string>
+    <string name="session_drawer_frame_generation_quality_performance">Performance</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Équilibré</string>
+    <string name="session_drawer_frame_generation_quality_quality">Qualité</string>
+    <string name="session_drawer_frame_generation_smoothness">Fluidité</string>
+    <string name="settings_other_frame_gen_title">Génération d\'images native</string>
+    <string name="settings_other_frame_gen_summary">Insère des images interpolées dans le compositeur pour fluidifier les mouvements. Compatible avec tous les jeux (aucune donnée de jeu requise) et ajoute une légère latence d\'entrée.</string>
 </resources>
 

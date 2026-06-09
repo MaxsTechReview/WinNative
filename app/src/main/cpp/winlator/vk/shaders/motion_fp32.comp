@@ -1,0 +1,96 @@
+#version 450
+
+// fp32 fallback of motion.comp for devices without shaderFloat16; identical algorithm.
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler2D prevFrame;  // frame N-1 (full res)
+layout(set = 0, binding = 1) uniform sampler2D currFrame;  // frame N   (full res)
+layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D motionField; // half res, STORAGE
+
+layout(push_constant) uniform PC {
+    ivec2 mvSize;
+    vec2  invMvSize;
+    float mvScale;
+    float minStep;    // lowest TSS step (quality preset): 1 = full search, larger = coarser/faster
+    float _pad1;
+    float _pad2;
+} pc;
+
+const int LS   = 8;
+const int BR   = 2;
+const int RMAX = 15;
+
+const int TILE_P = LS + 2 * (RMAX + BR); // 42
+const int TILE_C = LS + 2 * BR;          // 12
+
+shared float sPrev[TILE_P * TILE_P];
+shared float sCurr[TILE_C * TILE_C];
+
+float luma(vec3 c) {
+    return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+float blockCost(ivec2 l, ivec2 cCenter, ivec2 d) {
+    float cost = 0.0;
+    for (int by = -BR; by <= BR; ++by) {
+        for (int bx = -BR; bx <= BR; ++bx) {
+            ivec2 cc = cCenter + ivec2(bx, by);
+            ivec2 pp = l + ivec2(RMAX + BR) + d + ivec2(bx, by);
+            float dv = sCurr[cc.y * TILE_C + cc.x] - sPrev[pp.y * TILE_P + pp.x];
+            cost += dv * dv;
+        }
+    }
+    return cost;
+}
+
+void main() {
+    ivec2 wgOrigin   = ivec2(gl_WorkGroupID.xy) * LS;
+    ivec2 prevOrigin = wgOrigin - ivec2(RMAX + BR);
+    ivec2 currOrigin = wgOrigin - ivec2(BR);
+
+    uint li = gl_LocalInvocationIndex;
+    const uint THREADS = uint(LS * LS);
+
+    for (uint i = li; i < uint(TILE_P * TILE_P); i += THREADS) {
+        int lx = int(i) % TILE_P;
+        int ly = int(i) / TILE_P;
+        vec2 uv = (vec2(prevOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
+        sPrev[i] = luma(textureLod(prevFrame, uv, 0.0).rgb);
+    }
+    for (uint i = li; i < uint(TILE_C * TILE_C); i += THREADS) {
+        int lx = int(i) % TILE_C;
+        int ly = int(i) / TILE_C;
+        vec2 uv = (vec2(currOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
+        sCurr[i] = luma(textureLod(currFrame, uv, 0.0).rgb);
+    }
+    barrier();
+
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.mvSize.x || p.y >= pc.mvSize.y) return;
+
+    ivec2 l       = ivec2(gl_LocalInvocationID.xy);
+    ivec2 cCenter = l + ivec2(BR);
+
+    ivec2 center   = ivec2(0);
+    ivec2 bestD    = ivec2(0);
+    float bestCost = blockCost(l, cCenter, ivec2(0));
+
+    int minStep = clamp(int(pc.minStep), 1, 8);
+    for (int step = 8; step >= minStep; step >>= 1) {
+        ivec2 localBestD = center;
+        float localBest  = bestCost;
+        for (int sy = -1; sy <= 1; ++sy) {
+            for (int sx = -1; sx <= 1; ++sx) {
+                if (sx == 0 && sy == 0) continue;
+                ivec2 d = center + ivec2(sx, sy) * step;
+                if (abs(d.x) > RMAX || abs(d.y) > RMAX) continue;
+                float cost = blockCost(l, cCenter, d);
+                if (cost < localBest) { localBest = cost; localBestD = d; }
+            }
+        }
+        if (localBest < bestCost) { bestCost = localBest; bestD = localBestD; center = localBestD; }
+    }
+
+    imageStore(motionField, p, vec4(vec2(bestD) * pc.mvScale, 0.0, 0.0));
+}

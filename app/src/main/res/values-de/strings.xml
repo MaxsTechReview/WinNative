@@ -1319,4 +1319,13 @@ Installierter Pfad:
     <string name="workshop_loading_items">Workshop-Elemente werden geladen</string>
     <string name="workshop_search_items">Workshop-Elemente suchen</string>
     <string name="common_ui_failed">Fehlgeschlagen</string>
+    <string name="session_drawer_rail_label_frame_generation">Frame Gen</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplikator</string>
+    <string name="session_drawer_frame_generation_quality">Qualitätsvoreinstellung</string>
+    <string name="session_drawer_frame_generation_quality_performance">Leistung</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Ausgewogen</string>
+    <string name="session_drawer_frame_generation_quality_quality">Qualität</string>
+    <string name="session_drawer_frame_generation_smoothness">Glättung</string>
+    <string name="settings_other_frame_gen_title">Native Frame Generation</string>
+    <string name="settings_other_frame_gen_summary">Fügt im Compositor interpolierte Zwischenbilder ein, um Bewegungen flüssiger darzustellen. Funktioniert mit jedem Spiel (keine Spieldaten erforderlich) und erhöht die Eingabelatenz geringfügig.</string>
 </resources>

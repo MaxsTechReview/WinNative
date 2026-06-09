@@ -147,6 +147,10 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putBoolean("xinput_toggle", checked) }
                             refresh()
                         },
+                        onNativeFrameGenChanged = { checked ->
+                            preferences.edit { putBoolean("native_frame_generation", checked) }
+                            refresh()
+                        },
                         onEnableFileProviderChanged = { checked ->
                             preferences.edit { putBoolean("enable_file_provider", checked) }
                             WinToast.show(ctx, R.string.settings_general_take_effect_next_startup)
@@ -228,6 +232,7 @@ class OtherSettingsFragment : Fragment() {
                         .coerceIn(10, 300),
                 cursorLock = preferences.getBoolean("cursor_lock", false),
                 xinputDisabled = preferences.getBoolean("xinput_toggle", false),
+                nativeFrameGen = preferences.getBoolean("native_frame_generation", false),
                 enableFileProvider = preferences.getBoolean("enable_file_provider", true),
                 openInBrowser = preferences.getBoolean("open_with_android_browser", false),
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),

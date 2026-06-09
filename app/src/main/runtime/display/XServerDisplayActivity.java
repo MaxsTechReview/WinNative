@@ -345,6 +345,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
+    private boolean frameGenerationEnabled = false;
+    private int frameGenerationMultiplier = 2;
+    private int frameGenerationQuality = 1;
+    private float frameGenerationSmoothing = 0.5f;
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -601,7 +605,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+            if (renderer != null && renderer.isFrameGenerationEnabled()) {
+                // FG targets multiplier×engine: pin the display mode to that (capped to panel max) and
+                // vote it on the surface so the panel holds the refresh. Engine = fps cap, else 60.
+                int engine = runtimeFpsLimit > 0 ? runtimeFpsLimit : 60;
+                int panelMax = RefreshRateUtils.getMaxSupportedRefreshRate(this);
+                int target = Math.min(panelMax, engine * renderer.getFrameGenMultiplier());
+                renderer.setFrameGenDisplayCap(panelMax);
+                RefreshRateUtils.applyPreferredRefreshRate(this, target, 0);
+                requestSurfaceFrameRate((float) target);
+            } else {
+                RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            }
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -609,6 +625,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } else {
             runOnUiThread(applyRefresh);
         }
+    }
+
+    // Vote a frame rate on the surface so a VRR/ADFR panel holds the high refresh while FG is active.
+    private void requestSurfaceFrameRate(float hz) {
+        if (hz <= 0f || Build.VERSION.SDK_INT < Build.VERSION_CODES.R || xServerView == null) return;
+        try {
+            android.view.Surface s = xServerView.getHolder().getSurface();
+            if (s == null || !s.isValid()) return;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                        android.view.Surface.CHANGE_FRAME_RATE_ALWAYS);
+            } else {
+                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+            }
+        } catch (Exception ignore) {}
     }
 
     /**
@@ -3862,7 +3893,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
-                isRefactorSizeEnabled
+                isRefactorSizeEnabled,
+                frameGenerationEnabled,
+                frameGenerationMultiplier,
+                frameGenerationQuality,
+                frameGenerationSmoothing
         );
 
         if (drawerActionListener == null) {
@@ -4046,6 +4081,44 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onScreenEffectsCardExpandedChanged(boolean expanded) {
                         screenEffectsCardExpanded = expanded;
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationEnabledChanged(boolean enabled) {
+                        frameGenerationEnabled = enabled;
+                        preferences.edit().putBoolean("native_frame_generation", enabled).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGeneration(enabled);
+                        applyPreferredRefreshRate();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationMultiplierSelected(int multiplier) {
+                        frameGenerationMultiplier = multiplier;
+                        preferences.edit().putInt("frame_generation_multiplier", multiplier).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationMultiplier(multiplier);
+                        applyPreferredRefreshRate();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationQualitySelected(int quality) {
+                        frameGenerationQuality = quality;
+                        preferences.edit().putInt("frame_generation_quality", quality).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationQuality(quality);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationSmoothingChanged(float smoothing) {
+                        frameGenerationSmoothing = smoothing;
+                        preferences.edit().putFloat("frame_generation_smoothing", smoothing).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationSmoothness(smoothing);
                         renderDrawerMenu();
                     }
 
@@ -4716,6 +4789,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     frameRating = new FrameRating(this, graphicsDriverConfig);
                     frameRating.setRenderer(lastRendererName);
                     if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+                    frameRating.setDisplayFrameCounter(() -> {
+                        VulkanRenderer fgr = xServerView != null ? xServerView.getRenderer() : null;
+                        return (fgr != null && fgr.isFrameGenerationEnabled()) ? fgr.getDisplayFrameCount() : 0L;
+                    });
                     frameRating.setVisibility(View.GONE);
                     applyHUDSettings();
                     rootView.addView(frameRating);
@@ -5961,6 +6038,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         renderer.setNativeMode(isNativeRenderingEnabled);
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
+        frameGenerationEnabled = preferences.getBoolean("native_frame_generation", false);
+        frameGenerationMultiplier = preferences.getInt("frame_generation_multiplier", 2);
+        frameGenerationQuality = preferences.getInt("frame_generation_quality", 1);
+        frameGenerationSmoothing = preferences.getFloat("frame_generation_smoothing", 0.5f);
+        renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
+        renderer.setFrameGenerationQuality(frameGenerationQuality);
+        renderer.setFrameGenerationSmoothness(frameGenerationSmoothing);
+        renderer.setFrameGeneration(frameGenerationEnabled);
 
         boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")
                          : (container != null && container.getExtra("swapRB", "0").equals("1"));
@@ -6009,6 +6094,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             frameRating = new FrameRating(this, graphicsDriverConfig);
             frameRating.setRenderer(lastRendererName);
             if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+            frameRating.setDisplayFrameCounter(() -> {
+                VulkanRenderer fgr = xServerView != null ? xServerView.getRenderer() : null;
+                return (fgr != null && fgr.isFrameGenerationEnabled()) ? fgr.getDisplayFrameCount() : 0L;
+            });
             frameRating.setVisibility(View.VISIBLE);
             applyHUDSettings();
             updateHUDRenderMode();

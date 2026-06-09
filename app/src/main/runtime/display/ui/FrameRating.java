@@ -132,6 +132,12 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean isStatsRunning;
   private volatile boolean isCharging;
   private volatile float lastFPS;
+  // Frame generation: when set, supplies the cumulative display present count (real + generated).
+  // 0 means FG is off, in which case the HUD shows the single engine FPS.
+  private java.util.function.LongSupplier displayFrameCounter;
+  private long lastDisplayCount = -1L;
+  private long lastDisplayNano;
+  private volatile float displayFps;
   private volatile long lastFrameNano;
   private long lastPrimaryFrameNano;
   private long lastGraphRedraw;
@@ -876,6 +882,12 @@ public class FrameRating extends LinearLayout implements Runnable {
     requestLayout();
   }
 
+  /** Supplies the cumulative display present count (real + generated) so the HUD can show the output
+   *  rate while frame generation is on; supply 0 (or null) when FG is off to fall back to engine FPS. */
+  public void setDisplayFrameCounter(java.util.function.LongSupplier supplier) {
+    this.displayFrameCounter = supplier;
+  }
+
   public void setRenderer(String renderer) {
     if (renderer == null) {
       return;
@@ -1487,8 +1499,26 @@ public class FrameRating extends LinearLayout implements Runnable {
       this.tvTemp.setVisibility(View.GONE);
     }
 
+    // Frame generation: derive the output rate (real + generated) from the present counter so the
+    // HUD reflects what is actually displayed, not just the engine rate.
+    if (this.displayFrameCounter != null) {
+      long c = this.displayFrameCounter.getAsLong();
+      if (c <= 0L) {
+        this.displayFps = 0.0f;
+        this.lastDisplayCount = -1L;
+      } else {
+        if (this.lastDisplayCount >= 0L && nowNano > this.lastDisplayNano) {
+          this.displayFps =
+              (float) ((c - this.lastDisplayCount) * 1000000000.0 / (nowNano - this.lastDisplayNano));
+        }
+        this.lastDisplayCount = c;
+        this.lastDisplayNano = nowNano;
+      }
+    }
+
     if (this.enableFps && this.tvFpsBig != null) {
-      this.tvFpsBig.setText(String.format(Locale.US, "%.0f", this.lastFPS));
+      float shownFps = this.displayFps > 0.0f ? this.displayFps : this.lastFPS;
+      this.tvFpsBig.setText(String.format(Locale.US, "%.0f", shownFps));
       this.tvFpsBig.setTextColor(this.C_FPS_OK);
       this.tvFpsBig.setVisibility(View.VISIBLE);
     } else if (this.tvFpsBig != null) this.tvFpsBig.setVisibility(View.GONE);

@@ -112,6 +112,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CreatePipelineLayout);
     LOAD(DestroyPipelineLayout);
     LOAD(CreateGraphicsPipelines);
+    LOAD(CreateComputePipelines);
     LOAD(DestroyPipeline);
     LOAD(CreateShaderModule);
     LOAD(DestroyShaderModule);
@@ -148,7 +149,9 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CmdSetViewport);
     LOAD(CmdSetScissor);
     LOAD(CmdDraw);
+    LOAD(CmdDispatch);
     LOAD(CmdPipelineBarrier);
+    LOAD(CmdBlitImage);
     LOAD(CmdCopyBufferToImage);
 
     // Queue

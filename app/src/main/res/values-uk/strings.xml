@@ -1325,5 +1325,14 @@
     <string name="workshop_loading_items">Завантаження елементів Workshop</string>
     <string name="workshop_search_items">Пошук елементів Workshop</string>
     <string name="common_ui_failed">Помилка</string>
+    <string name="session_drawer_rail_label_frame_generation">Кадри</string>
+    <string name="session_drawer_frame_generation_multiplier">Множник</string>
+    <string name="session_drawer_frame_generation_quality">Налаштування якості</string>
+    <string name="session_drawer_frame_generation_quality_performance">Продуктивність</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Збалансовано</string>
+    <string name="session_drawer_frame_generation_quality_quality">Якість</string>
+    <string name="session_drawer_frame_generation_smoothness">Плавність</string>
+    <string name="settings_other_frame_gen_title">Нативна генерація кадрів</string>
+    <string name="settings_other_frame_gen_summary">Вставляє інтерпольовані кадри в композитор для плавнішого руху. Працює з будь-якою грою (дані гри не потрібні) та трохи збільшує затримку вводу.</string>
 </resources>
 

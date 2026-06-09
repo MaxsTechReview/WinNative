@@ -1325,5 +1325,14 @@ Zainstalowana ścieżka:
     <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
     <string name="workshop_search_items">Szukaj elementów Workshop</string>
     <string name="common_ui_failed">Niepowodzenie</string>
+    <string name="session_drawer_rail_label_frame_generation">Gen. klatek</string>
+    <string name="session_drawer_frame_generation_multiplier">Mnożnik</string>
+    <string name="session_drawer_frame_generation_quality">Ustawienie jakości</string>
+    <string name="session_drawer_frame_generation_quality_performance">Wydajność</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Zrównoważone</string>
+    <string name="session_drawer_frame_generation_quality_quality">Jakość</string>
+    <string name="session_drawer_frame_generation_smoothness">Płynność</string>
+    <string name="settings_other_frame_gen_title">Natywne generowanie klatek (Frame Generation)</string>
+    <string name="settings_other_frame_gen_summary">Wstawia interpolowane klatki w kompozytorze, aby wygładzić ruch. Działa z każdą grą (nie wymaga danych gry) i nieznacznie zwiększa opóźnienie sterowania.</string>
 </resources>
 

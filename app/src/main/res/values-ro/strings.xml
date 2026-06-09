@@ -1319,5 +1319,14 @@ Cale instalata:
     <string name="workshop_loading_items">Se încarcă elementele Workshop</string>
     <string name="workshop_search_items">Caută elemente Workshop</string>
     <string name="common_ui_failed">Eșuat</string>
+    <string name="session_drawer_rail_label_frame_generation">Gen. cadre</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicator</string>
+    <string name="session_drawer_frame_generation_quality">Presetare de calitate</string>
+    <string name="session_drawer_frame_generation_quality_performance">Performanță</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Echilibrat</string>
+    <string name="session_drawer_frame_generation_quality_quality">Calitate</string>
+    <string name="session_drawer_frame_generation_smoothness">Fluiditate</string>
+    <string name="settings_other_frame_gen_title">Generare nativă de cadre (Frame Generation)</string>
+    <string name="settings_other_frame_gen_summary">Inserează cadre interpolate în compozitor pentru a fluidiza mișcarea. Funcționează cu orice joc (nu necesită date despre joc) și adaugă o cantitate mică de latență a comenzilor.</string>
 </resources>
 

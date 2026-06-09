@@ -1319,4 +1319,13 @@ Installeret sti:
     <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
     <string name="workshop_search_items">Søg i Workshop-elementer</string>
     <string name="common_ui_failed">Mislykket</string>
+    <string name="session_drawer_rail_label_frame_generation">Frame Gen</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplikator</string>
+    <string name="session_drawer_frame_generation_quality">Kvalitetsforudindstilling</string>
+    <string name="session_drawer_frame_generation_quality_performance">Ydelse</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Balanceret</string>
+    <string name="session_drawer_frame_generation_quality_quality">Kvalitet</string>
+    <string name="session_drawer_frame_generation_smoothness">Jævnhed</string>
+    <string name="settings_other_frame_gen_title">Native Frame Generation</string>
+    <string name="settings_other_frame_gen_summary">Indsæt interpolerede frames i compositoren for at gøre bevægelser mere flydende. Virker med alle spil (ingen spildata nødvendig) og tilføjer en smule input-latens.</string>
 </resources>

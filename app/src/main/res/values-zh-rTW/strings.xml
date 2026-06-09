@@ -1319,5 +1319,14 @@
     <string name="workshop_loading_items">正在載入 Workshop 項目</string>
     <string name="workshop_search_items">搜尋 Workshop 項目</string>
     <string name="common_ui_failed">失敗</string>
+    <string name="session_drawer_rail_label_frame_generation">生成幀</string>
+    <string name="session_drawer_frame_generation_multiplier">倍率</string>
+    <string name="session_drawer_frame_generation_quality">品質預設</string>
+    <string name="session_drawer_frame_generation_quality_performance">效能</string>
+    <string name="session_drawer_frame_generation_quality_balanced">平衡</string>
+    <string name="session_drawer_frame_generation_quality_quality">品質</string>
+    <string name="session_drawer_frame_generation_smoothness">流暢度</string>
+    <string name="settings_other_frame_gen_title">原生畫格生成</string>
+    <string name="settings_other_frame_gen_summary">在合成器中插入內插畫格以使動態更流暢。適用於任何遊戲（無需遊戲資料），並會略微增加輸入延遲。</string>
 </resources>
 

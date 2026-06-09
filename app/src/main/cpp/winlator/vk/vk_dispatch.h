@@ -89,6 +89,7 @@ typedef struct VkDispatch {
     PFN_vkCreatePipelineLayout CreatePipelineLayout;
     PFN_vkDestroyPipelineLayout DestroyPipelineLayout;
     PFN_vkCreateGraphicsPipelines CreateGraphicsPipelines;
+    PFN_vkCreateComputePipelines CreateComputePipelines;
     PFN_vkDestroyPipeline DestroyPipeline;
     PFN_vkCreateShaderModule CreateShaderModule;
     PFN_vkDestroyShaderModule DestroyShaderModule;
@@ -125,7 +126,9 @@ typedef struct VkDispatch {
     PFN_vkCmdSetViewport CmdSetViewport;
     PFN_vkCmdSetScissor CmdSetScissor;
     PFN_vkCmdDraw CmdDraw;
+    PFN_vkCmdDispatch CmdDispatch;
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
+    PFN_vkCmdBlitImage CmdBlitImage;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
 
     // Queue
@@ -218,6 +221,7 @@ void vkd_unload(void);
 #define vkCreatePipelineLayout vkd.CreatePipelineLayout
 #define vkDestroyPipelineLayout vkd.DestroyPipelineLayout
 #define vkCreateGraphicsPipelines vkd.CreateGraphicsPipelines
+#define vkCreateComputePipelines vkd.CreateComputePipelines
 #define vkDestroyPipeline vkd.DestroyPipeline
 #define vkCreateShaderModule vkd.CreateShaderModule
 #define vkDestroyShaderModule vkd.DestroyShaderModule
@@ -251,7 +255,9 @@ void vkd_unload(void);
 #define vkCmdSetViewport vkd.CmdSetViewport
 #define vkCmdSetScissor vkd.CmdSetScissor
 #define vkCmdDraw vkd.CmdDraw
+#define vkCmdDispatch vkd.CmdDispatch
 #define vkCmdPipelineBarrier vkd.CmdPipelineBarrier
+#define vkCmdBlitImage vkd.CmdBlitImage
 #define vkCmdCopyBufferToImage vkd.CmdCopyBufferToImage
 
 #define vkQueueSubmit vkd.QueueSubmit

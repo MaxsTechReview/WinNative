@@ -1256,4 +1256,13 @@
     <string name="workshop_loading_items">Workshop आइटम लोड हो रहे हैं</string>
     <string name="workshop_search_items">Workshop आइटम खोजें</string>
     <string name="common_ui_failed">विफल</string>
+    <string name="session_drawer_rail_label_frame_generation">फ्रेम जेन</string>
+    <string name="session_drawer_frame_generation_multiplier">मल्टीप्लायर</string>
+    <string name="session_drawer_frame_generation_quality">क्वालिटी प्रीसेट</string>
+    <string name="session_drawer_frame_generation_quality_performance">परफॉर्मेंस</string>
+    <string name="session_drawer_frame_generation_quality_balanced">बैलेंस्ड</string>
+    <string name="session_drawer_frame_generation_quality_quality">क्वालिटी</string>
+    <string name="session_drawer_frame_generation_smoothness">स्मूदनेस</string>
+    <string name="settings_other_frame_gen_title">नेटिव फ्रेम जनरेशन</string>
+    <string name="settings_other_frame_gen_summary">मोशन को स्मूद बनाने के लिए कंपोजिटर में इंटरपोलेटेड फ्रेम जोड़ें। यह किसी भी गेम के साथ काम करता है (किसी गेम डेटा की ज़रूरत नहीं) और इनपुट लेटेंसी थोड़ी बढ़ा देता है।</string>
 </resources>

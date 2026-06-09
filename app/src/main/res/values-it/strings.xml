@@ -1319,5 +1319,14 @@ Percorso installato:
     <string name="workshop_loading_items">Caricamento elementi Workshop</string>
     <string name="workshop_search_items">Cerca elementi Workshop</string>
     <string name="common_ui_failed">Non riuscito</string>
+    <string name="session_drawer_rail_label_frame_generation">Frame Gen</string>
+    <string name="session_drawer_frame_generation_multiplier">Moltiplicatore</string>
+    <string name="session_drawer_frame_generation_quality">Preset qualità</string>
+    <string name="session_drawer_frame_generation_quality_performance">Prestazioni</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Bilanciato</string>
+    <string name="session_drawer_frame_generation_quality_quality">Qualità</string>
+    <string name="session_drawer_frame_generation_smoothness">Fluidità</string>
+    <string name="settings_other_frame_gen_title">Frame Generation nativa</string>
+    <string name="settings_other_frame_gen_summary">Inserisce frame interpolati nel compositor per rendere il movimento più fluido. Funziona con qualsiasi gioco (senza bisogno dei dati del gioco) e aggiunge una piccola quantità di latenza di input.</string>
 </resources>
 

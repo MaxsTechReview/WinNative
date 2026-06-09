@@ -1319,5 +1319,14 @@ Caminho instalado:
     <string name="workshop_loading_items">Carregando itens do Workshop</string>
     <string name="workshop_search_items">Buscar itens do Workshop</string>
     <string name="common_ui_failed">Falhou</string>
+    <string name="session_drawer_rail_label_frame_generation">Geração de Quadros</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
+    <string name="session_drawer_frame_generation_quality">Predefinição de qualidade</string>
+    <string name="session_drawer_frame_generation_quality_performance">Desempenho</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Equilibrado</string>
+    <string name="session_drawer_frame_generation_quality_quality">Qualidade</string>
+    <string name="session_drawer_frame_generation_smoothness">Suavidade</string>
+    <string name="settings_other_frame_gen_title">Geração de Quadros Nativa</string>
+    <string name="settings_other_frame_gen_summary">Insere quadros interpolados no compositor para suavizar o movimento. Funciona com qualquer jogo (não precisa de dados do jogo) e adiciona uma pequena quantidade de latência de entrada.</string>
 </resources>
 

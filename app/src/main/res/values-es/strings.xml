@@ -1319,5 +1319,14 @@ Ruta instalada:
     <string name="workshop_loading_items">Cargando elementos de Workshop</string>
     <string name="workshop_search_items">Buscar elementos de Workshop</string>
     <string name="common_ui_failed">Fallido</string>
+    <string name="session_drawer_rail_label_frame_generation">Frame Gen</string>
+    <string name="session_drawer_frame_generation_multiplier">Multiplicador</string>
+    <string name="session_drawer_frame_generation_quality">Perfil de calidad</string>
+    <string name="session_drawer_frame_generation_quality_performance">Rendimiento</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Equilibrado</string>
+    <string name="session_drawer_frame_generation_quality_quality">Calidad</string>
+    <string name="session_drawer_frame_generation_smoothness">Suavidad</string>
+    <string name="settings_other_frame_gen_title">Generación de fotogramas nativa</string>
+    <string name="settings_other_frame_gen_summary">Inserta fotogramas interpolados en el compositor para suavizar el movimiento. Funciona con cualquier juego (sin necesidad de datos del juego) y añade una pequeña cantidad de latencia de entrada.</string>
 </resources>
 

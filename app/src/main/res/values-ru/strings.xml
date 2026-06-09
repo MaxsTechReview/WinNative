@@ -1225,4 +1225,13 @@
     <string name="workshop_loading_items">Загрузка элементов Workshop</string>
     <string name="workshop_search_items">Поиск элементов Workshop</string>
     <string name="common_ui_failed">Ошибка</string>
+    <string name="session_drawer_rail_label_frame_generation">Кадры</string>
+    <string name="session_drawer_frame_generation_multiplier">Множитель</string>
+    <string name="session_drawer_frame_generation_quality">Пресет качества</string>
+    <string name="session_drawer_frame_generation_quality_performance">Производительность</string>
+    <string name="session_drawer_frame_generation_quality_balanced">Сбалансированный</string>
+    <string name="session_drawer_frame_generation_quality_quality">Качество</string>
+    <string name="session_drawer_frame_generation_smoothness">Плавность</string>
+    <string name="settings_other_frame_gen_title">Нативная генерация кадров</string>
+    <string name="settings_other_frame_gen_summary">Вставка интерполированных кадров в композиторе для плавности движения. Работает с любой игрой (данные игры не нужны) и немного увеличивает задержку ввода.</string>
 </resources>

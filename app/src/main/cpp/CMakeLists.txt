@@ -76,6 +76,10 @@ set(SHADER_LIST
     "effect_hdr:frag:effect_hdr_frag"
     "effect_natural:frag:effect_natural_frag"
     "sgsr1:frag:sgsr1_frag"
+    # Frame generation: motion estimation (compute, fp16 + fp32 fallback) + interpolation (fragment).
+    "motion:comp:motion_comp"
+    "motion_fp32:comp:motion_fp32_comp"
+    "interpolate:frag:interpolate_frag"
 )
 
 set(SHADER_HEADERS "")

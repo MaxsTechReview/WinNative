@@ -1320,5 +1320,14 @@
     <string name="workshop_loading_items">Workshop 항목 로드 중</string>
     <string name="workshop_search_items">Workshop 항목 검색</string>
     <string name="common_ui_failed">실패</string>
+    <string name="session_drawer_rail_label_frame_generation">프레임 생성</string>
+    <string name="session_drawer_frame_generation_multiplier">배수</string>
+    <string name="session_drawer_frame_generation_quality">품질 프리셋</string>
+    <string name="session_drawer_frame_generation_quality_performance">성능</string>
+    <string name="session_drawer_frame_generation_quality_balanced">균형</string>
+    <string name="session_drawer_frame_generation_quality_quality">품질</string>
+    <string name="session_drawer_frame_generation_smoothness">부드러움</string>
+    <string name="settings_other_frame_gen_title">네이티브 프레임 생성</string>
+    <string name="settings_other_frame_gen_summary">컴포지터에서 보간 프레임을 삽입하여 움직임을 부드럽게 만듭니다. 모든 게임에서 작동하며(게임 데이터가 필요 없음) 약간의 입력 지연이 추가됩니다.</string>
 </resources>
 

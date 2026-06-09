@@ -23,6 +23,7 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // SPIR-V shader byte arrays generated at build time by glslc + bin2c.cmake.
 #include "shaders/window_vert.spv.h"
@@ -35,6 +36,9 @@
 #include "shaders/effect_hdr_frag.spv.h"
 #include "shaders/effect_natural_frag.spv.h"
 #include "shaders/sgsr1_frag.spv.h"
+#include "shaders/motion_comp.spv.h"
+#include "shaders/motion_fp32_comp.spv.h"
+#include "shaders/interpolate_frag.spv.h"
 
 // ============================================================
 // Forward decls
@@ -56,6 +60,20 @@ static bool create_offscreen(VkRenderer* r, uint32_t w, uint32_t h, bool need_se
 static void destroy_offscreen(VkRenderer* r);
 static bool create_sgsr1_resources(VkRenderer* r, uint32_t w, uint32_t h);
 static void destroy_sgsr1_resources(VkRenderer* r);
+static void fg_destroy_resources(VkRenderer* r);
+static bool fg_ensure_resources(VkRenderer* r);
+static void wait_inflight_frames(VkRenderer* r);
+
+// Frame-generation render modes (see fg_submit / DESIGN.md §2).
+typedef enum {
+    FG_MODE_HOLD = 0,         // render composited scene -> history[curr]; do NOT present
+    FG_MODE_INTERP = 1,       // motion + interpolate(prev,curr) -> swapchain; present
+    FG_MODE_PRESENT_LAST = 2, // blit history[curr] -> swapchain; present (the deferred real frame)
+} FgMode;
+
+// Result of manage_scene_targets(): whether the post-effect chain runs this frame, and whether
+// it is SGSR1-led. Shared by the real-present path and the FG hold path.
+typedef struct { bool has_effects; bool wants_sgsr1; } SceneTargets;
 static bool create_quad_vbo(VkRenderer* r);
 static void destroy_quad_vbo(VkRenderer* r);
 static bool is_plain_rotation_transform(VkSurfaceTransformFlagBitsKHR transform);
@@ -340,6 +358,7 @@ static bool create_device(VkRenderer* r) {
     bool has_ycbcr = has_extension(exts, ext_count, VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME);
     bool has_extmem_caps = has_extension(exts, ext_count, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     bool has_queue_fam = has_extension(exts, ext_count, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
+    bool has_f16 = has_extension(exts, ext_count, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
 
     free(exts);
 
@@ -360,6 +379,28 @@ static bool create_device(VkRenderer* r) {
 
     r->ext_ahb = ahb_ok;
     r->ext_ycbcr = has_ycbcr;
+
+    // Probe shaderFloat16; selects the fp16 vs fp32 motion shader (FG ships either way).
+    r->fg_float16_supported = false;
+    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR f16_feat = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR };
+    if (has_f16) {
+        VkPhysicalDeviceShaderFloat16Int8FeaturesKHR f16q = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR };
+        VkPhysicalDeviceFeatures2 feats2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        feats2.pNext = &f16q;
+        PFN_vkGetPhysicalDeviceFeatures2 fnFeat2 = (PFN_vkGetPhysicalDeviceFeatures2)
+            vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceFeatures2");
+        if (!fnFeat2) fnFeat2 = (PFN_vkGetPhysicalDeviceFeatures2)
+            vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceFeatures2KHR");
+        if (fnFeat2) { fnFeat2(r->physical_device, &feats2); r->fg_float16_supported = (f16q.shaderFloat16 == VK_TRUE); }
+    }
+    if (r->fg_float16_supported) {
+        enable[enable_n++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
+        f16_feat.shaderFloat16 = VK_TRUE;
+    }
+    VK_LOGI("Frame generation fp16 support: ext=%d feature=%d", has_f16, r->fg_float16_supported);
+
     VK_LOGI("AHB Vulkan device support: android_hardware_buffer=%d external_memory=%d dedicated=%d get_memory_requirements2=%d queue_family_foreign=%d enabled=%d",
             has_ahb, has_extmem, has_dedicated, has_get_mem_req2, has_queue_fam, r->ext_ahb);
     if (!r->ext_ahb) {
@@ -378,7 +419,10 @@ static bool create_device(VkRenderer* r) {
     ycbcr_feat.samplerYcbcrConversion = has_ycbcr ? VK_TRUE : VK_FALSE;
 
     VkDeviceCreateInfo dci = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    if (has_ycbcr) dci.pNext = &ycbcr_feat;
+    void* feat_chain = NULL;
+    if (has_ycbcr)               { ycbcr_feat.pNext = feat_chain; feat_chain = &ycbcr_feat; }
+    if (r->fg_float16_supported) { f16_feat.pNext   = feat_chain; feat_chain = &f16_feat; }
+    dci.pNext = feat_chain;
     dci.queueCreateInfoCount = 1;
     dci.pQueueCreateInfos = &qci;
     dci.enabledExtensionCount = enable_n;
@@ -555,15 +599,19 @@ static bool create_command_pool(VkRenderer* r) {
 // ============================================================
 
 static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity) {
-    VkDescriptorPoolSize ps = {0};
-    ps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    ps.descriptorCount = capacity;
+    // Combined-image-samplers for textures/effects/FG, plus a small STORAGE_IMAGE budget for
+    // the frame-generation motion field (one writeonly image2D bound by motion.comp).
+    VkDescriptorPoolSize ps[2] = {0};
+    ps[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    ps[0].descriptorCount = capacity;
+    ps[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    ps[1].descriptorCount = 8;
 
     VkDescriptorPoolCreateInfo ci = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     ci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     ci.maxSets = capacity;
-    ci.poolSizeCount = 1;
-    ci.pPoolSizes = &ps;
+    ci.poolSizeCount = 2;
+    ci.pPoolSizes = ps;
     if (vkCreateDescriptorPool(r->device, &ci, NULL, &r->descriptor_pool) != VK_SUCCESS) {
         VK_LOGE("vkCreateDescriptorPool failed");
         return false;
@@ -727,7 +775,72 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
+    // --- Frame generation layouts ---
+    // motion.comp set 0: binding0,1 = prev,curr samplers; binding2 = motion storage image. All COMPUTE.
+    VkDescriptorSetLayoutBinding mb[3] = {0};
+    mb[0].binding = 0; mb[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    mb[0].descriptorCount = 1; mb[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    mb[1] = mb[0]; mb[1].binding = 1;
+    mb[2].binding = 2; mb[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    mb[2].descriptorCount = 1; mb[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutCreateInfo dl_m = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    dl_m.bindingCount = 3; dl_m.pBindings = mb;
+    if (vkCreateDescriptorSetLayout(r->device, &dl_m, NULL, &r->pipelines.fg_motion_layout) != VK_SUCCESS) {
+        return false;
+    }
+
+    // interpolate.frag set 0: prev,curr,motion combined-image-samplers, FRAGMENT.
+    VkDescriptorSetLayoutBinding ib[3] = {0};
+    for (uint32_t i = 0; i < 3; i++) {
+        ib[i].binding = i;
+        ib[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        ib[i].descriptorCount = 1;
+        ib[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    VkDescriptorSetLayoutCreateInfo dl_i = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    dl_i.bindingCount = 3; dl_i.pBindings = ib;
+    if (vkCreateDescriptorSetLayout(r->device, &dl_i, NULL, &r->pipelines.fg_interp_layout) != VK_SUCCESS) {
+        return false;
+    }
+
+    // motion pipeline layout: motion set + 32B push (ivec2 mvSize, vec2 invMvSize, float mvScale, pad).
+    VkPushConstantRange mpc = { VK_SHADER_STAGE_COMPUTE_BIT, 0, 32 };
+    VkPipelineLayoutCreateInfo mpl = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    mpl.setLayoutCount = 1; mpl.pSetLayouts = &r->pipelines.fg_motion_layout;
+    mpl.pushConstantRangeCount = 1; mpl.pPushConstantRanges = &mpc;
+    if (vkCreatePipelineLayout(r->device, &mpl, NULL, &r->pipelines.fg_motion_pipe_layout) != VK_SUCCESS) {
+        return false;
+    }
+
+    // interp pipeline layout: interp set + 24B fragment push (vec2 resolution, float phase, occLo, occHi, pad).
+    VkPushConstantRange ipc = { VK_SHADER_STAGE_FRAGMENT_BIT, 0, 24 };
+    VkPipelineLayoutCreateInfo ipl = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    ipl.setLayoutCount = 1; ipl.pSetLayouts = &r->pipelines.fg_interp_layout;
+    ipl.pushConstantRangeCount = 1; ipl.pPushConstantRanges = &ipc;
+    if (vkCreatePipelineLayout(r->device, &ipl, NULL, &r->pipelines.fg_interp_pipe_layout) != VK_SUCCESS) {
+        return false;
+    }
+
     return true;
+}
+
+// Compute pipeline helper for the frame-generation motion pass.
+static VkPipeline create_compute_pipeline(VkRenderer* r, VkShaderModule cs, VkPipelineLayout layout) {
+    VkPipelineShaderStageCreateInfo stage = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage.module = cs;
+    stage.pName = "main";
+
+    VkComputePipelineCreateInfo cpi = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    cpi.stage = stage;
+    cpi.layout = layout;
+
+    VkPipeline pipe = VK_NULL_HANDLE;
+    if (vkCreateComputePipelines(r->device, VK_NULL_HANDLE, 1, &cpi, NULL, &pipe) != VK_SUCCESS) {
+        VK_LOGE("vkCreateComputePipelines failed");
+        return VK_NULL_HANDLE;
+    }
+    return pipe;
 }
 
 static VkPipeline create_graphics_pipeline(
@@ -843,9 +956,14 @@ static bool create_pipelines(VkRenderer* r) {
     VkShaderModule fs_hdr    = load_shader_module(r, effect_hdr_frag,    effect_hdr_frag_size);
     VkShaderModule fs_natural= load_shader_module(r, effect_natural_frag,effect_natural_frag_size);
     VkShaderModule fs_sgsr1 = load_shader_module(r, sgsr1_frag, sgsr1_frag_size);
+    // Frame generation: pick the fp16 or fp32 motion shader by device support.
+    VkShaderModule cs_motion = r->fg_float16_supported
+        ? load_shader_module(r, motion_comp, motion_comp_size)
+        : load_shader_module(r, motion_fp32_comp, motion_fp32_comp_size);
+    VkShaderModule fs_interp = load_shader_module(r, interpolate_frag, interpolate_frag_size);
     if (!vs_window || !fs_window || !fs_cursor || !vs_quad || !fs_blit
         || !fs_crt || !fs_vivid || !fs_hdr || !fs_natural
-        || !fs_sgsr1) {
+        || !fs_sgsr1 || !cs_motion || !fs_interp) {
         return false;
     }
 
@@ -898,6 +1016,14 @@ static bool create_pipelines(VkRenderer* r) {
         r, vs_quad, fs_sgsr1, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
         false, false, NULL);
 
+    // Frame generation: compute motion estimation + fullscreen-triangle interpolation (no vertex
+    // input, no blend — opaque full-screen write) onto the swapchain.
+    r->pipelines.fg_motion_pipeline = create_compute_pipeline(
+        r, cs_motion, r->pipelines.fg_motion_pipe_layout);
+    r->pipelines.fg_interp_pipeline = create_graphics_pipeline(
+        r, vs_quad, fs_interp, r->pipelines.fg_interp_pipe_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
+
     vkDestroyShaderModule(r->device, vs_window, NULL);
     vkDestroyShaderModule(r->device, fs_window, NULL);
     vkDestroyShaderModule(r->device, fs_cursor, NULL);
@@ -908,12 +1034,16 @@ static bool create_pipelines(VkRenderer* r) {
     vkDestroyShaderModule(r->device, fs_hdr, NULL);
     vkDestroyShaderModule(r->device, fs_natural, NULL);
     vkDestroyShaderModule(r->device, fs_sgsr1, NULL);
+    vkDestroyShaderModule(r->device, cs_motion, NULL);
+    vkDestroyShaderModule(r->device, fs_interp, NULL);
 
     if (!r->pipelines.window_pipeline || !r->pipelines.cursor_pipeline
         || !r->pipelines.blit_pipeline
         || !r->pipelines.offscreen_window_pipeline
         || !r->pipelines.offscreen_cursor_pipeline
-        || !r->pipelines.offscreen_blit_pipeline) {
+        || !r->pipelines.offscreen_blit_pipeline
+        || !r->pipelines.fg_motion_pipeline
+        || !r->pipelines.fg_interp_pipeline) {
         destroy_pipelines(r);
         return false;
     }
@@ -946,9 +1076,15 @@ static void destroy_pipelines(VkRenderer* r) {
     if (r->pipelines.offscreen_window_pipeline) vkDestroyPipeline(r->device, r->pipelines.offscreen_window_pipeline, NULL);
     if (r->pipelines.offscreen_cursor_pipeline) vkDestroyPipeline(r->device, r->pipelines.offscreen_cursor_pipeline, NULL);
     if (r->pipelines.offscreen_blit_pipeline)   vkDestroyPipeline(r->device, r->pipelines.offscreen_blit_pipeline, NULL);
+    if (r->pipelines.fg_motion_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_motion_pipeline, NULL);
+    if (r->pipelines.fg_interp_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_interp_pipeline, NULL);
     if (r->pipelines.window_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.window_layout, NULL);
     if (r->pipelines.effect_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.effect_layout, NULL);
+    if (r->pipelines.fg_motion_pipe_layout) vkDestroyPipelineLayout(r->device, r->pipelines.fg_motion_pipe_layout, NULL);
+    if (r->pipelines.fg_interp_pipe_layout) vkDestroyPipelineLayout(r->device, r->pipelines.fg_interp_pipe_layout, NULL);
     if (r->pipelines.sampler_set_layout) vkDestroyDescriptorSetLayout(r->device, r->pipelines.sampler_set_layout, NULL);
+    if (r->pipelines.fg_motion_layout) vkDestroyDescriptorSetLayout(r->device, r->pipelines.fg_motion_layout, NULL);
+    if (r->pipelines.fg_interp_layout) vkDestroyDescriptorSetLayout(r->device, r->pipelines.fg_interp_layout, NULL);
     if (r->pipelines.swapchain_pass)  vkDestroyRenderPass(r->device, r->pipelines.swapchain_pass, NULL);
     if (r->pipelines.offscreen_pass)  vkDestroyRenderPass(r->device, r->pipelines.offscreen_pass, NULL);
     memset(&r->pipelines, 0, sizeof(r->pipelines));
@@ -1043,20 +1179,29 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     if (want != VK_PRESENT_MODE_FIFO_KHR) {
         uint32_t pm_count = 0;
         vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, NULL);
+        bool have_want = false, have_immediate = false;
         if (pm_count > 0) {
             VkPresentModeKHR* pms = calloc(pm_count, sizeof(VkPresentModeKHR));
             if (pms) {
                 vkGetPhysicalDeviceSurfacePresentModesKHR(r->physical_device, r->surface, &pm_count, pms);
                 for (uint32_t i = 0; i < pm_count; i++) {
-                    if (pms[i] == want) { present_mode = want; break; }
+                    if (pms[i] == want) have_want = true;
+                    if (pms[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) have_immediate = true;
                 }
                 free(pms);
             }
         }
-        if (present_mode != want) {
+        if (have_want) {
+            present_mode = want;
+        } else if (want == VK_PRESENT_MODE_MAILBOX_KHR && have_immediate) {
+            // MAILBOX is often unsupported on Adreno/Mali; IMMEDIATE is also non-blocking, which FG needs.
+            present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+            VK_LOGW("MAILBOX unavailable; using IMMEDIATE for off-vsync present");
+        } else {
             VK_LOGW("Requested present mode %d unavailable; using FIFO", want);
         }
     }
+    r->active_present_mode = present_mode;
 
     VkSurfaceTransformFlagBitsKHR pre_transform = caps.currentTransform;
     if (!is_plain_rotation_transform(pre_transform)
@@ -1097,11 +1242,13 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     // Only possible for unsupported mirrored transforms; avoid an Adreno present loop
     // while still letting normal rotation changes recreate the swapchain.
     r->ignore_suboptimal = r->caps.is_adreno && (pre_transform != caps.currentTransform);
-    VK_LOGI("Swapchain surface=%ux%u extent=%ux%u currentTransform=0x%x preTransform=0x%x",
+    VK_LOGI("Swapchain surface=%ux%u extent=%ux%u currentTransform=0x%x preTransform=0x%x mode=%d",
             surface_extent.width, surface_extent.height, extent.width, extent.height,
-            caps.currentTransform, pre_transform);
+            caps.currentTransform, pre_transform, present_mode);
 
     uint32_t image_count = caps.minImageCount + 1;
+    // Non-blocking modes (MAILBOX/IMMEDIATE) need >=3 images to run ahead of vblank.
+    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 3) image_count = 3;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -1750,6 +1897,125 @@ static VkExtent2D compute_sgsr1_source_extent(VkRenderer* r, const VkScene* s) {
     return source;
 }
 
+// (Re)build the effect ping-pong / SGSR1 targets for the current scene and report whether the
+// effect chain runs. Shared by the real present and the FG hold. Caller holds render_mutex.
+static SceneTargets manage_scene_targets(VkRenderer* r, const VkScene* snap) {
+    bool wants_sgsr1 = scene_starts_with_sgsr1(snap);
+    bool needs_fullres_offscreen = snap->effect_count > 0
+        && (!wants_sgsr1 || snap->effect_count > 1);
+    bool needs_second_offscreen = needs_fullres_offscreen
+        && snap->effect_count > (wants_sgsr1 ? 2u : 1u);
+    VkExtent2D sgsr1_source_extent = wants_sgsr1
+        ? compute_sgsr1_source_extent(r, snap)
+        : r->swapchain_extent;
+
+    bool offscreen_dims_stale = !r->offscreen_built
+        || r->offscreen[0].width != r->swapchain_extent.width
+        || r->offscreen[0].height != r->swapchain_extent.height;
+    bool second_present = r->offscreen[1].image != VK_NULL_HANDLE;
+    if (needs_fullres_offscreen) {
+        if (offscreen_dims_stale || (needs_second_offscreen && !second_present)) {
+            wait_inflight_frames(r);
+            create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height,
+                             needs_second_offscreen);
+        } else if (!needs_second_offscreen && second_present) {
+            wait_inflight_frames(r);  // chain no longer reaches offscreen[1]; reclaim it
+            destroy_one_offscreen(r, &r->offscreen[1]);
+        }
+    } else if (r->offscreen_built) {
+        wait_inflight_frames(r);
+        destroy_offscreen(r);
+    }
+    int sgsr1_dw = (int)r->sgsr1.width  - (int)sgsr1_source_extent.width;
+    int sgsr1_dh = (int)r->sgsr1.height - (int)sgsr1_source_extent.height;
+    if (sgsr1_dw < 0) sgsr1_dw = -sgsr1_dw;
+    if (sgsr1_dh < 0) sgsr1_dh = -sgsr1_dh;
+    bool sgsr1_dim_changed = r->sgsr1.built && (sgsr1_dw > 4 || sgsr1_dh > 4);
+    if (wants_sgsr1 && (!r->sgsr1.built || sgsr1_dim_changed)) {
+        wait_inflight_frames(r);
+        create_sgsr1_resources(r, sgsr1_source_extent.width, sgsr1_source_extent.height);
+    } else if (!wants_sgsr1 && r->sgsr1.built) {
+        wait_inflight_frames(r);
+        destroy_sgsr1_resources(r);
+    }
+
+    bool has_effects = snap->effect_count > 0 && r->offscreen_built;
+    if (snap->effect_count > 0) {
+        bool full_ok = !needs_fullres_offscreen
+            || (r->offscreen_built
+                && (!needs_second_offscreen || r->offscreen[1].image != VK_NULL_HANDLE));
+        has_effects = full_ok && (!wants_sgsr1 || r->sgsr1.built);
+    }
+    SceneTargets st = { has_effects, wants_sgsr1 };
+    return st;
+}
+
+// Record the composited scene into final_fb; final_offscreen picks the offscreen vs swapchain
+// pipeline variant. Used by the real present (swapchain) and the FG hold (history offscreen).
+static void record_scene_chain(VkRenderer* r, VkCommandBuffer cmd, const VkScene* snap,
+                               bool has_effects, bool wants_sgsr1,
+                               VkRenderPass final_pass, VkFramebuffer final_fb,
+                               uint32_t final_w, uint32_t final_h, bool final_offscreen) {
+    VkClearValue clear = {0};
+    clear.color.float32[3] = 1.0f;
+
+    if (has_effects) {
+        VkOffscreen* scene_target = (wants_sgsr1 && r->sgsr1.built)
+            ? &r->sgsr1.source
+            : &r->offscreen[0];
+
+        VkRenderPassBeginInfo rpbi = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        rpbi.renderPass = r->pipelines.offscreen_pass;
+        rpbi.framebuffer = scene_target->framebuffer;
+        rpbi.renderArea.extent.width = scene_target->width;
+        rpbi.renderArea.extent.height = scene_target->height;
+        rpbi.clearValueCount = 1;
+        rpbi.pClearValues = &clear;
+        vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+        draw_scene_pass(r, cmd, snap, true, scene_target->width, scene_target->height);
+        vkCmdEndRenderPass(cmd);
+
+        VkOffscreen* src_offscreen = scene_target;
+        uint32_t dst_idx = (scene_target == &r->offscreen[0]) ? 1u : 0u;
+        for (uint32_t i = 0; i < snap->effect_count; i++) {
+            bool last = (i == snap->effect_count - 1);
+            VkEffectSlot eff = snap->effects[i];
+            if (last) {
+                rpbi.renderPass = final_pass;
+                rpbi.framebuffer = final_fb;
+                rpbi.renderArea.extent.width = final_w;
+                rpbi.renderArea.extent.height = final_h;
+            } else {
+                rpbi.renderPass = r->pipelines.offscreen_pass;
+                rpbi.framebuffer = r->offscreen[dst_idx].framebuffer;
+                rpbi.renderArea.extent.width = r->offscreen[dst_idx].width;
+                rpbi.renderArea.extent.height = r->offscreen[dst_idx].height;
+            }
+            vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+            uint32_t target_w = last ? final_w : rpbi.renderArea.extent.width;
+            uint32_t target_h = last ? final_h : rpbi.renderArea.extent.height;
+            run_effect(r, cmd, &eff, src_offscreen->descriptor_set, target_w, target_h,
+                       last ? final_offscreen : true);
+            vkCmdEndRenderPass(cmd);
+            if (!last) {
+                src_offscreen = &r->offscreen[dst_idx];
+                dst_idx ^= 1u;
+            }
+        }
+    } else {
+        VkRenderPassBeginInfo rpbi = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        rpbi.renderPass = final_pass;
+        rpbi.framebuffer = final_fb;
+        rpbi.renderArea.extent.width = final_w;
+        rpbi.renderArea.extent.height = final_h;
+        rpbi.clearValueCount = 1;
+        rpbi.pClearValues = &clear;
+        vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+        draw_scene_pass(r, cmd, snap, final_offscreen, final_w, final_h);
+        vkCmdEndRenderPass(cmd);
+    }
+}
+
 static bool record_and_submit_frame(VkRenderer* r) {
     if (!r->surface_ready || !r->swapchain) return false;
 
@@ -1779,54 +2045,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pthread_mutex_unlock(&r->scene_mutex);
     destroy_graveyard_textures(r, dead, dead_count);
 
-    bool wants_sgsr1 = scene_starts_with_sgsr1(&snap);
-    bool needs_fullres_offscreen = snap.effect_count > 0
-        && (!wants_sgsr1 || snap.effect_count > 1);
-    // offscreen[1] is reached only once the chain writes two distinct offscreen buffers: the
-    // effect loop's dst_idx starts at 1 for a non-SGSR chain but at 0 for an SGSR1-led one
-    // (scene goes to the separate SGSR source), so the threshold is >1 normally, >2 for SGSR.
-    bool needs_second_offscreen = needs_fullres_offscreen
-        && snap.effect_count > (wants_sgsr1 ? 2u : 1u);
-    VkExtent2D sgsr1_source_extent = wants_sgsr1
-        ? compute_sgsr1_source_extent(r, &snap)
-        : r->swapchain_extent;
-
-    // Full-res ping-pong targets exist only when the chain needs them (SGSR-only writes its
-    // low-res source straight to the swapchain). offscreen[1] is grown/freed lazily as the
-    // chain crosses the threshold above; effect counts change on user action, not per frame,
-    // so this doesn't thrash. Safe under render_mutex (no concurrent swapchain teardown).
-    bool offscreen_dims_stale = !r->offscreen_built
-        || r->offscreen[0].width != r->swapchain_extent.width
-        || r->offscreen[0].height != r->swapchain_extent.height;
-    bool second_present = r->offscreen[1].image != VK_NULL_HANDLE;
-    if (needs_fullres_offscreen) {
-        if (offscreen_dims_stale || (needs_second_offscreen && !second_present)) {
-            wait_inflight_frames(r);
-            create_offscreen(r, r->swapchain_extent.width, r->swapchain_extent.height,
-                             needs_second_offscreen);
-        } else if (!needs_second_offscreen && second_present) {
-            wait_inflight_frames(r);  // chain no longer reaches offscreen[1]; reclaim it
-            destroy_one_offscreen(r, &r->offscreen[1]);
-        }
-    } else if (r->offscreen_built) {
-        wait_inflight_frames(r);
-        destroy_offscreen(r);
-    }
-    // Only rebuild SGSR1 source on meaningful dim change. Tiny pixmap-size flicker (off-by-
-    // one DRI3 jitter, transient resizes) used to thrash this allocation every frame and
-    // stall the render thread on the full-device wait that preceded it.
-    int sgsr1_dw = (int)r->sgsr1.width  - (int)sgsr1_source_extent.width;
-    int sgsr1_dh = (int)r->sgsr1.height - (int)sgsr1_source_extent.height;
-    if (sgsr1_dw < 0) sgsr1_dw = -sgsr1_dw;
-    if (sgsr1_dh < 0) sgsr1_dh = -sgsr1_dh;
-    bool sgsr1_dim_changed = r->sgsr1.built && (sgsr1_dw > 4 || sgsr1_dh > 4);
-    if (wants_sgsr1 && (!r->sgsr1.built || sgsr1_dim_changed)) {
-        wait_inflight_frames(r);
-        create_sgsr1_resources(r, sgsr1_source_extent.width, sgsr1_source_extent.height);
-    } else if (!wants_sgsr1 && r->sgsr1.built) {
-        wait_inflight_frames(r);
-        destroy_sgsr1_resources(r);
-    }
+    SceneTargets st = manage_scene_targets(r, &snap);
 
     uint32_t image_index = 0;
     VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, UINT64_MAX,
@@ -1856,80 +2075,9 @@ static bool record_and_submit_frame(VkRenderer* r) {
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f->cmd, &bi);
 
-    bool has_effects = snap.effect_count > 0 && r->offscreen_built;
-    if (snap.effect_count > 0) {
-        // Don't enter the effect path if a required target's lazy creation failed (else we'd
-        // record into a null framebuffer).
-        bool full_ok = !needs_fullres_offscreen
-            || (r->offscreen_built
-                && (!needs_second_offscreen || r->offscreen[1].image != VK_NULL_HANDLE));
-        has_effects = full_ok && (!wants_sgsr1 || r->sgsr1.built);
-    }
-
-    VkClearValue clear = {0};
-    clear.color.float32[0] = 0.0f;
-    clear.color.float32[1] = 0.0f;
-    clear.color.float32[2] = 0.0f;
-    clear.color.float32[3] = 1.0f;
-
-    if (has_effects) {
-        VkOffscreen* scene_target = (wants_sgsr1 && r->sgsr1.built)
-            ? &r->sgsr1.source
-            : &r->offscreen[0];
-
-        // Pass 1: render scene to either full-res effect input or SGSR1's low-res source.
-        VkRenderPassBeginInfo rpbi = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        rpbi.renderPass = r->pipelines.offscreen_pass;
-        rpbi.framebuffer = scene_target->framebuffer;
-        rpbi.renderArea.extent.width = scene_target->width;
-        rpbi.renderArea.extent.height = scene_target->height;
-        rpbi.clearValueCount = 1;
-        rpbi.pClearValues = &clear;
-        vkCmdBeginRenderPass(f->cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-        draw_scene_pass(r, f->cmd, &snap, true,
-                        scene_target->width, scene_target->height);
-        vkCmdEndRenderPass(f->cmd);
-
-        // Effect chain: source descriptor moves through ping-pong buffers. When SGSR1 is
-        // first, the first source is low-res and SGSR1 writes full-res output.
-        VkOffscreen* src_offscreen = scene_target;
-        uint32_t dst_idx = (scene_target == &r->offscreen[0]) ? 1u : 0u;
-        for (uint32_t i = 0; i < snap.effect_count; i++) {
-            bool last = (i == snap.effect_count - 1);
-            VkEffectSlot* eff = &snap.effects[i];
-
-            if (last) {
-                rpbi.renderPass = r->pipelines.swapchain_pass;
-                rpbi.framebuffer = r->swapchain_framebuffers[image_index];
-                rpbi.renderArea.extent = r->swapchain_extent;
-            } else {
-                rpbi.renderPass = r->pipelines.offscreen_pass;
-                rpbi.framebuffer = r->offscreen[dst_idx].framebuffer;
-                rpbi.renderArea.extent.width = r->offscreen[dst_idx].width;
-                rpbi.renderArea.extent.height = r->offscreen[dst_idx].height;
-            }
-            vkCmdBeginRenderPass(f->cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-            uint32_t target_w = last ? r->swapchain_extent.width : rpbi.renderArea.extent.width;
-            uint32_t target_h = last ? r->swapchain_extent.height : rpbi.renderArea.extent.height;
-            run_effect(r, f->cmd, eff, src_offscreen->descriptor_set, target_w, target_h, !last);
-            vkCmdEndRenderPass(f->cmd);
-            if (!last) {
-                src_offscreen = &r->offscreen[dst_idx];
-                dst_idx ^= 1u;
-            }
-        }
-    } else {
-        VkRenderPassBeginInfo rpbi = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        rpbi.renderPass = r->pipelines.swapchain_pass;
-        rpbi.framebuffer = r->swapchain_framebuffers[image_index];
-        rpbi.renderArea.extent = r->swapchain_extent;
-        rpbi.clearValueCount = 1;
-        rpbi.pClearValues = &clear;
-        vkCmdBeginRenderPass(f->cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-        draw_scene_pass(r, f->cmd, &snap, false,
-                        r->swapchain_extent.width, r->swapchain_extent.height);
-        vkCmdEndRenderPass(f->cmd);
-    }
+    record_scene_chain(r, f->cmd, &snap, st.has_effects, st.wants_sgsr1,
+                       r->pipelines.swapchain_pass, r->swapchain_framebuffers[image_index],
+                       r->swapchain_extent.width, r->swapchain_extent.height, false);
 
     vkEndCommandBuffer(f->cmd);
 
@@ -1970,6 +2118,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     pthread_mutex_lock(&r->queue_mutex);
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pi);
+    if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) r->fg_present_count++;
     pthread_mutex_unlock(&r->queue_mutex);
 
     bool present_suboptimal = (pr == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
@@ -1991,6 +2140,451 @@ static bool record_and_submit_frame(VkRenderer* r) {
 }
 
 // ============================================================
+// Frame generation resources + submit
+// ============================================================
+
+// Descriptor sets for the FG compute/interp layouts are allocated directly (not via the
+// texture free-list, which assumes sampler_set_layout). The pool is externally synchronized.
+static VkDescriptorSet fg_alloc_set(VkRenderer* r, VkDescriptorSetLayout layout) {
+    VkDescriptorSetAllocateInfo ai = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    ai.descriptorPool = r->descriptor_pool;
+    ai.descriptorSetCount = 1;
+    ai.pSetLayouts = &layout;
+    VkDescriptorSet set = VK_NULL_HANDLE;
+    pthread_mutex_lock(&r->descriptor_mutex);
+    VkResult res = vkAllocateDescriptorSets(r->device, &ai, &set);
+    pthread_mutex_unlock(&r->descriptor_mutex);
+    if (res != VK_SUCCESS) { VK_LOGE("fg_alloc_set failed: %d", res); return VK_NULL_HANDLE; }
+    return set;
+}
+
+static void fg_free_set(VkRenderer* r, VkDescriptorSet set) {
+    if (set == VK_NULL_HANDLE) return;
+    pthread_mutex_lock(&r->descriptor_mutex);
+    vkFreeDescriptorSets(r->device, r->descriptor_pool, 1, &set);
+    pthread_mutex_unlock(&r->descriptor_mutex);
+}
+
+static void fg_destroy_resources(VkRenderer* r) {
+    if (!r->device) return;
+    for (uint32_t p = 0; p < 2; p++) {
+        if (r->fg_motion_set[p]) { fg_free_set(r, r->fg_motion_set[p]); r->fg_motion_set[p] = VK_NULL_HANDLE; }
+        if (r->fg_interp_set[p]) { fg_free_set(r, r->fg_interp_set[p]); r->fg_interp_set[p] = VK_NULL_HANDLE; }
+    }
+    for (uint32_t i = 0; i < 2; i++) {
+        VkFgImage* o = &r->fg_history[i];
+        if (o->blit_set)    vkr_free_descriptor_set(r, o->blit_set);
+        if (o->framebuffer) vkDestroyFramebuffer(r->device, o->framebuffer, NULL);
+        if (o->view)        vkDestroyImageView(r->device, o->view, NULL);
+        if (o->image)       vkDestroyImage(r->device, o->image, NULL);
+        if (o->memory)      vkFreeMemory(r->device, o->memory, NULL);
+        memset(o, 0, sizeof(*o));
+    }
+    if (r->fg_motion.view)   vkDestroyImageView(r->device, r->fg_motion.view, NULL);
+    if (r->fg_motion.image)  vkDestroyImage(r->device, r->fg_motion.image, NULL);
+    if (r->fg_motion.memory) vkFreeMemory(r->device, r->fg_motion.memory, NULL);
+    memset(&r->fg_motion, 0, sizeof(r->fg_motion));
+    if (r->fg_sampler) { vkDestroySampler(r->device, r->fg_sampler, NULL); r->fg_sampler = VK_NULL_HANDLE; }
+    r->fg_built = false;
+    r->fg_history_count = 0;
+    r->fg_history_curr = 0;
+    r->fg_dims.width = 0;
+    r->fg_dims.height = 0;
+}
+
+// Full-res composited-scene history target: render target (offscreen_pass) + sampled input.
+static bool fg_create_color_target(VkRenderer* r, VkFgImage* o, uint32_t w, uint32_t h) {
+    o->width = w; o->height = h;
+    VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ic.imageType = VK_IMAGE_TYPE_2D;
+    ic.format = r->caps.offscreen_format;
+    ic.extent.width = w; ic.extent.height = h; ic.extent.depth = 1;
+    ic.mipLevels = 1; ic.arrayLayers = 1;
+    ic.samples = VK_SAMPLE_COUNT_1_BIT;
+    ic.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ic.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vkCreateImage(r->device, &ic, NULL, &o->image) != VK_SUCCESS) return false;
+
+    VkMemoryRequirements mr; vkGetImageMemoryRequirements(r->device, o->image, &mr);
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize = mr.size;
+    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX) return false;
+    if (vkAllocateMemory(r->device, &ai, NULL, &o->memory) != VK_SUCCESS) return false;
+    vkBindImageMemory(r->device, o->image, o->memory, 0);
+
+    VkImageViewCreateInfo vi = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    vi.image = o->image; vi.viewType = VK_IMAGE_VIEW_TYPE_2D; vi.format = ic.format;
+    vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    vi.subresourceRange.levelCount = 1; vi.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(r->device, &vi, NULL, &o->view) != VK_SUCCESS) return false;
+
+    VkFramebufferCreateInfo fb = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    fb.renderPass = r->pipelines.offscreen_pass;
+    fb.attachmentCount = 1; fb.pAttachments = &o->view;
+    fb.width = w; fb.height = h; fb.layers = 1;
+    if (vkCreateFramebuffer(r->device, &fb, NULL, &o->framebuffer) != VK_SUCCESS) return false;
+
+    // Single-binding set (sampler_set_layout) so PRESENT_LAST can reuse the blit pipeline.
+    o->blit_set = vkr_alloc_descriptor_set(r);
+    if (o->blit_set == VK_NULL_HANDLE) return false;
+    VkDescriptorImageInfo dii = { r->fg_sampler, o->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+    VkWriteDescriptorSet wr = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    wr.dstSet = o->blit_set; wr.dstBinding = 0; wr.descriptorCount = 1;
+    wr.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; wr.pImageInfo = &dii;
+    vkUpdateDescriptorSets(r->device, 1, &wr, 0, NULL);
+    return true;
+}
+
+// Half-res rgba16f backward-flow field: storage (motion.comp write) + sampled (interpolate.frag).
+static bool fg_create_motion(VkRenderer* r, uint32_t w, uint32_t h) {
+    VkFgImage* o = &r->fg_motion;
+    o->width = w; o->height = h; o->framebuffer = VK_NULL_HANDLE;
+    VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ic.imageType = VK_IMAGE_TYPE_2D;
+    ic.format = VK_FORMAT_R16G16B16A16_SFLOAT;   // mandatory storage format (no extended-format feature)
+    ic.extent.width = w; ic.extent.height = h; ic.extent.depth = 1;
+    ic.mipLevels = 1; ic.arrayLayers = 1;
+    ic.samples = VK_SAMPLE_COUNT_1_BIT;
+    ic.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ic.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vkCreateImage(r->device, &ic, NULL, &o->image) != VK_SUCCESS) return false;
+
+    VkMemoryRequirements mr; vkGetImageMemoryRequirements(r->device, o->image, &mr);
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize = mr.size;
+    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX) return false;
+    if (vkAllocateMemory(r->device, &ai, NULL, &o->memory) != VK_SUCCESS) return false;
+    vkBindImageMemory(r->device, o->image, o->memory, 0);
+
+    VkImageViewCreateInfo vi = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    vi.image = o->image; vi.viewType = VK_IMAGE_VIEW_TYPE_2D; vi.format = ic.format;
+    vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    vi.subresourceRange.levelCount = 1; vi.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(r->device, &vi, NULL, &o->view) != VK_SUCCESS) return false;
+    return true;
+}
+
+static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
+    VkSamplerCreateInfo si = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    si.magFilter = VK_FILTER_LINEAR; si.minFilter = VK_FILTER_LINEAR;
+    si.addressModeU = si.addressModeV = si.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    if (vkCreateSampler(r->device, &si, NULL, &r->fg_sampler) != VK_SUCCESS) goto fail;
+
+    if (!fg_create_color_target(r, &r->fg_history[0], w, h)) goto fail;
+    if (!fg_create_color_target(r, &r->fg_history[1], w, h)) goto fail;
+    if (!fg_create_motion(r, (w / 2) ? (w / 2) : 1u, (h / 2) ? (h / 2) : 1u)) goto fail;
+
+    for (uint32_t p = 0; p < 2; p++) {
+        r->fg_motion_set[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
+        r->fg_interp_set[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
+        if (!r->fg_motion_set[p] || !r->fg_interp_set[p]) goto fail;
+
+        VkImageView prevV = r->fg_history[1u - p].view;  // parity p => curr=history[p], prev=history[1-p]
+        VkImageView currV = r->fg_history[p].view;
+
+        // motion.comp set: b0 prev (sampled), b1 curr (sampled), b2 motion (storage, GENERAL)
+        VkDescriptorImageInfo mPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo mCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo mMv   = { VK_NULL_HANDLE, r->fg_motion.view, VK_IMAGE_LAYOUT_GENERAL };
+        VkWriteDescriptorSet mw_[3] = {0};
+        for (int b = 0; b < 3; b++) { mw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; mw_[b].dstSet = r->fg_motion_set[p]; mw_[b].dstBinding = (uint32_t)b; mw_[b].descriptorCount = 1; }
+        mw_[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; mw_[0].pImageInfo = &mPrev;
+        mw_[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; mw_[1].pImageInfo = &mCurr;
+        mw_[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;          mw_[2].pImageInfo = &mMv;
+        vkUpdateDescriptorSets(r->device, 3, mw_, 0, NULL);
+
+        // interpolate.frag set: b0 prev, b1 curr, b2 motion — all sampled (SHADER_READ).
+        VkDescriptorImageInfo iPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iMv   = { r->fg_sampler, r->fg_motion.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkWriteDescriptorSet iw_[3] = {0};
+        for (int b = 0; b < 3; b++) { iw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; iw_[b].dstSet = r->fg_interp_set[p]; iw_[b].dstBinding = (uint32_t)b; iw_[b].descriptorCount = 1; iw_[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; }
+        iw_[0].pImageInfo = &iPrev; iw_[1].pImageInfo = &iCurr; iw_[2].pImageInfo = &iMv;
+        vkUpdateDescriptorSets(r->device, 3, iw_, 0, NULL);
+    }
+
+    r->fg_dims.width = w; r->fg_dims.height = h;
+    r->fg_history_curr = 0;
+    r->fg_history_count = 0;
+    r->fg_motion_valid = false;   // freshly created motion image — force a recompute before reuse
+    r->fg_built = true;
+    return true;
+
+fail:
+    VK_LOGE("fg_create_resources failed (%ux%u)", w, h);
+    fg_destroy_resources(r);
+    return false;
+}
+
+// Build/rebuild FG images for the current swapchain extent. Caller holds render_mutex.
+static bool fg_ensure_resources(VkRenderer* r) {
+    if (r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0) return false;
+    if (!r->pipelines_built) return false;
+    if (r->fg_built
+        && r->fg_dims.width == r->swapchain_extent.width
+        && r->fg_dims.height == r->swapchain_extent.height) {
+        return true;
+    }
+    wait_inflight_frames(r);
+    fg_destroy_resources(r);
+    return fg_create_resources(r, r->swapchain_extent.width, r->swapchain_extent.height);
+}
+
+// Restore a frame fence to the signaled state after a submit failure (so the next frame that
+// reuses this index does not block forever on an unsignaled fence).
+static void fg_restore_fence(VkRenderer* r, VkFrame* f) {
+    vkDestroyFence(r->device, f->in_flight, NULL);
+    VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    if (vkCreateFence(r->device, &rfi, NULL, &f->in_flight) != VK_SUCCESS) {
+        f->in_flight = VK_NULL_HANDLE;
+        VK_LOGE("Failed to recreate frame fence after FG submit failure");
+    }
+}
+
+// Diagnostic cadence counters (render-thread only). Logged ~once/sec to verify FG is producing
+// ~2 presents (interp + held real) per engine frame (hold). Cheap; safe to leave in.
+static uint64_t g_fg_holds = 0;
+static uint64_t g_fg_interp = 0;
+static uint64_t g_fg_plast = 0;
+
+// FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
+// presents an in-between frame; PRESENT_LAST presents the held real frame. Fully serialized.
+static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
+    if (!r->surface_ready || !r->swapchain) return false;
+    pthread_mutex_lock(&r->render_mutex);
+    if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
+        || r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0
+        || !r->pipelines_built) {
+        pthread_mutex_unlock(&r->render_mutex);
+        return false;
+    }
+
+    VkFrame* f = &r->frames[r->frame_index];
+    vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
+
+    if (!fg_ensure_resources(r)) { pthread_mutex_unlock(&r->render_mutex); return false; }
+
+    // Drain: the 2-slot history ring is written by HOLD and read by INTERP; serialize to avoid aliasing.
+    wait_inflight_frames(r);
+
+    VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    // -------- HOLD: render composited scene into history[curr'] (no present) --------
+    if (mode == FG_MODE_HOLD) {
+        VkScene snap;
+        VkTexture** dead = NULL; uint32_t dead_count = 0;
+        pthread_mutex_lock(&r->scene_mutex);
+        snap = r->scene;
+        detach_graveyard_slot(r, r->graveyard_index, &dead, &dead_count);
+        pthread_mutex_unlock(&r->scene_mutex);
+        destroy_graveyard_textures(r, dead, dead_count);
+
+        SceneTargets st = manage_scene_targets(r, &snap);
+        uint32_t next = r->fg_history_curr ^ 1u;
+        VkFgImage* hist = &r->fg_history[next];
+
+        vkResetFences(r->device, 1, &f->in_flight);
+        vkBeginCommandBuffer(f->cmd, &bi);
+        record_scene_chain(r, f->cmd, &snap, st.has_effects, st.wants_sgsr1,
+                           r->pipelines.offscreen_pass, hist->framebuffer,
+                           hist->width, hist->height, true);
+        vkEndCommandBuffer(f->cmd);
+
+        VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        si.commandBufferCount = 1; si.pCommandBuffers = &f->cmd;
+        pthread_mutex_lock(&r->queue_mutex);
+        VkResult sr = vkQueueSubmit(r->graphics_queue, 1, &si, f->in_flight);
+        pthread_mutex_unlock(&r->queue_mutex);
+        if (sr != VK_SUCCESS) {
+            VK_LOGE("fg HOLD submit -> %d", sr);
+            fg_restore_fence(r, f);
+            pthread_mutex_unlock(&r->render_mutex);
+            return false;
+        }
+        r->fg_history_curr = next;
+        if (r->fg_history_count < 2) r->fg_history_count++;
+        r->fg_motion_valid = false;   // new history pair — flow must be recomputed on the next interp
+        g_fg_holds++;
+        pthread_mutex_unlock(&r->render_mutex);
+        r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
+        r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
+        return true;
+    }
+
+    // -------- INTERP / PRESENT_LAST: acquire swapchain image, present --------
+    bool do_interp = (mode == FG_MODE_INTERP) && (r->fg_history_count >= 2);
+
+    // Interps are optional: under a non-blocking mode acquire without waiting, so a panel that can't run
+    // ahead skips the synthetic frame instead of stalling. PRESENT_LAST always blocks (never dropped).
+    uint64_t acq_timeout = (do_interp && r->active_present_mode != VK_PRESENT_MODE_FIFO_KHR)
+        ? 0u : UINT64_MAX;
+    uint32_t image_index = 0;
+    VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, acq_timeout,
+                                         f->image_available, VK_NULL_HANDLE, &image_index);
+    bool recreate_after_present = false;
+    if (acq == VK_NOT_READY || acq == VK_TIMEOUT) {
+        // No free image right now — drop this interpolated frame (not an error).
+        pthread_mutex_unlock(&r->render_mutex);
+        return false;
+    }
+    if (acq == VK_ERROR_OUT_OF_DATE_KHR) {
+        r->surface_ready = false;
+        pthread_mutex_lock(&r->queue_mutex); vkQueueWaitIdle(r->graphics_queue); pthread_mutex_unlock(&r->queue_mutex);
+        fg_destroy_resources(r);
+        destroy_swapchain_resources(r);
+        r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
+        pthread_mutex_unlock(&r->render_mutex);
+        return false;
+    } else if (acq == VK_SUBOPTIMAL_KHR) {
+        if (!r->ignore_suboptimal) recreate_after_present = true;
+    } else if (acq != VK_SUCCESS) {
+        VK_LOGE("fg acquire -> %d", acq);
+        pthread_mutex_unlock(&r->render_mutex);
+        return false;
+    }
+    VkSemaphore render_finished = r->swapchain_render_finished[image_index];
+    vkResetFences(r->device, 1, &f->in_flight);
+
+    uint32_t parity = r->fg_history_curr;
+    VkFgImage* curr = &r->fg_history[parity];
+
+    vkBeginCommandBuffer(f->cmd, &bi);
+
+    if (do_interp) {
+        VkFgImage* prev = &r->fg_history[parity ^ 1u];
+        // Make the HOLD color writes visible to the reads below (compute when recomputing flow,
+        // else just the fragment interp draw).
+        VkPipelineStageFlags hist_dst = r->fg_motion_valid
+            ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        vkr_image_barrier(f->cmd, prev->image,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        vkr_image_barrier(f->cmd, curr->image,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        if (!r->fg_motion_valid) {
+            // motion field -> GENERAL, dispatch block matching.
+            vkr_image_barrier(f->cmd, r->fg_motion.image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                0, VK_ACCESS_SHADER_WRITE_BIT);
+            vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipeline);
+            vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+                r->pipelines.fg_motion_pipe_layout, 0, 1, &r->fg_motion_set[parity], 0, NULL);
+            struct { int32_t mvW, mvH; float invW, invH, mvScale, minStep, p1, p2; } mpc;
+            mpc.mvW = (int32_t)r->fg_motion.width;  mpc.mvH = (int32_t)r->fg_motion.height;
+            mpc.invW = 1.0f / (float)r->fg_motion.width;
+            mpc.invH = 1.0f / (float)r->fg_motion.height;
+            mpc.mvScale = 1.0f; mpc.minStep = (float)r->fg_min_step; mpc.p1 = mpc.p2 = 0.0f;
+            vkCmdPushConstants(f->cmd, r->pipelines.fg_motion_pipe_layout, VK_SHADER_STAGE_COMPUTE_BIT,
+                               0, sizeof(mpc), &mpc);
+            vkCmdDispatch(f->cmd, (r->fg_motion.width + 7u) / 8u, (r->fg_motion.height + 7u) / 8u, 1);
+            // motion field -> SHADER_READ for the interpolation draw.
+            vkr_image_barrier(f->cmd, r->fg_motion.image,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            r->fg_motion_valid = true;
+        } else {
+            // Flow reused from this pair's first interp (multi-frame 4x/6x). Re-establish the
+            // compute-write -> fragment-read dependency in this submit; no layout change.
+            vkr_image_barrier(f->cmd, r->fg_motion.image,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        }
+    }
+
+    VkClearValue clear = {0};
+    clear.color.float32[3] = 1.0f;
+    VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    rp.renderPass = r->pipelines.swapchain_pass;
+    rp.framebuffer = r->swapchain_framebuffers[image_index];
+    rp.renderArea.extent = r->swapchain_extent;
+    rp.clearValueCount = 1; rp.pClearValues = &clear;
+    vkCmdBeginRenderPass(f->cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport vp = {0, 0, (float)r->swapchain_extent.width, (float)r->swapchain_extent.height, 0.0f, 1.0f};
+    VkRect2D scis = {{0, 0}, r->swapchain_extent};
+    vkCmdSetViewport(f->cmd, 0, 1, &vp);
+    vkCmdSetScissor(f->cmd, 0, 1, &scis);
+
+    if (do_interp) {
+        vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.fg_interp_pipeline);
+        vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            r->pipelines.fg_interp_pipe_layout, 0, 1, &r->fg_interp_set[parity], 0, NULL);
+        struct { float resW, resH, phase, occLo, occHi, pad; } ipc;
+        ipc.resW = (float)r->swapchain_extent.width; ipc.resH = (float)r->swapchain_extent.height;
+        ipc.phase = phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi; ipc.pad = 0.0f;
+        vkCmdPushConstants(f->cmd, r->pipelines.fg_interp_pipe_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0, sizeof(ipc), &ipc);
+        vkCmdDraw(f->cmd, 3, 1, 0, 0);
+    } else {
+        // PRESENT_LAST or interp-not-ready fallback: blit the latest real frame.
+        vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.blit_pipeline);
+        vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            r->pipelines.effect_layout, 0, 1, &curr->blit_set, 0, NULL);
+        vkCmdDraw(f->cmd, 3, 1, 0, 0);
+    }
+    vkCmdEndRenderPass(f->cmd);
+    vkEndCommandBuffer(f->cmd);
+
+    VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    si.waitSemaphoreCount = 1; si.pWaitSemaphores = &f->image_available;
+    si.pWaitDstStageMask = &wait_stage;
+    si.commandBufferCount = 1; si.pCommandBuffers = &f->cmd;
+    si.signalSemaphoreCount = 1; si.pSignalSemaphores = &render_finished;
+    pthread_mutex_lock(&r->queue_mutex);
+    VkResult sr = vkQueueSubmit(r->graphics_queue, 1, &si, f->in_flight);
+    pthread_mutex_unlock(&r->queue_mutex);
+    if (sr != VK_SUCCESS) {
+        VK_LOGE("fg present submit -> %d", sr);
+        fg_restore_fence(r, f);
+        pthread_mutex_unlock(&r->render_mutex);
+        return false;
+    }
+
+    VkPresentInfoKHR pinfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    pinfo.waitSemaphoreCount = 1; pinfo.pWaitSemaphores = &render_finished;
+    pinfo.swapchainCount = 1; pinfo.pSwapchains = &r->swapchain; pinfo.pImageIndices = &image_index;
+    pthread_mutex_lock(&r->queue_mutex);
+    VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pinfo);
+    if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) {
+        r->fg_present_count++;
+        if (do_interp) g_fg_interp++; else g_fg_plast++;
+        if (((g_fg_interp + g_fg_plast) % 120u) == 0u) {
+            VK_LOGI("FG cadence: holds=%llu interp=%llu presentLast=%llu presents=%llu",
+                    (unsigned long long)g_fg_holds, (unsigned long long)g_fg_interp,
+                    (unsigned long long)g_fg_plast, (unsigned long long)r->fg_present_count);
+        }
+    }
+    pthread_mutex_unlock(&r->queue_mutex);
+
+    bool present_suboptimal = (pr == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
+    if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR || present_suboptimal) {
+        r->surface_ready = false;
+        pthread_mutex_lock(&r->queue_mutex); vkQueueWaitIdle(r->graphics_queue); pthread_mutex_unlock(&r->queue_mutex);
+        fg_destroy_resources(r);
+        destroy_swapchain_resources(r);
+        r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
+    }
+    pthread_mutex_unlock(&r->render_mutex);
+    r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
+    return true;
+}
+
+// ============================================================
 // JNI entry points
 // ============================================================
 
@@ -2004,6 +2598,10 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
     r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    r->active_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    r->fg_occ_lo = 0.06f;
+    r->fg_occ_hi = 0.25f;
+    r->fg_min_step = 1;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);
@@ -2085,6 +2683,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     free(r->batch_entry_scratch);
     free(r->batch_prepared_scratch);
 
+    fg_destroy_resources(r);
     destroy_sgsr1_resources(r);
     destroy_offscreen(r);
     destroy_swapchain(r);
@@ -2227,6 +2826,83 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderFrame)(JNIEnv* env, jclass clazz, 
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
     return record_and_submit_frame(r) ? JNI_TRUE : JNI_FALSE;
+}
+
+// ---- Frame generation JNI ----
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGeneration)(JNIEnv* env, jclass clazz, jlong handle, jboolean enabled) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    r->fg_enabled = (enabled == JNI_TRUE);
+    VK_LOGI("Frame generation %s (fp16=%d)", r->fg_enabled ? "ENABLED" : "disabled", r->fg_float16_supported);
+}
+
+// Present mode actually in use (Java convention: 0 FIFO, 1 MAILBOX, 2 IMMEDIATE). FG uses this to
+// know whether presents are non-blocking — only then may it post above the panel's idle refresh.
+JNIEXPORT jint JNICALL JNI_FN(nativeGetActivePresentMode)(JNIEnv* env, jclass clazz, jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return 0;
+    switch (r->active_present_mode) {
+        case VK_PRESENT_MODE_MAILBOX_KHR:   return 1;
+        case VK_PRESENT_MODE_IMMEDIATE_KHR: return 2;
+        default:                            return 0;
+    }
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativeFrameGenerationSupported)(JNIEnv* env, jclass clazz, jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    // Compute + rgba16f storage are universal on Vulkan 1.1 Android GPUs, and the fp32 motion
+    // shader covers devices without shaderFloat16, so FG is effectively always available.
+    return (r != NULL) ? JNI_TRUE : JNI_FALSE;
+}
+
+// Monotonic count of actual vkQueuePresentKHR calls (real + interpolated). The HUD derives
+// Display FPS from deltas of this; Engine FPS stays on the X11-Present path in Java.
+JNIEXPORT jlong JNICALL JNI_FN(nativeGetDisplayFrameCount)(JNIEnv* env, jclass clazz, jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return 0;
+    pthread_mutex_lock(&r->queue_mutex);
+    uint64_t c = r->fg_present_count;
+    pthread_mutex_unlock(&r->queue_mutex);
+    return (jlong)c;
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r || !r->surface_ready) return JNI_FALSE;
+    return fg_submit(r, FG_MODE_HOLD, 0.5f) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r || !r->surface_ready) return JNI_FALSE;
+    return fg_submit(r, FG_MODE_INTERP, (float)phase) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL JNI_FN(nativePresentLast)(JNIEnv* env, jclass clazz, jlong handle) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r || !r->surface_ready) return JNI_FALSE;
+    return fg_submit(r, FG_MODE_PRESENT_LAST, 0.5f) ? JNI_TRUE : JNI_FALSE;
+}
+
+// Live FG knobs: occLo/occHi = interp consistency window (smoothness), minStep = motion search floor.
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenParams)(JNIEnv* env, jclass clazz, jlong handle,
+                                                       jfloat occLo, jfloat occHi, jint minStep) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    float lo = occLo > 0.0f ? occLo : 0.06f;
+    float hi = occHi > lo ? occHi : (lo + 0.1f);
+    r->fg_occ_lo = lo;
+    r->fg_occ_hi = hi;
+    r->fg_min_step = minStep < 1 ? 1 : (minStep > 8 ? 8 : minStep);
 }
 
 // Scene byte buffer layout (must mirror VulkanRenderer.java offsets). Native-endian, packed.

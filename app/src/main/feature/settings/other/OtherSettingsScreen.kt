@@ -105,6 +105,7 @@ data class OtherSettingsState(
     val cursorSpeedPercent: Int = 100,
     val cursorLock: Boolean = false,
     val xinputDisabled: Boolean = false,
+    val nativeFrameGen: Boolean = false,
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
@@ -147,6 +148,7 @@ fun OtherSettingsScreen(
     onCursorSpeedChanged: (Int) -> Unit,
     onCursorLockChanged: (Boolean) -> Unit,
     onXinputDisabledChanged: (Boolean) -> Unit,
+    onNativeFrameGenChanged: (Boolean) -> Unit,
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
@@ -275,6 +277,16 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.SportsEsports,
                 checked = state.xinputDisabled,
                 onCheckedChange = onXinputDisabledChanged,
+            )
+        }
+
+        item(key = "native_frame_gen_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_other_frame_gen_title),
+                subtitle = stringResource(R.string.settings_other_frame_gen_summary),
+                icon = Icons.Outlined.Speed,
+                checked = state.nativeFrameGen,
+                onCheckedChange = onNativeFrameGenChanged,
             )
         }
 

@@ -1,0 +1,111 @@
+#version 450
+
+// Half-res luma block-matching (three-step search) → backward flow field (curr->prev)
+// consumed by interpolate.frag. fp16 deltas, fp32 cost accumulation. Needs shaderFloat16.
+
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler2D prevFrame;  // frame N-1 (full res, SHADER_READ_ONLY)
+layout(set = 0, binding = 1) uniform sampler2D currFrame;  // frame N   (full res, SHADER_READ_ONLY)
+// rgba16f (not rg16f) is a *mandatory* storage-image format, so this avoids
+// requiring the shaderStorageImageExtendedFormats device feature. Only .xy is used.
+layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D motionField; // half res, STORAGE
+
+layout(push_constant) uniform PC {
+    ivec2 mvSize;     // motionField dimensions (~= frameSize / 2)
+    vec2  invMvSize;  // 1.0 / mvSize, for normalized texture sampling
+    float mvScale;    // scales the stored vector (normally 1.0)
+    float minStep;    // lowest TSS step (quality preset): 1 = full search, larger = coarser/faster
+    float _pad1;
+    float _pad2;
+} pc;
+
+// ---- Search / tiling parameters (compile-time so the LDS tiles can be sized) ----
+const int LS   = 8;   // == local_size_x/y
+const int BR   = 2;   // block radius -> (2*BR+1)^2 = 25-tap SSD window
+const int RMAX = 15;  // max displacement reachable by TSS steps 8+4+2+1
+
+const int TILE_P = LS + 2 * (RMAX + BR); // prev tile side = 8 + 34 = 42
+const int TILE_C = LS + 2 * BR;          // curr tile side = 8 +  4 = 12
+
+shared float16_t sPrev[TILE_P * TILE_P]; // ~3.5 KB
+shared float16_t sCurr[TILE_C * TILE_C]; // ~0.3 KB
+
+float16_t luma(vec3 c) {
+    return float16_t(dot(c, vec3(0.299, 0.587, 0.114)));
+}
+
+// SSD between the curr block at this work item and the prev block displaced by d.
+// All reads stay inside the cached tiles by construction (see index ranges below).
+float blockCost(ivec2 l, ivec2 cCenter, ivec2 d) {
+    float cost = 0.0;
+    for (int by = -BR; by <= BR; ++by) {
+        for (int bx = -BR; bx <= BR; ++bx) {
+            ivec2 cc = cCenter + ivec2(bx, by);
+            ivec2 pp = l + ivec2(RMAX + BR) + d + ivec2(bx, by);
+            float16_t dv = sCurr[cc.y * TILE_C + cc.x] - sPrev[pp.y * TILE_P + pp.x];
+            cost += float(dv * dv); // fp16 delta, fp32 accumulate
+        }
+    }
+    return cost;
+}
+
+void main() {
+    ivec2 wgOrigin   = ivec2(gl_WorkGroupID.xy) * LS;
+    ivec2 prevOrigin = wgOrigin - ivec2(RMAX + BR);
+    ivec2 currOrigin = wgOrigin - ivec2(BR);
+
+    uint li = gl_LocalInvocationIndex;        // 0..63
+    const uint THREADS = uint(LS * LS);       // 64
+
+    // Cooperative load of the prev-frame luma tile (sampled at the half-res grid;
+    // linear filtering of the full-res texture gives the 2x downsample for free).
+    for (uint i = li; i < uint(TILE_P * TILE_P); i += THREADS) {
+        int lx = int(i) % TILE_P;
+        int ly = int(i) / TILE_P;
+        vec2 uv = (vec2(prevOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
+        sPrev[i] = luma(textureLod(prevFrame, uv, 0.0).rgb);
+    }
+    // Cooperative load of the curr-frame luma tile.
+    for (uint i = li; i < uint(TILE_C * TILE_C); i += THREADS) {
+        int lx = int(i) % TILE_C;
+        int ly = int(i) / TILE_C;
+        vec2 uv = (vec2(currOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
+        sCurr[i] = luma(textureLod(currFrame, uv, 0.0).rgb);
+    }
+    barrier();
+
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    // NOTE: out-of-range items still participated in the cooperative load + barrier
+    // above; only the store is guarded.
+    if (p.x >= pc.mvSize.x || p.y >= pc.mvSize.y) return;
+
+    ivec2 l       = ivec2(gl_LocalInvocationID.xy); // 0..LS-1
+    ivec2 cCenter = l + ivec2(BR);                  // this item's center in the curr tile
+
+    // Three-step search seeded at (0,0). (A future pyramid level would seed from the
+    // upsampled coarse MV instead — the search code is unchanged.)
+    ivec2 center   = ivec2(0);
+    ivec2 bestD    = ivec2(0);
+    float bestCost = blockCost(l, cCenter, ivec2(0));
+
+    int minStep = clamp(int(pc.minStep), 1, 8);
+    for (int step = 8; step >= minStep; step >>= 1) {
+        ivec2 localBestD = center;
+        float localBest  = bestCost;
+        for (int sy = -1; sy <= 1; ++sy) {
+            for (int sx = -1; sx <= 1; ++sx) {
+                if (sx == 0 && sy == 0) continue;
+                ivec2 d = center + ivec2(sx, sy) * step;
+                if (abs(d.x) > RMAX || abs(d.y) > RMAX) continue;
+                float cost = blockCost(l, cCenter, d);
+                if (cost < localBest) { localBest = cost; localBestD = d; }
+            }
+        }
+        if (localBest < bestCost) { bestCost = localBest; bestD = localBestD; center = localBestD; }
+    }
+
+    imageStore(motionField, p, vec4(vec2(bestD) * pc.mvScale, 0.0, 0.0));
+}
