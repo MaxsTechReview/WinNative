@@ -8801,6 +8801,8 @@ class UnifiedActivity :
         var isCheckingForUpdate by remember(app.id) { mutableStateOf(false) }
         var isUpdateCheckCoolingDown by remember(app.id) { mutableStateOf(false) }
         var showWorkshopDialog by remember(app.id) { mutableStateOf(false) }
+        var launchOptions by remember(app.id) { mutableStateOf<List<StoreLaunchOptionItem>>(emptyList()) }
+        var selectedLaunchOption by remember(app.id) { mutableStateOf<StoreLaunchOptionItem?>(null) }
         var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
         var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
         val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
@@ -8864,6 +8866,41 @@ class UnifiedActivity :
                 withContext(Dispatchers.IO) {
                     SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList())
                 }
+        }
+
+        LaunchedEffect(app.id, installed) {
+            if (installed != true) {
+                launchOptions = emptyList()
+                selectedLaunchOption = null
+                return@LaunchedEffect
+            }
+            val (options, selected) =
+                withContext(Dispatchers.IO) {
+                    val appDir = java.io.File(SteamService.getAppDirPath(app.id))
+                    val allOptions =
+                        SteamService
+                            .getWindowsLaunchInfos(app.id)
+                            .map { info ->
+                                StoreLaunchOptionItem(
+                                    executable = info.executable,
+                                    arguments = info.arguments,
+                                    label = info.description.ifBlank { info.executable.substringAfterLast('/') },
+                                )
+                            }.distinctBy { it.executable.lowercase() to it.arguments }
+                    // Hide options whose exe is missing on disk, but if that empties a
+                    // non-empty list (case-sensitivity quirks) keep the unfiltered set.
+                    val onDisk = allOptions.filter { java.io.File(appDir, it.executable).isFile }
+                    val options = onDisk.ifEmpty { allOptions }
+                    val (selectedExe, selectedArgs) = SteamService.getSelectedLaunchOption(context, app.id)
+                    val selected =
+                        options.firstOrNull {
+                            it.executable.equals(selectedExe, ignoreCase = true) && it.arguments == selectedArgs
+                        } ?: options.firstOrNull { it.executable.equals(selectedExe, ignoreCase = true) }
+                            ?: options.firstOrNull()
+                    options to selected
+                }
+            launchOptions = options
+            selectedLaunchOption = selected
         }
 
         val totalDownloadSize = selectedManifestSizes.downloadSize
@@ -8986,6 +9023,30 @@ class UnifiedActivity :
                     showWorkshop = isReallyInstalled,
                     showVerifyFiles = isReallyInstalled,
                     areSteamActionsEnabled = !hasBlockingSteamDownload,
+                    launchOptions = launchOptions,
+                    selectedLaunchOption = selectedLaunchOption,
+                    onSelectLaunchOption = { option ->
+                        scope.launch(Dispatchers.IO) {
+                            val saved =
+                                SteamService.setSelectedLaunchOption(
+                                    applicationContext,
+                                    app.id,
+                                    option.executable,
+                                    option.arguments,
+                                )
+                            withContext(Dispatchers.Main) {
+                                if (saved) {
+                                    selectedLaunchOption = option
+                                } else {
+                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                        context,
+                                        getString(R.string.store_game_launch_option_failed),
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    )
+                                }
+                            }
+                        }
+                    },
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     isDlcSelectionEnabled = steamDownloadRecord == null,

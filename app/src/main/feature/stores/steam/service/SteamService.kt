@@ -2306,6 +2306,62 @@ class SteamService : Service() {
             return container.executablePath.ifEmpty { getInstalledExe(gameId) }
         }
 
+        private fun findSteamShortcut(
+            context: Context,
+            appId: Int,
+        ) = ContainerManager(context).loadShortcuts().find {
+            it.getExtra("game_source") == "STEAM" && it.getExtra("app_id") == appId.toString()
+        }
+
+        /**
+         * Persists the user's launch-option choice (an appinfo `config.launch` entry) on
+         * the game's shortcut + container, matching resolveRelativeGameExe's priority:
+         * shortcut `launch_exe_path` first, container.executablePath as the synced
+         * fallback. The option's own arguments go to `launch_exe_args`, kept separate
+         * from the user-editable custom args (`execArgs`). Call on an IO dispatcher.
+         */
+        fun setSelectedLaunchOption(
+            context: Context,
+            appId: Int,
+            executable: String,
+            arguments: String,
+        ): Boolean {
+            var shortcut = findSteamShortcut(context, appId)
+            if (shortcut == null) {
+                // Installs from older builds may predate shortcut creation on download.
+                createSteamShortcut(context, appId)
+                shortcut = findSteamShortcut(context, appId)
+            }
+            if (shortcut == null) {
+                Timber.w("setSelectedLaunchOption: no shortcut for appId=$appId")
+                return false
+            }
+            shortcut.putExtra("launch_exe_path", executable)
+            shortcut.putExtra("launch_exe_args", arguments.ifBlank { null })
+            shortcut.saveData()
+            shortcut.container?.let {
+                it.executablePath = executable
+                it.saveData()
+            }
+            return true
+        }
+
+        /**
+         * Currently effective launch option as (executable, arguments), resolved in the
+         * same order the launch path uses. Call on an IO dispatcher.
+         */
+        fun getSelectedLaunchOption(
+            context: Context,
+            appId: Int,
+        ): Pair<String, String> {
+            val shortcut = findSteamShortcut(context, appId)
+            val exe =
+                shortcut?.getExtra("launch_exe_path").orEmpty().ifBlank {
+                    shortcut?.container?.executablePath.orEmpty().ifBlank { getInstalledExe(appId) }
+                }
+            return exe.replace('\\', '/') to shortcut?.getExtra("launch_exe_args").orEmpty()
+        }
+
         suspend fun deleteApp(appId: Int): Boolean =
             withContext(Dispatchers.IO) {
                 val appDirPath = getAppDirPath(appId)

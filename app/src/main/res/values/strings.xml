@@ -116,6 +116,8 @@
     <string name="store_game_update_check_failed">Update check failed</string>
     <string name="store_game_update">Update</string>
     <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_launch_options">Launch Options</string>
+    <string name="store_game_launch_option_failed">Couldn\'t save launch option</string>
     <string name="store_game_verify_files">Verify Files</string>
     <string name="store_game_verify_started">Verifying %1$s — check the Downloads tab</string>
     <string name="store_game_steam_options">Steam options</string>

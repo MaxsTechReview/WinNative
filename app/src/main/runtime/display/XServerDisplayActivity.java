@@ -7483,8 +7483,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
-                String steamExtraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
-                steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
+                String steamExtraArgs = SteamUtils.combineSteamLaunchArgs(
+                        shortcut.getExtra("launch_exe_args"),
+                        shortcut.getSettingExtra("execArgs", container.getExecArgs()));
+                steamExtraArgs = !steamExtraArgs.isEmpty() ? " " + steamExtraArgs : "";
 
                 boolean useColdClient = parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"));
                 boolean launchBionicSteam = isBionicSteamEnabledForShortcut();
@@ -7870,7 +7872,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = SteamUtils.combineSteamLaunchArgs(
+                shortcut != null ? shortcut.getExtra("launch_exe_args") : "", perGameExecArgs);
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -7946,7 +7949,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = SteamUtils.combineSteamLaunchArgs(
+                shortcut != null ? shortcut.getExtra("launch_exe_args") : "", perGameExecArgs);
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -9623,10 +9627,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             // Stamp-cache the registry edits + userdata reconcile + local-config
             // edit so warm launches of the same game in the same container skip
             // the per-launch file-copy / VDF-parse work. Stamp key is
-            // appId|userDataId — change either and the work re-runs.
+            // appId|userDataId|launchOptionsHash — change any and the work re-runs.
             File steamEnvStamp = new File(winePrefix,
                     ".wine/drive_c/.wn-steamenv-" + appId + "-" + steamUserDataId + ".stamp");
-            String expectedStamp = "v1|" + appId + "|" + steamUserDataId;
+            String selectedLaunchArgs = shortcut != null ? shortcut.getExtra("launch_exe_args") : "";
+            // The effective LaunchOptions line is part of the stamp so a changed
+            // launch-option selection (or custom args) re-runs the localconfig edit.
+            String effectiveLaunchOptions =
+                    SteamUtils.combineSteamLaunchArgs(selectedLaunchArgs, container.getExecArgs());
+            String expectedStamp = "v2|" + appId + "|" + steamUserDataId
+                    + "|" + effectiveLaunchOptions.hashCode();
             String existingStamp = steamEnvStamp.exists()
                     ? FileUtils.readString(steamEnvStamp).trim() : "";
             boolean steamEnvWarm = expectedStamp.equals(existingStamp);
@@ -9641,7 +9651,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                 skipFirstTimeSteamSetup(winePrefix);
                 reconcileSteamUserdata(steamDir, steamUserDataId, steamId64);
-                SteamUtils.updateOrModifyLocalConfig(imageFs, container, String.valueOf(appId), steamUserDataId);
+                SteamUtils.updateOrModifyLocalConfig(imageFs, container, String.valueOf(appId), steamUserDataId,
+                        selectedLaunchArgs);
                 setupLightweightSteamConfig(steamDir, steamUserDataId);
 
                 try {
@@ -9651,6 +9662,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             "Failed to write steam-env stamp at " + steamEnvStamp.getPath(), e);
                 }
             } else {
+                // localconfig.vdf is already up to date, but the pushed launch command
+                // line is per-process native state — re-push it on warm launches too.
+                com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient.INSTANCE
+                        .setLaunchCommandLine(effectiveLaunchOptions);
                 Log.d("XServerDisplayActivity",
                         "Steam env warm-cache hit (appId=" + appId
                                 + ", userId=" + steamUserDataId + ") — skipping reconcile + autoLogin");

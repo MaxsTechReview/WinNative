@@ -11,6 +11,8 @@ data class LaunchInfo(
     val workingDir: String,
     val description: String,
     val type: String,
+    // Default keeps already-cached appinfo JSON (without this key) decodable.
+    val arguments: String = "",
     @Serializable(with = OsEnumSetSerializer::class)
     val configOS: java.util.EnumSet<OS>,
     val configArch: OSArch,

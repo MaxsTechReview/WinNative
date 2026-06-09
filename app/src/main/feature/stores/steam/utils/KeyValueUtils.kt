@@ -198,6 +198,7 @@ fun WnKeyValue.generateSteamApp(): SteamApp =
                             workingDir = it["workingdir"].value?.replace('\\', '/').orEmpty(),
                             description = it["description"].value.orEmpty(),
                             type = it["type"].value.orEmpty(),
+                            arguments = it["arguments"].value.orEmpty(),
                             configOS = OS.from(it["config"]["oslist"].value),
                             configArch = OSArch.from(it["config"]["osarch"].value),
                         )
