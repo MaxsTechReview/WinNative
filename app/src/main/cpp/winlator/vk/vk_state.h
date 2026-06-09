@@ -381,12 +381,13 @@ typedef struct VkRenderer {
     bool             fg_float16_supported;   // shaderFloat16 available (selects the fp16 motion shader)
     bool             fg_built;               // history + motion images allocated at fg_dims
     VkExtent2D       fg_dims;                // extent the fg images were built for
-    VkFgImage        fg_history[2];          // composited-scene ring; fg_history_curr = newest
+    VkFgImage        fg_history[3];          // composited-scene ring; fg_history_curr = newest
     VkFgImage        fg_motion;              // rgba16f half-res backward-flow field
     VkSampler        fg_sampler;             // linear, clamp — for all fg sampled reads
-    VkDescriptorSet  fg_motion_set[2];       // [parity] prev,curr samplers + motion storage (motion.comp)
-    VkDescriptorSet  fg_interp_set[2];       // [parity] prev,curr,motion samplers (interpolate.frag)
-    uint32_t         fg_history_curr;        // parity (0/1) of the most-recent composited frame
+    VkDescriptorSet  fg_motion_set[3];       // [curr] prev,curr samplers + motion storage (motion.comp)
+    VkDescriptorSet  fg_interp_set[3];       // [curr] prev,curr,motion samplers (interpolate.frag)
+    VkFence          fg_slot_fence[3];       // last submit that used each history slot
+    uint32_t         fg_history_curr;        // index (0..2) of the most-recent composited frame
     uint32_t         fg_history_count;       // 0,1,2 — valid history frames
     uint64_t         fg_present_count;       // actual vkQueuePresentKHR calls; guarded by queue_mutex
     bool             fg_motion_valid;        // motion field current for the live history pair (reused across multi-interp)

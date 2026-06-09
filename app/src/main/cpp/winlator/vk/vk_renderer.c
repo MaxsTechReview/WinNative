@@ -2167,11 +2167,12 @@ static void fg_free_set(VkRenderer* r, VkDescriptorSet set) {
 
 static void fg_destroy_resources(VkRenderer* r) {
     if (!r->device) return;
-    for (uint32_t p = 0; p < 2; p++) {
+    for (uint32_t p = 0; p < 3; p++) {
         if (r->fg_motion_set[p]) { fg_free_set(r, r->fg_motion_set[p]); r->fg_motion_set[p] = VK_NULL_HANDLE; }
         if (r->fg_interp_set[p]) { fg_free_set(r, r->fg_interp_set[p]); r->fg_interp_set[p] = VK_NULL_HANDLE; }
     }
-    for (uint32_t i = 0; i < 2; i++) {
+    memset(r->fg_slot_fence, 0, sizeof(r->fg_slot_fence));
+    for (uint32_t i = 0; i < 3; i++) {
         VkFgImage* o = &r->fg_history[i];
         if (o->blit_set)    vkr_free_descriptor_set(r, o->blit_set);
         if (o->framebuffer) vkDestroyFramebuffer(r->device, o->framebuffer, NULL);
@@ -2278,14 +2279,16 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
 
     if (!fg_create_color_target(r, &r->fg_history[0], w, h)) goto fail;
     if (!fg_create_color_target(r, &r->fg_history[1], w, h)) goto fail;
+    if (!fg_create_color_target(r, &r->fg_history[2], w, h)) goto fail;
     if (!fg_create_motion(r, (w / 2) ? (w / 2) : 1u, (h / 2) ? (h / 2) : 1u)) goto fail;
+    memset(r->fg_slot_fence, 0, sizeof(r->fg_slot_fence));
 
-    for (uint32_t p = 0; p < 2; p++) {
+    for (uint32_t p = 0; p < 3; p++) {
         r->fg_motion_set[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
         r->fg_interp_set[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
         if (!r->fg_motion_set[p] || !r->fg_interp_set[p]) goto fail;
 
-        VkImageView prevV = r->fg_history[1u - p].view;  // parity p => curr=history[p], prev=history[1-p]
+        VkImageView prevV = r->fg_history[(p + 2u) % 3u].view;  // curr=history[p], prev=history[(p+2)%3]
         VkImageView currV = r->fg_history[p].view;
 
         // motion.comp set: b0 prev (sampled), b1 curr (sampled), b2 motion (storage, GENERAL)
@@ -2339,6 +2342,7 @@ static bool fg_ensure_resources(VkRenderer* r) {
 // Restore a frame fence to the signaled state after a submit failure (so the next frame that
 // reuses this index does not block forever on an unsignaled fence).
 static void fg_restore_fence(VkRenderer* r, VkFrame* f) {
+    for (uint32_t i = 0; i < 3; i++) if (r->fg_slot_fence[i] == f->in_flight) r->fg_slot_fence[i] = VK_NULL_HANDLE;
     vkDestroyFence(r->device, f->in_flight, NULL);
     VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -2355,7 +2359,7 @@ static uint64_t g_fg_interp = 0;
 static uint64_t g_fg_plast = 0;
 
 // FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
-// presents an in-between frame; PRESENT_LAST presents the held real frame. Fully serialized.
+// presents an in-between frame; PRESENT_LAST presents the held real frame.
 static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     if (!r->surface_ready || !r->swapchain) return false;
     pthread_mutex_lock(&r->render_mutex);
@@ -2371,9 +2375,6 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
 
     if (!fg_ensure_resources(r)) { pthread_mutex_unlock(&r->render_mutex); return false; }
 
-    // Drain: the 2-slot history ring is written by HOLD and read by INTERP; serialize to avoid aliasing.
-    wait_inflight_frames(r);
-
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -2388,9 +2389,11 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         destroy_graveyard_textures(r, dead, dead_count);
 
         SceneTargets st = manage_scene_targets(r, &snap);
-        uint32_t next = r->fg_history_curr ^ 1u;
+        uint32_t next = (r->fg_history_curr + 1u) % 3u;
         VkFgImage* hist = &r->fg_history[next];
 
+        if (r->fg_slot_fence[next] != VK_NULL_HANDLE)
+            vkWaitForFences(r->device, 1, &r->fg_slot_fence[next], VK_TRUE, UINT64_MAX);
         vkResetFences(r->device, 1, &f->in_flight);
         vkBeginCommandBuffer(f->cmd, &bi);
         record_scene_chain(r, f->cmd, &snap, st.has_effects, st.wants_sgsr1,
@@ -2410,6 +2413,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             return false;
         }
         r->fg_history_curr = next;
+        r->fg_slot_fence[next] = f->in_flight;
         if (r->fg_history_count < 2) r->fg_history_count++;
         r->fg_motion_valid = false;   // new history pair — flow must be recomputed on the next interp
         g_fg_holds++;
@@ -2454,12 +2458,13 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     vkResetFences(r->device, 1, &f->in_flight);
 
     uint32_t parity = r->fg_history_curr;
+    uint32_t prev_idx = (parity + 2u) % 3u;
     VkFgImage* curr = &r->fg_history[parity];
 
     vkBeginCommandBuffer(f->cmd, &bi);
 
     if (do_interp) {
-        VkFgImage* prev = &r->fg_history[parity ^ 1u];
+        VkFgImage* prev = &r->fg_history[prev_idx];
         // Make the HOLD color writes visible to the reads below (compute when recomputing flow,
         // else just the fragment interp draw).
         VkPipelineStageFlags hist_dst = r->fg_motion_valid
@@ -2473,10 +2478,10 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         if (!r->fg_motion_valid) {
-            // motion field -> GENERAL, dispatch block matching.
+            // motion field -> GENERAL, dispatch block matching (wait for the prior pair's interp reads).
             vkr_image_barrier(f->cmd, r->fg_motion.image,
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 0, VK_ACCESS_SHADER_WRITE_BIT);
             vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipeline);
             vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -2554,6 +2559,8 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
+    r->fg_slot_fence[parity] = f->in_flight;
+    if (do_interp) r->fg_slot_fence[prev_idx] = f->in_flight;
 
     VkPresentInfoKHR pinfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     pinfo.waitSemaphoreCount = 1; pinfo.pWaitSemaphores = &render_finished;
