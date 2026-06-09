@@ -11,8 +11,18 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
     private var originX = 0f
     private var originY = 0f
     private var sensitivity = DEFAULT_SENSITIVITY
+    private var surfaceMin = DEFAULT_SURFACE_MIN
+
+    fun setSurfaceSize(w: Int, h: Int) {
+        if (w > 0 && h > 0) surfaceMin = Math.min(w, h).toFloat()
+    }
 
     fun onTouch(event: MotionEvent): Boolean {
+        if (activePointerId != -1
+            && event.actionMasked != MotionEvent.ACTION_CANCEL
+            && event.findPointerIndex(activePointerId) < 0) {
+            releaseAll()
+        }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 if (activePointerId == -1) {
@@ -34,7 +44,7 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
                         var stickX = 0f
                         var stickY = 0f
                         if (distance > 0f) {
-                            val radius = REFERENCE_RADIUS / sensitivity
+                            val radius = surfaceMin * RADIUS_FRACTION / sensitivity
                             val magnitude = Math.min(distance / radius, 1.0f)
                             if (magnitude > DEAD_ZONE) {
                                 val scaled = (magnitude - DEAD_ZONE) / (1.0f - DEAD_ZONE)
@@ -72,7 +82,8 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
         private const val DEFAULT_SENSITIVITY = 1.25f
         private const val MIN_SENSITIVITY = 0.25f
         private const val MAX_SENSITIVITY = 3.0f
-        private const val REFERENCE_RADIUS = 260f
+        private const val RADIUS_FRACTION = 0.38f
         private const val DEAD_ZONE = 0.08f
+        private const val DEFAULT_SURFACE_MIN = 1080f
     }
 }

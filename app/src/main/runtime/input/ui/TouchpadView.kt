@@ -93,6 +93,7 @@ class TouchpadView(
         super.onSizeChanged(w, h, oldw, oldh)
         updateXform(w, h, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        screenTouchStick.setSurfaceSize(w, h)
     }
 
     override fun onDetachedFromWindow() {
