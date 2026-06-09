@@ -63,6 +63,7 @@ public class VulkanRenderer
     private volatile boolean frameGenEnabled = false;
     private volatile int fgMultiplier = 2;   // target display:engine ratio (2, 3, 4)
     private final AtomicBoolean fgNewScene = new AtomicBoolean(false);
+    private final AtomicBoolean fgSceneDirty = new AtomicBoolean(false);  // cursor/window change awaiting a recomposite
     private final AtomicBoolean fgPumpScheduled = new AtomicBoolean(false);
     private boolean fgPendingReal = false;   // a held real frame awaits its display tick
     private int fgPendingInterps = 0;        // interpolated frames still owed before the held real
@@ -191,8 +192,8 @@ public class VulkanRenderer
 
     public void requestRenderCoalesced() {
         if (frameGenEnabled) {
-            // Under FG the pump drives presentation; generic requests only keep it alive (real
-            // game presents set the new-frame flag in onFramePresented).
+            // Non-game change (cursor/window/geometry): mark dirty so the pump recomposites it.
+            fgSceneDirty.set(true);
             scheduleFgPump();
             return;
         }
@@ -314,10 +315,13 @@ public class VulkanRenderer
 
     private void fgEmitOne() {
         if (fgPendingInterps == 0 && !fgPendingReal) {
-            if (!fgNewScene.getAndSet(false)) return;   // no new game frame — nothing to emit
+            boolean newGame = fgNewScene.getAndSet(false);
+            boolean dirty = fgSceneDirty.getAndSet(false);
+            if (!newGame && !dirty) return;              // nothing changed — idle tick
             buildAndSubmitFrame();                       // HOLD -> history[curr] (no present)
             fgEngineFrames++;
-            int interps = fgEngineFrames >= 2 ? fgComputeInterps() : 0;   // need a prev to interpolate from
+            // Interpolate only between real game frames; a cursor/UI-only change just recomposites.
+            int interps = (newGame && fgEngineFrames >= 2) ? fgComputeInterps() : 0;
             fgInterpTotal = interps;
             fgPendingInterps = interps;
             fgPendingReal = true;
@@ -754,6 +758,7 @@ public class VulkanRenderer
 
     public void requestCursorRender() {
         cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
+        if (frameGenEnabled) fgSceneDirty.set(true);
         xServerView.requestTransientRender(100);
     }
 
