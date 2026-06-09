@@ -679,6 +679,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_rts_hold_delay">Hold delay (ms)</string>
     <string name="session_rts_swipe_threshold">Swipe threshold (px)</string>
     <string name="session_rts_gesture_threshold">Gesture threshold (px)</string>
+    <string name="session_rts_double_tap_delay">Double tap delay (ms)</string>
+    <string name="session_rts_drag_threshold">Drag threshold (px)</string>
+    <string name="session_rts_pan_threshold">Pan/pinch start (px)</string>
     <string name="session_drawer_screen_effects">Screen Effects</string>
     <string name="session_drawer_screen_effects_subtitle">Upscaling and color effects</string>
     <string name="session_drawer_super_resolution">Super Resolution</string>

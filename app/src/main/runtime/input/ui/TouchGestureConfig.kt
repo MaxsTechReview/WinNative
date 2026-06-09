@@ -38,22 +38,28 @@ class TouchGestureConfig {
     var hold4Enabled = false
     var hold4 = Binding.NONE
     var hold4Behavior = HoldBehavior.HOLD
-    var holdDelay = 400
+    var hold2Delay = 400
+    var hold3Delay = 400
+    var hold4Delay = 400
 
+    var swipe3Enabled = false
     var swipe3Up = Binding.NONE
     var swipe3Down = Binding.NONE
     var swipe3Left = Binding.NONE
     var swipe3Right = Binding.NONE
+    var swipe3Threshold = 60
+    var swipe4Enabled = false
     var swipe4Up = Binding.NONE
     var swipe4Down = Binding.NONE
     var swipe4Left = Binding.NONE
     var swipe4Right = Binding.NONE
+    var swipe4Threshold = 60
 
     var panAction = PanAction.NONE
     var zoomAction = ZoomAction.NONE
     var dragAction = DragAction.MOVE
 
-    var swipeThreshold = 60
+    var dragThreshold = 40
     var gestureThreshold = 40
 
     fun clone(): TouchGestureConfig {
@@ -68,11 +74,15 @@ class TouchGestureConfig {
         c.hold2Enabled = hold2Enabled; c.hold2 = hold2; c.hold2Behavior = hold2Behavior
         c.hold3Enabled = hold3Enabled; c.hold3 = hold3; c.hold3Behavior = hold3Behavior
         c.hold4Enabled = hold4Enabled; c.hold4 = hold4; c.hold4Behavior = hold4Behavior
-        c.holdDelay = holdDelay
+        c.hold2Delay = hold2Delay; c.hold3Delay = hold3Delay; c.hold4Delay = hold4Delay
+        c.swipe3Enabled = swipe3Enabled
         c.swipe3Up = swipe3Up; c.swipe3Down = swipe3Down; c.swipe3Left = swipe3Left; c.swipe3Right = swipe3Right
+        c.swipe3Threshold = swipe3Threshold
+        c.swipe4Enabled = swipe4Enabled
         c.swipe4Up = swipe4Up; c.swipe4Down = swipe4Down; c.swipe4Left = swipe4Left; c.swipe4Right = swipe4Right
+        c.swipe4Threshold = swipe4Threshold
         c.panAction = panAction; c.zoomAction = zoomAction; c.dragAction = dragAction
-        c.swipeThreshold = swipeThreshold; c.gestureThreshold = gestureThreshold
+        c.dragThreshold = dragThreshold; c.gestureThreshold = gestureThreshold
         return c
     }
 
@@ -88,13 +98,17 @@ class TouchGestureConfig {
         o.put("hold2Enabled", hold2Enabled); o.put("hold2", hold2.name); o.put("hold2Behavior", hold2Behavior.name)
         o.put("hold3Enabled", hold3Enabled); o.put("hold3", hold3.name); o.put("hold3Behavior", hold3Behavior.name)
         o.put("hold4Enabled", hold4Enabled); o.put("hold4", hold4.name); o.put("hold4Behavior", hold4Behavior.name)
-        o.put("holdDelay", holdDelay)
+        o.put("hold2Delay", hold2Delay); o.put("hold3Delay", hold3Delay); o.put("hold4Delay", hold4Delay)
+        o.put("swipe3Enabled", swipe3Enabled)
         o.put("swipe3Up", swipe3Up.name); o.put("swipe3Down", swipe3Down.name)
         o.put("swipe3Left", swipe3Left.name); o.put("swipe3Right", swipe3Right.name)
+        o.put("swipe3Threshold", swipe3Threshold)
+        o.put("swipe4Enabled", swipe4Enabled)
         o.put("swipe4Up", swipe4Up.name); o.put("swipe4Down", swipe4Down.name)
         o.put("swipe4Left", swipe4Left.name); o.put("swipe4Right", swipe4Right.name)
+        o.put("swipe4Threshold", swipe4Threshold)
         o.put("panAction", panAction.name); o.put("zoomAction", zoomAction.name); o.put("dragAction", dragAction.name)
-        o.put("swipeThreshold", swipeThreshold); o.put("gestureThreshold", gestureThreshold)
+        o.put("dragThreshold", dragThreshold); o.put("gestureThreshold", gestureThreshold)
         return o.toString()
     }
 
@@ -119,14 +133,22 @@ class TouchGestureConfig {
             c.hold3Behavior = holdBehavior(o, "hold3Behavior", c.hold3Behavior)
             c.hold4Enabled = o.optBoolean("hold4Enabled", c.hold4Enabled); c.hold4 = binding(o, "hold4", c.hold4)
             c.hold4Behavior = holdBehavior(o, "hold4Behavior", c.hold4Behavior)
-            c.holdDelay = o.optInt("holdDelay", c.holdDelay)
+            val legacyHoldDelay = o.optInt("holdDelay", c.hold2Delay)
+            c.hold2Delay = o.optInt("hold2Delay", legacyHoldDelay)
+            c.hold3Delay = o.optInt("hold3Delay", legacyHoldDelay)
+            c.hold4Delay = o.optInt("hold4Delay", legacyHoldDelay)
             c.swipe3Up = binding(o, "swipe3Up", c.swipe3Up); c.swipe3Down = binding(o, "swipe3Down", c.swipe3Down)
             c.swipe3Left = binding(o, "swipe3Left", c.swipe3Left); c.swipe3Right = binding(o, "swipe3Right", c.swipe3Right)
             c.swipe4Up = binding(o, "swipe4Up", c.swipe4Up); c.swipe4Down = binding(o, "swipe4Down", c.swipe4Down)
             c.swipe4Left = binding(o, "swipe4Left", c.swipe4Left); c.swipe4Right = binding(o, "swipe4Right", c.swipe4Right)
+            c.swipe3Enabled = o.optBoolean("swipe3Enabled", c.swipe3Up != Binding.NONE || c.swipe3Down != Binding.NONE || c.swipe3Left != Binding.NONE || c.swipe3Right != Binding.NONE)
+            c.swipe4Enabled = o.optBoolean("swipe4Enabled", c.swipe4Up != Binding.NONE || c.swipe4Down != Binding.NONE || c.swipe4Left != Binding.NONE || c.swipe4Right != Binding.NONE)
+            val legacyGestureThreshold = o.optInt("gestureThreshold", c.gestureThreshold)
+            c.swipe3Threshold = o.optInt("swipe3Threshold", o.optInt("swipeThreshold", c.swipe3Threshold))
+            c.swipe4Threshold = o.optInt("swipe4Threshold", o.optInt("swipeThreshold", c.swipe4Threshold))
             c.panAction = panAction(o, c.panAction); c.zoomAction = zoomAction(o, c.zoomAction); c.dragAction = dragAction(o, c.dragAction)
-            c.swipeThreshold = o.optInt("swipeThreshold", c.swipeThreshold)
-            c.gestureThreshold = o.optInt("gestureThreshold", c.gestureThreshold)
+            c.dragThreshold = o.optInt("dragThreshold", legacyGestureThreshold)
+            c.gestureThreshold = legacyGestureThreshold
             return c
         }
 

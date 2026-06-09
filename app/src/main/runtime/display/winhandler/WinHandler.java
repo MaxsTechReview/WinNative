@@ -17,6 +17,7 @@ import androidx.preference.PreferenceManager;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
+import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
@@ -679,6 +680,22 @@ public class WinHandler {
   }
 
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {
+    writeVirtualGamepadState(applyGyroOverlay, false);
+  }
+
+  // allowHiddenControls relaxes the on-screen-controls gate for gesture-driven gamepad output.
+  public void injectGestureGamepad(Binding binding, boolean pressed) {
+    if (binding == null || !binding.isGamepad()) return;
+    ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+    if (profile == null || !profile.isVirtualGamepad()) return;
+    this.activity.getInputControlsView().handleInputEvent(null, binding, pressed, 0f, false);
+    setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
+    writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null), true);
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
+  private void writeVirtualGamepadState(boolean applyGyroOverlay, boolean allowHiddenControls) {
     ControlsProfile profile = this.activity.getInputControlsView().getProfile();
     if (profile == null) {
       return;
@@ -686,7 +703,7 @@ public class WinHandler {
     GamepadState gamepadState = profile.getGamepadState();
     boolean useVirtualGamepad =
         profile.isVirtualGamepad()
-            && this.activity.getInputControlsView().isShowTouchscreenControls();
+            && (allowHiddenControls || this.activity.getInputControlsView().isShowTouchscreenControls());
     if (useVirtualGamepad) {
       int slot = assignSlot(-1);
       if (slot >= 0 && this.writers[slot] != null) {

@@ -1758,11 +1758,32 @@ private fun CenteredPillButton(
     }
 }
 
-private val RTS_BINDING_OPTIONS: List<Binding> = buildList {
+private enum class BindingCategory { MOUSE, KEYBOARD, GAMEPAD }
+
+private val MOUSE_BINDING_OPTIONS: List<Binding> = buildList {
     add(Binding.NONE)
     add(Binding.MOUSE_LEFT_BUTTON); add(Binding.MOUSE_MIDDLE_BUTTON); add(Binding.MOUSE_RIGHT_BUTTON)
     add(Binding.MOUSE_SCROLL_UP); add(Binding.MOUSE_SCROLL_DOWN)
+}
+private val KEYBOARD_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
     for (b in Binding.values()) if (b.isKeyboard) add(b)
+}
+private val GAMEPAD_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
+    for (b in Binding.values()) if (b.isGamepad) add(b)
+}
+
+private fun categoryOf(b: Binding): BindingCategory = when {
+    b.isGamepad -> BindingCategory.GAMEPAD
+    b.isKeyboard -> BindingCategory.KEYBOARD
+    else -> BindingCategory.MOUSE
+}
+
+private fun optionsFor(category: BindingCategory): List<Binding> = when (category) {
+    BindingCategory.MOUSE -> MOUSE_BINDING_OPTIONS
+    BindingCategory.KEYBOARD -> KEYBOARD_BINDING_OPTIONS
+    BindingCategory.GAMEPAD -> GAMEPAD_BINDING_OPTIONS
 }
 
 private fun prettyEnum(name: String): String =
@@ -1791,6 +1812,45 @@ private fun <T> OptionDropdown(
 }
 
 @Composable
+private fun <T> PillDropdown(
+    current: T,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    modifier: Modifier = Modifier,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        SelectionPill(text = optionLabel(current), onClick = { expanded = true })
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun BindingPicker(
+    label: String,
+    binding: Binding,
+    onBinding: (Binding) -> Unit,
+) {
+    var category by remember { mutableStateOf(categoryOf(binding)) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
+        PillDropdown(category, BindingCategory.values().toList(), { prettyEnum(it.name) }) { newCategory ->
+            if (newCategory != category) {
+                category = newCategory
+                if (categoryOf(binding) != newCategory) onBinding(Binding.NONE)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        PillDropdown(binding, optionsFor(category), { it.toString() }) { onBinding(it) }
+    }
+}
+
+@Composable
 private fun GestureBindingRow(
     title: String,
     enabled: Boolean,
@@ -1801,7 +1861,7 @@ private fun GestureBindingRow(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
         SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
         if (enabled) {
-            OptionDropdown(stringResource(R.string.session_rts_action), binding, RTS_BINDING_OPTIONS, { it.toString() }, onBinding)
+            BindingPicker(stringResource(R.string.session_rts_action), binding, onBinding)
         }
     }
 }
@@ -1812,15 +1872,47 @@ private fun HoldRow(
     enabled: Boolean,
     binding: Binding,
     behavior: HoldBehavior,
+    delay: Int,
+    delayLabel: String,
     onEnabled: (Boolean) -> Unit,
     onBinding: (Binding) -> Unit,
     onBehavior: (HoldBehavior) -> Unit,
+    onDelay: (Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
         SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
         if (enabled) {
-            OptionDropdown(stringResource(R.string.session_rts_action), binding, RTS_BINDING_OPTIONS, { it.toString() }, onBinding)
+            BindingPicker(stringResource(R.string.session_rts_action), binding, onBinding)
             OptionDropdown(stringResource(R.string.session_rts_behavior), behavior, HoldBehavior.values().toList(), { prettyEnum(it.name) }, onBehavior)
+            SliderField("$delayLabel: $delay", delay.toFloat(), 200f..1500f, 0) { onDelay(it.toInt()) }
+        }
+    }
+}
+
+@Composable
+private fun SwipeSet(
+    title: String,
+    enabled: Boolean,
+    up: Binding,
+    down: Binding,
+    left: Binding,
+    right: Binding,
+    threshold: Int,
+    onEnabled: (Boolean) -> Unit,
+    onUp: (Binding) -> Unit,
+    onDown: (Binding) -> Unit,
+    onLeft: (Binding) -> Unit,
+    onRight: (Binding) -> Unit,
+    onThreshold: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            BindingPicker(stringResource(R.string.session_rts_up), up, onUp)
+            BindingPicker(stringResource(R.string.session_rts_down), down, onDown)
+            BindingPicker(stringResource(R.string.session_rts_left), left, onLeft)
+            BindingPicker(stringResource(R.string.session_rts_right), right, onRight)
+            SliderField("${stringResource(R.string.session_rts_swipe_threshold)}: $threshold", threshold.toFloat(), 20f..200f, 0) { onThreshold(it.toInt()) }
         }
     }
 }
@@ -1840,32 +1932,31 @@ private fun RTSGesturesCard(
             GestureBindingRow(stringResource(R.string.session_rts_tap2), config.tap2Enabled, config.tap2, { mutate { tap2Enabled = it } }, { mutate { tap2 = it } })
             GestureBindingRow(stringResource(R.string.session_rts_tap3), config.tap3Enabled, config.tap3, { mutate { tap3Enabled = it } }, { mutate { tap3 = it } })
             GestureBindingRow(stringResource(R.string.session_rts_tap4), config.tap4Enabled, config.tap4, { mutate { tap4Enabled = it } }, { mutate { tap4 = it } })
-            SwitchRow(stringResource(R.string.session_rts_double_tap), config.doubleTapEnabled) { mutate { doubleTapEnabled = it } }
-            SwitchRow(stringResource(R.string.session_rts_long_press), config.longPressEnabled) { mutate { longPressEnabled = it } }
-            if (config.longPressEnabled) {
-                OptionDropdown(stringResource(R.string.session_rts_action), config.longPress, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { longPress = it } }
-                OptionDropdown(stringResource(R.string.session_rts_behavior), config.longPressBehavior, HoldBehavior.values().toList(), { prettyEnum(it.name) }) { mutate { longPressBehavior = it } }
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+                SwitchRow(stringResource(R.string.session_rts_double_tap), config.doubleTapEnabled) { mutate { doubleTapEnabled = it } }
+                if (config.doubleTapEnabled) {
+                    SliderField("${stringResource(R.string.session_rts_double_tap_delay)}: ${config.doubleTapDelay}", config.doubleTapDelay.toFloat(), 200f..1500f, 0) { mutate { doubleTapDelay = it.toInt() } }
+                }
             }
-            HoldRow(stringResource(R.string.session_rts_hold2), config.hold2Enabled, config.hold2, config.hold2Behavior, { mutate { hold2Enabled = it } }, { mutate { hold2 = it } }, { mutate { hold2Behavior = it } })
-            HoldRow(stringResource(R.string.session_rts_hold3), config.hold3Enabled, config.hold3, config.hold3Behavior, { mutate { hold3Enabled = it } }, { mutate { hold3 = it } }, { mutate { hold3Behavior = it } })
-            HoldRow(stringResource(R.string.session_rts_hold4), config.hold4Enabled, config.hold4, config.hold4Behavior, { mutate { hold4Enabled = it } }, { mutate { hold4 = it } }, { mutate { hold4Behavior = it } })
-            SectionLabel(stringResource(R.string.session_rts_swipe3))
-            OptionDropdown(stringResource(R.string.session_rts_up), config.swipe3Up, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Up = it } }
-            OptionDropdown(stringResource(R.string.session_rts_down), config.swipe3Down, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Down = it } }
-            OptionDropdown(stringResource(R.string.session_rts_left), config.swipe3Left, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Left = it } }
-            OptionDropdown(stringResource(R.string.session_rts_right), config.swipe3Right, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Right = it } }
-            SectionLabel(stringResource(R.string.session_rts_swipe4))
-            OptionDropdown(stringResource(R.string.session_rts_up), config.swipe4Up, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Up = it } }
-            OptionDropdown(stringResource(R.string.session_rts_down), config.swipe4Down, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Down = it } }
-            OptionDropdown(stringResource(R.string.session_rts_left), config.swipe4Left, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Left = it } }
-            OptionDropdown(stringResource(R.string.session_rts_right), config.swipe4Right, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Right = it } }
+            HoldRow(stringResource(R.string.session_rts_long_press), config.longPressEnabled, config.longPress, config.longPressBehavior, config.longPressDelay, stringResource(R.string.session_rts_long_press_delay),
+                { mutate { longPressEnabled = it } }, { mutate { longPress = it } }, { mutate { longPressBehavior = it } }, { mutate { longPressDelay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold2), config.hold2Enabled, config.hold2, config.hold2Behavior, config.hold2Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold2Enabled = it } }, { mutate { hold2 = it } }, { mutate { hold2Behavior = it } }, { mutate { hold2Delay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold3), config.hold3Enabled, config.hold3, config.hold3Behavior, config.hold3Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold3Enabled = it } }, { mutate { hold3 = it } }, { mutate { hold3Behavior = it } }, { mutate { hold3Delay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold4), config.hold4Enabled, config.hold4, config.hold4Behavior, config.hold4Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold4Enabled = it } }, { mutate { hold4 = it } }, { mutate { hold4Behavior = it } }, { mutate { hold4Delay = it } })
+            SwipeSet(stringResource(R.string.session_rts_swipe3), config.swipe3Enabled, config.swipe3Up, config.swipe3Down, config.swipe3Left, config.swipe3Right, config.swipe3Threshold,
+                { mutate { swipe3Enabled = it } }, { mutate { swipe3Up = it } }, { mutate { swipe3Down = it } }, { mutate { swipe3Left = it } }, { mutate { swipe3Right = it } }, { mutate { swipe3Threshold = it } })
+            SwipeSet(stringResource(R.string.session_rts_swipe4), config.swipe4Enabled, config.swipe4Up, config.swipe4Down, config.swipe4Left, config.swipe4Right, config.swipe4Threshold,
+                { mutate { swipe4Enabled = it } }, { mutate { swipe4Up = it } }, { mutate { swipe4Down = it } }, { mutate { swipe4Left = it } }, { mutate { swipe4Right = it } }, { mutate { swipe4Threshold = it } })
             OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
             OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
             OptionDropdown(stringResource(R.string.session_rts_drag), config.dragAction, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { dragAction = it } }
-            SliderField("${stringResource(R.string.session_rts_long_press_delay)}: ${config.longPressDelay}", config.longPressDelay.toFloat(), 200f..1500f, 0) { mutate { longPressDelay = it.toInt() } }
-            SliderField("${stringResource(R.string.session_rts_hold_delay)}: ${config.holdDelay}", config.holdDelay.toFloat(), 200f..1500f, 0) { mutate { holdDelay = it.toInt() } }
-            SliderField("${stringResource(R.string.session_rts_swipe_threshold)}: ${config.swipeThreshold}", config.swipeThreshold.toFloat(), 20f..200f, 0) { mutate { swipeThreshold = it.toInt() } }
-            SliderField("${stringResource(R.string.session_rts_gesture_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
+            if (config.dragAction != DragAction.NONE) {
+                SliderField("${stringResource(R.string.session_rts_drag_threshold)}: ${config.dragThreshold}", config.dragThreshold.toFloat(), 10f..200f, 0) { mutate { dragThreshold = it.toInt() } }
+            }
+            SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
         }
     }
 }

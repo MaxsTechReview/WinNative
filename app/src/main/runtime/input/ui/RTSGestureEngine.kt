@@ -30,6 +30,7 @@ class RTSGestureEngine(
 
     private val pressedKeys = HashSet<XKeycode>()
     private val pressedButtons = HashSet<Pointer.Button>()
+    private val pressedGamepad = HashSet<Binding>()
 
     private var holdFired = false
     private var heldBinding = Binding.NONE
@@ -151,7 +152,7 @@ class RTSGestureEngine(
         if (config.dragAction == DragAction.NONE) return
         if (!dragActive) {
             val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
-            if (travel < config.gestureThreshold) return
+            if (travel < config.dragThreshold) return
             dragActive = true
             if (config.dragAction == DragAction.LEFT_DRAG) {
                 moveCursorTo(centroid[0], centroid[1])
@@ -201,7 +202,9 @@ class RTSGestureEngine(
             val centroid = lastCentroidGuess()
             val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
             val count = maxFingerCount
-            if ((count == 3 || count == 4) && travel >= config.swipeThreshold) {
+            val swipeOk = (count == 3 && config.swipe3Enabled && travel >= config.swipe3Threshold) ||
+                (count == 4 && config.swipe4Enabled && travel >= config.swipe4Threshold)
+            if (swipeOk) {
                 fireSwipe(count, centroid[0] - startCx, centroid[1] - startCy)
             } else if (!movedBeyondTap) {
                 fireTap(count, centroid[0], centroid[1])
@@ -299,7 +302,8 @@ class RTSGestureEngine(
         for (k in pressedKeys.toList()) xServer.injectKeyRelease(k)
         for (b in pressedButtons.toList()) xServer.injectPointerButtonRelease(b)
         for (k in panKeys.toList()) xServer.injectKeyRelease(k)
-        pressedKeys.clear(); pressedButtons.clear(); panKeys.clear()
+        for (b in pressedGamepad.toList()) injectGamepad(b, false)
+        pressedKeys.clear(); pressedButtons.clear(); panKeys.clear(); pressedGamepad.clear()
         resetSession()
     }
 
@@ -333,6 +337,7 @@ class RTSGestureEngine(
 
     private fun pressBinding(b: Binding) {
         if (b == Binding.NONE) return
+        if (b.isGamepad()) { injectGamepad(b, true); pressedGamepad.add(b); return }
         val btn = b.getPointerButton()
         if (btn != null) { xServer.injectPointerButtonPress(btn); pressedButtons.add(btn) }
         else if (b.isKeyboard()) { xServer.injectKeyPress(b.keycode); pressedKeys.add(b.keycode) }
@@ -340,6 +345,7 @@ class RTSGestureEngine(
 
     private fun releaseBinding(b: Binding) {
         if (b == Binding.NONE) return
+        if (b.isGamepad()) { if (pressedGamepad.remove(b)) injectGamepad(b, false); return }
         val btn = b.getPointerButton()
         if (btn != null) releaseButton(btn)
         else if (b.isKeyboard()) { if (pressedKeys.remove(b.keycode)) xServer.injectKeyRelease(b.keycode) }
@@ -347,9 +353,14 @@ class RTSGestureEngine(
 
     private fun clickBinding(b: Binding) {
         if (b == Binding.NONE) return
+        if (b.isGamepad()) { injectGamepad(b, true); injectGamepad(b, false); return }
         val btn = b.getPointerButton()
         if (btn != null) clickButton(btn)
         else if (b.isKeyboard()) { xServer.injectKeyPress(b.keycode); xServer.injectKeyRelease(b.keycode) }
+    }
+
+    private fun injectGamepad(b: Binding, pressed: Boolean) {
+        xServer.winHandler?.injectGestureGamepad(b, pressed)
     }
 
     private fun clickButton(btn: Pointer.Button) {
@@ -376,7 +387,12 @@ class RTSGestureEngine(
         else -> config.hold4Behavior
     }
 
-    private fun holdDelayFor(count: Int): Int = if (count == 1) config.longPressDelay else config.holdDelay
+    private fun holdDelayFor(count: Int): Int = when (count) {
+        1 -> config.longPressDelay
+        2 -> config.hold2Delay
+        3 -> config.hold3Delay
+        else -> config.hold4Delay
+    }
 
     companion object {
         private const val TAP_TRAVEL_MAX = 30f
