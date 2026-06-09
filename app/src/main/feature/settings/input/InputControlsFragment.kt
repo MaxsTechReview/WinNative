@@ -36,6 +36,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController
 import com.winlator.cmod.runtime.input.controls.ExternalControllerBinding
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.input.ui.InputControlsView
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.FileUtils
@@ -177,6 +178,10 @@ class InputControlsFragment : Fragment() {
                                 },
                                 onAttachGyroPreview = ::attachGyroPreview,
                                 onDetachGyroPreview = ::detachGyroPreview,
+                                onRtsGestureConfigChanged = { config ->
+                                    preferences.edit().putString("rts_gesture_config", config.toJson()).apply()
+                                    publishUiState()
+                                },
                                 onTriggerTypeSelected = { index ->
                                     preferences.edit().putInt("trigger_type", index).apply()
                                     publishUiState()
@@ -307,6 +312,7 @@ class InputControlsFragment : Fragment() {
                 gyroDeadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt(),
                 invertGyroX = preferences.getBoolean("invert_gyro_x", false),
                 invertGyroY = preferences.getBoolean("invert_gyro_y", false),
+                rtsGestureConfig = TouchGestureConfig.fromJson(preferences.getString("rts_gesture_config", null)),
                 triggerTypeIndex = preferences.getInt("trigger_type", ExternalController.TRIGGER_IS_AXIS.toInt()),
                 triggerCardExpanded = triggerTypeExpanded,
                 triggerDescription = triggerDescription,

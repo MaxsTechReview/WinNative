@@ -39,6 +39,9 @@ class TouchpadView(
         private const val UPDATE_FORM_DELAYED_TIME = 50
         private val CLICK_DELAYED_TIME = 50.toByte()
         private val EFFECTIVE_TOUCH_DISTANCE = 20.toByte()
+        const val MODE_TRACKPAD = 0
+        const val MODE_TOUCHSCREEN = 1
+        const val MODE_MAP_TO_RIGHT_STICK = 2
     }
 
     private var continueClick = true
@@ -58,7 +61,11 @@ class TouchpadView(
     private var scrolling = false
     private var sensitivity = 1.0f
     private var simTouchScreen = false
+    private var screenTouchMode = MODE_TRACKPAD
+    private var rtsGesturesEnabled = false
     private val xform = XForm.getInstance()
+    private val screenTouchStick = ScreenTouchStick(context, xServer)
+    private val rtsGestureEngine = RTSGestureEngine(xServer, xform)
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
     private val longPressRunnable = Runnable {
@@ -89,6 +96,12 @@ class TouchpadView(
         super.onSizeChanged(w, h, oldw, oldh)
         updateXform(w, h, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        rtsGestureEngine.releaseAll()
+        screenTouchStick.releaseAll()
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
@@ -155,11 +168,16 @@ class TouchpadView(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
-        val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
+        val isTouchscreenMode = screenTouchMode == MODE_TOUCHSCREEN || preferences.getBoolean("touchscreen_toggle", false)
         resetTouchscreenTimeout()
         return when (event.getToolType(0)) {
             MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
-            else -> if (isTouchscreenMode) handleTouchscreenEvent(event) else handleTouchpadEvent(event)
+            else -> when {
+                rtsGesturesEnabled -> rtsGestureEngine.onTouch(event)
+                screenTouchMode == MODE_MAP_TO_RIGHT_STICK && xServer.winHandler.canUseScreenTouchStick() -> screenTouchStick.onTouch(event)
+                isTouchscreenMode -> handleTouchscreenEvent(event)
+                else -> handleTouchpadEvent(event)
+            }
         }
     }
 
@@ -594,6 +612,27 @@ class TouchpadView(
 
     fun isSimTouchScreen(): Boolean = simTouchScreen
 
+    fun setScreenTouchMode(mode: Int) {
+        if (screenTouchMode == mode) return
+        screenTouchMode = mode
+        setSimTouchScreen(mode == MODE_TOUCHSCREEN)
+        screenTouchStick.releaseAll()
+        resetInputState()
+    }
+
+    fun getScreenTouchMode(): Int = screenTouchMode
+
+    fun setRtsGesturesEnabled(enabled: Boolean) {
+        if (rtsGesturesEnabled == enabled) return
+        rtsGesturesEnabled = enabled
+        rtsGestureEngine.releaseAll()
+        resetInputState()
+    }
+
+    fun setGestureConfig(json: String?) {
+        rtsGestureEngine.setConfig(TouchGestureConfig.fromJson(json))
+    }
+
     fun toggleFullscreen() {
         Handler(Looper.getMainLooper()).postDelayed({
             updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
@@ -621,6 +660,8 @@ class TouchpadView(
     }
 
     fun resetInputState() {
+        screenTouchStick.releaseAll()
+        rtsGestureEngine.releaseAll()
         continueClick = false
         scrolling = false
         scrollAccumY = 0f

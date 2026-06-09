@@ -113,6 +113,10 @@ public class WinHandler {
   private float smoothedGyroY = 0.0f;
   private float currentGyroStickX = 0.0f;
   private float currentGyroStickY = 0.0f;
+  private float currentTouchStickX = 0.0f;
+  private float currentTouchStickY = 0.0f;
+  private boolean screenTouchStickActive = false;
+  private float rightStickSensitivity = 1.0f;
   private float accumulatedGyroX = 0.0f;
   private float accumulatedGyroY = 0.0f;
   private boolean gyroToggleEnabled = false;
@@ -630,6 +634,46 @@ public class WinHandler {
     setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
     maybeClearGyroTarget(GAMEPAD_SOURCE_VIRTUAL, null);
     writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
+  // Overlays the right stick from touch onto the active virtual-gamepad profile.
+  public boolean canUseScreenTouchStick() {
+    return canUseVirtualGamepad();
+  }
+
+  public void setScreenTouchStickActive(boolean active) {
+    if (this.screenTouchStickActive == active) return;
+    this.screenTouchStickActive = active;
+    this.currentTouchStickX = 0.0f;
+    this.currentTouchStickY = 0.0f;
+    writeScreenTouchStickFrame();
+    requestScreenTouchRender();
+  }
+
+  public void setRightStickSensitivity(float sensitivity) {
+    this.rightStickSensitivity = sensitivity;
+  }
+
+  public void setScreenTouchRightStick(float x, float y) {
+    if (!this.screenTouchStickActive) return;
+    this.currentTouchStickX = x;
+    this.currentTouchStickY = y;
+    writeScreenTouchStickFrame();
+    requestScreenTouchRender();
+  }
+
+  private void writeScreenTouchStickFrame() {
+    if (this.lastGamepadSource == GAMEPAD_SOURCE_CONTROLLER && this.currentController != null) {
+      writeControllerGamepadState(
+          this.currentController, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, this.currentController));
+    } else {
+      writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
+    }
+  }
+
+  private void requestScreenTouchRender() {
     XServer xServer = activity.getXServer();
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
@@ -1751,22 +1795,38 @@ public class WinHandler {
   }
 
   private GamepadState getOutputGamepadState(GamepadState baseState, boolean applyGyroOverlay) {
-    if (!applyGyroOverlay || baseState == null) {
+    boolean applyTouch = this.screenTouchStickActive;
+    boolean applyRsScale = !applyTouch && this.rightStickSensitivity != 1.0f;
+    if ((!applyGyroOverlay && !applyTouch && !applyRsScale) || baseState == null) {
       return baseState;
     }
 
-    GyroSettings gyroSettings = getGyroSettings();
     this.outputGamepadState.copy(baseState);
-    if (gyroSettings.applyToRightStick) {
+    if (applyGyroOverlay) {
+      GyroSettings gyroSettings = getGyroSettings();
+      if (gyroSettings.applyToRightStick) {
+        this.outputGamepadState.thumbRX =
+            clamp(baseState.thumbRX + this.currentGyroStickX, -1.0f, 1.0f);
+        this.outputGamepadState.thumbRY =
+            clamp(baseState.thumbRY + this.currentGyroStickY, -1.0f, 1.0f);
+      } else {
+        this.outputGamepadState.thumbLX =
+            clamp(baseState.thumbLX + this.currentGyroStickX, -1.0f, 1.0f);
+        this.outputGamepadState.thumbLY =
+            clamp(baseState.thumbLY + this.currentGyroStickY, -1.0f, 1.0f);
+      }
+    }
+    if (applyTouch) {
       this.outputGamepadState.thumbRX =
-          clamp(baseState.thumbRX + this.currentGyroStickX, -1.0f, 1.0f);
+          clamp(this.outputGamepadState.thumbRX + this.currentTouchStickX, -1.0f, 1.0f);
       this.outputGamepadState.thumbRY =
-          clamp(baseState.thumbRY + this.currentGyroStickY, -1.0f, 1.0f);
-    } else {
-      this.outputGamepadState.thumbLX =
-          clamp(baseState.thumbLX + this.currentGyroStickX, -1.0f, 1.0f);
-      this.outputGamepadState.thumbLY =
-          clamp(baseState.thumbLY + this.currentGyroStickY, -1.0f, 1.0f);
+          clamp(this.outputGamepadState.thumbRY + this.currentTouchStickY, -1.0f, 1.0f);
+    }
+    if (applyRsScale) {
+      this.outputGamepadState.thumbRX =
+          clamp(this.outputGamepadState.thumbRX * this.rightStickSensitivity, -1.0f, 1.0f);
+      this.outputGamepadState.thumbRY =
+          clamp(this.outputGamepadState.thumbRY * this.rightStickSensitivity, -1.0f, 1.0f);
     }
     return this.outputGamepadState;
   }

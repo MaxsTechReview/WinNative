@@ -327,6 +327,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
     private boolean isRefactorSizeEnabled = false;
+    private int screenTouchMode = 0;
+    private boolean rtsGesturesEnabled = false;
     private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
     private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
 
@@ -3862,7 +3864,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
-                isRefactorSizeEnabled
+                isRefactorSizeEnabled,
+                screenTouchMode,
+                rtsGesturesEnabled,
+                preferences.getFloat("right_stick_sensitivity", 1.0f),
+                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
         );
 
         if (drawerActionListener == null) {
@@ -4238,6 +4244,69 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             renderDrawerMenu();
                         };
                         controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onScreenTouchModeChanged(int mode) {
+                        screenTouchMode = mode;
+                        if (touchpadView != null) touchpadView.setScreenTouchMode(mode);
+                        if (winHandler != null) winHandler.setScreenTouchStickActive(mode == 2);
+                        if (shortcut != null) {
+                            shortcut.putExtra("screenTouchMode", String.valueOf(mode));
+                            shortcut.putExtra("simTouchScreen", mode == 1 ? "1" : "0");
+                            shortcut.saveData();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRtsGesturesToggled(boolean enabled) {
+                        rtsGesturesEnabled = enabled;
+                        if (touchpadView != null) touchpadView.setRtsGesturesEnabled(enabled);
+                        if (shortcut != null) {
+                            shortcut.putExtra("rtsGestures", enabled ? "1" : "0");
+                            shortcut.saveData();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRtsGesturesEditClick() {
+                        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        // Seed the editor's working copy from this game's per-game gesture config.
+                        preferences.edit().putString("rts_gesture_config",
+                                shortcut != null ? shortcut.getExtra("gestureConfig", "") : "").apply();
+                        Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
+                        intent.putExtra("edit_input_controls", true);
+                        intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("return_to_game_on_back", true);
+                        final ControlsProfile editingProfile = activeProfile;
+                        editInputControlsCallback = () -> {
+                            String gestureJson = preferences.getString("rts_gesture_config", "");
+                            if (shortcut != null) {
+                                shortcut.putExtra("gestureConfig", gestureJson);
+                                shortcut.saveData();
+                            }
+                            if (touchpadView != null) touchpadView.setGestureConfig(gestureJson);
+                            preferences.edit().remove("rts_gesture_config").apply();
+                            hideInputControls();
+                            if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
+                            ControlsProfile reactivated = editingProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(editingProfile.id) : null;
+                            if (reactivated != null) showInputControls(reactivated);
+                            renderDrawerMenu();
+                        };
+                        controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onRightStickSensitivityChanged(float sensitivity) {
+                        if (screenTouchMode == 2) {
+                            preferences.edit().putFloat("screen_touch_rs_sensitivity", sensitivity).apply();
+                        } else {
+                            preferences.edit().putFloat("right_stick_sensitivity", sensitivity).apply();
+                            if (winHandler != null) winHandler.setRightStickSensitivity(sensitivity);
+                        }
+                        renderDrawerMenu();
                     }
 
                     @Override
@@ -6027,8 +6096,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
-            touchpadView.setSimTouchScreen(simTouchScreen.equals("1"));
+            screenTouchMode = Integer.parseInt(shortcut.getExtra("screenTouchMode", simTouchScreen.equals("1") ? "1" : "0"));
+            touchpadView.setScreenTouchMode(screenTouchMode);
+            if (winHandler != null) winHandler.setScreenTouchStickActive(screenTouchMode == 2);
+            rtsGesturesEnabled = shortcut.getExtra("rtsGestures", "0").equals("1");
+            touchpadView.setRtsGesturesEnabled(rtsGesturesEnabled);
+            touchpadView.setGestureConfig(shortcut.getExtra("gestureConfig", ""));
         }
+
+        if (winHandler != null) winHandler.setRightStickSensitivity(preferences.getFloat("right_stick_sensitivity", 1.0f));
 
         startTouchscreenTimeout();
 

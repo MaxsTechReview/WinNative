@@ -1151,10 +1151,14 @@ class ShortcutSettingsComposeDialog private constructor(
             shortcut.putExtra("disableXinput", disableXinputValue)
             if (disableXinputValue != null) hasContainerOverride = true
 
-            // Touchscreen mode
+            // Touchscreen mode — keep screenTouchMode (Touch drawer's 3-way mode) consistent,
+            // preserving Map-to-Right-Stick (mode 2) when touchscreen is left off.
+            val touchOn = state.simTouchScreen.value
+            shortcut.putExtra("simTouchScreen", if (touchOn) "1" else "0")
+            val currentTouchMode = shortcut.getExtra("screenTouchMode", "0")
             shortcut.putExtra(
-                "simTouchScreen",
-                if (state.simTouchScreen.value) "1" else "0"
+                "screenTouchMode",
+                if (touchOn) "1" else if (currentTouchMode == "1") "0" else currentTouchMode
             )
 
             // Launch EXE path

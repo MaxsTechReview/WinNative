@@ -101,7 +101,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.input.controls.Binding
+import com.winlator.cmod.runtime.input.ui.DragAction
+import com.winlator.cmod.runtime.input.ui.HoldBehavior
 import com.winlator.cmod.runtime.input.ui.InputControlsView
+import com.winlator.cmod.runtime.input.ui.PanAction
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
+import com.winlator.cmod.runtime.input.ui.ZoomAction
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
@@ -155,6 +161,7 @@ data class InputControlsScreenState(
     val gyroDeadzone: Int = 5,
     val invertGyroX: Boolean = false,
     val invertGyroY: Boolean = false,
+    val rtsGestureConfig: TouchGestureConfig = TouchGestureConfig(),
     val triggerTypeIndex: Int = 1,
     val triggerCardExpanded: Boolean = false,
     val triggerDescription: String = "",
@@ -245,6 +252,7 @@ data class InputControlsScreenActions(
     val onResetGyroPreview: () -> Unit,
     val onAttachGyroPreview: (InputControlsView) -> Unit,
     val onDetachGyroPreview: () -> Unit,
+    val onRtsGestureConfigChanged: (TouchGestureConfig) -> Unit,
     val onTriggerTypeSelected: (Int) -> Unit,
     val onTriggerCardExpandedChanged: (Boolean) -> Unit,
     val onImportProfile: () -> Unit,
@@ -290,6 +298,8 @@ fun InputControlsScreen(
             item("overlay-card") { OverlayOpacityCard(state, actions) }
             item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
             item("gyro-card") { GyroscopeCard(state, actions) }
+            item("rts-gestures-label") { SectionLabel(stringResource(R.string.session_drawer_rts_gestures)) }
+            item("rts-gestures-card") { RTSGesturesCard(state, actions) }
             item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
             item("trigger-card") { TriggerTypeCard(state, actions) }
             item("actions-label") { SectionLabel(stringResource(R.string.common_ui_profile)) }
@@ -1745,6 +1755,118 @@ private fun CenteredPillButton(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+private val RTS_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
+    add(Binding.MOUSE_LEFT_BUTTON); add(Binding.MOUSE_MIDDLE_BUTTON); add(Binding.MOUSE_RIGHT_BUTTON)
+    add(Binding.MOUSE_SCROLL_UP); add(Binding.MOUSE_SCROLL_DOWN)
+    for (b in Binding.values()) if (b.isKeyboard) add(b)
+}
+
+private fun prettyEnum(name: String): String =
+    name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+
+@Composable
+private fun <T> OptionDropdown(
+    label: String,
+    current: T,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
+        Box {
+            SelectionPill(text = optionLabel(current), onClick = { expanded = true })
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GestureBindingRow(
+    title: String,
+    enabled: Boolean,
+    binding: Binding,
+    onEnabled: (Boolean) -> Unit,
+    onBinding: (Binding) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            OptionDropdown(stringResource(R.string.session_rts_action), binding, RTS_BINDING_OPTIONS, { it.toString() }, onBinding)
+        }
+    }
+}
+
+@Composable
+private fun HoldRow(
+    title: String,
+    enabled: Boolean,
+    binding: Binding,
+    behavior: HoldBehavior,
+    onEnabled: (Boolean) -> Unit,
+    onBinding: (Binding) -> Unit,
+    onBehavior: (HoldBehavior) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            OptionDropdown(stringResource(R.string.session_rts_action), binding, RTS_BINDING_OPTIONS, { it.toString() }, onBinding)
+            OptionDropdown(stringResource(R.string.session_rts_behavior), behavior, HoldBehavior.values().toList(), { prettyEnum(it.name) }, onBehavior)
+        }
+    }
+}
+
+@Composable
+private fun RTSGesturesCard(
+    state: InputControlsScreenState,
+    actions: InputControlsScreenActions,
+) {
+    var config by remember(state.rtsGestureConfig) { mutableStateOf(state.rtsGestureConfig.clone()) }
+    fun mutate(block: TouchGestureConfig.() -> Unit) {
+        val next = config.clone(); next.block(); config = next; actions.onRtsGestureConfigChanged(next)
+    }
+    CardShell {
+        Column(verticalArrangement = Arrangement.spacedBy(InputItemGap)) {
+            GestureBindingRow(stringResource(R.string.session_rts_tap1), config.tap1Enabled, config.tap1, { mutate { tap1Enabled = it } }, { mutate { tap1 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap2), config.tap2Enabled, config.tap2, { mutate { tap2Enabled = it } }, { mutate { tap2 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap3), config.tap3Enabled, config.tap3, { mutate { tap3Enabled = it } }, { mutate { tap3 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap4), config.tap4Enabled, config.tap4, { mutate { tap4Enabled = it } }, { mutate { tap4 = it } })
+            SwitchRow(stringResource(R.string.session_rts_double_tap), config.doubleTapEnabled) { mutate { doubleTapEnabled = it } }
+            SwitchRow(stringResource(R.string.session_rts_long_press), config.longPressEnabled) { mutate { longPressEnabled = it } }
+            if (config.longPressEnabled) {
+                OptionDropdown(stringResource(R.string.session_rts_action), config.longPress, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { longPress = it } }
+                OptionDropdown(stringResource(R.string.session_rts_behavior), config.longPressBehavior, HoldBehavior.values().toList(), { prettyEnum(it.name) }) { mutate { longPressBehavior = it } }
+            }
+            HoldRow(stringResource(R.string.session_rts_hold2), config.hold2Enabled, config.hold2, config.hold2Behavior, { mutate { hold2Enabled = it } }, { mutate { hold2 = it } }, { mutate { hold2Behavior = it } })
+            HoldRow(stringResource(R.string.session_rts_hold3), config.hold3Enabled, config.hold3, config.hold3Behavior, { mutate { hold3Enabled = it } }, { mutate { hold3 = it } }, { mutate { hold3Behavior = it } })
+            HoldRow(stringResource(R.string.session_rts_hold4), config.hold4Enabled, config.hold4, config.hold4Behavior, { mutate { hold4Enabled = it } }, { mutate { hold4 = it } }, { mutate { hold4Behavior = it } })
+            SectionLabel(stringResource(R.string.session_rts_swipe3))
+            OptionDropdown(stringResource(R.string.session_rts_up), config.swipe3Up, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Up = it } }
+            OptionDropdown(stringResource(R.string.session_rts_down), config.swipe3Down, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Down = it } }
+            OptionDropdown(stringResource(R.string.session_rts_left), config.swipe3Left, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Left = it } }
+            OptionDropdown(stringResource(R.string.session_rts_right), config.swipe3Right, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe3Right = it } }
+            SectionLabel(stringResource(R.string.session_rts_swipe4))
+            OptionDropdown(stringResource(R.string.session_rts_up), config.swipe4Up, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Up = it } }
+            OptionDropdown(stringResource(R.string.session_rts_down), config.swipe4Down, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Down = it } }
+            OptionDropdown(stringResource(R.string.session_rts_left), config.swipe4Left, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Left = it } }
+            OptionDropdown(stringResource(R.string.session_rts_right), config.swipe4Right, RTS_BINDING_OPTIONS, { it.toString() }) { mutate { swipe4Right = it } }
+            OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
+            OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
+            OptionDropdown(stringResource(R.string.session_rts_drag), config.dragAction, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { dragAction = it } }
+            SliderField("${stringResource(R.string.session_rts_long_press_delay)}: ${config.longPressDelay}", config.longPressDelay.toFloat(), 200f..1500f, 0) { mutate { longPressDelay = it.toInt() } }
+            SliderField("${stringResource(R.string.session_rts_hold_delay)}: ${config.holdDelay}", config.holdDelay.toFloat(), 200f..1500f, 0) { mutate { holdDelay = it.toInt() } }
+            SliderField("${stringResource(R.string.session_rts_swipe_threshold)}: ${config.swipeThreshold}", config.swipeThreshold.toFloat(), 20f..200f, 0) { mutate { swipeThreshold = it.toInt() } }
+            SliderField("${stringResource(R.string.session_rts_gesture_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
+        }
     }
 }
 
