@@ -637,7 +637,7 @@ public class Container {
                 if (appVersion < 16) {
                     EnvVars defaultEnvVars = new EnvVars(DEFAULT_ENV_VARS);
                     EnvVars envVars = new EnvVars(data.getString("envVars"));
-                    for (String name : defaultEnvVars) if (!envVars.has(name)) envVars.put(name, defaultEnvVars.get(name));
+                    for (String name : defaultEnvVars) if (!name.equals("VKD3D_SHADER_MODEL") && !envVars.has(name)) envVars.put(name, defaultEnvVars.get(name));
                     data.put("envVars", envVars.toString());
                 }
             }
