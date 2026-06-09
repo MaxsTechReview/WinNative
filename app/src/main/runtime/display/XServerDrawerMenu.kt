@@ -72,6 +72,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.FiberManualRecord
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Monitor
@@ -89,6 +90,8 @@ import androidx.compose.material.icons.outlined.ZoomIn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalRippleConfiguration
@@ -124,6 +127,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -190,6 +194,7 @@ private val DisabledCardBorder = Color(0xFF202033).copy(alpha = 0.58f)
 private val ActiveCardBorder = DrawerActiveAccent
 private val BottomDividerColor = WinNativeOutline
 private val GlassExitTint = Color(0xFFE07B6B)
+private val RecordRed = Color(0xFFE53935)
 
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
@@ -307,6 +312,16 @@ data class XServerDrawerItem(
     val enabled: Boolean = true,
 )
 
+/** Device-filtered options + persisted selections for the Record popup. Quality: 0=Perf,1=Balance,2=Quality. */
+data class RecordUiConfig(
+    val fpsOptions: List<Int> = emptyList(),
+    val resolutionLabels: List<String> = emptyList(),
+    val fpsIndex: Int = 0,
+    val resolutionIndex: Int = 0,
+    val quality: Int = 2,
+    val recordUI: Boolean = false,
+)
+
 data class XServerDrawerState(
     val items: List<XServerDrawerItem>,
     val hudTransparency: Float = 1.0f,
@@ -381,6 +396,8 @@ data class XServerDrawerState(
     val outputVitureSupportsVolume: Boolean = false,
     val outputVitureVolume: Int = 0,
     val outputVitureVolumeMax: Int = 8,
+    // Record settings popup config (device-aware options + persisted selections).
+    val recordConfig: RecordUiConfig = RecordUiConfig(),
 )
 
 class XServerDrawerStateHolder(
@@ -629,6 +646,9 @@ interface XServerDrawerActionListener {
     fun onLogsPaneVisibilityChanged(visible: Boolean)
 
     fun onLogsShare()
+
+    /** Start recording with the chosen settings (indices into the option lists in RecordUiConfig). */
+    fun onRecordStart(fpsIndex: Int, resolutionIndex: Int, quality: Int, recordUI: Boolean)
 }
 
 fun buildXServerDrawerState(
@@ -685,6 +705,8 @@ fun buildXServerDrawerState(
     fullscreenEnabled: Boolean = false,
     maxRefreshRate: Int = 60,
     refactorSizeEnabled: Boolean = false,
+    recordingActive: Boolean = false,
+    recordConfig: RecordUiConfig = RecordUiConfig(),
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -790,6 +812,15 @@ fun buildXServerDrawerState(
             icon = Icons.AutoMirrored.Outlined.ViewList,
         )
 
+    items +=
+        XServerDrawerItem(
+            itemId = R.id.main_menu_record,
+            title = context.getString(R.string.session_drawer_rail_label_record),
+            subtitle = "",
+            icon = Icons.Outlined.FiberManualRecord,
+            active = recordingActive,
+        )
+
     if (showLogs) {
         items.add(
             XServerDrawerItem(
@@ -810,6 +841,7 @@ fun buildXServerDrawerState(
         )
 
     return XServerDrawerState(
+        recordConfig = recordConfig,
         items = items,
         hudTransparency = hudTransparency,
         hudBackgroundAlphaEnabled = hudBackgroundAlphaEnabled,
@@ -1315,6 +1347,7 @@ private fun ActionCardGrid(
         state.items.filter {
             it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in PINNED_BOTTOM_ITEM_IDS
         }
+    var showRecordSettings by remember { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -1344,6 +1377,10 @@ private fun ActionCardGrid(
                         when (item.itemId) {
                             R.id.main_menu_task_manager -> onOpenTaskManager()
                             R.id.main_menu_logs -> onOpenLogs()
+                            // Recording: stop. Otherwise open the settings popup.
+                            R.id.main_menu_record ->
+                                if (item.active) listener.onActionSelected(item.itemId)
+                                else showRecordSettings = true
                             R.id.main_menu_relative_mouse_movement,
                             R.id.main_menu_disable_mouse,
                             R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
@@ -1357,6 +1394,17 @@ private fun ActionCardGrid(
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
+    }
+
+    if (showRecordSettings) {
+        RecordSettingsDialog(
+            config = state.recordConfig,
+            onDismiss = { showRecordSettings = false },
+            onRecordNow = { fpsIndex, resIndex, quality, recordUI ->
+                showRecordSettings = false
+                listener.onRecordStart(fpsIndex, resIndex, quality, recordUI)
+            },
+        )
     }
 }
 
@@ -1618,6 +1666,7 @@ private fun railLabelResFor(itemId: Int): Int? =
         R.id.main_menu_pip_mode -> R.string.session_drawer_rail_label_pip
         R.id.main_menu_magnifier -> R.string.session_drawer_rail_label_magnifier
         R.id.main_menu_task_manager -> R.string.session_drawer_rail_label_task_manager
+        R.id.main_menu_record -> R.string.session_drawer_rail_label_record
         R.id.main_menu_logs -> R.string.session_drawer_rail_label_logs
         else -> null
     }
@@ -4785,6 +4834,135 @@ private fun DrawerBooleanRow(
                 interactionSource = switchInteractionSource,
                 colors = outlinedSwitchColors(DrawerAccent, DrawerTextSecondary),
             )
+        }
+    }
+}
+
+private val RECORD_QUALITY_LABELS = listOf("Performance", "Balance", "Quality")
+
+/** Centered popup for choosing recording fps / resolution / quality (+ Record UI), then Record Now. */
+@Composable
+private fun RecordSettingsDialog(
+    config: RecordUiConfig,
+    onDismiss: () -> Unit,
+    onRecordNow: (fpsIndex: Int, resolutionIndex: Int, quality: Int, recordUI: Boolean) -> Unit,
+) {
+    val fpsOptions = config.fpsOptions.ifEmpty { listOf(60) }
+    val resOptions = config.resolutionLabels.ifEmpty { listOf("Native") }
+
+    var fpsIndex by remember { mutableStateOf(config.fpsIndex.coerceIn(0, fpsOptions.lastIndex)) }
+    var resIndex by remember { mutableStateOf(config.resolutionIndex.coerceIn(0, resOptions.lastIndex)) }
+    var quality by remember { mutableStateOf(config.quality.coerceIn(0, RECORD_QUALITY_LABELS.lastIndex)) }
+    var recordUI by remember { mutableStateOf(config.recordUI) }
+
+    val shape = RoundedCornerShape(16.dp)
+    // Cap card height (landscape is short); settings scroll, the Record Now button stays pinned.
+    val maxCardHeight = (LocalConfiguration.current.screenHeightDp * 0.92f).dp
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 14.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .widthIn(max = 360.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = maxCardHeight)
+                        .clip(shape)
+                        .background(PaneSurfaceColor)
+                        .border(1.dp, RestingCardBorder, shape)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FiberManualRecord,
+                        contentDescription = null,
+                        tint = RecordRed,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.session_record_settings_title),
+                        color = DrawerTextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                // Scrollable settings above the pinned button.
+                Column(
+                    modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_record_fps),
+                        valueText = "${fpsOptions[fpsIndex]} fps",
+                        value = fpsIndex.toFloat(),
+                        valueRange = 0f..(fpsOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                        steps = (fpsOptions.size - 2).coerceAtLeast(0),
+                        onValueChange = { if (fpsOptions.size > 1) fpsIndex = it.roundToInt().coerceIn(0, fpsOptions.lastIndex) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_record_resolution),
+                        valueText = resOptions[resIndex],
+                        value = resIndex.toFloat(),
+                        valueRange = 0f..(resOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                        steps = (resOptions.size - 2).coerceAtLeast(0),
+                        onValueChange = { if (resOptions.size > 1) resIndex = it.roundToInt().coerceIn(0, resOptions.lastIndex) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_record_quality),
+                        valueText = RECORD_QUALITY_LABELS[quality],
+                        value = quality.toFloat(),
+                        valueRange = 0f..(RECORD_QUALITY_LABELS.lastIndex).toFloat(),
+                        steps = (RECORD_QUALITY_LABELS.size - 2).coerceAtLeast(0),
+                        onValueChange = { quality = it.roundToInt().coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
+                    )
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_record_include_ui),
+                        checked = recordUI,
+                        onCheckedChange = { recordUI = it },
+                        subtitle = stringResource(R.string.session_record_include_ui_subtitle),
+                    )
+                }
+
+                // Record Now button (pinned).
+                Button(
+                    onClick = { onRecordNow(fpsIndex, resIndex, quality, recordUI) },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = RecordRed,
+                            contentColor = Color.White,
+                        ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FiberManualRecord,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.session_record_now),
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         }
     }
 }

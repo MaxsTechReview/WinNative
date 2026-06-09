@@ -26,6 +26,7 @@
     <item type="id" name="main_menu_pip_mode" />
     <item type="id" name="main_menu_refactor_size" />
     <item type="id" name="main_menu_task_manager" />
+    <item type="id" name="main_menu_record" />
     <item type="id" name="main_menu_magnifier" />
     <item type="id" name="main_menu_logs" />
     <item type="id" name="main_menu_exit" />

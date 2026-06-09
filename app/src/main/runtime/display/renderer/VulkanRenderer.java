@@ -241,6 +241,48 @@ public class VulkanRenderer
         }
     }
 
+    /** Start mirroring the composited output into {@code encoderSurface}; false if the native setup failed. */
+    public boolean startRecording(Surface encoderSurface, int fps, boolean recordUI) {
+        synchronized (this) {
+            if (nativeHandle == 0 || encoderSurface == null) return false;
+            return nativeStartRecording(nativeHandle, encoderSurface, fps, recordUI);
+        }
+    }
+
+    /** Upload the latest overlay snapshot (direct ByteBuffer of BGRA pixels) for the Record-UI composite. */
+    public void updateRecordUITexture(java.nio.ByteBuffer bgra, int width, int height) {
+        long handle = nativeHandle;
+        if (handle != 0 && bgra != null && bgra.isDirect()) {
+            nativeUpdateRecordUITexture(handle, bgra, width, height);
+        }
+    }
+
+    public void stopRecording() {
+        synchronized (this) {
+            if (nativeHandle != 0) nativeStopRecording(nativeHandle);
+        }
+    }
+
+    /** Width of the actual composited image (may differ from the SurfaceView size under rotation). */
+    public int getRecordWidth() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordWidth(nativeHandle) : 0;
+        }
+    }
+
+    public int getRecordHeight() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordHeight(nativeHandle) : 0;
+        }
+    }
+
+    /** Clockwise degrees to rotate captured frames to appear upright (undoes the display rotation). */
+    public int getRecordOrientationHint() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordOrientationHint(nativeHandle) : 0;
+        }
+    }
+
     @Override
     public void onSurfaceCreated() {
         // Surface is already attached in attachSurface(). Nothing else to do here.
@@ -868,6 +910,12 @@ public class VulkanRenderer
     private static native void nativeSurfaceCreated(long handle, Surface surface);
     private static native void nativeSurfaceChanged(long handle, int w, int h);
     private static native void nativeSurfaceDestroyed(long handle);
+    private static native boolean nativeStartRecording(long handle, Surface encoderSurface, int fps, boolean recordUI);
+    private static native void nativeStopRecording(long handle);
+    private static native void nativeUpdateRecordUITexture(long handle, java.nio.ByteBuffer bgra, int width, int height);
+    private static native int nativeGetRecordWidth(long handle);
+    private static native int nativeGetRecordHeight(long handle);
+    private static native int nativeGetRecordOrientationHint(long handle);
     private static native boolean nativeRenderFrame(long handle);
     private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
