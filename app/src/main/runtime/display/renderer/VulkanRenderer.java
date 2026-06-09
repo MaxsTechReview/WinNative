@@ -3,10 +3,8 @@ package com.winlator.cmod.runtime.display.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.Choreographer;
 import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
@@ -119,9 +117,6 @@ public class VulkanRenderer
 
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final AtomicBoolean renderRequested = new AtomicBoolean(false);
-
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
     // Effect.writeParams writes into a float[]; we copy into the ByteBuffer afterwards.
@@ -169,13 +164,8 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
-        if (renderRequested.compareAndSet(false, true)) {
-            mainHandler.post(() ->
-                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
-                        renderRequested.set(false);
-                        xServerView.requestRender();
-                    }));
-        }
+        // Wake the render thread directly; the UI-thread/Choreographer hop stalls under touch input.
+        xServerView.requestRender();
     }
 
     private Drawable createRootCursorDrawable() {
