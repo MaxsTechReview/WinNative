@@ -63,6 +63,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
@@ -924,7 +925,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.INPUT_CONTROLS -> InputControlsPaneContent(state = state, listener = listener)
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
-                                DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener)
+                                DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener, onClose = { onOpenPaneChange(null) })
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(
@@ -1658,6 +1659,7 @@ private fun HUDPaneContent(
 private fun TouchPaneContent(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val paneScale = computePaneScale(maxHeight)
@@ -1670,6 +1672,25 @@ private fun TouchPaneContent(
                         .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size((30f * paneScale).dp)
+                            .clip(RoundedCornerShape((8f * paneScale).dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onClose,
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.common_ui_back),
+                        tint = DrawerTextSecondary,
+                        modifier = Modifier.size((20f * paneScale).dp),
+                    )
+                }
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_mouse_input),
                     checked = state.mouseEnabled,
@@ -1688,12 +1709,12 @@ private fun TouchPaneContent(
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_touch_touchscreen),
                     checked = state.screenTouchMode == 1,
-                    onCheckedChange = { if (it) listener.onScreenTouchModeChanged(1) },
+                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
                 )
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_touch_map_right_stick),
                     checked = state.screenTouchMode == 2,
-                    onCheckedChange = { if (it) listener.onScreenTouchModeChanged(2) },
+                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
                 )
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_rts_gestures),

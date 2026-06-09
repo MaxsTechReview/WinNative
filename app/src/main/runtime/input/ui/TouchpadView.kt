@@ -1,7 +1,6 @@
 package com.winlator.cmod.runtime.input.ui
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.StateListDrawable
@@ -11,7 +10,6 @@ import android.view.MotionEvent
 import android.view.PointerIcon
 import android.view.View
 import android.widget.FrameLayout
-import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.renderer.ViewTransformation
@@ -55,7 +53,6 @@ class TouchpadView(
     private var numFingers: Byte = 0
     private var pointerButtonLeftEnabled = true
     private var pointerButtonRightEnabled = true
-    private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private var resolutionScale = 0f
     private var scrollAccumY = 0f
     private var scrolling = false
@@ -168,7 +165,7 @@ class TouchpadView(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
-        val isTouchscreenMode = screenTouchMode == MODE_TOUCHSCREEN || preferences.getBoolean("touchscreen_toggle", false)
+        val isTouchscreenMode = screenTouchMode == MODE_TOUCHSCREEN
         resetTouchscreenTimeout()
         return when (event.getToolType(0)) {
             MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
