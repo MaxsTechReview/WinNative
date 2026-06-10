@@ -2713,7 +2713,7 @@ class SteamService : Service() {
                 appId = appId,
                 downloadableDepots = downloadableDepots,
                 userSelectedDlcAppIds = effectiveDlcAppIds,
-                branch = "public",
+                branch = resolveSelectedBetaName(appId).ifBlank { "public" },
                 includeInstalledDepots = includeInstalledDepots,
                 enableVerify = enableVerify,
                 allowPersistedProgress = allowPersistedProgress,

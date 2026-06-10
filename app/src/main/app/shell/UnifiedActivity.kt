@@ -372,7 +372,10 @@ class UnifiedActivity :
         lifecycleScope.launch {
             val result =
                 runCatching {
-                    withContext(Dispatchers.IO) { SteamService.checkForAppUpdate(appId) }
+                    withContext(Dispatchers.IO) {
+                        val branch = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
+                        SteamService.checkForAppUpdate(appId, branch)
+                    }
                 }.getOrNull()
             try {
             when {
