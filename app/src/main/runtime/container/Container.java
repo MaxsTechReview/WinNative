@@ -62,6 +62,7 @@ public class Container {
     private JSONObject extraData;
     private String midiSoundFont = "";
     private int inputType = WinHandler.DEFAULT_INPUT_TYPE;
+    private boolean exclusiveXInput = true;
     private String lc_all = "";
     private String box64Version = "";
     private String emulator = DEFAULT_EMULATOR;
@@ -370,6 +371,14 @@ public class Container {
         this.inputType = inputType;
     }
 
+    public boolean isExclusiveXInput() {
+        return exclusiveXInput;
+    }
+
+    public void setExclusiveXInput(boolean exclusiveXInput) {
+        this.exclusiveXInput = exclusiveXInput;
+    }
+
     public Iterable<String[]> drivesIterator() {
         return drivesIterator(drives);
     }
@@ -416,6 +425,7 @@ public class Container {
             data.put("drives", drives);
             data.put("fullscreenStretched", fullscreenStretched);
             data.put("inputType", inputType);
+            data.put("exclusiveXInput", exclusiveXInput);
             data.put("startupSelection", startupSelection);
             data.put("box64Version", box64Version);
             data.put("fexcorePreset", fexcorePreset);
@@ -500,6 +510,9 @@ public class Container {
                     break;
                 case "inputType" :
                     setInputType(data.getInt(key));
+                    break;
+                case "exclusiveXInput" :
+                    setExclusiveXInput(data.getBoolean(key));
                     break;
                 case "startupSelection" :
                     setStartupSelection((byte)data.getInt(key));

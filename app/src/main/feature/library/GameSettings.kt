@@ -320,9 +320,8 @@ class GameSettingsStateHolder {
     val desktopBackgroundColor = mutableStateOf("#0277bd")
     val desktopWallpaperSelected = mutableStateOf(false)
     val drivesList = mutableStateOf<List<DriveItem>>(emptyList())
-    // Exclusive Input is a global SharedPreferences flag ("xinput_toggle"),
-    // not per-container — tracked here so InputSection can reuse its layout.
     val containerExclusiveInput = mutableStateOf(false)
+    val shortcutExclusiveXInput = mutableStateOf(true)
 
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
@@ -3016,10 +3015,8 @@ private fun InputSection(state: GameSettingsStateHolder) {
             Spacer(Modifier.height(SettingItemGap))
         }
 
-        // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
-        // Container mode backs it with the global "xinput_toggle" pref.
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
-        else state.disableXInput.value
+        else state.shortcutExclusiveXInput.value
         Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
@@ -3029,11 +3026,13 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         if (isContainer) {
                             state.containerExclusiveInput.value = enabled
                         } else {
-                            state.disableXInput.value = enabled
+                            state.shortcutExclusiveXInput.value = enabled
                         }
                         if (!enabled) {
                             state.enableXInput.value = true
                             state.enableDInput.value = true
+                        } else if (state.enableXInput.value && state.enableDInput.value) {
+                            state.enableDInput.value = false
                         }
                     }
                 )
@@ -3048,6 +3047,14 @@ private fun InputSection(state: GameSettingsStateHolder) {
         }
 
         if (!isContainer) {
+            Spacer(Modifier.height(4.dp))
+
+            SettingCheckbox(
+                label = stringResource(R.string.shortcuts_properties_disable_xinput),
+                checked = state.disableXInput.value,
+                onCheckedChange = { state.disableXInput.value = it }
+            )
+
             Spacer(Modifier.height(4.dp))
 
             SettingCheckbox(
@@ -3077,7 +3084,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         // Enable XInput with help — only toggleable when Exclusive Input is on.
         val inputApisLocked = if (isContainer) !state.containerExclusiveInput.value
-        else !state.disableXInput.value
+        else !state.shortcutExclusiveXInput.value
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -3086,7 +3093,10 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_xinput),
                     checked = state.enableXInput.value,
-                    onCheckedChange = { state.enableXInput.value = it },
+                    onCheckedChange = {
+                        state.enableXInput.value = it
+                        if (!inputApisLocked && it && state.enableDInput.value) state.enableDInput.value = false
+                    },
                     enabled = !inputApisLocked
                 )
             }
@@ -3140,7 +3150,10 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_dinput),
                     checked = state.enableDInput.value,
-                    onCheckedChange = { state.enableDInput.value = it },
+                    onCheckedChange = {
+                        state.enableDInput.value = it
+                        if (!inputApisLocked && it && state.enableXInput.value) state.enableXInput.value = false
+                    },
                     enabled = !inputApisLocked
                 )
             }

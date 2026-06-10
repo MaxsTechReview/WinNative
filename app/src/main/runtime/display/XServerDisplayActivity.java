@@ -5287,14 +5287,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
         boolean dinputEnabled = (inputType & WinHandler.FLAG_INPUT_TYPE_DINPUT) == WinHandler.FLAG_INPUT_TYPE_DINPUT;
-        boolean exclusiveXInput = false;
+        boolean exclusiveXInput = container.isExclusiveXInput();
         if (shortcut != null) {
             String extra = shortcut.getExtra("exclusiveXInput");
             if (!extra.isEmpty()) {
                 exclusiveXInput = extra.equals("1");
             }
         }
-        WineUtils.ensureControllerDllOverrides(container);
         WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
         WineUtils.ensureWinebusConfig(container);
 

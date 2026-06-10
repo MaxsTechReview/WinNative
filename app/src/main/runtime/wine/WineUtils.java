@@ -695,9 +695,6 @@ public abstract class WineUtils {
       "wined3d"
     };
     final String[] dinputLibs = {"dinput", "dinput8"};
-    final String[] xinputLibs = {
-      "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"
-    };
 
     final String dllOverridesKey = "Software\\Wine\\DllOverrides";
 
@@ -705,8 +702,6 @@ public abstract class WineUtils {
       for (String name : direct3dLibs)
         registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       for (String name : dinputLibs)
-        registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-      for (String name : xinputLibs)
         registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
       // Conditional OpenGL override for ARM64EC (exclude Mali GPUs)
       if (wineInfo != null
@@ -749,36 +744,6 @@ public abstract class WineUtils {
         File dst64 = new File(containerSystem32Dir, dlname);
         if (src64.exists()) {
           FileUtils.copy(src64, dst64);
-        }
-      }
-    }
-  }
-
-  private static final String[] XINPUT_DLLS = {
-    "xinput1_1.dll", "xinput1_2.dll", "xinput1_3.dll",
-    "xinput1_4.dll", "xinput9_1_0.dll", "xinputuap.dll"
-  };
-
-  public static void ensureControllerDllOverrides(Container container) {
-    if (container == null) return;
-
-    File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
-    if (!userRegFile.isFile()) return;
-
-    final String dllOverridesKey = "Software\\Wine\\DllOverrides";
-    final String[] dinputLibs = {"dinput", "dinput8"};
-
-    try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-      for (String name : dinputLibs) {
-        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-        }
-      }
-
-      for (String dll : XINPUT_DLLS) {
-        String name = dll.substring(0, dll.length() - 4);
-        if (!"native,builtin".equals(registryEditor.getStringValue(dllOverridesKey, name, ""))) {
-          registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
       }
     }
@@ -1399,18 +1364,6 @@ public abstract class WineUtils {
       String winebusParamsKey2 = "System\\ControlSet001\\Services\\winebus\\Parameters";
       registryEditor.setDwordValue(winebusParamsKey2, "DisableHidraw", 1);
       registryEditor.setDwordValue(winebusParamsKey2, "DisableInput", 0);
-    }
-  }
-
-  public static void setJoystickRegistryKeys(File userRegFile, boolean enable) {
-    String value = enable ? "override" : "disabled";
-    try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-      for (int i = 0; i < 4; i++) {
-        registryEditor.setStringValue(
-            "Software\\Wine\\DirectInput\\Joysticks", "Generic HID Gamepad " + i, value);
-        registryEditor.setStringValue(
-            "Software\\Wine\\DirectInput\\Joysticks", "ric HID Gamepad " + i, value);
-      }
     }
   }
 

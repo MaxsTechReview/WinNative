@@ -357,6 +357,9 @@ class ShortcutSettingsComposeDialog private constructor(
         state.selectedDInputMapperType.intValue =
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
         state.disableXInput.value = shortcut.getExtra("disableXinput", "0") == "1"
+        state.shortcutExclusiveXInput.value = shortcut.getExtra("exclusiveXInput", "").let {
+            if (it.isEmpty()) container.isExclusiveXInput() else it == "1"
+        }
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
 
         // Steam options
@@ -927,8 +930,7 @@ class ShortcutSettingsComposeDialog private constructor(
             }
         }
 
-        // Exclusive Input off → force both APIs on and lock them.
-        if (!state.disableXInput.value) {
+        if (!state.shortcutExclusiveXInput.value) {
             state.enableXInput.value = true
             state.enableDInput.value = true
         }
@@ -1150,6 +1152,9 @@ class ShortcutSettingsComposeDialog private constructor(
             val disableXinputValue = if (state.disableXInput.value) "1" else null
             shortcut.putExtra("disableXinput", disableXinputValue)
             if (disableXinputValue != null) hasContainerOverride = true
+
+            shortcut.putExtra("exclusiveXInput", if (state.shortcutExclusiveXInput.value) "1" else "0")
+            if (state.shortcutExclusiveXInput.value != container.isExclusiveXInput()) hasContainerOverride = true
 
             // Touchscreen mode
             shortcut.putExtra(
@@ -2168,8 +2173,8 @@ class ShortcutSettingsComposeDialog private constructor(
             (inputType and WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()) == WinHandler.FLAG_INPUT_TYPE_DINPUT.toInt()
         state.selectedDInputMapperType.intValue =
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
-        // Exclusive Input off forces both APIs on.
-        if (!state.disableXInput.value) {
+        state.shortcutExclusiveXInput.value = container.isExclusiveXInput()
+        if (!state.shortcutExclusiveXInput.value) {
             state.enableXInput.value = true
             state.enableDInput.value = true
         }
