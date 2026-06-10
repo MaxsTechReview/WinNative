@@ -95,6 +95,7 @@ import com.winlator.cmod.shared.android.AppTerminationHelper
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.NotificationHelper
+import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
 import dagger.hilt.android.AndroidEntryPoint
 import com.winlator.cmod.feature.stores.steam.enums.EDepotFileFlag
@@ -2315,6 +2316,60 @@ class SteamService : Service() {
         }
 
         /**
+         * Lightweight read of the Steam shortcut's `[Extra Data]` section straight
+         * from its .desktop file, with the owning container's root dir. Deliberately
+         * NOT findSteamShortcut/loadShortcuts on read-only paths: the Shortcut
+         * constructor decodes cover-art bitmaps, runs PE icon extraction and can
+         * rewrite .desktop files — far too heavy (and write-racy) for hot paths
+         * that only need a couple of strings. Returns null when no Steam shortcut
+         * exists for [appId].
+         */
+        private fun readSteamShortcutExtras(
+            context: Context,
+            appId: Int,
+        ): Pair<Map<String, String>, File>? {
+            val appIdStr = appId.toString()
+            val homeDir = File(ImageFs.find(context).rootDir, "home")
+            val containerDirs =
+                homeDir.listFiles { f -> f.isDirectory && f.name.startsWith("${ImageFs.USER}-") }
+                    ?: return null
+            for (containerDir in containerDirs) {
+                val desktopDir = File(containerDir, ".wine/drive_c/users/${ImageFs.USER}/Desktop")
+                val files = desktopDir.listFiles { f -> f.name.endsWith(".desktop") } ?: continue
+                for (file in files) {
+                    var section = ""
+                    val extras = mutableMapOf<String, String>()
+                    // FileUtils.readLines (also used by Shortcut's parser) returns
+                    // what it could read on IO errors — one corrupt .desktop file
+                    // must not abort the scan of the remaining containers.
+                    for (raw in FileUtils.readLines(file)) {
+                        val line = raw.trim()
+                        if (line.isEmpty() || line.startsWith("#")) continue
+                        if (line.startsWith("[")) {
+                            section = line.substringAfter("[").substringBefore("]")
+                            continue
+                        }
+                        if (section != "Extra Data") continue
+                        val key = line.substringBefore("=", "")
+                        if (key.isNotEmpty()) extras[key] = line.substringAfter("=")
+                    }
+                    if (extras["game_source"] == "STEAM" && extras["app_id"] == appIdStr) {
+                        return extras to containerDir
+                    }
+                }
+            }
+            return null
+        }
+
+        /** Reads executablePath from a container's `.container` config without Container construction. */
+        private fun readContainerExecutablePath(containerDir: File): String =
+            runCatching {
+                val configFile = File(containerDir, ".container")
+                if (!configFile.isFile) return ""
+                JSONObject(configFile.readText()).optString("executablePath", "")
+            }.getOrElse { "" }
+
+        /**
          * Persists the user's launch-option choice (an appinfo `config.launch` entry) on
          * the game's shortcut + container, matching resolveRelativeGameExe's priority:
          * shortcut `launch_exe_path` first, container.executablePath as the synced
@@ -2349,18 +2404,24 @@ class SteamService : Service() {
 
         /**
          * Currently effective launch option as (executable, arguments), resolved in the
-         * same order the launch path uses. Call on an IO dispatcher.
+         * same order the launch path uses: shortcut `launch_exe_path` first, the owning
+         * container's executablePath as fallback, then the installed exe. Reads the
+         * .desktop/.container files directly (this runs on every game-detail open).
+         * Call on an IO dispatcher.
          */
         fun getSelectedLaunchOption(
             context: Context,
             appId: Int,
         ): Pair<String, String> {
-            val shortcut = findSteamShortcut(context, appId)
+            val found = runCatching { readSteamShortcutExtras(context, appId) }.getOrNull()
+            val extras = found?.first.orEmpty()
             val exe =
-                shortcut?.getExtra("launch_exe_path").orEmpty().ifBlank {
-                    shortcut?.container?.executablePath.orEmpty().ifBlank { getInstalledExe(appId) }
+                extras["launch_exe_path"].orEmpty().ifBlank {
+                    found?.second?.let { readContainerExecutablePath(it) }.orEmpty().ifBlank {
+                        getInstalledExe(appId)
+                    }
                 }
-            return exe.replace('\\', '/') to shortcut?.getExtra("launch_exe_args").orEmpty()
+            return exe.replace('\\', '/') to extras["launch_exe_args"].orEmpty()
         }
 
         /**
