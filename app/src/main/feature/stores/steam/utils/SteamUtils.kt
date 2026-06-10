@@ -1185,7 +1185,7 @@ object SteamUtils {
                     // [app::general] — communicate the active branch to gbe_fork so
                     // GetCurrentBetaName() and GetAppBuildId() return correct values.
                     appendLine("[app::general]")
-                    appendLine("is_beta_branch=${if (selectedBranch == "public") 0 else 1}")
+                    appendLine("is_beta_branch=${if (selectedBranch.equals("public", ignoreCase = true)) 0 else 1}")
                     appendLine("branch_name=$selectedBranch")
                     appendLine()
                     appendLine("[app::dlcs]")

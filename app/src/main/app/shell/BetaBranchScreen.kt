@@ -71,9 +71,10 @@ private val BbLocked = Color(0xFF505060)
 
 /**
  * Steam beta-branch picker — a Workshop-shaped modal window listing the game's
- * PICS depots.branches entries. Tapping an unlocked row persists the selection
- * and triggers the update flow. Password-protected branches are shown as
- * disabled (no beta-password support in this app).
+ * PICS depots.branches entries. Tapping an unlocked row persists the selection,
+ * closes the window and triggers the update flow so the branch's build actually
+ * downloads. Password-protected branches are shown as disabled (no
+ * beta-password support in this app).
  *
  * Stateless: data and callbacks are hoisted to the BetaBranchesDialog wrapper.
  */
@@ -121,7 +122,7 @@ internal fun StoreBetaBranchScreen(
                         BetaBranchPickerRow(
                             branch = branch,
                             selected = branch == selectedBranch,
-                            onClick = { if (!branch.pwdRequired) onSelect(branch) },
+                            onClick = { onSelect(branch) },
                         )
                         if (index < branches.lastIndex) {
                             HorizontalDivider(
@@ -224,7 +225,12 @@ private fun BetaBranchPickerRow(
         horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            val displayName = if (branch.name == "public") "${branch.name}  (default)" else branch.name
+            val displayName =
+                if (branch.name.equals("public", ignoreCase = true)) {
+                    "${branch.name}  (default)"
+                } else {
+                    branch.name
+                }
             Text(
                 displayName,
                 color = if (selected) BbAccentGlow else BbTextPrimary,

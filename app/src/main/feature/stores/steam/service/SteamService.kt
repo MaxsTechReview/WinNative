@@ -92,6 +92,7 @@ import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.system.GPUInformation
 import com.winlator.cmod.runtime.system.SessionKeepAliveService
 import com.winlator.cmod.shared.android.AppTerminationHelper
+import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.NotificationHelper
 import com.winlator.cmod.shared.io.StorageUtils
@@ -4538,27 +4539,7 @@ class SteamService : Service() {
                     runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED) }
                     runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_UNPACK_CHECKED) }
 
-                    // Prune stale "{depotId}_{gid}.manifest" caches: after a branch
-                    // switch or ordinary update the previous build's manifests linger,
-                    // wasting disk and — when depot.config is missing an entry —
-                    // letting checkForAppUpdate's cache fallback mistake an old build
-                    // for installed. Keep only what depot.config says is current; skip
-                    // legacy installs with no depot.config, whose fallback needs them.
-                    runCatching {
-                        val installedManifests = readInstalledDepotManifestIds(appDirPath)
-                        if (installedManifests.isNotEmpty()) {
-                            File(appDirPath, ".DepotDownloader")
-                                .listFiles { f -> f.isFile && f.name.endsWith(".manifest") }
-                                ?.forEach { f ->
-                                    val parts = f.name.removeSuffix(".manifest").split('_')
-                                    val depotId = parts.getOrNull(0)?.toIntOrNull() ?: return@forEach
-                                    val gid = parts.getOrNull(1)?.toLongOrNull() ?: return@forEach
-                                    if (parts.size == 2 && installedManifests[depotId] != gid && f.delete()) {
-                                        Timber.i("Pruned stale depot manifest cache ${f.name} at $appDirPath")
-                                    }
-                                }
-                        }
-                    }.onFailure { e -> Timber.w(e, "Stale manifest prune failed for $appDirPath") }
+                    pruneStaleDepotManifestCache(appDirPath)
 
                     // Same reason as the runCatching above: a Room exception
                     // here used to FAIL a fully-downloaded game with COMPLETE
@@ -5571,7 +5552,10 @@ class SteamService : Service() {
                     var gameSource = ""
                     var fileAppId = ""
                     var branch = ""
-                    for (raw in file.readLines()) {
+                    // FileUtils.readLines (also used by Shortcut's parser) returns
+                    // what it could read on IO errors — one corrupt .desktop file
+                    // must not abort the scan of the remaining containers.
+                    for (raw in FileUtils.readLines(file)) {
                         val line = raw.trim()
                         if (line.isEmpty() || line.startsWith("#")) continue
                         if (line.startsWith("[")) {
@@ -7626,6 +7610,33 @@ class SteamService : Service() {
                 Timber.w(it, "Failed to read Steam depot.config for $appDirPath")
                 emptyMap()
             }
+
+        /**
+         * Prunes stale "{depotId}_{gid}.manifest" caches after a completed
+         * download: a branch switch or ordinary update leaves the previous
+         * build's manifests behind, wasting disk and — when depot.config is
+         * missing an entry — letting checkForAppUpdate's cache fallback mistake
+         * an old build for installed. Keeps only what depot.config says is
+         * current; legacy installs with no depot.config are left untouched
+         * because their fallback needs the cached files.
+         */
+        private fun pruneStaleDepotManifestCache(appDirPath: String) {
+            runCatching {
+                val installedManifests = readInstalledDepotManifestIds(appDirPath)
+                if (installedManifests.isEmpty()) return
+                File(appDirPath, ".DepotDownloader")
+                    .listFiles { f -> f.isFile && f.name.endsWith(".manifest") }
+                    ?.forEach { f ->
+                        val parts = f.name.removeSuffix(".manifest").split('_')
+                        if (parts.size != 2) return@forEach
+                        val depotId = parts[0].toIntOrNull() ?: return@forEach
+                        val gid = parts[1].toLongOrNull() ?: return@forEach
+                        if (installedManifests[depotId] != gid && f.delete()) {
+                            Timber.i("Pruned stale depot manifest cache ${f.name} at $appDirPath")
+                        }
+                    }
+            }.onFailure { e -> Timber.w(e, "Stale manifest prune failed for $appDirPath") }
+        }
 
         private fun cleanupCancelledUpdate(appDirPath: String) {
             MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)

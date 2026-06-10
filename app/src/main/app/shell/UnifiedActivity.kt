@@ -8942,12 +8942,13 @@ class UnifiedActivity :
                     ?.branches
                     ?.values
                     ?.map { b -> StoreBetaBranchItem(b.name, b.buildId, b.timeUpdated, b.pwdRequired) }
-                    ?.sortedWith(compareBy({ it.name != "public" }, { it.name }))
+                    ?.sortedWith(compareBy({ !it.name.equals("public", ignoreCase = true) }, { it.name }))
                     .orEmpty()
             val selectedName = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
             val selected =
-                branches.firstOrNull { it.name == selectedName }
-                    ?: branches.firstOrNull { it.name == "public" }
+                branches.firstOrNull { it.name.equals(selectedName, ignoreCase = true) }
+                    // Selected beta may have been retired from PICS — fall back to public.
+                    ?: branches.firstOrNull { it.name.equals("public", ignoreCase = true) }
             branches to selected
         }
 
@@ -8975,7 +8976,9 @@ class UnifiedActivity :
         startUpdate: () -> Unit,
     ) {
         scope.launch(Dispatchers.IO) {
-            val branchName = if (item.name == "public") "" else item.name
+            // "public" is the implicit default — store blank so resolveSelectedBetaName
+            // keeps returning "" for games the user never switched.
+            val branchName = if (item.name.equals("public", ignoreCase = true)) "" else item.name
             val saved = SteamService.setSelectedBetaBranch(applicationContext, appId, branchName)
             withContext(Dispatchers.Main) {
                 if (saved) {
@@ -9049,10 +9052,12 @@ class UnifiedActivity :
         LaunchedEffect(app.id, downloadRecords) {
             val loadData =
                 withContext(Dispatchers.IO) {
+                    // Size the same branch the download will actually fetch.
+                    val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
                     val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
                     val perDlcSizes =
                         selectableDlcApps.associate { dlc ->
-                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id)
+                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id, branch = branch)
                         }
                     val installedDlcIds =
                         SteamService.getInstalledDlcDepotsOf(app.id)
@@ -9062,7 +9067,7 @@ class UnifiedActivity :
                         dlcApps = selectableDlcApps,
                         dlcSizes = perDlcSizes,
                         installedDlcIds = installedDlcIds,
-                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id),
+                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id, branch = branch),
                         installed = SteamService.isAppInstalled(app.id),
                     )
                 }
@@ -9078,7 +9083,8 @@ class UnifiedActivity :
         LaunchedEffect(app.id, selectedDlcIds.toList()) {
             selectedManifestSizes =
                 withContext(Dispatchers.IO) {
-                    SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList())
+                    val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
+                    SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList(), branch = branch)
                 }
         }
 
@@ -9242,7 +9248,13 @@ class UnifiedActivity :
                                 val installableDlcIds = dlcItems
                                     .filter { !it.isInstalled && it.id in selectedDlcIds }
                                     .map { it.id }
-                                SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
+                                // An exception here is an app crash (plain launch, no
+                                // handler) — surface it as a failed start instead.
+                                runCatching {
+                                    SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
+                                }.onFailure { e ->
+                                    Log.w("UnifiedActivity", "Steam download failed to start for appId=${app.id}", e)
+                                }
                                 withContext(Dispatchers.Main) { onDismissRequest() }
                             }
                         }
@@ -9450,7 +9462,18 @@ class UnifiedActivity :
                 branches = branches,
                 selectedBranch = selectedBranch,
                 onSelect = { item ->
-                    persistSteamBetaBranchSelection(appId, item, scope, onSelectionSaved, onStartUpdate)
+                    persistSteamBetaBranchSelection(
+                        appId = appId,
+                        item = item,
+                        scope = scope,
+                        onSaved = { saved ->
+                            onSelectionSaved(saved)
+                            // Close the picker so the update-check flow it triggers
+                            // is what the user sees next, not a stale window.
+                            onDismissRequest()
+                        },
+                        startUpdate = onStartUpdate,
+                    )
                 },
                 onClose = onDismissRequest,
             )
