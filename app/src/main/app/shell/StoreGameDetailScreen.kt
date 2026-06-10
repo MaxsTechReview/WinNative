@@ -57,6 +57,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
@@ -152,6 +153,8 @@ internal fun StoreGameDetailScreen(
     areSteamActionsEnabled: Boolean = true,
     showLaunchOptions: Boolean = false,
     onLaunchOptions: () -> Unit = {},
+    showBetaBranches: Boolean = false,
+    onBetaBranches: () -> Unit = {},
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
@@ -190,8 +193,10 @@ internal fun StoreGameDetailScreen(
         val verifyFilesAvailable = showVerifyFiles && isInstalled
         val workshopAvailable = showWorkshop && isInstalled
         val launchOptionsAvailable = showLaunchOptions && isInstalled
+        val betaBranchesAvailable = showBetaBranches && isInstalled
         val sourceMenuEnabled =
-            updateCheckAvailable || verifyFilesAvailable || workshopAvailable || launchOptionsAvailable
+            updateCheckAvailable || verifyFilesAvailable || workshopAvailable ||
+                launchOptionsAvailable || betaBranchesAvailable
         val showDlcCard = dlcs.isNotEmpty()
         val showActionColumn =
             showDownloadCta || showUpdateCta ||
@@ -299,6 +304,7 @@ internal fun StoreGameDetailScreen(
                 showVerifyFiles = verifyFilesAvailable,
                 showWorkshop = workshopAvailable,
                 showLaunchOptions = launchOptionsAvailable,
+                showBetaBranches = betaBranchesAvailable,
                 isCheckingForUpdate = isCheckingForUpdate,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 isUpdateCheckEnabled =
@@ -310,6 +316,7 @@ internal fun StoreGameDetailScreen(
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
                 onLaunchOptions = onLaunchOptions,
+                onBetaBranches = onBetaBranches,
             )
         }
 
@@ -788,6 +795,7 @@ private fun StoreSourceTag(
     showVerifyFiles: Boolean = false,
     showWorkshop: Boolean = false,
     showLaunchOptions: Boolean = false,
+    showBetaBranches: Boolean = false,
     isCheckingForUpdate: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     isUpdateCheckEnabled: Boolean = true,
@@ -795,6 +803,7 @@ private fun StoreSourceTag(
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
     onLaunchOptions: () -> Unit = {},
+    onBetaBranches: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableIntStateOf(0) }
@@ -876,6 +885,13 @@ private fun StoreSourceTag(
                         label = stringResource(R.string.store_game_launch_options),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onLaunchOptions() }
+                }
+                if (showBetaBranches) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.AltRoute,
+                        label = stringResource(R.string.store_game_beta_branch),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onBetaBranches() }
                 }
             }
         }

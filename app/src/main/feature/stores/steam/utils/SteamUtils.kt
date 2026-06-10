@@ -1178,14 +1178,15 @@ object SteamUtils {
             val dlcApps = SteamService.getDownloadableDlcAppsOf(appId)
             val hiddenDlcApps = SteamService.getHiddenDlcAppsOf(appId)
             val appendedDlcIds = mutableListOf<Int>()
+            val selectedBranch = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
 
             val appIniContent =
                 buildString {
-                    // [app::general] — make Steam_Apps::GetCurrentBetaName()
-                    // deterministic; WinNative always installs the public branch.
+                    // [app::general] — communicate the active branch to gbe_fork so
+                    // GetCurrentBetaName() and GetAppBuildId() return correct values.
                     appendLine("[app::general]")
-                    appendLine("is_beta_branch=0")
-                    appendLine("branch_name=public")
+                    appendLine("is_beta_branch=${if (selectedBranch == "public") 0 else 1}")
+                    appendLine("branch_name=$selectedBranch")
                     appendLine()
                     appendLine("[app::dlcs]")
                     appendLine("unlock_all=0")

@@ -118,6 +118,8 @@
     <string name="store_game_workshop">Workshop</string>
     <string name="store_game_launch_options">Launch Options</string>
     <string name="store_game_launch_option_failed">Couldn\'t save launch option</string>
+    <string name="store_game_beta_branch">Beta Branch</string>
+    <string name="store_game_beta_branch_failed">Couldn\'t save beta branch</string>
     <string name="store_game_verify_files">Verify Files</string>
     <string name="store_game_verify_started">Verifying %1$s — check the Downloads tab</string>
     <string name="store_game_steam_options">Steam options</string>

@@ -2362,6 +2362,30 @@ class SteamService : Service() {
             return exe.replace('\\', '/') to shortcut?.getExtra("launch_exe_args").orEmpty()
         }
 
+        /**
+         * Persists the user's beta-branch choice on the game's shortcut.
+         * Pass a blank [branchName] to clear the selection (reverts to public).
+         * Call on an IO dispatcher.
+         */
+        fun setSelectedBetaBranch(
+            context: Context,
+            appId: Int,
+            branchName: String,
+        ): Boolean {
+            var shortcut = findSteamShortcut(context, appId)
+            if (shortcut == null) {
+                createSteamShortcut(context, appId)
+                shortcut = findSteamShortcut(context, appId)
+            }
+            if (shortcut == null) {
+                Timber.w("setSelectedBetaBranch: no shortcut for appId=$appId")
+                return false
+            }
+            shortcut.putExtra("selectedBranch", branchName.ifBlank { null })
+            shortcut.saveData()
+            return true
+        }
+
         suspend fun deleteApp(appId: Int): Boolean =
             withContext(Dispatchers.IO) {
                 val appDirPath = getAppDirPath(appId)
@@ -5499,13 +5523,7 @@ class SteamService : Service() {
             if (appId <= 0) return ""
             val svc = instance ?: return ""
             return runCatching {
-                for (sc in ContainerManager(svc).loadShortcuts()) {
-                    val scAppId = sc.getExtra("app_id").toIntOrNull() ?: continue
-                    if (scAppId != appId) continue
-                    val branch = sc.getExtra("selectedBranch").trim()
-                    if (branch.isNotEmpty()) return@runCatching branch
-                }
-                ""
+                findSteamShortcut(svc, appId)?.getExtra("selectedBranch").orEmpty().trim()
             }.getOrElse { "" }
         }
 

@@ -4591,17 +4591,26 @@ class UnifiedActivity :
         var showLaunchOptionsDialog by remember(app.id) { mutableStateOf(false) }
         var launchOptions by remember(app.id) { mutableStateOf<List<StoreLaunchOptionItem>>(emptyList()) }
         var selectedLaunchOption by remember(app.id) { mutableStateOf<StoreLaunchOptionItem?>(null) }
+        var showBetaBranchesDialog by remember(app.id) { mutableStateOf(false) }
+        var betaBranches by remember(app.id) { mutableStateOf<List<StoreBetaBranchItem>>(emptyList()) }
+        var selectedBetaBranch by remember(app.id) { mutableStateOf<StoreBetaBranchItem?>(null) }
         LaunchedEffect(app.id, isSteamLibraryGame) {
             val steamInstalled =
                 isSteamLibraryGame && withContext(Dispatchers.IO) { SteamService.isAppInstalled(app.id) }
             if (!steamInstalled) {
                 launchOptions = emptyList()
                 selectedLaunchOption = null
+                betaBranches = emptyList()
+                selectedBetaBranch = null
                 return@LaunchedEffect
             }
             loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
                 launchOptions = options
                 selectedLaunchOption = selected
+            }
+            loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
+                betaBranches = branches
+                selectedBetaBranch = selected
             }
         }
 
@@ -5334,6 +5343,8 @@ class UnifiedActivity :
                                     showWorkshop = !isEpic && !isGog,
                                     showLaunchOptions = launchOptions.size >= 2,
                                     onLaunchOptions = { showLaunchOptionsDialog = true },
+                                    showBetaBranches = betaBranches.size >= 2,
+                                    onBetaBranches = { showBetaBranchesDialog = true },
                                     areSteamActionsEnabled =
                                         when {
                                             isEpic -> !hasBlockingEpicDownloadForLibrary
@@ -5823,6 +5834,18 @@ class UnifiedActivity :
                         selectedOption = selectedLaunchOption,
                         onSelectionSaved = { selectedLaunchOption = it },
                         onDismissRequest = { showLaunchOptionsDialog = false },
+                    )
+                }
+
+                if (showBetaBranchesDialog) {
+                    BetaBranchesDialog(
+                        appId = app.id,
+                        gameTitle = app.name,
+                        branches = betaBranches,
+                        selectedBranch = selectedBetaBranch,
+                        onSelectionSaved = { selectedBetaBranch = it },
+                        onDismissRequest = { showBetaBranchesDialog = false },
+                        onStartUpdate = { startUpdateCheck(app.id, app.name) },
                     )
                 }
             }
@@ -8815,9 +8838,9 @@ class UnifiedActivity :
     }
 
     // Apps whose appinfo was already re-fetched this process (see
-    // loadSteamLaunchOptionsRefreshing) — avoids a PICS round-trip on every
-    // game-detail open.
-    private val launchOptionsRefreshedApps = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
+    // loadSteamLaunchOptionsRefreshing / loadSteamBetaBranchesRefreshing) —
+    // avoids a PICS round-trip on every game-detail open.
+    private val appinfoRefreshedApps = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
 
     /**
      * Builds the Steam launch-option list (appinfo config.launch) for the STEAM
@@ -8864,13 +8887,13 @@ class UnifiedActivity :
     ) {
         val (options, selected) = loadSteamLaunchOptions(appId)
         apply(options, selected)
-        if (launchOptionsRefreshedApps.add(appId)) {
+        if (appinfoRefreshedApps.add(appId)) {
             if (SteamService.refreshAppInfoFromPics(appId)) {
                 val (fresh, freshSelected) = loadSteamLaunchOptions(appId)
                 apply(fresh, freshSelected)
             } else {
                 // Offline or fetch failed — allow a retry on the next open.
-                launchOptionsRefreshedApps.remove(appId)
+                appinfoRefreshedApps.remove(appId)
             }
         }
     }
@@ -8903,6 +8926,63 @@ class UnifiedActivity :
         }
     }
 
+    private suspend fun loadSteamBetaBranches(appId: Int): Pair<List<StoreBetaBranchItem>, StoreBetaBranchItem?> =
+        withContext(Dispatchers.IO) {
+            val branches =
+                SteamService.getAppInfoOf(appId)
+                    ?.branches
+                    ?.values
+                    ?.map { b -> StoreBetaBranchItem(b.name, b.buildId, b.timeUpdated, b.pwdRequired) }
+                    ?.sortedWith(compareBy({ it.name != "public" }, { it.name }))
+                    .orEmpty()
+            val selectedName = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
+            val selected =
+                branches.firstOrNull { it.name == selectedName }
+                    ?: branches.firstOrNull { it.name == "public" }
+            branches to selected
+        }
+
+    private suspend fun loadSteamBetaBranchesRefreshing(
+        appId: Int,
+        apply: (List<StoreBetaBranchItem>, StoreBetaBranchItem?) -> Unit,
+    ) {
+        val (branches, selected) = loadSteamBetaBranches(appId)
+        apply(branches, selected)
+        if (appinfoRefreshedApps.add(appId)) {
+            if (SteamService.refreshAppInfoFromPics(appId)) {
+                val (fresh, freshSelected) = loadSteamBetaBranches(appId)
+                apply(fresh, freshSelected)
+            } else {
+                appinfoRefreshedApps.remove(appId)
+            }
+        }
+    }
+
+    private fun persistSteamBetaBranchSelection(
+        appId: Int,
+        item: StoreBetaBranchItem,
+        scope: CoroutineScope,
+        onSaved: (StoreBetaBranchItem) -> Unit,
+        startUpdate: () -> Unit,
+    ) {
+        scope.launch(Dispatchers.IO) {
+            val branchName = if (item.name == "public") "" else item.name
+            val saved = SteamService.setSelectedBetaBranch(applicationContext, appId, branchName)
+            withContext(Dispatchers.Main) {
+                if (saved) {
+                    onSaved(item)
+                    startUpdate()
+                } else {
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        this@UnifiedActivity,
+                        getString(R.string.store_game_beta_branch_failed),
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+            }
+        }
+    }
+
     // Game Manager Dialog
     @Composable
     fun GameManagerDialog(
@@ -8925,6 +9005,9 @@ class UnifiedActivity :
         var showLaunchOptionsDialog by remember(app.id) { mutableStateOf(false) }
         var launchOptions by remember(app.id) { mutableStateOf<List<StoreLaunchOptionItem>>(emptyList()) }
         var selectedLaunchOption by remember(app.id) { mutableStateOf<StoreLaunchOptionItem?>(null) }
+        var showBetaBranchesDialog by remember(app.id) { mutableStateOf(false) }
+        var betaBranches by remember(app.id) { mutableStateOf<List<StoreBetaBranchItem>>(emptyList()) }
+        var selectedBetaBranch by remember(app.id) { mutableStateOf<StoreBetaBranchItem?>(null) }
         var updateInfo by remember(app.id) { mutableStateOf<SteamService.SteamUpdateInfo?>(null) }
         var updateStatusText by remember(app.id) { mutableStateOf<String?>(null) }
         val downloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
@@ -8994,11 +9077,17 @@ class UnifiedActivity :
             if (installed != true) {
                 launchOptions = emptyList()
                 selectedLaunchOption = null
+                betaBranches = emptyList()
+                selectedBetaBranch = null
                 return@LaunchedEffect
             }
             loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
                 launchOptions = options
                 selectedLaunchOption = selected
+            }
+            loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
+                betaBranches = branches
+                selectedBetaBranch = selected
             }
         }
 
@@ -9124,6 +9213,8 @@ class UnifiedActivity :
                     areSteamActionsEnabled = !hasBlockingSteamDownload,
                     showLaunchOptions = launchOptions.size >= 2,
                     onLaunchOptions = { showLaunchOptionsDialog = true },
+                    showBetaBranches = betaBranches.size >= 2,
+                    onBetaBranches = { showBetaBranchesDialog = true },
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     isDlcSelectionEnabled = steamDownloadRecord == null,
@@ -9273,6 +9364,18 @@ class UnifiedActivity :
                 onDismissRequest = { showLaunchOptionsDialog = false },
             )
         }
+
+        if (showBetaBranchesDialog) {
+            BetaBranchesDialog(
+                appId = app.id,
+                gameTitle = app.name,
+                branches = betaBranches,
+                selectedBranch = selectedBetaBranch,
+                onSelectionSaved = { selectedBetaBranch = it },
+                onDismissRequest = { showBetaBranchesDialog = false },
+                onStartUpdate = { startUpdateCheck(app.id, app.name) },
+            )
+        }
     }
 
     /**
@@ -9304,6 +9407,41 @@ class UnifiedActivity :
                 selectedOption = selectedOption,
                 onSelect = { option ->
                     persistSteamLaunchOptionSelection(appId, option, scope, onSelectionSaved)
+                },
+                onClose = onDismissRequest,
+            )
+        }
+    }
+
+    /**
+     * Hosts the Workshop-styled beta-branch picker window over a game detail
+     * dialog. Selecting an unlocked row persists it and triggers [onStartUpdate].
+     */
+    @Composable
+    private fun BetaBranchesDialog(
+        appId: Int,
+        gameTitle: String,
+        branches: List<StoreBetaBranchItem>,
+        selectedBranch: StoreBetaBranchItem?,
+        onSelectionSaved: (StoreBetaBranchItem) -> Unit,
+        onDismissRequest: () -> Unit,
+        onStartUpdate: () -> Unit,
+    ) {
+        val scope = rememberCoroutineScope()
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties =
+                DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+        ) {
+            StoreBetaBranchScreen(
+                gameTitle = gameTitle,
+                branches = branches,
+                selectedBranch = selectedBranch,
+                onSelect = { item ->
+                    persistSteamBetaBranchSelection(appId, item, scope, onSelectionSaved, onStartUpdate)
                 },
                 onClose = onDismissRequest,
             )

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -136,6 +137,8 @@ internal fun LibraryGameLaunchScreen(
     showWorkshop: Boolean = true,
     showLaunchOptions: Boolean = false,
     onLaunchOptions: () -> Unit = {},
+    showBetaBranches: Boolean = false,
+    onBetaBranches: () -> Unit = {},
     playEnabled: Boolean = true,
     playDisabledLabel: String? = null,
     onBack: () -> Unit,
@@ -272,11 +275,13 @@ internal fun LibraryGameLaunchScreen(
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
                 showLaunchOptions = showLaunchOptions,
+                showBetaBranches = showBetaBranches,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
                 onLaunchOptions = onLaunchOptions,
+                onBetaBranches = onBetaBranches,
             )
         }
 
@@ -809,11 +814,13 @@ private fun SourceTag(
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
     showLaunchOptions: Boolean = false,
+    showBetaBranches: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
     onLaunchOptions: () -> Unit = {},
+    onBetaBranches: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
@@ -890,6 +897,13 @@ private fun SourceTag(
                         label = stringResource(R.string.store_game_launch_options),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onLaunchOptions() }
+                }
+                if (showBetaBranches) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.AltRoute,
+                        label = stringResource(R.string.store_game_beta_branch),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onBetaBranches() }
                 }
             }
         }
