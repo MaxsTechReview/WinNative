@@ -448,6 +448,14 @@ typedef struct VkRenderer {
     uint64_t         fg_present_period_ns;   // target inter-present interval (ns) fed from Java
     uint64_t         fg_present_deadline_ns; // next clock_nanosleep present deadline
     uint64_t         fg_vsync_anchor_ns;     // latest Choreographer vsync timestamp (CLOCK_MONOTONIC)
+    uint64_t         fg_prev_arrival_ns;     // real-frame arrival times, for time-based interp phase
+    uint64_t         fg_curr_arrival_ns;
+    uint64_t         fg_t_last_ns;           // present-interval telemetry accumulators
+    uint32_t         fg_t_count;
+    double           fg_t_sum_ms;
+    double           fg_t_sumsq_ms;
+    double           fg_t_min_ms;
+    double           fg_t_max_ms;
     uint32_t         fg_present_id;
     PFN_vkGetRefreshCycleDurationGOOGLE   fnGetRefreshCycleDuration;
     PFN_vkGetPastPresentationTimingGOOGLE fnGetPastPresentationTiming;

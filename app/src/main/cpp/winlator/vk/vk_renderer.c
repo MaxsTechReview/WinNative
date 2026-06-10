@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <math.h>
 
 // SPIR-V shader byte arrays generated at build time by glslc + bin2c.cmake.
 #include "shaders/window_vert.spv.h"
@@ -2391,11 +2392,12 @@ static uint64_t g_fg_plast = 0;
 static uint64_t g_fg_dropped = 0;
 
 // desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
-// Block until the next vsync-aligned present deadline (CLOCK_MONOTONIC absolute sleep).
-static void fg_pace_to_deadline(VkRenderer* r) {
-    if (r->active_present_mode == VK_PRESENT_MODE_FIFO_KHR) return;  // FIFO already vsync-paces
+#define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
+
+// Advance to the next vsync-aligned present deadline; stored and returned for phase + sleep.
+static uint64_t fg_compute_deadline(VkRenderer* r) {
     uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
-    if (period == 0) return;
+    if (period == 0) { r->fg_present_deadline_ns = 0; return 0; }
     uint64_t now = now_monotonic_ns();
     uint64_t prev = r->fg_present_deadline_ns;
     uint64_t floor_t = (now > prev) ? now : prev;
@@ -2405,10 +2407,39 @@ static void fg_pace_to_deadline(VkRenderer* r) {
         : floor_t + period;
     if (deadline > now + 4u * period) deadline = floor_t + period;
     r->fg_present_deadline_ns = deadline;
+    return deadline;
+}
+
+static void fg_sleep_to_deadline(VkRenderer* r) {
+    if (r->active_present_mode == VK_PRESENT_MODE_FIFO_KHR) return;  // FIFO already vsync-paces
+    uint64_t deadline = r->fg_present_deadline_ns;
+    if (deadline == 0) return;
+    uint64_t target = deadline > FG_PRESENT_LEAD_NS ? deadline - FG_PRESENT_LEAD_NS : deadline;
     struct timespec ts;
-    ts.tv_sec  = (time_t)(deadline / 1000000000ull);
-    ts.tv_nsec = (long)(deadline % 1000000000ull);
+    ts.tv_sec  = (time_t)(target / 1000000000ull);
+    ts.tv_nsec = (long)(target % 1000000000ull);
     while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR) {}
+}
+
+// Drain past-present timing records and accumulate the real scan-out interval stats.
+static void fg_collect_present_timing(VkRenderer* r) {
+    if (!r->ext_display_timing || !r->fnGetPastPresentationTiming) return;
+    VkPastPresentationTimingGOOGLE pt[16];
+    uint32_t n = 16;
+    VkResult tr = r->fnGetPastPresentationTiming(r->device, r->swapchain, &n, pt);
+    if (tr != VK_SUCCESS && tr != VK_INCOMPLETE) return;
+    for (uint32_t i = 0; i < n; i++) {
+        uint64_t a = pt[i].actualPresentTime;
+        if (r->fg_t_last_ns != 0 && a > r->fg_t_last_ns) {
+            double ms = (double)(a - r->fg_t_last_ns) / 1.0e6;
+            if (ms > 0.5 && ms < 100.0) {
+                if (r->fg_t_count == 0 || ms < r->fg_t_min_ms) r->fg_t_min_ms = ms;
+                if (r->fg_t_count == 0 || ms > r->fg_t_max_ms) r->fg_t_max_ms = ms;
+                r->fg_t_sum_ms += ms; r->fg_t_sumsq_ms += ms * ms; r->fg_t_count++;
+            }
+        }
+        r->fg_t_last_ns = a;
+    }
 }
 
 // FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
@@ -2514,6 +2545,14 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     uint32_t parity = r->fg_history_curr;
     uint32_t prev_idx = (parity + 2u) % 3u;
     VkFgImage* curr = &r->fg_history[parity];
+
+    uint64_t fg_deadline = fg_compute_deadline(r);
+    if (do_interp && r->fg_prev_arrival_ns != 0 && r->fg_curr_arrival_ns > r->fg_prev_arrival_ns
+        && fg_deadline > r->fg_curr_arrival_ns) {
+        double t = (double)(fg_deadline - r->fg_curr_arrival_ns)
+                 / (double)(r->fg_curr_arrival_ns - r->fg_prev_arrival_ns);
+        phase = (float)(t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t));
+    }
 
     vkBeginCommandBuffer(f->cmd, &bi);
 
@@ -2628,33 +2667,25 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         pti.pNext = NULL; pti.swapchainCount = 1; pti.pTimes = &ptg;
         pinfo.pNext = &pti;
     }
-    fg_pace_to_deadline(r);
+    fg_sleep_to_deadline(r);
     pthread_mutex_lock(&r->queue_mutex);
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pinfo);
     if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) {
         r->fg_present_count++;
         if (do_interp) g_fg_interp++; else g_fg_plast++;
+        fg_collect_present_timing(r);
         if (((g_fg_interp + g_fg_plast) % 120u) == 0u) {
+            double mean = r->fg_t_count ? r->fg_t_sum_ms / r->fg_t_count : 0.0;
+            double var = r->fg_t_count ? r->fg_t_sumsq_ms / r->fg_t_count - mean * mean : 0.0;
+            double sd = var > 0.0 ? sqrt(var) : 0.0;
             VK_LOGI("FG cadence: holds=%llu interp=%llu presentLast=%llu dropped=%llu presents=%llu",
                     (unsigned long long)g_fg_holds, (unsigned long long)g_fg_interp,
                     (unsigned long long)g_fg_plast, (unsigned long long)g_fg_dropped,
                     (unsigned long long)r->fg_present_count);
-            if (r->ext_display_timing && r->fnGetPastPresentationTiming) {
-                VkPastPresentationTimingGOOGLE pt[16];
-                uint32_t n = 16;
-                VkResult tr = r->fnGetPastPresentationTiming(r->device, r->swapchain, &n, pt);
-                if ((tr == VK_SUCCESS || tr == VK_INCOMPLETE) && n >= 2) {
-                    double avg_ms = (double)(pt[n - 1].actualPresentTime - pt[0].actualPresentTime)
-                                    / (double)(n - 1) / 1.0e6;
-                    int64_t late = 0; uint32_t lc = 0;
-                    for (uint32_t i = 0; i < n; i++)
-                        if (pt[i].desiredPresentTime != 0) {
-                            late += (int64_t)pt[i].actualPresentTime - (int64_t)pt[i].desiredPresentTime; lc++;
-                        }
-                    VK_LOGI("FG timing: samples=%u avgInterval=%.2fms avgLate=%.2fms",
-                            n, avg_ms, lc ? (double)late / (double)lc / 1.0e6 : 0.0);
-                }
-            }
+            VK_LOGI("FG timing: n=%u mean=%.2fms cov=%.0f%% min=%.2f max=%.2f",
+                    r->fg_t_count, mean, mean > 0.0 ? 100.0 * sd / mean : 0.0,
+                    r->fg_t_count ? r->fg_t_min_ms : 0.0, r->fg_t_count ? r->fg_t_max_ms : 0.0);
+            r->fg_t_count = 0; r->fg_t_sum_ms = 0.0; r->fg_t_sumsq_ms = 0.0;
         }
     }
     pthread_mutex_unlock(&r->queue_mutex);
@@ -2966,10 +2997,12 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, j
     return fg_submit(r, FG_MODE_HOLD, 0.5f) ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase) {
+JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
+    r->fg_prev_arrival_ns = prevNs > 0 ? (uint64_t)prevNs : 0;
+    r->fg_curr_arrival_ns = currNs > 0 ? (uint64_t)currNs : 0;
     return fg_submit(r, FG_MODE_INTERP, (float)phase) ? JNI_TRUE : JNI_FALSE;
 }
 

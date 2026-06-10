@@ -74,6 +74,7 @@ public class VulkanRenderer
     private volatile long fgGamePeriodNs = 0;
     private long fgLastPumpNs = 0;
     private volatile long fgLastGameNs = 0;
+    private volatile long fgPrevGameNs = 0;
     private volatile int fgActivePresentMode = PRESENT_MODE_FIFO;  // resolved native mode (see nativeGetActivePresentMode)
     private volatile int fgDisplayCapHz = 0;  // panel-max ceiling for the target post rate; 0 = uncapped
     // Quality/smoothness, mapped to native shader knobs (motion search floor + interp consistency).
@@ -330,8 +331,8 @@ public class VulkanRenderer
         }
         if (fgPendingInterps > 0) {
             int k = fgInterpTotal - fgPendingInterps + 1;            // 1..fgInterpTotal
-            float phase = (float) k / (float) (fgInterpTotal + 1);   // evenly split the prev→curr gap
-            nativeRenderInterp(nativeHandle, phase);
+            float phase = (float) k / (float) (fgInterpTotal + 1);   // even fallback; native refines from arrival times
+            nativeRenderInterp(nativeHandle, phase, fgPrevGameNs, fgLastGameNs);
             fgPendingInterps--;
         } else if (fgPendingReal) {
             nativePresentLast(nativeHandle);                         // the held real frame
@@ -788,6 +789,7 @@ public class VulkanRenderer
                     fgGamePeriodNs = fgGamePeriodNs == 0L ? d : fgGamePeriodNs + (d - fgGamePeriodNs) / 8L;
                 }
             }
+            fgPrevGameNs = fgLastGameNs;
             fgLastGameNs = now;
             fgNewScene.set(true);
             scheduleFgPump();
@@ -1048,7 +1050,7 @@ public class VulkanRenderer
     private static native boolean nativeFrameGenerationSupported(long handle);
     private static native long nativeGetDisplayFrameCount(long handle);
     private static native boolean nativeRenderHold(long handle);
-    private static native boolean nativeRenderInterp(long handle, float phase);
+    private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs);
     private static native boolean nativePresentLast(long handle);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
     private static native int nativeGetActivePresentMode(long handle);
