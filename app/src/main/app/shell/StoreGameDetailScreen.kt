@@ -151,10 +151,12 @@ internal fun StoreGameDetailScreen(
     showWorkshop: Boolean = false,
     showVerifyFiles: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
-    showLaunchOptions: Boolean = false,
-    onLaunchOptions: () -> Unit = {},
-    showBetaBranches: Boolean = false,
-    onBetaBranches: () -> Unit = {},
+    // Nullable on purpose: null hides the menu item. Folding show+callback into
+    // one parameter keeps this signature at the size that still passes ART's
+    // bytecode verifier — at ~44 params D8 emitted a default-handler this
+    // device's verifier rejected (VerifyError: wide register Low-half).
+    onLaunchOptions: (() -> Unit)? = null,
+    onBetaBranches: (() -> Unit)? = null,
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
@@ -192,8 +194,8 @@ internal fun StoreGameDetailScreen(
         val showUpdateCta = updateCheckAvailable && isUpdateAvailable
         val verifyFilesAvailable = showVerifyFiles && isInstalled
         val workshopAvailable = showWorkshop && isInstalled
-        val launchOptionsAvailable = showLaunchOptions && isInstalled
-        val betaBranchesAvailable = showBetaBranches && isInstalled
+        val launchOptionsAvailable = onLaunchOptions != null && isInstalled
+        val betaBranchesAvailable = onBetaBranches != null && isInstalled
         val sourceMenuEnabled =
             updateCheckAvailable || verifyFilesAvailable || workshopAvailable ||
                 launchOptionsAvailable || betaBranchesAvailable
@@ -303,8 +305,6 @@ internal fun StoreGameDetailScreen(
                 showCheckForUpdate = updateCheckAvailable,
                 showVerifyFiles = verifyFilesAvailable,
                 showWorkshop = workshopAvailable,
-                showLaunchOptions = launchOptionsAvailable,
-                showBetaBranches = betaBranchesAvailable,
                 isCheckingForUpdate = isCheckingForUpdate,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 isUpdateCheckEnabled =
@@ -315,8 +315,8 @@ internal fun StoreGameDetailScreen(
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
-                onLaunchOptions = onLaunchOptions,
-                onBetaBranches = onBetaBranches,
+                onLaunchOptions = if (launchOptionsAvailable) onLaunchOptions else null,
+                onBetaBranches = if (betaBranchesAvailable) onBetaBranches else null,
             )
         }
 
@@ -794,16 +794,15 @@ private fun StoreSourceTag(
     showCheckForUpdate: Boolean = false,
     showVerifyFiles: Boolean = false,
     showWorkshop: Boolean = false,
-    showLaunchOptions: Boolean = false,
-    showBetaBranches: Boolean = false,
     isCheckingForUpdate: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     isUpdateCheckEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    onLaunchOptions: () -> Unit = {},
-    onBetaBranches: () -> Unit = {},
+    // null hides the menu item (see StoreGameDetailScreen's signature note).
+    onLaunchOptions: (() -> Unit)? = null,
+    onBetaBranches: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableIntStateOf(0) }
@@ -879,14 +878,14 @@ private fun StoreSourceTag(
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onWorkshop() }
                 }
-                if (showLaunchOptions) {
+                if (onLaunchOptions != null) {
                     StoreSourceMenuItem(
                         icon = Icons.Outlined.RocketLaunch,
                         label = stringResource(R.string.store_game_launch_options),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onLaunchOptions() }
                 }
-                if (showBetaBranches) {
+                if (onBetaBranches != null) {
                     StoreSourceMenuItem(
                         icon = Icons.Outlined.AltRoute,
                         label = stringResource(R.string.store_game_beta_branch),

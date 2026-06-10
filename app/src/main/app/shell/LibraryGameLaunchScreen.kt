@@ -135,10 +135,10 @@ internal fun LibraryGameLaunchScreen(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
-    showLaunchOptions: Boolean = false,
-    onLaunchOptions: () -> Unit = {},
-    showBetaBranches: Boolean = false,
-    onBetaBranches: () -> Unit = {},
+    // Nullable on purpose: null hides the menu item (mirrors StoreGameDetailScreen,
+    // whose signature size tripped ART's bytecode verifier with separate flags).
+    onLaunchOptions: (() -> Unit)? = null,
+    onBetaBranches: (() -> Unit)? = null,
     playEnabled: Boolean = true,
     playDisabledLabel: String? = null,
     onBack: () -> Unit,
@@ -274,8 +274,6 @@ internal fun LibraryGameLaunchScreen(
                 showVerifyFiles = showVerifyFiles,
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
-                showLaunchOptions = showLaunchOptions,
-                showBetaBranches = showBetaBranches,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
@@ -813,14 +811,13 @@ private fun SourceTag(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
-    showLaunchOptions: Boolean = false,
-    showBetaBranches: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    onLaunchOptions: () -> Unit = {},
-    onBetaBranches: () -> Unit = {},
+    // null hides the menu item (see LibraryGameLaunchScreen's signature note).
+    onLaunchOptions: (() -> Unit)? = null,
+    onBetaBranches: (() -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
@@ -891,14 +888,14 @@ private fun SourceTag(
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onWorkshop() }
                 }
-                if (showLaunchOptions) {
+                if (onLaunchOptions != null) {
                     LaunchSourceMenuItem(
                         icon = Icons.Outlined.RocketLaunch,
                         label = stringResource(R.string.store_game_launch_options),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onLaunchOptions() }
                 }
-                if (showBetaBranches) {
+                if (onBetaBranches != null) {
                     LaunchSourceMenuItem(
                         icon = Icons.Outlined.AltRoute,
                         label = stringResource(R.string.store_game_beta_branch),

@@ -5356,10 +5356,18 @@ class UnifiedActivity :
                                         (!isEpic || epicGame?.isInstalled == true) &&
                                         (!isGog || gogGame?.isInstalled == true),
                                     showWorkshop = !isEpic && !isGog,
-                                    showLaunchOptions = launchOptions.size >= 2,
-                                    onLaunchOptions = { showLaunchOptionsDialog = true },
-                                    showBetaBranches = betaBranches.size >= 2,
-                                    onBetaBranches = { showBetaBranchesDialog = true },
+                                    onLaunchOptions =
+                                        if (launchOptions.size >= 2) {
+                                            { showLaunchOptionsDialog = true }
+                                        } else {
+                                            null
+                                        },
+                                    onBetaBranches =
+                                        if (betaBranches.size >= 2) {
+                                            { showBetaBranchesDialog = true }
+                                        } else {
+                                            null
+                                        },
                                     areSteamActionsEnabled =
                                         when {
                                             isEpic -> !hasBlockingEpicDownloadForLibrary
@@ -9257,10 +9265,18 @@ class UnifiedActivity :
                     showWorkshop = isReallyInstalled,
                     showVerifyFiles = isReallyInstalled,
                     areSteamActionsEnabled = !hasBlockingSteamDownload,
-                    showLaunchOptions = launchOptions.size >= 2,
-                    onLaunchOptions = { showLaunchOptionsDialog = true },
-                    showBetaBranches = betaBranches.size >= 2,
-                    onBetaBranches = { showBetaBranchesDialog = true },
+                    onLaunchOptions =
+                        if (launchOptions.size >= 2) {
+                            { showLaunchOptionsDialog = true }
+                        } else {
+                            null
+                        },
+                    onBetaBranches =
+                        if (betaBranches.size >= 2) {
+                            { showBetaBranchesDialog = true }
+                        } else {
+                            null
+                        },
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),
                     isDlcSelectionEnabled = steamDownloadRecord == null,
