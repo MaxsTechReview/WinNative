@@ -114,13 +114,6 @@ internal data class StoreDlcItem(
     val isInstalled: Boolean = false,
 )
 
-internal data class StoreLaunchOptionItem(
-    // Relative path, '/'-separated (appinfo config.launch entry).
-    val executable: String,
-    val arguments: String,
-    val label: String,
-)
-
 private val StoreBlack = Color.Black
 private val StoreCard = Color(0xFF12121B)
 private val StoreAccent = Color(0xFF1A9FFF)

@@ -4599,14 +4599,9 @@ class UnifiedActivity :
                 selectedLaunchOption = null
                 return@LaunchedEffect
             }
-            val (options, selected) = loadSteamLaunchOptions(app.id)
-            launchOptions = options
-            selectedLaunchOption = selected
-            // Heal cached appinfo rows that predate LaunchInfo.arguments.
-            if (SteamService.refreshAppInfoFromPics(app.id)) {
-                val (freshOptions, freshSelected) = loadSteamLaunchOptions(app.id)
-                launchOptions = freshOptions
-                selectedLaunchOption = freshSelected
+            loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
+                launchOptions = options
+                selectedLaunchOption = selected
             }
         }
 
@@ -5822,14 +5817,11 @@ class UnifiedActivity :
 
                 if (showLaunchOptionsDialog) {
                     LaunchOptionsDialog(
+                        appId = app.id,
                         gameTitle = app.name,
                         options = launchOptions,
                         selectedOption = selectedLaunchOption,
-                        onSelect = { option ->
-                            persistSteamLaunchOptionSelection(app.id, option, scope) {
-                                selectedLaunchOption = it
-                            }
-                        },
+                        onSelectionSaved = { selectedLaunchOption = it },
                         onDismissRequest = { showLaunchOptionsDialog = false },
                     )
                 }
@@ -8822,6 +8814,11 @@ class UnifiedActivity :
         }
     }
 
+    // Apps whose appinfo was already re-fetched this process (see
+    // loadSteamLaunchOptionsRefreshing) — avoids a PICS round-trip on every
+    // game-detail open.
+    private val launchOptionsRefreshedApps = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
+
     /**
      * Builds the Steam launch-option list (appinfo config.launch) for the STEAM
      * dropdown on both game detail screens, plus the currently effective selection.
@@ -8855,6 +8852,28 @@ class UnifiedActivity :
                     ?: options.firstOrNull()
             options to selected
         }
+
+    /**
+     * Loads launch options, then — once per app per process — re-fetches the
+     * app's PICS appinfo to heal cached rows that predate LaunchInfo.arguments
+     * and re-applies the fresh list. [apply] runs on the caller's context.
+     */
+    private suspend fun loadSteamLaunchOptionsRefreshing(
+        appId: Int,
+        apply: (List<StoreLaunchOptionItem>, StoreLaunchOptionItem?) -> Unit,
+    ) {
+        val (options, selected) = loadSteamLaunchOptions(appId)
+        apply(options, selected)
+        if (launchOptionsRefreshedApps.add(appId)) {
+            if (SteamService.refreshAppInfoFromPics(appId)) {
+                val (fresh, freshSelected) = loadSteamLaunchOptions(appId)
+                apply(fresh, freshSelected)
+            } else {
+                // Offline or fetch failed — allow a retry on the next open.
+                launchOptionsRefreshedApps.remove(appId)
+            }
+        }
+    }
 
     private fun persistSteamLaunchOptionSelection(
         appId: Int,
@@ -8977,14 +8996,9 @@ class UnifiedActivity :
                 selectedLaunchOption = null
                 return@LaunchedEffect
             }
-            val (options, selected) = loadSteamLaunchOptions(app.id)
-            launchOptions = options
-            selectedLaunchOption = selected
-            // Heal cached appinfo rows that predate LaunchInfo.arguments.
-            if (SteamService.refreshAppInfoFromPics(app.id)) {
-                val (freshOptions, freshSelected) = loadSteamLaunchOptions(app.id)
-                launchOptions = freshOptions
-                selectedLaunchOption = freshSelected
+            loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
+                launchOptions = options
+                selectedLaunchOption = selected
             }
         }
 
@@ -9251,26 +9265,31 @@ class UnifiedActivity :
 
         if (showLaunchOptionsDialog) {
             LaunchOptionsDialog(
+                appId = app.id,
                 gameTitle = app.name,
                 options = launchOptions,
                 selectedOption = selectedLaunchOption,
-                onSelect = { option ->
-                    persistSteamLaunchOptionSelection(app.id, option, scope) { selectedLaunchOption = it }
-                },
+                onSelectionSaved = { selectedLaunchOption = it },
                 onDismissRequest = { showLaunchOptionsDialog = false },
             )
         }
     }
 
-    /** Hosts the Workshop-styled launch-option picker window over a game detail dialog. */
+    /**
+     * Hosts the Workshop-styled launch-option picker window over a game detail
+     * dialog. Selecting a row persists it as the game's default and reports the
+     * saved option through [onSelectionSaved].
+     */
     @Composable
     private fun LaunchOptionsDialog(
+        appId: Int,
         gameTitle: String,
         options: List<StoreLaunchOptionItem>,
         selectedOption: StoreLaunchOptionItem?,
-        onSelect: (StoreLaunchOptionItem) -> Unit,
+        onSelectionSaved: (StoreLaunchOptionItem) -> Unit,
         onDismissRequest: () -> Unit,
     ) {
+        val scope = rememberCoroutineScope()
         Dialog(
             onDismissRequest = onDismissRequest,
             properties =
@@ -9283,7 +9302,9 @@ class UnifiedActivity :
                 gameTitle = gameTitle,
                 options = options,
                 selectedOption = selectedOption,
-                onSelect = onSelect,
+                onSelect = { option ->
+                    persistSteamLaunchOptionSelection(appId, option, scope, onSelectionSaved)
+                },
                 onClose = onDismissRequest,
             )
         }

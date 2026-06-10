@@ -45,6 +45,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
 
+/** A single Steam launch option (appinfo `config.launch` entry). */
+internal data class StoreLaunchOptionItem(
+    // Relative path, '/'-separated.
+    val executable: String,
+    val arguments: String,
+    val label: String,
+)
+
 // Palette — mirrors the Workshop window so the modal feels native.
 private val LoBg = Color(0xFF12121B)
 private val LoBorder = Color(0xFF2A2A3A)

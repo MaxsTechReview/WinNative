@@ -7483,9 +7483,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
-                String steamExtraArgs = SteamUtils.combineSteamLaunchArgs(
-                        shortcut.getExtra("launch_exe_args"),
-                        shortcut.getSettingExtra("execArgs", container.getExecArgs()));
+                String steamExtraArgs =
+                        combineWithSelectedLaunchArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs()));
                 steamExtraArgs = !steamExtraArgs.isEmpty() ? " " + steamExtraArgs : "";
 
                 boolean useColdClient = parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"));
@@ -7872,8 +7871,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = SteamUtils.combineSteamLaunchArgs(
-                shortcut != null ? shortcut.getExtra("launch_exe_args") : "", perGameExecArgs);
+        String exeCommandLine = combineWithSelectedLaunchArgs(perGameExecArgs);
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -7949,8 +7947,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = SteamUtils.combineSteamLaunchArgs(
-                shortcut != null ? shortcut.getExtra("launch_exe_args") : "", perGameExecArgs);
+        String exeCommandLine = combineWithSelectedLaunchArgs(perGameExecArgs);
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -8073,6 +8070,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         int slash = normalized.lastIndexOf('/');
         if (slash >= 0) normalized = normalized.substring(slash + 1);
         return normalized.trim();
+    }
+
+    /**
+     * The selected Steam launch option's own arguments (shortcut extra
+     * {@code launch_exe_args}) merged with the given custom args — the single
+     * resolver every Steam launch channel uses for its effective command line.
+     */
+    private String combineWithSelectedLaunchArgs(String customArgs) {
+        return SteamUtils.combineSteamLaunchArgs(
+                shortcut != null ? shortcut.getExtra("launch_exe_args") : "", customArgs);
     }
 
     private String resolveRelativeGameExe(int appId, String gameInstPath) {
@@ -9633,10 +9640,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             String selectedLaunchArgs = shortcut != null ? shortcut.getExtra("launch_exe_args") : "";
             // The effective LaunchOptions line is part of the stamp so a changed
             // launch-option selection (or custom args) re-runs the localconfig edit.
+            // Raw string, not a hash: equality must be exact (no collisions).
             String effectiveLaunchOptions =
                     SteamUtils.combineSteamLaunchArgs(selectedLaunchArgs, container.getExecArgs());
             String expectedStamp = "v2|" + appId + "|" + steamUserDataId
-                    + "|" + effectiveLaunchOptions.hashCode();
+                    + "|" + effectiveLaunchOptions;
             String existingStamp = steamEnvStamp.exists()
                     ? FileUtils.readString(steamEnvStamp).trim() : "";
             boolean steamEnvWarm = expectedStamp.equals(existingStamp);
