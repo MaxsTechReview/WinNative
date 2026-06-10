@@ -217,6 +217,7 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.Lazy
 import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -4585,6 +4586,28 @@ class UnifiedActivity :
         val isEpic = app.id >= 2000000000
         val isGog = gogGame != null
         val epicId = if (isEpic) app.id - 2000000000 else 0
+        val isSteamLibraryGame = !isCustom && !isEpic && !isGog
+
+        var launchOptions by remember(app.id) { mutableStateOf<List<StoreLaunchOptionItem>>(emptyList()) }
+        var selectedLaunchOption by remember(app.id) { mutableStateOf<StoreLaunchOptionItem?>(null) }
+        LaunchedEffect(app.id, isSteamLibraryGame) {
+            val steamInstalled =
+                isSteamLibraryGame && withContext(Dispatchers.IO) { SteamService.isAppInstalled(app.id) }
+            if (!steamInstalled) {
+                launchOptions = emptyList()
+                selectedLaunchOption = null
+                return@LaunchedEffect
+            }
+            val (options, selected) = loadSteamLaunchOptions(app.id)
+            launchOptions = options
+            selectedLaunchOption = selected
+            // Heal cached appinfo rows that predate LaunchInfo.arguments.
+            if (SteamService.refreshAppInfoFromPics(app.id)) {
+                val (freshOptions, freshSelected) = loadSteamLaunchOptions(app.id)
+                launchOptions = freshOptions
+                selectedLaunchOption = freshSelected
+            }
+        }
 
         val libraryDownloadRecords by com.winlator.cmod.app.service.download.DownloadCoordinator.records.collectAsState(
             initial = com.winlator.cmod.app.service.download.DownloadCoordinator.snapshotRecords(),
@@ -5313,6 +5336,13 @@ class UnifiedActivity :
                                         (!isEpic || epicGame?.isInstalled == true) &&
                                         (!isGog || gogGame?.isInstalled == true),
                                     showWorkshop = !isEpic && !isGog,
+                                    launchOptions = launchOptions,
+                                    selectedLaunchOption = selectedLaunchOption,
+                                    onSelectLaunchOption = { option ->
+                                        persistSteamLaunchOptionSelection(app.id, option, scope) {
+                                            selectedLaunchOption = it
+                                        }
+                                    },
                                     areSteamActionsEnabled =
                                         when {
                                             isEpic -> !hasBlockingEpicDownloadForLibrary
@@ -8782,6 +8812,68 @@ class UnifiedActivity :
         }
     }
 
+    /**
+     * Builds the Steam launch-option list (appinfo config.launch) for the STEAM
+     * dropdown on both game detail screens, plus the currently effective selection.
+     */
+    private suspend fun loadSteamLaunchOptions(appId: Int): Pair<List<StoreLaunchOptionItem>, StoreLaunchOptionItem?> =
+        withContext(Dispatchers.IO) {
+            val appDir = java.io.File(SteamService.getAppDirPath(appId))
+            val allOptions =
+                SteamService
+                    .getWindowsLaunchInfos(appId)
+                    .map { info ->
+                        StoreLaunchOptionItem(
+                            executable = info.executable,
+                            arguments = info.arguments,
+                            label = info.description.ifBlank { info.executable.substringAfterLast('/') },
+                        )
+                    }
+                    // Label is part of the key: cached appinfo rows predating
+                    // LaunchInfo.arguments have "" args, and exe+args alone would
+                    // collapse distinct options like "Play (DX11)" / "Play (DX12)".
+                    .distinctBy { Triple(it.executable.lowercase(), it.arguments, it.label) }
+            // Hide options whose exe is missing on disk, but if that empties a
+            // non-empty list (case-sensitivity quirks) keep the unfiltered set.
+            val onDisk = allOptions.filter { java.io.File(appDir, it.executable).isFile }
+            val options = onDisk.ifEmpty { allOptions }
+            val (selectedExe, selectedArgs) = SteamService.getSelectedLaunchOption(applicationContext, appId)
+            val selected =
+                options.firstOrNull {
+                    it.executable.equals(selectedExe, ignoreCase = true) && it.arguments == selectedArgs
+                } ?: options.firstOrNull { it.executable.equals(selectedExe, ignoreCase = true) }
+                    ?: options.firstOrNull()
+            options to selected
+        }
+
+    private fun persistSteamLaunchOptionSelection(
+        appId: Int,
+        option: StoreLaunchOptionItem,
+        scope: CoroutineScope,
+        onSaved: (StoreLaunchOptionItem) -> Unit,
+    ) {
+        scope.launch(Dispatchers.IO) {
+            val saved =
+                SteamService.setSelectedLaunchOption(
+                    applicationContext,
+                    appId,
+                    option.executable,
+                    option.arguments,
+                )
+            withContext(Dispatchers.Main) {
+                if (saved) {
+                    onSaved(option)
+                } else {
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        this@UnifiedActivity,
+                        getString(R.string.store_game_launch_option_failed),
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                }
+            }
+        }
+    }
+
     // Game Manager Dialog
     @Composable
     fun GameManagerDialog(
@@ -8874,33 +8966,15 @@ class UnifiedActivity :
                 selectedLaunchOption = null
                 return@LaunchedEffect
             }
-            val (options, selected) =
-                withContext(Dispatchers.IO) {
-                    val appDir = java.io.File(SteamService.getAppDirPath(app.id))
-                    val allOptions =
-                        SteamService
-                            .getWindowsLaunchInfos(app.id)
-                            .map { info ->
-                                StoreLaunchOptionItem(
-                                    executable = info.executable,
-                                    arguments = info.arguments,
-                                    label = info.description.ifBlank { info.executable.substringAfterLast('/') },
-                                )
-                            }.distinctBy { it.executable.lowercase() to it.arguments }
-                    // Hide options whose exe is missing on disk, but if that empties a
-                    // non-empty list (case-sensitivity quirks) keep the unfiltered set.
-                    val onDisk = allOptions.filter { java.io.File(appDir, it.executable).isFile }
-                    val options = onDisk.ifEmpty { allOptions }
-                    val (selectedExe, selectedArgs) = SteamService.getSelectedLaunchOption(context, app.id)
-                    val selected =
-                        options.firstOrNull {
-                            it.executable.equals(selectedExe, ignoreCase = true) && it.arguments == selectedArgs
-                        } ?: options.firstOrNull { it.executable.equals(selectedExe, ignoreCase = true) }
-                            ?: options.firstOrNull()
-                    options to selected
-                }
+            val (options, selected) = loadSteamLaunchOptions(app.id)
             launchOptions = options
             selectedLaunchOption = selected
+            // Heal cached appinfo rows that predate LaunchInfo.arguments.
+            if (SteamService.refreshAppInfoFromPics(app.id)) {
+                val (freshOptions, freshSelected) = loadSteamLaunchOptions(app.id)
+                launchOptions = freshOptions
+                selectedLaunchOption = freshSelected
+            }
         }
 
         val totalDownloadSize = selectedManifestSizes.downloadSize
@@ -9026,26 +9100,7 @@ class UnifiedActivity :
                     launchOptions = launchOptions,
                     selectedLaunchOption = selectedLaunchOption,
                     onSelectLaunchOption = { option ->
-                        scope.launch(Dispatchers.IO) {
-                            val saved =
-                                SteamService.setSelectedLaunchOption(
-                                    applicationContext,
-                                    app.id,
-                                    option.executable,
-                                    option.arguments,
-                                )
-                            withContext(Dispatchers.Main) {
-                                if (saved) {
-                                    selectedLaunchOption = option
-                                } else {
-                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                        context,
-                                        getString(R.string.store_game_launch_option_failed),
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    )
-                                }
-                            }
-                        }
+                        persistSteamLaunchOptionSelection(app.id, option, scope) { selectedLaunchOption = it }
                     },
                     dlcs = dlcItems,
                     selectedDlcIds = selectedDlcIds.toSet(),

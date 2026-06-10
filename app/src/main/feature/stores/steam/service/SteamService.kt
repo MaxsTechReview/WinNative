@@ -7482,6 +7482,23 @@ class SteamService : Service() {
             return null
         }
 
+        /**
+         * Best-effort re-fetch + persist of one app's PICS appinfo. Used to heal
+         * cached rows that predate newly parsed fields (e.g. LaunchInfo.arguments).
+         * Returns false when offline / fetch fails; callers keep using the cached row.
+         */
+        suspend fun refreshAppInfoFromPics(appId: Int): Boolean {
+            val fresh =
+                try {
+                    fetchLatestSteamAppInfo(appId)
+                } catch (e: Exception) {
+                    Timber.w(e, "refreshAppInfoFromPics failed for appId=$appId")
+                    null
+                } ?: return false
+            persistLatestSteamAppInfo(appId, fresh)
+            return true
+        }
+
         private suspend fun persistLatestSteamAppInfo(
             appId: Int,
             remoteSteamApp: SteamApp,
