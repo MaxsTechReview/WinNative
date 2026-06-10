@@ -1023,8 +1023,8 @@ Zainstalowana ścieżka:
     <string name="saves_export_success_path">Wyeksportowano do %1$s</string>
     <string name="saves_export_warning_title">Używaj tylko z grami niestandardowymi</string>
     <string name="saves_export_warning_body">Eksport może zawierać zapisy z gier zainstalowanych ze sklepów lub synchronizowanych z chmurą.</string>
-    <string name="saves_import_warning_title">Spowoduje to nadpisanie wszystkich zapisów w tym kontenerze</string>
-    <string name="saves_import_warning_body">Podczas przywracania starszej kopii zapasowej z wieloma grami najpierw skopiuj nowsze zapisy do pliku zip za pomocą menedżera plików.</string>
+    <string name="saves_import_warning_title">Spowoduje to nadpisanie istniejących zapisów w tym kontenerze</string>
+    <string name="saves_import_warning_body">Podczas przywracania starszej kopii zapasowej z wieloma grami najpierw skopiuj nowsze zapisy do pliku zip za pomocą menedżera plików. Zmienione zostaną tylko zapisy znajdujące się w pliku .zip. Zarządzaj zapisami rozważnie.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Kontener</string>
