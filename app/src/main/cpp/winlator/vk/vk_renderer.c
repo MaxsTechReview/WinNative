@@ -21,6 +21,7 @@
 #include <android/native_window_jni.h>
 #include <dlfcn.h>
 #include <jni.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -2546,12 +2547,19 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     uint32_t prev_idx = (parity + 2u) % 3u;
     VkFgImage* curr = &r->fg_history[parity];
 
-    uint64_t fg_deadline = fg_compute_deadline(r);
-    if (do_interp && r->fg_prev_arrival_ns != 0 && r->fg_curr_arrival_ns > r->fg_prev_arrival_ns
-        && fg_deadline > r->fg_curr_arrival_ns) {
-        double t = (double)(fg_deadline - r->fg_curr_arrival_ns)
-                 / (double)(r->fg_curr_arrival_ns - r->fg_prev_arrival_ns);
-        phase = (float)(t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t));
+    // Advance the vsync-aligned present deadline for the pacer (fg_sleep_to_deadline). The interp phase
+    // is left as the cadence's k/(N+1): an even interior position, never a real-frame endpoint. A
+    // deadline-derived phase was tried and removed — the deadline grid (vsync clock) and the game-frame
+    // arrivals (present clock) aren't phase-locked, so it injected a constant per-slot bias.
+    fg_compute_deadline(r);
+    if (do_interp) {
+        if (r->fg_curr_arrival_ns != r->fg_dbg_last_curr) {
+            r->fg_dbg_done_n = r->fg_dbg_n;
+            for (uint32_t i = 0; i < r->fg_dbg_n && i < 8u; i++) r->fg_dbg_done[i] = r->fg_dbg_phase[i];
+            r->fg_dbg_n = 0;
+            r->fg_dbg_last_curr = r->fg_curr_arrival_ns;
+        }
+        if (r->fg_dbg_n < 8u) r->fg_dbg_phase[r->fg_dbg_n++] = phase;
     }
 
     vkBeginCommandBuffer(f->cmd, &bi);
@@ -2685,6 +2693,11 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             VK_LOGI("FG timing: n=%u mean=%.2fms cov=%.0f%% min=%.2f max=%.2f",
                     r->fg_t_count, mean, mean > 0.0 ? 100.0 * sd / mean : 0.0,
                     r->fg_t_count ? r->fg_t_min_ms : 0.0, r->fg_t_count ? r->fg_t_max_ms : 0.0);
+            char pbuf[64]; int poff = 0;
+            for (uint32_t i = 0; i < r->fg_dbg_done_n && i < 8u; i++)
+                poff += snprintf(pbuf + poff, sizeof(pbuf) - (size_t)poff, "%.2f ", r->fg_dbg_done[i]);
+            if (poff == 0) pbuf[0] = '\0';
+            VK_LOGI("FG phases[n=%u]: %s", r->fg_dbg_done_n, pbuf);
             r->fg_t_count = 0; r->fg_t_sum_ms = 0.0; r->fg_t_sumsq_ms = 0.0;
         }
     }

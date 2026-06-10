@@ -456,6 +456,11 @@ typedef struct VkRenderer {
     double           fg_t_sumsq_ms;
     double           fg_t_min_ms;
     double           fg_t_max_ms;
+    float            fg_dbg_phase[8];        // interp phases accumulated for the in-progress period
+    float            fg_dbg_done[8];         // last completed period's phases (logged in telemetry)
+    uint32_t         fg_dbg_n;
+    uint32_t         fg_dbg_done_n;
+    uint64_t         fg_dbg_last_curr;
     uint32_t         fg_present_id;
     PFN_vkGetRefreshCycleDurationGOOGLE   fnGetRefreshCycleDuration;
     PFN_vkGetPastPresentationTimingGOOGLE fnGetPastPresentationTiming;
