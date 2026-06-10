@@ -639,9 +639,9 @@ public class WinHandler {
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
-  // Overlays the right stick from touch onto the active virtual-gamepad profile.
   public boolean canUseScreenTouchStick() {
-    return canUseVirtualGamepad();
+    ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+    return profile != null && profile.isVirtualGamepad();
   }
 
   public void setScreenTouchStickActive(boolean active) {
@@ -670,7 +670,7 @@ public class WinHandler {
       writeControllerGamepadState(
           this.currentController, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, this.currentController));
     } else {
-      writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null));
+      writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null), true);
     }
   }
 

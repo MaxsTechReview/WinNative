@@ -83,7 +83,7 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
         private const val MIN_SENSITIVITY = 0.25f
         private const val MAX_SENSITIVITY = 2.0f
         private const val STRENGTH_BIAS = 0.25f
-        private const val RADIUS_FRACTION = 0.30f
+        private const val RADIUS_FRACTION = 0.25f
         private const val DEAD_ZONE = 0.08f
         private const val DEFAULT_SURFACE_MIN = 1080f
     }

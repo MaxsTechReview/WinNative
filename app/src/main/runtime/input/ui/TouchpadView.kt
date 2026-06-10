@@ -63,6 +63,7 @@ class TouchpadView(
     private val xform = XForm.getInstance()
     private val screenTouchStick = ScreenTouchStick(context, xServer)
     private val rtsGestureEngine = RTSGestureEngine(xServer, xform)
+    private var activeTouchHandler: ((MotionEvent) -> Boolean)? = null
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
     private val longPressRunnable = Runnable {
@@ -166,17 +167,24 @@ class TouchpadView(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
-        val isTouchscreenMode = screenTouchMode == MODE_TOUCHSCREEN
         resetTouchscreenTimeout()
-        return when (event.getToolType(0)) {
-            MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
-            else -> when {
-                rtsGesturesEnabled -> rtsGestureEngine.onTouch(event)
-                screenTouchMode == MODE_MAP_TO_RIGHT_STICK && xServer.winHandler.canUseScreenTouchStick() -> screenTouchStick.onTouch(event)
-                isTouchscreenMode -> handleTouchscreenEvent(event)
-                else -> handleTouchpadEvent(event)
-            }
+        if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) return handleStylusEvent(event)
+        val action = event.actionMasked
+        if (action == MotionEvent.ACTION_DOWN || activeTouchHandler == null) {
+            activeTouchHandler = selectTouchHandler()
         }
+        val result = activeTouchHandler!!(event)
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            activeTouchHandler = null
+        }
+        return result
+    }
+
+    private fun selectTouchHandler(): (MotionEvent) -> Boolean = when {
+        rtsGesturesEnabled -> rtsGestureEngine::onTouch
+        screenTouchMode == MODE_MAP_TO_RIGHT_STICK && xServer.winHandler.canUseScreenTouchStick() -> screenTouchStick::onTouch
+        screenTouchMode == MODE_TOUCHSCREEN -> ::handleTouchscreenEvent
+        else -> ::handleTouchpadEvent
     }
 
     private fun resetTouchscreenTimeout() {
