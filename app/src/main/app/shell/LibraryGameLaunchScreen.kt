@@ -43,7 +43,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
@@ -60,7 +59,6 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -136,9 +134,8 @@ internal fun LibraryGameLaunchScreen(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
-    launchOptions: List<StoreLaunchOptionItem> = emptyList(),
-    selectedLaunchOption: StoreLaunchOptionItem? = null,
-    onSelectLaunchOption: (StoreLaunchOptionItem) -> Unit = {},
+    showLaunchOptions: Boolean = false,
+    onLaunchOptions: () -> Unit = {},
     playEnabled: Boolean = true,
     playDisabledLabel: String? = null,
     onBack: () -> Unit,
@@ -274,14 +271,12 @@ internal fun LibraryGameLaunchScreen(
                 showVerifyFiles = showVerifyFiles,
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
-                showLaunchOptions = launchOptions.size >= 2,
-                launchOptions = launchOptions,
-                selectedLaunchOption = selectedLaunchOption,
+                showLaunchOptions = showLaunchOptions,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
-                onSelectLaunchOption = onSelectLaunchOption,
+                onLaunchOptions = onLaunchOptions,
             )
         }
 
@@ -814,16 +809,13 @@ private fun SourceTag(
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
     showLaunchOptions: Boolean = false,
-    launchOptions: List<StoreLaunchOptionItem> = emptyList(),
-    selectedLaunchOption: StoreLaunchOptionItem? = null,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    onSelectLaunchOption: (StoreLaunchOptionItem) -> Unit = {},
+    onLaunchOptions: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    var launchOptionsPage by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
     Box {
         Surface(
@@ -833,16 +825,7 @@ private fun SourceTag(
             modifier =
                 Modifier
                     .onSizeChanged { anchorHeightPx = it.height }
-                    .then(
-                        if (menuEnabled) {
-                            Modifier.clickable {
-                                launchOptionsPage = false
-                                menuOpen = true
-                            }
-                        } else {
-                            Modifier
-                        },
-                    ),
+                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -877,62 +860,36 @@ private fun SourceTag(
             val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
             LaunchSourceActionPopup(
                 expanded = menuOpen,
-                onDismissRequest = {
-                    menuOpen = false
-                    launchOptionsPage = false
-                },
+                onDismissRequest = { menuOpen = false },
                 offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
-                if (launchOptionsPage) {
+                if (showVerifyFiles) {
                     LaunchSourceMenuItem(
-                        icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
+                        label = stringResource(R.string.store_game_verify_files),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onVerifyFiles() }
+                }
+                if (showCheckForUpdate) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.Refresh,
+                        label = stringResource(R.string.store_game_check_for_update),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onCheckForUpdate() }
+                }
+                if (showWorkshop) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.Construction,
+                        label = stringResource(R.string.store_game_workshop),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onWorkshop() }
+                }
+                if (showLaunchOptions) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.RocketLaunch,
                         label = stringResource(R.string.store_game_launch_options),
-                    ) { launchOptionsPage = false }
-                    HorizontalDivider(
-                        color = Color.White.copy(alpha = 0.16f),
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                    )
-                    launchOptions.forEach { option ->
-                        LaunchOptionRow(
-                            label = option.label,
-                            selected = option == selectedLaunchOption,
-                            enabled = areSteamActionsEnabled,
-                        ) {
-                            menuOpen = false
-                            launchOptionsPage = false
-                            onSelectLaunchOption(option)
-                        }
-                    }
-                } else {
-                    if (showVerifyFiles) {
-                        LaunchSourceMenuItem(
-                            icon = Icons.AutoMirrored.Outlined.FactCheck,
-                            label = stringResource(R.string.store_game_verify_files),
-                            enabled = areSteamActionsEnabled,
-                        ) { menuOpen = false; onVerifyFiles() }
-                    }
-                    if (showCheckForUpdate) {
-                        LaunchSourceMenuItem(
-                            icon = Icons.Outlined.Refresh,
-                            label = stringResource(R.string.store_game_check_for_update),
-                            enabled = areSteamActionsEnabled,
-                        ) { menuOpen = false; onCheckForUpdate() }
-                    }
-                    if (showWorkshop) {
-                        LaunchSourceMenuItem(
-                            icon = Icons.Outlined.Construction,
-                            label = stringResource(R.string.store_game_workshop),
-                            enabled = areSteamActionsEnabled,
-                        ) { menuOpen = false; onWorkshop() }
-                    }
-                    if (showLaunchOptions) {
-                        LaunchSourceMenuItem(
-                            icon = Icons.Outlined.RocketLaunch,
-                            label = stringResource(R.string.store_game_launch_options),
-                            enabled = areSteamActionsEnabled,
-                        ) { launchOptionsPage = true }
-                    }
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onLaunchOptions() }
                 }
             }
         }
@@ -1017,44 +974,6 @@ private fun LaunchSourceMenuItem(
             color = contentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun LaunchOptionRow(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
-    Row(
-        modifier =
-            Modifier
-                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(Modifier.size(16.dp), contentAlignment = Alignment.Center) {
-            if (selected) {
-                Icon(
-                    Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = LaunchAccent,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-        Text(
-            label,
-            color = if (selected) LaunchAccent else contentColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 280.dp),
         )
     }
 }

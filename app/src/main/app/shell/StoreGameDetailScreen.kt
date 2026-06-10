@@ -48,7 +48,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
@@ -158,9 +157,8 @@ internal fun StoreGameDetailScreen(
     showWorkshop: Boolean = false,
     showVerifyFiles: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
-    launchOptions: List<StoreLaunchOptionItem> = emptyList(),
-    selectedLaunchOption: StoreLaunchOptionItem? = null,
-    onSelectLaunchOption: (StoreLaunchOptionItem) -> Unit = {},
+    showLaunchOptions: Boolean = false,
+    onLaunchOptions: () -> Unit = {},
     dlcs: List<StoreDlcItem> = emptyList(),
     selectedDlcIds: Set<Int> = emptySet(),
     isDlcSelectionEnabled: Boolean = true,
@@ -198,7 +196,7 @@ internal fun StoreGameDetailScreen(
         val showUpdateCta = updateCheckAvailable && isUpdateAvailable
         val verifyFilesAvailable = showVerifyFiles && isInstalled
         val workshopAvailable = showWorkshop && isInstalled
-        val launchOptionsAvailable = isInstalled && launchOptions.size >= 2
+        val launchOptionsAvailable = showLaunchOptions && isInstalled
         val sourceMenuEnabled =
             updateCheckAvailable || verifyFilesAvailable || workshopAvailable || launchOptionsAvailable
         val showDlcCard = dlcs.isNotEmpty()
@@ -308,8 +306,6 @@ internal fun StoreGameDetailScreen(
                 showVerifyFiles = verifyFilesAvailable,
                 showWorkshop = workshopAvailable,
                 showLaunchOptions = launchOptionsAvailable,
-                launchOptions = launchOptions,
-                selectedLaunchOption = selectedLaunchOption,
                 isCheckingForUpdate = isCheckingForUpdate,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 isUpdateCheckEnabled =
@@ -320,7 +316,7 @@ internal fun StoreGameDetailScreen(
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
-                onSelectLaunchOption = onSelectLaunchOption,
+                onLaunchOptions = onLaunchOptions,
             )
         }
 
@@ -799,18 +795,15 @@ private fun StoreSourceTag(
     showVerifyFiles: Boolean = false,
     showWorkshop: Boolean = false,
     showLaunchOptions: Boolean = false,
-    launchOptions: List<StoreLaunchOptionItem> = emptyList(),
-    selectedLaunchOption: StoreLaunchOptionItem? = null,
     isCheckingForUpdate: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     isUpdateCheckEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    onSelectLaunchOption: (StoreLaunchOptionItem) -> Unit = {},
+    onLaunchOptions: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    var launchOptionsPage by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableIntStateOf(0) }
     Box {
         Surface(
@@ -820,16 +813,7 @@ private fun StoreSourceTag(
             modifier =
                 Modifier
                     .onSizeChanged { anchorHeightPx = it.height }
-                    .then(
-                        if (menuEnabled) {
-                            Modifier.clickable {
-                                launchOptionsPage = false
-                                menuOpen = true
-                            }
-                        } else {
-                            Modifier
-                        },
-                    ),
+                    .then(if (menuEnabled) Modifier.clickable { menuOpen = true } else Modifier),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -864,63 +848,41 @@ private fun StoreSourceTag(
             val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
             StoreSourceActionPopup(
                 expanded = menuOpen,
-                onDismissRequest = {
-                    menuOpen = false
-                    launchOptionsPage = false
-                },
+                onDismissRequest = { menuOpen = false },
                 offset = IntOffset(0, anchorHeightPx + gapPx),
             ) {
-                if (launchOptionsPage) {
+                if (showVerifyFiles) {
                     StoreSourceMenuItem(
-                        icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
+                        label = stringResource(R.string.store_game_verify_files),
+                        enabled = areSteamActionsEnabled && !isCheckingForUpdate,
+                    ) { menuOpen = false; onVerifyFiles() }
+                }
+                if (showCheckForUpdate) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.Refresh,
+                        label =
+                            if (isCheckingForUpdate) {
+                                stringResource(R.string.store_game_checking_for_update)
+                            } else {
+                                stringResource(R.string.store_game_check_for_update)
+                            },
+                        enabled = areSteamActionsEnabled && isUpdateCheckEnabled,
+                    ) { menuOpen = false; onCheckForUpdate() }
+                }
+                if (showWorkshop) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.Construction,
+                        label = stringResource(R.string.store_game_workshop),
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onWorkshop() }
+                }
+                if (showLaunchOptions) {
+                    StoreSourceMenuItem(
+                        icon = Icons.Outlined.RocketLaunch,
                         label = stringResource(R.string.store_game_launch_options),
-                    ) { launchOptionsPage = false }
-                    StoreDlcDivider()
-                    launchOptions.forEach { option ->
-                        StoreLaunchOptionRow(
-                            label = option.label,
-                            selected = option == selectedLaunchOption,
-                            enabled = areSteamActionsEnabled,
-                        ) {
-                            menuOpen = false
-                            launchOptionsPage = false
-                            onSelectLaunchOption(option)
-                        }
-                    }
-                } else {
-                    if (showVerifyFiles) {
-                        StoreSourceMenuItem(
-                            icon = Icons.AutoMirrored.Outlined.FactCheck,
-                            label = stringResource(R.string.store_game_verify_files),
-                            enabled = areSteamActionsEnabled && !isCheckingForUpdate,
-                        ) { menuOpen = false; onVerifyFiles() }
-                    }
-                    if (showCheckForUpdate) {
-                        StoreSourceMenuItem(
-                            icon = Icons.Outlined.Refresh,
-                            label =
-                                if (isCheckingForUpdate) {
-                                    stringResource(R.string.store_game_checking_for_update)
-                                } else {
-                                    stringResource(R.string.store_game_check_for_update)
-                                },
-                            enabled = areSteamActionsEnabled && isUpdateCheckEnabled,
-                        ) { menuOpen = false; onCheckForUpdate() }
-                    }
-                    if (showWorkshop) {
-                        StoreSourceMenuItem(
-                            icon = Icons.Outlined.Construction,
-                            label = stringResource(R.string.store_game_workshop),
-                            enabled = areSteamActionsEnabled,
-                        ) { menuOpen = false; onWorkshop() }
-                    }
-                    if (showLaunchOptions) {
-                        StoreSourceMenuItem(
-                            icon = Icons.Outlined.RocketLaunch,
-                            label = stringResource(R.string.store_game_launch_options),
-                            enabled = areSteamActionsEnabled,
-                        ) { launchOptionsPage = true }
-                    }
+                        enabled = areSteamActionsEnabled,
+                    ) { menuOpen = false; onLaunchOptions() }
                 }
             }
         }
@@ -1005,44 +967,6 @@ private fun StoreSourceMenuItem(
             color = contentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun StoreLaunchOptionRow(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
-    Row(
-        modifier =
-            Modifier
-                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(Modifier.size(16.dp), contentAlignment = Alignment.Center) {
-            if (selected) {
-                Icon(
-                    Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = StoreAccent,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-        Text(
-            label,
-            color = if (selected) StoreAccent else contentColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 280.dp),
         )
     }
 }
