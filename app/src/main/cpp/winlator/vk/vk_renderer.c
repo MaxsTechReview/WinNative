@@ -1308,6 +1308,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
 
     r->refresh_duration_ns = 0;
     r->fg_present_deadline_ns = 0;
+    r->fg_present_target_ns = 0;
     r->fg_present_id = 0;
     if (r->ext_display_timing && r->fnGetRefreshCycleDuration) {
         VkRefreshCycleDurationGOOGLE rc = {0};
@@ -2395,25 +2396,40 @@ static uint64_t g_fg_dropped = 0;
 // desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
 #define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
 
-// Advance to the next vsync-aligned present deadline; stored and returned for phase + sleep.
+// Advance the present deadline by one target period, then snap it to the panel vsync grid.
+// The unsnapped accumulator keeps the average rate exact; the snap places each present on its
+// own vblank, spread across the game interval. The snap grid must be anchor + k*refresh (the
+// same grid no matter which Choreographer tick last set the anchor) — building it as
+// anchor + k*period flips the grid phase with the anchor's tick parity whenever period spans
+// more than one refresh, which is what bunched the 2x/3x presents (4x escaped only because
+// its period equals one refresh).
 static uint64_t fg_compute_deadline(VkRenderer* r) {
     uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
-    if (period == 0) { r->fg_present_deadline_ns = 0; return 0; }
+    if (period == 0) { r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0; }
     uint64_t now = now_monotonic_ns();
-    uint64_t prev = r->fg_present_deadline_ns;
-    uint64_t floor_t = (now > prev) ? now : prev;
-    uint64_t anchor = r->fg_vsync_anchor_ns;
-    uint64_t deadline = (anchor != 0 && anchor <= floor_t)
-        ? anchor + ((floor_t - anchor) / period + 1u) * period
-        : floor_t + period;
-    if (deadline > now + 4u * period) deadline = floor_t + period;
+    uint64_t deadline = r->fg_present_deadline_ns + period;
+    if (deadline < now || deadline > now + 4u * period) deadline = now + period;
     r->fg_present_deadline_ns = deadline;
-    return deadline;
+
+    uint64_t target = deadline;
+    uint64_t vs = r->fg_display_period_ns ? r->fg_display_period_ns : r->refresh_duration_ns;
+    uint64_t anchor = r->fg_vsync_anchor_ns;
+    // Snap only while the panel carries the target rate (vsync period <= present period). When
+    // an idle/power policy has dropped the panel below the target, snapping would quantize the
+    // presents down to the slow grid and SurfaceFlinger would never see the true content rate
+    // to ramp back up — keep presenting at the unsnapped target cadence instead (MAILBOX drops
+    // the surplus until the panel recovers).
+    if (vs != 0 && anchor != 0 && deadline > anchor && vs <= period + period / 8u) {
+        target = anchor + ((deadline - anchor + vs / 2u) / vs) * vs;
+        if (target <= r->fg_present_target_ns) target = r->fg_present_target_ns + vs;  // one present per vblank
+    }
+    r->fg_present_target_ns = target;
+    return target;
 }
 
 static void fg_sleep_to_deadline(VkRenderer* r) {
     if (r->active_present_mode == VK_PRESENT_MODE_FIFO_KHR) return;  // FIFO already vsync-paces
-    uint64_t deadline = r->fg_present_deadline_ns;
+    uint64_t deadline = r->fg_present_target_ns ? r->fg_present_target_ns : r->fg_present_deadline_ns;
     if (deadline == 0) return;
     uint64_t target = deadline > FG_PRESENT_LEAD_NS ? deadline - FG_PRESENT_LEAD_NS : deadline;
     struct timespec ts;
@@ -3039,11 +3055,12 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenParams)(JNIEnv* env, jclass clazz
     r->fg_min_step = minStep < 1 ? 1 : (minStep > 8 ? 8 : minStep);
 }
 
-JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong vsyncNs) {
+JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong displayPeriodNs, jlong vsyncNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
     r->fg_present_period_ns = periodNs > 0 ? (uint64_t)periodNs : 0;
+    r->fg_display_period_ns = displayPeriodNs > 0 ? (uint64_t)displayPeriodNs : 0;
     r->fg_vsync_anchor_ns = vsyncNs > 0 ? (uint64_t)vsyncNs : 0;
 }
 

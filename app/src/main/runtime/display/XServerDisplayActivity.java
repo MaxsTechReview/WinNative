@@ -252,6 +252,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean effectiveShowFPS = false;
     private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
+    private float lastLoggedRefreshHz = 0f;   // de-dupes the periodic physical-refresh self-log
     private String lastRendererName = "Vulkan";
     private String lastGpuName = null;
     private Runnable editInputControlsCallback;
@@ -607,14 +608,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
             if (renderer != null && renderer.isFrameGenerationEnabled()) {
-                // FG targets multiplier×engine: pin the display mode to that (capped to panel max) and
-                // vote it on the surface so the panel holds the refresh. Engine = fps cap, else 60.
-                int engine = runtimeFpsLimit > 0 ? runtimeFpsLimit : 60;
+                // Pin the panel to the renderer's live FG target (multiplier × measured game fps).
+                // Until the pump has measured, fall back to multiplier×(fps cap | 60). Passing the
+                // target as the fpsLimit makes the mode resolver demand a cadence-compatible mode
+                // (exact match first, then an integer multiple) instead of a raw nearest rate.
                 int panelMax = RefreshRateUtils.getMaxSupportedRefreshRate(this);
-                int target = Math.max(60, Math.min(panelMax, engine * renderer.getFrameGenMultiplier()));
                 renderer.setFrameGenDisplayCap(panelMax);
-                RefreshRateUtils.applyPreferredRefreshRate(this, target, 0);
+                int target = renderer.getFrameGenTargetHz();
+                if (target <= 0) {
+                    int engine = runtimeFpsLimit > 0 ? runtimeFpsLimit : 60;
+                    target = Math.max(60, engine * renderer.getFrameGenMultiplier());
+                }
+                target = Math.min(panelMax, target);
+                // Pin the panel's physical mode to the target (held even when untouched) and vote the
+                // rate on the surface. NOTE: on aggressive ADFR OEMs (e.g. OnePlus/ColorOS) the vendor
+                // refresh service still drops the *render* rate to 60 when there is no touch input
+                // unless the app is enrolled in the OEM game mode (Game Space) — that enrollment, not
+                // any app API, is what holds the render rate untouched. The appCategory="game" manifest
+                // flag signals the app so the OEM can offer it.
+                RefreshRateUtils.applyPreferredRefreshRate(this, target, target);
                 requestSurfaceFrameRate((float) target);
+                lastLoggedRefreshHz = 0f;  // force a fresh self-log line after a target change
             } else {
                 RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
             }
@@ -628,17 +642,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     // Vote a frame rate on the surface so a VRR/ADFR panel holds the high refresh while FG is active.
+    // DEFAULT (exact-or-multiple) — FIXED_SOURCE is video semantics and lets the idle policy drop
+    // the panel to a non-multiple rate once touch boost ends.
     private void requestSurfaceFrameRate(float hz) {
         if (hz <= 0f || Build.VERSION.SDK_INT < Build.VERSION_CODES.R || xServerView == null) return;
         try {
             android.view.Surface s = xServerView.getHolder().getSurface();
             if (s == null || !s.isValid()) return;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
                         android.view.Surface.CHANGE_FRAME_RATE_ALWAYS);
             } else {
-                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                s.setFrameRate(hz, android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
             }
+        } catch (Exception ignore) {}
+    }
+
+    // Log the panel's actual physical refresh rate (what a refresh-rate monitor shows). De-duped so it
+    // only prints when the rate actually changes — makes it obvious in logcat whether the mode pin is
+    // holding the target Hz or the system has dropped it.
+    private void logCurrentRefreshRate(String from) {
+        try {
+            android.view.Display d = getWindow().getDecorView().getDisplay();
+            if (d == null) return;
+            float hz = d.getMode().getRefreshRate();
+            if (Math.abs(hz - lastLoggedRefreshHz) < 0.5f) return;
+            lastLoggedRefreshHz = hz;
+            Log.i("XServerDisplayActivity", "Physical display refresh now " + Math.round(hz)
+                    + "Hz (modeId=" + d.getMode().getModeId() + ", " + from + ")");
         } catch (Exception ignore) {}
     }
 
@@ -667,6 +698,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             @Override
             public void onDisplayChanged(int displayId) {
+                logCurrentRefreshRate("onDisplayChanged");
                 handleDisplayCapabilitiesChanged();
             }
         };
@@ -6045,6 +6077,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
         renderer.setFrameGenerationQuality(frameGenerationQuality);
         renderer.setFrameGenerationSmoothness(frameGenerationSmoothing);
+        // Re-pin the window's preferred display mode whenever the measured FG target moves
+        // (the window pin outranks surface frame-rate votes, so it must track the live target).
+        renderer.setFrameGenRateChangedListener(this::applyPreferredRefreshRate);
         renderer.setFrameGeneration(frameGenerationEnabled);
 
         boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")

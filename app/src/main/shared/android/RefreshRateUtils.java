@@ -134,50 +134,35 @@ public final class RefreshRateUtils {
     }
 
     Display.Mode currentMode = display.getMode();
-    Display.Mode[] modes = display.getSupportedModes();
 
-    Display.Mode bestMode = null;
-    float bestModeRate = 0f;
-    float closestDelta = Float.MAX_VALUE;
+    // Two independent passes (order-independent): an exact round-Hz match always wins over a
+    // closest match. The single-pass version mis-selected when a higher-rate mode preceded the
+    // exact match in enumeration order (e.g. requestedHz=60 picked the 90Hz mode).
+    Display.Mode exact = null, closest = null;
+    float exactRate = 0f, closestDelta = Float.MAX_VALUE, closestRate = 0f;
 
-    for (Display.Mode mode : modes) {
+    for (Display.Mode mode : display.getSupportedModes()) {
       if (!isSameModeGroup(currentMode, mode)) continue;
-
       float refreshRate = mode.getRefreshRate();
       if (refreshRate <= 0f) continue;
 
       if (requestedHz <= 0) {
-        if (bestMode == null || refreshRate > bestModeRate) {
-          bestMode = mode;
-          bestModeRate = refreshRate;
-        }
+        if (exact == null || refreshRate > exactRate) { exact = mode; exactRate = refreshRate; }
         continue;
       }
-
       if (Math.round(refreshRate) == requestedHz) {
-        if (bestMode == null || refreshRate > bestModeRate) {
-          bestMode = mode;
-          bestModeRate = refreshRate;
-          closestDelta = 0f;
-        }
+        if (exact == null || refreshRate > exactRate) { exact = mode; exactRate = refreshRate; }
         continue;
       }
-
-      if (bestMode != null && closestDelta == 0f) continue;
-
       float delta = Math.abs(refreshRate - requestedHz);
-      if (bestMode == null
-          || delta < closestDelta
-          || (delta == closestDelta && refreshRate > bestModeRate)) {
-        bestMode = mode;
-        bestModeRate = refreshRate;
-        closestDelta = delta;
+      if (closest == null || delta < closestDelta
+          || (delta == closestDelta && refreshRate > closestRate)) {
+        closest = mode; closestDelta = delta; closestRate = refreshRate;
       }
     }
 
-    if (bestMode != null) {
-      return bestMode.getModeId();
-    }
+    if (exact != null) return exact.getModeId();
+    if (closest != null) return closest.getModeId();
     return requestedHz <= 0 ? currentMode.getModeId() : 0;
   }
 
@@ -300,6 +285,12 @@ public final class RefreshRateUtils {
     WindowManager.LayoutParams params = activity.getWindow().getAttributes();
     int modeId = resolvePreferredDisplayModeId(activity, effectiveRequestedHz);
     float refreshRate = resolvePreferredRefreshRate(activity, effectiveRequestedHz);
+    // Skip redundant window updates: the FG target fluctuates (e.g. 114-122) but resolves to the
+    // same mode, so without this guard setAttributes would fire several times a second.
+    if (params.preferredDisplayModeId == modeId
+        && Math.abs(params.preferredRefreshRate - refreshRate) < 0.5f) {
+      return;
+    }
     params.preferredDisplayModeId = modeId;
     params.preferredRefreshRate = refreshRate;
     activity.getWindow().setAttributes(params);

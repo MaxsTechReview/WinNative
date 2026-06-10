@@ -446,7 +446,9 @@ typedef struct VkRenderer {
     bool             ext_display_timing;
     uint64_t         refresh_duration_ns;   // panel vsync period from the swapchain (fallback)
     uint64_t         fg_present_period_ns;   // target inter-present interval (ns) fed from Java
-    uint64_t         fg_present_deadline_ns; // next clock_nanosleep present deadline
+    uint64_t         fg_present_deadline_ns; // unsnapped deadline accumulator (target-rate grid)
+    uint64_t         fg_present_target_ns;   // vsync-snapped sleep target for the next present
+    uint64_t         fg_display_period_ns;   // live panel vsync period fed from Java (Choreographer EMA)
     uint64_t         fg_vsync_anchor_ns;     // latest Choreographer vsync timestamp (CLOCK_MONOTONIC)
     uint64_t         fg_prev_arrival_ns;     // real-frame arrival times, for time-based interp phase
     uint64_t         fg_curr_arrival_ns;

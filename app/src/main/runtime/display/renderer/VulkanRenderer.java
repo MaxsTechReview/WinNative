@@ -3,6 +3,7 @@ package com.winlator.cmod.runtime.display.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -80,6 +81,12 @@ public class VulkanRenderer
     // Quality/smoothness, mapped to native shader knobs (motion search floor + interp consistency).
     private volatile int fgQuality = 1;      // 0 performance, 1 balanced, 2 quality
     private volatile float fgSmoothness = 0.5f;
+    // Panel frame-rate request: surface vote here; the activity mirrors it into the window's
+    // preferredDisplayModeId/preferredRefreshRate (which outrank surface votes) via the listener.
+    private volatile Surface fgSurface;
+    private float fgFrameRateHint = -1f;
+    private long fgFrameRateHintNs = 0L;
+    private volatile Runnable fgRateChangedListener;
 
     private final EffectComposer effectComposer;
     public final ViewTransformation viewTransformation = new ViewTransformation();
@@ -231,6 +238,7 @@ public class VulkanRenderer
         }
         // When disabled, the pump self-stops (fgPumpTick checks frameGenEnabled) and onDrawFrame
         // reverts to the coalesced real-present path.
+        if (!enabled) fgApplyFrameRateHint(0.0, System.nanoTime());
     }
 
     public boolean isFrameGenerationEnabled() { return frameGenEnabled; }
@@ -301,7 +309,9 @@ public class VulkanRenderer
                 fgDisplayPeriodNs = fgDisplayPeriodNs == 0L ? d : fgDisplayPeriodNs + (d - fgDisplayPeriodNs) / 8L;
                 if (nativeHandle != 0) {
                     double th = fgTargetHz();
-                    nativeSetVsyncTiming(nativeHandle, th > 0.0 ? (long) (1.0e9 / th) : fgDisplayPeriodNs, frameTimeNanos);
+                    nativeSetVsyncTiming(nativeHandle, th > 0.0 ? (long) (1.0e9 / th) : fgDisplayPeriodNs,
+                            fgDisplayPeriodNs, frameTimeNanos);
+                    fgApplyFrameRateHint(th, frameTimeNanos);
                 }
             }
         }
@@ -377,6 +387,48 @@ public class VulkanRenderer
         return Math.max(1, Math.min(n, 8));
     }
 
+    // Vote the FG post rate on the content surface (lifts the Android 15+ game default-60Hz
+    // throttle and drives VRR panels), then tell the activity so it mirrors the target into the
+    // window's preferredDisplayModeId — the window pin outranks surface votes, so it must carry
+    // the same value or it silently wins with a stale one. 0 clears both when FG turns off.
+    private void fgApplyFrameRateHint(double targetHz, long nowNs) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+        float rate = frameGenEnabled && targetHz > 0.0 ? (float) Math.round(targetHz) : 0f;
+        if (rate == fgFrameRateHint) return;
+        if (rate != 0f && fgFrameRateHint > 0f && Math.abs(rate - fgFrameRateHint) <= 5f) return; // EMA jitter
+        if (rate != 0f && nowNs - fgFrameRateHintNs < 500_000_000L) return;
+        // DEFAULT (exact-or-multiple), not FIXED_SOURCE: FIXED_SOURCE is video semantics — it
+        // tells SurfaceFlinger pulldown judder is acceptable, which lets the idle/power policy
+        // drop the panel to 60Hz against a 90/120Hz vote the moment touch boost ends.
+        Surface s = fgSurface;
+        if (s != null && s.isValid()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    s.setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
+                            Surface.CHANGE_FRAME_RATE_ALWAYS);
+                } else {
+                    s.setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+                }
+            } catch (IllegalStateException | IllegalArgumentException ignored) {}
+        }
+        fgFrameRateHint = rate;
+        fgFrameRateHintNs = nowNs;
+        Log.i(TAG, "FG target display rate: " + (int) rate + "Hz");
+        Runnable l = fgRateChangedListener;
+        if (l != null) l.run();
+    }
+
+    /** Live FG display target (multiplier × measured game fps, rounded), or 0 if unknown/off. */
+    public int getFrameGenTargetHz() {
+        float rate = fgFrameRateHint;
+        return rate > 0f ? Math.round(rate) : 0;
+    }
+
+    /** Invoked (any thread) whenever the FG display target changes; 0-target means FG off. */
+    public void setFrameGenRateChangedListener(Runnable listener) {
+        fgRateChangedListener = listener;
+    }
+
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
         BitmapFactory.Options options = new BitmapFactory.Options();
@@ -392,6 +444,8 @@ public class VulkanRenderer
     }
 
     public void attachSurface(Surface surface) {
+        fgSurface = surface;
+        fgFrameRateHint = -1f;   // fresh surface carries no frame-rate preference; re-apply
         if (nativeHandle == 0) {
             nativeHandle = nativeCreate(shouldEnableValidationLayers(),
                     graphicsDriverName, xServerView.getContext().getApplicationContext());
@@ -1054,5 +1108,5 @@ public class VulkanRenderer
     private static native boolean nativePresentLast(long handle);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
     private static native int nativeGetActivePresentMode(long handle);
-    private static native void nativeSetVsyncTiming(long handle, long periodNs, long vsyncNs);
+    private static native void nativeSetVsyncTiming(long handle, long periodNs, long displayPeriodNs, long vsyncNs);
 }
