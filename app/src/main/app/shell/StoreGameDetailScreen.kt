@@ -123,6 +123,59 @@ private val StoreTextPrimary = Color(0xFFF0F4FF)
 private val StoreTextSecondary = Color(0xFF93A6BC)
 private val StoreDanger = Color(0xFFFF6B6B)
 
+/**
+ * All StoreGameDetailScreen inputs in one holder. The split exists for ART's
+ * bytecode verifier: with the 40+-param signature and the screen's body in a
+ * single method, the frame needed 260+ registers and D8's prologue emitted
+ * copies this device class rejects (VerifyError: "copy-cat1 v0<-v260" /
+ * "wide register has type Low-half"). The wrapper below keeps the public
+ * defaulted signature in a tiny frame; the body lives in a one-param method.
+ */
+internal class StoreGameDetailParams(
+    val title: String,
+    val subtitle: String,
+    val sourceLabel: String,
+    val heroImageUrl: Any?,
+    val isLoading: Boolean,
+    val isInstalled: Boolean,
+    val installPathDisplay: String,
+    val downloadSize: Long,
+    val installSize: Long,
+    val availableBytes: Long,
+    val isInstallEnabled: Boolean,
+    val isDownloadActionEnabled: Boolean,
+    val customPathLabel: String,
+    val showCustomPath: Boolean,
+    val showCloudSync: Boolean,
+    val showUninstall: Boolean,
+    val showUpdateCheck: Boolean,
+    val isCheckingForUpdate: Boolean,
+    val isUpdateAvailable: Boolean,
+    val updateDownloadSize: Long,
+    val updateStatusText: String?,
+    val isUpdateActionEnabled: Boolean,
+    val isUpdateCheckCoolingDown: Boolean,
+    val showWorkshop: Boolean,
+    val showVerifyFiles: Boolean,
+    val areSteamActionsEnabled: Boolean,
+    val onLaunchOptions: (() -> Unit)?,
+    val onBetaBranches: (() -> Unit)?,
+    val dlcs: List<StoreDlcItem>,
+    val selectedDlcIds: Set<Int>,
+    val isDlcSelectionEnabled: Boolean,
+    val onBack: () -> Unit,
+    val onInstall: () -> Unit,
+    val onCheckForUpdate: () -> Unit,
+    val onWorkshop: () -> Unit,
+    val onVerifyFiles: () -> Unit,
+    val onDownloadUpdate: () -> Unit,
+    val onUninstall: () -> Unit,
+    val onCloudSync: () -> Unit,
+    val onCustomPath: () -> Unit,
+    val onToggleDlc: (Int) -> Unit,
+    val onToggleSelectAllDlcs: () -> Unit,
+)
+
 @Composable
 internal fun StoreGameDetailScreen(
     title: String,
@@ -151,10 +204,7 @@ internal fun StoreGameDetailScreen(
     showWorkshop: Boolean = false,
     showVerifyFiles: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
-    // Nullable on purpose: null hides the menu item. Folding show+callback into
-    // one parameter keeps this signature at the size that still passes ART's
-    // bytecode verifier — at ~44 params D8 emitted a default-handler this
-    // device's verifier rejected (VerifyError: wide register Low-half).
+    // Nullable on purpose: null hides the menu item.
     onLaunchOptions: (() -> Unit)? = null,
     onBetaBranches: (() -> Unit)? = null,
     dlcs: List<StoreDlcItem> = emptyList(),
@@ -172,6 +222,100 @@ internal fun StoreGameDetailScreen(
     onToggleDlc: (Int) -> Unit = {},
     onToggleSelectAllDlcs: () -> Unit = {},
 ) {
+    StoreGameDetailContent(
+        StoreGameDetailParams(
+            title = title,
+            subtitle = subtitle,
+            sourceLabel = sourceLabel,
+            heroImageUrl = heroImageUrl,
+            isLoading = isLoading,
+            isInstalled = isInstalled,
+            installPathDisplay = installPathDisplay,
+            downloadSize = downloadSize,
+            installSize = installSize,
+            availableBytes = availableBytes,
+            isInstallEnabled = isInstallEnabled,
+            isDownloadActionEnabled = isDownloadActionEnabled,
+            customPathLabel = customPathLabel,
+            showCustomPath = showCustomPath,
+            showCloudSync = showCloudSync,
+            showUninstall = showUninstall,
+            showUpdateCheck = showUpdateCheck,
+            isCheckingForUpdate = isCheckingForUpdate,
+            isUpdateAvailable = isUpdateAvailable,
+            updateDownloadSize = updateDownloadSize,
+            updateStatusText = updateStatusText,
+            isUpdateActionEnabled = isUpdateActionEnabled,
+            isUpdateCheckCoolingDown = isUpdateCheckCoolingDown,
+            showWorkshop = showWorkshop,
+            showVerifyFiles = showVerifyFiles,
+            areSteamActionsEnabled = areSteamActionsEnabled,
+            onLaunchOptions = onLaunchOptions,
+            onBetaBranches = onBetaBranches,
+            dlcs = dlcs,
+            selectedDlcIds = selectedDlcIds,
+            isDlcSelectionEnabled = isDlcSelectionEnabled,
+            onBack = onBack,
+            onInstall = onInstall,
+            onCheckForUpdate = onCheckForUpdate,
+            onWorkshop = onWorkshop,
+            onVerifyFiles = onVerifyFiles,
+            onDownloadUpdate = onDownloadUpdate,
+            onUninstall = onUninstall,
+            onCloudSync = onCloudSync,
+            onCustomPath = onCustomPath,
+            onToggleDlc = onToggleDlc,
+            onToggleSelectAllDlcs = onToggleSelectAllDlcs,
+        ),
+    )
+}
+
+@Composable
+private fun StoreGameDetailContent(p: StoreGameDetailParams) {
+    // Local rebinds keep the body identical to the pre-split parameter names.
+    val title = p.title
+    val subtitle = p.subtitle
+    val sourceLabel = p.sourceLabel
+    val heroImageUrl = p.heroImageUrl
+    val isLoading = p.isLoading
+    val isInstalled = p.isInstalled
+    val installPathDisplay = p.installPathDisplay
+    val downloadSize = p.downloadSize
+    val installSize = p.installSize
+    val availableBytes = p.availableBytes
+    val isInstallEnabled = p.isInstallEnabled
+    val isDownloadActionEnabled = p.isDownloadActionEnabled
+    val customPathLabel = p.customPathLabel
+    val showCustomPath = p.showCustomPath
+    val showCloudSync = p.showCloudSync
+    val showUninstall = p.showUninstall
+    val showUpdateCheck = p.showUpdateCheck
+    val isCheckingForUpdate = p.isCheckingForUpdate
+    val isUpdateAvailable = p.isUpdateAvailable
+    val updateDownloadSize = p.updateDownloadSize
+    val updateStatusText = p.updateStatusText
+    val isUpdateActionEnabled = p.isUpdateActionEnabled
+    val isUpdateCheckCoolingDown = p.isUpdateCheckCoolingDown
+    val showWorkshop = p.showWorkshop
+    val showVerifyFiles = p.showVerifyFiles
+    val areSteamActionsEnabled = p.areSteamActionsEnabled
+    val onLaunchOptions = p.onLaunchOptions
+    val onBetaBranches = p.onBetaBranches
+    val dlcs = p.dlcs
+    val selectedDlcIds = p.selectedDlcIds
+    val isDlcSelectionEnabled = p.isDlcSelectionEnabled
+    val onBack = p.onBack
+    val onInstall = p.onInstall
+    val onCheckForUpdate = p.onCheckForUpdate
+    val onWorkshop = p.onWorkshop
+    val onVerifyFiles = p.onVerifyFiles
+    val onDownloadUpdate = p.onDownloadUpdate
+    val onUninstall = p.onUninstall
+    val onCloudSync = p.onCloudSync
+    val onCustomPath = p.onCustomPath
+    val onToggleDlc = p.onToggleDlc
+    val onToggleSelectAllDlcs = p.onToggleSelectAllDlcs
+
     val context = LocalContext.current
     val density = LocalDensity.current
     var dlcExpanded by remember { mutableStateOf(false) }
