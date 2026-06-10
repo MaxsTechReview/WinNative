@@ -65,11 +65,19 @@ void main() {
 
     // Trust = how consistent the two warps are, gated by on-frame-ness.
     float disagree = abs(luma(cPrev) - luma(cCurr));
-    float trust    = 1.0 - smoothstep(lo, hi, disagree);
-    if (offFrame(prevPos) || offFrame(currPos)) trust = 0.0;
+    bool  off      = offFrame(prevPos) || offFrame(currPos);
+    float trust    = off ? 0.0 : 1.0 - smoothstep(lo, hi, disagree);
 
-    // Fallback for untrusted pixels: nearest real frame, unwarped (no smear).
-    vec3 nearest = (t < 0.5) ? texture(prevFrame, vUV).rgb : texture(currFrame, vUV).rgb;
+    // Fallback for untrusted pixels. Freezing them at the unwarped prev/curr frame (alpha 0/1)
+    // made interpolated frames land early: untrusted regions contributed zero motion, so the
+    // measured placement was ~trust*t instead of t (which is why the Smoothness/trust slider
+    // visibly shifted it). A phase-t crossfade keeps untrusted pixels advancing to ~alpha=t —
+    // static UI is identical in both frames so it stays ghost-free, and only genuine disocclusions
+    // pick up a faint blend instead of a hard catch-up step. Hard off-frame samples still snap to
+    // the nearest real frame so border disocclusions don't warp in out-of-image garbage.
+    vec3 cPrevFlat = texture(prevFrame, vUV).rgb;
+    vec3 cCurrFlat = texture(currFrame, vUV).rgb;
+    vec3 fallback  = off ? ((t < 0.5) ? cPrevFlat : cCurrFlat) : mix(cPrevFlat, cCurrFlat, t);
 
-    outColor = vec4(clamp(mix(nearest, mc, trust), 0.0, 1.0), 1.0);
+    outColor = vec4(clamp(mix(fallback, mc, trust), 0.0, 1.0), 1.0);
 }
