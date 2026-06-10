@@ -372,10 +372,8 @@ class UnifiedActivity :
         lifecycleScope.launch {
             val result =
                 runCatching {
-                    withContext(Dispatchers.IO) {
-                        val branch = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
-                        SteamService.checkForAppUpdate(appId, branch)
-                    }
+                    // checkForAppUpdate defaults to the game's selected beta branch.
+                    withContext(Dispatchers.IO) { SteamService.checkForAppUpdate(appId) }
                 }.getOrNull()
             try {
             when {
@@ -386,8 +384,16 @@ class UnifiedActivity :
                 }
                 result.hasUpdate -> {
                     val started =
-                        withContext(Dispatchers.IO) {
-                            SteamService.downloadAppForUpdate(appId, result.depotIds)
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                SteamService.downloadAppForUpdate(appId, result.depotIds)
+                            }
+                        }.getOrElse { e ->
+                            Log.w("UnifiedActivity", "Steam update download failed to start for appId=$appId", e)
+                            taskCheckingShown = false
+                            taskDoneFailed = true
+                            taskDoneMessage = getString(R.string.store_game_update_failed_notice)
+                            return@launch
                         }
                     if (started != null) {
                         showTaskProgressPopup(

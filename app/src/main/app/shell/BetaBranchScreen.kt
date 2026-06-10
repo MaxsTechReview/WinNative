@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -232,9 +233,12 @@ private fun BetaBranchPickerRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val dateStr = branch.timeUpdated
-                ?.let { SimpleDateFormat("MMM d, yyyy", Locale.US).format(it) }
-                ?: "—"
+            val dateStr =
+                remember(branch.timeUpdated) {
+                    branch.timeUpdated
+                        ?.let { SimpleDateFormat("MMM d, yyyy", Locale.US).format(it) }
+                        ?: "—"
+                }
             Text(
                 "build ${branch.buildId}  ·  $dateStr",
                 color = BbTextSecondary,

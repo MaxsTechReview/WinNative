@@ -4538,6 +4538,28 @@ class SteamService : Service() {
                     runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_PATCHED) }
                     runCatching { MarkerUtils.removeMarker(appDirPath, Marker.STEAM_DRM_UNPACK_CHECKED) }
 
+                    // Prune stale "{depotId}_{gid}.manifest" caches: after a branch
+                    // switch or ordinary update the previous build's manifests linger,
+                    // wasting disk and — when depot.config is missing an entry —
+                    // letting checkForAppUpdate's cache fallback mistake an old build
+                    // for installed. Keep only what depot.config says is current; skip
+                    // legacy installs with no depot.config, whose fallback needs them.
+                    runCatching {
+                        val installedManifests = readInstalledDepotManifestIds(appDirPath)
+                        if (installedManifests.isNotEmpty()) {
+                            File(appDirPath, ".DepotDownloader")
+                                .listFiles { f -> f.isFile && f.name.endsWith(".manifest") }
+                                ?.forEach { f ->
+                                    val parts = f.name.removeSuffix(".manifest").split('_')
+                                    val depotId = parts.getOrNull(0)?.toIntOrNull() ?: return@forEach
+                                    val gid = parts.getOrNull(1)?.toLongOrNull() ?: return@forEach
+                                    if (parts.size == 2 && installedManifests[depotId] != gid && f.delete()) {
+                                        Timber.i("Pruned stale depot manifest cache ${f.name} at $appDirPath")
+                                    }
+                                }
+                        }
+                    }.onFailure { e -> Timber.w(e, "Stale manifest prune failed for $appDirPath") }
+
                     // Same reason as the runCatching above: a Room exception
                     // here used to FAIL a fully-downloaded game with COMPLETE
                     // marker already on disk.
@@ -5522,9 +5544,53 @@ class SteamService : Service() {
         fun resolveSelectedBetaName(appId: Int): String {
             if (appId <= 0) return ""
             val svc = instance ?: return ""
-            return runCatching {
-                findSteamShortcut(svc, appId)?.getExtra("selectedBranch").orEmpty().trim()
-            }.getOrElse { "" }
+            return runCatching { readSelectedBranchExtra(svc, appId).trim() }.getOrElse { "" }
+        }
+
+        /**
+         * Reads the `selectedBranch` extra straight from the Steam shortcut's
+         * .desktop file. Deliberately NOT findSteamShortcut/loadShortcuts: the
+         * Shortcut constructor decodes cover-art bitmaps, runs PE icon extraction
+         * and can rewrite .desktop files — far too heavy (and write-racy) for the
+         * download/update-check hot paths that only need one string.
+         */
+        private fun readSelectedBranchExtra(
+            context: Context,
+            appId: Int,
+        ): String {
+            val appIdStr = appId.toString()
+            val homeDir = File(ImageFs.find(context).rootDir, "home")
+            val userDirs =
+                homeDir.listFiles { f -> f.isDirectory && f.name.startsWith("${ImageFs.USER}-") }
+                    ?: return ""
+            for (userDir in userDirs) {
+                val desktopDir = File(userDir, ".wine/drive_c/users/${ImageFs.USER}/Desktop")
+                val files = desktopDir.listFiles { f -> f.name.endsWith(".desktop") } ?: continue
+                for (file in files) {
+                    var section = ""
+                    var gameSource = ""
+                    var fileAppId = ""
+                    var branch = ""
+                    for (raw in file.readLines()) {
+                        val line = raw.trim()
+                        if (line.isEmpty() || line.startsWith("#")) continue
+                        if (line.startsWith("[")) {
+                            section = line.substringAfter("[").substringBefore("]")
+                            continue
+                        }
+                        if (section != "Extra Data") continue
+                        when (line.substringBefore("=", "")) {
+                            "game_source" -> gameSource = line.substringAfter("=")
+                            "app_id" -> fileAppId = line.substringAfter("=")
+                            "selectedBranch" -> branch = line.substringAfter("=")
+                        }
+                    }
+                    if (gameSource == "STEAM" && fileAppId == appIdStr && branch.isNotEmpty()) {
+                        return branch
+                    }
+                }
+            }
+            return ""
         }
 
         suspend fun refreshEncryptedAppTicketForLibSteamClient(appId: Int): Boolean {
@@ -7385,12 +7451,12 @@ class SteamService : Service() {
 
         suspend fun isUpdatePending(
             appId: Int,
-            branch: String = "public",
+            branch: String = resolveSelectedBetaName(appId).ifBlank { "public" },
         ): Boolean = checkForAppUpdate(appId, branch).hasUpdate
 
         suspend fun checkForAppUpdate(
             appId: Int,
-            branch: String = "public",
+            branch: String = resolveSelectedBetaName(appId).ifBlank { "public" },
         ): SteamUpdateInfo =
             withContext(Dispatchers.IO) {
                 fun SteamUpdateInfo.logged(): SteamUpdateInfo {
