@@ -304,12 +304,6 @@ fun InputControlsScreen(
             verticalArrangement = Arrangement.spacedBy(InputCompactGap),
         ) {
             item("profile-card") { ProfileCard(state, actions) }
-            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
-            item("overlay-card") { OverlayOpacityCard(state, actions) }
-            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
-            item("gyro-card") { GyroscopeCard(state, actions) }
-            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
-            item("trigger-card") { TriggerTypeCard(state, actions) }
             item("actions-label") { SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section)) }
             item("import-card") {
                 ActionCard(
@@ -332,6 +326,12 @@ fun InputControlsScreen(
                     onClick = actions.onExportProfile,
                 )
             }
+            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
+            item("overlay-card") { OverlayOpacityCard(state, actions) }
+            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
+            item("gyro-card") { GyroscopeCard(state, actions) }
+            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
+            item("trigger-card") { TriggerTypeCard(state, actions) }
             item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
             item("gesture-profile-card") { GestureProfileCard(state, actions) }
             if (state.gestureEditorExpanded) {

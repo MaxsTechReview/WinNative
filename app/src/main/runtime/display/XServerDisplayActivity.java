@@ -3814,8 +3814,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
         int selectedLabelThemeIndex = currentLabelTheme.ordinal();
 
-        List<String> gestureProfileNames = gestureProfileManager.getProfileNames();
-        int gestureSelectedIndex = Math.max(0, gestureProfileManager.indexOfProfile(selectedGestureProfileId()));
+        List<String> gestureProfileNames = new ArrayList<>();
+        int gestureSelectedIndex = 0;
+        try {
+            gestureProfileNames = gestureProfileManager.getProfileNames();
+            gestureSelectedIndex = Math.max(0, gestureProfileManager.indexOfProfile(selectedGestureProfileId()));
+        } catch (Throwable t) {
+            android.util.Log.e("XServerDisplayActivity", "gesture drawer names failed", t);
+        }
 
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
@@ -4273,6 +4279,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onRtsGesturesToggled(boolean enabled) {
                         rtsGesturesEnabled = enabled;
                         if (touchpadView != null) touchpadView.setRtsGesturesEnabled(enabled);
+                        if (enabled) pushSelectedGestureConfig();
                         if (shortcut != null) {
                             shortcut.putExtra("rtsGestures", enabled ? "1" : "0");
                             shortcut.saveData();
@@ -6123,11 +6130,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             touchpadView.setRtsGesturesEnabled(rtsGesturesEnabled);
         }
 
-        int gestureProfileId = selectedGestureProfileId();
-        GestureProfile launchGestureProfile = gestureProfileId != 0
-                ? gestureProfileManager.getProfile(gestureProfileId) : gestureProfileManager.getDefaultProfile();
-        if (launchGestureProfile == null) launchGestureProfile = gestureProfileManager.getDefaultProfile();
-        touchpadView.setGestureConfig(launchGestureProfile.getConfigJson());
+        if (rtsGesturesEnabled) pushSelectedGestureConfig();
 
         if (winHandler != null) winHandler.setRightStickSensitivity(preferences.getFloat("right_stick_sensitivity", 1.0f));
 
@@ -6337,6 +6340,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             editor.putInt("selected_profile_index", -1);
         }
         editor.apply();
+    }
+
+    private void pushSelectedGestureConfig() {
+        try {
+            int gid = selectedGestureProfileId();
+            GestureProfile gp = gid != 0 ? gestureProfileManager.getProfile(gid) : gestureProfileManager.getDefaultProfile();
+            if (gp == null) gp = gestureProfileManager.getDefaultProfile();
+            if (gp != null && touchpadView != null) touchpadView.setGestureConfig(gp.getConfigJson());
+        } catch (Throwable t) {
+            android.util.Log.e("XServerDisplayActivity", "gesture resolve failed", t);
+        }
     }
 
     private int selectedGestureProfileId() {
