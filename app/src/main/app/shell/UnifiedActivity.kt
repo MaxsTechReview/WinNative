@@ -4613,13 +4613,19 @@ class UnifiedActivity :
                 selectedBetaBranch = null
                 return@LaunchedEffect
             }
-            loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
-                launchOptions = options
-                selectedLaunchOption = selected
-            }
-            loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
-                betaBranches = branches
-                selectedBetaBranch = selected
+            // Degrade to hidden menu items (logged) rather than crash the dialog.
+            runCatching {
+                loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
+                    launchOptions = options
+                    selectedLaunchOption = selected
+                }
+                loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
+                    betaBranches = branches
+                    selectedBetaBranch = selected
+                }
+            }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.e("UnifiedActivity", "Steam game-detail extras load failed for appId=${app.id}", e)
             }
         }
 
@@ -9050,25 +9056,39 @@ class UnifiedActivity :
         )
 
         LaunchedEffect(app.id, downloadRecords) {
+            // An exception in this effect tears down the whole Activity — degrade
+            // to an empty load (logged) instead of crashing the store screen.
             val loadData =
-                withContext(Dispatchers.IO) {
-                    // Size the same branch the download will actually fetch.
-                    val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
-                    val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
-                    val perDlcSizes =
-                        selectableDlcApps.associate { dlc ->
-                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id, branch = branch)
-                        }
-                    val installedDlcIds =
-                        SteamService.getInstalledDlcDepotsOf(app.id)
-                            .orEmpty()
-                            .toSet()
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        // Size the same branch the download will actually fetch.
+                        val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
+                        val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
+                        val perDlcSizes =
+                            selectableDlcApps.associate { dlc ->
+                                dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id, branch = branch)
+                            }
+                        val installedDlcIds =
+                            SteamService.getInstalledDlcDepotsOf(app.id)
+                                .orEmpty()
+                                .toSet()
+                        SteamInstallLoadData(
+                            dlcApps = selectableDlcApps,
+                            dlcSizes = perDlcSizes,
+                            installedDlcIds = installedDlcIds,
+                            baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id, branch = branch),
+                            installed = SteamService.isAppInstalled(app.id),
+                        )
+                    }
+                }.getOrElse { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e("UnifiedActivity", "Steam install data load failed for appId=${app.id}", e)
                     SteamInstallLoadData(
-                        dlcApps = selectableDlcApps,
-                        dlcSizes = perDlcSizes,
-                        installedDlcIds = installedDlcIds,
-                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id, branch = branch),
-                        installed = SteamService.isAppInstalled(app.id),
+                        dlcApps = emptyList(),
+                        dlcSizes = emptyMap(),
+                        installedDlcIds = emptySet(),
+                        baseManifestSizes = SteamService.ManifestSizes(),
+                        installed = runCatching { withContext(Dispatchers.IO) { SteamService.isAppInstalled(app.id) } }.getOrDefault(false),
                     )
                 }
             dlcApps = loadData.dlcApps
@@ -9081,10 +9101,15 @@ class UnifiedActivity :
         }
 
         LaunchedEffect(app.id, selectedDlcIds.toList()) {
-            selectedManifestSizes =
+            runCatching {
                 withContext(Dispatchers.IO) {
                     val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
                     SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList(), branch = branch)
+                }
+            }.onSuccess { selectedManifestSizes = it }
+                .onFailure { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e("UnifiedActivity", "Steam DLC size load failed for appId=${app.id}", e)
                 }
         }
 
@@ -9096,13 +9121,19 @@ class UnifiedActivity :
                 selectedBetaBranch = null
                 return@LaunchedEffect
             }
-            loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
-                launchOptions = options
-                selectedLaunchOption = selected
-            }
-            loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
-                betaBranches = branches
-                selectedBetaBranch = selected
+            // Degrade to hidden menu items (logged) rather than crash the dialog.
+            runCatching {
+                loadSteamLaunchOptionsRefreshing(app.id) { options, selected ->
+                    launchOptions = options
+                    selectedLaunchOption = selected
+                }
+                loadSteamBetaBranchesRefreshing(app.id) { branches, selected ->
+                    betaBranches = branches
+                    selectedBetaBranch = selected
+                }
+            }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.e("UnifiedActivity", "Steam game-detail extras load failed for appId=${app.id}", e)
             }
         }
 

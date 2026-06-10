@@ -5586,56 +5586,9 @@ class SteamService : Service() {
         fun resolveSelectedBetaName(appId: Int): String {
             if (appId <= 0) return ""
             val svc = instance ?: return ""
-            return runCatching { readSelectedBranchExtra(svc, appId).trim() }.getOrElse { "" }
-        }
-
-        /**
-         * Reads the `selectedBranch` extra straight from the Steam shortcut's
-         * .desktop file. Deliberately NOT findSteamShortcut/loadShortcuts: the
-         * Shortcut constructor decodes cover-art bitmaps, runs PE icon extraction
-         * and can rewrite .desktop files — far too heavy (and write-racy) for the
-         * download/update-check hot paths that only need one string.
-         */
-        private fun readSelectedBranchExtra(
-            context: Context,
-            appId: Int,
-        ): String {
-            val appIdStr = appId.toString()
-            val homeDir = File(ImageFs.find(context).rootDir, "home")
-            val userDirs =
-                homeDir.listFiles { f -> f.isDirectory && f.name.startsWith("${ImageFs.USER}-") }
-                    ?: return ""
-            for (userDir in userDirs) {
-                val desktopDir = File(userDir, ".wine/drive_c/users/${ImageFs.USER}/Desktop")
-                val files = desktopDir.listFiles { f -> f.name.endsWith(".desktop") } ?: continue
-                for (file in files) {
-                    var section = ""
-                    var gameSource = ""
-                    var fileAppId = ""
-                    var branch = ""
-                    // FileUtils.readLines (also used by Shortcut's parser) returns
-                    // what it could read on IO errors — one corrupt .desktop file
-                    // must not abort the scan of the remaining containers.
-                    for (raw in FileUtils.readLines(file)) {
-                        val line = raw.trim()
-                        if (line.isEmpty() || line.startsWith("#")) continue
-                        if (line.startsWith("[")) {
-                            section = line.substringAfter("[").substringBefore("]")
-                            continue
-                        }
-                        if (section != "Extra Data") continue
-                        when (line.substringBefore("=", "")) {
-                            "game_source" -> gameSource = line.substringAfter("=")
-                            "app_id" -> fileAppId = line.substringAfter("=")
-                            "selectedBranch" -> branch = line.substringAfter("=")
-                        }
-                    }
-                    if (gameSource == "STEAM" && fileAppId == appIdStr && branch.isNotEmpty()) {
-                        return branch
-                    }
-                }
-            }
-            return ""
+            return runCatching {
+                readSteamShortcutExtras(svc, appId)?.first?.get("selectedBranch").orEmpty().trim()
+            }.getOrElse { "" }
         }
 
         suspend fun refreshEncryptedAppTicketForLibSteamClient(appId: Int): Boolean {
