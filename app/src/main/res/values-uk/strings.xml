@@ -1325,5 +1325,49 @@
     <string name="workshop_loading_items">Завантаження елементів Workshop</string>
     <string name="workshop_search_items">Пошук елементів Workshop</string>
     <string name="common_ui_failed">Помилка</string>
+
+    <!-- Touch Input & Gesture Profiles -->
+    <string name="common_ui_new">Створити</string>
+    <string name="common_ui_rename">Перейменувати</string>
+    <string name="gesture_profile_export">Експортувати профіль жестів</string>
+    <string name="gesture_profile_import">Імпортувати профіль жестів</string>
+    <string name="gesture_profile_new">Новий профіль жестів</string>
+    <string name="gesture_profile_none">Немає профілів жестів</string>
+    <string name="input_controls_editor_input_profiles_section">Профілі введення</string>
+    <string name="session_drawer_right_stick_sensitivity">Чутливість правого стіка</string>
+    <string name="session_drawer_rts_gestures">RTS-жести</string>
+    <string name="session_drawer_rts_gestures_edit">Редагувати</string>
+    <string name="session_drawer_touch">Дотик</string>
+    <string name="session_drawer_touch_map_right_stick">Призначити на правий стік</string>
+    <string name="session_drawer_touch_touchscreen">Режим сенсорного екрана</string>
+    <string name="session_drawer_touch_trackpad">Тачпад</string>
+    <string name="session_gesture_profile_section">Профіль жестів</string>
+    <string name="session_rts_action">Дія</string>
+    <string name="session_rts_behavior">Поведінка</string>
+    <string name="session_rts_double_tap">Подвійний дотик (подвійний лівий клік)</string>
+    <string name="session_rts_double_tap_delay">Затримка подвійного дотику (ms)</string>
+    <string name="session_rts_down">Вниз</string>
+    <string name="session_rts_drag">Перетягування 1 пальцем</string>
+    <string name="session_rts_drag_threshold">Поріг перетягування (px)</string>
+    <string name="session_rts_gesture_threshold">Поріг жесту (px)</string>
+    <string name="session_rts_hold2">Утримання 2 пальцями</string>
+    <string name="session_rts_hold3">Утримання 3 пальцями</string>
+    <string name="session_rts_hold4">Утримання 4 пальцями</string>
+    <string name="session_rts_hold_delay">Затримка утримання (ms)</string>
+    <string name="session_rts_left">Вліво</string>
+    <string name="session_rts_long_press">Довге натискання</string>
+    <string name="session_rts_long_press_delay">Затримка довгого натискання (ms)</string>
+    <string name="session_rts_pan">Панорамування 2 пальцями</string>
+    <string name="session_rts_pan_threshold">Початок панорамування/щипка (px)</string>
+    <string name="session_rts_right">Вправо</string>
+    <string name="session_rts_swipe3">Свайп 3 пальцями</string>
+    <string name="session_rts_swipe4">Свайп 4 пальцями</string>
+    <string name="session_rts_swipe_threshold">Поріг свайпу (px)</string>
+    <string name="session_rts_tap1">Дотик 1 пальцем</string>
+    <string name="session_rts_tap2">Дотик 2 пальцями</string>
+    <string name="session_rts_tap3">Дотик 3 пальцями</string>
+    <string name="session_rts_tap4">Дотик 4 пальцями</string>
+    <string name="session_rts_up">Вгору</string>
+    <string name="session_rts_zoom">Масштабування щипком</string>
 </resources>
 

@@ -1325,5 +1325,49 @@ Zainstalowana ścieżka:
     <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
     <string name="workshop_search_items">Szukaj elementów Workshop</string>
     <string name="common_ui_failed">Niepowodzenie</string>
+
+    <!-- Session > Touch &amp; Gesture Profiles -->
+    <string name="common_ui_new">Nowy</string>
+    <string name="common_ui_rename">Zmień nazwę</string>
+    <string name="gesture_profile_export">Eksportuj profil gestów</string>
+    <string name="gesture_profile_import">Importuj profil gestów</string>
+    <string name="gesture_profile_new">Nowy profil gestów</string>
+    <string name="gesture_profile_none">Brak profili gestów</string>
+    <string name="input_controls_editor_input_profiles_section">Profile wejścia</string>
+    <string name="session_drawer_right_stick_sensitivity">Czułość prawej gałki</string>
+    <string name="session_drawer_rts_gestures">Gesty RTS</string>
+    <string name="session_drawer_rts_gestures_edit">Edytuj</string>
+    <string name="session_drawer_touch">Dotyk</string>
+    <string name="session_drawer_touch_map_right_stick">Mapuj na prawą gałkę</string>
+    <string name="session_drawer_touch_touchscreen">Tryb ekranu dotykowego</string>
+    <string name="session_drawer_touch_trackpad">Gładzik</string>
+    <string name="session_gesture_profile_section">Profil gestów</string>
+    <string name="session_rts_action">Akcja</string>
+    <string name="session_rts_behavior">Zachowanie</string>
+    <string name="session_rts_double_tap">Dwukrotne dotknięcie (dwukrotne kliknięcie lewym)</string>
+    <string name="session_rts_double_tap_delay">Opóźnienie dwukrotnego dotknięcia (ms)</string>
+    <string name="session_rts_down">W dół</string>
+    <string name="session_rts_drag">Przeciąganie 1 palcem</string>
+    <string name="session_rts_drag_threshold">Próg przeciągania (px)</string>
+    <string name="session_rts_gesture_threshold">Próg gestu (px)</string>
+    <string name="session_rts_hold2">Przytrzymanie 2 palcami</string>
+    <string name="session_rts_hold3">Przytrzymanie 3 palcami</string>
+    <string name="session_rts_hold4">Przytrzymanie 4 palcami</string>
+    <string name="session_rts_hold_delay">Opóźnienie przytrzymania (ms)</string>
+    <string name="session_rts_left">W lewo</string>
+    <string name="session_rts_long_press">Długie przytrzymanie</string>
+    <string name="session_rts_long_press_delay">Opóźnienie długiego przytrzymania (ms)</string>
+    <string name="session_rts_pan">Przesuwanie 2 palcami</string>
+    <string name="session_rts_pan_threshold">Początek przesuwania/szczypania (px)</string>
+    <string name="session_rts_right">W prawo</string>
+    <string name="session_rts_swipe3">Przesunięcie 3 palcami</string>
+    <string name="session_rts_swipe4">Przesunięcie 4 palcami</string>
+    <string name="session_rts_swipe_threshold">Próg przesunięcia (px)</string>
+    <string name="session_rts_tap1">Dotknięcie 1 palcem</string>
+    <string name="session_rts_tap2">Dotknięcie 2 palcami</string>
+    <string name="session_rts_tap3">Dotknięcie 3 palcami</string>
+    <string name="session_rts_tap4">Dotknięcie 4 palcami</string>
+    <string name="session_rts_up">W górę</string>
+    <string name="session_rts_zoom">Powiększenie szczypaniem</string>
 </resources>
 

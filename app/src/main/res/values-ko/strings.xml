@@ -1320,5 +1320,49 @@
     <string name="workshop_loading_items">Workshop 항목 로드 중</string>
     <string name="workshop_search_items">Workshop 항목 검색</string>
     <string name="common_ui_failed">실패</string>
+
+    <!-- Session > Touch & Gesture Profiles -->
+    <string name="common_ui_new">새로 만들기</string>
+    <string name="common_ui_rename">이름 변경</string>
+    <string name="gesture_profile_export">제스처 프로필 내보내기</string>
+    <string name="gesture_profile_import">제스처 프로필 가져오기</string>
+    <string name="gesture_profile_new">새 제스처 프로필</string>
+    <string name="gesture_profile_none">제스처 프로필 없음</string>
+    <string name="input_controls_editor_input_profiles_section">입력 프로필</string>
+    <string name="session_drawer_right_stick_sensitivity">오른쪽 스틱 감도</string>
+    <string name="session_drawer_rts_gestures">RTS 제스처</string>
+    <string name="session_drawer_rts_gestures_edit">편집</string>
+    <string name="session_drawer_touch">터치</string>
+    <string name="session_drawer_touch_map_right_stick">오른쪽 스틱에 매핑</string>
+    <string name="session_drawer_touch_touchscreen">터치스크린 모드</string>
+    <string name="session_drawer_touch_trackpad">트랙패드</string>
+    <string name="session_gesture_profile_section">제스처 프로필</string>
+    <string name="session_rts_action">동작</string>
+    <string name="session_rts_behavior">방식</string>
+    <string name="session_rts_double_tap">더블 탭 (더블 좌클릭)</string>
+    <string name="session_rts_double_tap_delay">더블 탭 지연 (ms)</string>
+    <string name="session_rts_down">아래</string>
+    <string name="session_rts_drag">1손가락 드래그</string>
+    <string name="session_rts_drag_threshold">드래그 임계값 (px)</string>
+    <string name="session_rts_gesture_threshold">제스처 임계값 (px)</string>
+    <string name="session_rts_hold2">2손가락 길게 누르기</string>
+    <string name="session_rts_hold3">3손가락 길게 누르기</string>
+    <string name="session_rts_hold4">4손가락 길게 누르기</string>
+    <string name="session_rts_hold_delay">길게 누르기 지연 (ms)</string>
+    <string name="session_rts_left">왼쪽</string>
+    <string name="session_rts_long_press">길게 누르기</string>
+    <string name="session_rts_long_press_delay">길게 누르기 지연 (ms)</string>
+    <string name="session_rts_pan">2손가락 이동</string>
+    <string name="session_rts_pan_threshold">이동/핀치 시작 (px)</string>
+    <string name="session_rts_right">오른쪽</string>
+    <string name="session_rts_swipe3">3손가락 스와이프</string>
+    <string name="session_rts_swipe4">4손가락 스와이프</string>
+    <string name="session_rts_swipe_threshold">스와이프 임계값 (px)</string>
+    <string name="session_rts_tap1">1손가락 탭</string>
+    <string name="session_rts_tap2">2손가락 탭</string>
+    <string name="session_rts_tap3">3손가락 탭</string>
+    <string name="session_rts_tap4">4손가락 탭</string>
+    <string name="session_rts_up">위</string>
+    <string name="session_rts_zoom">핀치 줌</string>
 </resources>
 
