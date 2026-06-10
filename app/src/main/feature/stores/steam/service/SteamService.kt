@@ -3320,6 +3320,8 @@ class SteamService : Service() {
             val selectedDepots = mainAppDepots + filteredDlcAppDepots
             Timber.i("Total selected depots for download: ${selectedDepots.size}")
 
+            logDepotScopeDiagnostics(appId, branch, selectedDepots)
+
             if (selectedDepots.isEmpty()) {
                 var preSnapshotMainAppDepots = originalMainAppDepots
                 if (installedApp != null && !includeInstalledDepots && hasTrustedInstalledState) {
@@ -4111,6 +4113,55 @@ class SteamService : Service() {
                                 try {
                                     di.updateStatusMessage("Finalizing installation")
                                     Timber.i("Finalizing installation at path: $appDirPath")
+
+                                    // Refuse to mark COMPLETE unless every depot fetched this run is
+                                    // recorded as finished at the expected manifest id in depot.config.
+                                    val expectedManifestByDepot =
+                                        selectedDepots.mapNotNull { (depotId, depot) ->
+                                            val gid = resolveDepotManifestInfo(depot, branch)?.gid ?: 0L
+                                            if (gid > 0L) depotId to gid else null
+                                        }.toMap()
+                                    val completenessFailures =
+                                        verifyDepotConfigComplete(appDirPath, expectedManifestByDepot)
+                                    if (completenessFailures.isNotEmpty()) {
+                                        Timber.e(
+                                            "COMPLETENESS GATE FAILED for appId=$appId task=$downloadTaskType at $appDirPath: " +
+                                                "${completenessFailures.size}/${expectedManifestByDepot.size} depot(s) not fully " +
+                                                "installed — refusing to mark COMPLETE. Details: ${completenessFailures.take(30)}",
+                                        )
+                                        // Keep resume state so a resume re-fetches the missing depots.
+                                        runCatching { di.persistProgressSnapshot(force = true) }
+                                        di.updateStatus(
+                                            DownloadPhase.FAILED,
+                                            "Install incomplete: ${completenessFailures.size} depot(s) missing — resume to finish",
+                                        )
+                                        di.setActive(false)
+                                        MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                                        if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
+                                            MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
+                                        }
+                                        runBlocking {
+                                            DownloadCoordinator.notifyFinished(
+                                                DownloadRecord.STORE_STEAM,
+                                                appId.toString(),
+                                                DownloadRecord.STATUS_FAILED,
+                                                "incomplete: ${completenessFailures.size} depot(s) missing",
+                                            )
+                                        }
+                                        removeDownloadJob(appId)
+                                        instance?.let { service ->
+                                            service.scope.launch(Dispatchers.Main) {
+                                                WinToast.show(
+                                                    service.applicationContext,
+                                                    "Download incomplete — some files are missing. Resume to finish.",
+                                                    Toast.LENGTH_LONG,
+                                                )
+                                            }
+                                        }
+                                        PluviaApp.events.emit(AndroidEvent.DownloadStatusChanged(appId, false))
+                                        return@launch
+                                    }
+
                                     if (originalMainAppDepots.isNotEmpty()) {
                                         val mainAppDepotIds = originalMainAppDepots.keys.sorted()
                                         completeAppDownload(di, appId, mainAppDepotIds, mainAppDlcIds, appDirPath)
@@ -4357,6 +4408,137 @@ class SteamService : Service() {
                 }
             }
             return info
+        }
+
+        /**
+         * Returns one description per [expectedManifestByDepot] entry not recorded as finished at the
+         * expected manifest id in depot.config (missing, in-progress = INVALID_MANIFEST_ID, or wrong
+         * manifest). An absent/unreadable config passes — a legacy install may predate it.
+         */
+        private fun verifyDepotConfigComplete(
+            appDirPath: String,
+            expectedManifestByDepot: Map<Int, Long>,
+        ): List<String> {
+            if (expectedManifestByDepot.isEmpty()) return emptyList()
+            val configFile = File(File(appDirPath, ".DepotDownloader"), "depot.config")
+            val installed: Map<Int, Long>? =
+                runCatching {
+                    if (!configFile.isFile) return@runCatching null
+                    val ids = JSONObject(configFile.readText()).optJSONObject("installedManifestIDs")
+                        ?: return@runCatching emptyMap<Int, Long>()
+                    buildMap {
+                        for (key in ids.keys()) {
+                            val depotId = key.toIntOrNull() ?: continue
+                            put(depotId, ids.optLong(key, 0L))
+                        }
+                    }
+                }.getOrNull()
+
+            if (installed == null) {
+                Timber.w(
+                    "Completeness gate: depot.config missing/unreadable at $configFile for " +
+                        "${expectedManifestByDepot.size} expected depot(s); treating as pass (legacy install?)",
+                )
+                return emptyList()
+            }
+
+            val invalidManifestId = 0x7fffffffffffffffL
+            val failures = mutableListOf<String>()
+            for ((depotId, expectedGid) in expectedManifestByDepot.toSortedMap()) {
+                when (val recorded = installed[depotId]) {
+                    null -> failures.add("depot $depotId missing (expected manifest $expectedGid)")
+                    invalidManifestId -> failures.add("depot $depotId still in-progress (expected $expectedGid)")
+                    expectedGid -> Unit
+                    else -> failures.add("depot $depotId recorded at manifest $recorded, expected $expectedGid")
+                }
+            }
+            if (failures.isEmpty()) {
+                Timber.i(
+                    "Completeness gate passed: ${expectedManifestByDepot.size} depot(s) fully recorded in depot.config at $appDirPath",
+                )
+            }
+            return failures
+        }
+
+        /**
+         * Read-only diagnostic: logs each base depot of [appId], whether it reached [selectedDepots],
+         * and the first rule that dropped it, plus a warning when a base content depot is dropped.
+         */
+        private fun logDepotScopeDiagnostics(
+            appId: Int,
+            branch: String,
+            selectedDepots: Map<Int, DepotInfo>,
+        ) {
+            runCatching {
+                val appInfo = getAppInfoOf(appId) ?: return
+                val preferredLanguage = PrefManager.containerLanguage
+                val entitledDepotIds = getEntitledDepotIds(appInfo.packageId)
+                val has64Bit =
+                    appInfo.depots.values.any {
+                        it.osArch == OSArch.Arch64 &&
+                            (it.osList.contains(OS.windows) || it.osList.isEmpty() || it.osList.contains(OS.none))
+                    }
+                val groupedBaseDlcDepotIds = getGroupedBaseAppDlcContentDepotIds(appInfo)
+                val baseEntitledDepotIds = getEntitledDepotIds(appInfo.packageId).orEmpty()
+
+                fun exclusionReason(depotId: Int, depot: DepotInfo): String {
+                    if (depot.manifests.isEmpty() && depot.encryptedManifests.isNotEmpty()) return "encrypted-only-manifest"
+                    if (depot.manifests.isEmpty() && !depot.sharedInstall) return "no-manifest"
+                    if (resolveDepotManifestInfo(depot, branch) == null) return "manifest-unresolved(branch=$branch)"
+                    val osOk =
+                        depot.osList.contains(OS.windows) ||
+                            (!depot.osList.contains(OS.linux) && !depot.osList.contains(OS.macos))
+                    if (!osOk) return "os-excluded(osList=${depot.osList})"
+                    val archOk =
+                        when (depot.osArch) {
+                            OSArch.Arch64, OSArch.Unknown -> true
+                            OSArch.Arch32 -> !has64Bit
+                            else -> false
+                        }
+                    if (!archOk) return "arch-excluded(osArch=${depot.osArch},has64Bit=$has64Bit)"
+                    if (depot.language.isNotEmpty() && !depot.language.equals(preferredLanguage, ignoreCase = true)) {
+                        return "language-mismatch(depot='${depot.language}',preferred='$preferredLanguage')"
+                    }
+                    if (!isDepotEntitled(depotId, depot, entitledDepotIds)) return "not-entitled"
+                    if (depotId in groupedBaseDlcDepotIds && depotId !in baseEntitledDepotIds) return "grouped-as-dlc-content"
+                    return "excluded-outside-base-filters"
+                }
+
+                val baseDepots = appInfo.depots.filter { it.value.dlcAppId == INVALID_APP_ID }
+                var maxBaseContentBytes = 0L
+                var selectedBaseBytes = 0L
+                val droppedBaseContent = mutableListOf<String>()
+                Timber.i(
+                    "DEPOT-DIAG appId=$appId branch=$branch baseDepots=${baseDepots.size} " +
+                        "selected=${selectedDepots.size} has64Bit=$has64Bit preferredLang='$preferredLanguage' " +
+                        "entitled=${entitledDepotIds?.sorted()} groupedAsDlc=${groupedBaseDlcDepotIds.sorted()}",
+                )
+                for ((depotId, depot) in baseDepots) {
+                    val manifest = resolveDepotManifestInfo(depot, branch)
+                    val size = manifest?.size ?: 0L
+                    val included = depotId in selectedDepots
+                    val reason = if (included) null else exclusionReason(depotId, depot)
+                    if (manifest != null) maxBaseContentBytes += size
+                    if (included) {
+                        selectedBaseBytes += size
+                    } else if (manifest != null && size > 0L) {
+                        droppedBaseContent.add("depot=$depotId size=$size reason=$reason")
+                    }
+                    Timber.i(
+                        "DEPOT-DIAG  base depot=$depotId included=$included size=$size gid=${manifest?.gid} " +
+                            "osList=${depot.osList} osArch=${depot.osArch} lang='${depot.language}' " +
+                            "shared=${depot.sharedInstall} fromApp=${depot.depotFromApp}" +
+                            (if (reason != null) " DROP=$reason" else ""),
+                    )
+                }
+                if (droppedBaseContent.isNotEmpty()) {
+                    Timber.w(
+                        "DEPOT-DIAG appId=$appId DROPPED ${droppedBaseContent.size} base content depot(s): " +
+                            "selectedBaseBytes=$selectedBaseBytes maxBaseContentBytes=$maxBaseContentBytes " +
+                            "(maxBase double-counts redundant 32/64-bit variants) -> $droppedBaseContent",
+                    )
+                }
+            }.onFailure { e -> Timber.w(e, "DEPOT-DIAG failed for appId=$appId") }
         }
 
         private suspend fun completeAppDownload(
