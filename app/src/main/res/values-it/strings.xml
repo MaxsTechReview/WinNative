@@ -1017,8 +1017,8 @@ Percorso installato:
     <string name="saves_export_success_path">Esportato in %1$s</string>
     <string name="saves_export_warning_title">Usa questa funzione solo con giochi personalizzati</string>
     <string name="saves_export_warning_body">Il file esportato può includere salvataggi di giochi installati dagli store o sincronizzati nel cloud.</string>
-    <string name="saves_import_warning_title">Questo sovrascriverà tutti i salvataggi in questo contenitore</string>
-    <string name="saves_import_warning_body">Quando ripristini un backup precedente con più giochi, copia prima i salvataggi più recenti nel file zip con il tuo file manager.</string>
+    <string name="saves_import_warning_title">Questo sovrascriverà i salvataggi esistenti in questo contenitore</string>
+    <string name="saves_import_warning_body">Quando ripristini un backup precedente con più giochi, copia prima i salvataggi più recenti nel file zip con il tuo file manager. Verranno modificati solo i salvataggi presenti nel file .zip. Gestisci i tuoi salvataggi con attenzione.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contenitore</string>

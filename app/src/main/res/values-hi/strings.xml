@@ -1209,8 +1209,8 @@
     <string name="settings_hud_record_to_file_title">प्रदर्शन को फ़ाइल में रिकॉर्ड करें</string>
     <string name="settings_hud_record_to_file_summary">गेमप्ले के दौरान प्रति सेकंड FPS, CPU, GPU, तापमान और बैटरी मेट्रिक्स को /WinNative/logs/ पर लिखें।</string>
     <string name="settings_leaderboard_category">प्रदर्शन</string>
-    <string name="saves_import_warning_title">यह इस कंटेनर में सभी सेव को ओवरराइट कर देगा</string>
-    <string name="saves_import_warning_body">कई गेम वाली पुरानी बैकअप को पुनर्स्थापित करते समय, पहले अपने फ़ाइल मैनेजर से किसी भी नए सेव को zip में कॉपी करें।</string>
+    <string name="saves_import_warning_title">यह इस कंटेनर में मौजूदा सेव को ओवरराइट कर देगा</string>
+    <string name="saves_import_warning_body">कई गेम वाली पुरानी बैकअप को पुनर्स्थापित करते समय, पहले अपने फ़ाइल मैनेजर से किसी भी नए सेव को zip में कॉपी करें। केवल .zip में मौजूद सेव ही प्रभावित होंगे। अपने सेव को समझदारी से प्रबंधित करें।</string>
     <string name="saves_export_path_summary">सेव /WinNative/saves में निर्यात किए जाएंगे</string>
     <string name="saves_export_success_path">%1$s में निर्यात किया गया</string>
     <string name="saves_export_warning_title">इसे केवल कस्टम गेम के साथ उपयोग करें</string>

@@ -1272,8 +1272,8 @@ Installed path:
     <string name="saves_export_success_path">Exported to %1$s</string>
     <string name="saves_export_warning_title">Only use this with custom games</string>
     <string name="saves_export_warning_body">Export may include saves from store-installed or cloud-sync games.</string>
-    <string name="saves_import_warning_title">This will overwrite all saves in this container</string>
-    <string name="saves_import_warning_body">When restoring an older backup with multiple games, copy any newer saves into the zip with your file manager first.</string>
+    <string name="saves_import_warning_title">This will overwrite existing saves in this container</string>
+    <string name="saves_import_warning_body">When restoring an older backup with multiple games, copy any newer saves into the zip with your file manager first. Only Saves existing in the .zip will be effected. Manage Saves wisely.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

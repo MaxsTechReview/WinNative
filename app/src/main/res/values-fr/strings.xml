@@ -1017,8 +1017,8 @@ Chemin installé :
     <string name="saves_export_success_path">Exporté vers %1$s</string>
     <string name="saves_export_warning_title">À utiliser uniquement avec les jeux personnalisés</string>
     <string name="saves_export_warning_body">Les sauvegardes exportées peuvent inclure celles de jeux installés depuis une boutique ou synchronisés avec le cloud.</string>
-    <string name="saves_import_warning_title">Cette action écrasera toutes les sauvegardes dans ce conteneur</string>
-    <string name="saves_import_warning_body">Pour restaurer une ancienne sauvegarde contenant plusieurs jeux, copiez au préalable les sauvegardes plus récentes dans le fichier zip avec votre gestionnaire de fichiers.</string>
+    <string name="saves_import_warning_title">Cette action écrasera les sauvegardes existantes dans ce conteneur</string>
+    <string name="saves_import_warning_body">Pour restaurer une ancienne sauvegarde contenant plusieurs jeux, copiez au préalable les sauvegardes plus récentes dans le fichier zip avec votre gestionnaire de fichiers. Seules les sauvegardes présentes dans le fichier .zip seront affectées. Gérez vos sauvegardes avec soin.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Conteneur</string>

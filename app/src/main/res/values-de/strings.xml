@@ -1017,8 +1017,8 @@ Installierter Pfad:
     <string name="saves_export_success_path">Exportiert nach %1$s</string>
     <string name="saves_export_warning_title">Nur mit benutzerdefinierten Spielen verwenden</string>
     <string name="saves_export_warning_body">Der Export kann Spielstände von über Stores installierten Spielen oder Spielen mit Cloud-Synchronisierung enthalten.</string>
-    <string name="saves_import_warning_title">Dadurch werden alle Spielstände in diesem Container überschrieben</string>
-    <string name="saves_import_warning_body">Wenn du eine ältere Sicherung mit mehreren Spielen wiederherstellst, kopiere zuerst alle neueren Spielstände mit deinem Dateimanager in die ZIP-Datei.</string>
+    <string name="saves_import_warning_title">Dadurch werden vorhandene Spielstände in diesem Container überschrieben</string>
+    <string name="saves_import_warning_body">Wenn du eine ältere Sicherung mit mehreren Spielen wiederherstellst, kopiere zuerst alle neueren Spielstände mit deinem Dateimanager in die ZIP-Datei. Nur die in der .zip vorhandenen Spielstände sind betroffen. Verwalte deine Spielstände mit Bedacht.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

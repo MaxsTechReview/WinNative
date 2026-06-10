@@ -219,7 +219,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       envVars.put("LD_PRELOAD", ldPreload.toString());
       Log.d("GuestLauncher", "execShellCommand LD_PRELOAD=" + ldPreload.toString());
     }
-    envVars.put("WINEESYNC_WINLATOR", "1");
+    if (!"1".equals(envVars.get("PROTON_NO_ESYNC"))) envVars.put("WINEESYNC_WINLATOR", "1");
     mergeExternalEnvVars(
         envVars,
         envVars.get("LD_PRELOAD"),
