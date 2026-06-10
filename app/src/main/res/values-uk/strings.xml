@@ -1023,8 +1023,8 @@
     <string name="saves_export_success_path">Експортовано до %1$s</string>
     <string name="saves_export_warning_title">Використовуйте це лише з користувацькими іграми</string>
     <string name="saves_export_warning_body">Експорт може містити збереження з ігор, встановлених із магазинів, або ігор із хмарною синхронізацією.</string>
-    <string name="saves_import_warning_title">Це перезапише всі збереження в цьому контейнері</string>
-    <string name="saves_import_warning_body">Під час відновлення старішої резервної копії з кількома іграми спочатку скопіюйте новіші збереження в zip-файл за допомогою файлового менеджера.</string>
+    <string name="saves_import_warning_title">Це перезапише наявні збереження в цьому контейнері</string>
+    <string name="saves_import_warning_body">Під час відновлення старішої резервної копії з кількома іграми спочатку скопіюйте новіші збереження в zip-файл за допомогою файлового менеджера. Будуть змінені лише збереження, наявні у .zip-файлі. Керуйте збереженнями розважливо.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Контейнер</string>

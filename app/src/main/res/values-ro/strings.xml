@@ -1017,8 +1017,8 @@ Cale instalata:
     <string name="saves_export_success_path">Exportat in %1$s</string>
     <string name="saves_export_warning_title">Foloseste aceasta optiune doar cu jocuri personalizate</string>
     <string name="saves_export_warning_body">Exportul poate include salvari din jocuri instalate din magazine sau sincronizate in cloud.</string>
-    <string name="saves_import_warning_title">Aceasta va suprascrie toate salvarile din acest container</string>
-    <string name="saves_import_warning_body">Cand restaurezi o copie de rezerva mai veche cu mai multe jocuri, copiaza mai intai salvarile mai noi in fisierul zip cu managerul de fisiere.</string>
+    <string name="saves_import_warning_title">Aceasta va suprascrie salvarile existente din acest container</string>
+    <string name="saves_import_warning_body">Cand restaurezi o copie de rezerva mai veche cu mai multe jocuri, copiaza mai intai salvarile mai noi in fisierul zip cu managerul de fisiere. Doar salvarile existente in fisierul .zip vor fi afectate. Gestioneaza-ti salvarile cu grija.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

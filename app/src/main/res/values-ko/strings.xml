@@ -1017,8 +1017,8 @@
     <string name="saves_export_success_path">%1$s로 내보냈습니다</string>
     <string name="saves_export_warning_title">사용자 지정 게임에만 사용하세요</string>
     <string name="saves_export_warning_body">내보내기에는 스토어에서 설치한 게임이나 클라우드 동기화 게임의 저장 데이터가 포함될 수 있습니다.</string>
-    <string name="saves_import_warning_title">이 컨테이너의 모든 저장 데이터를 덮어씁니다</string>
-    <string name="saves_import_warning_body">여러 게임이 포함된 이전 백업을 복원할 때는 먼저 파일 관리자로 더 최신 저장 데이터를 zip 파일에 복사하세요.</string>
+    <string name="saves_import_warning_title">이 컨테이너의 기존 저장 데이터를 덮어씁니다</string>
+    <string name="saves_import_warning_body">여러 게임이 포함된 이전 백업을 복원할 때는 먼저 파일 관리자로 더 최신 저장 데이터를 zip 파일에 복사하세요. .zip에 있는 저장 데이터만 영향을 받습니다. 저장 데이터를 신중하게 관리하세요.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">컨테이너</string>

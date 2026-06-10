@@ -1017,8 +1017,8 @@
     <string name="saves_export_success_path">已导出到 %1$s</string>
     <string name="saves_export_warning_title">仅用于自定义游戏</string>
     <string name="saves_export_warning_body">导出可能包含从商店安装或启用云同步的游戏存档。</string>
-    <string name="saves_import_warning_title">这将覆盖此容器中的所有存档</string>
-    <string name="saves_import_warning_body">还原包含多个游戏的旧备份时，请先使用文件管理器将较新的存档复制到该 zip 文件中。</string>
+    <string name="saves_import_warning_title">这将覆盖此容器中的现有存档</string>
+    <string name="saves_import_warning_body">还原包含多个游戏的旧备份时，请先使用文件管理器将较新的存档复制到该 zip 文件中。只有 .zip 中存在的存档会受到影响。请谨慎管理你的存档。</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">容器</string>
