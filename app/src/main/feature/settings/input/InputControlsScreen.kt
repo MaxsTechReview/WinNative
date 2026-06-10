@@ -161,7 +161,9 @@ data class InputControlsScreenState(
     val gyroDeadzone: Int = 5,
     val invertGyroX: Boolean = false,
     val invertGyroY: Boolean = false,
-    val rtsGestureConfig: TouchGestureConfig = TouchGestureConfig(),
+    val selectedGestureProfileName: String? = null,
+    val gestureEditorExpanded: Boolean = false,
+    val selectedGestureConfig: TouchGestureConfig = TouchGestureConfig(),
     val triggerTypeIndex: Int = 1,
     val triggerCardExpanded: Boolean = false,
     val triggerDescription: String = "",
@@ -252,7 +254,15 @@ data class InputControlsScreenActions(
     val onResetGyroPreview: () -> Unit,
     val onAttachGyroPreview: (InputControlsView) -> Unit,
     val onDetachGyroPreview: () -> Unit,
-    val onRtsGestureConfigChanged: (TouchGestureConfig) -> Unit,
+    val onSelectGestureProfile: () -> Unit,
+    val onToggleGestureEditor: () -> Unit,
+    val onGestureConfigChanged: (TouchGestureConfig) -> Unit,
+    val onNewGestureProfile: () -> Unit,
+    val onRenameGestureProfile: () -> Unit,
+    val onDuplicateGestureProfile: () -> Unit,
+    val onDeleteGestureProfile: () -> Unit,
+    val onImportGestureProfile: () -> Unit,
+    val onExportGestureProfile: () -> Unit,
     val onTriggerTypeSelected: (Int) -> Unit,
     val onTriggerCardExpandedChanged: (Boolean) -> Unit,
     val onImportProfile: () -> Unit,
@@ -298,11 +308,9 @@ fun InputControlsScreen(
             item("overlay-card") { OverlayOpacityCard(state, actions) }
             item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
             item("gyro-card") { GyroscopeCard(state, actions) }
-            item("rts-gestures-label") { SectionLabel(stringResource(R.string.session_drawer_rts_gestures)) }
-            item("rts-gestures-card") { RTSGesturesCard(state, actions) }
             item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
             item("trigger-card") { TriggerTypeCard(state, actions) }
-            item("actions-label") { SectionLabel(stringResource(R.string.common_ui_profile)) }
+            item("actions-label") { SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section)) }
             item("import-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
@@ -322,6 +330,29 @@ fun InputControlsScreen(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.input_controls_editor_export_profile),
                     onClick = actions.onExportProfile,
+                )
+            }
+            item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
+            item("gesture-profile-card") { GestureProfileCard(state, actions) }
+            if (state.gestureEditorExpanded) {
+                item("gesture-editor-card") {
+                    CardShell {
+                        GestureEditorBody(state.selectedGestureConfig) { actions.onGestureConfigChanged(it) }
+                    }
+                }
+            }
+            item("gesture-import-card") {
+                ActionCard(
+                    icon = Icons.Outlined.FileDownload,
+                    title = stringResource(R.string.gesture_profile_import),
+                    onClick = actions.onImportGestureProfile,
+                )
+            }
+            item("gesture-export-card") {
+                ActionCard(
+                    icon = Icons.Outlined.FileUpload,
+                    title = stringResource(R.string.gesture_profile_export),
+                    onClick = actions.onExportGestureProfile,
                 )
             }
             item("controllers-label") { SectionLabel(stringResource(R.string.session_gamepad_external_controllers)) }
@@ -1918,17 +1949,183 @@ private fun SwipeSet(
 }
 
 @Composable
-private fun RTSGesturesCard(
+private fun GestureProfileCard(
     state: InputControlsScreenState,
     actions: InputControlsScreenActions,
 ) {
-    var config by remember(state.rtsGestureConfig) { mutableStateOf(state.rtsGestureConfig.clone()) }
-    fun mutate(block: TouchGestureConfig.() -> Unit) {
-        val next = config.clone(); next.block(); config = next; actions.onRtsGestureConfigChanged(next)
+    val selectionInteraction = remember { MutableInteractionSource() }
+    val selectorPressed by selectionInteraction.collectIsPressedAsState()
+    val selectorTint by animateFloatAsState(
+        targetValue = if (selectorPressed) 1f else 0f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "gestureSelectorPressed",
+    )
+
+    CardShell(
+        horizontalPadding = 10.dp,
+        verticalPadding = 8.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            GestureSelectorRow(
+                state = state,
+                selectionInteraction = selectionInteraction,
+                selectorTint = selectorTint,
+                selectorPressed = selectorPressed,
+                onClick = actions.onSelectGestureProfile,
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(max = InputProfileSelectorMaxWidth),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProfileEditButton(
+                    onClick = actions.onToggleGestureEditor,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+                GestureActionRow(
+                    actions = actions,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+            }
+        }
     }
-    CardShell {
-        Column(verticalArrangement = Arrangement.spacedBy(InputItemGap)) {
-            GestureBindingRow(stringResource(R.string.session_rts_tap1), config.tap1Enabled, config.tap1, { mutate { tap1Enabled = it } }, { mutate { tap1 = it } })
+}
+
+@Composable
+private fun GestureSelectorRow(
+    state: InputControlsScreenState,
+    selectionInteraction: MutableInteractionSource,
+    selectorTint: Float,
+    selectorPressed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(InputCardCorner))
+                .background(
+                    Color(
+                        red = InputField.red,
+                        green = InputField.green,
+                        blue = InputField.blue,
+                        alpha = 0.28f + (0.34f * selectorTint),
+                    ),
+                ).border(
+                    1.dp,
+                    Color(
+                        red = InputOutline.red + ((InputAccent.red - InputOutline.red) * selectorTint * 0.45f),
+                        green = InputOutline.green + ((InputAccent.green - InputOutline.green) * selectorTint * 0.45f),
+                        blue = InputOutline.blue + ((InputAccent.blue - InputOutline.blue) * selectorTint * 0.45f),
+                        alpha = 0.8f + (0.15f * selectorTint),
+                    ),
+                    RoundedCornerShape(InputCardCorner),
+                )
+                .clickable(
+                    interactionSource = selectionInteraction,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProfileSelectorIconBox(if (selectorPressed) InputTextPrimary else InputAccent)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text =
+                state.selectedGestureProfileName
+                    ?: stringResource(R.string.input_controls_editor_select_profile),
+            color = InputTextPrimary,
+            fontSize = InputPrimaryTextSize,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(InputItemGap))
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint =
+                if (selectorPressed) {
+                    InputTextPrimary
+                } else {
+                    InputAccent.copy(alpha = 0.9f)
+                },
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun GestureActionRow(
+    actions: InputControlsScreenActions,
+    modifier: Modifier = Modifier,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        ProfileOverflowButton(
+            onClick = { menuOpen = true },
+        )
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = InputCard,
+        ) {
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Add,
+                label = stringResource(R.string.common_ui_new),
+                onClick = {
+                    menuOpen = false
+                    actions.onNewGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Edit,
+                label = stringResource(R.string.common_ui_rename),
+                onClick = {
+                    menuOpen = false
+                    actions.onRenameGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                label = stringResource(R.string.common_ui_duplicate),
+                onClick = {
+                    menuOpen = false
+                    actions.onDuplicateGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.common_ui_remove),
+                iconTint = InputDanger,
+                textColor = InputDanger,
+                onClick = {
+                    menuOpen = false
+                    actions.onDeleteGestureProfile()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun GestureEditorBody(
+    sourceConfig: TouchGestureConfig,
+    onConfigChanged: (TouchGestureConfig) -> Unit,
+) {
+    var config by remember(sourceConfig) { mutableStateOf(sourceConfig.clone()) }
+    fun mutate(block: TouchGestureConfig.() -> Unit) {
+        val next = config.clone(); next.block(); config = next; onConfigChanged(next)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(InputItemGap)) {
+        GestureBindingRow(stringResource(R.string.session_rts_tap1), config.tap1Enabled, config.tap1, { mutate { tap1Enabled = it } }, { mutate { tap1 = it } })
             GestureBindingRow(stringResource(R.string.session_rts_tap2), config.tap2Enabled, config.tap2, { mutate { tap2Enabled = it } }, { mutate { tap2 = it } })
             GestureBindingRow(stringResource(R.string.session_rts_tap3), config.tap3Enabled, config.tap3, { mutate { tap3Enabled = it } }, { mutate { tap3 = it } })
             GestureBindingRow(stringResource(R.string.session_rts_tap4), config.tap4Enabled, config.tap4, { mutate { tap4Enabled = it } }, { mutate { tap4 = it } })
@@ -1956,8 +2153,7 @@ private fun RTSGesturesCard(
             if (config.dragAction != DragAction.NONE) {
                 SliderField("${stringResource(R.string.session_rts_drag_threshold)}: ${config.dragThreshold}", config.dragThreshold.toFloat(), 10f..200f, 0) { mutate { dragThreshold = it.toInt() } }
             }
-            SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
-        }
+        SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
     }
 }
 

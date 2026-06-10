@@ -114,6 +114,8 @@ import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
+import com.winlator.cmod.runtime.input.controls.GestureProfile;
+import com.winlator.cmod.runtime.input.controls.GestureProfileManager;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
@@ -247,6 +249,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     protected Container container;
     private XServer xServer;
     private InputControlsManager inputControlsManager;
+    private GestureProfileManager gestureProfileManager;
+    private int currentGestureProfileId = 0;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
@@ -1447,6 +1451,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         inputControlsManager = new InputControlsManager(this);
+        gestureProfileManager = new GestureProfileManager(this);
         sgsrBaseScreenSize = screenSize;
         String effectiveScreenSize =
                 SGSRResolutionUtils.applyRenderScale(screenSize, sgsrEnabled, sgsrUpscaleMode);
@@ -3809,6 +3814,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
         int selectedLabelThemeIndex = currentLabelTheme.ordinal();
 
+        List<String> gestureProfileNames = gestureProfileManager.getProfileNames();
+        int gestureSelectedIndex = Math.max(0, gestureProfileManager.indexOfProfile(selectedGestureProfileId()));
+
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
                 isRelativeMouseMovement,
@@ -3867,6 +3875,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 isRefactorSizeEnabled,
                 screenTouchMode,
                 rtsGesturesEnabled,
+                gestureProfileNames,
+                gestureSelectedIndex,
                 preferences.getFloat("right_stick_sensitivity", 1.0f),
                 preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
         );
@@ -4271,24 +4281,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
+                    public void onGestureProfileSelected(int index) {
+                        ArrayList<GestureProfile> profiles = gestureProfileManager.getProfiles();
+                        if (index < 0 || index >= profiles.size()) return;
+                        GestureProfile p = profiles.get(index);
+                        currentGestureProfileId = p.id;
+                        if (touchpadView != null) touchpadView.setGestureConfig(p.getConfigJson());
+                        if (shortcut != null) {
+                            shortcut.putExtra("gestureProfileId", String.valueOf(p.id));
+                            shortcut.saveData();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
                     public void onRtsGesturesEditClick() {
                         ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
-                        // Seed the editor's working copy from this game's per-game gesture config.
-                        preferences.edit().putString("rts_gesture_config",
-                                shortcut != null ? shortcut.getExtra("gestureConfig", "") : "").apply();
                         Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
                         intent.putExtra("edit_input_controls", true);
                         intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("gesture_profile_id", selectedGestureProfileId());
                         intent.putExtra("return_to_game_on_back", true);
                         final ControlsProfile editingProfile = activeProfile;
                         editInputControlsCallback = () -> {
-                            String gestureJson = preferences.getString("rts_gesture_config", "");
-                            if (shortcut != null) {
-                                shortcut.putExtra("gestureConfig", gestureJson);
-                                shortcut.saveData();
-                            }
-                            if (touchpadView != null) touchpadView.setGestureConfig(gestureJson);
-                            preferences.edit().remove("rts_gesture_config").apply();
+                            gestureProfileManager.loadProfiles();
+                            int gid = selectedGestureProfileId();
+                            GestureProfile gp = gid != 0 ? gestureProfileManager.getProfile(gid) : gestureProfileManager.getDefaultProfile();
+                            if (gp == null) gp = gestureProfileManager.getDefaultProfile();
+                            if (touchpadView != null) touchpadView.setGestureConfig(gp.getConfigJson());
                             hideInputControls();
                             if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
                             ControlsProfile reactivated = editingProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(editingProfile.id) : null;
@@ -6101,8 +6121,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setScreenTouchStickActive(screenTouchMode == 2);
             rtsGesturesEnabled = shortcut.getExtra("rtsGestures", "0").equals("1");
             touchpadView.setRtsGesturesEnabled(rtsGesturesEnabled);
-            touchpadView.setGestureConfig(shortcut.getExtra("gestureConfig", ""));
         }
+
+        int gestureProfileId = selectedGestureProfileId();
+        GestureProfile launchGestureProfile = gestureProfileId != 0
+                ? gestureProfileManager.getProfile(gestureProfileId) : gestureProfileManager.getDefaultProfile();
+        if (launchGestureProfile == null) launchGestureProfile = gestureProfileManager.getDefaultProfile();
+        touchpadView.setGestureConfig(launchGestureProfile.getConfigJson());
 
         if (winHandler != null) winHandler.setRightStickSensitivity(preferences.getFloat("right_stick_sensitivity", 1.0f));
 
@@ -6312,6 +6337,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             editor.putInt("selected_profile_index", -1);
         }
         editor.apply();
+    }
+
+    private int selectedGestureProfileId() {
+        if (currentGestureProfileId != 0) return currentGestureProfileId;
+        int id = 0;
+        if (shortcut != null) {
+            try {
+                id = Integer.parseInt(shortcut.getExtra("gestureProfileId", "0"));
+            } catch (NumberFormatException e) {
+                id = 0;
+            }
+        }
+        if (id != 0) return id;
+        GestureProfile def = gestureProfileManager != null ? gestureProfileManager.getDefaultProfile() : null;
+        return def != null ? def.id : 0;
     }
 
     // Hide legacy label-only profiles unless one is already active.

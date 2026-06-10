@@ -682,6 +682,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_rts_double_tap_delay">Double tap delay (ms)</string>
     <string name="session_rts_drag_threshold">Drag threshold (px)</string>
     <string name="session_rts_pan_threshold">Pan/pinch start (px)</string>
+    <string name="common_ui_rename">Rename</string>
+    <string name="common_ui_new">New</string>
+    <string name="input_controls_editor_input_profiles_section">Input Profiles</string>
+    <string name="session_gesture_profile_section">Gesture Profile</string>
+    <string name="gesture_profile_new">New Gesture Profile</string>
+    <string name="gesture_profile_import">Import Gesture Profile</string>
+    <string name="gesture_profile_export">Export Gesture Profile</string>
+    <string name="gesture_profile_none">No gesture profiles</string>
     <string name="session_drawer_screen_effects">Screen Effects</string>
     <string name="session_drawer_screen_effects_subtitle">Upscaling and color effects</string>
     <string name="session_drawer_super_resolution">Super Resolution</string>

@@ -113,6 +113,24 @@ class TouchGestureConfig {
     }
 
     companion object {
+        @JvmStatic
+        fun blankJson(): String {
+            val c = TouchGestureConfig()
+            c.tap1Enabled = false; c.tap1 = Binding.NONE
+            c.tap2Enabled = false; c.tap2 = Binding.NONE
+            c.tap3Enabled = false; c.tap3 = Binding.NONE
+            c.tap4Enabled = false; c.tap4 = Binding.NONE
+            c.doubleTapEnabled = false
+            c.longPressEnabled = false; c.longPress = Binding.NONE
+            c.hold2Enabled = false; c.hold2 = Binding.NONE
+            c.hold3Enabled = false; c.hold3 = Binding.NONE
+            c.hold4Enabled = false; c.hold4 = Binding.NONE
+            c.swipe3Enabled = false; c.swipe3Up = Binding.NONE; c.swipe3Down = Binding.NONE; c.swipe3Left = Binding.NONE; c.swipe3Right = Binding.NONE
+            c.swipe4Enabled = false; c.swipe4Up = Binding.NONE; c.swipe4Down = Binding.NONE; c.swipe4Left = Binding.NONE; c.swipe4Right = Binding.NONE
+            c.panAction = PanAction.NONE; c.zoomAction = ZoomAction.NONE; c.dragAction = DragAction.NONE
+            return c.toJson()
+        }
+
         fun fromJson(json: String?): TouchGestureConfig {
             val c = TouchGestureConfig()
             if (json.isNullOrBlank()) return c

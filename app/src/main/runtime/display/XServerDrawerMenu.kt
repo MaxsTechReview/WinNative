@@ -351,6 +351,8 @@ data class XServerDrawerState(
     val relativeMouseEnabled: Boolean = false,
     val screenTouchMode: Int = 0,
     val rtsGesturesEnabled: Boolean = false,
+    val gestureProfileNames: List<String> = emptyList(),
+    val gestureSelectedProfileIndex: Int = 0,
     val rightStickSensitivity: Float = 1.0f,
     val screenTouchRsSensitivity: Float = 1.25f,
 )
@@ -556,6 +558,8 @@ interface XServerDrawerActionListener {
 
     fun onRtsGesturesToggled(enabled: Boolean)
 
+    fun onGestureProfileSelected(index: Int)
+
     fun onRtsGesturesEditClick()
 
     fun onRightStickSensitivityChanged(sensitivity: Float)
@@ -637,6 +641,8 @@ fun buildXServerDrawerState(
     refactorSizeEnabled: Boolean = false,
     screenTouchMode: Int = 0,
     rtsGesturesEnabled: Boolean = false,
+    gestureProfileNames: List<String> = emptyList(),
+    gestureSelectedProfileIndex: Int = 0,
     rightStickSensitivity: Float = 1.0f,
     screenTouchRsSensitivity: Float = 1.25f,
 ): XServerDrawerState {
@@ -803,6 +809,8 @@ fun buildXServerDrawerState(
         relativeMouseEnabled = relativeMouseEnabled,
         screenTouchMode = screenTouchMode,
         rtsGesturesEnabled = rtsGesturesEnabled,
+        gestureProfileNames = gestureProfileNames,
+        gestureSelectedProfileIndex = gestureSelectedProfileIndex,
         rightStickSensitivity = rightStickSensitivity,
         screenTouchRsSensitivity = screenTouchRsSensitivity,
     )
@@ -1722,13 +1730,15 @@ private fun TouchPaneContent(
                     onCheckedChange = { listener.onRtsGesturesToggled(it) },
                 )
                 if (state.rtsGesturesEnabled) {
-                    WinNativeDialogButton(
-                        label = stringResource(R.string.session_drawer_rts_gestures_edit),
-                        textColor = DrawerAccent,
-                        backgroundColor = DrawerAccent.copy(alpha = 0.12f),
-                        borderColor = DrawerAccent.copy(alpha = 0.3f),
-                        onClick = { listener.onRtsGesturesEditClick() },
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
+                        InputControlsProfileSelector(
+                            profileNames = state.gestureProfileNames,
+                            selectedIndex = state.gestureSelectedProfileIndex,
+                            onProfileSelected = listener::onGestureProfileSelected,
+                            onEditClick = listener::onRtsGesturesEditClick,
+                        )
+                    }
                 }
             }
         }
