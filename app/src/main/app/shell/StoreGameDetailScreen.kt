@@ -669,7 +669,9 @@ private fun StoreGameDetailContent(p: StoreGameDetailParams) {
                                             height = ctaHeight,
                                             icon = Icons.Outlined.AltRoute,
                                             contentDescription = stringResource(R.string.store_game_beta_branch),
-                                            enabled = !isLoading,
+                                            // Same gate as Download: don't stage picks the
+                                            // blocked download can't honor.
+                                            enabled = !isLoading && isDownloadActionEnabled,
                                             shape =
                                                 RoundedCornerShape(
                                                     topStart = 14.dp,

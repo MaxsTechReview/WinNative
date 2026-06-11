@@ -5606,9 +5606,17 @@ class SteamService : Service() {
          * installed build predates the current PICS manifests and the game was
          * never launched. Call on an IO dispatcher.
          */
+        // Apps whose branch recovery already ran this process — recovery can only
+        // succeed right after a WinNative reinstall, so one failed attempt per
+        // process is enough (a success heals the shortcut and short-circuits
+        // every later call through the persisted fast path above).
+        private val betaRecoveryAttemptedApps =
+            java.util.Collections.synchronizedSet(mutableSetOf<Int>())
+
         suspend fun recoverSelectedBetaName(appId: Int): String {
             val persisted = resolveSelectedBetaName(appId)
             if (persisted.isNotEmpty()) return persisted
+            if (!betaRecoveryAttemptedApps.add(appId)) return ""
             val svc = instance ?: return ""
             return runCatching {
                 if (!isAppInstalled(appId)) return@runCatching ""
@@ -5620,7 +5628,9 @@ class SteamService : Service() {
                 val inferred =
                     inferBranchFromInstalledManifests(app, betaNames, appDirPath)
                         ?: readBranchNameFromSettingsIni(app, appDirPath)
-                            ?.takeIf { name -> betaNames.any { it.equals(name, ignoreCase = true) } }
+                            // Canonicalize to the PICS branches-map key: downstream
+                            // buildId lookups (app.branches[name]) are exact-key.
+                            ?.let { name -> betaNames.firstOrNull { it.equals(name, ignoreCase = true) } }
                 if (inferred.isNullOrEmpty()) return@runCatching ""
                 if (setSelectedBetaBranch(svc, appId, inferred)) {
                     Timber.i("Recovered beta branch '$inferred' for appId=$appId from the installed game dir")
@@ -5676,19 +5686,17 @@ class SteamService : Service() {
             appDirPath: String,
         ): String? {
             val exeDir =
-                getWindowsLaunchInfos(app.id)
-                    .firstOrNull()
+                app.config.launch
+                    .firstOrNull { it.executable.endsWith(".exe") }
                     ?.executable
                     ?.replace('\\', '/')
                     ?.substringBeforeLast('/', "")
                     .orEmpty()
             val candidates =
-                buildList {
-                    add(File(appDirPath, "steam_settings/configs.app.ini"))
-                    if (exeDir.isNotEmpty()) {
-                        add(File(appDirPath, "$exeDir/steam_settings/configs.app.ini"))
-                    }
-                }
+                listOfNotNull(
+                    File(appDirPath, "steam_settings/configs.app.ini"),
+                    exeDir.takeIf { it.isNotEmpty() }?.let { File(appDirPath, "$it/steam_settings/configs.app.ini") },
+                )
             for (ini in candidates) {
                 if (!ini.isFile) continue
                 val name =

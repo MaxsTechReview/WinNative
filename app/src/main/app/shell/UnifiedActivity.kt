@@ -9004,6 +9004,31 @@ class UnifiedActivity :
         }
     }
 
+    /**
+     * Commits a staged pre-install branch pick right before the download starts,
+     * so downloadApp (and any later resume) resolves it from the shortcut.
+     * Custom path is persisted first: the shortcut snapshots game_install_path
+     * at creation and is never rewritten. On failure (no usable container yet)
+     * the install proceeds on the public branch rather than blocking.
+     */
+    private suspend fun commitPendingBetaBranch(
+        appId: Int,
+        item: StoreBetaBranchItem,
+        customPath: String?,
+    ) {
+        customPath?.let { SteamService.setCustomInstallPath(appId, it) }
+        val branchName = if (item.name.equals("public", ignoreCase = true)) "" else item.name
+        if (!SteamService.setSelectedBetaBranch(applicationContext, appId, branchName)) {
+            withContext(Dispatchers.Main) {
+                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                    this@UnifiedActivity,
+                    getString(R.string.store_game_beta_branch_failed),
+                    android.widget.Toast.LENGTH_SHORT,
+                )
+            }
+        }
+    }
+
     private fun persistSteamBetaBranchSelection(
         appId: Int,
         item: StoreBetaBranchItem,
@@ -9135,7 +9160,11 @@ class UnifiedActivity :
             // Wait for the install state so the pre-install branch cutout can't
             // flash on a game that then resolves to installed.
             if (installed == null) return@LaunchedEffect
-            if (installed != true) {
+            if (installed == true) {
+                // A staged pre-install pick is meaningless once the game is
+                // installed (it was either committed by Download or abandoned).
+                pendingBetaBranch = null
+            } else {
                 launchOptions = emptyList()
                 selectedLaunchOption = null
             }
@@ -9309,32 +9338,8 @@ class UnifiedActivity :
                                 val installableDlcIds = dlcItems
                                     .filter { !it.isInstalled && it.id in selectedDlcIds }
                                     .map { it.id }
-                                // Commit the staged branch pick before the download so
-                                // downloadApp (and any later resume) resolves it from the
-                                // shortcut. Custom path first: the shortcut snapshots
-                                // game_install_path at creation and is never rewritten.
-                                val pendingBranch = pendingBetaBranch
-                                if (installed != true && pendingBranch != null) {
-                                    customPath?.let { SteamService.setCustomInstallPath(app.id, it) }
-                                    val branchName =
-                                        if (pendingBranch.name.equals("public", ignoreCase = true)) {
-                                            ""
-                                        } else {
-                                            pendingBranch.name
-                                        }
-                                    val saved =
-                                        SteamService.setSelectedBetaBranch(applicationContext, app.id, branchName)
-                                    if (!saved) {
-                                        // Setup incomplete (no usable container yet) — install
-                                        // proceeds on the public branch rather than blocking.
-                                        withContext(Dispatchers.Main) {
-                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                context,
-                                                getString(R.string.store_game_beta_branch_failed),
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            )
-                                        }
-                                    }
+                                if (installed != true) {
+                                    pendingBetaBranch?.let { commitPendingBetaBranch(app.id, it, customPath) }
                                 }
                                 SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
                                 withContext(Dispatchers.Main) { onDismissRequest() }
@@ -9472,7 +9477,8 @@ class UnifiedActivity :
             BetaBranchesDialog(
                 gameTitle = app.name,
                 branches = betaBranches,
-                selectedBranch = if (installed == true) selectedBetaBranch else pendingBetaBranch ?: selectedBetaBranch,
+                // pendingBetaBranch is null for installed games (cleared on install).
+                selectedBranch = pendingBetaBranch ?: selectedBetaBranch,
                 onSelect = { item ->
                     if (installed == true) {
                         persistSteamBetaBranchSelection(
