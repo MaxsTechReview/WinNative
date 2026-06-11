@@ -280,8 +280,8 @@ private val PINNED_BOTTOM_ITEM_IDS = setOf(R.id.main_menu_pause, R.id.main_menu_
 
 private val TopRailTileMinWidth = 60.dp
 private val TopRailTileHorizontalPadding = 10.dp
-private val TopRailTileTopPadding = 6.dp
-private val TopRailTileBottomPadding = 4.dp
+private val TopRailTileTopPadding = 10.dp
+private val TopRailTileBottomPadding = 7.dp
 private val TopRailTileSpacing = 6.dp
 
 private const val ActionCardColumns = 3
@@ -1177,45 +1177,52 @@ private fun ActionCardGrid(
             it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in PINNED_BOTTOM_ITEM_IDS
         }
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = (10f * paneScale).dp, vertical = (10f * paneScale).dp),
-    ) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ActionCardSpacing),
-            verticalArrangement = Arrangement.spacedBy(ActionCardSpacing),
-            maxItemsInEachRow = ActionCardColumns,
+    val verticalPadding = (10f * paneScale).dp
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val rows = ((cards.size + ActionCardColumns - 1) / ActionCardColumns).coerceAtLeast(1)
+        val rowHeight =
+            ((maxHeight - verticalPadding * 2 - ActionCardSpacing * (rows - 1)) / rows)
+                .coerceAtLeast(ActionCardMinHeight * paneScale)
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = (10f * paneScale).dp, vertical = verticalPadding),
         ) {
-            cards.forEachIndexed { index, item ->
-                val label = railLabelResFor(item.itemId)?.let { stringResource(it) } ?: item.title
-                ActionCard(
-                    item = item,
-                    label = label,
-                    revealIndex = index,
-                    revealed = cardsRevealed,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .heightIn(min = ActionCardMinHeight * paneScale),
-                    onClick = {
-                        when (item.itemId) {
-                            R.id.main_menu_task_manager -> onOpenTaskManager()
-                            R.id.main_menu_logs -> onOpenLogs()
-                            R.id.main_menu_relative_mouse_movement,
-                            R.id.main_menu_disable_mouse,
-                            R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
-                            else -> listener.onActionSelected(item.itemId)
-                        }
-                    },
-                )
-            }
-            val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
-            repeat(trailing) {
-                Spacer(modifier = Modifier.weight(1f))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ActionCardSpacing),
+                verticalArrangement = Arrangement.spacedBy(ActionCardSpacing),
+                maxItemsInEachRow = ActionCardColumns,
+            ) {
+                cards.forEachIndexed { index, item ->
+                    val label = railLabelResFor(item.itemId)?.let { stringResource(it) } ?: item.title
+                    ActionCard(
+                        item = item,
+                        label = label,
+                        revealIndex = index,
+                        revealed = cardsRevealed,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(rowHeight),
+                        onClick = {
+                            when (item.itemId) {
+                                R.id.main_menu_task_manager -> onOpenTaskManager()
+                                R.id.main_menu_logs -> onOpenLogs()
+                                R.id.main_menu_relative_mouse_movement,
+                                R.id.main_menu_disable_mouse,
+                                R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
+                                else -> listener.onActionSelected(item.itemId)
+                            }
+                        },
+                    )
+                }
+                val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
+                repeat(trailing) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

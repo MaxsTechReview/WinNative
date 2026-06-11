@@ -32,7 +32,6 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -54,7 +53,7 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 // Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
-private val DrawerWidth = 312.dp
+private val DrawerWidth = 290.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
@@ -105,15 +104,6 @@ private fun XServerDisplayHost(
 ) {
     val animationScope = rememberCoroutineScope()
     val density = LocalDensity.current
-    val context = LocalContext.current
-    // systemBars insets are zeroed on this view, so read the real status-bar height.
-    val statusBarHeight =
-        remember(context, density) {
-            val res = context.resources
-            val id = res.getIdentifier("status_bar_height", "dimen", "android")
-            val px = if (id > 0) res.getDimensionPixelSize(id) else 0
-            with(density) { px.toDp() }.coerceIn(24.dp, 56.dp)
-        }
     val viewConfiguration = LocalViewConfiguration.current
     val closedFallbackPx = with(density) { -(DrawerWidth + DrawerStartPadding).toPx() }
     var drawerOffsetPx by remember { mutableFloatStateOf(closedFallbackPx) }
@@ -277,7 +267,7 @@ private fun XServerDisplayHost(
                         }
                     },
         ) {
-            val drawerTopInset = statusBarHeight + 2.dp
+            val drawerTopInset = DrawerVerticalPadding
             val originalHeight = maxHeight - DrawerVerticalPadding * 2
             val drawerHeight = maxHeight - drawerTopInset - DrawerVerticalPadding
             val evenScale =
