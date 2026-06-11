@@ -4294,10 +4294,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         GestureProfile p = profiles.get(index);
                         currentGestureProfileId = p.id;
                         if (touchpadView != null) touchpadView.setGestureConfig(p.getConfigJson());
-                        if (shortcut != null) {
-                            shortcut.putExtra("gestureProfileId", String.valueOf(p.id));
-                            shortcut.saveData();
-                        }
                         renderDrawerMenu();
                     }
 
