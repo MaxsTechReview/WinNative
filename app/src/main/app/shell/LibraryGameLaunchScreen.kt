@@ -135,8 +135,7 @@ internal fun LibraryGameLaunchScreen(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
-    // Nullable on purpose: null hides the menu item (mirrors StoreGameDetailScreen,
-    // whose signature size tripped ART's bytecode verifier with separate flags).
+    // Nullable on purpose: null hides the menu item.
     onLaunchOptions: (() -> Unit)? = null,
     onBetaBranches: (() -> Unit)? = null,
     playEnabled: Boolean = true,
@@ -815,7 +814,7 @@ private fun SourceTag(
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    // null hides the menu item (see LibraryGameLaunchScreen's signature note).
+    // Nullable on purpose: null hides the menu item.
     onLaunchOptions: (() -> Unit)? = null,
     onBetaBranches: (() -> Unit)? = null,
 ) {

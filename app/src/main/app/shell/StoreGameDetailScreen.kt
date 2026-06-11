@@ -944,7 +944,7 @@ private fun StoreSourceTag(
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
-    // null hides the menu item (see StoreGameDetailScreen's signature note).
+    // Nullable on purpose: null hides the menu item.
     onLaunchOptions: (() -> Unit)? = null,
     onBetaBranches: (() -> Unit)? = null,
 ) {

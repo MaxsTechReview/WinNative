@@ -8861,8 +8861,8 @@ class UnifiedActivity :
     }
 
     // Apps whose appinfo was already re-fetched this process (see
-    // loadSteamLaunchOptionsRefreshing / loadSteamBetaBranchesRefreshing) —
-    // avoids a PICS round-trip on every game-detail open.
+    // refreshAppInfoFromPicsOnce) — avoids a PICS round-trip on every
+    // game-detail open.
     private val appinfoRefreshedApps = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
 
     /**
@@ -8900,6 +8900,19 @@ class UnifiedActivity :
         }
 
     /**
+     * Re-fetches [appId]'s PICS appinfo at most once per process — shared by
+     * the launch-options and beta-branch loaders so one round-trip feeds both.
+     * Returns true when this call performed the refresh; a failed fetch
+     * (offline) releases the slot so the next game-detail open retries.
+     */
+    private suspend fun refreshAppInfoFromPicsOnce(appId: Int): Boolean {
+        if (!appinfoRefreshedApps.add(appId)) return false
+        if (SteamService.refreshAppInfoFromPics(appId)) return true
+        appinfoRefreshedApps.remove(appId)
+        return false
+    }
+
+    /**
      * Loads launch options, then — once per app per process — re-fetches the
      * app's PICS appinfo to heal cached rows that predate LaunchInfo.arguments
      * and re-applies the fresh list. [apply] runs on the caller's context.
@@ -8910,14 +8923,9 @@ class UnifiedActivity :
     ) {
         val (options, selected) = loadSteamLaunchOptions(appId)
         apply(options, selected)
-        if (appinfoRefreshedApps.add(appId)) {
-            if (SteamService.refreshAppInfoFromPics(appId)) {
-                val (fresh, freshSelected) = loadSteamLaunchOptions(appId)
-                apply(fresh, freshSelected)
-            } else {
-                // Offline or fetch failed — allow a retry on the next open.
-                appinfoRefreshedApps.remove(appId)
-            }
+        if (refreshAppInfoFromPicsOnce(appId)) {
+            val (fresh, freshSelected) = loadSteamLaunchOptions(appId)
+            apply(fresh, freshSelected)
         }
     }
 
@@ -8966,19 +8974,20 @@ class UnifiedActivity :
             branches to selected
         }
 
+    /**
+     * Loads beta branches, then — once per app per process — re-fetches the
+     * app's PICS appinfo for current branch build ids and re-applies the
+     * fresh list. [apply] runs on the caller's context.
+     */
     private suspend fun loadSteamBetaBranchesRefreshing(
         appId: Int,
         apply: (List<StoreBetaBranchItem>, StoreBetaBranchItem?) -> Unit,
     ) {
         val (branches, selected) = loadSteamBetaBranches(appId)
         apply(branches, selected)
-        if (appinfoRefreshedApps.add(appId)) {
-            if (SteamService.refreshAppInfoFromPics(appId)) {
-                val (fresh, freshSelected) = loadSteamBetaBranches(appId)
-                apply(fresh, freshSelected)
-            } else {
-                appinfoRefreshedApps.remove(appId)
-            }
+        if (refreshAppInfoFromPicsOnce(appId)) {
+            val (fresh, freshSelected) = loadSteamBetaBranches(appId)
+            apply(fresh, freshSelected)
         }
     }
 
@@ -9064,39 +9073,25 @@ class UnifiedActivity :
         )
 
         LaunchedEffect(app.id, downloadRecords) {
-            // An exception in this effect tears down the whole Activity — degrade
-            // to an empty load (logged) instead of crashing the store screen.
             val loadData =
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        // Size the same branch the download will actually fetch.
-                        val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
-                        val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
-                        val perDlcSizes =
-                            selectableDlcApps.associate { dlc ->
-                                dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id, branch = branch)
-                            }
-                        val installedDlcIds =
-                            SteamService.getInstalledDlcDepotsOf(app.id)
-                                .orEmpty()
-                                .toSet()
-                        SteamInstallLoadData(
-                            dlcApps = selectableDlcApps,
-                            dlcSizes = perDlcSizes,
-                            installedDlcIds = installedDlcIds,
-                            baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id, branch = branch),
-                            installed = SteamService.isAppInstalled(app.id),
-                        )
-                    }
-                }.getOrElse { e ->
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Log.e("UnifiedActivity", "Steam install data load failed for appId=${app.id}", e)
+                withContext(Dispatchers.IO) {
+                    // Size the same branch the download will actually fetch.
+                    val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
+                    val selectableDlcApps = SteamService.getSelectableDlcAppsOf(app.id)
+                    val perDlcSizes =
+                        selectableDlcApps.associate { dlc ->
+                            dlc.id to SteamService.getDlcOnlyManifestSizes(app.id, dlc.id, branch = branch)
+                        }
+                    val installedDlcIds =
+                        SteamService.getInstalledDlcDepotsOf(app.id)
+                            .orEmpty()
+                            .toSet()
                     SteamInstallLoadData(
-                        dlcApps = emptyList(),
-                        dlcSizes = emptyMap(),
-                        installedDlcIds = emptySet(),
-                        baseManifestSizes = SteamService.ManifestSizes(),
-                        installed = runCatching { withContext(Dispatchers.IO) { SteamService.isAppInstalled(app.id) } }.getOrDefault(false),
+                        dlcApps = selectableDlcApps,
+                        dlcSizes = perDlcSizes,
+                        installedDlcIds = installedDlcIds,
+                        baseManifestSizes = SteamService.getInstallableSelectedManifestSizes(app.id, branch = branch),
+                        installed = SteamService.isAppInstalled(app.id),
                     )
                 }
             dlcApps = loadData.dlcApps
@@ -9109,15 +9104,10 @@ class UnifiedActivity :
         }
 
         LaunchedEffect(app.id, selectedDlcIds.toList()) {
-            runCatching {
+            selectedManifestSizes =
                 withContext(Dispatchers.IO) {
                     val branch = SteamService.resolveSelectedBetaName(app.id).ifBlank { "public" }
                     SteamService.getInstallableSelectedManifestSizes(app.id, selectedDlcIds.toList(), branch = branch)
-                }
-            }.onSuccess { selectedManifestSizes = it }
-                .onFailure { e ->
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Log.e("UnifiedActivity", "Steam DLC size load failed for appId=${app.id}", e)
                 }
         }
 
@@ -9295,13 +9285,7 @@ class UnifiedActivity :
                                 val installableDlcIds = dlcItems
                                     .filter { !it.isInstalled && it.id in selectedDlcIds }
                                     .map { it.id }
-                                // An exception here is an app crash (plain launch, no
-                                // handler) — surface it as a failed start instead.
-                                runCatching {
-                                    SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
-                                }.onFailure { e ->
-                                    Log.w("UnifiedActivity", "Steam download failed to start for appId=${app.id}", e)
-                                }
+                                SteamService.downloadApp(app.id, installableDlcIds, false, customPath)
                                 withContext(Dispatchers.Main) { onDismissRequest() }
                             }
                         }
