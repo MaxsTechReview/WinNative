@@ -328,10 +328,10 @@ fun InputControlsScreen(
             }
             item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
             item("overlay-card") { OverlayOpacityCard(state, actions) }
-            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
-            item("gyro-card") { GyroscopeCard(state, actions) }
             item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
             item("trigger-card") { TriggerTypeCard(state, actions) }
+            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
+            item("gyro-card") { GyroscopeCard(state, actions) }
             item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
             item("gesture-profile-card") { GestureProfileCard(state, actions) }
             if (state.gestureEditorExpanded) {

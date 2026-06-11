@@ -3032,7 +3032,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     SettingCheckbox(
                         label = stringResource(R.string.session_drawer_touch_touchscreen),
                         checked = state.screenTouchMode.intValue == 1,
-                        onCheckedChange = { if (it) onSelectMode(1) }
+                        onCheckedChange = { onSelectMode(if (it) 1 else 0) }
                     )
                 }
             }
@@ -3040,7 +3040,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
             SettingCheckbox(
                 label = stringResource(R.string.session_drawer_touch_map_right_stick),
                 checked = state.screenTouchMode.intValue == 2,
-                onCheckedChange = { if (it) onSelectMode(2) }
+                onCheckedChange = { onSelectMode(if (it) 2 else 0) }
             )
 
             if (state.gestureProfileEntries.value.isNotEmpty()) {
