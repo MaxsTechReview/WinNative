@@ -8977,7 +8977,9 @@ class UnifiedActivity :
                     ?.map { b -> StoreBetaBranchItem(b.name, b.buildId, b.timeUpdated, b.pwdRequired) }
                     ?.sortedWith(compareBy({ !it.name.equals("public", ignoreCase = true) }, { it.name }))
                     .orEmpty()
-            val selectedName = SteamService.resolveSelectedBetaName(appId).ifBlank { "public" }
+            // recoverSelectedBetaName also heals selections lost to an app
+            // reinstall (shortcuts are app-private; game files survive).
+            val selectedName = SteamService.recoverSelectedBetaName(appId).ifBlank { "public" }
             val selected =
                 branches.firstOrNull { it.name.equals(selectedName, ignoreCase = true) }
                     // Selected beta may have been retired from PICS — fall back to public.

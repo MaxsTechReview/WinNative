@@ -5497,7 +5497,7 @@ class SteamService : Service() {
         suspend fun prepareLibSteamClientForLaunch(appId: Int) {
             if (appId <= 0) return
             startOverlayPollLoop()
-            val selectedBranch = resolveSelectedBetaName(appId)
+            val selectedBranch = recoverSelectedBetaName(appId)
             val baseStatePrimed =
                 runCatching { primeLibSteamClientLaunchState(appId, selectedBranch) }
                     .getOrElse { e ->
@@ -5588,6 +5588,118 @@ class SteamService : Service() {
             return runCatching {
                 readSteamShortcutExtras(svc, appId)?.first?.get("selectedBranch").orEmpty().trim()
             }.getOrElse { "" }
+        }
+
+        /**
+         * Like [resolveSelectedBetaName], but when the shortcut record is gone
+         * (reinstalling WinNative wipes app-private shortcuts while game files
+         * on external storage survive) it recovers the branch the installed
+         * build is actually on and heals the shortcut. Steam persists the beta
+         * key with the install (appmanifest ACF UserConfig/betakey); our durable
+         * analogs in the surviving game dir are, in order of trust:
+         *  1. `.DepotDownloader/depot.config` — the installed manifest gids,
+         *     matched exactly against each beta's current PICS manifests
+         *     (evidence of what the FILES are);
+         *  2. `steam_settings/configs.app.ini` `branch_name` — the selection
+         *     recorded at the game's last launch.
+         * Returns "" (public) when neither source identifies a beta — e.g. the
+         * installed build predates the current PICS manifests and the game was
+         * never launched. Call on an IO dispatcher.
+         */
+        suspend fun recoverSelectedBetaName(appId: Int): String {
+            val persisted = resolveSelectedBetaName(appId)
+            if (persisted.isNotEmpty()) return persisted
+            val svc = instance ?: return ""
+            return runCatching {
+                if (!isAppInstalled(appId)) return@runCatching ""
+                val app = withContext(Dispatchers.IO) { svc.appDao.findApp(appId) } ?: return@runCatching ""
+                val betaNames = app.branches.keys.filterNot { it.equals("public", ignoreCase = true) }
+                if (betaNames.isEmpty()) return@runCatching ""
+
+                val appDirPath = getAppDirPath(appId)
+                val inferred =
+                    inferBranchFromInstalledManifests(app, betaNames, appDirPath)
+                        ?: readBranchNameFromSettingsIni(app, appDirPath)
+                            ?.takeIf { name -> betaNames.any { it.equals(name, ignoreCase = true) } }
+                if (inferred.isNullOrEmpty()) return@runCatching ""
+                if (setSelectedBetaBranch(svc, appId, inferred)) {
+                    Timber.i("Recovered beta branch '$inferred' for appId=$appId from the installed game dir")
+                }
+                inferred
+            }.getOrElse { e ->
+                Timber.w(e, "Beta branch recovery failed for appId=$appId")
+                ""
+            }
+        }
+
+        /**
+         * The beta whose current PICS manifests exactly match the installed
+         * manifest gids — every installed depot that declares a manifest for the
+         * branch must match, and at least one gid must differ from public (else
+         * the install is indistinguishable from public and stays public).
+         * Null when no or several betas qualify.
+         */
+        private fun inferBranchFromInstalledManifests(
+            app: SteamApp,
+            betaNames: List<String>,
+            appDirPath: String,
+        ): String? {
+            val installed = readInstalledDepotManifestIds(appDirPath)
+            if (installed.isEmpty()) return null
+            val matches =
+                betaNames.filter { branch ->
+                    var distinctFromPublic = false
+                    var comparedAny = false
+                    for ((depotId, installedGid) in installed) {
+                        val depot = app.depots[depotId] ?: continue
+                        val branchGid =
+                            (depot.manifests[branch] ?: depot.encryptedManifests[branch])?.gid ?: continue
+                        comparedAny = true
+                        if (branchGid != installedGid) return@filter false
+                        val publicGid =
+                            (depot.manifests["public"] ?: depot.encryptedManifests["public"])?.gid
+                        if (publicGid != branchGid) distinctFromPublic = true
+                    }
+                    comparedAny && distinctFromPublic
+                }
+            return matches.singleOrNull()
+        }
+
+        /**
+         * `branch_name` from the surviving `steam_settings/configs.app.ini`
+         * (written at every launch by writeCompleteSettingsDir). Checked at the
+         * game-dir root and next to the game exe — the two places the launch
+         * path writes settings dirs.
+         */
+        private fun readBranchNameFromSettingsIni(
+            app: SteamApp,
+            appDirPath: String,
+        ): String? {
+            val exeDir =
+                getWindowsLaunchInfos(app.id)
+                    .firstOrNull()
+                    ?.executable
+                    ?.replace('\\', '/')
+                    ?.substringBeforeLast('/', "")
+                    .orEmpty()
+            val candidates =
+                buildList {
+                    add(File(appDirPath, "steam_settings/configs.app.ini"))
+                    if (exeDir.isNotEmpty()) {
+                        add(File(appDirPath, "$exeDir/steam_settings/configs.app.ini"))
+                    }
+                }
+            for (ini in candidates) {
+                if (!ini.isFile) continue
+                val name =
+                    FileUtils.readLines(ini)
+                        .firstOrNull { it.startsWith("branch_name=") }
+                        ?.substringAfter("=")
+                        ?.trim()
+                        .orEmpty()
+                if (name.isNotEmpty() && !name.equals("public", ignoreCase = true)) return name
+            }
+            return null
         }
 
         suspend fun refreshEncryptedAppTicketForLibSteamClient(appId: Int): Boolean {
@@ -7448,14 +7560,19 @@ class SteamService : Service() {
 
         suspend fun isUpdatePending(
             appId: Int,
-            branch: String = resolveSelectedBetaName(appId).ifBlank { "public" },
+            branch: String? = null,
         ): Boolean = checkForAppUpdate(appId, branch).hasUpdate
 
         suspend fun checkForAppUpdate(
             appId: Int,
-            branch: String = resolveSelectedBetaName(appId).ifBlank { "public" },
+            // null = the game's selected beta, recovering a selection lost to an
+            // app reinstall — otherwise a reinstalled beta install would be
+            // diffed against public and silently downgraded by the update.
+            requestedBranch: String? = null,
         ): SteamUpdateInfo =
             withContext(Dispatchers.IO) {
+                val branch = requestedBranch ?: recoverSelectedBetaName(appId).ifBlank { "public" }
+
                 fun SteamUpdateInfo.logged(): SteamUpdateInfo {
                     Timber.i(
                         "Steam update check result: appId=$appId branch=$branch " +
