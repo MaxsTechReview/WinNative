@@ -1711,17 +1711,17 @@ private fun TouchPaneContent(
                 )
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_touch_trackpad),
-                    checked = state.screenTouchMode == 0,
+                    checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
                     onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
                 )
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_touch_touchscreen),
-                    checked = state.screenTouchMode == 1,
+                    checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
                     onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
                 )
                 DrawerBooleanRow(
                     title = stringResource(R.string.session_drawer_touch_map_right_stick),
-                    checked = state.screenTouchMode == 2,
+                    checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
                     onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
                 )
                 DrawerBooleanRow(

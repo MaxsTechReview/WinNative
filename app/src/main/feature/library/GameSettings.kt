@@ -3016,22 +3016,24 @@ private fun InputSection(state: GameSettingsStateHolder) {
             Spacer(Modifier.height(4.dp))
 
             // Touch input mode (Trackpad / Touchscreen / Map to Right Stick)
+            val gesturesOff = state.selectedGestureProfile.intValue == 0
             val onSelectMode: (Int) -> Unit = { mode ->
                 state.screenTouchMode.intValue = mode
                 state.simTouchScreen.value = (mode == 1)
+                state.selectedGestureProfile.intValue = 0
             }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     SettingCheckbox(
                         label = stringResource(R.string.session_drawer_touch_trackpad),
-                        checked = state.screenTouchMode.intValue == 0,
+                        checked = state.screenTouchMode.intValue == 0 && gesturesOff,
                         onCheckedChange = { if (it) onSelectMode(0) }
                     )
                 }
                 Box(Modifier.weight(1f)) {
                     SettingCheckbox(
                         label = stringResource(R.string.session_drawer_touch_touchscreen),
-                        checked = state.screenTouchMode.intValue == 1,
+                        checked = state.screenTouchMode.intValue == 1 && gesturesOff,
                         onCheckedChange = { onSelectMode(if (it) 1 else 0) }
                     )
                 }
@@ -3039,7 +3041,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
             Spacer(Modifier.height(4.dp))
             SettingCheckbox(
                 label = stringResource(R.string.session_drawer_touch_map_right_stick),
-                checked = state.screenTouchMode.intValue == 2,
+                checked = state.screenTouchMode.intValue == 2 && gesturesOff,
                 onCheckedChange = { onSelectMode(if (it) 2 else 0) }
             )
 
@@ -3049,7 +3051,13 @@ private fun InputSection(state: GameSettingsStateHolder) {
                     label = stringResource(R.string.session_gesture_profile_section),
                     entries = state.gestureProfileEntries.value,
                     selectedIndex = state.selectedGestureProfile.intValue,
-                    onSelected = { state.selectedGestureProfile.intValue = it }
+                    onSelected = {
+                        state.selectedGestureProfile.intValue = it
+                        if (it != 0) {
+                            state.screenTouchMode.intValue = 0
+                            state.simTouchScreen.value = false
+                        }
+                    }
                 )
             }
         }

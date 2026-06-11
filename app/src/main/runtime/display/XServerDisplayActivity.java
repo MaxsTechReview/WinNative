@@ -4265,11 +4265,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onScreenTouchModeChanged(int mode) {
                         screenTouchMode = mode;
-                        if (touchpadView != null) touchpadView.setScreenTouchMode(mode);
+                        rtsGesturesEnabled = false;
+                        if (touchpadView != null) {
+                            touchpadView.setScreenTouchMode(mode);
+                            touchpadView.setRtsGesturesEnabled(false);
+                        }
                         if (winHandler != null) winHandler.setScreenTouchStickActive(mode == 2);
                         if (shortcut != null) {
                             shortcut.putExtra("screenTouchMode", String.valueOf(mode));
                             shortcut.putExtra("simTouchScreen", mode == 1 ? "1" : "0");
+                            shortcut.putExtra("rtsGestures", "0");
                             shortcut.saveData();
                         }
                         renderDrawerMenu();
@@ -4278,10 +4283,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onRtsGesturesToggled(boolean enabled) {
                         rtsGesturesEnabled = enabled;
-                        if (touchpadView != null) touchpadView.setRtsGesturesEnabled(enabled);
+                        screenTouchMode = 0;
+                        if (touchpadView != null) {
+                            touchpadView.setRtsGesturesEnabled(enabled);
+                            touchpadView.setScreenTouchMode(0);
+                        }
+                        if (winHandler != null) winHandler.setScreenTouchStickActive(false);
                         if (enabled) pushSelectedGestureConfig();
                         if (shortcut != null) {
                             shortcut.putExtra("rtsGestures", enabled ? "1" : "0");
+                            shortcut.putExtra("screenTouchMode", "0");
+                            shortcut.putExtra("simTouchScreen", "0");
                             shortcut.saveData();
                         }
                         renderDrawerMenu();
