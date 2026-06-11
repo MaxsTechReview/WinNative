@@ -1780,6 +1780,7 @@ class SteamService : Service() {
                                 osList = depot.osList,
                                 osArch = depot.osArch,
                                 language = depot.language,
+                                lowViolence = depot.lowViolence,
                                 manifests = depot.manifests,
                                 encryptedManifests = depot.encryptedManifests,
                             )
@@ -1808,12 +1809,14 @@ class SteamService : Service() {
             depot: DepotInfo,
             entitledDepotIds: Set<Int>?,
         ): Boolean {
+            // Explicit package grant wins (covers low-violence / regional packages).
+            if (entitledDepotIds != null && depotId in entitledDepotIds) return true
+            // Low-violence content needs an explicit grant; Steam denies its depot key otherwise.
+            if (depot.lowViolence) return false
             if (entitledDepotIds == null) return true
-            if (depotId in entitledDepotIds) return true
-
-            // Shared/proxied depots may not be listed directly on the package even though
-            // they are required to resolve the owning depot's content.
-            return depot.sharedInstall || depot.depotFromApp != INVALID_APP_ID
+            if (depot.sharedInstall || depot.depotFromApp != INVALID_APP_ID) return true
+            // Package depot lists are often incomplete for base content; owning the app entitles it.
+            return depot.dlcAppId == INVALID_APP_ID
         }
 
         private fun getSelectedDownloadDepots(
@@ -2081,6 +2084,7 @@ class SteamService : Service() {
             preferredLanguage: String = PrefManager.containerLanguage,
             branch: String = "public",
         ): ManifestSizes {
+            ensureFreshDepotData(appId)
             val selectedDepots = getSelectedDownloadDepots(appId, userSelectedDlcAppIds, preferredLanguage, branch)
             if (selectedDepots.isEmpty()) return ManifestSizes()
 
@@ -2093,6 +2097,7 @@ class SteamService : Service() {
             preferredLanguage: String = PrefManager.containerLanguage,
             branch: String = "public",
         ): ManifestSizes {
+            ensureFreshDepotData(appId)
             val selectedDepots = getSelectedDownloadDepots(appId, userSelectedDlcAppIds, preferredLanguage, branch)
             val installableDepots =
                 filterAlreadyInstalledDepots(
@@ -2112,6 +2117,8 @@ class SteamService : Service() {
             branch: String = "public",
         ): ManifestSizes {
             val service = instance ?: return ManifestSizes()
+            ensureFreshDepotData(appId)
+            ensureFreshDepotData(dlcAppId)
             val mainAppInfo =
                 runBlocking(Dispatchers.IO) { service.appDao.findApp(appId) } ?: return ManifestSizes()
             val has64Bit =
@@ -2603,6 +2610,7 @@ class SteamService : Service() {
             downloadTaskType: String = DownloadRecord.TASK_INSTALL,
             targetDepotIds: Set<Int>? = null,
         ): DownloadInfo? {
+            ensureFreshDepotData(appId)
             val appInfo = getAppInfoOf(appId)
             if (appInfo == null) {
                 Timber.e("Download aborted: Could not find AppInfo for appId: $appId")
@@ -3163,6 +3171,7 @@ class SteamService : Service() {
                                     osList = depot.osList,
                                     osArch = depot.osArch,
                                     language = depot.language,
+                                    lowViolence = depot.lowViolence,
                                     manifests = depot.manifests,
                                     encryptedManifests = depot.encryptedManifests,
                                 )
@@ -7580,7 +7589,17 @@ class SteamService : Service() {
             val wnApp =
                 withWnSession { session ->
                     withContext(Dispatchers.IO) {
-                        session.getPicsAppInfo(appId)?.let { json ->
+                        // Fetch the app token first; token-gated apps omit depots without it.
+                        val token =
+                            runCatching {
+                                session.getPicsAccessTokens(listOf(appId), emptyList())?.let { tj ->
+                                    JSONObject(tj)
+                                        .optJSONObject("appTokens")
+                                        ?.optString(appId.toString())
+                                        ?.toLongOrNull()
+                                }
+                            }.getOrNull() ?: 0L
+                        session.getPicsAppInfo(appId, token)?.let { json ->
                             try {
                                 val obj = JSONObject(json)
                                 val appinfo = obj.optJSONObject("appinfo") ?: return@let null
@@ -7632,6 +7651,29 @@ class SteamService : Service() {
                     installDir = if (preserveInstallDir) existingInstallDir else remoteSteamApp.installDir,
                 ),
             )
+        }
+
+        private val picsRefreshedAppsThisSession =
+            java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<Int, Boolean>())
+
+        /** Force-refreshes [appId]'s PICS depot data once per session; no-op on the main thread. */
+        private fun ensureFreshDepotData(appId: Int) {
+            if (appId <= 0 || instance == null) return
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return
+            if (!picsRefreshedAppsThisSession.add(appId)) return
+            val refreshed =
+                runCatching {
+                    runBlocking(Dispatchers.IO) {
+                        val fresh = fetchLatestSteamAppInfo(appId) ?: return@runBlocking false
+                        persistLatestSteamAppInfo(appId, fresh)
+                        true
+                    }
+                }.getOrDefault(false)
+            if (refreshed) {
+                Timber.i("Refreshed PICS depot data for appId=$appId before depot selection")
+            } else {
+                picsRefreshedAppsThisSession.remove(appId)
+            }
         }
 
         private fun readInstalledDepotManifestIds(appDirPath: String): Map<Int, Long> =
