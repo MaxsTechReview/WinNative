@@ -1017,8 +1017,8 @@ Installeret sti:
     <string name="saves_export_success_path">Eksporteret til %1$s</string>
     <string name="saves_export_warning_title">Brug kun dette med brugerdefinerede spil</string>
     <string name="saves_export_warning_body">Eksporten kan indeholde gemte spil fra butiksinstallerede spil eller spil med cloud-synkronisering.</string>
-    <string name="saves_import_warning_title">Dette overskriver alle gemte spil i denne container</string>
-    <string name="saves_import_warning_body">Når du gendanner en ældre sikkerhedskopi med flere spil, skal du først kopiere nyere gemte spil ind i zip-filen med din filhåndtering.</string>
+    <string name="saves_import_warning_title">Dette overskriver eksisterende gemte spil i denne container</string>
+    <string name="saves_import_warning_body">Når du gendanner en ældre sikkerhedskopi med flere spil, skal du først kopiere nyere gemte spil ind i zip-filen med din filhåndtering. Kun gemte spil, der findes i .zip-filen, påvirkes. Administrer dine gemte spil med omtanke.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Container</string>

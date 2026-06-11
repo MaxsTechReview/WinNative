@@ -5694,14 +5694,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
         boolean dinputEnabled = (inputType & WinHandler.FLAG_INPUT_TYPE_DINPUT) == WinHandler.FLAG_INPUT_TYPE_DINPUT;
-        boolean exclusiveXInput = false;
+        boolean exclusiveXInput = container.isExclusiveXInput();
         if (shortcut != null) {
             String extra = shortcut.getExtra("exclusiveXInput");
             if (!extra.isEmpty()) {
                 exclusiveXInput = extra.equals("1");
             }
         }
-        WineUtils.ensureControllerDllOverrides(container);
         WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
         WineUtils.ensureWinebusConfig(container);
 
@@ -8512,66 +8511,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private boolean canAccessNtsyncDevice() {
-        java.io.File ntsyncDev = new java.io.File("/dev/ntsync");
-        if (!ntsyncDev.exists()) {
-            Log.d("XServerDisplayActivity", "NTSync: /dev/ntsync does not exist");
-            return false;
-        }
-        try (java.io.FileInputStream fis = new java.io.FileInputStream(ntsyncDev)) {
-            Log.d("XServerDisplayActivity", "NTSync: /dev/ntsync is accessible");
-            return true;
-        } catch (Exception e) {
-            Log.d("XServerDisplayActivity", "NTSync: /dev/ntsync exists but is not accessible: " + e.getMessage());
-            return false;
-        }
-    }
-
     private void normalizeSyncEnvVars(com.winlator.cmod.runtime.wine.EnvVars envVars) {
-        boolean esyncExplicit = "1".equals(envVars.get("WINEESYNC"));
-        boolean ntSyncExplicit = "1".equals(envVars.get("WINENTSYNC"))
-                || "1".equals(envVars.get("PROTON_USE_NTSYNC"));
-
         envVars.remove("WINEFSYNC");
         envVars.put("PROTON_NO_FSYNC", "1");
 
-        if (esyncExplicit && !ntSyncExplicit) {
+        String esyncVal = envVars.get("WINEESYNC");
+        boolean esyncOff = "0".equals(esyncVal) || "false".equalsIgnoreCase(esyncVal);
+        boolean ntSync = "1".equals(envVars.get("WINENTSYNC"))
+                || "1".equals(envVars.get("PROTON_USE_NTSYNC"));
+
+        if (ntSync) {
+            envVars.put("WINENTSYNC", "1");
+            envVars.put("PROTON_USE_NTSYNC", "1");
+        } else {
             envVars.remove("WINENTSYNC");
             envVars.remove("PROTON_USE_NTSYNC");
+        }
+
+        if (esyncOff) {
+            envVars.remove("WINEESYNC");
+            envVars.remove("WINEESYNC_WINLATOR");
+            envVars.put("PROTON_NO_ESYNC", "1");
+        } else {
             envVars.put("WINEESYNC", "1");
             envVars.remove("PROTON_NO_ESYNC");
-            Log.d("XServerDisplayActivity",
-                    "Sync: user selected ESync — using ESync, skipping NTSync detection");
-            return;
-        }
-
-        if (canAccessNtsyncDevice()) {
-            String ntVal = envVars.get("WINENTSYNC");
-            boolean ntDisabled = "0".equals(ntVal) || "false".equalsIgnoreCase(ntVal);
-
-            if (!ntDisabled) {
-                envVars.put("WINENTSYNC", "1");
-                envVars.put("PROTON_USE_NTSYNC", "1");
-                envVars.remove("WINEESYNC");
-                envVars.remove("WINEESYNC_WINLATOR");
-                envVars.remove("PROTON_USE_ESYNC");
-                envVars.put("PROTON_NO_ESYNC", "1");
-                Log.d("XServerDisplayActivity",
-                        "Sync: NTSync enabled (/dev/ntsync accessible) — disabled ESync");
-                return;
-            }
-        }
-
-        envVars.remove("WINENTSYNC");
-        envVars.remove("PROTON_USE_NTSYNC");
-        envVars.put("WINEESYNC", "1");
-        envVars.remove("PROTON_NO_ESYNC");
-        if (ntSyncExplicit) {
-            Log.w("XServerDisplayActivity",
-                    "Sync: NTSync requested but /dev/ntsync not accessible or disabled — falling back to ESync");
-        } else {
-            Log.d("XServerDisplayActivity",
-                    "Sync: NTSync not available or disabled — using ESync");
         }
     }
 

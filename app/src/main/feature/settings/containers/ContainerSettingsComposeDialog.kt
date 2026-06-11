@@ -373,7 +373,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private fun loadInitialData() {
         val c = container
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
         if (c != null) {
             state.name.value = c.getName()
@@ -396,8 +395,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.selectedDInputMapperType.intValue =
             if ((inputType and WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) == WinHandler.FLAG_DINPUT_MAPPER_STANDARD.toInt()) 0 else 1
 
-        // Exclusive Input is a global pref, not stored on the container.
-        state.containerExclusiveInput.value = prefs.getBoolean("xinput_toggle", false)
+        state.containerExclusiveInput.value = c?.isExclusiveXInput() ?: true
         if (!state.containerExclusiveInput.value) {
             state.enableXInput.value = true
             state.enableDInput.value = true
@@ -697,9 +695,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             return
         }
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        prefs.edit().putBoolean("xinput_toggle", state.containerExclusiveInput.value).apply()
-
         val screenSize = getScreenSizeFromState()
         val graphicsDriver = getIdentifierFromEntries(
             state.graphicsDriverEntries.value, state.selectedGraphicsDriver.intValue
@@ -784,6 +779,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setDrives(drivesString)
             c.setFullscreenStretched(state.fullscreenStretched.value)
             c.setInputType(finalInputType)
+            c.setExclusiveXInput(state.containerExclusiveInput.value)
             c.setStartupSelection(startupSelection)
             c.setBox64Version(box64Version)
             c.setBox64Preset(box64Preset)
@@ -823,6 +819,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("drives", drivesString)
                 data.put("fullscreenStretched", state.fullscreenStretched.value)
                 data.put("inputType", finalInputType)
+                data.put("exclusiveXInput", state.containerExclusiveInput.value)
                 data.put("startupSelection", startupSelection.toInt())
                 data.put("box64Version", box64Version)
                 data.put("box64Preset", box64Preset)

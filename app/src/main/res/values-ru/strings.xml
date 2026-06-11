@@ -1178,8 +1178,8 @@
     <string name="settings_hud_record_to_file_title">Записывать производительность в файл</string>
     <string name="settings_hud_record_to_file_summary">Записывать ежесекундные показатели FPS, CPU, GPU, температуры и батареи в /WinNative/logs/ во время игры.</string>
     <string name="settings_leaderboard_category">Производительность</string>
-    <string name="saves_import_warning_title">Это перезапишет все сохранения в этом контейнере</string>
-    <string name="saves_import_warning_body">При восстановлении старой резервной копии с несколькими играми сначала скопируйте более новые сохранения в zip-файл с помощью файлового менеджера.</string>
+    <string name="saves_import_warning_title">Это перезапишет существующие сохранения в этом контейнере</string>
+    <string name="saves_import_warning_body">При восстановлении старой резервной копии с несколькими играми сначала скопируйте более новые сохранения в zip-файл с помощью файлового менеджера. Будут затронуты только сохранения, имеющиеся в .zip-файле. Управляйте сохранениями разумно.</string>
     <string name="saves_export_path_summary">Сохранения будут экспортированы в /WinNative/saves</string>
     <string name="saves_export_success_path">Экспортировано в %1$s</string>
     <string name="saves_export_warning_title">Используйте только для пользовательских игр</string>

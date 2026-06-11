@@ -1017,8 +1017,8 @@ Ruta instalada:
     <string name="saves_export_success_path">Exportado a %1$s</string>
     <string name="saves_export_warning_title">Usa esto solo con juegos personalizados</string>
     <string name="saves_export_warning_body">La exportación puede incluir partidas guardadas de juegos instalados desde tiendas o con sincronización en la nube.</string>
-    <string name="saves_import_warning_title">Esto sobrescribirá todas las partidas guardadas de este contenedor</string>
-    <string name="saves_import_warning_body">Al restaurar una copia de seguridad antigua con varios juegos, copia primero cualquier partida guardada más reciente en el zip con tu administrador de archivos.</string>
+    <string name="saves_import_warning_title">Esto sobrescribirá las partidas guardadas existentes de este contenedor</string>
+    <string name="saves_import_warning_body">Al restaurar una copia de seguridad antigua con varios juegos, copia primero cualquier partida guardada más reciente en el zip con tu administrador de archivos. Solo se verán afectadas las partidas guardadas que existan en el .zip. Gestiona tus partidas guardadas con cuidado.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contenedor</string>

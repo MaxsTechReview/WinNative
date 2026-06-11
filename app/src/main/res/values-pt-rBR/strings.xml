@@ -1017,8 +1017,8 @@ Caminho instalado:
     <string name="saves_export_success_path">Exportado para %1$s</string>
     <string name="saves_export_warning_title">Use isto apenas com jogos personalizados</string>
     <string name="saves_export_warning_body">A exportação pode incluir saves de jogos instalados por lojas ou com sincronização em nuvem.</string>
-    <string name="saves_import_warning_title">Isso substituirá todos os saves neste contêiner</string>
-    <string name="saves_import_warning_body">Ao restaurar um backup antigo com vários jogos, copie primeiro os saves mais recentes para o zip com seu gerenciador de arquivos.</string>
+    <string name="saves_import_warning_title">Isso substituirá os saves existentes neste contêiner</string>
+    <string name="saves_import_warning_body">Ao restaurar um backup antigo com vários jogos, copie primeiro os saves mais recentes para o zip com seu gerenciador de arquivos. Somente os saves presentes no .zip serão afetados. Gerencie seus saves com cuidado.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Contêiner</string>

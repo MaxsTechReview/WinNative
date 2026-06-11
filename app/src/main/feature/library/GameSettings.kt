@@ -320,9 +320,8 @@ class GameSettingsStateHolder {
     val desktopBackgroundColor = mutableStateOf("#0277bd")
     val desktopWallpaperSelected = mutableStateOf(false)
     val drivesList = mutableStateOf<List<DriveItem>>(emptyList())
-    // Exclusive Input is a global SharedPreferences flag ("xinput_toggle"),
-    // not per-container — tracked here so InputSection can reuse its layout.
     val containerExclusiveInput = mutableStateOf(false)
+    val shortcutExclusiveXInput = mutableStateOf(true)
 
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
@@ -2230,47 +2229,6 @@ private fun ComponentsSection(
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
-// WINEESYNC and WINENTSYNC cannot both be enabled. When the user turns one on,
-// flip the other off if it is currently on. If both are set to off (0),
-// default WINEESYNC to on (1) as the fallback.
-private fun applyExclusiveSync(
-    list: MutableList<EnvVarItem>,
-    changedKey: String,
-    newValue: String
-) {
-    if (changedKey != "WINEESYNC" && changedKey != "WINENTSYNC") return
-
-    val isOnNow = newValue == "1" || newValue.equals("true", ignoreCase = true)
-    val sibling = if (changedKey == "WINEESYNC") "WINENTSYNC" else "WINEESYNC"
-    val sIdx = list.indexOfFirst { it.key == sibling }
-
-    if (isOnNow) {
-        // If turning ON, turn OFF the sibling
-        if (sIdx >= 0) {
-            list[sIdx] = EnvVarItem(sibling, "0")
-        }
-    } else {
-        // If turning OFF, check if both are now OFF
-        val siblingIsOn = if (sIdx >= 0) {
-            val sValue = list[sIdx].value
-            sValue == "1" || sValue.equals("true", ignoreCase = true)
-        } else false
-
-        if (!siblingIsOn) {
-            // Both are OFF -> default ESYNC to ON
-            val eIdx = list.indexOfFirst { it.key == "WINEESYNC" }
-            if (eIdx >= 0) {
-                list[eIdx] = EnvVarItem("WINEESYNC", "1")
-            } else {
-                list.add(EnvVarItem("WINEESYNC", "1"))
-            }
-            // If the sibling was NTSYNC and we just added/updated ESYNC, ensure NTSYNC is definitely OFF
-            val nIdx = list.indexOfFirst { it.key == "WINENTSYNC" }
-            if (nIdx >= 0) list[nIdx] = EnvVarItem("WINENTSYNC", "0")
-        }
-    }
-}
-
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -2292,9 +2250,6 @@ private fun VariablesSection(
             changed = true
         }
         if (changed) {
-            // Run exclusivity check to handle cases where both might have been added at once
-            val esyncValue = current.find { it.key == "WINEESYNC" }?.value ?: "1"
-            applyExclusiveSync(current, "WINEESYNC", esyncValue)
             state.envVars.value = current
         }
     }
@@ -2338,14 +2293,12 @@ private fun VariablesSection(
                             state.envVars.value.none { it.key == normalizedKey }
                         if (index in list.indices && isUnique) {
                             list[index] = EnvVarItem(normalizedKey, envVar.value)
-                            applyExclusiveSync(list, normalizedKey, envVar.value)
                             state.envVars.value = list
                         }
                     },
                     onValueChange = { v ->
                         val list = state.envVars.value.toMutableList()
                         list[index] = EnvVarItem(envVar.key, v)
-                        applyExclusiveSync(list, envVar.key, v)
                         state.envVars.value = list
                     },
                     onRemove = { callbacks.onRemoveEnvVar(index) }
@@ -3016,10 +2969,8 @@ private fun InputSection(state: GameSettingsStateHolder) {
             Spacer(Modifier.height(SettingItemGap))
         }
 
-        // Exclusive Input — when off, XInput + DInput are both forced on and locked below.
-        // Container mode backs it with the global "xinput_toggle" pref.
         val exclusiveChecked = if (isContainer) state.containerExclusiveInput.value
-        else state.disableXInput.value
+        else state.shortcutExclusiveXInput.value
         Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
                 SettingCheckbox(
@@ -3029,11 +2980,13 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         if (isContainer) {
                             state.containerExclusiveInput.value = enabled
                         } else {
-                            state.disableXInput.value = enabled
+                            state.shortcutExclusiveXInput.value = enabled
                         }
                         if (!enabled) {
                             state.enableXInput.value = true
                             state.enableDInput.value = true
+                        } else if (state.enableXInput.value && state.enableDInput.value) {
+                            state.enableDInput.value = false
                         }
                     }
                 )
@@ -3048,6 +3001,14 @@ private fun InputSection(state: GameSettingsStateHolder) {
         }
 
         if (!isContainer) {
+            Spacer(Modifier.height(4.dp))
+
+            SettingCheckbox(
+                label = stringResource(R.string.shortcuts_properties_disable_xinput),
+                checked = state.disableXInput.value,
+                onCheckedChange = { state.disableXInput.value = it }
+            )
+
             Spacer(Modifier.height(4.dp))
 
             SettingCheckbox(
@@ -3077,7 +3038,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         // Enable XInput with help — only toggleable when Exclusive Input is on.
         val inputApisLocked = if (isContainer) !state.containerExclusiveInput.value
-        else !state.disableXInput.value
+        else !state.shortcutExclusiveXInput.value
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -3086,7 +3047,10 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_xinput),
                     checked = state.enableXInput.value,
-                    onCheckedChange = { state.enableXInput.value = it },
+                    onCheckedChange = {
+                        state.enableXInput.value = it
+                        if (!inputApisLocked && it && state.enableDInput.value) state.enableDInput.value = false
+                    },
                     enabled = !inputApisLocked
                 )
             }
@@ -3140,7 +3104,10 @@ private fun InputSection(state: GameSettingsStateHolder) {
                 SettingCheckbox(
                     label = stringResource(R.string.container_config_enable_dinput),
                     checked = state.enableDInput.value,
-                    onCheckedChange = { state.enableDInput.value = it },
+                    onCheckedChange = {
+                        state.enableDInput.value = it
+                        if (!inputApisLocked && it && state.enableXInput.value) state.enableXInput.value = false
+                    },
                     enabled = !inputApisLocked
                 )
             }
