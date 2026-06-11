@@ -234,6 +234,7 @@ public abstract class WineUtils {
   public static File ensureDriveCGameSymlink(
       Container container, String source, String gameInstallPath) {
     if (container == null || gameInstallPath == null || gameInstallPath.isEmpty()) return null;
+    if ("CUSTOM".equalsIgnoreCase(source)) return null;
 
     File gameDir = new File(gameInstallPath);
     if (!gameDir.exists()) return null;
