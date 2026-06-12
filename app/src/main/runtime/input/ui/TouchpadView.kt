@@ -619,9 +619,9 @@ class TouchpadView(
     fun isSimTouchScreen(): Boolean = simTouchScreen
 
     fun setScreenTouchMode(mode: Int) {
+        setSimTouchScreen(mode == MODE_TOUCHSCREEN)
         if (screenTouchMode == mode) return
         screenTouchMode = mode
-        setSimTouchScreen(mode == MODE_TOUCHSCREEN)
         screenTouchStick.releaseAll()
         resetInputState()
     }
