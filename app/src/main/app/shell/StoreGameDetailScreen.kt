@@ -661,8 +661,19 @@ private fun StoreGameDetailContent(p: StoreGameDetailParams) {
                                 if (onBetaBranches != null && !isInstalled) {
                                     // Pre-install: a beta-branch segment "sliced off" the
                                     // Download pill — pick a branch before committing.
+                                    // Each segment paints only its slice of one gradient
+                                    // spanning the whole row, so the pair reads as the
+                                    // single Download pill.
+                                    var splitCtaWidthPx by remember { mutableIntStateOf(0) }
+                                    val splitCtaLeadPx =
+                                        with(LocalDensity.current) {
+                                            (actionIconSize + actionIconSpacing).toPx()
+                                        }
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .onSizeChanged { splitCtaWidthPx = it.width },
                                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                                     ) {
                                         StoreCtaCutoutButton(
@@ -681,6 +692,9 @@ private fun StoreGameDetailContent(p: StoreGameDetailParams) {
                                                 ),
                                             onClick = onBetaBranches,
                                             modifier = Modifier.width(actionIconSize),
+                                            fillEndX =
+                                                splitCtaWidthPx.takeIf { it > 0 }?.toFloat()
+                                                    ?: Float.POSITIVE_INFINITY,
                                         )
                                         StoreCtaButton(
                                             height = ctaHeight,
@@ -697,6 +711,7 @@ private fun StoreGameDetailContent(p: StoreGameDetailParams) {
                                                     topEnd = 14.dp,
                                                     bottomEnd = 14.dp,
                                                 ),
+                                            fillStartX = -splitCtaLeadPx,
                                         )
                                     }
                                 } else {
@@ -1246,6 +1261,8 @@ private class StoreCtaGlass(
 private fun storeCtaGlassBrushes(
     enabled: Boolean,
     flare: Float,
+    fillStartX: Float = 0f,
+    fillEndX: Float = Float.POSITIVE_INFINITY,
 ): StoreCtaGlass =
     StoreCtaGlass(
         fill =
@@ -1257,6 +1274,8 @@ private fun storeCtaGlassBrushes(
                             StoreAccent.copy(alpha = 0.38f),
                             Color(0xFF7B2FF7).copy(alpha = 0.38f),
                         ),
+                    startX = fillStartX,
+                    endX = fillEndX,
                 )
             } else {
                 Brush.horizontalGradient(
@@ -1265,6 +1284,8 @@ private fun storeCtaGlassBrushes(
                             Color(0xFF3A3A4A).copy(alpha = 0.35f),
                             Color(0xFF2A2A36).copy(alpha = 0.35f),
                         ),
+                    startX = fillStartX,
+                    endX = fillEndX,
                 )
             },
         sheen =
@@ -1307,6 +1328,8 @@ private fun StoreCtaButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth(),
     shape: RoundedCornerShape = RoundedCornerShape(14.dp),
+    fillStartX: Float = 0f,
+    fillEndX: Float = Float.POSITIVE_INFINITY,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1320,7 +1343,7 @@ private fun StoreCtaButton(
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
         label = "storeCtaFlare",
     )
-    val glass = storeCtaGlassBrushes(enabled, flare)
+    val glass = storeCtaGlassBrushes(enabled, flare, fillStartX, fillEndX)
     Box(
         modifier =
             modifier
@@ -1382,6 +1405,8 @@ private fun StoreCtaCutoutButton(
     shape: RoundedCornerShape,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    fillStartX: Float = 0f,
+    fillEndX: Float = Float.POSITIVE_INFINITY,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1395,7 +1420,7 @@ private fun StoreCtaCutoutButton(
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
         label = "storeCtaCutoutFlare",
     )
-    val glass = storeCtaGlassBrushes(enabled, flare)
+    val glass = storeCtaGlassBrushes(enabled, flare, fillStartX, fillEndX)
     Box(
         modifier =
             modifier
