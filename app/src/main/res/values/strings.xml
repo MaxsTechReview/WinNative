@@ -709,6 +709,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
     <string name="session_drawer_color_profile_crt">CRT Effect</string>
+    <string name="session_drawer_color_profile_toon">Toon</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_brightness">Brightness</string>
+    <string name="session_drawer_contrast">Contrast</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_scale">Scale</string>
+    <string name="session_drawer_scale_nearest">Nearest</string>
+    <string name="session_drawer_scale_linear">Linear</string>
     <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>

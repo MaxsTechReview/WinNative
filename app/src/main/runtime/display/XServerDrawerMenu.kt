@@ -332,6 +332,10 @@ data class XServerDrawerState(
     val vividEnabled: Boolean = false,
     val vividStrength: Int = 100,
     val colorProfile: Int = 0,
+    val brightness: Int = 0,
+    val contrast: Int = 0,
+    val gammaPercent: Int = 100,
+    val scaleFilter: Int = 0,
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
@@ -522,6 +526,14 @@ interface XServerDrawerActionListener {
 
     fun onColorProfileSelected(profile: Int)
 
+    fun onBrightnessChanged(value: Int)
+
+    fun onContrastChanged(value: Int)
+
+    fun onGammaChanged(value: Int)
+
+    fun onScaleFilterSelected(mode: Int)
+
     fun onInputControlsProfileSelected(index: Int)
 
     fun onInputControlsStyleSelected(index: Int)
@@ -603,6 +615,10 @@ fun buildXServerDrawerState(
     vividEnabled: Boolean = false,
     vividStrength: Int = 100,
     colorProfile: Int = 0,
+    brightness: Int = 0,
+    contrast: Int = 0,
+    gammaPercent: Int = 100,
+    scaleFilter: Int = 0,
     inputControlsProfileNames: List<String> = emptyList(),
     inputControlsSelectedProfileIndex: Int = 0,
     inputControlsStyleNames: List<String> = emptyList(),
@@ -678,7 +694,8 @@ fun buildXServerDrawerState(
                 title = context.getString(R.string.session_drawer_screen_effects),
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
                 icon = Icons.Outlined.Tune,
-                active = sgsrEnabled || vividEnabled || colorProfile > 0,
+                active = sgsrEnabled || vividEnabled || colorProfile > 0 ||
+                    brightness != 0 || contrast != 0 || gammaPercent != 100 || scaleFilter != 0,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_pause,
@@ -775,6 +792,10 @@ fun buildXServerDrawerState(
         vividEnabled = vividEnabled,
         vividStrength = vividStrength,
         colorProfile = colorProfile,
+        brightness = brightness,
+        contrast = contrast,
+        gammaPercent = gammaPercent,
+        scaleFilter = scaleFilter,
         inputControlsProfileNames = inputControlsProfileNames,
         inputControlsSelectedProfileIndex = inputControlsSelectedProfileIndex,
         inputControlsStyleNames = inputControlsStyleNames,
@@ -2336,18 +2357,20 @@ private fun ScreenEffectsPaneContent(
 
                     val profiles =
                         listOf(
-                            stringResource(R.string.session_drawer_color_profile_disabled),
-                            stringResource(R.string.session_drawer_color_profile_hdr),
-                            stringResource(R.string.session_drawer_color_profile_natural),
-                            stringResource(R.string.session_drawer_color_profile_crt),
+                            0 to stringResource(R.string.session_drawer_color_profile_disabled),
+                            1 to stringResource(R.string.session_drawer_color_profile_hdr),
+                            2 to stringResource(R.string.session_drawer_color_profile_natural),
+                            4 to stringResource(R.string.session_drawer_color_profile_toon),
+                            3 to stringResource(R.string.session_drawer_color_profile_crt),
+                            5 to stringResource(R.string.session_drawer_color_profile_ntsc),
                         )
 
                     ChipFlow {
-                        profiles.forEachIndexed { index, label ->
+                        profiles.forEach { (id, label) ->
                             HUDToggleChip(
                                 label = label,
-                                checked = state.colorProfile == index,
-                                onClick = { listener.onColorProfileSelected(index) },
+                                checked = state.colorProfile == id,
+                                onClick = { listener.onColorProfileSelected(id) },
                             )
                         }
                     }
@@ -2368,6 +2391,51 @@ private fun ScreenEffectsPaneContent(
                             onValueChange = { listener.onVividStrengthChanged(it.roundToInt()) },
                         )
                     }
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_brightness),
+                        valueText = "${state.brightness}",
+                        value = state.brightness.toFloat(),
+                        valueRange = -100f..100f,
+                        steps = 39,
+                        onValueChange = { listener.onBrightnessChanged(it.roundToInt().coerceIn(-100, 100)) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_contrast),
+                        valueText = "${state.contrast}",
+                        value = state.contrast.toFloat(),
+                        valueRange = -100f..100f,
+                        steps = 39,
+                        onValueChange = { listener.onContrastChanged(it.roundToInt().coerceIn(-100, 100)) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_gamma),
+                        valueText = String.format("%.2fx", state.gammaPercent / 100f),
+                        value = state.gammaPercent.toFloat(),
+                        valueRange = 50f..250f,
+                        steps = 19,
+                        onValueChange = { listener.onGammaChanged(it.roundToInt().coerceIn(50, 250)) },
+                    )
+                }
+
+                ThinDivider()
+
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_drawer_scale))
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_scale_nearest),
+                        checked = state.scaleFilter == 1,
+                        onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 1 else 0) },
+                    )
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_scale_linear),
+                        checked = state.scaleFilter == 2,
+                        onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 2 else 0) },
+                    )
                 }
             }
         }

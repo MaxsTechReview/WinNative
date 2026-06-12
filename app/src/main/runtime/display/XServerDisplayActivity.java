@@ -96,10 +96,13 @@ import com.winlator.cmod.shared.android.RefreshRateUtils;
 import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.runtime.display.renderer.EffectComposer;
+import com.winlator.cmod.runtime.display.renderer.effects.ColorAdjustEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.HDREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NaturalEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.NTSCEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.SGSRUpscaler;
+import com.winlator.cmod.runtime.display.renderer.effects.ToonEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.VividEffect;
 import com.winlator.cmod.runtime.wine.WineInfo;
 import com.winlator.cmod.runtime.wine.WineRegistryEditor;
@@ -353,6 +356,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean vividEnabled = false;
     private int vividStrength = 100;
     private int colorProfile = 0;
+    private int brightness = 0;
+    private int contrast = 0;
+    private int gammaPercent = 100;
+    private int scaleFilter = 0;
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
@@ -3845,6 +3852,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 vividEnabled,
                 vividStrength,
                 colorProfile,
+                brightness,
+                contrast,
+                gammaPercent,
+                scaleFilter,
                 inputProfileNames,
                 inputSelectedIndex,
                 styleNames,
@@ -4098,6 +4109,38 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onColorProfileSelected(int profile) {
                         colorProfile = profile;
                         preferences.edit().putInt("color_profile", profile).apply();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onBrightnessChanged(int value) {
+                        brightness = Math.max(-100, Math.min(100, value));
+                        preferences.edit().putInt("color_brightness", brightness).apply();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onContrastChanged(int value) {
+                        contrast = Math.max(-100, Math.min(100, value));
+                        preferences.edit().putInt("color_contrast", contrast).apply();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onGammaChanged(int value) {
+                        gammaPercent = Math.max(50, Math.min(250, value));
+                        preferences.edit().putInt("color_gamma", gammaPercent).apply();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onScaleFilterSelected(int mode) {
+                        scaleFilter = mode;
+                        preferences.edit().putInt("scale_filter", mode).apply();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4574,6 +4617,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         composer.removeEffect(composer.getEffect(HDREffect.class));
         composer.removeEffect(composer.getEffect(NaturalEffect.class));
         composer.removeEffect(composer.getEffect(CRTEffect.class));
+        composer.removeEffect(composer.getEffect(ToonEffect.class));
+        composer.removeEffect(composer.getEffect(NTSCEffect.class));
 
         switch (colorProfile) {
             case 1: // HDR
@@ -4585,8 +4630,26 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case 3: // CRT Effect
                 composer.addEffect(new CRTEffect());
                 break;
+            case 4: // Toon
+                composer.addEffect(new ToonEffect());
+                break;
+            case 5: // NTSC
+                composer.addEffect(new NTSCEffect());
+                break;
         }
 
+        ColorAdjustEffect colorAdj = composer.getEffect(ColorAdjustEffect.class);
+        if (brightness != 0 || contrast != 0 || gammaPercent != 100) {
+            if (colorAdj == null) {
+                colorAdj = new ColorAdjustEffect();
+            }
+            colorAdj.set(brightness / 100.0f, contrast / 100.0f, gammaPercent / 100.0f);
+            composer.addEffect(colorAdj);
+        } else if (colorAdj != null) {
+            composer.removeEffect(colorAdj);
+        }
+
+        renderer.setScaleFilter(scaleFilter);
     }
 
     private void loadScreenEffectsSettings() {
@@ -4612,6 +4675,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 : legacyEnabled && legacyMode == 1;
         vividStrength = preferences.getInt("vivid_strength", legacyStrength);
         colorProfile = preferences.getInt("color_profile", 0);
+        brightness = Math.max(-100, Math.min(100, preferences.getInt("color_brightness", 0)));
+        contrast = Math.max(-100, Math.min(100, preferences.getInt("color_contrast", 0)));
+        gammaPercent = Math.max(50, Math.min(250, preferences.getInt("color_gamma", 100)));
+        scaleFilter = preferences.getInt("scale_filter", 0);
     }
 
     private static float clampHudAlpha(float v) {
