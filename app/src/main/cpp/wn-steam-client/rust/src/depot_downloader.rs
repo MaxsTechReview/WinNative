@@ -1,8 +1,8 @@
 use crate::cdn_client::{CdnClient, CdnManifestResult};
 use crate::content_manifest::ContentManifest;
 use crate::depot_cleanup::{
-    backfill_filelist_sidecar, record_pending_cleanup, run_stale_file_cleanup,
-    write_filelist_sidecar,
+    backfill_filelist_sidecar, record_aborted_build, record_pending_cleanup,
+    run_stale_file_cleanup, write_filelist_sidecar,
 };
 use crate::depot_config::{DepotConfigStore, DepotProgressStore, INVALID_MANIFEST_ID};
 use crate::depot_writer::{write_depot_sequential, DepotWriteOptions};
@@ -420,6 +420,9 @@ pub fn download_resolved_depots_with_cancel_progress(
                 depot.depot_id
             ));
         }
+        // Before any game file is touched, so an aborted write still leaves a
+        // key-independent record of what this build may have put on disk.
+        let _ = write_filelist_sidecar(&config_dir, depot.depot_id, depot.manifest_id, &manifest);
 
         let depot_id = depot.depot_id;
         let depots_done = depot_index as u32;
@@ -448,14 +451,18 @@ pub fn download_resolved_depots_with_cancel_progress(
             if write_result.resume_trust_safe {
                 let _ = write_clean_pause_marker(&config_dir, depot.depot_id, depot.manifest_id);
             }
+            // The write may have left this build's files on disk without ever
+            // committing a gid to diff them against — mark the target so the
+            // next successful download reclaims its orphans.
+            record_aborted_build(&config_dir, depot.depot_id, depot.manifest_id);
             return DepotDownloadResult::fail(format!(
                 "download: depot {} write failed: {}",
                 depot.depot_id, write_result.error
             ));
         }
 
-        let _ = write_filelist_sidecar(&config_dir, depot.depot_id, depot.manifest_id, &manifest);
         if !cfg.finish_depot(depot.depot_id, depot.manifest_id) {
+            record_aborted_build(&config_dir, depot.depot_id, depot.manifest_id);
             return DepotDownloadResult::fail(format!(
                 "download: depot.config finish failed for depot {}",
                 depot.depot_id
@@ -740,6 +747,103 @@ mod tests {
         assert!(config_dir.join("100_555.filelist").is_file());
         assert!(config_dir.join("200_777.filelist").is_file());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn failed_write_records_aborted_build_and_revert_reclaims_it() {
+        let dir = temp_dir("aborted_write_recovery");
+        let config_dir = dir.join(".DepotDownloader");
+        fs::create_dir_all(&config_dir).unwrap();
+        let server = [CContentServerDirectoryServerInfo {
+            host: "cdn.example".into(),
+            https_support: "mandatory".into(),
+            ..Default::default()
+        }];
+        let spec = |manifest_id| ResolvedDepotSpec {
+            depot_id: 100,
+            manifest_id,
+            depot_key: vec![1u8; 32],
+            manifest_request_code: 0,
+        };
+
+        // Branch A (555) installs cleanly (chunkless layout manifest).
+        fs::write(
+            config_dir.join("100_555.manifest"),
+            raw_layout_manifest(100, 555, "game.bin", 5),
+        )
+        .unwrap();
+        let result =
+            download_resolved_depots(dir.to_str().unwrap(), &[spec(555)], &server, "", false, 4);
+        assert!(result.success, "{}", result.error);
+
+        // Branch B (777) needs a real chunk from the unreachable CDN → the
+        // write fails mid-switch, after the sidecar was persisted.
+        fs::write(
+            config_dir.join("100_777.manifest"),
+            raw_chunked_manifest(100, 777, "beta_only.bin"),
+        )
+        .unwrap();
+        let result =
+            download_resolved_depots(dir.to_str().unwrap(), &[spec(777)], &server, "", false, 4);
+        assert!(!result.success);
+        assert!(config_dir.join("100_777.filelist").is_file());
+        // Two pending markers: 555 was recorded for the A→B transition (in
+        // case B committed), 777 records the aborted target itself.
+        assert_eq!(
+            crate::depot_cleanup::pending_cleanup_markers(&config_dir),
+            vec![(100, 555), (100, 777)]
+        );
+
+        // Simulate the partial write the aborted switch left behind, then the
+        // revert-to-A verify (fresh) completing successfully.
+        fs::write(dir.join("beta_only.bin"), b"part").unwrap();
+        let result =
+            download_resolved_depots(dir.to_str().unwrap(), &[spec(555)], &server, "", true, 4);
+        assert!(result.success, "{}", result.error);
+
+        assert!(dir.join("game.bin").exists());
+        assert!(
+            !dir.join("beta_only.bin").exists(),
+            "aborted build's orphan must be reclaimed"
+        );
+        assert!(crate::depot_cleanup::pending_cleanup_markers(&config_dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn raw_chunked_manifest(depot_id: u32, manifest_id: u64, filename: &str) -> Vec<u8> {
+        let mut chunk_body = Vec::new();
+        {
+            let mut writer = Writer::new(&mut chunk_body);
+            writer.bytes_field(1, &[7u8; 20]);
+            writer.tag(2, crate::proto_wire::WireType::Fixed32);
+            writer.raw_bytes(&0x1234_5678u32.to_le_bytes());
+            writer.uint64_field(3, 0);
+            writer.uint32_field(4, 4);
+            writer.uint32_field(5, 4);
+        }
+        let mut file_body = Vec::new();
+        {
+            let mut writer = Writer::new(&mut file_body);
+            writer.string_field(1, filename);
+            writer.uint64_field(2, 4);
+            writer.submessage_field(6, &chunk_body);
+        }
+        let mut payload = Vec::new();
+        Writer::new(&mut payload).submessage_field(1, &file_body);
+
+        let mut metadata = Vec::new();
+        {
+            let mut writer = Writer::new(&mut metadata);
+            writer.uint32_field(1, depot_id);
+            writer.uint64_field(2, manifest_id);
+            writer.bool_field_force(4, false);
+        }
+
+        let mut raw = Vec::new();
+        push_section(&mut raw, PAYLOAD_MAGIC, &payload);
+        push_section(&mut raw, METADATA_MAGIC, &metadata);
+        raw.extend_from_slice(&END_OF_MANIFEST_MAGIC.to_le_bytes());
+        raw
     }
 
     #[test]

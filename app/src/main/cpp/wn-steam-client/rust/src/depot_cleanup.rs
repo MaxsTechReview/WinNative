@@ -135,14 +135,30 @@ pub fn record_pending_cleanup(
     {
         return false;
     }
-    let path = stale_cleanup_marker_path(config_dir, depot_id, old_manifest_id);
+    write_cleanup_marker(config_dir, depot_id, old_manifest_id)
+}
+
+/// Marks a build whose write started but never committed: its files may be
+/// partially on disk with no depot.config entry that would ever diff them
+/// away. The marker resolves like any other — dropped if the build later
+/// commits (resume), otherwise its unique files are reclaimed after the next
+/// successful download (e.g. a revert-to-previous-branch verify).
+pub fn record_aborted_build(config_dir: impl AsRef<Path>, depot_id: u32, manifest_id: u64) -> bool {
+    if manifest_id == 0 || manifest_id == INVALID_MANIFEST_ID {
+        return false;
+    }
+    write_cleanup_marker(config_dir, depot_id, manifest_id)
+}
+
+fn write_cleanup_marker(config_dir: impl AsRef<Path>, depot_id: u32, manifest_id: u64) -> bool {
+    let path = stale_cleanup_marker_path(config_dir, depot_id, manifest_id);
     let Some(parent) = path.parent() else {
         return false;
     };
     if fs::create_dir_all(parent).is_err() {
         return false;
     }
-    fs::write(path, old_manifest_id.to_string()).is_ok()
+    fs::write(path, manifest_id.to_string()).is_ok()
 }
 
 pub fn pending_cleanup_markers(config_dir: impl AsRef<Path>) -> Vec<(u32, u64)> {
@@ -865,6 +881,51 @@ mod tests {
         assert!(install.join("link").exists());
         let _ = fs::remove_dir_all(&install);
         let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn aborted_build_marker_reclaims_partial_files_after_revert() {
+        let install = temp_dir("aborted_revert");
+        let config = config_dir(&install);
+        // Branch A (555) committed; switch to B (777) was cancelled mid-write
+        // after the sidecar was written and one B-only file landed on disk.
+        write_sidecar(&config, 100, 555, &[("game.exe", 0), ("data.pak", 0)]);
+        write_sidecar(&config, 100, 777, &[("game.exe", 0), ("beta_only.dll", 0)]);
+        install_current(&config, 100, 555);
+        touch(&install, "game.exe");
+        touch(&install, "data.pak");
+        touch(&install, "beta_only.dll");
+        assert!(record_aborted_build(&config, 100, 777));
+        assert!(!record_aborted_build(&config, 100, 0));
+        assert!(!record_aborted_build(&config, 100, INVALID_MANIFEST_ID));
+
+        // The revert-verify to A completed → cleanup runs.
+        let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
+
+        assert_eq!(deleted, 1);
+        assert!(!install.join("beta_only.dll").exists());
+        assert!(install.join("game.exe").exists());
+        assert!(install.join("data.pak").exists());
+        assert!(pending_cleanup_markers(&config).is_empty());
+        let _ = fs::remove_dir_all(&install);
+    }
+
+    #[test]
+    fn aborted_build_marker_dropped_when_build_later_commits() {
+        let install = temp_dir("aborted_resumed");
+        let config = config_dir(&install);
+        write_sidecar(&config, 100, 777, &[("game.exe", 0), ("beta_only.dll", 0)]);
+        install_current(&config, 100, 777); // resume finished the switch
+        touch(&install, "game.exe");
+        touch(&install, "beta_only.dll");
+        assert!(record_aborted_build(&config, 100, 777));
+
+        let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 777)]);
+
+        assert_eq!(deleted, 0);
+        assert!(install.join("beta_only.dll").exists());
+        assert!(pending_cleanup_markers(&config).is_empty());
+        let _ = fs::remove_dir_all(&install);
     }
 
     #[test]

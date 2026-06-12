@@ -2432,6 +2432,7 @@ class SteamService : Service() {
             context: Context,
             appId: Int,
             branchName: String,
+            recordPrevious: Boolean = true,
         ): Boolean {
             var shortcut = findSteamShortcut(context, appId)
             if (shortcut == null) {
@@ -2441,6 +2442,17 @@ class SteamService : Service() {
             if (shortcut == null) {
                 Timber.w("setSelectedBetaBranch: no shortcut for appId=$appId")
                 return false
+            }
+            // Remember the branch being replaced ("public" when blank) so a
+            // cancelled switch can restore the last committed selection. Only
+            // the first un-committed switch is recorded — re-picks before a
+            // download lands must not overwrite the true last-known-good.
+            if (recordPrevious) {
+                val current = shortcut.getExtra("selectedBranch").orEmpty().trim()
+                val previous = shortcut.getExtra("previousBranch").orEmpty().trim()
+                if (previous.isEmpty() && !current.equals(branchName.trim(), ignoreCase = true)) {
+                    shortcut.putExtra("previousBranch", current.ifBlank { "public" })
+                }
             }
             shortcut.putExtra("selectedBranch", branchName.ifBlank { null })
             shortcut.saveData()
@@ -4601,6 +4613,12 @@ class SteamService : Service() {
 
                     pruneStaleDepotManifestCache(appDirPath)
 
+                    // A committed download makes the current selection the new
+                    // last-known-good — drop the cancelled-switch restore point.
+                    instance?.let { svc ->
+                        clearPreviousBetaBranch(svc, downloadInfo.gameId)
+                    }
+
                     // Same reason as the runCatching above: a Room exception
                     // here used to FAIL a fully-downloaded game with COMPLETE
                     // marker already on disk.
@@ -5632,7 +5650,7 @@ class SteamService : Service() {
                             // buildId lookups (app.branches[name]) are exact-key.
                             ?.let { name -> betaNames.firstOrNull { it.equals(name, ignoreCase = true) } }
                 if (inferred.isNullOrEmpty()) return@runCatching ""
-                if (setSelectedBetaBranch(svc, appId, inferred)) {
+                if (setSelectedBetaBranch(svc, appId, inferred, recordPrevious = false)) {
                     Timber.i("Recovered beta branch '$inferred' for appId=$appId from the installed game dir")
                 }
                 inferred
@@ -7837,6 +7855,54 @@ class SteamService : Service() {
             }
         }
 
+        /**
+         * A cancelled update may have been switching beta branches, leaving
+         * selectedBranch pointing at a build that never landed. Restore the
+         * last committed selection (recorded as the "previousBranch" extra
+         * when the picker changed it) and — when the cancelled download had
+         * already touched files — run the verify flow: it resolves the (now
+         * restored) branch at download time and repairs mismatched chunks,
+         * after which the native stale-file pass reclaims files unique to the
+         * aborted build via its ".stalecleanup" marker. No-op for updates that
+         * weren't a branch switch.
+         */
+        private fun restoreCommittedBranchAfterCancelledUpdate(
+            appId: Int,
+            verifyFiles: Boolean,
+        ) {
+            val svc = instance ?: return
+            runCatching {
+                val previous =
+                    readSteamShortcutExtras(svc, appId)?.first?.get("previousBranch").orEmpty().trim()
+                if (previous.isEmpty()) return
+                val restored = if (previous.equals("public", ignoreCase = true)) "" else previous
+                if (!setSelectedBetaBranch(svc, appId, restored, recordPrevious = false)) return
+                clearPreviousBetaBranch(svc, appId)
+                Timber.i(
+                    "Cancelled update for appId=$appId: restored beta branch '$previous'" +
+                        if (verifyFiles) ", verifying files" else "",
+                )
+                WinToast.show(
+                    svc.applicationContext,
+                    svc.getString(R.string.store_game_beta_branch_restoring, previous),
+                    Toast.LENGTH_LONG,
+                )
+                if (verifyFiles) downloadAppForVerify(appId)
+            }.onFailure { e ->
+                Timber.w(e, "Beta branch restore after cancelled update failed for appId=$appId")
+            }
+        }
+
+        private fun clearPreviousBetaBranch(context: Context, appId: Int) {
+            runCatching {
+                val shortcut = findSteamShortcut(context, appId) ?: return
+                if (!shortcut.getExtra("previousBranch").isNullOrEmpty()) {
+                    shortcut.putExtra("previousBranch", null)
+                    shortcut.saveData()
+                }
+            }.onFailure { e -> Timber.w(e, "Failed to clear previousBranch for appId=$appId") }
+        }
+
         suspend fun checkDlcOwnershipViaPICSBatch(dlcAppIds: Set<Int>): Set<Int> {
             if (dlcAppIds.isEmpty()) return emptySet()
 
@@ -7944,7 +8010,12 @@ class SteamService : Service() {
                     info.cancel("Cancelled by user")
                 }
                 kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                    val isUpdateTask = record.taskType == DownloadRecord.TASK_UPDATE
+                    // VERIFY only exists for installed games: a cancelled one
+                    // must clean up like an update, never fall through to the
+                    // install-cancel branch that deletes the game directory.
+                    val isUpdateTask =
+                        record.taskType == DownloadRecord.TASK_UPDATE ||
+                            record.taskType == DownloadRecord.TASK_VERIFY
                     info?.awaitCompletion(timeoutMs = if (isUpdateTask) 10000L else 3000L)
                     val appDirPath = record.installPath.ifEmpty { getAppDirPath(appId) }
                     if (isUpdateTask) {
@@ -7968,6 +8039,10 @@ class SteamService : Service() {
                         }
                         info?.updateStatus(DownloadPhase.CANCELLED)
                         removeDownloadJob(appId, forceRemove = true)
+                        restoreCommittedBranchAfterCancelledUpdate(
+                            appId,
+                            verifyFiles = !updateNeverStarted,
+                        )
                         return@launch
                     }
                     val dirFile = java.io.File(appDirPath)

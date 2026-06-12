@@ -120,6 +120,7 @@
     <string name="store_game_launch_option_failed">Couldn\'t save launch option</string>
     <string name="store_game_beta_branch">Beta Branch</string>
     <string name="store_game_beta_branch_failed">Couldn\'t save beta branch</string>
+    <string name="store_game_beta_branch_restoring">Branch switch cancelled — restoring \'%1$s\' files</string>
     <string name="store_game_verify_files">Verify Files</string>
     <string name="store_game_verify_started">Verifying %1$s — check the Downloads tab</string>
     <string name="store_game_steam_options">Steam options</string>
