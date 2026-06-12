@@ -1,5 +1,6 @@
 use crate::cdn_client::{CdnClient, CdnManifestResult};
 use crate::content_manifest::ContentManifest;
+use crate::depot_cleanup::{record_pending_cleanup, run_stale_file_cleanup};
 use crate::depot_config::{DepotConfigStore, DepotProgressStore, INVALID_MANIFEST_ID};
 use crate::depot_writer::{write_depot_sequential, DepotWriteOptions};
 use crate::pb::ccontentserverdirectory::CContentServerDirectoryServerInfo;
@@ -316,6 +317,14 @@ pub fn download_resolved_depots_with_cancel_progress(
 
     let mut cfg = DepotConfigStore::load(&config_dir);
     if fresh {
+        for depot in depots {
+            record_pending_cleanup(
+                &config_dir,
+                depot.depot_id,
+                cfg.installed_manifest(depot.depot_id),
+                depot.manifest_id,
+            );
+        }
         cfg.discard();
         for depot in depots {
             DepotProgressStore::remove(&config_dir, depot.depot_id, depot.manifest_id);
@@ -350,6 +359,12 @@ pub fn download_resolved_depots_with_cancel_progress(
                 depot.depot_id
             ));
         }
+        record_pending_cleanup(
+            &config_dir,
+            depot.depot_id,
+            cfg.installed_manifest(depot.depot_id),
+            depot.manifest_id,
+        );
         if !cfg.begin_depot(depot.depot_id) {
             return DepotDownloadResult::fail(format!(
                 "download: depot.config begin failed for depot {}",
@@ -449,6 +464,9 @@ pub fn download_resolved_depots_with_cancel_progress(
         result.depots_completed += 1;
     }
 
+    if result.success {
+        run_stale_file_cleanup(install_dir, &config_dir, depots);
+    }
     result
 }
 
@@ -661,6 +679,55 @@ mod tests {
         assert!(skipped.success);
         assert_eq!(skipped.depots_completed, 0);
         assert_eq!(skipped.depots_skipped, 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn branch_switch_deletes_files_absent_from_new_manifest() {
+        let dir = temp_dir("branch_switch_stale_files");
+        let config_dir = dir.join(".DepotDownloader");
+        fs::create_dir_all(&config_dir).unwrap();
+        let server = [CContentServerDirectoryServerInfo {
+            host: "cdn.example".into(),
+            https_support: "mandatory".into(),
+            ..Default::default()
+        }];
+        let spec = |manifest_id| ResolvedDepotSpec {
+            depot_id: 100,
+            manifest_id,
+            depot_key: vec![1u8; 32],
+            manifest_request_code: 0,
+        };
+
+        fs::write(
+            config_dir.join("100_555.manifest"),
+            raw_layout_manifest(100, 555, "beta_only.bin", 5),
+        )
+        .unwrap();
+        let result =
+            download_resolved_depots(dir.to_str().unwrap(), &[spec(555)], &server, "", false, 4);
+        assert!(result.success, "{}", result.error);
+        assert!(dir.join("beta_only.bin").exists());
+
+        // Files outside any manifest must survive the switch untouched.
+        fs::write(dir.join("user_notes.txt"), b"keep me").unwrap();
+
+        fs::write(
+            config_dir.join("100_777.manifest"),
+            raw_layout_manifest(100, 777, "public.bin", 5),
+        )
+        .unwrap();
+        let result =
+            download_resolved_depots(dir.to_str().unwrap(), &[spec(777)], &server, "", false, 4);
+        assert!(result.success, "{}", result.error);
+
+        assert!(dir.join("public.bin").exists());
+        assert!(
+            !dir.join("beta_only.bin").exists(),
+            "stale branch file must be deleted"
+        );
+        assert!(dir.join("user_notes.txt").exists());
+        assert!(crate::depot_cleanup::pending_cleanup_markers(&config_dir).is_empty());
         let _ = fs::remove_dir_all(&dir);
     }
 

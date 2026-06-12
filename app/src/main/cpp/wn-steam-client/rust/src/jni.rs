@@ -37,7 +37,7 @@ unsafe extern "C" {
     fn __android_log_write(prio: i32, tag: *const i8, text: *const i8) -> i32;
 }
 
-fn android_log(tag: &str, message: &str) {
+pub(crate) fn android_log(tag: &str, message: &str) {
     #[cfg(target_os = "android")]
     {
         let Ok(tag) = CString::new(tag) else {

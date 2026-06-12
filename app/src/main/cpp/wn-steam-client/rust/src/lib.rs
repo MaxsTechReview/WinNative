@@ -19,6 +19,7 @@ pub mod cmsg_protobuf_header;
 pub mod content_manifest;
 pub mod crypto;
 pub mod depot_chunk;
+pub mod depot_cleanup;
 pub mod depot_config;
 pub mod depot_downloader;
 pub mod depot_writer;

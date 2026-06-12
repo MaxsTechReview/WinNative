@@ -53,6 +53,13 @@ impl DepotConfigStore {
         self.installed.get(&depot_id).copied().unwrap_or(0)
     }
 
+    pub fn installed_entries(&self) -> Vec<(u32, u64)> {
+        self.installed
+            .iter()
+            .map(|(depot, manifest)| (*depot, *manifest))
+            .collect()
+    }
+
     pub fn is_installed(&self, depot_id: u32, manifest_id: u64) -> bool {
         self.installed
             .get(&depot_id)
