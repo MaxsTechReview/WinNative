@@ -7758,7 +7758,9 @@ class SteamService : Service() {
          * current; legacy installs with no depot.config are left untouched
          * because their fallback needs the cached files. Manifests with a
          * pending ".stalecleanup" marker are also kept — the native stale-file
-         * pass still needs them to diff the old build's files away.
+         * pass still needs them to diff the old build's files away. ".filelist"
+         * sidecars (decrypted file lists the native pass reads without depot
+         * keys) follow the same lifecycle as their manifests.
          */
         private fun pruneStaleDepotManifestCache(appDirPath: String) {
             runCatching {
@@ -7766,9 +7768,11 @@ class SteamService : Service() {
                 if (installedManifests.isEmpty()) return
                 val depotDownloaderDir = File(appDirPath, ".DepotDownloader")
                 depotDownloaderDir
-                    .listFiles { f -> f.isFile && f.name.endsWith(".manifest") }
+                    .listFiles { f ->
+                        f.isFile && (f.name.endsWith(".manifest") || f.name.endsWith(".filelist"))
+                    }
                     ?.forEach { f ->
-                        val stem = f.name.removeSuffix(".manifest")
+                        val stem = f.name.substringBeforeLast('.')
                         val parts = stem.split('_')
                         if (parts.size != 2) return@forEach
                         val depotId = parts[0].toIntOrNull() ?: return@forEach
@@ -7779,12 +7783,16 @@ class SteamService : Service() {
                             Timber.i("Pruned stale depot manifest cache ${f.name} at $appDirPath")
                         }
                     }
-                // Markers whose manifest cache is gone can never be acted on.
+                // Markers with neither a manifest nor a filelist left can
+                // never be acted on.
                 depotDownloaderDir
                     .listFiles { f -> f.isFile && f.name.endsWith(".stalecleanup") }
                     ?.forEach { f ->
                         val stem = f.name.removeSuffix(".stalecleanup")
-                        if (!File(depotDownloaderDir, "$stem.manifest").isFile && f.delete()) {
+                        val actionable =
+                            File(depotDownloaderDir, "$stem.manifest").isFile ||
+                                File(depotDownloaderDir, "$stem.filelist").isFile
+                        if (!actionable && f.delete()) {
                             Timber.i("Dropped orphaned stale-cleanup marker ${f.name} at $appDirPath")
                         }
                     }

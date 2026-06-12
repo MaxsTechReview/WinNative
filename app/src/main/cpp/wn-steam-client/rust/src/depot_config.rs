@@ -81,6 +81,21 @@ impl DepotConfigStore {
         let _ = fs::remove_file(self.config_path());
     }
 
+    /// Removes only the given depots' entries, unlike [`Self::discard`] which
+    /// wipes the whole store: a fresh re-download of one batch must not hide
+    /// other batches' installed depots from depot.config consumers (the
+    /// stale-file keep-union, update checks).
+    pub fn discard_depots(&mut self, depot_ids: impl IntoIterator<Item = u32>) -> bool {
+        let mut changed = false;
+        for depot_id in depot_ids {
+            changed |= self.installed.remove(&depot_id).is_some();
+        }
+        if !changed {
+            return true;
+        }
+        self.save()
+    }
+
     fn config_path(&self) -> PathBuf {
         self.config_dir.join("depot.config")
     }
@@ -208,7 +223,7 @@ fn get_u32(buf: &[u8]) -> Option<u32> {
     Some(u32::from_le_bytes(buf.get(..4)?.try_into().ok()?))
 }
 
-fn atomic_write_synced(final_path: &Path, bytes: &[u8]) -> bool {
+pub(crate) fn atomic_write_synced(final_path: &Path, bytes: &[u8]) -> bool {
     let Some(parent) = final_path.parent() else {
         return false;
     };
@@ -261,6 +276,24 @@ mod tests {
             loaded.manifest_cache_path(100, 555),
             dir.join("100_555.manifest")
         );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn discard_depots_leaves_other_entries_intact() {
+        let dir = temp_dir("discard_depots_scoped");
+        let mut store = DepotConfigStore::load(&dir);
+        assert!(store.finish_depot(100, 555));
+        assert!(store.finish_depot(200, 777));
+
+        assert!(store.discard_depots([200, 999]));
+        assert!(store.is_installed(100, 555));
+        assert_eq!(store.installed_manifest(200), 0);
+
+        let loaded = DepotConfigStore::load(&dir);
+        assert!(loaded.is_installed(100, 555));
+        assert_eq!(loaded.installed_manifest(200), 0);
+        assert_eq!(loaded.installed_entries(), vec![(100, 555)]);
         let _ = fs::remove_dir_all(&dir);
     }
 
