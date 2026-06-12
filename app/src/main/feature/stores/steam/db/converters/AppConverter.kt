@@ -13,6 +13,8 @@ import com.winlator.cmod.feature.stores.steam.enums.ReleaseState
 import kotlinx.serialization.json.Json
 import java.util.EnumSet
 
+private val json = Json { ignoreUnknownKeys = true }
+
 class AppConverter {
     @TypeConverter
     fun toAppType(appType: Int): AppType = AppType.fromCode(appType)
@@ -39,38 +41,38 @@ class AppConverter {
     fun fromControllerSupport(controllerSupport: ControllerSupport): Int = controllerSupport.code
 
     @TypeConverter
-    fun toDepots(depots: String): Map<Int, DepotInfo> = Json.decodeFromString<Map<Int, DepotInfo>>(depots)
+    fun toDepots(depots: String): Map<Int, DepotInfo> = json.decodeFromString<Map<Int, DepotInfo>>(depots)
 
     @TypeConverter
-    fun fromDepots(depots: Map<Int, DepotInfo>): String = Json.encodeToString(depots)
+    fun fromDepots(depots: Map<Int, DepotInfo>): String = json.encodeToString(depots)
 
     @TypeConverter
-    fun toBranches(branches: String): Map<String, BranchInfo> = Json.decodeFromString<Map<String, BranchInfo>>(branches)
+    fun toBranches(branches: String): Map<String, BranchInfo> = json.decodeFromString<Map<String, BranchInfo>>(branches)
 
     @TypeConverter
-    fun fromBranches(branches: Map<String, BranchInfo>): String = Json.encodeToString(branches)
+    fun fromBranches(branches: Map<String, BranchInfo>): String = json.encodeToString(branches)
 
     @TypeConverter
-    fun toLangMap(langMap: String): Map<Language, String> = Json.decodeFromString<Map<Language, String>>(langMap)
+    fun toLangMap(langMap: String): Map<Language, String> = json.decodeFromString<Map<Language, String>>(langMap)
 
     @TypeConverter
-    fun fromLangMap(langMap: Map<Language, String>): String = Json.encodeToString(langMap)
+    fun fromLangMap(langMap: Map<Language, String>): String = json.encodeToString(langMap)
 
     @TypeConverter
-    fun toLibraryAssetsInfo(langMap: String): LibraryAssetsInfo = Json.decodeFromString<LibraryAssetsInfo>(langMap)
+    fun toLibraryAssetsInfo(langMap: String): LibraryAssetsInfo = json.decodeFromString<LibraryAssetsInfo>(langMap)
 
     @TypeConverter
-    fun fromLibraryAssetsInfo(langMap: LibraryAssetsInfo): String = Json.encodeToString(langMap)
+    fun fromLibraryAssetsInfo(langMap: LibraryAssetsInfo): String = json.encodeToString(langMap)
 
     @TypeConverter
-    fun toConfigInfo(configInfo: String): ConfigInfo = Json.decodeFromString<ConfigInfo>(configInfo)
+    fun toConfigInfo(configInfo: String): ConfigInfo = json.decodeFromString<ConfigInfo>(configInfo)
 
     @TypeConverter
-    fun fromConfigInfo(configInfo: ConfigInfo): String = Json.encodeToString(configInfo)
+    fun fromConfigInfo(configInfo: ConfigInfo): String = json.encodeToString(configInfo)
 
     @TypeConverter
-    fun toUFS(ufs: String): UFS = Json.decodeFromString<UFS>(ufs)
+    fun toUFS(ufs: String): UFS = json.decodeFromString<UFS>(ufs)
 
     @TypeConverter
-    fun fromUFS(ufs: UFS): String = Json.encodeToString(ufs)
+    fun fromUFS(ufs: UFS): String = json.encodeToString(ufs)
 }

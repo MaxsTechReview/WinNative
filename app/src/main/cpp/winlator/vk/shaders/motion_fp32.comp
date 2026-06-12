@@ -105,5 +105,16 @@ void main() {
         float dd = cu - 2.0 * bestCost + cd;
         if (dd > 0.0) sub.y += clamp(0.5 * (cu - cd) / dd, -0.5, 0.5);
     }
-    imageStore(motionField, p, vec4(sub * pc.mvScale, 0.0, 0.0));
+
+    // Static-overlay (HUD/text) confidence -> .z: near-zero temporal delta at zero displacement
+    // plus a strong spatial gradient marks high-contrast UI that must never be warped. Soft on
+    // both axes so the interp's bilinear read feathers the mask edge (no hard seams).
+    float c0 = sCurr[cCenter.y * TILE_C + cCenter.x];
+    float p0 = sPrev[(l.y + RMAX + BR) * TILE_P + (l.x + RMAX + BR)];
+    float gx = abs(sCurr[cCenter.y * TILE_C + cCenter.x + 1] - c0);
+    float gy = abs(sCurr[(cCenter.y + 1) * TILE_C + cCenter.x] - c0);
+    float staticC = (1.0 - smoothstep(0.012, 0.025, abs(c0 - p0)))
+                  * smoothstep(0.05, 0.12, gx + gy);
+
+    imageStore(motionField, p, vec4(sub * pc.mvScale, staticC, 0.0));
 }

@@ -1333,6 +1333,9 @@ Installed path:
     <string name="session_drawer_frame_generation_quality_balanced">Balanced</string>
     <string name="session_drawer_frame_generation_quality_quality">Quality</string>
     <string name="session_drawer_frame_generation_smoothness">Smoothness</string>
+    <string name="session_drawer_frame_generation_recommended">Recommended</string>
+    <string name="session_drawer_frame_generation_preset_smoothest">Smooth</string>
+    <string name="session_drawer_frame_generation_preset_low_latency">Low Latency</string>
     <string name="settings_other_frame_gen_title">Native Frame Generation</string>
     <string name="settings_other_frame_gen_summary">Insert interpolated frames in the compositor to smooth motion. Works with any game (no game data needed) and adds a small amount of input latency.</string>
 </resources>

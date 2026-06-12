@@ -20,7 +20,7 @@
 #define VK_LOGW(...) __android_log_print(ANDROID_LOG_WARN,  VK_LOG_TAG, __VA_ARGS__)
 #define VK_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, VK_LOG_TAG, __VA_ARGS__)
 
-#define VK_FRAMES_IN_FLIGHT 2
+#define VK_FRAMES_IN_FLIGHT 3
 #define VK_MAX_SWAPCHAIN_IMAGES 8
 #define VK_MAX_EFFECTS 8
 #define VK_MAX_RENDERABLE_WINDOWS 64
@@ -180,7 +180,7 @@ typedef struct VkPipelineSet {
 
     // --- Frame generation (created once with the rest; persist across swapchain rebuilds) ---
     VkDescriptorSetLayout fg_motion_layout;      // set0: binding0,1 sampler(prev,curr) + binding2 STORAGE_IMAGE(mv), COMPUTE
-    VkDescriptorSetLayout fg_interp_layout;      // set0: 3x COMBINED_IMAGE_SAMPLER (prev,curr,mv), FRAGMENT
+    VkDescriptorSetLayout fg_interp_layout;      // set0: 4x COMBINED_IMAGE_SAMPLER (prev,curr,mvBwd,mvFwd), FRAGMENT
     VkPipelineLayout      fg_motion_pipe_layout; // [motion] set + 32B compute push range
     VkPipelineLayout      fg_interp_pipe_layout; // [interp] set + 24B fragment push range
     VkPipeline            fg_motion_pipeline;    // compute (block matching)
@@ -382,15 +382,24 @@ typedef struct VkRenderer {
     bool             fg_built;               // history + motion images allocated at fg_dims
     VkExtent2D       fg_dims;                // extent the fg images were built for
     VkFgImage        fg_history[3];          // composited-scene ring; fg_history_curr = newest
-    VkFgImage        fg_motion;              // rgba16f half-res backward-flow field
+    VkFgImage        fg_motion[3];           // per-parity rgba16f half-res backward-flow ring (1 per history
+                                             // slot): consecutive cycles write different buffers so the
+                                             // once-per-cycle motion compute pipelines instead of serializing.
+    VkFgImage        fg_motion_fwd[3];       // per-parity rgba16f half-res forward-flow ring (Quality bidirectional)
     VkSampler        fg_sampler;             // linear, clamp — for all fg sampled reads
     VkDescriptorSet  fg_motion_set[3];       // [curr] prev,curr samplers + motion storage (motion.comp)
-    VkDescriptorSet  fg_interp_set[3];       // [curr] prev,curr,motion samplers (interpolate.frag)
+    VkDescriptorSet  fg_motion_set_fwd[3];   // [curr] swapped prev,curr + fwd-motion storage (forward pass)
+    VkDescriptorSet  fg_interp_set[3];       // [curr] prev,curr,mvBwd,mvFwd samplers (interpolate.frag)
+    VkDescriptorSet  fg_interp_set_deep[3];  // deep mode: interp the pair one step behind the newest
     VkFence          fg_slot_fence[3];       // last submit that used each history slot
     uint32_t         fg_history_curr;        // index (0..2) of the most-recent composited frame
-    uint32_t         fg_history_count;       // 0,1,2 — valid history frames
+    uint32_t         fg_history_count;       // 0,1,2,3 — valid history frames
     uint64_t         fg_present_count;       // actual vkQueuePresentKHR calls; guarded by queue_mutex
-    bool             fg_motion_valid;        // motion field current for the live history pair (reused across multi-interp)
+    bool             fg_motion_valid;        // backward flow current for the live pair (reused across multi-interp)
+    bool             fg_motion_fwd_valid;    // forward flow current — computed on the 2nd interp (Quality) to spread cost
+    bool             fg_deep_mode;           // quality pipeline: bidirectional warp (adds a forward flow)
+    bool             fg_extrapolate;         // false=interpolate, true=extrapolate forward
+    uint32_t         fg_target_fif;          // requested compositor frames-in-flight 1..3 (applied live)
     float            fg_occ_lo;              // interpolate.frag consistency lower bound (smoothness)
     float            fg_occ_hi;              // interpolate.frag consistency upper bound (smoothness)
     int32_t          fg_min_step;            // motion.comp lowest TSS step (quality preset; 1 = full search)
@@ -458,6 +467,9 @@ typedef struct VkRenderer {
     double           fg_t_sumsq_ms;
     double           fg_t_min_ms;
     double           fg_t_max_ms;
+    double           fg_fw_sum_ms;           // in_flight fence-wait telemetry (GL-thread block before present)
+    double           fg_fw_max_ms;
+    uint32_t         fg_fw_n;
     float            fg_dbg_phase[8];        // interp phases accumulated for the in-progress period
     float            fg_dbg_done[8];         // last completed period's phases (logged in telemetry)
     uint32_t         fg_dbg_n;

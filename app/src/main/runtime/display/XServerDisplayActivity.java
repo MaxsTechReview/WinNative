@@ -347,9 +347,46 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean hudCardExpanded = false;
     private boolean screenEffectsCardExpanded = false;
     private boolean frameGenerationEnabled = false;
+    // Frame generation settings persist per game (shortcut), not globally.
+    private String fgGameId() {
+        if (shortcut != null) {
+            String uuid = shortcut.getExtra("uuid", "");
+            if (!uuid.isEmpty()) return "s:" + uuid;
+            String path = getIntent().getStringExtra("shortcut_path");
+            if (path != null && !path.isEmpty()) return "p:" + Integer.toHexString(path.hashCode());
+        }
+        return container != null ? "c:" + container.id : "g";
+    }
+
+    private String fgKey(String base) {
+        return base + ":" + fgGameId();
+    }
+
+    private boolean fgPrefBool(String base, boolean def) {
+        String k = fgKey(base);
+        if (preferences.contains(k)) return preferences.getBoolean(k, def);
+        return preferences.getBoolean(base, def);
+    }
+
+    private int fgPrefInt(String base, int def) {
+        String k = fgKey(base);
+        if (preferences.contains(k)) return preferences.getInt(k, def);
+        return preferences.getInt(base, def);
+    }
+
+    private float fgPrefFloat(String base, float def) {
+        String k = fgKey(base);
+        if (preferences.contains(k)) return preferences.getFloat(k, def);
+        return preferences.getFloat(base, def);
+    }
+
     private int frameGenerationMultiplier = 2;
     private int frameGenerationQuality = 1;
-    private float frameGenerationSmoothing = 0.5f;
+    private float frameGenerationSmoothing = 0.75f;
+    private boolean frameGenerationDeepMode = true;
+    private boolean frameGenerationAdvanced = false;
+    private boolean frameGenerationExtrapolate = false;
+    private int frameGenerationFramesInFlight = 3;
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -600,6 +637,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String getShortcutWineVersionOverride() {
         if (shortcut == null || shortcutUsesContainerDefaults()) return "";
         return shortcut.getExtra("wineVersion");
+    }
+
+    // Coalesce FG target changes into a single panel re-pin once the rate settles (~600ms). The
+    // renderer throttles hints to 500ms, so this debounce (> that) absorbs a burst of rapid swaps
+    // and the unstable-startup rate wobble into one mode switch instead of one stall per change.
+    private final Runnable fgRepinRunnable = this::applyPreferredRefreshRate;
+
+    private void scheduleFgRefreshRepin() {
+        Handler h = handler;
+        if (h == null) { applyPreferredRefreshRate(); return; }
+        h.removeCallbacks(fgRepinRunnable);
+        h.postDelayed(fgRepinRunnable, 600L);
     }
 
     private void applyPreferredRefreshRate() {
@@ -3929,7 +3978,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 frameGenerationEnabled,
                 frameGenerationMultiplier,
                 frameGenerationQuality,
-                frameGenerationSmoothing
+                frameGenerationSmoothing,
+                frameGenerationDeepMode,
+                frameGenerationAdvanced,
+                frameGenerationExtrapolate,
+                frameGenerationFramesInFlight
         );
 
         if (drawerActionListener == null) {
@@ -4119,7 +4172,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onFrameGenerationEnabledChanged(boolean enabled) {
                         frameGenerationEnabled = enabled;
-                        preferences.edit().putBoolean("native_frame_generation", enabled).apply();
+                        preferences.edit().putBoolean(fgKey("native_frame_generation"), enabled).apply();
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) r.setFrameGeneration(enabled);
                         applyPreferredRefreshRate();
@@ -4129,7 +4182,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onFrameGenerationMultiplierSelected(int multiplier) {
                         frameGenerationMultiplier = multiplier;
-                        preferences.edit().putInt("frame_generation_multiplier", multiplier).apply();
+                        preferences.edit().putInt(fgKey("frame_generation_multiplier"), multiplier).apply();
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) r.setFrameGenerationMultiplier(multiplier);
                         applyPreferredRefreshRate();
@@ -4139,7 +4192,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onFrameGenerationQualitySelected(int quality) {
                         frameGenerationQuality = quality;
-                        preferences.edit().putInt("frame_generation_quality", quality).apply();
+                        preferences.edit().putInt(fgKey("frame_generation_quality"), quality).apply();
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) r.setFrameGenerationQuality(quality);
                         renderDrawerMenu();
@@ -4148,9 +4201,43 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onFrameGenerationSmoothingChanged(float smoothing) {
                         frameGenerationSmoothing = smoothing;
-                        preferences.edit().putFloat("frame_generation_smoothing", smoothing).apply();
+                        preferences.edit().putFloat(fgKey("frame_generation_smoothing"), smoothing).apply();
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) r.setFrameGenerationSmoothness(smoothing);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationDeepModeChanged(boolean deep) {
+                        frameGenerationDeepMode = deep;
+                        preferences.edit().putBoolean(fgKey("frame_generation_deep_mode"), deep).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationDeepMode(deep);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationAdvancedChanged(boolean advanced) {
+                        frameGenerationAdvanced = advanced;
+                        preferences.edit().putBoolean(fgKey("frame_generation_advanced"), advanced).apply();
+                        renderDrawerMenu();   // UI-only: reveals the advanced controls
+                    }
+
+                    @Override
+                    public void onFrameGenerationExtrapolateChanged(boolean extrapolate) {
+                        frameGenerationExtrapolate = extrapolate;
+                        preferences.edit().putBoolean(fgKey("frame_generation_extrapolate"), extrapolate).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationExtrapolate(extrapolate);
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationFramesInFlightChanged(int framesInFlight) {
+                        frameGenerationFramesInFlight = framesInFlight;
+                        preferences.edit().putInt(fgKey("frame_generation_fif"), framesInFlight).apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) r.setFrameGenerationFramesInFlight(framesInFlight);
                         renderDrawerMenu();
                     }
 
@@ -6069,16 +6156,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         renderer.setNativeMode(isNativeRenderingEnabled);
         renderer.setPresentMode(VulkanRenderer.parsePresentMode(
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("compositorPresentMode") : null));
-        frameGenerationEnabled = preferences.getBoolean("native_frame_generation", false);
-        frameGenerationMultiplier = preferences.getInt("frame_generation_multiplier", 2);
-        frameGenerationQuality = preferences.getInt("frame_generation_quality", 1);
-        frameGenerationSmoothing = preferences.getFloat("frame_generation_smoothing", 0.5f);
+        frameGenerationEnabled = fgPrefBool("native_frame_generation", false);
+        frameGenerationMultiplier = fgPrefInt("frame_generation_multiplier", 2);
+        frameGenerationQuality = fgPrefInt("frame_generation_quality", 1);
+        frameGenerationSmoothing = fgPrefFloat("frame_generation_smoothing", 0.75f);
+        frameGenerationDeepMode = fgPrefBool("frame_generation_deep_mode", true);
+        frameGenerationAdvanced = fgPrefBool("frame_generation_advanced", false);
+        frameGenerationExtrapolate = fgPrefBool("frame_generation_extrapolate", false);
+        frameGenerationFramesInFlight = fgPrefInt("frame_generation_fif", 3);
         renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
         renderer.setFrameGenerationQuality(frameGenerationQuality);
         renderer.setFrameGenerationSmoothness(frameGenerationSmoothing);
+        renderer.setFrameGenerationDeepMode(frameGenerationDeepMode);
+        renderer.setFrameGenerationExtrapolate(frameGenerationExtrapolate);
+        renderer.setFrameGenerationFramesInFlight(frameGenerationFramesInFlight);
         // Re-pin the window's preferred display mode whenever the measured FG target moves
         // (the window pin outranks surface frame-rate votes, so it must track the live target).
-        renderer.setFrameGenRateChangedListener(this::applyPreferredRefreshRate);
+        // Debounced: a physical mode switch (60/90/120) stalls the panel a frame or two, so rapid
+        // multiplier swaps and startup rate-wobble must coalesce into one switch, not one per change.
+        renderer.setFrameGenRateChangedListener(this::scheduleFgRefreshRepin);
         renderer.setFrameGeneration(frameGenerationEnabled);
 
         boolean swapRB = shortcut != null ? shortcut.getExtra("swapRB", "0").equals("1")

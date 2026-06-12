@@ -15,6 +15,7 @@ import com.winlator.cmod.runtime.display.xserver.extensions.SyncExtension;
 import com.winlator.cmod.runtime.display.xserver.extensions.XInput2Extension;
 import com.winlator.cmod.shared.android.CursorLocker;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -183,8 +184,9 @@ public class XServer {
     private final Lockable[] lockables;
 
     private MultiXLock(Lockable[] lockables) {
-      this.lockables = lockables;
-      for (Lockable lockable : lockables) locks.get(lockable).lock();
+      this.lockables = lockables.clone();
+      Arrays.sort(this.lockables);
+      for (Lockable lockable : this.lockables) locks.get(lockable).lock();
     }
 
     @Override

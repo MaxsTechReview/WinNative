@@ -5,7 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Process;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Surface;
@@ -69,18 +71,40 @@ public class VulkanRenderer
     private boolean fgPendingReal = false;   // a held real frame awaits its display tick
     private int fgPendingInterps = 0;        // interpolated frames still owed before the held real
     private int fgInterpTotal = 0;           // interps planned for the current engine frame (phase divisor)
+    private int fgSlotIdx = 0;               // display ticks since the newest real frame (slot-grid scheduler)
     private long fgEngineFrames = 0;         // count of held real frames since FG was enabled
     // EMAs of the pump (=panel) tick interval and the real game-frame interval.
     private volatile long fgDisplayPeriodNs = 0;
     private volatile long fgGamePeriodNs = 0;
+    // Locked game-rate estimate (Hz). The raw EMA jitters a few fps; ×multiplier amplifies that into a
+    // wide display-target swing that thrashes the panel-mode pin and the interp cadence. Hold a stable
+    // rate and only re-lock on a sustained change so a steady game produces a steady target.
+    private volatile double fgLockedGameHz = 0.0;
+    private int fgGameDriftFrames = 0;
     private long fgLastPumpNs = 0;
     private volatile long fgLastGameNs = 0;
     private volatile long fgPrevGameNs = 0;
+    private volatile long fgCurrentVsyncNs = 0; // latest vsync instant from the native pump (CLOCK_MONOTONIC)
+    private Drawable fgLastScanoutSrc = null;   // scanout buffer of the last ACCEPTED frame (dedup by identity)
+    private Drawable fgFirstScanoutSrc = null;  // first buffer ever seen (to detect a multi-buffer swapchain)
+    private boolean fgMultiBuffer = false;      // seen ≥2 distinct scanout buffers → identity dedup is trustworthy
+    private long fgLastAcceptNs = 0L;           // time of last ACCEPTED frame (freeze backstop reference)
+    private static final long FG_DEDUP_FREEZE_NS = 100_000_000L; // never drop for >100ms → genuine holds get through
+    // Present-pipeline instrumentation (diagnose slips when GPU+CPU both have headroom): per-present
+    // GL-thread record/submit wall-time, bucketed composite(HOLD) vs interp, + count over the vsync budget.
+    private boolean fgEmitWasHold = false;
+    private long fgInstHoldN, fgInstInterpN, fgInstLongN, fgInstTotalN;
+    private double fgInstHoldSum, fgInstInterpSum, fgInstHoldMax, fgInstInterpMax;
+    private boolean fgRenderPrioritySet = false;  // one-shot: elevate the GL present thread vs scheduling jitter
     private volatile int fgActivePresentMode = PRESENT_MODE_FIFO;  // resolved native mode (see nativeGetActivePresentMode)
     private volatile int fgDisplayCapHz = 0;  // panel-max ceiling for the target post rate; 0 = uncapped
     // Quality/smoothness, mapped to native shader knobs (motion search floor + interp consistency).
     private volatile int fgQuality = 1;      // 0 performance, 1 balanced, 2 quality
-    private volatile float fgSmoothness = 0.5f;
+    private volatile float fgSmoothness = 0.75f;
+    // Quality pipeline: bidirectional warp (adds a forward flow).
+    private volatile boolean fgDeepMode = false;
+    private volatile boolean fgExtrapolate = false;   // false = interpolate, true = extrapolate (predict forward)
+    private volatile int fgFramesInFlight = 3;         // compositor buffering depth (1..3): latency<->smoothness
     // Panel frame-rate request: surface vote here; the activity mirrors it into the window's
     // preferredDisplayModeId/preferredRefreshRate (which outrank surface votes) via the listener.
     private volatile Surface fgSurface;
@@ -150,6 +174,9 @@ public class VulkanRenderer
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    // FG pump runs on a dedicated native pthread (AChoreographer) — see nativeFgPumpStart in
+    // vk_renderer.c; it calls back into fgPumpTickFromNative each vsync.
+    private volatile boolean fgPumpStarted = false;
     private final AtomicBoolean renderRequested = new AtomicBoolean(false);
 
     // Reusable scratch — sized once, refilled per frame.
@@ -171,6 +198,7 @@ public class VulkanRenderer
             // LEAK FIX: Unregister from the persistent XServer to prevent "zombie" listeners
             xServer.windowManager.removeOnWindowModificationListener(this);
             xServer.pointer.removeOnPointerMotionListener(this);
+            stopFgPumpThread();
 
             if (nativeHandle != 0) {
                 // If we are on the UI thread, nativeDestroy (which might block on vkDeviceWaitIdle)
@@ -222,23 +250,38 @@ public class VulkanRenderer
         synchronized (this) {
             if (nativeHandle != 0) {
                 nativeSetFrameGeneration(nativeHandle, enabled);
-                // MAILBOX over-post holds the adaptive panel high; the native clock_nanosleep pacer spaces presents evenly.
-                nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_MAILBOX : requestedPresentMode);
+                // FIFO, not MAILBOX: with the panel pinned to the FG target (preferredDisplayModeId)
+                // the FIFO queue self-paces one present per vblank — nothing is ever replaced or
+                // dropped. Under MAILBOX a queued synthetic frame can be overwritten by the next
+                // present before scanout and never reach the panel.
+                nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_FIFO : requestedPresentMode);
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
             }
         }
         if (enabled) {
             pushFrameGenParams();
+            synchronized (this) {
+                if (nativeHandle != 0) nativeSetFrameGenDeepMode(nativeHandle, fgDeepMode);
+            }
             fgPendingReal = false;
             fgPendingInterps = 0;
             fgInterpTotal = 0;
             fgEngineFrames = 0;
+            fgCurrentVsyncNs = 0;
+            fgLastScanoutSrc = null;
+            fgFirstScanoutSrc = null;
+            fgMultiBuffer = false;
+            fgLastAcceptNs = 0L;
+            fgRenderPrioritySet = false;
+            fgLockedGameHz = 0.0;   // re-lock the game rate fresh for this session
+            fgGameDriftFrames = 0;
             fgNewScene.set(true);   // re-render current content as the first held frame
+            startFgPumpThread();
             scheduleFgPump();
         }
         // When disabled, the pump self-stops (fgPumpTick checks frameGenEnabled) and onDrawFrame
         // reverts to the coalesced real-present path.
-        if (!enabled) fgApplyFrameRateHint(0.0, System.nanoTime());
+        if (!enabled) { fgLockedGameHz = 0.0; fgApplyFrameRateHint(0.0, System.nanoTime()); stopFgPumpThread(); }
     }
 
     public boolean isFrameGenerationEnabled() { return frameGenEnabled; }
@@ -269,6 +312,46 @@ public class VulkanRenderer
 
     public float getFrameGenerationSmoothness() { return fgSmoothness; }
 
+    /**
+     * Pipeline mode. false = standard (single backward flow). true = quality (adds a forward flow
+     * for a bidirectional warp; same latency). Live.
+     */
+    public void setFrameGenerationDeepMode(boolean deep) {
+        fgDeepMode = deep;
+        synchronized (this) {
+            if (nativeHandle != 0) nativeSetFrameGenDeepMode(nativeHandle, deep);
+        }
+    }
+
+    public boolean isFrameGenerationDeepMode() { return fgDeepMode; }
+
+    /**
+     * Generation method. false = interpolation (between the two newest real frames; +1 frame latency).
+     * true = extrapolation (predict forward from the latest real frame; no added latency). Live.
+     */
+    public void setFrameGenerationExtrapolate(boolean extrapolate) {
+        fgExtrapolate = extrapolate;
+        synchronized (this) {
+            if (nativeHandle != 0) nativeSetFrameGenExtrapolate(nativeHandle, extrapolate);
+        }
+    }
+
+    public boolean isFrameGenerationExtrapolate() { return fgExtrapolate; }
+
+    /**
+     * Compositor frames-in-flight (1..3): the latency↔smoothness dial. Higher buffers more GPU work
+     * ahead (smoother under spikes, more latency); lower is more responsive. Irrelevant under
+     * extrapolation (no frames are held). Live.
+     */
+    public void setFrameGenerationFramesInFlight(int framesInFlight) {
+        fgFramesInFlight = framesInFlight < 1 ? 1 : (framesInFlight > 3 ? 3 : framesInFlight);
+        synchronized (this) {
+            if (nativeHandle != 0) nativeSetFrameGenFramesInFlight(nativeHandle, fgFramesInFlight);
+        }
+    }
+
+    public int getFrameGenerationFramesInFlight() { return fgFramesInFlight; }
+
     // Map quality preset + smoothness to the native interpolate.frag / motion.comp knobs.
     private void pushFrameGenParams() {
         float occHi = 0.12f + 0.28f * fgSmoothness;   // consistency window: wider == trusts motion more
@@ -286,17 +369,29 @@ public class VulkanRenderer
         }
     }
 
-    private void scheduleFgPump() {
-        if (!frameGenEnabled) return;
-        if (fgPumpScheduled.compareAndSet(false, true)) {
-            mainHandler.post(() -> Choreographer.getInstance().postFrameCallback(this::fgPumpTick));
-        }
+    private synchronized void startFgPumpThread() {
+        if (fgPumpStarted) return;
+        nativeFgPumpStart(this);      // dedicated native AChoreographer pthread; calls fgPumpTickFromNative
+        fgPumpStarted = true;
     }
 
-    // Free-running display-cadence pump: each tick wakes the render thread (onDrawFrame ->
-    // fgDrawFrame) and re-arms itself while FG is enabled.
-    private void fgPumpTick(long frameTimeNanos) {
-        fgPumpScheduled.set(false);
+    private synchronized void stopFgPumpThread() {
+        if (!fgPumpStarted) return;
+        fgPumpStarted = false;
+        fgLastPumpNs = 0L;
+        nativeFgPumpStop();
+    }
+
+    private void scheduleFgPump() {
+        // The native AChoreographer pump free-runs every vsync once started; just keep it alive (cheap
+        // flag check). Self-heals if a lifecycle race ever left it stopped while FG is on.
+        if (frameGenEnabled && !fgPumpStarted) startFgPumpThread();
+    }
+
+    // Invoked from the native pump thread once per vsync (frameTimeNanos = the vsync time). Does the FG
+    // display-rate timing + wakes the render thread (onDrawFrame -> fgDrawFrame). The native pump
+    // re-arms itself, so there is no re-schedule here. Keep this lightweight and exception-safe.
+    private void fgPumpTickFromNative(long frameTimeNanos) {
         if (!frameGenEnabled || nativeHandle == 0) return;
         // The swapchain may still be FIFO right after enable (surface not attached yet); re-read until
         // it resolves so the bootstrap engages at launch without a manual toggle.
@@ -316,45 +411,129 @@ public class VulkanRenderer
             }
         }
         fgLastPumpNs = frameTimeNanos;
+        fgCurrentVsyncNs = frameTimeNanos;   // anchor continuous-phase placement to the clean vsync grid
         xServerView.requestRender();
-        scheduleFgPump();
     }
 
     // Render-thread scheduler (DESIGN.md §2): emit enough presents per tick to sustain the target rate.
     private void fgDrawFrame() {
+        if (!fgRenderPrioritySet) {
+            // Elevate THIS (the GL present) thread to urgent-display so a brief preempt in the tiny
+            // record/submit window between vsync-acquires doesn't make it miss the next image → the slip.
+            try { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY); }
+            catch (Throwable t) { /* best-effort; capped by rlimit on some ROMs */ }
+            fgRenderPrioritySet = true;
+        }
         int perTick = fgComputePerTick();
-        for (int i = 0; i < perTick; i++) fgEmitOne();
+        for (int i = 0; i < perTick; i++) {
+            long t0 = System.nanoTime();
+            int kind = fgEmitOne();
+            if (kind != 0) fgInstrument((System.nanoTime() - t0) / 1000L, fgEmitWasHold);
+        }
     }
 
-    private void fgEmitOne() {
-        if (fgPendingInterps == 0 && !fgPendingReal) {
-            boolean newGame = fgNewScene.getAndSet(false);
-            boolean dirty = fgSceneDirty.getAndSet(false);
-            if (!newGame && !dirty) return;              // nothing changed — idle tick
+    // GL-thread wall-time spent recording+submitting one present, bucketed by whether it included the
+    // real-frame composite (HOLD). With hardware headroom, a present that takes >~8.31ms here is what
+    // makes the GL thread miss the next vsync (GLSurfaceView coalesces) → the slip. Reports every ~2s.
+    private void fgInstrument(long usCpu, boolean wasHold) {
+        double ms = usCpu / 1000.0;
+        if (wasHold) { fgInstHoldN++; fgInstHoldSum += ms; if (ms > fgInstHoldMax) fgInstHoldMax = ms; }
+        else         { fgInstInterpN++; fgInstInterpSum += ms; if (ms > fgInstInterpMax) fgInstInterpMax = ms; }
+        if (ms > 8.31) fgInstLongN++;
+        if (++fgInstTotalN >= 240) {
+            android.util.Log.i(TAG, String.format(java.util.Locale.US,
+                "FG cpu/present: composite n=%d mean=%.2f max=%.2f | interp n=%d mean=%.2f max=%.2f | over-budget=%d/%d",
+                fgInstHoldN, fgInstHoldN > 0 ? fgInstHoldSum / fgInstHoldN : 0.0, fgInstHoldMax,
+                fgInstInterpN, fgInstInterpN > 0 ? fgInstInterpSum / fgInstInterpN : 0.0, fgInstInterpMax,
+                fgInstLongN, fgInstTotalN));
+            fgInstHoldN = fgInstInterpN = fgInstLongN = fgInstTotalN = 0;
+            fgInstHoldSum = fgInstInterpSum = fgInstHoldMax = fgInstInterpMax = 0.0;
+        }
+    }
+
+    // Slot-grid placement: with the panel pinned to ~M x gameHz, each game period spans M display
+    // ticks. Tick k since the frame's arrival presents:
+    //   interpolation:  k = 0..M-2 -> interp at phase (k+1)/M;  k = M-1 -> the real frame, sharp
+    //                   (PRESENT_LAST blit, no resample).
+    //   extrapolation:  k = 0 -> the real frame immediately (no hold-back latency);
+    //                   k = 1..M-1 -> predict phase k/M past it along the motion field.
+    // Slot phases are deterministic: the vsync clock and the game-arrival clock are not phase-locked,
+    // so clock-derived phases inject per-slot bias. A continuous-phase fallback covers non-integer
+    // panel:game ratios (e.g. 29fps on 120Hz).
+    // Returns the present kind for instrumentation: 0 none, 1 synthesized, 2 real frame.
+    private int fgEmitOne() {
+        boolean newGame = fgNewScene.getAndSet(false);
+        boolean dirty   = fgSceneDirty.getAndSet(false);
+        fgEmitWasHold = newGame || dirty;
+        if (newGame || dirty) {
             buildAndSubmitFrame();                       // HOLD -> history[curr] (no present)
-            fgEngineFrames++;
-            // Interpolate only between real game frames; a cursor/UI-only change just recomposites.
-            int interps = (newGame && fgEngineFrames >= 2) ? fgComputeInterps() : 0;
-            fgInterpTotal = interps;
-            fgPendingInterps = interps;
-            fgPendingReal = true;
+            if (newGame) { fgEngineFrames++; fgSlotIdx = 0; }
         }
-        if (fgPendingInterps > 0) {
-            int k = fgInterpTotal - fgPendingInterps + 1;            // 1..fgInterpTotal
-            float phase = (float) k / (float) (fgInterpTotal + 1);   // even fallback; native refines from arrival times
-            nativeRenderInterp(nativeHandle, phase, fgPrevGameNs, fgLastGameNs);
-            fgPendingInterps--;
-        } else if (fgPendingReal) {
-            nativePresentLast(nativeHandle);                         // the held real frame
-            fgPendingReal = false;
+        if (!newGame) fgSlotIdx++;
+        long period = fgGamePeriodNs;
+        boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L
+                            && fgLastGameNs != 0L && fgPrevGameNs != 0L;
+        if (!canInterp) {
+            // Passthrough (1x) / bootstrap / no measured rate yet: show the latest real frame on each
+            // change (never post below native); nothing to interpolate.
+            if (newGame || dirty) { nativePresentLast(nativeHandle); return 2; }
+            return 0;
         }
+        if (dirty && !newGame) {
+            // Cursor/UI-only recomposite — show it sharply, don't morph it through the stale motion pair.
+            nativePresentLast(nativeHandle);
+            return 2;
+        }
+
+        long disp = fgDisplayPeriodNs;
+        double ratio = disp > 0L ? (double) period / (double) disp : 0.0;
+        int slots = (int) Math.round(ratio);
+        boolean gridOk = slots >= 2 && slots <= 8 && Math.abs(ratio - slots) < 0.10 * slots;
+        if (gridOk) {
+            // Honor the user's multiplier even if the panel pin hasn't (or can't) switch: cap the
+            // unique synthesized positions; surplus ticks just re-show the real frame.
+            if (slots > fgMultiplier) slots = fgMultiplier;
+            int k = fgSlotIdx;
+            if (k >= slots * 2) return 0;        // game stalled — hold the panel, save the GPU
+            if (fgExtrapolate) {
+                if (k == 0 || k >= slots) { nativePresentLast(nativeHandle); return 2; }
+                nativeRenderInterp(nativeHandle, (float) k / slots, fgPrevGameNs, fgLastGameNs);
+                return 1;
+            }
+            if (k >= slots - 1) { nativePresentLast(nativeHandle); return 2; }
+            nativeRenderInterp(nativeHandle, (float) (k + 1) / slots, fgPrevGameNs, fgLastGameNs);
+            return 1;
+        }
+
+        // Continuous-phase fallback: phase = (thisVsync − lastRealArrival) / gamePeriod.
+        long vsync = fgCurrentVsyncNs != 0L ? fgCurrentVsyncNs : System.nanoTime();
+        double phase = (double) (vsync - fgLastGameNs) / (double) period;
+        if (fgExtrapolate) {
+            if (newGame || phase >= 1.0) {
+                if (phase < 2.0 || newGame) { nativePresentLast(nativeHandle); return 2; }
+                return 0;
+            }
+            nativeRenderInterp(nativeHandle, (float) Math.max(0.001, phase), fgPrevGameNs, fgLastGameNs);
+            return 1;
+        }
+        if (phase < 1.0) {
+            nativeRenderInterp(nativeHandle, (float) Math.max(0.001, phase), fgPrevGameNs, fgLastGameNs);
+            return 1;
+        } else if (phase < 2.0) {
+            // Caught up to the newest real frame (or it arrived a little late) — show it sharply and fill
+            // the tick. Covering up to 2 periods past absorbs arrival jitter so a late frame leaves no gap.
+            nativePresentLast(nativeHandle);
+            return 2;
+        }
+        // else: game stalled >2 frames — let the panel hold the last frame (don't burn GPU on a freeze).
+        return 0;
     }
 
-    // Target FG post rate (Hz): multiplier × game rate, capped to the panel max. 0 if not measured.
+    // Target FG post rate (Hz): multiplier × locked game rate, capped to the panel max. 0 if not measured.
     private double fgTargetHz() {
-        long game = fgGamePeriodNs;
-        if (game <= 0L) return 0.0;
-        double target = Math.max(1, fgMultiplier) * (1.0e9 / (double) game);
+        double g = fgLockedGameHz;
+        if (g <= 0.0) return 0.0;
+        double target = Math.max(1, fgMultiplier) * g;
         if (fgDisplayCapHz > 0) target = Math.min(target, (double) fgDisplayCapHz);
         return target;
     }
@@ -370,8 +549,9 @@ public class VulkanRenderer
             int slots = (int) Math.floor((double) game / (double) disp + 1e-3);
             return Math.max(0, Math.min(maxInterps, slots - 1));
         }
-        // Non-blocking: post at the target rate so an adaptive-refresh panel ramps up to it.
-        double gameHz = 1.0e9 / (double) game;
+        // Non-blocking: post at the target rate so an adaptive-refresh panel ramps up to it. Use the
+        // locked game rate on both sides so the ratio is the stable multiplier, not per-frame jitter.
+        double gameHz = fgLockedGameHz > 0.0 ? fgLockedGameHz : 1.0e9 / (double) game;
         int interps = (int) Math.round(fgTargetHz() / gameHz) - 1;
         return Math.max(0, Math.min(maxInterps, interps));
     }
@@ -413,7 +593,8 @@ public class VulkanRenderer
         }
         fgFrameRateHint = rate;
         fgFrameRateHintNs = nowNs;
-        Log.i(TAG, "FG target display rate: " + (int) rate + "Hz");
+        Log.i(TAG, "FG target display rate: " + (int) rate + "Hz (game=" + Math.round(fgLockedGameHz)
+                + " x" + fgMultiplier + (fgDeepMode ? " quality" : " standard") + ")");
         Runnable l = fgRateChangedListener;
         if (l != null) l.run();
     }
@@ -464,11 +645,13 @@ public class VulkanRenderer
                 nativeSetPresentMode(nativeHandle, PRESENT_MODE_MAILBOX);  // over-post hold + native pacer
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
                 pushFrameGenParams();
+                nativeSetFrameGenDeepMode(nativeHandle, fgDeepMode);
                 fgPendingReal = false;
                 fgPendingInterps = 0;
                 fgInterpTotal = 0;
                 fgEngineFrames = 0;
                 fgNewScene.set(true);
+                startFgPumpThread();
                 scheduleFgPump();
             }
             destroyed.set(false);
@@ -836,11 +1019,47 @@ public class VulkanRenderer
             // This is an actual game-window frame (X11 Present / PutImage / MIT-SHM) — the only
             // signal that drives FG's hold+interpolate cadence. Cursor/Controls go through the
             // generic requestRenderCoalesced path and deliberately do not get counted here.
+
+            // De-DUPLICATE re-presented frames by SCANOUT-BUFFER IDENTITY. A game that vsyncs 30fps
+            // content at 60/90Hz re-presents the SAME swapchain pixmap; the FG would otherwise interpolate
+            // identical pairs into static holds (the [50,50,0,0] period-4 judder + duplicate frames the
+            // cadence audit + simulation both showed). The PRESENT extension just set the window's scanout
+            // source to this present's pixmap.drawable, so a present that re-points at the SAME object as
+            // the last ACCEPTED frame is a duplicate buffer → drop it. We compare object identity, not
+            // pixels (the pixmap is GPU-side, not CPU-readable here — that's what broke the hash version).
+            //   • Trust identity ONLY once we've seen ≥2 distinct buffers (a real swapchain). A single-
+            //     buffered game reuses one pixmap for fresh content, so identity would false-match — there
+            //     we DON'T dedup (front-loaded but never frozen) instead of starving the cadence.
+            //   • FREEZE BACKSTOP: never drop for >100ms, so a genuine hold/stall always gets through and
+            //     the output can never lock up (the failure mode of the reverted CPU-hash attempt).
+            Drawable scanoutNow = (window != null && window.getContent() != null)
+                    ? window.getContent().getScanoutSource() : null;
+            if (scanoutNow != null) {
+                if (fgFirstScanoutSrc == null) fgFirstScanoutSrc = scanoutNow;
+                else if (scanoutNow != fgFirstScanoutSrc) fgMultiBuffer = true;
+            }
             long now = System.nanoTime();
+            if (fgMultiBuffer && scanoutNow != null && scanoutNow == fgLastScanoutSrc
+                    && (now - fgLastAcceptNs) < FG_DEDUP_FREEZE_NS) {
+                return;   // duplicate buffer — ignore for the FG cadence (keep the real-frame clock)
+            }
+            fgLastScanoutSrc = scanoutNow;
+            fgLastAcceptNs = now;
+
             if (fgLastGameNs != 0L) {
                 long d = now - fgLastGameNs;
                 if (d > 0L && d < 500_000_000L) {
                     fgGamePeriodNs = fgGamePeriodNs == 0L ? d : fgGamePeriodNs + (d - fgGamePeriodNs) / 8L;
+                    // Hold the game-rate lock steady; re-lock only after a sustained (~24-frame) deviation
+                    // beyond 10% (or 2Hz), so a steady game yields a steady target instead of a jittery one.
+                    double inst = 1.0e9 / (double) fgGamePeriodNs;
+                    if (fgLockedGameHz <= 0.0) {
+                        fgLockedGameHz = inst;
+                    } else if (Math.abs(inst - fgLockedGameHz) > Math.max(2.0, 0.10 * fgLockedGameHz)) {
+                        if (++fgGameDriftFrames >= 24) { fgLockedGameHz = inst; fgGameDriftFrames = 0; }
+                    } else {
+                        fgGameDriftFrames = 0;
+                    }
                 }
             }
             fgPrevGameNs = fgLastGameNs;
@@ -1107,6 +1326,11 @@ public class VulkanRenderer
     private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs);
     private static native boolean nativePresentLast(long handle);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
+    private static native void nativeSetFrameGenDeepMode(long handle, boolean deep);
+    private static native void nativeSetFrameGenExtrapolate(long handle, boolean extrapolate);
+    private static native void nativeSetFrameGenFramesInFlight(long handle, int framesInFlight);
     private static native int nativeGetActivePresentMode(long handle);
     private static native void nativeSetVsyncTiming(long handle, long periodNs, long displayPeriodNs, long vsyncNs);
+    private static native void nativeFgPumpStart(Object renderer);   // native AChoreographer pump -> fgPumpTickFromNative
+    private static native void nativeFgPumpStop();
 }

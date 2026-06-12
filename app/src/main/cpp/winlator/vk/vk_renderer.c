@@ -19,6 +19,11 @@
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <android/choreographer.h>
+#include <android/looper.h>
+#include <pthread.h>
+#include <sys/prctl.h>
+#include <sys/resource.h>
 #include <dlfcn.h>
 #include <jni.h>
 #include <stdio.h>
@@ -629,7 +634,7 @@ static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity) {
     ps[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     ps[0].descriptorCount = capacity;
     ps[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    ps[1].descriptorCount = 8;
+    ps[1].descriptorCount = 16;   // backward + forward motion fields, 3 parities each
 
     VkDescriptorPoolCreateInfo ci = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     ci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -813,16 +818,16 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
-    // interpolate.frag set 0: prev,curr,motion combined-image-samplers, FRAGMENT.
-    VkDescriptorSetLayoutBinding ib[3] = {0};
-    for (uint32_t i = 0; i < 3; i++) {
+    // interpolate.frag set 0: prev,curr,mvBwd,mvFwd combined-image-samplers, FRAGMENT.
+    VkDescriptorSetLayoutBinding ib[4] = {0};
+    for (uint32_t i = 0; i < 4; i++) {
         ib[i].binding = i;
         ib[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         ib[i].descriptorCount = 1;
         ib[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
     VkDescriptorSetLayoutCreateInfo dl_i = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dl_i.bindingCount = 3; dl_i.pBindings = ib;
+    dl_i.bindingCount = 4; dl_i.pBindings = ib;
     if (vkCreateDescriptorSetLayout(r->device, &dl_i, NULL, &r->pipelines.fg_interp_layout) != VK_SUCCESS) {
         return false;
     }
@@ -1271,6 +1276,10 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
             caps.currentTransform, pre_transform, present_mode);
 
     uint32_t image_count = caps.minImageCount + 1;
+    // FG runs VK_FRAMES_IN_FLIGHT frames CPU-ahead of the GPU; the swapchain needs at least one more
+    // image than that (FIF in flight + 1 scanning out) or vkAcquireNextImageKHR blocks and defeats the
+    // pipelining — even under FIFO. This is what lets FIF=3 absorb the GPU's per-frame composite spikes.
+    if (image_count < VK_FRAMES_IN_FLIGHT + 1u) image_count = VK_FRAMES_IN_FLIGHT + 1u;
     // Non-blocking modes (MAILBOX/IMMEDIATE) need headroom so FG interps aren't dropped at acquire.
     if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 4) image_count = 4;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
@@ -2050,11 +2059,21 @@ static void record_scene_chain(VkRenderer* r, VkCommandBuffer cmd, const VkScene
     }
 }
 
+// Live frames-in-flight (the drawer's Buffering dial). All VK_FRAMES_IN_FLIGHT frame slots stay
+// allocated; only the rotation depth changes, so applying a new value needs no rebuild. Lower depth
+// = the CPU waits on the GPU sooner = less buffered latency, more exposure to GPU spikes.
+static inline uint32_t vkr_active_fif(VkRenderer* r) {
+    uint32_t fif = r->fg_target_fif;
+    if (fif < 1u || fif > VK_FRAMES_IN_FLIGHT) fif = VK_FRAMES_IN_FLIGHT;
+    return fif;
+}
+
 static bool record_and_submit_frame(VkRenderer* r) {
     if (!r->surface_ready || !r->swapchain) return false;
 
     pthread_mutex_lock(&r->render_mutex);
 
+    if (r->frame_index >= vkr_active_fif(r)) r->frame_index = 0;  // live Buffering shrink
     VkFrame* f = &r->frames[r->frame_index];
     uint32_t grave_slot = r->graveyard_index;
 
@@ -2167,7 +2186,7 @@ static bool record_and_submit_frame(VkRenderer* r) {
 
     pthread_mutex_unlock(&r->render_mutex);
 
-    r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
+    r->frame_index = (r->frame_index + 1) % vkr_active_fif(r);
     r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
 
     return true;
@@ -2203,7 +2222,9 @@ static void fg_destroy_resources(VkRenderer* r) {
     if (!r->device) return;
     for (uint32_t p = 0; p < 3; p++) {
         if (r->fg_motion_set[p]) { fg_free_set(r, r->fg_motion_set[p]); r->fg_motion_set[p] = VK_NULL_HANDLE; }
+        if (r->fg_motion_set_fwd[p]) { fg_free_set(r, r->fg_motion_set_fwd[p]); r->fg_motion_set_fwd[p] = VK_NULL_HANDLE; }
         if (r->fg_interp_set[p]) { fg_free_set(r, r->fg_interp_set[p]); r->fg_interp_set[p] = VK_NULL_HANDLE; }
+        if (r->fg_interp_set_deep[p]) { fg_free_set(r, r->fg_interp_set_deep[p]); r->fg_interp_set_deep[p] = VK_NULL_HANDLE; }
     }
     memset(r->fg_slot_fence, 0, sizeof(r->fg_slot_fence));
     for (uint32_t i = 0; i < 3; i++) {
@@ -2215,10 +2236,18 @@ static void fg_destroy_resources(VkRenderer* r) {
         if (o->memory)      vkFreeMemory(r->device, o->memory, NULL);
         memset(o, 0, sizeof(*o));
     }
-    if (r->fg_motion.view)   vkDestroyImageView(r->device, r->fg_motion.view, NULL);
-    if (r->fg_motion.image)  vkDestroyImage(r->device, r->fg_motion.image, NULL);
-    if (r->fg_motion.memory) vkFreeMemory(r->device, r->fg_motion.memory, NULL);
-    memset(&r->fg_motion, 0, sizeof(r->fg_motion));
+    for (uint32_t mi = 0; mi < 3; mi++) {
+        VkFgImage* m = &r->fg_motion[mi];
+        if (m->view)   vkDestroyImageView(r->device, m->view, NULL);
+        if (m->image)  vkDestroyImage(r->device, m->image, NULL);
+        if (m->memory) vkFreeMemory(r->device, m->memory, NULL);
+        VkFgImage* mf = &r->fg_motion_fwd[mi];
+        if (mf->view)   vkDestroyImageView(r->device, mf->view, NULL);
+        if (mf->image)  vkDestroyImage(r->device, mf->image, NULL);
+        if (mf->memory) vkFreeMemory(r->device, mf->memory, NULL);
+    }
+    memset(r->fg_motion, 0, sizeof(r->fg_motion));
+    memset(r->fg_motion_fwd, 0, sizeof(r->fg_motion_fwd));
     if (r->fg_sampler) { vkDestroySampler(r->device, r->fg_sampler, NULL); r->fg_sampler = VK_NULL_HANDLE; }
     r->fg_built = false;
     r->fg_history_count = 0;
@@ -2273,9 +2302,8 @@ static bool fg_create_color_target(VkRenderer* r, VkFgImage* o, uint32_t w, uint
     return true;
 }
 
-// Half-res rgba16f backward-flow field: storage (motion.comp write) + sampled (interpolate.frag).
-static bool fg_create_motion(VkRenderer* r, uint32_t w, uint32_t h) {
-    VkFgImage* o = &r->fg_motion;
+// Half-res rgba16f flow field: storage (motion.comp write) + sampled (interpolate.frag).
+static bool fg_create_motion(VkRenderer* r, VkFgImage* o, uint32_t w, uint32_t h) {
     o->width = w; o->height = h; o->framebuffer = VK_NULL_HANDLE;
     VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     ic.imageType = VK_IMAGE_TYPE_2D;
@@ -2314,13 +2342,21 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     if (!fg_create_color_target(r, &r->fg_history[0], w, h)) goto fail;
     if (!fg_create_color_target(r, &r->fg_history[1], w, h)) goto fail;
     if (!fg_create_color_target(r, &r->fg_history[2], w, h)) goto fail;
-    if (!fg_create_motion(r, (w / 2) ? (w / 2) : 1u, (h / 2) ? (h / 2) : 1u)) goto fail;
+    {
+        uint32_t mw = (w / 2) ? (w / 2) : 1u, mh = (h / 2) ? (h / 2) : 1u;
+        for (uint32_t mi = 0; mi < 3; mi++) {
+            if (!fg_create_motion(r, &r->fg_motion[mi], mw, mh)) goto fail;
+            if (!fg_create_motion(r, &r->fg_motion_fwd[mi], mw, mh)) goto fail;
+        }
+    }
     memset(r->fg_slot_fence, 0, sizeof(r->fg_slot_fence));
 
     for (uint32_t p = 0; p < 3; p++) {
         r->fg_motion_set[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
+        r->fg_motion_set_fwd[p] = fg_alloc_set(r, r->pipelines.fg_motion_layout);
         r->fg_interp_set[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
-        if (!r->fg_motion_set[p] || !r->fg_interp_set[p]) goto fail;
+        r->fg_interp_set_deep[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
+        if (!r->fg_motion_set[p] || !r->fg_motion_set_fwd[p] || !r->fg_interp_set[p] || !r->fg_interp_set_deep[p]) goto fail;
 
         VkImageView prevV = r->fg_history[(p + 2u) % 3u].view;  // curr=history[p], prev=history[(p+2)%3]
         VkImageView currV = r->fg_history[p].view;
@@ -2328,7 +2364,7 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         // motion.comp set: b0 prev (sampled), b1 curr (sampled), b2 motion (storage, GENERAL)
         VkDescriptorImageInfo mPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo mCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-        VkDescriptorImageInfo mMv   = { VK_NULL_HANDLE, r->fg_motion.view, VK_IMAGE_LAYOUT_GENERAL };
+        VkDescriptorImageInfo mMv   = { VK_NULL_HANDLE, r->fg_motion[p].view, VK_IMAGE_LAYOUT_GENERAL };
         VkWriteDescriptorSet mw_[3] = {0};
         for (int b = 0; b < 3; b++) { mw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; mw_[b].dstSet = r->fg_motion_set[p]; mw_[b].dstBinding = (uint32_t)b; mw_[b].descriptorCount = 1; }
         mw_[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; mw_[0].pImageInfo = &mPrev;
@@ -2336,20 +2372,43 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         mw_[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;          mw_[2].pImageInfo = &mMv;
         vkUpdateDescriptorSets(r->device, 3, mw_, 0, NULL);
 
-        // interpolate.frag set: b0 prev, b1 curr, b2 motion — all sampled (SHADER_READ).
-        VkDescriptorImageInfo iPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-        VkDescriptorImageInfo iCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-        VkDescriptorImageInfo iMv   = { r->fg_sampler, r->fg_motion.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-        VkWriteDescriptorSet iw_[3] = {0};
-        for (int b = 0; b < 3; b++) { iw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; iw_[b].dstSet = r->fg_interp_set[p]; iw_[b].dstBinding = (uint32_t)b; iw_[b].descriptorCount = 1; iw_[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; }
-        iw_[0].pImageInfo = &iPrev; iw_[1].pImageInfo = &iCurr; iw_[2].pImageInfo = &iMv;
-        vkUpdateDescriptorSets(r->device, 3, iw_, 0, NULL);
+        // forward motion set: prev/curr SWAPPED so motion.comp emits the prev->curr flow into fg_motion_fwd.
+        VkDescriptorImageInfo fPrev = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo fCurr = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo fMv   = { VK_NULL_HANDLE, r->fg_motion_fwd[p].view, VK_IMAGE_LAYOUT_GENERAL };
+        VkWriteDescriptorSet fw_[3] = {0};
+        for (int b = 0; b < 3; b++) { fw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; fw_[b].dstSet = r->fg_motion_set_fwd[p]; fw_[b].dstBinding = (uint32_t)b; fw_[b].descriptorCount = 1; }
+        fw_[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; fw_[0].pImageInfo = &fPrev;
+        fw_[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; fw_[1].pImageInfo = &fCurr;
+        fw_[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;          fw_[2].pImageInfo = &fMv;
+        vkUpdateDescriptorSets(r->device, 3, fw_, 0, NULL);
+
+        // interpolate.frag set: b0 prev, b1 curr, b2 mvBwd, b3 mvFwd — all sampled (SHADER_READ).
+        // Standard binds fg_motion as the (unread) b3 dummy; deep binds the real forward field.
+        VkDescriptorImageInfo iPrev  = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iCurr  = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iMv    = { r->fg_sampler, r->fg_motion[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo iMvFwd = { r->fg_sampler, r->fg_motion_fwd[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkWriteDescriptorSet iw_[4] = {0};
+        for (int b = 0; b < 4; b++) { iw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; iw_[b].dstSet = r->fg_interp_set[p]; iw_[b].dstBinding = (uint32_t)b; iw_[b].descriptorCount = 1; iw_[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; }
+        iw_[0].pImageInfo = &iPrev; iw_[1].pImageInfo = &iCurr; iw_[2].pImageInfo = &iMv; iw_[3].pImageInfo = &iMv;
+        vkUpdateDescriptorSets(r->device, 4, iw_, 0, NULL);
+
+        // Quality interp set: same newest pair as Standard, but bidirectional — b2 backward
+        // (fg_motion) + b3 forward (fg_motion_fwd), both computed in-path (lazy) each pair.
+        VkDescriptorImageInfo dPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkDescriptorImageInfo dCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkWriteDescriptorSet dw_[4] = {0};
+        for (int b = 0; b < 4; b++) { dw_[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; dw_[b].dstSet = r->fg_interp_set_deep[p]; dw_[b].dstBinding = (uint32_t)b; dw_[b].descriptorCount = 1; dw_[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; }
+        dw_[0].pImageInfo = &dPrev; dw_[1].pImageInfo = &dCurr; dw_[2].pImageInfo = &iMv; dw_[3].pImageInfo = &iMvFwd;
+        vkUpdateDescriptorSets(r->device, 4, dw_, 0, NULL);
     }
 
     r->fg_dims.width = w; r->fg_dims.height = h;
     r->fg_history_curr = 0;
     r->fg_history_count = 0;
     r->fg_motion_valid = false;   // freshly created motion image — force a recompute before reuse
+    r->fg_motion_fwd_valid = false;
     r->fg_built = true;
     return true;
 
@@ -2471,8 +2530,12 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         return false;
     }
 
+    if (r->frame_index >= vkr_active_fif(r)) r->frame_index = 0;  // live Buffering shrink
     VkFrame* f = &r->frames[r->frame_index];
+    uint64_t fw0 = now_monotonic_ns();
     vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
+    { double fw = (double)(now_monotonic_ns() - fw0) / 1.0e6;   // GL-thread block on the FIF=2 in_flight fence
+      r->fg_fw_sum_ms += fw; if (fw > r->fg_fw_max_ms) r->fg_fw_max_ms = fw; r->fg_fw_n++; }
 
     if (!fg_ensure_resources(r)) { pthread_mutex_unlock(&r->render_mutex); return false; }
 
@@ -2515,17 +2578,21 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         }
         r->fg_history_curr = next;
         r->fg_slot_fence[next] = f->in_flight;
-        if (r->fg_history_count < 2) r->fg_history_count++;
+        if (r->fg_history_count < 3) r->fg_history_count++;
         r->fg_motion_valid = false;   // new history pair — flow must be recomputed on the next interp
+        r->fg_motion_fwd_valid = false;
         g_fg_holds++;
         pthread_mutex_unlock(&r->render_mutex);
-        r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
+        r->frame_index = (r->frame_index + 1) % vkr_active_fif(r);
         r->graveyard_index = (r->graveyard_index + 1) % (VK_FRAMES_IN_FLIGHT + 1);
         return true;
     }
 
     // -------- INTERP / PRESENT_LAST: acquire swapchain image, present --------
-    bool do_interp = (mode == FG_MODE_INTERP) && (r->fg_history_count >= 2);
+    // Quality (deep flag) interpolates the same newest pair as Standard, adding a forward flow
+    // for a bidirectional warp; the flow cost is amortized across the pair's interps.
+    bool deep = r->fg_deep_mode && (r->fg_history_count >= 2u);
+    bool do_interp = (mode == FG_MODE_INTERP) && (r->fg_history_count >= 2u);
 
     // Interps are optional: under a non-blocking mode acquire without waiting, so a panel that can't run
     // ahead skips the synthetic frame instead of stalling. PRESENT_LAST always blocks (never dropped).
@@ -2560,8 +2627,11 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     vkResetFences(r->device, 1, &f->in_flight);
 
     uint32_t parity = r->fg_history_curr;
+    // Both modes show the newest pair (history[(parity+2)%3] -> history[parity]); curr is the frame
+    // PRESENT_LAST blits. Quality differs only by adding the forward flow + bidirectional warp below.
+    uint32_t curr_idx = parity;
     uint32_t prev_idx = (parity + 2u) % 3u;
-    VkFgImage* curr = &r->fg_history[parity];
+    VkFgImage* curr = &r->fg_history[curr_idx];
 
     // Advance the vsync-aligned present deadline for the pacer (fg_sleep_to_deadline). The interp phase
     // is left as the cadence's k/(N+1): an even interior position, never a real-frame endpoint. A
@@ -2582,10 +2652,18 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
 
     if (do_interp) {
         VkFgImage* prev = &r->fg_history[prev_idx];
-        // Make the HOLD color writes visible to the reads below (compute when recomputing flow,
-        // else just the fragment interp draw).
-        VkPipelineStageFlags hist_dst = r->fg_motion_valid
-            ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        // First interp of each pair recomputes the flow in-path (lazy); later interps reuse it.
+        // Make the HOLD color writes visible to the reads below (compute when recomputing, else the
+        // fragment interp draw).
+        bool compute_bwd = !r->fg_motion_valid;
+        // Forward flow (Quality): on the first interp whose phase reaches mid-pair. At 3x/4x that is
+        // the pair's second interp, spreading the two searches across two presents so no single
+        // present carries both under tight 90/120Hz budgets. At 2x there is only one interp
+        // (phase 0.5), so both searches share its command buffer — affordable in a 60Hz slot.
+        bool compute_fwd = deep && !r->fg_extrapolate && !r->fg_motion_fwd_valid && phase >= 0.45f;
+        bool any_compute = compute_bwd || compute_fwd;
+        VkPipelineStageFlags hist_dst = any_compute
+            ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         vkr_image_barrier(f->cmd, prev->image,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
@@ -2594,33 +2672,55 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-        if (!r->fg_motion_valid) {
-            // motion field -> GENERAL, dispatch block matching (wait for the prior pair's interp reads).
-            vkr_image_barrier(f->cmd, r->fg_motion.image,
+        struct { int32_t mvW, mvH; float invW, invH, mvScale, minStep, p1, p2; } mpc;
+        mpc.mvW = (int32_t)r->fg_motion[parity].width;  mpc.mvH = (int32_t)r->fg_motion[parity].height;
+        mpc.invW = 1.0f / (float)r->fg_motion[parity].width;
+        mpc.invH = 1.0f / (float)r->fg_motion[parity].height;
+        mpc.mvScale = 1.0f; mpc.minStep = (float)r->fg_min_step; mpc.p1 = mpc.p2 = 0.0f;
+        if (compute_bwd) {
+            // Backward flow (curr->prev) -> fg_motion[parity], 1st interp of the pair (both modes).
+            vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 0, VK_ACCESS_SHADER_WRITE_BIT);
             vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipeline);
             vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
                 r->pipelines.fg_motion_pipe_layout, 0, 1, &r->fg_motion_set[parity], 0, NULL);
-            struct { int32_t mvW, mvH; float invW, invH, mvScale, minStep, p1, p2; } mpc;
-            mpc.mvW = (int32_t)r->fg_motion.width;  mpc.mvH = (int32_t)r->fg_motion.height;
-            mpc.invW = 1.0f / (float)r->fg_motion.width;
-            mpc.invH = 1.0f / (float)r->fg_motion.height;
-            mpc.mvScale = 1.0f; mpc.minStep = (float)r->fg_min_step; mpc.p1 = mpc.p2 = 0.0f;
             vkCmdPushConstants(f->cmd, r->pipelines.fg_motion_pipe_layout, VK_SHADER_STAGE_COMPUTE_BIT,
                                0, sizeof(mpc), &mpc);
-            vkCmdDispatch(f->cmd, (r->fg_motion.width + 7u) / 8u, (r->fg_motion.height + 7u) / 8u, 1);
-            // motion field -> SHADER_READ for the interpolation draw.
-            vkr_image_barrier(f->cmd, r->fg_motion.image,
+            vkCmdDispatch(f->cmd, (r->fg_motion[parity].width + 7u) / 8u, (r->fg_motion[parity].height + 7u) / 8u, 1);
+            vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
                 VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
             r->fg_motion_valid = true;
         } else {
-            // Flow reused from this pair's first interp (multi-frame 4x/6x). Re-establish the
-            // compute-write -> fragment-read dependency in this submit; no layout change.
-            vkr_image_barrier(f->cmd, r->fg_motion.image,
+            // Backward flow reused (later interps of the pair). Re-establish compute-write -> fragment-read.
+            vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        }
+        if (compute_fwd) {
+            // Quality forward flow (prev->curr) -> fg_motion_fwd[parity].
+            vkr_image_barrier(f->cmd, r->fg_motion_fwd[parity].image,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                0, VK_ACCESS_SHADER_WRITE_BIT);
+            vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, r->pipelines.fg_motion_pipeline);
+            vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+                r->pipelines.fg_motion_pipe_layout, 0, 1, &r->fg_motion_set_fwd[parity], 0, NULL);
+            vkCmdPushConstants(f->cmd, r->pipelines.fg_motion_pipe_layout, VK_SHADER_STAGE_COMPUTE_BIT,
+                               0, sizeof(mpc), &mpc);
+            vkCmdDispatch(f->cmd, (r->fg_motion_fwd[parity].width + 7u) / 8u, (r->fg_motion_fwd[parity].height + 7u) / 8u, 1);
+            vkr_image_barrier(f->cmd, r->fg_motion_fwd[parity].image,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            r->fg_motion_fwd_valid = true;
+        } else if (deep && r->fg_motion_fwd_valid) {
+            // Forward flow reused. Re-establish its compute-write -> fragment-read dep.
+            vkr_image_barrier(f->cmd, r->fg_motion_fwd[parity].image,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
@@ -2643,11 +2743,17 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
 
     if (do_interp) {
         vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.fg_interp_pipeline);
+        // Bidirectional only once the forward flow is ready (2nd interp onward); the 1st interp of a
+        // Quality pair runs single-direction (like Standard) while the forward search is still pending.
+        // Extrapolation overrides both: single-image forward warp along the backward flow (mode 2).
+        bool use_fwd = deep && r->fg_motion_fwd_valid && !r->fg_extrapolate;
         vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            r->pipelines.fg_interp_pipe_layout, 0, 1, &r->fg_interp_set[parity], 0, NULL);
-        struct { float resW, resH, phase, occLo, occHi, pad; } ipc;
+            r->pipelines.fg_interp_pipe_layout, 0, 1,
+            use_fwd ? &r->fg_interp_set_deep[parity] : &r->fg_interp_set[parity], 0, NULL);
+        struct { float resW, resH, phase, occLo, occHi, mode; } ipc;
         ipc.resW = (float)r->swapchain_extent.width; ipc.resH = (float)r->swapchain_extent.height;
-        ipc.phase = phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi; ipc.pad = 0.0f;
+        ipc.phase = phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi;
+        ipc.mode = r->fg_extrapolate ? 2.0f : (use_fwd ? 1.0f : 0.0f);
         vkCmdPushConstants(f->cmd, r->pipelines.fg_interp_pipe_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(ipc), &ipc);
         vkCmdDraw(f->cmd, 3, 1, 0, 0);
@@ -2676,7 +2782,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         pthread_mutex_unlock(&r->render_mutex);
         return false;
     }
-    r->fg_slot_fence[parity] = f->in_flight;
+    r->fg_slot_fence[curr_idx] = f->in_flight;
     if (do_interp) r->fg_slot_fence[prev_idx] = f->in_flight;
 
     VkPresentInfoKHR pinfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -2706,9 +2812,13 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
                     (unsigned long long)g_fg_holds, (unsigned long long)g_fg_interp,
                     (unsigned long long)g_fg_plast, (unsigned long long)g_fg_dropped,
                     (unsigned long long)r->fg_present_count);
-            VK_LOGI("FG timing: n=%u mean=%.2fms cov=%.0f%% min=%.2f max=%.2f",
+            VK_LOGI("FG timing: n=%u mean=%.2fms cov=%.0f%% min=%.2f max=%.2f [%s]",
                     r->fg_t_count, mean, mean > 0.0 ? 100.0 * sd / mean : 0.0,
-                    r->fg_t_count ? r->fg_t_min_ms : 0.0, r->fg_t_count ? r->fg_t_max_ms : 0.0);
+                    r->fg_t_count ? r->fg_t_min_ms : 0.0, r->fg_t_count ? r->fg_t_max_ms : 0.0,
+                    r->fg_deep_mode ? "quality" : "standard");
+            VK_LOGI("FG fence-wait: n=%u mean=%.3fms max=%.3fms (GL-thread block on in_flight before present)",
+                    r->fg_fw_n, r->fg_fw_n ? r->fg_fw_sum_ms / r->fg_fw_n : 0.0, r->fg_fw_max_ms);
+            r->fg_fw_sum_ms = 0.0; r->fg_fw_max_ms = 0.0; r->fg_fw_n = 0;
             char pbuf[64]; int poff = 0;
             for (uint32_t i = 0; i < r->fg_dbg_done_n && i < 8u; i++)
                 poff += snprintf(pbuf + poff, sizeof(pbuf) - (size_t)poff, "%.2f ", r->fg_dbg_done[i]);
@@ -2728,7 +2838,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         r->surface_ready = create_swapchain(r, r->surface_extent.width, r->surface_extent.height);
     }
     pthread_mutex_unlock(&r->render_mutex);
-    r->frame_index = (r->frame_index + 1) % VK_FRAMES_IN_FLIGHT;
+    r->frame_index = (r->frame_index + 1) % vkr_active_fif(r);
     return true;
 }
 
@@ -2737,6 +2847,71 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
 // ============================================================
 
 #define JNI_FN(name) Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_##name
+
+// ===== Native FG pump =================================================================
+// A native pthread running its own ALooper + AChoreographer: no Java Looper/HandlerThread
+// lifecycle to lose, vsync-accurate. Each vsync it calls back into
+// VulkanRenderer.fgPumpTickFromNative(frameTimeNanos); the present stays on the GL thread.
+static JavaVM*         g_pump_jvm = NULL;
+static jobject         g_pump_renderer = NULL;   // global ref to the VulkanRenderer instance
+static jmethodID       g_pump_tick = NULL;
+static pthread_t       g_pump_thread;
+static volatile int    g_pump_running = 0;
+static AChoreographer* g_pump_chor = NULL;
+
+static void fg_pump_frame(long frameTimeNanos, void* data) {
+    (void)data;
+    if (!g_pump_running) return;
+    JNIEnv* env = NULL;
+    if ((*g_pump_jvm)->GetEnv(g_pump_jvm, (void**)&env, JNI_VERSION_1_6) == JNI_OK
+        && env && g_pump_renderer && g_pump_tick) {
+        (*env)->CallVoidMethod(env, g_pump_renderer, g_pump_tick, (jlong)frameTimeNanos);
+        if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    }
+    if (g_pump_running && g_pump_chor)
+        AChoreographer_postFrameCallback(g_pump_chor, fg_pump_frame, NULL);
+}
+
+static void* fg_pump_loop(void* arg) {
+    (void)arg;
+    prctl(PR_SET_NAME, "fg-pump", 0, 0, 0);   // visible in /proc/<pid>/task/*/comm for verification
+    setpriority(PRIO_PROCESS, 0, -8);         // urgent-display: fire the vsync callback without scheduling lag
+    JNIEnv* env = NULL;
+    (*g_pump_jvm)->AttachCurrentThread(g_pump_jvm, &env, NULL);
+    ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+    g_pump_chor = AChoreographer_getInstance();
+    if (g_pump_chor) AChoreographer_postFrameCallback(g_pump_chor, fg_pump_frame, NULL);
+    else VK_LOGE("AChoreographer_getInstance returned NULL");
+    while (g_pump_running) ALooper_pollOnce(100, NULL, NULL, NULL);  // vsync wakes it; 100ms re-checks running
+    g_pump_chor = NULL;
+    (*g_pump_jvm)->DetachCurrentThread(g_pump_jvm);
+    return NULL;
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeFgPumpStart)(JNIEnv* env, jclass clazz, jobject renderer) {
+    (void)clazz;
+    if (g_pump_running) return;
+    (*env)->GetJavaVM(env, &g_pump_jvm);
+    g_pump_renderer = (*env)->NewGlobalRef(env, renderer);
+    jclass rc = (*env)->GetObjectClass(env, renderer);
+    g_pump_tick = (*env)->GetMethodID(env, rc, "fgPumpTickFromNative", "(J)V");
+    if (!g_pump_tick) { VK_LOGE("fgPumpTickFromNative(J)V not found"); return; }
+    g_pump_running = 1;
+    if (pthread_create(&g_pump_thread, NULL, fg_pump_loop, NULL) != 0) {
+        g_pump_running = 0; VK_LOGE("native fg-pump pthread_create failed"); return;
+    }
+    VK_LOGI("native fg-pump started (AChoreographer pthread)");
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeFgPumpStop)(JNIEnv* env, jclass clazz) {
+    (void)clazz;
+    if (!g_pump_running) return;
+    g_pump_running = 0;
+    pthread_join(g_pump_thread, NULL);
+    if (g_pump_renderer) { (*env)->DeleteGlobalRef(env, g_pump_renderer); g_pump_renderer = NULL; }
+    g_pump_tick = NULL;
+    VK_LOGI("native fg-pump stopped");
+}
 
 JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
                                               jboolean enableValidationLayers,
@@ -3053,6 +3228,46 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenParams)(JNIEnv* env, jclass clazz
     r->fg_occ_lo = lo;
     r->fg_occ_hi = hi;
     r->fg_min_step = minStep < 1 ? 1 : (minStep > 8 ? 8 : minStep);
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenDeepMode)(JNIEnv* env, jclass clazz, jlong handle, jboolean deep) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    bool want = deep ? true : false;
+    if (want == r->fg_deep_mode) return;
+    pthread_mutex_lock(&r->render_mutex);
+    r->fg_deep_mode = want;
+    // Restart the cadence cleanly so the new mode warms up from scratch (a brief re-prime).
+    r->fg_history_count = 0;
+    r->fg_motion_valid = false;
+    r->fg_motion_fwd_valid = false;
+    pthread_mutex_unlock(&r->render_mutex);
+}
+
+// Generation method: false = interpolation, true = extrapolation. Re-primes the cadence so the
+// new method starts from a clean pair.
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenExtrapolate)(JNIEnv* env, jclass clazz, jlong handle, jboolean extrapolate) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    bool want = extrapolate ? true : false;
+    if (want == r->fg_extrapolate) return;
+    pthread_mutex_lock(&r->render_mutex);
+    r->fg_extrapolate = want;
+    r->fg_history_count = 0;
+    r->fg_motion_valid = false;
+    r->fg_motion_fwd_valid = false;
+    pthread_mutex_unlock(&r->render_mutex);
+}
+
+// Requested compositor frames-in-flight (1..3); applied live via the frame-slot rotation depth.
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenFramesInFlight)(JNIEnv* env, jclass clazz, jlong handle, jint framesInFlight) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    uint32_t fif = framesInFlight < 1 ? 1u : (framesInFlight > 3 ? 3u : (uint32_t)framesInFlight);
+    r->fg_target_fif = fif;
 }
 
 JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong displayPeriodNs, jlong vsyncNs) {

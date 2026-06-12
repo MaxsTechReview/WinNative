@@ -114,6 +114,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -160,6 +161,7 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Drawer-local colors.
@@ -331,6 +333,10 @@ data class XServerDrawerState(
     val frameGenerationMultiplier: Int = 2,
     val frameGenerationQuality: Int = 1,
     val frameGenerationSmoothing: Float = 0.5f,
+    val frameGenerationDeepMode: Boolean = false,
+    val frameGenerationAdvanced: Boolean = false,
+    val frameGenerationExtrapolate: Boolean = false,
+    val frameGenerationFramesInFlight: Int = 3,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
     val vividEnabled: Boolean = false,
@@ -524,6 +530,14 @@ interface XServerDrawerActionListener {
 
     fun onFrameGenerationSmoothingChanged(smoothing: Float)
 
+    fun onFrameGenerationDeepModeChanged(deep: Boolean)
+
+    fun onFrameGenerationAdvancedChanged(advanced: Boolean)
+
+    fun onFrameGenerationExtrapolateChanged(extrapolate: Boolean)
+
+    fun onFrameGenerationFramesInFlightChanged(framesInFlight: Int)
+
     fun onSGSREnabledChanged(enabled: Boolean)
 
     fun onSGSRSharpnessChanged(sharpness: Int)
@@ -635,6 +649,10 @@ fun buildXServerDrawerState(
     frameGenerationMultiplier: Int = 2,
     frameGenerationQuality: Int = 1,
     frameGenerationSmoothing: Float = 0.5f,
+    frameGenerationDeepMode: Boolean = false,
+    frameGenerationAdvanced: Boolean = false,
+    frameGenerationExtrapolate: Boolean = false,
+    frameGenerationFramesInFlight: Int = 3,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -790,6 +808,10 @@ fun buildXServerDrawerState(
         frameGenerationMultiplier = frameGenerationMultiplier,
         frameGenerationQuality = frameGenerationQuality,
         frameGenerationSmoothing = frameGenerationSmoothing,
+        frameGenerationDeepMode = frameGenerationDeepMode,
+        frameGenerationAdvanced = frameGenerationAdvanced,
+        frameGenerationExtrapolate = frameGenerationExtrapolate,
+        frameGenerationFramesInFlight = frameGenerationFramesInFlight,
         sgsrEnabled = sgsrEnabled,
         sgsrSharpness = sgsrSharpness,
         vividEnabled = vividEnabled,
@@ -2386,30 +2408,133 @@ private fun ScreenEffectsPaneContent(
                                     )
                                 }
                             }
-                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_quality))
-                            val qualityLabels =
-                                listOf(
-                                    stringResource(R.string.session_drawer_frame_generation_quality_performance),
-                                    stringResource(R.string.session_drawer_frame_generation_quality_balanced),
-                                    stringResource(R.string.session_drawer_frame_generation_quality_quality),
+                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_recommended))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                            ) {
+                                val smoothestActive = !state.frameGenerationExtrapolate &&
+                                    state.frameGenerationDeepMode &&
+                                    state.frameGenerationQuality == 1 &&
+                                    abs(state.frameGenerationSmoothing - 0.75f) < 0.01f &&
+                                    state.frameGenerationFramesInFlight == 3
+                                HUDToggleChip(
+                                    label = stringResource(R.string.session_drawer_frame_generation_preset_smoothest),
+                                    checked = smoothestActive,
+                                    onClick = {
+                                        listener.onFrameGenerationExtrapolateChanged(false)
+                                        listener.onFrameGenerationDeepModeChanged(true)
+                                        listener.onFrameGenerationQualitySelected(1)
+                                        listener.onFrameGenerationSmoothingChanged(0.75f)
+                                        listener.onFrameGenerationFramesInFlightChanged(3)
+                                    },
+                                    modifier = Modifier.weight(1f),
                                 )
-                            ChipFlow {
-                                qualityLabels.forEachIndexed { index, label ->
+                                val lowLatencyActive = state.frameGenerationExtrapolate &&
+                                    state.frameGenerationQuality == 1 &&
+                                    abs(state.frameGenerationSmoothing - 0.75f) < 0.01f &&
+                                    state.frameGenerationFramesInFlight == 1
+                                HUDToggleChip(
+                                    label = stringResource(R.string.session_drawer_frame_generation_preset_low_latency),
+                                    checked = lowLatencyActive,
+                                    onClick = {
+                                        listener.onFrameGenerationExtrapolateChanged(true)
+                                        listener.onFrameGenerationQualitySelected(1)
+                                        listener.onFrameGenerationSmoothingChanged(0.75f)
+                                        listener.onFrameGenerationFramesInFlightChanged(1)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            DrawerBooleanRow(
+                                title = "Advanced settings",
+                                checked = state.frameGenerationAdvanced,
+                                onCheckedChange = listener::onFrameGenerationAdvancedChanged,
+                                subtitle = "Generation method · scan passes · quality preset · smoothness · buffering",
+                            )
+
+                            if (state.frameGenerationAdvanced) {
+                                PaneSectionLabel("Generation method")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                                ) {
                                     HUDToggleChip(
-                                        label = label,
-                                        checked = state.frameGenerationQuality == index,
-                                        onClick = { listener.onFrameGenerationQualitySelected(index) },
+                                        label = "Interpolation",
+                                        checked = !state.frameGenerationExtrapolate,
+                                        onClick = { listener.onFrameGenerationExtrapolateChanged(false) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    HUDToggleChip(
+                                        label = "Extrapolation",
+                                        checked = state.frameGenerationExtrapolate,
+                                        onClick = { listener.onFrameGenerationExtrapolateChanged(true) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                PaneSectionLabel("Scan passes")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
+                                ) {
+                                    HUDToggleChip(
+                                        label = "1 · Single",
+                                        checked = !state.frameGenerationDeepMode,
+                                        onClick = { listener.onFrameGenerationDeepModeChanged(false) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    HUDToggleChip(
+                                        label = "2 · Bidirectional",
+                                        checked = state.frameGenerationDeepMode,
+                                        onClick = { listener.onFrameGenerationDeepModeChanged(true) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_quality))
+                                val qualityLabels =
+                                    listOf(
+                                        stringResource(R.string.session_drawer_frame_generation_quality_performance),
+                                        stringResource(R.string.session_drawer_frame_generation_quality_balanced),
+                                        stringResource(R.string.session_drawer_frame_generation_quality_quality),
+                                    )
+                                ChipFlow {
+                                    qualityLabels.forEachIndexed { index, label ->
+                                        HUDToggleChip(
+                                            label = label,
+                                            checked = state.frameGenerationQuality == index,
+                                            onClick = { listener.onFrameGenerationQualitySelected(index) },
+                                        )
+                                    }
+                                }
+                                DrawerSliderRow(
+                                    label = stringResource(R.string.session_drawer_frame_generation_smoothness),
+                                    valueText = "${(state.frameGenerationSmoothing * 100).roundToInt()}%",
+                                    value = state.frameGenerationSmoothing,
+                                    valueRange = 0f..1f,
+                                    steps = 0,
+                                    onValueChange = listener::onFrameGenerationSmoothingChanged,
+                                )
+                                // Buffering (frames-in-flight): latency <-> smoothness. Extrapolation
+                                // predicts frames instead of holding them, so buffering is irrelevant -> grayed.
+                                val fifLocked = state.frameGenerationExtrapolate
+                                Column(modifier = Modifier.alpha(if (fifLocked) 0.4f else 1f)) {
+                                    DrawerSliderRow(
+                                        label = if (fifLocked) "Buffering — n/a for extrapolation"
+                                                else "Buffering (latency ↔ smooth)",
+                                        valueText = state.frameGenerationFramesInFlight.toString(),
+                                        value = state.frameGenerationFramesInFlight.toFloat(),
+                                        valueRange = 1f..3f,
+                                        steps = 1,
+                                        onValueChange = {
+                                            if (!fifLocked) {
+                                                listener.onFrameGenerationFramesInFlightChanged(
+                                                    it.roundToInt().coerceIn(1, 3),
+                                                )
+                                            }
+                                        },
                                     )
                                 }
                             }
-                            DrawerSliderRow(
-                                label = stringResource(R.string.session_drawer_frame_generation_smoothness),
-                                valueText = "${(state.frameGenerationSmoothing * 100).roundToInt()}%",
-                                value = state.frameGenerationSmoothing,
-                                valueRange = 0f..1f,
-                                steps = 0,
-                                onValueChange = listener::onFrameGenerationSmoothingChanged,
-                            )
                         }
                     }
                 }
