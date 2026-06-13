@@ -13,6 +13,8 @@ public abstract class Effect {
     public static final int TYPE_SHARPEN   = 9;
     public static final int TYPE_SCANLINES = 10;
     public static final int TYPE_NTSC2     = 11;
+    public static final int TYPE_COLORBLIND = 12;
+    public static final int TYPE_PIXELATE  = 13;
 
     public abstract int getNativeType();
 

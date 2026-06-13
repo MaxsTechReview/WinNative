@@ -41,6 +41,8 @@
 #include "shaders/effect_colorgrade_frag.spv.h"
 #include "shaders/effect_sharpen_frag.spv.h"
 #include "shaders/effect_scanlines_frag.spv.h"
+#include "shaders/effect_colorblind_frag.spv.h"
+#include "shaders/effect_pixelate_frag.spv.h"
 #include "shaders/sgsr1_frag.spv.h"
 
 // ============================================================
@@ -859,11 +861,14 @@ static bool create_pipelines(VkRenderer* r) {
     VkShaderModule fs_colorgrade = load_shader_module(r, effect_colorgrade_frag, effect_colorgrade_frag_size);
     VkShaderModule fs_sharpen = load_shader_module(r, effect_sharpen_frag, effect_sharpen_frag_size);
     VkShaderModule fs_scanlines = load_shader_module(r, effect_scanlines_frag, effect_scanlines_frag_size);
+    VkShaderModule fs_colorblind = load_shader_module(r, effect_colorblind_frag, effect_colorblind_frag_size);
+    VkShaderModule fs_pixelate = load_shader_module(r, effect_pixelate_frag, effect_pixelate_frag_size);
     VkShaderModule fs_sgsr1 = load_shader_module(r, sgsr1_frag, sgsr1_frag_size);
     if (!vs_window || !fs_window || !fs_cursor || !vs_quad || !fs_blit
         || !fs_crt || !fs_vivid || !fs_hdr || !fs_natural
         || !fs_toon || !fs_ntsc || !fs_ntsc2 || !fs_coloradj
         || !fs_colorgrade || !fs_sharpen || !fs_scanlines
+        || !fs_colorblind || !fs_pixelate
         || !fs_sgsr1) {
         return false;
     }
@@ -913,6 +918,12 @@ static bool create_pipelines(VkRenderer* r) {
     r->pipelines.effect_pipelines[VK_EFFECT_NTSC2] = create_graphics_pipeline(
         r, vs_quad, fs_ntsc2, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
         false, false, NULL);
+    r->pipelines.effect_pipelines[VK_EFFECT_COLORBLIND] = create_graphics_pipeline(
+        r, vs_quad, fs_colorblind, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
+    r->pipelines.effect_pipelines[VK_EFFECT_PIXELATE] = create_graphics_pipeline(
+        r, vs_quad, fs_pixelate, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
     r->pipelines.offscreen_window_pipeline = create_graphics_pipeline(
         r, vs_window, fs_window, r->pipelines.window_layout, r->pipelines.offscreen_pass,
         true, false, NULL);
@@ -958,6 +969,12 @@ static bool create_pipelines(VkRenderer* r) {
     r->pipelines.offscreen_effect_pipelines[VK_EFFECT_NTSC2] = create_graphics_pipeline(
         r, vs_quad, fs_ntsc2, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
         false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_COLORBLIND] = create_graphics_pipeline(
+        r, vs_quad, fs_colorblind, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_PIXELATE] = create_graphics_pipeline(
+        r, vs_quad, fs_pixelate, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
 
     vkDestroyShaderModule(r->device, vs_window, NULL);
     vkDestroyShaderModule(r->device, fs_window, NULL);
@@ -975,6 +992,8 @@ static bool create_pipelines(VkRenderer* r) {
     vkDestroyShaderModule(r->device, fs_colorgrade, NULL);
     vkDestroyShaderModule(r->device, fs_sharpen, NULL);
     vkDestroyShaderModule(r->device, fs_scanlines, NULL);
+    vkDestroyShaderModule(r->device, fs_colorblind, NULL);
+    vkDestroyShaderModule(r->device, fs_pixelate, NULL);
     vkDestroyShaderModule(r->device, fs_sgsr1, NULL);
 
     if (!r->pipelines.window_pipeline || !r->pipelines.cursor_pipeline

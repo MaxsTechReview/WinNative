@@ -97,12 +97,14 @@ import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.runtime.display.renderer.EffectComposer;
 import com.winlator.cmod.runtime.display.renderer.effects.ColorAdjustEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.ColorBlindEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.ColorGradeEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.HDREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NaturalEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NTSC2Effect;
 import com.winlator.cmod.runtime.display.renderer.effects.NTSCEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.PixelateEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.ScanlinesEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.SGSRUpscaler;
 import com.winlator.cmod.runtime.display.renderer.effects.SharpenEffect;
@@ -371,6 +373,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int sharpenStrength = 50;
     private boolean scanlinesEnabled = false;
     private int scanlinesIntensity = 50;
+    private boolean pixelateEnabled = false;
+    private int pixelateBlock = 6;
+    private int colorBlind = 0;
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
@@ -3874,6 +3879,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 sharpenStrength,
                 scanlinesEnabled,
                 scanlinesIntensity,
+                pixelateEnabled,
+                pixelateBlock,
+                colorBlind,
                 inputProfileNames,
                 inputSelectedIndex,
                 styleNames,
@@ -4206,6 +4214,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onScanlinesEnabledChanged(boolean enabled) {
                         scanlinesEnabled = enabled;
+                        if (enabled) pixelateEnabled = false;
                         saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
@@ -4214,6 +4223,31 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onScanlinesIntensityChanged(int value) {
                         scanlinesIntensity = Math.max(0, Math.min(100, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onPixelateEnabledChanged(boolean enabled) {
+                        pixelateEnabled = enabled;
+                        if (enabled) scanlinesEnabled = false;
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onPixelateBlockChanged(int value) {
+                        pixelateBlock = Math.max(2, Math.min(14, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onColorBlindSelected(int mode) {
+                        colorBlind = mode;
                         saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
@@ -4235,6 +4269,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         sharpenStrength = 50;
                         scanlinesEnabled = false;
                         scanlinesIntensity = 50;
+                        pixelateEnabled = false;
+                        pixelateBlock = 6;
+                        colorBlind = 0;
                         saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
@@ -4701,6 +4738,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         // Rebuilt in a fixed order each call so toggle sequence can't reorder the chain.
         composer.removeEffect(composer.getEffect(ColorAdjustEffect.class));
         composer.removeEffect(composer.getEffect(ColorGradeEffect.class));
+        composer.removeEffect(composer.getEffect(PixelateEffect.class));
         composer.removeEffect(composer.getEffect(SharpenEffect.class));
         composer.removeEffect(composer.getEffect(HDREffect.class));
         composer.removeEffect(composer.getEffect(NaturalEffect.class));
@@ -4709,6 +4747,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         composer.removeEffect(composer.getEffect(NTSCEffect.class));
         composer.removeEffect(composer.getEffect(NTSC2Effect.class));
         composer.removeEffect(composer.getEffect(VividEffect.class));
+        composer.removeEffect(composer.getEffect(ColorBlindEffect.class));
         composer.removeEffect(composer.getEffect(ScanlinesEffect.class));
 
         if (brightness != 0 || contrast != 0 || gammaPercent != 100) {
@@ -4721,6 +4760,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             ColorGradeEffect colorGrade = new ColorGradeEffect();
             colorGrade.set(saturation / 100.0f, temperature / 100.0f, tint / 100.0f);
             composer.addEffect(colorGrade);
+        }
+
+        if (pixelateEnabled) {
+            PixelateEffect pixelate = new PixelateEffect();
+            pixelate.setBlockSize(pixelateBlock);
+            composer.addEffect(pixelate);
         }
 
         if (sharpenEnabled) {
@@ -4742,6 +4787,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             VividEffect vivid = new VividEffect();
             vivid.setLevel((vividStrength / 25.0f) + 1.0f);
             composer.addEffect(vivid);
+        }
+
+        if (colorBlind != 0) {
+            ColorBlindEffect colorBlindEffect = new ColorBlindEffect();
+            colorBlindEffect.setMode(colorBlind);
+            composer.addEffect(colorBlindEffect);
         }
 
         if (scanlinesEnabled) {
@@ -4789,6 +4840,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         sharpenStrength = 50;
         scanlinesEnabled = false;
         scanlinesIntensity = 50;
+        pixelateEnabled = false;
+        pixelateBlock = 6;
+        colorBlind = 0;
         if (container == null) return;
         String json = container.getExtra("screenEffectsSettings");
         if (json == null || json.isEmpty()) return;
@@ -4808,6 +4862,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             sharpenStrength = Math.max(0, Math.min(100, o.optInt("sharpenStrength", 50)));
             scanlinesEnabled = o.optBoolean("scanlinesEnabled", false);
             scanlinesIntensity = Math.max(0, Math.min(100, o.optInt("scanlinesIntensity", 50)));
+            pixelateEnabled = o.optBoolean("pixelateEnabled", false);
+            pixelateBlock = Math.max(2, Math.min(14, o.optInt("pixelateBlock", 6)));
+            colorBlind = Math.max(0, Math.min(3, o.optInt("colorBlind", 0)));
         } catch (JSONException e) {
             Log.e("XServerDisplayActivity", "Failed to load screen effects", e);
         }
@@ -4831,6 +4888,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             o.put("sharpenStrength", sharpenStrength);
             o.put("scanlinesEnabled", scanlinesEnabled);
             o.put("scanlinesIntensity", scanlinesIntensity);
+            o.put("pixelateEnabled", pixelateEnabled);
+            o.put("pixelateBlock", pixelateBlock);
+            o.put("colorBlind", colorBlind);
             container.putExtra("screenEffectsSettings", o.toString());
             container.saveData();
         } catch (JSONException e) {

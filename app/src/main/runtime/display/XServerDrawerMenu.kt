@@ -343,6 +343,9 @@ data class XServerDrawerState(
     val sharpenStrength: Int = 50,
     val scanlinesEnabled: Boolean = false,
     val scanlinesIntensity: Int = 50,
+    val pixelateEnabled: Boolean = false,
+    val pixelateBlock: Int = 6,
+    val colorBlind: Int = 0,
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
@@ -555,6 +558,12 @@ interface XServerDrawerActionListener {
 
     fun onScanlinesIntensityChanged(value: Int)
 
+    fun onPixelateEnabledChanged(enabled: Boolean)
+
+    fun onPixelateBlockChanged(value: Int)
+
+    fun onColorBlindSelected(mode: Int)
+
     fun onResetEffects()
 
     fun onInputControlsProfileSelected(index: Int)
@@ -649,6 +658,9 @@ fun buildXServerDrawerState(
     sharpenStrength: Int = 50,
     scanlinesEnabled: Boolean = false,
     scanlinesIntensity: Int = 50,
+    pixelateEnabled: Boolean = false,
+    pixelateBlock: Int = 6,
+    colorBlind: Int = 0,
     inputControlsProfileNames: List<String> = emptyList(),
     inputControlsSelectedProfileIndex: Int = 0,
     inputControlsStyleNames: List<String> = emptyList(),
@@ -727,7 +739,7 @@ fun buildXServerDrawerState(
                 active = sgsrEnabled || vividEnabled || colorProfile > 0 ||
                     brightness != 0 || contrast != 0 || gammaPercent != 100 || scaleFilter != 0 ||
                     saturation != 100 || temperature != 0 || tint != 0 ||
-                    sharpenEnabled || scanlinesEnabled,
+                    sharpenEnabled || scanlinesEnabled || pixelateEnabled || colorBlind != 0,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_pause,
@@ -835,6 +847,9 @@ fun buildXServerDrawerState(
         sharpenStrength = sharpenStrength,
         scanlinesEnabled = scanlinesEnabled,
         scanlinesIntensity = scanlinesIntensity,
+        pixelateEnabled = pixelateEnabled,
+        pixelateBlock = pixelateBlock,
+        colorBlind = colorBlind,
         inputControlsProfileNames = inputControlsProfileNames,
         inputControlsSelectedProfileIndex = inputControlsSelectedProfileIndex,
         inputControlsStyleNames = inputControlsStyleNames,
@@ -2491,6 +2506,23 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_pixelate),
+                        checked = state.pixelateEnabled,
+                        onCheckedChange = listener::onPixelateEnabledChanged,
+                    )
+
+                    if (state.pixelateEnabled) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_drawer_block_size),
+                            valueText = "${state.pixelateBlock}px",
+                            value = state.pixelateBlock.toFloat(),
+                            valueRange = 2f..14f,
+                            steps = 11,
+                            onValueChange = { listener.onPixelateBlockChanged(it.roundToInt().coerceIn(2, 14)) },
+                        )
+                    }
+
                     DrawerSliderRow(
                         label = stringResource(R.string.session_drawer_brightness),
                         valueText = "${state.brightness}",
@@ -2544,6 +2576,38 @@ private fun ScreenEffectsPaneContent(
                         steps = 39,
                         onValueChange = { listener.onTintChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
+
+                    DrawerResetRow(
+                        label = stringResource(R.string.session_drawer_reset_effects),
+                        onClick = listener::onResetEffects,
+                    )
+                }
+
+                ThinDivider()
+
+                Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                    PaneSectionLabel(stringResource(R.string.session_drawer_color_blind))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_drawer_color_blind_protan),
+                            checked = state.colorBlind == 1,
+                            onClick = { listener.onColorBlindSelected(if (state.colorBlind == 1) 0 else 1) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_drawer_color_blind_deutan),
+                            checked = state.colorBlind == 2,
+                            onClick = { listener.onColorBlindSelected(if (state.colorBlind == 2) 0 else 2) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        HUDToggleChip(
+                            label = stringResource(R.string.session_drawer_color_blind_tritan),
+                            checked = state.colorBlind == 3,
+                            onClick = { listener.onColorBlindSelected(if (state.colorBlind == 3) 0 else 3) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
 
                 ThinDivider()
@@ -2569,13 +2633,6 @@ private fun ScreenEffectsPaneContent(
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 3 else 0) },
                     )
                 }
-
-                ThinDivider()
-
-                DrawerResetRow(
-                    label = stringResource(R.string.session_drawer_reset_effects),
-                    onClick = listener::onResetEffects,
-                )
             }
         }
     }

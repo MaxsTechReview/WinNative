@@ -724,8 +724,14 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_tint">Tint</string>
     <string name="session_drawer_sharpen">Sharpen</string>
     <string name="session_drawer_scanlines">Scanlines</string>
+    <string name="session_drawer_pixelate">Pixelate</string>
+    <string name="session_drawer_block_size">Block size</string>
     <string name="session_drawer_strength">Strength</string>
     <string name="session_drawer_intensity">Intensity</string>
+    <string name="session_drawer_color_blind">Color Blind</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
     <string name="session_drawer_reset_effects">Reset effects</string>
     <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
