@@ -15,8 +15,7 @@ layout(push_constant) uniform PC {
 void main() {
     vec2 res = pc.resolution.x > 0.0 ? pc.resolution : vec2(1280.0, 720.0);
     vec3 c = texture(screenTexture, vUV).rgb;
-    float s = sin(vUV.y * res.y * (3.14159265 / 3.0));
-    float scan = s * s;
-    c *= 1.0 - pc.intensity * (1.0 - scan);
+    float band = 0.5 + 0.5 * sin(vUV.y * res.y * 1.5708);
+    c *= 1.0 - pc.intensity * (1.0 - band);
     outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

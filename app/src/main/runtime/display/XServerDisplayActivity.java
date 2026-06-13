@@ -4698,87 +4698,56 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "SGSR inactive");
         }
 
-        VividEffect vivid = composer.getEffect(VividEffect.class);
-        if (vividEnabled) {
-            if (vivid == null) {
-                vivid = new VividEffect();
-            }
-            vivid.setLevel((vividStrength / 25.0f) + 1.0f);
-            composer.addEffect(vivid);
-        } else if (vivid != null) {
-            composer.removeEffect(vivid);
-        }
-
+        // Rebuilt in a fixed order each call so toggle sequence can't reorder the chain.
+        composer.removeEffect(composer.getEffect(ColorAdjustEffect.class));
+        composer.removeEffect(composer.getEffect(ColorGradeEffect.class));
+        composer.removeEffect(composer.getEffect(SharpenEffect.class));
         composer.removeEffect(composer.getEffect(HDREffect.class));
         composer.removeEffect(composer.getEffect(NaturalEffect.class));
         composer.removeEffect(composer.getEffect(CRTEffect.class));
         composer.removeEffect(composer.getEffect(ToonEffect.class));
         composer.removeEffect(composer.getEffect(NTSCEffect.class));
         composer.removeEffect(composer.getEffect(NTSC2Effect.class));
+        composer.removeEffect(composer.getEffect(VividEffect.class));
+        composer.removeEffect(composer.getEffect(ScanlinesEffect.class));
 
-        switch (colorProfile) {
-            case 1: // HDR
-                composer.addEffect(new HDREffect());
-                break;
-            case 2: // Natural
-                composer.addEffect(new NaturalEffect());
-                break;
-            case 3: // CRT Effect
-                composer.addEffect(new CRTEffect());
-                break;
-            case 4: // Toon
-                composer.addEffect(new ToonEffect());
-                break;
-            case 5: // Ntsc (horizontal)
-                composer.addEffect(new NTSCEffect());
-                break;
-            case 6: // Ntsc2 (vertical)
-                composer.addEffect(new NTSC2Effect());
-                break;
-        }
-
-        ColorAdjustEffect colorAdj = composer.getEffect(ColorAdjustEffect.class);
         if (brightness != 0 || contrast != 0 || gammaPercent != 100) {
-            if (colorAdj == null) {
-                colorAdj = new ColorAdjustEffect();
-            }
+            ColorAdjustEffect colorAdj = new ColorAdjustEffect();
             colorAdj.set(brightness / 100.0f, contrast / 100.0f, gammaPercent / 100.0f);
             composer.addEffect(colorAdj);
-        } else if (colorAdj != null) {
-            composer.removeEffect(colorAdj);
         }
 
-        ColorGradeEffect colorGrade = composer.getEffect(ColorGradeEffect.class);
         if (saturation != 100 || temperature != 0 || tint != 0) {
-            if (colorGrade == null) {
-                colorGrade = new ColorGradeEffect();
-            }
+            ColorGradeEffect colorGrade = new ColorGradeEffect();
             colorGrade.set(saturation / 100.0f, temperature / 100.0f, tint / 100.0f);
             composer.addEffect(colorGrade);
-        } else if (colorGrade != null) {
-            composer.removeEffect(colorGrade);
         }
 
-        SharpenEffect sharpen = composer.getEffect(SharpenEffect.class);
         if (sharpenEnabled) {
-            if (sharpen == null) {
-                sharpen = new SharpenEffect();
-            }
+            SharpenEffect sharpen = new SharpenEffect();
             sharpen.setStrength(sharpenStrength / 100.0f);
             composer.addEffect(sharpen);
-        } else if (sharpen != null) {
-            composer.removeEffect(sharpen);
         }
 
-        ScanlinesEffect scanlines = composer.getEffect(ScanlinesEffect.class);
+        switch (colorProfile) {
+            case 1: composer.addEffect(new HDREffect()); break;
+            case 2: composer.addEffect(new NaturalEffect()); break;
+            case 3: composer.addEffect(new CRTEffect()); break;
+            case 4: composer.addEffect(new ToonEffect()); break;
+            case 5: composer.addEffect(new NTSCEffect()); break;
+            case 6: composer.addEffect(new NTSC2Effect()); break;
+        }
+
+        if (vividEnabled) {
+            VividEffect vivid = new VividEffect();
+            vivid.setLevel((vividStrength / 25.0f) + 1.0f);
+            composer.addEffect(vivid);
+        }
+
         if (scanlinesEnabled) {
-            if (scanlines == null) {
-                scanlines = new ScanlinesEffect();
-            }
+            ScanlinesEffect scanlines = new ScanlinesEffect();
             scanlines.setIntensity(scanlinesIntensity / 100.0f);
             composer.addEffect(scanlines);
-        } else if (scanlines != null) {
-            composer.removeEffect(scanlines);
         }
 
         renderer.setScaleFilter(scaleFilter);
