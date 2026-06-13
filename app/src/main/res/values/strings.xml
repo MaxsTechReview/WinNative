@@ -269,6 +269,7 @@
     <string name="downloads_queue_phase_finalizing">Finalizing</string>
     <string name="downloads_queue_phase_unpacking">Unpacking</string>
     <string name="downloads_queue_phase_updating">Updating</string>
+    <string name="downloads_queue_phase_restoring">Restoring</string>
     <string name="downloads_queue_phase_complete">Complete</string>
     <string name="downloads_queue_phase_cancelled">Cancelled</string>
     <string name="downloads_queue_phase_failed">Failed: %1$s</string>
@@ -280,6 +281,9 @@
     <string name="downloads_queue_cancel_download_warning">Cancelling a DLC, Game, or Update download can potentially corrupt your game install.\n\nAre you sure you want to cancel this Download and delete the files downloaded so far?</string>
     <string name="downloads_queue_cancel_all_title">Cancel All Downloads?</string>
     <string name="downloads_queue_cancel_all_warning">Cancelling DLC, Game, or Update downloads can potentially corrupt your game installs.\n\nAre you sure you want to cancel all Downloads and delete the files downloaded so far?</string>
+    <string name="downloads_queue_cancel_restore">Cancel Restore</string>
+    <string name="downloads_queue_cancel_restore_title">Cancel Restore?</string>
+    <string name="downloads_queue_cancel_restore_warning">This is a restore download — it is repairing your game back to the previous branch after a cancelled switch.\n\nCancelling it leaves the game unplayable, and you will need to re-download it from the store. Are you sure?</string>
     <string name="downloads_queue_this_game">this game</string>
     <string name="downloads_queue_empty">No active downloads.</string>
 

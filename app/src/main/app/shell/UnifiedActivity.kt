@@ -8522,10 +8522,26 @@ class UnifiedActivity :
         onDismissRequest: () -> Unit,
         onConfirm: () -> Unit,
         isCancelAll: Boolean = false,
+        isRepair: Boolean = false,
     ) {
-        val titleRes = if (isCancelAll) R.string.downloads_queue_cancel_all_title else R.string.downloads_queue_cancel_download_title
-        val messageRes = if (isCancelAll) R.string.downloads_queue_cancel_all_warning else R.string.downloads_queue_cancel_download_warning
-        val confirmRes = if (isCancelAll) R.string.downloads_queue_cancel_all else R.string.downloads_queue_cancel_download
+        val titleRes =
+            when {
+                isRepair -> R.string.downloads_queue_cancel_restore_title
+                isCancelAll -> R.string.downloads_queue_cancel_all_title
+                else -> R.string.downloads_queue_cancel_download_title
+            }
+        val messageRes =
+            when {
+                isRepair -> R.string.downloads_queue_cancel_restore_warning
+                isCancelAll -> R.string.downloads_queue_cancel_all_warning
+                else -> R.string.downloads_queue_cancel_download_warning
+            }
+        val confirmRes =
+            when {
+                isRepair -> R.string.downloads_queue_cancel_restore
+                isCancelAll -> R.string.downloads_queue_cancel_all
+                else -> R.string.downloads_queue_cancel_download
+            }
         LaunchDangerConfirmDialog(
             visible = expanded,
             title = stringResource(titleRes),
@@ -8708,8 +8724,21 @@ class UnifiedActivity :
                         }
                     }
 
+                    val activeRepairPhases =
+                        setOf(
+                            DownloadPhase.DOWNLOADING,
+                            DownloadPhase.VERIFYING,
+                            DownloadPhase.PREPARING,
+                            DownloadPhase.PATCHING,
+                            DownloadPhase.APPLYING_DATA,
+                            DownloadPhase.FINALIZING,
+                            DownloadPhase.UNPACKING,
+                            DownloadPhase.QUEUED,
+                        )
                     val statusText =
-                        when (status) {
+                        if (info.isRepair && status in activeRepairPhases) {
+                            stringResource(R.string.downloads_queue_phase_restoring)
+                        } else when (status) {
                             DownloadPhase.DOWNLOADING -> {
                                 currentFile?.let {
                                     stringResource(R.string.downloads_queue_phase_downloading_file, it.take(10))
@@ -8860,6 +8889,7 @@ class UnifiedActivity :
                                 showDeleteDialog = false
                                 DownloadService.cancelDownload(id)
                             },
+                            isRepair = info.isRepair,
                         )
                     }
                 }

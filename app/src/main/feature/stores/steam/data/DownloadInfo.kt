@@ -35,6 +35,11 @@ class DownloadInfo(
     @Volatile var isDeleting: Boolean = false
 
     @Volatile var isCancelling: Boolean = false
+
+    /** True when this is the restore verify that repairs the previous branch
+     *  after a cancelled switch — drives the "Restoring" label and the
+     *  cancel-warning dialog. */
+    @Volatile var isRepair: Boolean = false
     private var downloadJob: Job? = null
     private val downloadProgressListeners = CopyOnWriteArrayList<((Float) -> Unit)>()
     private val progresses: Array<Float> = Array(jobCount) { 0f }
