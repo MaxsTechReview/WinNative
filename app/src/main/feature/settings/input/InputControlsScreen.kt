@@ -2183,202 +2183,204 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.common_ui_mode),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                )
-                Spacer(Modifier.width(InputItemGap))
-                ChipRow(
-                    options =
-                        listOf(
-                            stringResource(R.string.session_gyroscope_hold),
-                            stringResource(R.string.session_gyroscope_toggle),
-                        ),
-                    selectedIndex = state.gyroscopeModeIndex,
-                    onSelected = actions.onGyroscopeModeSelected,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_orientation_mode),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                AppSwitch(
-                    checked = state.gyroOrientationEnabled,
-                    onCheckedChange = actions.onGyroOrientationModeChanged,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_activator_button),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                SelectionPill(
-                    text = state.gyroscopeActivatorLabel,
-                    onClick = actions.onGyroscopeActivatorClick,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_enable_right_stick),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.common_ui_experimental),
-                    color = InputAccent,
-                    fontSize = InputSecondaryTextSize,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.width(8.dp))
-                AppSwitch(
-                    checked = state.rightStickGyroEnabled,
-                    onCheckedChange = actions.onRightStickGyroChanged,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.common_ui_experimental),
-                    color = InputAccent,
-                    fontSize = InputSecondaryTextSize,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.width(8.dp))
-                AppSwitch(
-                    checked = state.gyroMouseEnabled,
-                    onCheckedChange = actions.onGyroMouseEnabledChanged,
-                )
-            }
-
-            if (state.gyroMouseEnabled) {
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_mouse_sensitivity_format, state.gyroMouseScale),
-                    value = state.gyroMouseScale.toFloat(),
-                    valueRange = 0f..200f,
-                    steps = 199,
-                    onValueChange = { actions.onGyroMouseScaleChanged(it.roundToInt().coerceIn(0, 200)) },
-                )
-            }
-
-            Spacer(Modifier.height(InputCompactGap))
-            Subcard(
-                title = stringResource(R.string.session_gyroscope_calibrate),
-                expanded = state.gyroscopeExpanded,
-                onToggleExpanded = {
-                    actions.onGyroscopeExpandedChanged(!state.gyroscopeExpanded)
-                },
-            ) {
+            if (state.gyroscopeEnabled) {
                 Spacer(Modifier.height(InputItemGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
-                    value = state.gyroXSensitivity.toFloat(),
-                    valueRange = 1f..300f,
-                    steps = 0,
-                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
-                    value = state.gyroYSensitivity.toFloat(),
-                    valueRange = 1f..300f,
-                    steps = 0,
-                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_smoothing_format, state.gyroSmoothing),
-                    value = state.gyroSmoothing.toFloat(),
-                    valueRange = 0f..100f,
-                    steps = 99,
-                    onValueChange = { actions.onGyroSmoothingChanged(it.roundToInt().coerceIn(0, 100)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_deadzone_format, state.gyroDeadzone),
-                    value = state.gyroDeadzone.toFloat(),
-                    valueRange = 0f..100f,
-                    steps = 99,
-                    onValueChange = { actions.onGyroDeadzoneChanged(it.roundToInt().coerceIn(0, 100)) },
-                )
-                Spacer(Modifier.height(InputItemGap))
-                SwitchRow(
-                    title = stringResource(R.string.session_gamepad_invert_x),
-                    checked = state.invertGyroX,
-                    onCheckedChange = actions.onInvertGyroXChanged,
-                )
-                Spacer(Modifier.height(4.dp))
-                SwitchRow(
-                    title = stringResource(R.string.session_gamepad_invert_y),
-                    checked = state.invertGyroY,
-                    onCheckedChange = actions.onInvertGyroYChanged,
-                )
-                Spacer(Modifier.height(InputItemGap))
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(136.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.Black),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AndroidView(
-                        factory = { context ->
-                            InputControlsView(context, true).apply {
-                                actions.onAttachGyroPreview(this)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        update = { view ->
-                            actions.onAttachGyroPreview(view)
-                        },
+                    Text(
+                        text = stringResource(R.string.common_ui_mode),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
                     )
-                    DisposableEffect(Unit) {
-                        onDispose { actions.onDetachGyroPreview() }
-                    }
+                    Spacer(Modifier.width(InputItemGap))
+                    ChipRow(
+                        options =
+                            listOf(
+                                stringResource(R.string.session_gyroscope_hold),
+                                stringResource(R.string.session_gyroscope_toggle),
+                            ),
+                        selectedIndex = state.gyroscopeModeIndex,
+                        onSelected = actions.onGyroscopeModeSelected,
+                    )
                 }
+
                 Spacer(Modifier.height(InputItemGap))
-                CenteredPillButton(
-                    text = stringResource(R.string.session_gyroscope_reset_stick),
-                    onClick = actions.onResetGyroPreview,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_orientation_mode),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AppSwitch(
+                        checked = state.gyroOrientationEnabled,
+                        onCheckedChange = actions.onGyroOrientationModeChanged,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_activator_button),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SelectionPill(
+                        text = state.gyroscopeActivatorLabel,
+                        onClick = actions.onGyroscopeActivatorClick,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_enable_right_stick),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_ui_experimental),
+                        color = InputAccent,
+                        fontSize = InputSecondaryTextSize,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    AppSwitch(
+                        checked = state.rightStickGyroEnabled,
+                        onCheckedChange = actions.onRightStickGyroChanged,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_ui_experimental),
+                        color = InputAccent,
+                        fontSize = InputSecondaryTextSize,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    AppSwitch(
+                        checked = state.gyroMouseEnabled,
+                        onCheckedChange = actions.onGyroMouseEnabledChanged,
+                    )
+                }
+
+                if (state.gyroMouseEnabled) {
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_mouse_sensitivity_format, state.gyroMouseScale),
+                        value = state.gyroMouseScale.toFloat(),
+                        valueRange = 0f..200f,
+                        steps = 199,
+                        onValueChange = { actions.onGyroMouseScaleChanged(it.roundToInt().coerceIn(0, 200)) },
+                    )
+                }
+
+                Spacer(Modifier.height(InputCompactGap))
+                Subcard(
+                    title = stringResource(R.string.session_gyroscope_calibrate),
+                    expanded = state.gyroscopeExpanded,
+                    onToggleExpanded = {
+                        actions.onGyroscopeExpandedChanged(!state.gyroscopeExpanded)
+                    },
+                ) {
+                    Spacer(Modifier.height(InputItemGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
+                        value = state.gyroXSensitivity.toFloat(),
+                        valueRange = 1f..300f,
+                        steps = 0,
+                        onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
+                        value = state.gyroYSensitivity.toFloat(),
+                        valueRange = 1f..300f,
+                        steps = 0,
+                        onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_smoothing_format, state.gyroSmoothing),
+                        value = state.gyroSmoothing.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { actions.onGyroSmoothingChanged(it.roundToInt().coerceIn(0, 100)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_deadzone_format, state.gyroDeadzone),
+                        value = state.gyroDeadzone.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { actions.onGyroDeadzoneChanged(it.roundToInt().coerceIn(0, 100)) },
+                    )
+                    Spacer(Modifier.height(InputItemGap))
+                    SwitchRow(
+                        title = stringResource(R.string.session_gamepad_invert_x),
+                        checked = state.invertGyroX,
+                        onCheckedChange = actions.onInvertGyroXChanged,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    SwitchRow(
+                        title = stringResource(R.string.session_gamepad_invert_y),
+                        checked = state.invertGyroY,
+                        onCheckedChange = actions.onInvertGyroYChanged,
+                    )
+                    Spacer(Modifier.height(InputItemGap))
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(136.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.Black),
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                InputControlsView(context, true).apply {
+                                    actions.onAttachGyroPreview(this)
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            update = { view ->
+                                actions.onAttachGyroPreview(view)
+                            },
+                        )
+                        DisposableEffect(Unit) {
+                            onDispose { actions.onDetachGyroPreview() }
+                        }
+                    }
+                    Spacer(Modifier.height(InputItemGap))
+                    CenteredPillButton(
+                        text = stringResource(R.string.session_gyroscope_reset_stick),
+                        onClick = actions.onResetGyroPreview,
+                    )
+                }
             }
         }
     }
