@@ -7813,6 +7813,7 @@ class UnifiedActivity :
     private data class DownloadCancelRequest(
         val ids: List<String>,
         val isCancelAll: Boolean,
+        val isRepair: Boolean = false,
     )
 
     // Downloads Tab
@@ -7989,12 +7990,16 @@ class UnifiedActivity :
                                     DownloadCancelRequest(
                                         ids = pausableDownloads.map { it.first },
                                         isCancelAll = true,
+                                        isRepair = pausableDownloads.any { it.second.isRepair },
                                     )
                             } else {
                                 cancelWarningRequest =
                                     DownloadCancelRequest(
                                         ids = listOf(selectedId),
                                         isCancelAll = false,
+                                        isRepair =
+                                            downloads.firstOrNull { it.first == selectedId }
+                                                ?.second?.isRepair == true,
                                     )
                             }
                         },
@@ -8017,6 +8022,7 @@ class UnifiedActivity :
                                 onSelectDownload(null)
                             },
                             isCancelAll = request.isCancelAll,
+                            isRepair = request.isRepair,
                         )
                     }
                 }

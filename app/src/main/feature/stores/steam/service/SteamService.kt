@@ -7878,10 +7878,8 @@ class SteamService : Service() {
                 }
 
                 // Files were touched. Keep previousBranch as the restore-in-progress
-                // signal until the repair completes. Drop any INVALID depot.config
-                // entries so update detection / the selector reflect committed depots
-                // only while the repair runs.
-                pruneInProgressDepotConfigEntries(getAppDirPath(appId))
+                // signal until the repair completes (the fresh verify rebuilds the
+                // depot.config entries the cancelled switch left in-progress).
                 Timber.i("Cancelled switch for appId=$appId: restoring branch '$previous', verifying files")
                 WinToast.show(
                     svc.applicationContext,
@@ -7889,7 +7887,11 @@ class SteamService : Service() {
                     Toast.LENGTH_LONG,
                 )
                 if (downloadAppForVerify(appId, isRestore = true) == null) {
-                    Timber.w("Restore verify dispatch returned null for appId=$appId; coordinator will retry on next tick")
+                    // Dispatch failed before a coordinator record was created (nothing
+                    // will retry it). Don't leave previousBranch dangling — it would
+                    // later restore the wrong branch — give up cleanly to not-installed.
+                    Timber.w("Restore verify dispatch returned null for appId=$appId; abandoning restore")
+                    abandonInProgressRestore(appId, getAppDirPath(appId))
                 }
             }.onFailure { e ->
                 Timber.w(e, "Beta branch restore after cancelled update failed for appId=$appId")
@@ -7901,11 +7903,11 @@ class SteamService : Service() {
          * cancel-warning dialog) that the half-repaired install must be
          * re-downloaded from the store, so converge to a clean not-installed state
          * without deleting files (a re-download reuses/repairs them): mark
-         * not-installed, drop the restore point and any INVALID depot.config entries.
+         * not-installed and drop the restore point. A re-download's fresh pass
+         * rebuilds any depot.config entries the cancelled switch left in-progress.
          */
         private fun abandonInProgressRestore(appId: Int, appDirPath: String) {
             instance?.let { clearPreviousBetaBranch(it, appId) }
-            pruneInProgressDepotConfigEntries(appDirPath)
             MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
             MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
             Timber.i("Restore verify abandoned for appId=$appId; marked not-installed, files left for re-download")
@@ -7926,32 +7928,6 @@ class SteamService : Service() {
                     shortcut.saveData()
                 }
             }.onFailure { e -> Timber.w(e, "Failed to clear previousBranch for appId=$appId") }
-        }
-
-        /**
-         * Rewrites `.DepotDownloader/depot.config` dropping INVALID_MANIFEST_ID
-         * (Long.MAX_VALUE) entries a cancelled `begin_depot` left behind, so
-         * consumers (update detection, branch selector, stale-file keep-union)
-         * see only cleanly committed depots. A subsequent fresh verify rebuilds
-         * the dropped depots.
-         */
-        private fun pruneInProgressDepotConfigEntries(appDirPath: String) {
-            runCatching {
-                val configFile = File(File(appDirPath, ".DepotDownloader"), "depot.config")
-                if (!configFile.isFile) return
-                val json = JSONObject(configFile.readText())
-                val manifests = json.optJSONObject("installedManifestIDs") ?: return
-                val kept = JSONObject()
-                var dropped = 0
-                for (key in manifests.keys()) {
-                    val gid = manifests.optLong(key, Long.MAX_VALUE)
-                    if (gid == Long.MAX_VALUE) dropped++ else kept.put(key, gid)
-                }
-                if (dropped == 0) return
-                json.put("installedManifestIDs", kept)
-                configFile.writeText(json.toString(2))
-                Timber.i("Pruned $dropped in-progress depot.config entr${if (dropped == 1) "y" else "ies"} at $appDirPath")
-            }.onFailure { e -> Timber.w(e, "Failed to prune in-progress depot.config entries for $appDirPath") }
         }
 
         /**
@@ -8139,7 +8115,8 @@ class SteamService : Service() {
                                 abandonInProgressRestore(appId, appDirPath)
                             isVerify -> {
                                 // Normal verify of an installed game: keep it installed.
-                                pruneInProgressDepotConfigEntries(appDirPath)
+                                // (depot.config entries the cancelled verify left
+                                // in-progress are rebuilt by the next verify/update.)
                                 if (!updateNeverStarted) {
                                     MarkerUtils.addMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                                 }
