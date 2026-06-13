@@ -18,10 +18,10 @@ void main() {
 
     vec3 color = texture(screenTexture, vUV).rgb;
     vec3 shifted = color;
-    shifted.r = texture(screenTexture, vUV + vec2(0.0, texel.y * 1.25)).r;
-    shifted.b = texture(screenTexture, vUV - vec2(0.0, texel.y * 1.25)).b;
+    shifted.r = texture(screenTexture, vUV + vec2(texel.x * 1.25, 0.0)).r;
+    shifted.b = texture(screenTexture, vUV - vec2(texel.x * 1.25, 0.0)).b;
 
-    float bleed = sin((vUV.x * max(res.x, 1.0) + vUV.y * 24.0) * 0.45) * 0.018;
+    float bleed = sin((vUV.y * max(res.y, 1.0) + vUV.x * 24.0) * 0.45) * 0.018;
     vec3 ntsc = clamp(mix(color, shifted + vec3(bleed), 0.65), 0.0, 1.0);
     outColor = vec4(ntsc, 1.0);
 }

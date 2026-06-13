@@ -109,6 +109,7 @@ typedef enum VkEffectType {
     VK_EFFECT_COLORGRADE = 8,
     VK_EFFECT_SHARPEN = 9,
     VK_EFFECT_SCANLINES = 10,
+    VK_EFFECT_NTSC2 = 11,
     VK_EFFECT_COUNT
 } VkEffectType;
 

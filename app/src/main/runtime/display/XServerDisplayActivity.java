@@ -101,6 +101,7 @@ import com.winlator.cmod.runtime.display.renderer.effects.ColorGradeEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.HDREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NaturalEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.NTSC2Effect;
 import com.winlator.cmod.runtime.display.renderer.effects.NTSCEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.ScanlinesEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.SGSRUpscaler;
@@ -4713,6 +4714,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         composer.removeEffect(composer.getEffect(CRTEffect.class));
         composer.removeEffect(composer.getEffect(ToonEffect.class));
         composer.removeEffect(composer.getEffect(NTSCEffect.class));
+        composer.removeEffect(composer.getEffect(NTSC2Effect.class));
 
         switch (colorProfile) {
             case 1: // HDR
@@ -4727,8 +4729,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             case 4: // Toon
                 composer.addEffect(new ToonEffect());
                 break;
-            case 5: // NTSC
+            case 5: // Ntsc (horizontal)
                 composer.addEffect(new NTSCEffect());
+                break;
+            case 6: // Ntsc2 (vertical)
+                composer.addEffect(new NTSC2Effect());
                 break;
         }
 

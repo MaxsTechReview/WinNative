@@ -2427,6 +2427,7 @@ private fun ScreenEffectsPaneContent(
                             4 to stringResource(R.string.session_drawer_color_profile_toon),
                             3 to stringResource(R.string.session_drawer_color_profile_crt),
                             5 to stringResource(R.string.session_drawer_color_profile_ntsc),
+                            6 to stringResource(R.string.session_drawer_color_profile_ntsc2),
                         )
 
                     ChipFlow {

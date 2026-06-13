@@ -77,6 +77,7 @@ set(SHADER_LIST
     "effect_natural:frag:effect_natural_frag"
     "effect_toon:frag:effect_toon_frag"
     "effect_ntsc:frag:effect_ntsc_frag"
+    "effect_ntsc2:frag:effect_ntsc2_frag"
     "effect_coloradj:frag:effect_coloradj_frag"
     "effect_colorgrade:frag:effect_colorgrade_frag"
     "effect_sharpen:frag:effect_sharpen_frag"
