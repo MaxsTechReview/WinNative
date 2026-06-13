@@ -203,10 +203,10 @@ fn remove_cleanup_marker(config_dir: impl AsRef<Path>, depot_id: u32, manifest_i
 ///
 /// Every cached old build is swept (not only those with a pending marker), so
 /// orphans are reclaimed even when a marker was dropped or never recorded —
-/// including files unique to a build whose write was aborted mid-switch. A
-/// depot whose depot.config entry is still in progress (INVALID) is deferred
-/// per-depot: its files are protected and its old builds are left for a later
-/// pass, without blocking cleanup of the other depots.
+/// including files unique to a build whose write was aborted mid-switch. The
+/// whole pass defers if the keep-union can't be made complete (an installed
+/// depot in progress or with an unreadable file list), since a file that moved
+/// into an unknown build can't then be proven safe to delete.
 ///
 /// Returns the number of files deleted.
 pub fn run_stale_file_cleanup(
@@ -220,18 +220,6 @@ pub fn run_stale_file_cleanup(
         .collect();
     let cfg = DepotConfigStore::load(config_dir);
 
-    // Current committed gid per depot; an INVALID entry means that depot's
-    // build is mid-flight, so it is deferred this pass.
-    let mut current: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut deferred: BTreeSet<u32> = BTreeSet::new();
-    for (depot_id, gid) in cfg.installed_entries() {
-        if gid == INVALID_MANIFEST_ID {
-            deferred.insert(depot_id);
-        } else {
-            current.insert(depot_id, gid);
-        }
-    }
-
     // Every old build still on disk: each cached filelist/manifest plus any
     // pending marker. Sweeping cached builds (not just marked ones) reclaims
     // orphans even when a marker was dropped or never recorded.
@@ -241,37 +229,36 @@ pub fn run_stale_file_cleanup(
         return 0;
     }
 
-    // Keep-union: files of every current build (so a file shared across builds
-    // or moved between depots is never deleted), plus — defensively — every
-    // cached build of a deferred depot so a mid-download depot loses nothing.
-    // A current depot whose own file list is unreadable is itself deferred:
-    // sweeping with an incomplete keep set could delete its live files.
+    // The keep-union must be COMPLETE — the files of every installed depot's
+    // current build. A candidate not in keep is only safe to delete if no
+    // current or in-flight build ships it, and proving that requires reading
+    // every installed depot. If any is in progress (INVALID) or its file list
+    // is unreadable, a live file that moved between depots could be deleted, so
+    // defer the whole pass; a later op (finished depots / with the keys)
+    // rebuilds it. This never blocks the restore, where the verify writes a
+    // sidecar for every depot before cleanup runs.
     let mut keep = BTreeSet::new();
-    for (depot_id, gid) in current.clone() {
+    let mut current: BTreeMap<u32, u64> = BTreeMap::new();
+    for (depot_id, gid) in cfg.installed_entries() {
+        if gid == INVALID_MANIFEST_ID {
+            cleanup_log(&format!(
+                "cleanup: depot {depot_id} in progress, deferring stale-file pass"
+            ));
+            return 0;
+        }
         match load_file_entries(config_dir, depot_id, gid, keys.get(&depot_id).copied()) {
             Some(entries) => {
                 for entry in &entries {
                     keep.insert(normalized_key(&entry.name));
                 }
+                current.insert(depot_id, gid);
             }
             None => {
                 cleanup_log(&format!(
-                    "cleanup: installed depot {depot_id}_{gid} file list unreadable; \
-                     deferring it to avoid over-deletion"
+                    "cleanup: installed depot {depot_id}_{gid} file list unreadable, \
+                     deferring stale-file pass"
                 ));
-                deferred.insert(depot_id);
-                current.remove(&depot_id);
-            }
-        }
-    }
-    for &(depot_id, gid) in &old_builds {
-        if deferred.contains(&depot_id) {
-            if let Some(entries) =
-                load_file_entries(config_dir, depot_id, gid, keys.get(&depot_id).copied())
-            {
-                for entry in &entries {
-                    keep.insert(normalized_key(&entry.name));
-                }
+                return 0;
             }
         }
     }
@@ -279,9 +266,6 @@ pub fn run_stale_file_cleanup(
     let install_root = Path::new(install_dir);
     let mut deleted = 0u32;
     for (depot_id, gid) in old_builds {
-        if deferred.contains(&depot_id) {
-            continue;
-        }
         if current.get(&depot_id) == Some(&gid) {
             // This build is the one currently installed — not stale.
             remove_cleanup_marker(config_dir, depot_id, gid);
@@ -782,8 +766,11 @@ mod tests {
     }
 
     #[test]
-    fn unreadable_installed_list_degrades_to_best_effort() {
-        let install = temp_dir("best_effort_union");
+    fn unreadable_installed_depot_defers_whole_pass() {
+        // An installed depot whose file list can't be read (no sidecar, no key
+        // in this op) leaves the keep-union incomplete, so the pass defers
+        // rather than risk deleting a live cross-depot file.
+        let install = temp_dir("unreadable_defers");
         let config = config_dir(&install);
         write_sidecar(&config, 100, 444, &[("only_old.dat", 0)]);
         write_sidecar(&config, 100, 555, &[("core.dat", 0)]);
@@ -795,18 +782,19 @@ mod tests {
 
         let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
 
-        assert_eq!(deleted, 1);
-        assert!(!install.join("only_old.dat").exists());
+        assert_eq!(deleted, 0);
+        assert!(install.join("only_old.dat").exists());
         assert!(install.join("core.dat").exists());
-        assert!(pending_cleanup_markers(&config).is_empty());
+        assert_eq!(pending_cleanup_markers(&config), vec![(100, 444)]);
         let _ = fs::remove_dir_all(&install);
     }
 
     #[test]
-    fn in_progress_depot_is_protected_while_others_are_cleaned() {
-        // Per-depot deferral: an in-flight depot (200, INVALID) keeps all its
-        // files, but it must not block cleaning depot 100's stale file.
-        let install = temp_dir("in_progress_per_depot");
+    fn in_progress_depot_defers_whole_pass() {
+        // An in-flight (INVALID) depot's target build is unknown to cleanup, so
+        // a file moving into it can't be proven safe — the whole pass defers
+        // until that depot finishes.
+        let install = temp_dir("in_progress_defer");
         let config = config_dir(&install);
         write_sidecar(&config, 100, 444, &[("only_old.dat", 0)]);
         write_sidecar(&config, 100, 555, &[("core.dat", 0)]);
@@ -821,17 +809,37 @@ mod tests {
 
         let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
 
-        assert_eq!(deleted, 1);
+        assert_eq!(deleted, 0, "deferred while depot 200 is in flight");
+        assert!(install.join("only_old.dat").exists());
+        assert!(install.join("dlc.dat").exists());
+        assert_eq!(pending_cleanup_markers(&config), vec![(100, 444)]);
+        let _ = fs::remove_dir_all(&install);
+    }
+
+    #[test]
+    fn cross_depot_file_moving_into_in_flight_depot_survives() {
+        // Regression: shared.dat was in depot 100's old build 444 and is not in
+        // its current build 555, but the in-flight depot 200 ships it. Cleanup
+        // can't see 200's target build, so it must not delete shared.dat.
+        let install = temp_dir("cross_depot_in_flight");
+        let config = config_dir(&install);
+        write_sidecar(&config, 100, 444, &[("shared.dat", 0), ("only_old.dat", 0)]);
+        write_sidecar(&config, 100, 555, &[("core.dat", 0)]);
+        install_current(&config, 100, 555);
+        let mut cfg = DepotConfigStore::load(&config);
+        cfg.begin_depot(200); // 200 mid-download (will ship shared.dat), unreadable
+        touch(&install, "shared.dat");
+        touch(&install, "core.dat");
+        touch(&install, "only_old.dat");
+        assert!(record_pending_cleanup(&config, 100, 444, 555));
+
+        let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
+
+        assert_eq!(deleted, 0);
         assert!(
-            !install.join("only_old.dat").exists(),
-            "depot 100 stale file cleaned"
+            install.join("shared.dat").exists(),
+            "live file shipped by the in-flight depot must survive"
         );
-        assert!(install.join("core.dat").exists());
-        assert!(
-            install.join("dlc.dat").exists(),
-            "in-flight depot 200 protected"
-        );
-        assert!(pending_cleanup_markers(&config).is_empty());
         let _ = fs::remove_dir_all(&install);
     }
 
