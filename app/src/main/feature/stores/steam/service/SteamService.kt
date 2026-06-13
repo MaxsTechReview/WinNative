@@ -7866,8 +7866,11 @@ class SteamService : Service() {
                 val previous =
                     readSteamShortcutExtras(svc, appId)?.first?.get("previousBranch").orEmpty().trim()
                 if (previous.isEmpty()) return
-                val restored = if (previous.equals("public", ignoreCase = true)) "" else previous
-                if (!setSelectedBetaBranch(svc, appId, restored, recordPrevious = false)) return
+                // Store the restored branch verbatim — including "public" — so the
+                // selector and update detection read it authoritatively. Converting
+                // public to a blank extra would make recoverSelectedBetaName infer
+                // the branch from the (still-mixed) installed files and mislabel it.
+                if (!setSelectedBetaBranch(svc, appId, previous, recordPrevious = false)) return
 
                 if (!filesTouched) {
                     // Nothing was written; the committed build is intact. Drop the
