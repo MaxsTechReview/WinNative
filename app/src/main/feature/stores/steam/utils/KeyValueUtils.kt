@@ -92,7 +92,7 @@ fun WnKeyValue.generateSteamApp(): SteamApp =
 
                     val manifests = currentDepot["manifests"].children.generateManifest()
 
-                    val encryptedManifests = currentDepot["encryptedManifests"].children.generateManifest()
+                    val encryptedManifests = currentDepot["encryptedmanifests"].children.generateManifest()
 
                     depotId to
                         DepotInfo(

@@ -69,6 +69,11 @@ impl DepotConfigStore {
         self.save()
     }
 
+    pub fn forget_depot(&mut self, depot_id: u32) -> bool {
+        self.installed.remove(&depot_id);
+        self.save()
+    }
+
     pub fn discard(&mut self) {
         self.installed.clear();
         let _ = fs::remove_file(self.config_path());

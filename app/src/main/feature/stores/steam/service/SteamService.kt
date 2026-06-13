@@ -3154,6 +3154,15 @@ class SteamService : Service() {
                     val coveredDepotIds = originalMainAppDepots.keys + indirectDlcAppDepots.keys
                     val collected = mutableMapOf<Int, DepotInfo>()
                     for (dlcAppId in missingDlcAppIds) {
+                        // Only recover depots for DLC the account owns; otherwise Steam denies the key.
+                        val ownsDlc =
+                            runBlocking(Dispatchers.IO) {
+                                (instance?.licenseDao?.countLicensesForApp(dlcAppId) ?: 0) > 0
+                            }
+                        if (!ownsDlc) {
+                            Timber.i("Skipping recovery depots for unowned DLC appId=$dlcAppId")
+                            continue
+                        }
                         val dlcAppInfo =
                             runBlocking(Dispatchers.IO) { instance?.appDao?.findApp(dlcAppId) }
                                 ?: continue
@@ -3802,27 +3811,42 @@ class SteamService : Service() {
                                         // Triple = (appId, depotIds, manifestIds).
                                         val wnBatches: List<Triple<Int, IntArray, LongArray>> = buildList {
                                             if (mainAppDepots.isNotEmpty()) {
-                                                val ids = mainAppDepots.keys.sorted()
-                                                add(Triple(
-                                                    appId,
-                                                    ids.toIntArray(),
-                                                    ids.map {
-                                                        resolveDepotManifestInfo(mainAppDepots[it]!!, branch)?.gid ?: 0L
-                                                    }.toLongArray(),
-                                                ))
+                                                // Drop unresolvable depots (gid 0); sending manifest 0 aborts the native batch.
+                                                val resolved = mainAppDepots.keys.sorted().mapNotNull { id ->
+                                                    val gid = resolveDepotManifestInfo(mainAppDepots[id]!!, branch)?.gid ?: 0L
+                                                    if (gid > 0L) {
+                                                        id to gid
+                                                    } else {
+                                                        Timber.w("Skipping main depot $id: unresolved manifest gid (branch=$branch)")
+                                                        null
+                                                    }
+                                                }
+                                                if (resolved.isNotEmpty()) {
+                                                    add(Triple(
+                                                        appId,
+                                                        resolved.map { it.first }.toIntArray(),
+                                                        resolved.map { it.second }.toLongArray(),
+                                                    ))
+                                                }
                                             }
                                             calculatedDlcAppIds.forEach { dlcAppId ->
                                                 val dlcDepotIds = selectedDlcDepotIdsByDlcAppId[dlcAppId].orEmpty()
                                                 if (dlcDepotIds.isEmpty()) return@forEach
-                                                Timber.i("Steam DLC batch queued: dlcAppId=$dlcAppId depotIds=$dlcDepotIds")
+                                                val resolved = dlcDepotIds.mapNotNull { depotId ->
+                                                    val gid = selectedDepots[depotId]?.let { resolveDepotManifestInfo(it, branch)?.gid } ?: 0L
+                                                    if (gid > 0L) {
+                                                        depotId to gid
+                                                    } else {
+                                                        Timber.w("Skipping DLC depot $depotId (dlcAppId=$dlcAppId): unresolved manifest gid (branch=$branch)")
+                                                        null
+                                                    }
+                                                }
+                                                if (resolved.isEmpty()) return@forEach
+                                                Timber.i("Steam DLC batch queued: dlcAppId=$dlcAppId depotIds=${resolved.map { it.first }}")
                                                 add(Triple(
                                                     dlcAppId,
-                                                    dlcDepotIds.toIntArray(),
-                                                    dlcDepotIds.map { depotId ->
-                                                        selectedDepots[depotId]?.let {
-                                                            resolveDepotManifestInfo(it, branch)?.gid
-                                                        } ?: 0L
-                                                    }.toLongArray(),
+                                                    resolved.map { it.first }.toIntArray(),
+                                                    resolved.map { it.second }.toLongArray(),
                                                 ))
                                             }
                                         }
@@ -4125,8 +4149,17 @@ class SteamService : Service() {
 
                                     // Refuse to mark COMPLETE unless every depot fetched this run is
                                     // recorded as finished at the expected manifest id in depot.config.
+                                    val deniedDepots = readDeniedDepots(appDirPath)
+                                    if (deniedDepots.isNotEmpty()) {
+                                        Timber.w(
+                                            "Completeness gate excluding ${deniedDepots.size} depot(s) Steam denied " +
+                                                "a key for appId=$appId: ${deniedDepots.sorted()}",
+                                        )
+                                    }
                                     val expectedManifestByDepot =
                                         selectedDepots.mapNotNull { (depotId, depot) ->
+                                            // Steam-denied depots aren't part of this account's install.
+                                            if (depotId in deniedDepots) return@mapNotNull null
                                             val gid = resolveDepotManifestInfo(depot, branch)?.gid ?: 0L
                                             if (gid > 0L) depotId to gid else null
                                         }.toMap()
@@ -4424,6 +4457,14 @@ class SteamService : Service() {
          * expected manifest id in depot.config (missing, in-progress = INVALID_MANIFEST_ID, or wrong
          * manifest). An absent/unreadable config passes — a legacy install may predate it.
          */
+        /** Depot ids Steam denied a key for on the last native run (.DepotDownloader/denied.depots). */
+        private fun readDeniedDepots(appDirPath: String): Set<Int> =
+            runCatching {
+                val file = File(File(appDirPath, ".DepotDownloader"), "denied.depots")
+                if (!file.isFile) return@runCatching emptySet<Int>()
+                file.readLines().mapNotNull { it.trim().toIntOrNull() }.toSet()
+            }.getOrDefault(emptySet())
+
         private fun verifyDepotConfigComplete(
             appDirPath: String,
             expectedManifestByDepot: Map<Int, Long>,
