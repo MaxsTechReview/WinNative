@@ -37,6 +37,9 @@
 #include "shaders/effect_toon_frag.spv.h"
 #include "shaders/effect_ntsc_frag.spv.h"
 #include "shaders/effect_coloradj_frag.spv.h"
+#include "shaders/effect_colorgrade_frag.spv.h"
+#include "shaders/effect_sharpen_frag.spv.h"
+#include "shaders/effect_scanlines_frag.spv.h"
 #include "shaders/sgsr1_frag.spv.h"
 
 // ============================================================
@@ -343,6 +346,7 @@ static bool create_device(VkRenderer* r) {
     bool has_ycbcr = has_extension(exts, ext_count, VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME);
     bool has_extmem_caps = has_extension(exts, ext_count, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     bool has_queue_fam = has_extension(exts, ext_count, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME);
+    bool has_cubic = has_extension(exts, ext_count, VK_EXT_FILTER_CUBIC_EXTENSION_NAME);
 
     free(exts);
 
@@ -359,10 +363,12 @@ static bool create_device(VkRenderer* r) {
         if (has_queue_fam) enable[enable_n++] = VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME;
     }
     if (has_ycbcr) enable[enable_n++] = VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME;
+    if (has_cubic) enable[enable_n++] = VK_EXT_FILTER_CUBIC_EXTENSION_NAME;
     (void)has_extmem_caps;
 
     r->ext_ahb = ahb_ok;
     r->ext_ycbcr = has_ycbcr;
+    r->ext_filter_cubic = has_cubic;
     VK_LOGI("AHB Vulkan device support: android_hardware_buffer=%d external_memory=%d dedicated=%d get_memory_requirements2=%d queue_family_foreign=%d enabled=%d",
             has_ahb, has_extmem, has_dedicated, has_get_mem_req2, has_queue_fam, r->ext_ahb);
     if (!r->ext_ahb) {
@@ -848,10 +854,14 @@ static bool create_pipelines(VkRenderer* r) {
     VkShaderModule fs_toon   = load_shader_module(r, effect_toon_frag,   effect_toon_frag_size);
     VkShaderModule fs_ntsc   = load_shader_module(r, effect_ntsc_frag,   effect_ntsc_frag_size);
     VkShaderModule fs_coloradj = load_shader_module(r, effect_coloradj_frag, effect_coloradj_frag_size);
+    VkShaderModule fs_colorgrade = load_shader_module(r, effect_colorgrade_frag, effect_colorgrade_frag_size);
+    VkShaderModule fs_sharpen = load_shader_module(r, effect_sharpen_frag, effect_sharpen_frag_size);
+    VkShaderModule fs_scanlines = load_shader_module(r, effect_scanlines_frag, effect_scanlines_frag_size);
     VkShaderModule fs_sgsr1 = load_shader_module(r, sgsr1_frag, sgsr1_frag_size);
     if (!vs_window || !fs_window || !fs_cursor || !vs_quad || !fs_blit
         || !fs_crt || !fs_vivid || !fs_hdr || !fs_natural
         || !fs_toon || !fs_ntsc || !fs_coloradj
+        || !fs_colorgrade || !fs_sharpen || !fs_scanlines
         || !fs_sgsr1) {
         return false;
     }
@@ -889,6 +899,15 @@ static bool create_pipelines(VkRenderer* r) {
     r->pipelines.effect_pipelines[VK_EFFECT_COLORADJ] = create_graphics_pipeline(
         r, vs_quad, fs_coloradj, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
         false, false, NULL);
+    r->pipelines.effect_pipelines[VK_EFFECT_COLORGRADE] = create_graphics_pipeline(
+        r, vs_quad, fs_colorgrade, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
+    r->pipelines.effect_pipelines[VK_EFFECT_SHARPEN] = create_graphics_pipeline(
+        r, vs_quad, fs_sharpen, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
+    r->pipelines.effect_pipelines[VK_EFFECT_SCANLINES] = create_graphics_pipeline(
+        r, vs_quad, fs_scanlines, r->pipelines.effect_layout, r->pipelines.swapchain_pass,
+        false, false, NULL);
     r->pipelines.offscreen_window_pipeline = create_graphics_pipeline(
         r, vs_window, fs_window, r->pipelines.window_layout, r->pipelines.offscreen_pass,
         true, false, NULL);
@@ -922,6 +941,15 @@ static bool create_pipelines(VkRenderer* r) {
     r->pipelines.offscreen_effect_pipelines[VK_EFFECT_COLORADJ] = create_graphics_pipeline(
         r, vs_quad, fs_coloradj, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
         false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_COLORGRADE] = create_graphics_pipeline(
+        r, vs_quad, fs_colorgrade, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_SHARPEN] = create_graphics_pipeline(
+        r, vs_quad, fs_sharpen, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
+    r->pipelines.offscreen_effect_pipelines[VK_EFFECT_SCANLINES] = create_graphics_pipeline(
+        r, vs_quad, fs_scanlines, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
+        false, false, NULL);
 
     vkDestroyShaderModule(r->device, vs_window, NULL);
     vkDestroyShaderModule(r->device, fs_window, NULL);
@@ -935,6 +963,9 @@ static bool create_pipelines(VkRenderer* r) {
     vkDestroyShaderModule(r->device, fs_toon, NULL);
     vkDestroyShaderModule(r->device, fs_ntsc, NULL);
     vkDestroyShaderModule(r->device, fs_coloradj, NULL);
+    vkDestroyShaderModule(r->device, fs_colorgrade, NULL);
+    vkDestroyShaderModule(r->device, fs_sharpen, NULL);
+    vkDestroyShaderModule(r->device, fs_scanlines, NULL);
     vkDestroyShaderModule(r->device, fs_sgsr1, NULL);
 
     if (!r->pipelines.window_pipeline || !r->pipelines.cursor_pipeline
@@ -2073,6 +2104,21 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
         nsi.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         if (vkCreateSampler(r->device, &nsi, NULL, &r->shared_sampler_nearest) != VK_SUCCESS) goto fail;
     }
+    if (r->ext_filter_cubic) {
+        VkSamplerCreateInfo csi = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        csi.magFilter = VK_FILTER_CUBIC_EXT;
+        csi.minFilter = VK_FILTER_LINEAR;
+        csi.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        csi.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        csi.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        csi.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        csi.unnormalizedCoordinates = VK_FALSE;
+        csi.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        if (vkCreateSampler(r->device, &csi, NULL, &r->shared_sampler_cubic) != VK_SUCCESS) {
+            r->shared_sampler_cubic = VK_NULL_HANDLE;
+            r->ext_filter_cubic = false;
+        }
+    }
     if (!vkr_staging_pool_init(r)) goto fail;
     vkr_suballoc_init(r);
 
@@ -2085,6 +2131,7 @@ fail:
     vkr_suballoc_destroy(r);  // safe if never initialized
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->shared_sampler_nearest) vkDestroySampler(r->device, r->shared_sampler_nearest, NULL);
+    if (r->shared_sampler_cubic) vkDestroySampler(r->device, r->shared_sampler_cubic, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
@@ -2140,6 +2187,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
 
     if (r->shared_sampler) vkDestroySampler(r->device, r->shared_sampler, NULL);
     if (r->shared_sampler_nearest) vkDestroySampler(r->device, r->shared_sampler_nearest, NULL);
+    if (r->shared_sampler_cubic) vkDestroySampler(r->device, r->shared_sampler_cubic, NULL);
     if (r->cmd_pool) vkDestroyCommandPool(r->device, r->cmd_pool, NULL);
     free(r->descriptor_free_list); r->descriptor_free_list = NULL; r->descriptor_free_count = 0;
     if (r->descriptor_pool) vkDestroyDescriptorPool(r->device, r->descriptor_pool, NULL);
@@ -2425,18 +2473,17 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFpsLimit)(JNIEnv* env, jclass clazz, jlon
     (void)env; (void)clazz; (void)handle; (void)fps;
 }
 
-// Java passes 0=off/linear, 1=nearest, 2=linear; only 1 selects nearest scaling.
+// 0=off/linear, 1=nearest, 2=linear, 3=bicubic (linear fallback when cubic unsupported).
 JNIEXPORT void JNICALL JNI_FN(nativeSetScaleFilter)(JNIEnv* env, jclass clazz, jlong handle, jint mode) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
 
-    bool nearest = (mode == 1);
-    if (r->scale_filter_nearest == nearest) return;
+    if (r->scale_filter == mode) return;
 
     pthread_mutex_lock(&r->render_mutex);
     wait_inflight_frames(r);
-    r->scale_filter_nearest = nearest;
+    r->scale_filter = mode;
     vkr_retarget_shared_sampler(r);
     pthread_mutex_unlock(&r->render_mutex);
 }

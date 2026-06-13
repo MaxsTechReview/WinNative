@@ -97,11 +97,14 @@ import com.winlator.cmod.shared.util.StringUtils;
 import com.winlator.cmod.shared.io.TarCompressorUtils;
 import com.winlator.cmod.runtime.display.renderer.EffectComposer;
 import com.winlator.cmod.runtime.display.renderer.effects.ColorAdjustEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.ColorGradeEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.CRTEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.HDREffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NaturalEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.NTSCEffect;
+import com.winlator.cmod.runtime.display.renderer.effects.ScanlinesEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.SGSRUpscaler;
+import com.winlator.cmod.runtime.display.renderer.effects.SharpenEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.ToonEffect;
 import com.winlator.cmod.runtime.display.renderer.effects.VividEffect;
 import com.winlator.cmod.runtime.wine.WineInfo;
@@ -360,6 +363,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private int contrast = 0;
     private int gammaPercent = 100;
     private int scaleFilter = 0;
+    private int saturation = 100;
+    private int temperature = 0;
+    private int tint = 0;
+    private boolean sharpenEnabled = false;
+    private int sharpenStrength = 50;
+    private boolean scanlinesEnabled = false;
+    private int scanlinesIntensity = 50;
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
@@ -3856,6 +3866,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 contrast,
                 gammaPercent,
                 scaleFilter,
+                saturation,
+                temperature,
+                tint,
+                sharpenEnabled,
+                sharpenStrength,
+                scanlinesEnabled,
+                scanlinesIntensity,
                 inputProfileNames,
                 inputSelectedIndex,
                 styleNames,
@@ -4092,7 +4109,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onVividEnabledChanged(boolean enabled) {
                         vividEnabled = enabled;
-                        preferences.edit().putBoolean("vivid_enabled", enabled).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4100,7 +4117,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onVividStrengthChanged(int strength) {
                         vividStrength = strength;
-                        preferences.edit().putInt("vivid_strength", strength).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4108,7 +4125,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onColorProfileSelected(int profile) {
                         colorProfile = profile;
-                        preferences.edit().putInt("color_profile", profile).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4116,7 +4133,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onBrightnessChanged(int value) {
                         brightness = Math.max(-100, Math.min(100, value));
-                        preferences.edit().putInt("color_brightness", brightness).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4124,7 +4141,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onContrastChanged(int value) {
                         contrast = Math.max(-100, Math.min(100, value));
-                        preferences.edit().putInt("color_contrast", contrast).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4132,7 +4149,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onGammaChanged(int value) {
                         gammaPercent = Math.max(50, Math.min(250, value));
-                        preferences.edit().putInt("color_gamma", gammaPercent).apply();
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4140,7 +4157,84 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onScaleFilterSelected(int mode) {
                         scaleFilter = mode;
-                        preferences.edit().putInt("scale_filter", mode).apply();
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onSaturationChanged(int value) {
+                        saturation = Math.max(0, Math.min(200, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onTemperatureChanged(int value) {
+                        temperature = Math.max(-100, Math.min(100, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onTintChanged(int value) {
+                        tint = Math.max(-100, Math.min(100, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onSharpenEnabledChanged(boolean enabled) {
+                        sharpenEnabled = enabled;
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onSharpenStrengthChanged(int value) {
+                        sharpenStrength = Math.max(0, Math.min(100, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onScanlinesEnabledChanged(boolean enabled) {
+                        scanlinesEnabled = enabled;
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onScanlinesIntensityChanged(int value) {
+                        scanlinesIntensity = Math.max(0, Math.min(100, value));
+                        saveScreenEffectsSettings();
+                        applyScreenEffects();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onResetEffects() {
+                        vividEnabled = false;
+                        vividStrength = 100;
+                        colorProfile = 0;
+                        brightness = 0;
+                        contrast = 0;
+                        gammaPercent = 100;
+                        scaleFilter = 0;
+                        saturation = 100;
+                        temperature = 0;
+                        tint = 0;
+                        sharpenEnabled = false;
+                        sharpenStrength = 50;
+                        scanlinesEnabled = false;
+                        scanlinesIntensity = 50;
+                        saveScreenEffectsSettings();
                         applyScreenEffects();
                         renderDrawerMenu();
                     }
@@ -4649,6 +4743,39 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             composer.removeEffect(colorAdj);
         }
 
+        ColorGradeEffect colorGrade = composer.getEffect(ColorGradeEffect.class);
+        if (saturation != 100 || temperature != 0 || tint != 0) {
+            if (colorGrade == null) {
+                colorGrade = new ColorGradeEffect();
+            }
+            colorGrade.set(saturation / 100.0f, temperature / 100.0f, tint / 100.0f);
+            composer.addEffect(colorGrade);
+        } else if (colorGrade != null) {
+            composer.removeEffect(colorGrade);
+        }
+
+        SharpenEffect sharpen = composer.getEffect(SharpenEffect.class);
+        if (sharpenEnabled) {
+            if (sharpen == null) {
+                sharpen = new SharpenEffect();
+            }
+            sharpen.setStrength(sharpenStrength / 100.0f);
+            composer.addEffect(sharpen);
+        } else if (sharpen != null) {
+            composer.removeEffect(sharpen);
+        }
+
+        ScanlinesEffect scanlines = composer.getEffect(ScanlinesEffect.class);
+        if (scanlinesEnabled) {
+            if (scanlines == null) {
+                scanlines = new ScanlinesEffect();
+            }
+            scanlines.setIntensity(scanlinesIntensity / 100.0f);
+            composer.addEffect(scanlines);
+        } else if (scanlines != null) {
+            composer.removeEffect(scanlines);
+        }
+
         renderer.setScaleFilter(scaleFilter);
     }
 
@@ -4670,15 +4797,71 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             sgsrUpscaleMode = clampSGSRUpscaleMode(preferences.getInt("sgsr_upscale_mode", 1));
             sgsrSharpness = preferences.getInt("sgsr_sharpness", legacyStrength);
         }
-        vividEnabled = preferences.contains("vivid_enabled")
-                ? preferences.getBoolean("vivid_enabled", false)
-                : legacyEnabled && legacyMode == 1;
-        vividStrength = preferences.getInt("vivid_strength", legacyStrength);
-        colorProfile = preferences.getInt("color_profile", 0);
-        brightness = Math.max(-100, Math.min(100, preferences.getInt("color_brightness", 0)));
-        contrast = Math.max(-100, Math.min(100, preferences.getInt("color_contrast", 0)));
-        gammaPercent = Math.max(50, Math.min(250, preferences.getInt("color_gamma", 100)));
-        scaleFilter = preferences.getInt("scale_filter", 0);
+        loadScreenEffectsFromContainer();
+    }
+
+    private void loadScreenEffectsFromContainer() {
+        vividEnabled = false;
+        vividStrength = 100;
+        colorProfile = 0;
+        brightness = 0;
+        contrast = 0;
+        gammaPercent = 100;
+        scaleFilter = 0;
+        saturation = 100;
+        temperature = 0;
+        tint = 0;
+        sharpenEnabled = false;
+        sharpenStrength = 50;
+        scanlinesEnabled = false;
+        scanlinesIntensity = 50;
+        if (container == null) return;
+        String json = container.getExtra("screenEffectsSettings");
+        if (json == null || json.isEmpty()) return;
+        try {
+            JSONObject o = new JSONObject(json);
+            vividEnabled = o.optBoolean("vividEnabled", false);
+            vividStrength = Math.max(0, Math.min(100, o.optInt("vividStrength", 100)));
+            colorProfile = o.optInt("colorProfile", 0);
+            brightness = Math.max(-100, Math.min(100, o.optInt("brightness", 0)));
+            contrast = Math.max(-100, Math.min(100, o.optInt("contrast", 0)));
+            gammaPercent = Math.max(50, Math.min(250, o.optInt("gammaPercent", 100)));
+            scaleFilter = o.optInt("scaleFilter", 0);
+            saturation = Math.max(0, Math.min(200, o.optInt("saturation", 100)));
+            temperature = Math.max(-100, Math.min(100, o.optInt("temperature", 0)));
+            tint = Math.max(-100, Math.min(100, o.optInt("tint", 0)));
+            sharpenEnabled = o.optBoolean("sharpenEnabled", false);
+            sharpenStrength = Math.max(0, Math.min(100, o.optInt("sharpenStrength", 50)));
+            scanlinesEnabled = o.optBoolean("scanlinesEnabled", false);
+            scanlinesIntensity = Math.max(0, Math.min(100, o.optInt("scanlinesIntensity", 50)));
+        } catch (JSONException e) {
+            Log.e("XServerDisplayActivity", "Failed to load screen effects", e);
+        }
+    }
+
+    private void saveScreenEffectsSettings() {
+        if (container == null) return;
+        try {
+            JSONObject o = new JSONObject();
+            o.put("vividEnabled", vividEnabled);
+            o.put("vividStrength", vividStrength);
+            o.put("colorProfile", colorProfile);
+            o.put("brightness", brightness);
+            o.put("contrast", contrast);
+            o.put("gammaPercent", gammaPercent);
+            o.put("scaleFilter", scaleFilter);
+            o.put("saturation", saturation);
+            o.put("temperature", temperature);
+            o.put("tint", tint);
+            o.put("sharpenEnabled", sharpenEnabled);
+            o.put("sharpenStrength", sharpenStrength);
+            o.put("scanlinesEnabled", scanlinesEnabled);
+            o.put("scanlinesIntensity", scanlinesIntensity);
+            container.putExtra("screenEffectsSettings", o.toString());
+            container.saveData();
+        } catch (JSONException e) {
+            Log.e("XServerDisplayActivity", "Failed to save screen effects", e);
+        }
     }
 
     private static float clampHudAlpha(float v) {

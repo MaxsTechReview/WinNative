@@ -6,9 +6,12 @@ public abstract class Effect {
     public static final int TYPE_HDR      = 2;
     public static final int TYPE_NATURAL  = 3;
     public static final int TYPE_SGSR1    = 4;
-    public static final int TYPE_TOON     = 5;
-    public static final int TYPE_NTSC     = 6;
-    public static final int TYPE_COLORADJ = 7;
+    public static final int TYPE_TOON      = 5;
+    public static final int TYPE_NTSC      = 6;
+    public static final int TYPE_COLORADJ  = 7;
+    public static final int TYPE_COLORGRADE = 8;
+    public static final int TYPE_SHARPEN   = 9;
+    public static final int TYPE_SCANLINES = 10;
 
     public abstract int getNativeType();
 

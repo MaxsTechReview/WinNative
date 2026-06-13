@@ -336,6 +336,13 @@ data class XServerDrawerState(
     val contrast: Int = 0,
     val gammaPercent: Int = 100,
     val scaleFilter: Int = 0,
+    val saturation: Int = 100,
+    val temperature: Int = 0,
+    val tint: Int = 0,
+    val sharpenEnabled: Boolean = false,
+    val sharpenStrength: Int = 50,
+    val scanlinesEnabled: Boolean = false,
+    val scanlinesIntensity: Int = 50,
     val inputControlsProfileNames: List<String> = emptyList(),
     val inputControlsSelectedProfileIndex: Int = 0,
     val inputControlsStyleNames: List<String> = emptyList(),
@@ -534,6 +541,22 @@ interface XServerDrawerActionListener {
 
     fun onScaleFilterSelected(mode: Int)
 
+    fun onSaturationChanged(value: Int)
+
+    fun onTemperatureChanged(value: Int)
+
+    fun onTintChanged(value: Int)
+
+    fun onSharpenEnabledChanged(enabled: Boolean)
+
+    fun onSharpenStrengthChanged(value: Int)
+
+    fun onScanlinesEnabledChanged(enabled: Boolean)
+
+    fun onScanlinesIntensityChanged(value: Int)
+
+    fun onResetEffects()
+
     fun onInputControlsProfileSelected(index: Int)
 
     fun onInputControlsStyleSelected(index: Int)
@@ -619,6 +642,13 @@ fun buildXServerDrawerState(
     contrast: Int = 0,
     gammaPercent: Int = 100,
     scaleFilter: Int = 0,
+    saturation: Int = 100,
+    temperature: Int = 0,
+    tint: Int = 0,
+    sharpenEnabled: Boolean = false,
+    sharpenStrength: Int = 50,
+    scanlinesEnabled: Boolean = false,
+    scanlinesIntensity: Int = 50,
     inputControlsProfileNames: List<String> = emptyList(),
     inputControlsSelectedProfileIndex: Int = 0,
     inputControlsStyleNames: List<String> = emptyList(),
@@ -695,7 +725,9 @@ fun buildXServerDrawerState(
                 subtitle = context.getString(R.string.session_drawer_screen_effects_subtitle),
                 icon = Icons.Outlined.Tune,
                 active = sgsrEnabled || vividEnabled || colorProfile > 0 ||
-                    brightness != 0 || contrast != 0 || gammaPercent != 100 || scaleFilter != 0,
+                    brightness != 0 || contrast != 0 || gammaPercent != 100 || scaleFilter != 0 ||
+                    saturation != 100 || temperature != 0 || tint != 0 ||
+                    sharpenEnabled || scanlinesEnabled,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_pause,
@@ -796,6 +828,13 @@ fun buildXServerDrawerState(
         contrast = contrast,
         gammaPercent = gammaPercent,
         scaleFilter = scaleFilter,
+        saturation = saturation,
+        temperature = temperature,
+        tint = tint,
+        sharpenEnabled = sharpenEnabled,
+        sharpenStrength = sharpenStrength,
+        scanlinesEnabled = scanlinesEnabled,
+        scanlinesIntensity = scanlinesIntensity,
         inputControlsProfileNames = inputControlsProfileNames,
         inputControlsSelectedProfileIndex = inputControlsSelectedProfileIndex,
         inputControlsStyleNames = inputControlsStyleNames,
@@ -1495,6 +1534,31 @@ private fun ThinDivider() {
                 .height(1.dp)
                 .background(BottomDividerColor),
     )
+}
+
+@Composable
+private fun DrawerResetRow(label: String, onClick: () -> Unit) {
+    val paneScale = LocalPaneScale.current
+    val shape = RoundedCornerShape((14f * paneScale).dp)
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(PaneInnerResting)
+                .border(1.dp, RestingCardBorder, shape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = label,
+            color = DrawerAccent,
+            fontSize = (14f * paneScale).sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
 }
 
 private fun railLabelResFor(itemId: Int): Int? =
@@ -2392,6 +2456,40 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_sharpen),
+                        checked = state.sharpenEnabled,
+                        onCheckedChange = listener::onSharpenEnabledChanged,
+                    )
+
+                    if (state.sharpenEnabled) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_drawer_strength),
+                            valueText = "${state.sharpenStrength}%",
+                            value = state.sharpenStrength.toFloat(),
+                            valueRange = 0f..100f,
+                            steps = 99,
+                            onValueChange = { listener.onSharpenStrengthChanged(it.roundToInt().coerceIn(0, 100)) },
+                        )
+                    }
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_scanlines),
+                        checked = state.scanlinesEnabled,
+                        onCheckedChange = listener::onScanlinesEnabledChanged,
+                    )
+
+                    if (state.scanlinesEnabled) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_drawer_intensity),
+                            valueText = "${state.scanlinesIntensity}%",
+                            value = state.scanlinesIntensity.toFloat(),
+                            valueRange = 0f..100f,
+                            steps = 99,
+                            onValueChange = { listener.onScanlinesIntensityChanged(it.roundToInt().coerceIn(0, 100)) },
+                        )
+                    }
+
                     DrawerSliderRow(
                         label = stringResource(R.string.session_drawer_brightness),
                         valueText = "${state.brightness}",
@@ -2418,6 +2516,33 @@ private fun ScreenEffectsPaneContent(
                         steps = 19,
                         onValueChange = { listener.onGammaChanged(it.roundToInt().coerceIn(50, 250)) },
                     )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_saturation),
+                        valueText = "${state.saturation}%",
+                        value = state.saturation.toFloat(),
+                        valueRange = 0f..200f,
+                        steps = 39,
+                        onValueChange = { listener.onSaturationChanged(it.roundToInt().coerceIn(0, 200)) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_temperature),
+                        valueText = "${state.temperature}",
+                        value = state.temperature.toFloat(),
+                        valueRange = -100f..100f,
+                        steps = 39,
+                        onValueChange = { listener.onTemperatureChanged(it.roundToInt().coerceIn(-100, 100)) },
+                    )
+
+                    DrawerSliderRow(
+                        label = stringResource(R.string.session_drawer_tint),
+                        valueText = "${state.tint}",
+                        value = state.tint.toFloat(),
+                        valueRange = -100f..100f,
+                        steps = 39,
+                        onValueChange = { listener.onTintChanged(it.roundToInt().coerceIn(-100, 100)) },
+                    )
                 }
 
                 ThinDivider()
@@ -2436,7 +2561,20 @@ private fun ScreenEffectsPaneContent(
                         checked = state.scaleFilter == 2,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 2 else 0) },
                     )
+
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_scale_bicubic),
+                        checked = state.scaleFilter == 3,
+                        onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 3 else 0) },
+                    )
                 }
+
+                ThinDivider()
+
+                DrawerResetRow(
+                    label = stringResource(R.string.session_drawer_reset_effects),
+                    onClick = listener::onResetEffects,
+                )
             }
         }
     }

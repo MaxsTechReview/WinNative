@@ -353,7 +353,11 @@ static void write_descriptor_set(VkRenderer* r, VkDescriptorSet set, VkImageView
 }
 
 static VkSampler active_shared_sampler(VkRenderer* r) {
-    return r->scale_filter_nearest ? r->shared_sampler_nearest : r->shared_sampler;
+    switch (r->scale_filter) {
+        case 1:  return r->shared_sampler_nearest;
+        case 3:  return r->ext_filter_cubic ? r->shared_sampler_cubic : r->shared_sampler;
+        default: return r->shared_sampler;
+    }
 }
 
 // Caller must hold render_mutex with in-flight frames drained.

@@ -717,6 +717,15 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_scale">Scale</string>
     <string name="session_drawer_scale_nearest">Nearest</string>
     <string name="session_drawer_scale_linear">Linear</string>
+    <string name="session_drawer_scale_bicubic">Bicubic</string>
+    <string name="session_drawer_saturation">Saturation</string>
+    <string name="session_drawer_temperature">Temperature</string>
+    <string name="session_drawer_tint">Tint</string>
+    <string name="session_drawer_sharpen">Sharpen</string>
+    <string name="session_drawer_scanlines">Scanlines</string>
+    <string name="session_drawer_strength">Strength</string>
+    <string name="session_drawer_intensity">Intensity</string>
+    <string name="session_drawer_reset_effects">Reset effects</string>
     <string name="session_drawer_calibrate_advanced">Advanced calibration</string>
     <string name="session_drawer_rail_label_hud">HUD</string>
     <string name="session_drawer_rail_label_gyro">Gyro</string>

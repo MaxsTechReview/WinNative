@@ -790,6 +790,7 @@ public class VulkanRenderer
     public static final int SCALE_FILTER_OFF     = 0;
     public static final int SCALE_FILTER_NEAREST = 1;
     public static final int SCALE_FILTER_LINEAR  = 2;
+    public static final int SCALE_FILTER_BICUBIC = 3;
 
     private int requestedScaleFilter = SCALE_FILTER_OFF;
 

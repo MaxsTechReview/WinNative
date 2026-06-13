@@ -78,6 +78,9 @@ set(SHADER_LIST
     "effect_toon:frag:effect_toon_frag"
     "effect_ntsc:frag:effect_ntsc_frag"
     "effect_coloradj:frag:effect_coloradj_frag"
+    "effect_colorgrade:frag:effect_colorgrade_frag"
+    "effect_sharpen:frag:effect_sharpen_frag"
+    "effect_scanlines:frag:effect_scanlines_frag"
     "sgsr1:frag:sgsr1_frag"
 )
 

@@ -106,6 +106,9 @@ typedef enum VkEffectType {
     VK_EFFECT_TOON = 5,
     VK_EFFECT_NTSC = 6,
     VK_EFFECT_COLORADJ = 7,
+    VK_EFFECT_COLORGRADE = 8,
+    VK_EFFECT_SHARPEN = 9,
+    VK_EFFECT_SCANLINES = 10,
     VK_EFFECT_COUNT
 } VkEffectType;
 
@@ -370,7 +373,9 @@ typedef struct VkRenderer {
     // every texture its own sampler is a non-trivial CPU+GPU tax during pixmap churn.
     VkSampler        shared_sampler;
     VkSampler        shared_sampler_nearest;
-    bool             scale_filter_nearest;
+    VkSampler        shared_sampler_cubic;
+    bool             ext_filter_cubic;
+    int              scale_filter;
 
     // Per-frame
     VkCommandPool    cmd_pool;
