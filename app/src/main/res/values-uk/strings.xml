@@ -835,6 +835,7 @@
     <string name="settings_content_desc_box64">Транслює Linux-код x86_64 для запуску на пристроях ARM64.</string>
     <string name="settings_content_desc_wowbox64">Збірка Box64, яку WoW64 використовує для запуску 32-бітних Windows-застосунків у 64-бітному Wine.</string>
     <string name="settings_content_desc_fexcore">Транслює код x86 і x86_64 для запуску на пристроях ARM64.</string>
+    <string name="settings_content_desc_d7vk">Транслює графічні виклики DirectDraw (Direct3D 7 та раніших версій) у Vulkan.</string>
     <string name="settings_content_unable_to_install">Неможливо встановити контент.</string>
     <string name="settings_content_install_failed">Помилка встановлення</string>
     <string name="settings_content_file_cannot_be_recognized">Файл не розпізнано.</string>

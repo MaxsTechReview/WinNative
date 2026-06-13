@@ -829,6 +829,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_content_desc_box64">Traduz código Linux x86_64 para execução em dispositivos ARM64.</string>
     <string name="settings_content_desc_wowbox64">Build Box64 usado pelo WoW64 para executar apps Windows de 32 bits no Wine de 64 bits.</string>
     <string name="settings_content_desc_fexcore">Traduz código x86 e x86_64 para execução em dispositivos ARM64.</string>
+    <string name="settings_content_desc_d7vk">Traduz chamadas gráficas DirectDraw (Direct3D 7 e anteriores) para Vulkan.</string>
     <string name="settings_content_unable_to_install">Nao foi possivel instalar o conteudo.</string>
     <string name="settings_content_install_failed">Falha na Instalacao</string>
     <string name="settings_content_file_cannot_be_recognized">O arquivo nao pode ser reconhecido.</string>

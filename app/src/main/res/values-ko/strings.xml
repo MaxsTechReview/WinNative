@@ -829,6 +829,7 @@
     <string name="settings_content_desc_box64">x86_64 Linux 코드를 ARM64 기기에서 실행되도록 변환합니다.</string>
     <string name="settings_content_desc_wowbox64">64비트 Wine에서 32비트 Windows 앱을 실행하기 위해 WoW64가 사용하는 Box64 빌드입니다.</string>
     <string name="settings_content_desc_fexcore">x86 및 x86_64 코드를 ARM64 기기에서 실행되도록 변환합니다.</string>
+    <string name="settings_content_desc_d7vk">DirectDraw(Direct3D 7 이하) 그래픽 호출을 Vulkan으로 변환합니다.</string>
     <string name="settings_content_unable_to_install">콘텐츠를 설치할 수 없습니다.</string>
     <string name="settings_content_install_failed">설치 실패</string>
     <string name="settings_content_file_cannot_be_recognized">파일을 인식할 수 없습니다.</string>
