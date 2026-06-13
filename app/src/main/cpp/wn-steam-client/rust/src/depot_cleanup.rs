@@ -193,22 +193,20 @@ fn remove_cleanup_marker(config_dir: impl AsRef<Path>, depot_id: u32, manifest_i
 /// manifest references — the gap left when a branch switch (or an update that
 /// removes files) only ever writes new content.
 ///
-/// Safety model: deletion candidates come exclusively from the OLD manifest of
-/// a depot with a pending marker, minus the union of every currently-installed
-/// manifest's files (read from filelist sidecars, falling back to cached
-/// manifests when this operation holds the depot's key). Files WinNative
-/// itself adds (steam_settings/, .DepotDownloader/, *.original.exe backups,
-/// saves) appear in no manifest and can never become candidates. The union is
-/// best-effort: an installed depot whose file list is unreadable (legacy
-/// install predating sidecars, key not in this op) is logged and skipped —
-/// the per-depot old-minus-new diff itself never depends on it, which matches
-/// the reference DepotDownloader behaviour while sidecars close the gap on
-/// every download going forward.
+/// Safety model: deletion candidates come exclusively from cached manifest
+/// file lists (filelist sidecars, or cached manifests when this op holds the
+/// key), minus the union of every currently-installed manifest's files. Files
+/// WinNative or the user adds that appear in NO Steam manifest (steam_settings/,
+/// .DepotDownloader/, *.original.exe backups, saves, and user-added mods) can
+/// never become candidates, so mods that drop new files survive a switch. A
+/// file a mod *overwrote* is reverted by the download itself, as on real Steam.
 ///
-/// Known model limitation: a download cancelled mid-write leaves no committed
-/// gid to diff against on the next switch, so files unique to the aborted
-/// build are not reclaimed (depot.config holds INVALID for it; the prior
-/// marker resolves as already-current).
+/// Every cached old build is swept (not only those with a pending marker), so
+/// orphans are reclaimed even when a marker was dropped or never recorded —
+/// including files unique to a build whose write was aborted mid-switch. A
+/// depot whose depot.config entry is still in progress (INVALID) is deferred
+/// per-depot: its files are protected and its old builds are left for a later
+/// pass, without blocking cleanup of the other depots.
 ///
 /// Returns the number of files deleted.
 pub fn run_stale_file_cleanup(
@@ -216,128 +214,102 @@ pub fn run_stale_file_cleanup(
     config_dir: &Path,
     depots: &[ResolvedDepotSpec],
 ) -> u32 {
-    let markers = pending_cleanup_markers(config_dir);
-    if markers.is_empty() {
-        return 0;
-    }
-
     let keys: BTreeMap<u32, &[u8]> = depots
         .iter()
         .map(|depot| (depot.depot_id, depot.depot_key.as_slice()))
         .collect();
     let cfg = DepotConfigStore::load(config_dir);
 
-    let mut keep = BTreeSet::new();
-    for (depot_id, manifest_id) in cfg.installed_entries() {
-        if manifest_id == INVALID_MANIFEST_ID {
-            cleanup_log(&format!(
-                "cleanup: depot {depot_id} still in progress, deferring stale-file pass"
-            ));
-            return 0;
+    // Current committed gid per depot; an INVALID entry means that depot's
+    // build is mid-flight, so it is deferred this pass.
+    let mut current: BTreeMap<u32, u64> = BTreeMap::new();
+    let mut deferred: BTreeSet<u32> = BTreeSet::new();
+    for (depot_id, gid) in cfg.installed_entries() {
+        if gid == INVALID_MANIFEST_ID {
+            deferred.insert(depot_id);
+        } else {
+            current.insert(depot_id, gid);
         }
-        match load_file_entries(
-            config_dir,
-            depot_id,
-            manifest_id,
-            keys.get(&depot_id).copied(),
-        ) {
+    }
+
+    // Every old build still on disk: each cached filelist/manifest plus any
+    // pending marker. Sweeping cached builds (not just marked ones) reclaims
+    // orphans even when a marker was dropped or never recorded.
+    let mut old_builds = collect_cached_builds(config_dir);
+    old_builds.extend(pending_cleanup_markers(config_dir));
+    if old_builds.is_empty() {
+        return 0;
+    }
+
+    // Keep-union: files of every current build (so a file shared across builds
+    // or moved between depots is never deleted), plus — defensively — every
+    // cached build of a deferred depot so a mid-download depot loses nothing.
+    // A current depot whose own file list is unreadable is itself deferred:
+    // sweeping with an incomplete keep set could delete its live files.
+    let mut keep = BTreeSet::new();
+    for (depot_id, gid) in current.clone() {
+        match load_file_entries(config_dir, depot_id, gid, keys.get(&depot_id).copied()) {
             Some(entries) => {
                 for entry in &entries {
                     keep.insert(normalized_key(&entry.name));
                 }
             }
-            None => cleanup_log(&format!(
-                "cleanup: no file list for installed depot {depot_id}_{manifest_id}; \
-                 protecting with remaining manifests only"
-            )),
+            None => {
+                cleanup_log(&format!(
+                    "cleanup: installed depot {depot_id}_{gid} file list unreadable; \
+                     deferring it to avoid over-deletion"
+                ));
+                deferred.insert(depot_id);
+                current.remove(&depot_id);
+            }
+        }
+    }
+    for &(depot_id, gid) in &old_builds {
+        if deferred.contains(&depot_id) {
+            if let Some(entries) =
+                load_file_entries(config_dir, depot_id, gid, keys.get(&depot_id).copied())
+            {
+                for entry in &entries {
+                    keep.insert(normalized_key(&entry.name));
+                }
+            }
         }
     }
 
     let install_root = Path::new(install_dir);
     let mut deleted = 0u32;
-    for (depot_id, old_gid) in markers {
-        if cfg.installed_manifest(depot_id) == old_gid {
-            // Marker for the build that is (again) current — nothing stale.
-            remove_cleanup_marker(config_dir, depot_id, old_gid);
+    for (depot_id, gid) in old_builds {
+        if deferred.contains(&depot_id) {
+            continue;
+        }
+        if current.get(&depot_id) == Some(&gid) {
+            // This build is the one currently installed — not stale.
+            remove_cleanup_marker(config_dir, depot_id, gid);
             continue;
         }
         let Some(entries) =
-            load_file_entries(config_dir, depot_id, old_gid, keys.get(&depot_id).copied())
+            load_file_entries(config_dir, depot_id, gid, keys.get(&depot_id).copied())
         else {
-            if filelist_sidecar_path(config_dir, depot_id, old_gid).is_file()
+            if filelist_sidecar_path(config_dir, depot_id, gid).is_file()
                 || config_dir
-                    .join(format!("{depot_id}_{old_gid}.manifest"))
+                    .join(format!("{depot_id}_{gid}.manifest"))
                     .is_file()
             {
                 // The data is on disk but this op can't read it (no key yet);
                 // a later op that carries the key finishes the job.
                 cleanup_log(&format!(
-                    "cleanup: old file list {depot_id}_{old_gid} unreadable in this op, deferring"
+                    "cleanup: old file list {depot_id}_{gid} unreadable in this op, deferring"
                 ));
             } else {
                 cleanup_log(&format!(
-                    "cleanup: old file list {depot_id}_{old_gid} is gone, dropping marker"
+                    "cleanup: old file list {depot_id}_{gid} is gone, dropping marker"
                 ));
-                remove_cleanup_marker(config_dir, depot_id, old_gid);
+                remove_cleanup_marker(config_dir, depot_id, gid);
             }
             continue;
         };
-
-        let mut dirs = BTreeSet::new();
-        for entry in &entries {
-            let key = normalized_key(&entry.name);
-            if keep.contains(&key) {
-                continue;
-            }
-            let Some(parts) = sanitized_components(&entry.name) else {
-                cleanup_log(&format!(
-                    "cleanup: refusing unsafe manifest path '{}'",
-                    entry.name
-                ));
-                continue;
-            };
-            if has_symlinked_ancestor(install_root, &parts) {
-                cleanup_log(&format!(
-                    "cleanup: '{}' is behind a symlinked directory, skipping",
-                    entry.name
-                ));
-                continue;
-            }
-            let mut path = install_root.to_path_buf();
-            path.extend(&parts);
-            if entry.is_dir {
-                dirs.insert(path);
-                continue;
-            }
-            if delete_stale_file(&path) {
-                cleanup_log(&format!(
-                    "cleanup: deleted '{}' (depot {depot_id}, gone after manifest {old_gid})",
-                    path.display()
-                ));
-                deleted += 1;
-                // Steamless backs up patched exes as "<name>.original.exe";
-                // restoreOriginalExecutable would resurrect a deleted exe from
-                // an orphaned backup, so the backup goes with its primary —
-                // but only an exe's backup, and never one a current manifest
-                // legitimately ships.
-                if key.ends_with(".exe") && !keep.contains(&format!("{key}.original.exe")) {
-                    let backup = sibling_original_backup(&path);
-                    if delete_stale_file(&backup) {
-                        cleanup_log(&format!("cleanup: deleted backup '{}'", backup.display()));
-                        deleted += 1;
-                    }
-                }
-                if let Some(parent) = path.parent() {
-                    if parent != install_root {
-                        dirs.insert(parent.to_path_buf());
-                    }
-                }
-            }
-        }
-        for dir in dirs.iter().rev() {
-            prune_empty_dirs_up(install_root, dir);
-        }
-        remove_cleanup_marker(config_dir, depot_id, old_gid);
+        deleted += delete_build_orphans(install_root, depot_id, gid, &entries, &keep);
+        remove_cleanup_marker(config_dir, depot_id, gid);
     }
     if deleted > 0 {
         cleanup_log(&format!(
@@ -345,6 +317,101 @@ pub fn run_stale_file_cleanup(
         ));
     }
     deleted
+}
+
+/// Deletes the files of one old build that no current build still ships.
+fn delete_build_orphans(
+    install_root: &Path,
+    depot_id: u32,
+    gid: u64,
+    entries: &[FileEntry],
+    keep: &BTreeSet<String>,
+) -> u32 {
+    let mut deleted = 0u32;
+    let mut dirs = BTreeSet::new();
+    for entry in entries {
+        let key = normalized_key(&entry.name);
+        if keep.contains(&key) {
+            continue;
+        }
+        let Some(parts) = sanitized_components(&entry.name) else {
+            cleanup_log(&format!(
+                "cleanup: refusing unsafe manifest path '{}'",
+                entry.name
+            ));
+            continue;
+        };
+        if has_symlinked_ancestor(install_root, &parts) {
+            cleanup_log(&format!(
+                "cleanup: '{}' is behind a symlinked directory, skipping",
+                entry.name
+            ));
+            continue;
+        }
+        let mut path = install_root.to_path_buf();
+        path.extend(&parts);
+        if entry.is_dir {
+            dirs.insert(path);
+            continue;
+        }
+        if delete_stale_file(&path) {
+            cleanup_log(&format!(
+                "cleanup: deleted '{}' (depot {depot_id}, gone after manifest {gid})",
+                path.display()
+            ));
+            deleted += 1;
+            // Steamless backs up patched exes as "<name>.original.exe";
+            // restoreOriginalExecutable would resurrect a deleted exe from an
+            // orphaned backup, so the backup goes with its primary — but only
+            // an exe's backup, and never one a current manifest legitimately
+            // ships.
+            if key.ends_with(".exe") && !keep.contains(&format!("{key}.original.exe")) {
+                let backup = sibling_original_backup(&path);
+                if delete_stale_file(&backup) {
+                    cleanup_log(&format!("cleanup: deleted backup '{}'", backup.display()));
+                    deleted += 1;
+                }
+            }
+            if let Some(parent) = path.parent() {
+                if parent != install_root {
+                    dirs.insert(parent.to_path_buf());
+                }
+            }
+        }
+    }
+    for dir in dirs.iter().rev() {
+        prune_empty_dirs_up(install_root, dir);
+    }
+    deleted
+}
+
+/// Every (depot_id, gid) with a cached filelist sidecar or manifest — the set
+/// of builds whose file lists this pass can diff against the current install.
+fn collect_cached_builds(config_dir: &Path) -> BTreeSet<(u32, u64)> {
+    let mut builds = BTreeSet::new();
+    let Ok(entries) = fs::read_dir(config_dir) else {
+        return builds;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        let stem = match name.strip_suffix(FILELIST_SUFFIX) {
+            Some(stem) => stem,
+            None => match name.strip_suffix(".manifest") {
+                Some(stem) => stem,
+                None => continue,
+            },
+        };
+        let mut parts = stem.split('_');
+        if let (Some(depot), Some(gid), None) = (parts.next(), parts.next(), parts.next()) {
+            if let (Ok(depot_id), Ok(manifest_id)) = (depot.parse::<u32>(), gid.parse::<u64>()) {
+                builds.insert((depot_id, manifest_id));
+            }
+        }
+    }
+    builds
 }
 
 fn load_manifest(
@@ -736,22 +803,65 @@ mod tests {
     }
 
     #[test]
-    fn in_progress_depot_defers_whole_pass() {
-        let install = temp_dir("in_progress_defer");
+    fn in_progress_depot_is_protected_while_others_are_cleaned() {
+        // Per-depot deferral: an in-flight depot (200, INVALID) keeps all its
+        // files, but it must not block cleaning depot 100's stale file.
+        let install = temp_dir("in_progress_per_depot");
         let config = config_dir(&install);
         write_sidecar(&config, 100, 444, &[("only_old.dat", 0)]);
         write_sidecar(&config, 100, 555, &[("core.dat", 0)]);
+        write_sidecar(&config, 200, 777, &[("dlc.dat", 0)]);
         install_current(&config, 100, 555);
         let mut cfg = DepotConfigStore::load(&config);
-        cfg.begin_depot(200);
+        cfg.begin_depot(200); // 200 -> INVALID (mid-download)
         touch(&install, "only_old.dat");
+        touch(&install, "core.dat");
+        touch(&install, "dlc.dat");
         assert!(record_pending_cleanup(&config, 100, 444, 555));
 
         let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
 
-        assert_eq!(deleted, 0);
-        assert!(install.join("only_old.dat").exists());
-        assert_eq!(pending_cleanup_markers(&config), vec![(100, 444)]);
+        assert_eq!(deleted, 1);
+        assert!(
+            !install.join("only_old.dat").exists(),
+            "depot 100 stale file cleaned"
+        );
+        assert!(install.join("core.dat").exists());
+        assert!(
+            install.join("dlc.dat").exists(),
+            "in-flight depot 200 protected"
+        );
+        assert!(pending_cleanup_markers(&config).is_empty());
+        let _ = fs::remove_dir_all(&install);
+    }
+
+    #[test]
+    fn sweeps_cached_old_build_without_a_marker() {
+        // The defining B behavior: an aborted build's files are reclaimed from
+        // its cached sidecar even when no .stalecleanup marker exists.
+        let install = temp_dir("sweep_no_marker");
+        let config = config_dir(&install);
+        write_sidecar(&config, 100, 555, &[("core.dat", 0)]);
+        write_sidecar(&config, 100, 777, &[("core.dat", 0), ("beta_only.dll", 0)]);
+        install_current(&config, 100, 555);
+        touch(&install, "core.dat");
+        touch(&install, "beta_only.dll"); // left by an aborted switch to 777
+        touch(&install, "user_mod.cfg"); // user-added, in no manifest
+                                         // No marker recorded for 777.
+        assert!(pending_cleanup_markers(&config).is_empty());
+
+        let deleted = run_stale_file_cleanup(install.to_str().unwrap(), &config, &[spec(100, 555)]);
+
+        assert_eq!(deleted, 1);
+        assert!(
+            !install.join("beta_only.dll").exists(),
+            "aborted build's file swept"
+        );
+        assert!(install.join("core.dat").exists());
+        assert!(
+            install.join("user_mod.cfg").exists(),
+            "user-added mod preserved"
+        );
         let _ = fs::remove_dir_all(&install);
     }
 
