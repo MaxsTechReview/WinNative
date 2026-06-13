@@ -892,7 +892,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_share_android_clipboard">Share Android Clipboard with Wine</string>
     <string name="settings_general_paths_title">Path Settings</string>
     <string name="settings_general_paths_summary">Manage where Winlator stores its working data and where exported shortcuts are written.</string>
-    <string name="settings_general_winlator_path_title">Winlator Path</string>
+    <string name="settings_general_winlator_path_title">Storage Path</string>
     <string name="settings_general_shortcut_export_path_title">Shortcut Export Path</string>
     <string name="settings_general_choose_path">Choose Path</string>
     <string name="settings_general_xserver_cursor_summary">Adjust pointer speed for touch, trackpad, and mouse input inside the XServer session.</string>
@@ -900,7 +900,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_cursor_lock_summary">Keeps direct mouse capture enabled for games that need raw pointer input. Disable it with Volume Down.</string>
     <string name="settings_general_xinput_toggle_title">Disable XInput</string>
     <string name="settings_general_xinput_toggle_summary">Turns off XInput handling when you want exclusive mouse and keyboard control.</string>
-    <string name="settings_general_file_provider_summary">Expose Winlator files to Android document pickers and file managers.</string>
+    <string name="settings_general_file_provider_summary">Expose WinNative files to Android document pickers and file managers.</string>
     <string name="settings_general_open_browser_summary">Open supported web links in the Android browser instead of inside Wine.</string>
     <string name="settings_general_clipboard_summary">Allow copy and paste between Android and Wine sessions.</string>
     <string name="settings_general_imagefs_summary">Restore bundled system files without removing your existing containers.</string>

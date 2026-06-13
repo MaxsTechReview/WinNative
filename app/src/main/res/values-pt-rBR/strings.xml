@@ -732,7 +732,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_share_android_clipboard">Compartilhar Area de Transferencia do Android com o Wine</string>
     <string name="settings_general_paths_title">Configuracoes de Caminho</string>
     <string name="settings_general_paths_summary">Gerenciar onde o Winlator armazena seus dados de trabalho e onde os atalhos exportados sao gravados.</string>
-    <string name="settings_general_winlator_path_title">Caminho do Winlator</string>
+    <string name="settings_general_winlator_path_title">Caminho de armazenamento</string>
     <string name="settings_general_shortcut_export_path_title">Caminho de Exportacao de Atalhos</string>
     <string name="settings_general_choose_path">Escolher Caminho</string>
     <string name="settings_general_xserver_cursor_summary">Ajustar a velocidade do ponteiro para entrada por toque, trackpad e mouse dentro da sessao XServer.</string>
@@ -740,7 +740,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantem a captura direta do mouse ativada para jogos que precisam de entrada bruta do ponteiro. Desative com Volume Baixo.</string>
     <string name="settings_general_xinput_toggle_title">Desativar XInput</string>
     <string name="settings_general_xinput_toggle_summary">Desliga o tratamento XInput quando voce quer controle exclusivo de mouse e teclado.</string>
-    <string name="settings_general_file_provider_summary">Expor arquivos do Winlator para seletores de documentos e gerenciadores de arquivos do Android.</string>
+    <string name="settings_general_file_provider_summary">Expor arquivos do WinNative para seletores de documentos e gerenciadores de arquivos do Android.</string>
     <string name="settings_general_open_browser_summary">Abrir links da web compativeis no navegador Android em vez de dentro do Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar e colar entre o Android e sessoes do Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurar arquivos do sistema inclusos sem remover seus containers existentes.</string>

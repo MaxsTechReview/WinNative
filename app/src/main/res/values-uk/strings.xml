@@ -738,7 +738,7 @@
     <string name="settings_general_share_android_clipboard">Спільний буфер обміну Android з Wine</string>
     <string name="settings_general_paths_title">Налаштування шляхів</string>
     <string name="settings_general_paths_summary">Керувати місцем зберігання робочих даних Winlator та шляхом експорту ярликів.</string>
-    <string name="settings_general_winlator_path_title">Шлях Winlator</string>
+    <string name="settings_general_winlator_path_title">Шлях сховища</string>
     <string name="settings_general_shortcut_export_path_title">Шлях експорту ярликів</string>
     <string name="settings_general_choose_path">Вибрати шлях</string>
     <string name="settings_general_xserver_cursor_summary">Налаштуйте швидкість вказівника для сенсорного, трекпада та миші у сесії XServer.</string>
@@ -746,7 +746,7 @@
     <string name="settings_general_cursor_lock_summary">Підтримує пряме захоплення миші для ігор, що потребують необробленого введення вказівника. Вимкніть кнопкою гучності вниз.</string>
     <string name="settings_general_xinput_toggle_title">Вимкнути XInput</string>
     <string name="settings_general_xinput_toggle_summary">Вимикає обробку XInput, коли потрібне ексклюзивне керування мишею та клавіатурою.</string>
-    <string name="settings_general_file_provider_summary">Надати доступ до файлів Winlator для засобів вибору документів та файлових менеджерів Android.</string>
+    <string name="settings_general_file_provider_summary">Надати доступ до файлів WinNative для засобів вибору документів та файлових менеджерів Android.</string>
     <string name="settings_general_open_browser_summary">Відкривати підтримувані веб-посилання у браузері Android замість Wine.</string>
     <string name="settings_general_clipboard_summary">Дозволити копіювання та вставку між Android та сесіями Wine.</string>
     <string name="settings_general_imagefs_summary">Відновити системні файли з пакета без видалення існуючих контейнерів.</string>

@@ -732,7 +732,7 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_share_android_clipboard">Compartir portapapeles de Android con Wine</string>
     <string name="settings_general_paths_title">Ajustes de rutas</string>
     <string name="settings_general_paths_summary">Gestionar dónde Winlator almacena sus datos de trabajo y dónde se escriben los accesos directos exportados.</string>
-    <string name="settings_general_winlator_path_title">Ruta de Winlator</string>
+    <string name="settings_general_winlator_path_title">Ruta de almacenamiento</string>
     <string name="settings_general_shortcut_export_path_title">Ruta de exportación de accesos directos</string>
     <string name="settings_general_choose_path">Elegir ruta</string>
     <string name="settings_general_xserver_cursor_summary">Ajustar la velocidad del puntero para entrada táctil, trackpad y ratón dentro de la sesión de XServer.</string>
@@ -740,7 +740,7 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantiene la captura directa del ratón activada para juegos que necesitan entrada de puntero sin procesar. Desactívalo con Bajar Volumen.</string>
     <string name="settings_general_xinput_toggle_title">Desactivar XInput</string>
     <string name="settings_general_xinput_toggle_summary">Desactiva el manejo de XInput cuando quieras control exclusivo de ratón y teclado.</string>
-    <string name="settings_general_file_provider_summary">Exponer los archivos de Winlator a los selectores de documentos y administradores de archivos de Android.</string>
+    <string name="settings_general_file_provider_summary">Exponer los archivos de WinNative a los selectores de documentos y administradores de archivos de Android.</string>
     <string name="settings_general_open_browser_summary">Abrir enlaces web compatibles en el navegador de Android en lugar de dentro de Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar y pegar entre Android y las sesiones de Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurar los archivos del sistema incluidos sin eliminar tus contenedores existentes.</string>

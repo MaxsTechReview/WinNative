@@ -732,7 +732,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_general_share_android_clipboard">Android-Zwischenablage mit Wine teilen</string>
     <string name="settings_general_paths_title">Pfadeinstellungen</string>
     <string name="settings_general_paths_summary">Verwalte, wo Winlator seine Arbeitsdaten speichert und wohin exportierte Verknüpfungen geschrieben werden.</string>
-    <string name="settings_general_winlator_path_title">Winlator-Pfad</string>
+    <string name="settings_general_winlator_path_title">Speicherpfad</string>
     <string name="settings_general_shortcut_export_path_title">Verknüpfungs-Exportpfad</string>
     <string name="settings_general_choose_path">Pfad auswählen</string>
     <string name="settings_general_xserver_cursor_summary">Zeigergeschwindigkeit für Touch-, Trackpad- und Mauseingabe innerhalb der XServer-Sitzung anpassen.</string>
@@ -740,7 +740,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_general_cursor_lock_summary">Hält die direkte Mauserfassung für Spiele aktiv, die Rohdaten-Zeigereingabe benötigen. Mit Leiser-Taste deaktivieren.</string>
     <string name="settings_general_xinput_toggle_title">XInput deaktivieren</string>
     <string name="settings_general_xinput_toggle_summary">Schaltet die XInput-Behandlung aus, wenn du exklusive Maus- und Tastatursteuerung möchtest.</string>
-    <string name="settings_general_file_provider_summary">Winlator-Dateien für Android-Dokumentenauswahl und Dateimanager bereitstellen.</string>
+    <string name="settings_general_file_provider_summary">WinNative-Dateien für Android-Dokumentenauswahl und Dateimanager bereitstellen.</string>
     <string name="settings_general_open_browser_summary">Unterstützte Weblinks im Android-Browser statt in Wine öffnen.</string>
     <string name="settings_general_clipboard_summary">Kopieren und Einfügen zwischen Android und Wine-Sitzungen erlauben.</string>
     <string name="settings_general_imagefs_summary">Mitgelieferte Systemdateien wiederherstellen, ohne vorhandene Container zu entfernen.</string>

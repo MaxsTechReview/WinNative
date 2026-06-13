@@ -732,7 +732,7 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_general_share_android_clipboard">Partager le presse-papiers Android avec Wine</string>
     <string name="settings_general_paths_title">Paramètres des chemins</string>
     <string name="settings_general_paths_summary">Gérer l\'emplacement des données de travail de Winlator et l\'emplacement d\'exportation des raccourcis.</string>
-    <string name="settings_general_winlator_path_title">Chemin de Winlator</string>
+    <string name="settings_general_winlator_path_title">Chemin de stockage</string>
     <string name="settings_general_shortcut_export_path_title">Chemin d\'exportation des raccourcis</string>
     <string name="settings_general_choose_path">Choisir un chemin</string>
     <string name="settings_general_xserver_cursor_summary">Ajuster la vitesse du pointeur pour la saisie tactile, le trackpad et la souris dans la session XServer.</string>
@@ -740,7 +740,7 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_general_cursor_lock_summary">Maintient la capture directe de la souris activée pour les jeux nécessitant une saisie brute du pointeur. Désactivez avec Volume Bas.</string>
     <string name="settings_general_xinput_toggle_title">Désactiver XInput</string>
     <string name="settings_general_xinput_toggle_summary">Désactive la gestion XInput lorsque vous souhaitez un contrôle exclusif au clavier et à la souris.</string>
-    <string name="settings_general_file_provider_summary">Exposer les fichiers de Winlator aux sélecteurs de documents et gestionnaires de fichiers Android.</string>
+    <string name="settings_general_file_provider_summary">Exposer les fichiers de WinNative aux sélecteurs de documents et gestionnaires de fichiers Android.</string>
     <string name="settings_general_open_browser_summary">Ouvrir les liens web pris en charge dans le navigateur Android au lieu de les ouvrir dans Wine.</string>
     <string name="settings_general_clipboard_summary">Permettre le copier-coller entre Android et les sessions Wine.</string>
     <string name="settings_general_imagefs_summary">Restaurer les fichiers système fournis sans supprimer vos conteneurs existants.</string>

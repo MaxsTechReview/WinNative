@@ -732,7 +732,7 @@
     <string name="settings_general_share_android_clipboard">與 Wine 共用 Android 剪貼簿</string>
     <string name="settings_general_paths_title">路徑設定</string>
     <string name="settings_general_paths_summary">管理 Winlator 儲存工作資料的位置以及匯出捷徑的寫入位置。</string>
-    <string name="settings_general_winlator_path_title">Winlator 路徑</string>
+    <string name="settings_general_winlator_path_title">儲存路徑</string>
     <string name="settings_general_shortcut_export_path_title">捷徑匯出路徑</string>
     <string name="settings_general_choose_path">選擇路徑</string>
     <string name="settings_general_xserver_cursor_summary">調整 XServer 工作階段中觸控、觸控板和滑鼠輸入的指標速度。</string>
@@ -740,7 +740,7 @@
     <string name="settings_general_cursor_lock_summary">為需要原始指標輸入的遊戲保持直接滑鼠擷取。使用音量降低鍵停用。</string>
     <string name="settings_general_xinput_toggle_title">停用 XInput</string>
     <string name="settings_general_xinput_toggle_summary">當您想要獨佔滑鼠和鍵盤控制時，關閉 XInput 處理。</string>
-    <string name="settings_general_file_provider_summary">將 Winlator 檔案公開給 Android 文件選取器和檔案管理員。</string>
+    <string name="settings_general_file_provider_summary">將 WinNative 檔案公開給 Android 文件選取器和檔案管理員。</string>
     <string name="settings_general_open_browser_summary">在 Android 瀏覽器中開啟支援的網頁連結，而非在 Wine 內開啟。</string>
     <string name="settings_general_clipboard_summary">允許在 Android 和 Wine 工作階段之間複製和貼上。</string>
     <string name="settings_general_imagefs_summary">還原捆綁的系統檔案，而不移除您現有的容器。</string>
