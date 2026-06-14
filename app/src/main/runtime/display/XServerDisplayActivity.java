@@ -6761,7 +6761,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             ContentProfile d7vkProfile = findD7vkProfileForDdrawrapper(ddrawrapper);
             if (d7vkProfile != null) {
                 Log.d(TAG, "Applying D7VK ddraw wrapper: " + ddrawrapper);
-                // Restore Wine's builtin ddraw.dll, preserve it as ddraw_.dll, then drop D7VK's ddraw.dll on top.
                 WinComponentSetup.restoreWineBuiltinDllFiles(imageFs, wineInfo, "ddraw.dll", "d3dimm.dll");
                 File origDdraw = new File(syswow64Dir, "ddraw.dll");
                 File renamedDdraw = new File(syswow64Dir, "ddraw_.dll");
