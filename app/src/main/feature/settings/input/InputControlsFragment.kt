@@ -322,7 +322,7 @@ class InputControlsFragment : Fragment() {
                 gyroscopeExpanded = gyroscopeExpanded,
                 gyroXSensitivity = (preferences.getFloat("gyro_x_sensitivity", 1.0f) * 100).toInt(),
                 gyroYSensitivity = (preferences.getFloat("gyro_y_sensitivity", 1.0f) * 100).toInt(),
-                gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.1f) * 100).toInt(),
+                gyroSmoothing = (preferences.getFloat("gyro_smoothing", 0.5f) * 100).toInt(),
                 gyroDeadzone = (preferences.getFloat("gyro_deadzone", 0.05f) * 100).toInt(),
                 invertGyroX = preferences.getBoolean("invert_gyro_x", false),
                 invertGyroY = preferences.getBoolean("invert_gyro_y", false),
@@ -967,18 +967,18 @@ class InputControlsFragment : Fragment() {
         val sensorManager = requireContext().getSystemService(Activity.SENSOR_SERVICE) as SensorManager
         val gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) ?: return
 
-        val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.1f)
-        val gyroDeadzone = preferences.getFloat("gyro_deadzone", 0.05f)
-        val invertGyroX = preferences.getBoolean("invert_gyro_x", false)
-        val invertGyroY = preferences.getBoolean("invert_gyro_y", false)
-        val gyroSensitivityX = preferences.getFloat("gyro_x_sensitivity", 1.0f)
-        val gyroSensitivityY = preferences.getFloat("gyro_y_sensitivity", 1.0f)
         val smoothGyroX = floatArrayOf(0f)
         val smoothGyroY = floatArrayOf(0f)
 
         val listener =
             object : SensorEventListener {
                 override fun onSensorChanged(event: SensorEvent) {
+                    val smoothingFactor = preferences.getFloat("gyro_smoothing", 0.5f)
+                    val gyroDeadzone = preferences.getFloat("gyro_deadzone", 0.05f)
+                    val invertGyroX = preferences.getBoolean("invert_gyro_x", false)
+                    val invertGyroY = preferences.getBoolean("invert_gyro_y", false)
+                    val gyroSensitivityX = preferences.getFloat("gyro_x_sensitivity", 1.0f)
+                    val gyroSensitivityY = preferences.getFloat("gyro_y_sensitivity", 1.0f)
                     var rawGyroX = event.values[0]
                     var rawGyroY = event.values[1]
 
