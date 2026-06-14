@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">바로가기 복제에 실패했습니다.</string>
     <string name="shortcuts_list_exported_to">바로가기가 %1$s(으)로 내보내졌습니다</string>
     <string name="shortcuts_list_failed_export">바로가기 내보내기에 실패했습니다</string>
+    <string name="shortcuts_export_all">모두 내보내기</string>
+    <string name="shortcuts_export_to_frontend">프런트엔드로 내보내기</string>
+    <string name="shortcuts_export_all_done">게임 %1$d개를 %2$s(으)로 내보냈습니다</string>
+    <string name="shortcuts_export_all_none">내보낼 게임이 없습니다</string>
     <string name="shortcuts_list_added">바로가기가 성공적으로 추가되었습니다.</string>
     <string name="shortcuts_list_failed_add">바로가기 추가에 실패했습니다.</string>
 

@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">克隆快捷方式失败。</string>
     <string name="shortcuts_list_exported_to">快捷方式已导出到 %1$s</string>
     <string name="shortcuts_list_failed_export">导出快捷方式失败</string>
+    <string name="shortcuts_export_all">全部导出</string>
+    <string name="shortcuts_export_to_frontend">导出到前端</string>
+    <string name="shortcuts_export_all_done">已将 %1$d 个游戏导出到 %2$s</string>
+    <string name="shortcuts_export_all_none">没有可导出的游戏</string>
     <string name="shortcuts_list_added">快捷方式已成功添加。</string>
     <string name="shortcuts_list_failed_add">添加快捷方式失败。</string>
 

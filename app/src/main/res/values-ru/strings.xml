@@ -304,6 +304,10 @@
     <string name="shortcuts_list_clone_failed">Не удалось клонировать ярлык.</string>
     <string name="shortcuts_list_exported_to">Ярлык экспортирован в %1$s.</string>
     <string name="shortcuts_list_failed_export">Не удалось экспортировать ярлык.</string>
+    <string name="shortcuts_export_all">Экспортировать все</string>
+    <string name="shortcuts_export_to_frontend">Экспорт во фронтенд</string>
+    <string name="shortcuts_export_all_done">Экспортировано %1$d игр в %2$s</string>
+    <string name="shortcuts_export_all_none">Нет игр для экспорта</string>
     <string name="shortcuts_list_added">Ярлык успешно добавлен.</string>
     <string name="shortcuts_list_readded_existing">Повторно добавлен существующий ярлык</string>
     <string name="shortcuts_list_failed_add">Не удалось добавить ярлык.</string>

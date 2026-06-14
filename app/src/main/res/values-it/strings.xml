@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Impossibile clonare la scorciatoia.</string>
     <string name="shortcuts_list_exported_to">Scorciatoia esportata in %1$s</string>
     <string name="shortcuts_list_failed_export">Impossibile esportare la scorciatoia</string>
+    <string name="shortcuts_export_all">Esporta tutto</string>
+    <string name="shortcuts_export_to_frontend">Esporta nel frontend</string>
+    <string name="shortcuts_export_all_done">%1$d giochi esportati in %2$s</string>
+    <string name="shortcuts_export_all_none">Nessun gioco da esportare</string>
     <string name="shortcuts_list_added">Scorciatoia aggiunta con successo.</string>
     <string name="shortcuts_list_failed_add">Impossibile aggiungere la scorciatoia.</string>
 

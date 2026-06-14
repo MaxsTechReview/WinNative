@@ -113,6 +113,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -1672,6 +1673,23 @@ class UnifiedActivity :
                     onImmersiveBlurChanged = {
                         immersiveBlur = it
                         PrefManager.libraryImmersiveBlur = it
+                    },
+                    onExportAll = {
+                        scope.launch {
+                            val count =
+                                withContext(Dispatchers.IO) {
+                                    com.winlator.cmod.feature.shortcuts.FrontendExporter.exportAll(context)
+                                }
+                            val dir = com.winlator.cmod.feature.shortcuts.FrontendExporter.resolveExportDir(context)
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                if (count > 0) {
+                                    context.getString(R.string.shortcuts_export_all_done, count, dir?.path ?: "")
+                                } else {
+                                    context.getString(R.string.shortcuts_export_all_none)
+                                },
+                            )
+                        }
                     },
                     onExitApp = {
                         AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_drawer_exit")
@@ -4934,6 +4952,35 @@ class UnifiedActivity :
                                         isGog -> gogGame?.title?.takeIf { it.isNotBlank() } ?: app.name
                                         else -> app.name
                                     }
+                                val heroToastAnchor = LocalView.current
+                                val resolveOrCreateShortcut: () -> com.winlator.cmod.runtime.container.Shortcut? = {
+                                    val containerManager = ContainerManager(context)
+                                    when {
+                                        isGog ->
+                                            containerManager.loadShortcuts().find {
+                                                it.getExtra("game_source") == "GOG" &&
+                                                    it.getExtra("gog_id") == gogGame!!.id
+                                            } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                context = context,
+                                                containerManager = containerManager,
+                                                source = "GOG",
+                                                appId = gogPseudoId(gogGame!!.id),
+                                                gogId = gogGame.id,
+                                                appName = app.name,
+                                            )
+                                        isCustom -> findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                        else ->
+                                            findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                    context = context,
+                                                    containerManager = containerManager,
+                                                    source = if (isEpic) "EPIC" else "STEAM",
+                                                    appId = if (isEpic) epicId else app.id,
+                                                    gogId = null,
+                                                    appName = app.name,
+                                                )
+                                    }
+                                }
                                 LibraryGameLaunchScreen(
                                     appName = launchAppName,
                                     subtitle = subtitle,
@@ -4964,39 +5011,7 @@ class UnifiedActivity :
                                         onDismissRequest()
                                     },
                                     onSettings = {
-                                        val containerManager = ContainerManager(context)
-                                        val shortcut: com.winlator.cmod.runtime.container.Shortcut? =
-                                            when {
-                                                isGog -> {
-                                                    containerManager.loadShortcuts().find {
-                                                        it.getExtra("game_source") == "GOG" &&
-                                                            it.getExtra("gog_id") == gogGame!!.id
-                                                    } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                        context = context,
-                                                        containerManager = containerManager,
-                                                        source = "GOG",
-                                                        appId = gogPseudoId(gogGame!!.id),
-                                                        gogId = gogGame.id,
-                                                        appName = app.name,
-                                                    )
-                                                }
-
-                                                isCustom -> {
-                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                }
-
-                                                else -> {
-                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                        ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                            context = context,
-                                                            containerManager = containerManager,
-                                                            source = if (isEpic) "EPIC" else "STEAM",
-                                                            appId = if (isEpic) epicId else app.id,
-                                                            gogId = null,
-                                                            appName = app.name,
-                                                        )
-                                                }
-                                            }
+                                        val shortcut = resolveOrCreateShortcut()
                                         if (shortcut != null) {
                                             // Layer the settings dialog on top; keep the detail dialog open underneath.
                                             ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
@@ -5040,6 +5055,32 @@ class UnifiedActivity :
                                         }
                                     },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
+                                    onExport = {
+                                        val shortcut = resolveOrCreateShortcut()
+                                        if (shortcut == null) {
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                context,
+                                                R.string.shortcuts_list_failed_export,
+                                                heroToastAnchor,
+                                            )
+                                        } else {
+                                            scope.launch {
+                                                val exported =
+                                                    withContext(Dispatchers.IO) {
+                                                        com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut)
+                                                    }
+                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                    context,
+                                                    if (exported != null) {
+                                                        context.getString(R.string.shortcuts_list_exported_to, exported.path)
+                                                    } else {
+                                                        context.getString(R.string.shortcuts_list_failed_export)
+                                                    },
+                                                    heroToastAnchor,
+                                                )
+                                            }
+                                        }
+                                    },
                                     onUninstall = uninstallGame,
                                     // Store source tag actions. Steam exposes verify/update/workshop;
                                     // Epic and GOG expose verify/update for installed games.
@@ -10240,6 +10281,7 @@ class UnifiedActivity :
         onContentFiltersChanged: (String, Boolean) -> Unit,
         onImmersiveModeChanged: (Boolean) -> Unit,
         onImmersiveBlurChanged: (Boolean) -> Unit,
+        onExportAll: () -> Unit,
         onExitApp: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
@@ -10491,6 +10533,13 @@ class UnifiedActivity :
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
+                DrawerActionCard(
+                    icon = Icons.Outlined.IosShare,
+                    label = stringResource(R.string.shortcuts_export_to_frontend),
+                    onClick = onExportAll,
+                )
+
                 Spacer(Modifier.height(16.dp))
 
                 // ── Stores ──
@@ -10594,6 +10643,66 @@ class UnifiedActivity :
             Text(
                 text = stringResource(R.string.common_ui_exit_app),
                 color = Color(0xFFFFD6D6),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+
+    @Composable
+    private fun DrawerActionCard(
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        label: String,
+        onClick: () -> Unit,
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.97f else 1f,
+            animationSpec = tween(100),
+            label = "drawerActionCardScale",
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Accent.copy(alpha = 0.14f))
+                    .border(1.dp, Accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Accent.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Accent,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = label,
+                color = TextPrimary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
