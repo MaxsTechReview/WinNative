@@ -1643,9 +1643,10 @@ public class WinHandler {
         this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
     settings.applyToRightStick =
         this.preferences.getBoolean("process_gyro_with_left_trigger", false);
-    // Slider 100% maps to 200% effective (+1.0 offset): the displayed % was too weak on its own.
-    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
-    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
+    float sensitivityOffset =
+        this.preferences.getBoolean("gyro_orientation_enabled", false) ? 0.0f : GYRO_SENSITIVITY_OFFSET;
+    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + sensitivityOffset;
+    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + sensitivityOffset;
     settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.5f), 0.0f, 0.99f);
     settings.deadzone = getFloatPreference("gyro_deadzone", 0.05f);
     settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);
