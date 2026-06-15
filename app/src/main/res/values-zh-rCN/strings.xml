@@ -732,7 +732,7 @@
     <string name="settings_general_share_android_clipboard">与 Wine 共享 Android 剪贴板</string>
     <string name="settings_general_paths_title">路径设置</string>
     <string name="settings_general_paths_summary">管理 Winlator 存储工作数据的位置以及导出快捷方式的写入位置。</string>
-    <string name="settings_general_winlator_path_title">Winlator 路径</string>
+    <string name="settings_general_winlator_path_title">存储路径</string>
     <string name="settings_general_shortcut_export_path_title">快捷方式导出路径</string>
     <string name="settings_general_choose_path">选择路径</string>
     <string name="settings_general_xserver_cursor_summary">调整 XServer 会话中触摸、触控板和鼠标输入的指针速度。</string>
@@ -740,7 +740,7 @@
     <string name="settings_general_cursor_lock_summary">为需要原始指针输入的游戏保持直接鼠标捕获。按音量减键禁用。</string>
     <string name="settings_general_xinput_toggle_title">禁用 XInput</string>
     <string name="settings_general_xinput_toggle_summary">在需要独占鼠标和键盘控制时关闭 XInput 处理。</string>
-    <string name="settings_general_file_provider_summary">向 Android 文档选择器和文件管理器公开 Winlator 文件。</string>
+    <string name="settings_general_file_provider_summary">向 Android 文档选择器和文件管理器公开 WinNative 文件。</string>
     <string name="settings_general_open_browser_summary">在 Android 浏览器中打开支持的网页链接，而非在 Wine 内部打开。</string>
     <string name="settings_general_clipboard_summary">允许在 Android 和 Wine 会话之间复制和粘贴。</string>
     <string name="settings_general_imagefs_summary">恢复捆绑的系统文件而不删除现有容器。</string>
@@ -829,6 +829,7 @@
     <string name="settings_content_desc_box64">转换 x86_64 Linux 代码，使其可在 ARM64 设备上运行。</string>
     <string name="settings_content_desc_wowbox64">WoW64 使用的 Box64 构建，用于在 64 位 Wine 中运行 32 位 Windows 应用。</string>
     <string name="settings_content_desc_fexcore">转换 x86 和 x86_64 代码，使其可在 ARM64 设备上运行。</string>
+    <string name="settings_content_desc_d7vk">将 DirectDraw（Direct3D 7 及更早版本）图形调用转换为 Vulkan。</string>
     <string name="settings_content_unable_to_install">无法安装内容。</string>
     <string name="settings_content_install_failed">安装失败</string>
     <string name="settings_content_file_cannot_be_recognized">无法识别此文件。</string>
