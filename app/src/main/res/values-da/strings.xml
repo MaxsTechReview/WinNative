@@ -732,7 +732,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_share_android_clipboard">Del Android-udklipsholder med Wine</string>
     <string name="settings_general_paths_title">Sti-indstillinger</string>
     <string name="settings_general_paths_summary">Administrer hvor Winlator gemmer sine arbejdsdata og hvor eksporterede genveje skrives.</string>
-    <string name="settings_general_winlator_path_title">Winlator-sti</string>
+    <string name="settings_general_winlator_path_title">Lagringssti</string>
     <string name="settings_general_shortcut_export_path_title">Genvejs-eksportsti</string>
     <string name="settings_general_choose_path">Vælg sti</string>
     <string name="settings_general_xserver_cursor_summary">Juster markørhastighed for touch, trackpad og museinput i XServer-sessionen.</string>
@@ -740,7 +740,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_cursor_lock_summary">Holder direkte museopfangning aktiveret for spil der kræver rå markørinput. Deaktiver med Lydstyrke ned.</string>
     <string name="settings_general_xinput_toggle_title">Deaktiver XInput</string>
     <string name="settings_general_xinput_toggle_summary">Slår XInput-håndtering fra når du ønsker eksklusiv mus- og tastaturkontrol.</string>
-    <string name="settings_general_file_provider_summary">Gør Winlator-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
+    <string name="settings_general_file_provider_summary">Gør WinNative-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
     <string name="settings_general_open_browser_summary">Åbn understøttede weblinks i Android-browseren i stedet for inde i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillad kopiering og indsættelse mellem Android og Wine-sessioner.</string>
     <string name="settings_general_imagefs_summary">Gendan medfølgende systemfiler uden at fjerne dine eksisterende containere.</string>
@@ -829,6 +829,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_content_desc_box64">Oversætter x86_64 Linux-kode, så den kan køre på ARM64-enheder.</string>
     <string name="settings_content_desc_wowbox64">Box64-build brugt af WoW64 til at køre 32-bit Windows-apps i 64-bit Wine.</string>
     <string name="settings_content_desc_fexcore">Oversætter x86- og x86_64-kode, så den kan køre på ARM64-enheder.</string>
+    <string name="settings_content_desc_d7vk">Oversætter DirectDraw-grafikkald (Direct3D 7 og ældre) til Vulkan.</string>
     <string name="settings_content_unable_to_install">Kan ikke installere indhold.</string>
     <string name="settings_content_install_failed">Installation mislykkedes</string>
     <string name="settings_content_file_cannot_be_recognized">Filen kan ikke genkendes.</string>

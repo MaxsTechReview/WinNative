@@ -6752,7 +6752,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d(TAG, "Extracting nglide wrapper");
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ddrawrapper/nglide.tzst", windowsDir, onExtractFileListener);
 
-            if (ddrawrapper.equalsIgnoreCase("none") || ddrawrapper.contains("None")) {
+            // Clear any stale D7VK passthrough DLL left from a previous selection.
+            File syswow64Dir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/syswow64");
+            File system32Dir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/system32");
+            new File(syswow64Dir, "ddraw_.dll").delete();
+            new File(system32Dir, "ddraw_.dll").delete();
+
+            ContentProfile d7vkProfile = findD7vkProfileForDdrawrapper(ddrawrapper);
+            if (d7vkProfile != null) {
+                Log.d(TAG, "Applying D7VK ddraw wrapper: " + ddrawrapper);
+                WinComponentSetup.restoreWineBuiltinDllFiles(imageFs, wineInfo, "ddraw.dll", "d3dimm.dll");
+                File origDdraw = new File(syswow64Dir, "ddraw.dll");
+                File renamedDdraw = new File(syswow64Dir, "ddraw_.dll");
+                if (origDdraw.exists()) FileUtils.copy(origDdraw, renamedDdraw);
+                contentsManager.applyContent(d7vkProfile);
+            }
+            else if (ddrawrapper.equalsIgnoreCase("none") || ddrawrapper.contains("None")) {
                 Log.d(TAG, "No DDRaw wrapper has been selected, restoring original ddraw files");
                 WinComponentSetup.restoreWineBuiltinDllFiles(imageFs, wineInfo, "ddraw.dll", "d3dimm.dll");
             }
@@ -6792,6 +6807,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } else {
             Log.w(TAG, "VKD3D content profile not installed; no bundled VKD3D archive will be loaded: " + vkd3dWrapper);
         }
+    }
+
+    private ContentProfile findD7vkProfileForDdrawrapper(String ddrawrapper) {
+        if (ddrawrapper == null || contentsManager == null) return null;
+        List<ContentProfile> profiles = contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_D7VK);
+        if (profiles == null) return null;
+        for (ContentProfile profile : profiles) {
+            if (StringUtils.parseIdentifier(ContentsManager.getEntryName(profile)).equals(ddrawrapper))
+                return profile;
+        }
+        return null;
     }
 
     private static String findDelimitedWrapper(String value, String prefix) {

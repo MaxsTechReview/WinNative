@@ -840,7 +840,7 @@
     <string name="settings_general_share_android_clipboard">Android क्लिपबोर्ड को Wine के साथ साझा करें</string>
     <string name="settings_general_paths_title">पथ सेटिंग्स</string>
     <string name="settings_general_paths_summary">प्रबंधित करें कि Winlator अपना कार्यशील डेटा कहां संग्रहीत करता है और निर्यात किए गए शॉर्टकट कहां लिखे गए हैं।</string>
-    <string name="settings_general_winlator_path_title">Winlator पथ</string>
+    <string name="settings_general_winlator_path_title">संग्रहण पथ</string>
     <string name="settings_general_shortcut_export_path_title">शॉर्टकट निर्यात पथ</string>
     <string name="settings_general_choose_path">पथ चुनें</string>
     <string name="settings_general_xserver_cursor_summary">XServer सत्र के अंदर टच, ट्रैकपैड और माउस इनपुट के लिए पॉइंटर गति समायोजित करें।</string>
@@ -848,7 +848,7 @@
     <string name="settings_general_cursor_lock_summary">उन खेलों के लिए सीधे माउस कैप्चर को सक्षम रखता है जिन्हें रॉ पॉइंटर इनपुट की आवश्यकता होती है। इसे वॉल्यूम डाउन के साथ अक्षम करें।</string>
     <string name="settings_general_xinput_toggle_title">XInput अक्षम करें</string>
     <string name="settings_general_xinput_toggle_summary">जब आप विशेष माउस और कीबोर्ड नियंत्रण चाहते हैं तो XInput हैंडलिंग बंद कर देता है।</string>
-    <string name="settings_general_file_provider_summary">Winlator फ़ाइलों को Android दस्तावेज़ चयनकर्ताओं और फ़ाइल प्रबंधकों के सामने उजागर करें।</string>
+    <string name="settings_general_file_provider_summary">WinNative फ़ाइलों को Android दस्तावेज़ चयनकर्ताओं और फ़ाइल प्रबंधकों के सामने उजागर करें।</string>
     <string name="settings_general_open_browser_summary">समर्थित वेब लिंक को Wine के बजाय Android ब्राउज़र में खोलें।</string>
     <string name="settings_general_clipboard_summary">Android और Wine सत्रों के बीच कॉपी और पेस्ट करने की अनुमति दें।</string>
     <string name="settings_general_imagefs_summary">अपने मौजूदा कंटेनरों को हटाए बिना बंडल सिस्टम फ़ाइलों को पुनर्स्थापित करें।</string>
@@ -933,6 +933,7 @@
     <string name="settings_content_desc_box64">x86_64 Linux कोड का अनुवाद करता है ताकि यह ARM64 उपकरणों पर चल सके।</string>
     <string name="settings_content_desc_wowbox64">Box64 बिल्ड का उपयोग WoW64 द्वारा 64-बिट Wine के अंदर 32-बिट Windows ऐप्स चलाने के लिए किया जाता है।</string>
     <string name="settings_content_desc_fexcore">x86 और x86_64 कोड का अनुवाद करता है ताकि यह ARM64 डिवाइस पर चल सके।</string>
+    <string name="settings_content_desc_d7vk">DirectDraw (Direct3D 7 और इससे पुराने) ग्राफ़िक्स कॉल का Vulkan में अनुवाद करता है।</string>
     <string name="settings_content_unable_to_install">कंटेंट इंस्टॉल नहीं किया जा सका।</string>
     <string name="settings_content_install_failed">इंस्टॉल विफल</string>
     <string name="settings_content_file_cannot_be_recognized">फ़ाइल को पहचाना नहीं जा सका.</string>

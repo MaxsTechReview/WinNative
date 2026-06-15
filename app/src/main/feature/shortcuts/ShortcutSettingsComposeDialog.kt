@@ -1948,7 +1948,12 @@ class ShortcutSettingsComposeDialog private constructor(
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
 
         // DDraw wrapper from resources
-        state.dxvkDdrawWrapperEntries.value = context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
+        val ddrawWrapperItems = context.resources.getStringArray(R.array.ddrawrapper_entries).toMutableList()
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_D7VK)) {
+            ddrawWrapperItems.add(ContentsManager.getEntryName(profile))
+        }
+        if (!isArm64EC) ddrawWrapperItems.removeAll { it.contains("arm64ec") }
+        state.dxvkDdrawWrapperEntries.value = ddrawWrapperItems
 
         loadDxvkVersions(container)
 

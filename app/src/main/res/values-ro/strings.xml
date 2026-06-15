@@ -732,7 +732,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_share_android_clipboard">Partajeaza clipboard-ul Android cu Wine</string>
     <string name="settings_general_paths_title">Setari cai</string>
     <string name="settings_general_paths_summary">Gestioneaza unde Winlator stocheaza datele de lucru si unde sunt scrise comenzile rapide exportate.</string>
-    <string name="settings_general_winlator_path_title">Cale Winlator</string>
+    <string name="settings_general_winlator_path_title">Cale de stocare</string>
     <string name="settings_general_shortcut_export_path_title">Cale export comenzi rapide</string>
     <string name="settings_general_choose_path">Alege calea</string>
     <string name="settings_general_xserver_cursor_summary">Ajusteaza viteza cursorului pentru intrarea tactila, trackpad si mouse in sesiunea XServer.</string>
@@ -740,7 +740,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mentine captura directa a mouse-ului activata pentru jocuri care necesita intrare bruta de cursor. Dezactiveaza cu Volum Jos.</string>
     <string name="settings_general_xinput_toggle_title">Dezactiveaza XInput</string>
     <string name="settings_general_xinput_toggle_summary">Opreste gestionarea XInput cand doresti control exclusiv cu mouse-ul si tastatura.</string>
-    <string name="settings_general_file_provider_summary">Expune fisierele Winlator catre selectoarele de documente si managerii de fisiere Android.</string>
+    <string name="settings_general_file_provider_summary">Expune fisierele WinNative catre selectoarele de documente si managerii de fisiere Android.</string>
     <string name="settings_general_open_browser_summary">Deschide link-urile web compatibile in browserul Android in loc de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copierea si lipirea intre Android si sesiunile Wine.</string>
     <string name="settings_general_imagefs_summary">Restaureaza fisierele de sistem incluse fara a elimina containerele existente.</string>
@@ -829,6 +829,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_content_desc_box64">Traduce cod Linux x86_64 pentru rulare pe dispozitive ARM64.</string>
     <string name="settings_content_desc_wowbox64">Build Box64 folosit de WoW64 pentru a rula aplicații Windows pe 32 de biți în Wine pe 64 de biți.</string>
     <string name="settings_content_desc_fexcore">Traduce cod x86 și x86_64 pentru rulare pe dispozitive ARM64.</string>
+    <string name="settings_content_desc_d7vk">Traduce apelurile grafice DirectDraw (Direct3D 7 și anterioare) în Vulkan.</string>
     <string name="settings_content_unable_to_install">Nu se poate instala continutul.</string>
     <string name="settings_content_install_failed">Instalare esuata</string>
     <string name="settings_content_file_cannot_be_recognized">Fisierul nu poate fi recunoscut.</string>
