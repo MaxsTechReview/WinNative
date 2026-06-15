@@ -42,13 +42,18 @@ public final class FrontendExporter {
 
   /** Export a single shortcut to the configured folder. Returns the written file, or null. */
   public static File exportOne(Context context, Shortcut shortcut) {
+    return exportOne(context, shortcut, (String) null);
+  }
+
+  /** Export a single shortcut, naming it {@code displayName} when non-empty. */
+  public static File exportOne(Context context, Shortcut shortcut, String displayName) {
     File dir = resolveExportDir(context);
     if (dir == null) return null;
-    return exportOne(context, shortcut, dir);
+    return exportOne(context, shortcut, dir, displayName);
   }
 
   /** Export a single shortcut into {@code dir}. Returns the written .desktop file, or null. */
-  public static File exportOne(Context context, Shortcut shortcut, File dir) {
+  public static File exportOne(Context context, Shortcut shortcut, File dir, String displayName) {
     if (dir == null || shortcut == null || shortcut.file == null || !shortcut.file.isFile()) {
       return null;
     }
@@ -60,7 +65,10 @@ public final class FrontendExporter {
         shortcut.saveData();
       }
 
-      String baseName = FileUtils.getBasename(shortcut.file.getPath());
+      String resolvedName =
+          (displayName != null && !displayName.trim().isEmpty()) ? displayName.trim() : null;
+      String baseName =
+          sanitizeFileName(resolvedName != null ? resolvedName : FileUtils.getBasename(shortcut.file.getPath()));
 
       // Copy the cover/icon next to the .desktop so the frontend can show art.
       String iconPath = null;
@@ -71,8 +79,8 @@ public final class FrontendExporter {
         iconPath = iconDst.getAbsolutePath();
       }
 
-      File out = new File(dir, shortcut.file.getName());
-      FileUtils.writeString(out, buildDesktopContent(shortcut.file, iconPath));
+      File out = new File(dir, baseName + ".desktop");
+      FileUtils.writeString(out, buildDesktopContent(shortcut.file, iconPath, resolvedName));
       return out;
     } catch (Exception e) {
       Log.e(TAG, "Failed to export shortcut: " + shortcut.name, e);
@@ -93,9 +101,17 @@ public final class FrontendExporter {
     }
     int count = 0;
     for (Shortcut shortcut : shortcuts) {
-      if (exportOne(context, shortcut, dir) != null) count++;
+      String customName = shortcut.getExtra("custom_name");
+      String displayName = (customName != null && !customName.isEmpty()) ? customName : null;
+      if (exportOne(context, shortcut, dir, displayName) != null) count++;
     }
     return count;
+  }
+
+  private static String sanitizeFileName(String name) {
+    String safe = name.replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("[\\x00-\\x1F]", "");
+    safe = safe.replaceAll("[ .]+$", "");
+    return safe.isEmpty() ? "game" : safe;
   }
 
   private static File resolveIconFile(Shortcut shortcut) {
@@ -116,7 +132,7 @@ public final class FrontendExporter {
 
   // Faithful copy of the source .desktop, but with the Icon line normalized to the exported PNG
   // so the frontend can render it. uuid / container_id already live in [Extra Data].
-  private static String buildDesktopContent(File source, String iconPath) {
+  private static String buildDesktopContent(File source, String iconPath, String displayName) {
     StringBuilder out = new StringBuilder();
     boolean inExtra = false;
     for (String line : FileUtils.readLines(source)) {
@@ -124,12 +140,13 @@ public final class FrontendExporter {
       if (trimmed.startsWith("[")) {
         inExtra = trimmed.equals("[Extra Data]");
         out.append(line).append("\n");
-        if (!inExtra && trimmed.equals("[Desktop Entry]") && iconPath != null) {
-          out.append("Icon=").append(iconPath).append("\n");
+        if (!inExtra && trimmed.equals("[Desktop Entry]")) {
+          if (displayName != null) out.append("Name=").append(displayName).append("\n");
+          if (iconPath != null) out.append("Icon=").append(iconPath).append("\n");
         }
         continue;
       }
-      // Drop the original Icon line in [Desktop Entry]; ours was re-emitted under the header.
+      if (!inExtra && displayName != null && trimmed.startsWith("Name=")) continue;
       if (!inExtra && iconPath != null && trimmed.startsWith("Icon=")) continue;
       out.append(line).append("\n");
     }

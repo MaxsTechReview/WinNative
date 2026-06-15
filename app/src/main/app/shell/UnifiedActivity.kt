@@ -5067,7 +5067,7 @@ class UnifiedActivity :
                                             scope.launch {
                                                 val exported =
                                                     withContext(Dispatchers.IO) {
-                                                        com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut)
+                                                        com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut, launchAppName)
                                                     }
                                                 com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
