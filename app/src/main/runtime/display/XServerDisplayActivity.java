@@ -4245,10 +4245,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         intent.putExtra("return_to_game_on_back", true);
                         final ControlsProfile editingProfile = activeProfile;
                         editInputControlsCallback = () -> {
+                            boolean wasShowingTouch = preferences.getBoolean("show_touchscreen_controls_enabled", false);
                             hideInputControls();
                             if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
                             ControlsProfile reactivated = editingProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(editingProfile.id) : null;
-                            if (reactivated != null) showInputControls(reactivated);
+                            if (reactivated != null) {
+                                showInputControls(reactivated);
+                                if (wasShowingTouch) {
+                                    preferences.edit().putBoolean("show_touchscreen_controls_enabled", true).apply();
+                                    applyTouchscreenOverlayPreference();
+                                }
+                            }
                             renderDrawerMenu();
                         };
                         controlsEditorActivityResultLauncher.launch(intent);
