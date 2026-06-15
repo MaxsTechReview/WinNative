@@ -462,6 +462,7 @@ private fun descriptionResFor(type: ContentProfile.ContentType): Int =
         ContentProfile.ContentType.CONTENT_TYPE_BOX64 -> R.string.settings_content_desc_box64
         ContentProfile.ContentType.CONTENT_TYPE_WOWBOX64 -> R.string.settings_content_desc_wowbox64
         ContentProfile.ContentType.CONTENT_TYPE_FEXCORE -> R.string.settings_content_desc_fexcore
+        ContentProfile.ContentType.CONTENT_TYPE_D7VK -> R.string.settings_content_desc_d7vk
     }
 
 @Composable
@@ -830,6 +831,7 @@ private fun iconFor(type: ContentProfile.ContentType): ImageVector =
 
         ContentProfile.ContentType.CONTENT_TYPE_DXVK,
         ContentProfile.ContentType.CONTENT_TYPE_VKD3D,
+        ContentProfile.ContentType.CONTENT_TYPE_D7VK,
         -> Icons.Outlined.DeveloperBoard
 
         ContentProfile.ContentType.CONTENT_TYPE_BOX64,
