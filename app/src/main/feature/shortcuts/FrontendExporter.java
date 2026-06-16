@@ -91,11 +91,6 @@ public final class FrontendExporter {
 
       File out = new File(dir, baseName + ".desktop");
       FileUtils.writeString(out, buildDesktopContent(shortcut.file, iconPath, resolvedName));
-
-      String uuid = shortcut.getExtra("uuid");
-      if (uuid != null && !uuid.isEmpty()) {
-        FileUtils.writeString(new File(dir, baseName + ".winnative"), uuid);
-      }
       return out;
     } catch (Exception e) {
       Log.e(TAG, "Failed to export shortcut: " + shortcut.name, e);
