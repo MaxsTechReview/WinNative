@@ -244,8 +244,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     // Auto-hide touchscreen controls while a game controller is connected.
     private InputManager autoHideInputManager;
     private InputManager.InputDeviceListener autoHideDeviceListener;
-    private final HashSet<Integer> connectedControllerIds = new HashSet<>();
-    private boolean autoHiddenByController = false;
+    private boolean controllerAutoHidden = false;
     private boolean userOverrodeAutoHide = false;
     private XEnvironment environment;
     private ComposeView displayHostComposeView;
@@ -2263,6 +2262,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (activeProfile == null) activeProfile = resolvePreferredStartupProfile();
             if (activeProfile != null) showInputControls(activeProfile);
             else startTouchscreenTimeout();
+            evaluateControllerAutoHide();
         }
 
         startTime = System.currentTimeMillis();
@@ -4169,13 +4169,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onInputControlsShowOverlayChanged(boolean enabled) {
-                        if (inputControlsView != null) inputControlsView.setShowTouchscreenControls(enabled);
                         preferences.edit().putBoolean("show_touchscreen_controls_enabled", enabled).commit();
                         // Manual re-enable while a controller is connected wins over auto-hide.
-                        if (enabled && !connectedControllerIds.isEmpty()) {
+                        if (enabled && isAnyGameControllerConnected()) {
                             userOverrodeAutoHide = true;
-                            autoHiddenByController = false;
+                            controllerAutoHidden = false;
                         }
+                        applyTouchscreenOverlayPreference();
                         renderDrawerMenu();
                     }
 
@@ -6234,7 +6234,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         boolean showTouchscreenControls =
                 preferences.getBoolean("show_touchscreen_controls_enabled", false);
-        inputControlsView.setShowTouchscreenControls(showTouchscreenControls);
+        inputControlsView.setShowTouchscreenControls(showTouchscreenControls && !controllerAutoHidden);
     }
 
     private void registerControllerAutoHideListener() {
@@ -6242,24 +6242,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         autoHideInputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         if (autoHideInputManager == null) return;
 
-        for (int deviceId : autoHideInputManager.getInputDeviceIds()) {
-            if (ExternalController.isGameController(autoHideInputManager.getInputDevice(deviceId))) {
-                connectedControllerIds.add(deviceId);
-            }
-        }
-
         autoHideDeviceListener = new InputManager.InputDeviceListener() {
             @Override
             public void onInputDeviceAdded(int deviceId) {
-                if (ExternalController.isGameController(autoHideInputManager.getInputDevice(deviceId))) {
-                    connectedControllerIds.add(deviceId);
-                    evaluateControllerAutoHide();
-                }
+                evaluateControllerAutoHide();
             }
 
             @Override
             public void onInputDeviceRemoved(int deviceId) {
-                if (connectedControllerIds.remove(deviceId)) evaluateControllerAutoHide();
+                evaluateControllerAutoHide();
             }
 
             @Override
@@ -6273,29 +6264,41 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             autoHideInputManager.unregisterInputDeviceListener(autoHideDeviceListener);
         }
         autoHideDeviceListener = null;
-        connectedControllerIds.clear();
     }
 
-    // Hide touch overlay while a controller is connected; restore on last disconnect.
+    private boolean isAnyGameControllerConnected() {
+        InputManager im = autoHideInputManager != null
+                ? autoHideInputManager
+                : (InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (im == null) return false;
+        for (int deviceId : im.getInputDeviceIds()) {
+            if (ExternalController.isGameController(im.getInputDevice(deviceId))) return true;
+        }
+        return false;
+    }
+
     private void evaluateControllerAutoHide() {
-        if (!preferences.getBoolean("auto_hide_touch_on_controller", false)) return;
         if (inputControlsView == null) return;
 
-        if (!connectedControllerIds.isEmpty()) {
-            if (userOverrodeAutoHide) return;
-            if (preferences.getBoolean("show_touchscreen_controls_enabled", false)) {
-                preferences.edit().putBoolean("show_touchscreen_controls_enabled", false).apply();
+        if (!preferences.getBoolean("auto_hide_touch_on_controller", false)) {
+            if (controllerAutoHidden) {
+                controllerAutoHidden = false;
                 applyTouchscreenOverlayPreference();
-                autoHiddenByController = true;
-                renderDrawerMenu();
+            }
+            return;
+        }
+
+        if (isAnyGameControllerConnected()) {
+            if (userOverrodeAutoHide) return;
+            if (!controllerAutoHidden) {
+                controllerAutoHidden = true;
+                applyTouchscreenOverlayPreference();
             }
         } else {
             userOverrodeAutoHide = false;
-            if (autoHiddenByController) {
-                preferences.edit().putBoolean("show_touchscreen_controls_enabled", true).apply();
+            if (controllerAutoHidden) {
+                controllerAutoHidden = false;
                 applyTouchscreenOverlayPreference();
-                autoHiddenByController = false;
-                renderDrawerMenu();
             }
         }
     }
