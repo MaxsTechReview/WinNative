@@ -937,28 +937,67 @@ class UnifiedActivity :
     }
 
     private fun resolveIncomingDesktopPath(source: Intent): String? {
-        desktopPathFromUri(source.data)?.let { return it }
+        materializeDesktop(source.data)?.let { return it }
+        source.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                materializeDesktop(clip.getItemAt(i).uri)?.let { return it }
+                materializeDesktop(clip.getItemAt(i).text?.toString())?.let { return it }
+            }
+        }
         val extras = source.extras ?: return null
         for (key in extras.keySet()) {
-            when (val value = extras.get(key)) {
-                is String ->
-                    if (value.endsWith(".desktop") && java.io.File(value).isFile()) return value
-                is android.net.Uri -> desktopPathFromUri(value)?.let { return it }
-                else -> {}
+            materializeDesktop(extras.get(key))?.let { return it }
+        }
+        return null
+    }
+
+    private fun materializeDesktop(value: Any?): String? =
+        when (value) {
+            is android.net.Uri -> materializeDesktopUri(value)
+            is String ->
+                if (value.startsWith("content://") || value.startsWith("file://")) {
+                    materializeDesktopUri(android.net.Uri.parse(value))
+                } else {
+                    java.io.File(value).takeIf { it.isFile && looksLikeDesktopFile(it) }?.absolutePath
+                }
+            else -> null
+        }
+
+    private fun materializeDesktopUri(uri: android.net.Uri): String? {
+        when (uri.scheme?.lowercase()) {
+            "file" -> {
+                val file = uri.path?.let { java.io.File(it) }
+                if (file != null && file.isFile && looksLikeDesktopFile(file)) return file.absolutePath
+            }
+            "content" -> {
+                val resolved = com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri)
+                if (!resolved.isNullOrEmpty()) {
+                    val file = java.io.File(resolved)
+                    if (file.isFile && looksLikeDesktopFile(file)) return file.absolutePath
+                }
+                return copyUriToCacheDesktop(uri)
             }
         }
         return null
     }
 
-    private fun desktopPathFromUri(uri: android.net.Uri?): String? {
-        if (uri == null) return null
-        val path =
-            when (uri.scheme?.lowercase()) {
-                "file" -> uri.path
-                "content" -> com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri)
-                else -> null
-            }
-        return if (!path.isNullOrEmpty() && path.endsWith(".desktop")) path else null
+    private fun copyUriToCacheDesktop(uri: android.net.Uri): String? =
+        runCatching {
+            val out = java.io.File(cacheDir, "frontend_launch.desktop")
+            val copied =
+                contentResolver.openInputStream(uri)?.use { input ->
+                    out.outputStream().use { output -> input.copyTo(output) }
+                    true
+                } ?: false
+            if (copied && out.isFile && looksLikeDesktopFile(out)) out.absolutePath else null
+        }.getOrNull()
+
+    private fun looksLikeDesktopFile(file: java.io.File): Boolean {
+        if (!file.isFile || file.length() > 1_000_000L) return false
+        return runCatching {
+            val text = file.readText()
+            text.contains("[Desktop Entry]") || text.contains("container_id")
+        }.getOrDefault(false)
     }
 
     private fun bootstrapStartupState() {

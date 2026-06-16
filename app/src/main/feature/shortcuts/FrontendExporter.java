@@ -77,7 +77,7 @@ public final class FrontendExporter {
       // Copy the cover/icon next to the .desktop so the frontend can show art.
       String iconPath = null;
       File iconDst = new File(dir, baseName + ".png");
-      File iconSrc = resolveIconFile(shortcut);
+      File iconSrc = resolveIconFile(context, shortcut);
       if (iconSrc != null && iconSrc.isFile()) {
         FileUtils.copy(iconSrc, iconDst);
         iconPath = iconDst.getAbsolutePath();
@@ -125,9 +125,13 @@ public final class FrontendExporter {
     return safe.isEmpty() ? "game" : safe;
   }
 
-  private static File resolveIconFile(Shortcut shortcut) {
+  private static File resolveIconFile(Context context, Shortcut shortcut) {
     String[] candidates = {
       shortcut.getExtra("customLibraryIconPath"),
+      shortcut.getExtra("customLibraryGridArtPath"),
+      shortcut.getExtra("customLibraryCarouselArtPath"),
+      shortcut.getExtra("customLibraryHeroArtPath"),
+      shortcut.getExtra("customLibraryListArtPath"),
       shortcut.getCustomCoverArtPath(),
       shortcut.getExtra("customCoverArtPath"),
     };
@@ -137,8 +141,58 @@ public final class FrontendExporter {
         if (file.isFile()) return file;
       }
     }
+    File storeArt = resolveStoreArtFile(context, shortcut);
+    if (storeArt != null) return storeArt;
     if (shortcut.iconFile != null && shortcut.iconFile.isFile()) return shortcut.iconFile;
     return null;
+  }
+
+  private static File resolveStoreArtFile(Context context, Shortcut shortcut) {
+    String source = shortcut.getExtra("game_source");
+    String store;
+    String gameId;
+    if ("STEAM".equalsIgnoreCase(source)) {
+      store = "steam";
+      gameId = shortcut.getExtra("app_id");
+    } else if ("EPIC".equalsIgnoreCase(source)) {
+      store = "epic";
+      gameId = shortcut.getExtra("app_id");
+    } else if ("GOG".equalsIgnoreCase(source)) {
+      store = "gog";
+      gameId = shortcut.getExtra("gog_id");
+    } else {
+      return null;
+    }
+    if (gameId == null || gameId.isEmpty()) return null;
+
+    File dir =
+        new File(context.getFilesDir(), "library_artwork_cache/" + store + "/" + safeName(gameId));
+    File[] files = dir.listFiles();
+    if (files == null) return null;
+
+    String[] preferred = {"library_capsule_", "capsule_", "cover_", "header_", "small_capsule_", "hero_"};
+    for (String prefix : preferred) {
+      for (File file : files) {
+        if (file.isFile() && file.getName().startsWith(prefix) && isImageFile(file)) return file;
+      }
+    }
+    for (File file : files) {
+      if (file.isFile() && isImageFile(file)) return file;
+    }
+    return null;
+  }
+
+  private static boolean isImageFile(File file) {
+    String name = file.getName().toLowerCase();
+    return name.endsWith(".jpg")
+        || name.endsWith(".jpeg")
+        || name.endsWith(".png")
+        || name.endsWith(".webp")
+        || name.endsWith(".gif");
+  }
+
+  private static String safeName(String value) {
+    return value.replaceAll("[^A-Za-z0-9._-]", "_");
   }
 
   // Faithful copy of the source .desktop, but with the Icon line normalized to the exported PNG
