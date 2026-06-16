@@ -67,17 +67,27 @@ public final class FrontendExporter {
 
       String resolvedName =
           (displayName != null && !displayName.trim().isEmpty()) ? displayName.trim() : null;
+      if (resolvedName != null && !resolvedName.equals(shortcut.getExtra("frontend_export_name"))) {
+        shortcut.putExtra("frontend_export_name", resolvedName);
+        shortcut.saveData();
+      }
       String baseName =
           sanitizeFileName(resolvedName != null ? resolvedName : FileUtils.getBasename(shortcut.file.getPath()));
 
       // Copy the cover/icon next to the .desktop so the frontend can show art.
       String iconPath = null;
+      File iconDst = new File(dir, baseName + ".png");
       File iconSrc = resolveIconFile(shortcut);
       if (iconSrc != null && iconSrc.isFile()) {
-        File iconDst = new File(dir, baseName + ".png");
         FileUtils.copy(iconSrc, iconDst);
         iconPath = iconDst.getAbsolutePath();
+      } else {
+        android.graphics.Bitmap art = shortcut.getCoverArt();
+        if (art != null && FileUtils.saveBitmapToFile(art, iconDst)) {
+          iconPath = iconDst.getAbsolutePath();
+        }
       }
+      if (iconPath == null) Log.w(TAG, "No icon source resolved for: " + shortcut.name);
 
       File out = new File(dir, baseName + ".desktop");
       FileUtils.writeString(out, buildDesktopContent(shortcut.file, iconPath, resolvedName));
@@ -101,8 +111,9 @@ public final class FrontendExporter {
     }
     int count = 0;
     for (Shortcut shortcut : shortcuts) {
-      String customName = shortcut.getExtra("custom_name");
-      String displayName = (customName != null && !customName.isEmpty()) ? customName : null;
+      String exportName = shortcut.getExtra("frontend_export_name");
+      if (exportName == null || exportName.isEmpty()) exportName = shortcut.getExtra("custom_name");
+      String displayName = (exportName != null && !exportName.isEmpty()) ? exportName : null;
       if (exportOne(context, shortcut, dir, displayName) != null) count++;
     }
     return count;

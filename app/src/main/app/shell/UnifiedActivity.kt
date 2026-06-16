@@ -918,7 +918,47 @@ class UnifiedActivity :
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (maybeForwardFrontendLaunch()) return
         handleSettingsIntent(intent)
+    }
+
+    private fun maybeForwardFrontendLaunch(): Boolean {
+        val source = intent ?: return false
+        val path = resolveIncomingDesktopPath(source) ?: return false
+        startActivity(
+            Intent(this, XServerDisplayActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                putExtra("shortcut_path", path)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+        )
+        finish()
+        return true
+    }
+
+    private fun resolveIncomingDesktopPath(source: Intent): String? {
+        desktopPathFromUri(source.data)?.let { return it }
+        val extras = source.extras ?: return null
+        for (key in extras.keySet()) {
+            when (val value = extras.get(key)) {
+                is String ->
+                    if (value.endsWith(".desktop") && java.io.File(value).isFile()) return value
+                is android.net.Uri -> desktopPathFromUri(value)?.let { return it }
+                else -> {}
+            }
+        }
+        return null
+    }
+
+    private fun desktopPathFromUri(uri: android.net.Uri?): String? {
+        if (uri == null) return null
+        val path =
+            when (uri.scheme?.lowercase()) {
+                "file" -> uri.path
+                "content" -> com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri)
+                else -> null
+            }
+        return if (!path.isNullOrEmpty() && path.endsWith(".desktop")) path else null
     }
 
     private fun bootstrapStartupState() {
@@ -1007,6 +1047,8 @@ class UnifiedActivity :
             finish()
             return
         }
+
+        if (maybeForwardFrontendLaunch()) return
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         bootstrapStartupState()
