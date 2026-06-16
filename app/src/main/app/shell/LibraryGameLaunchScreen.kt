@@ -376,9 +376,6 @@ internal fun LibraryGameLaunchScreen(
                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Order (per user spec): Settings → Shortcut → (Saves) → Cloud Saves → Export → Uninstall.
-                        // Saves is conditional but slots between Shortcut and Cloud Saves because the two
-                        // saves-related buttons read better next to each other.
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Settings,
                             contentDescription = stringResource(R.string.common_ui_settings),
@@ -395,16 +392,16 @@ internal fun LibraryGameLaunchScreen(
                             onClick = onShortcut,
                         )
                         LaunchIconActionButton(
-                            icon = Icons.Outlined.CloudSync,
-                            contentDescription = stringResource(R.string.cloud_saves_title),
-                            size = actionIconSize,
-                            onClick = onCloudSaves,
-                        )
-                        LaunchIconActionButton(
                             icon = Icons.Outlined.IosShare,
                             contentDescription = stringResource(R.string.common_ui_export),
                             size = actionIconSize,
                             onClick = onExport,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.CloudSync,
+                            contentDescription = stringResource(R.string.cloud_saves_title),
+                            size = actionIconSize,
+                            onClick = onCloudSaves,
                         )
                         Box {
                             LaunchIconActionButton(
