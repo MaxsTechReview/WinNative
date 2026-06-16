@@ -6701,6 +6701,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         File syswow64 = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows/syswow64");
         int deleted = 0;
         for (String name : DXWRAPPER_DLLS) {
+            if (name.equals("d3d10.dll") || name.equals("d3d10_1.dll")
+                    || name.equals("d3d8.dll") || name.equals("d3dimm.dll")) continue;
             File a = new File(system32, name);
             File b = new File(syswow64, name);
             if (a.exists() && a.delete()) deleted++;
