@@ -683,6 +683,9 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_gamepad_error_loading_profile">Erro ao carregar perfil</string>
 
     <!-- Session > Gyroscope -->
+    <string name="input_controls_auto_hide_section">Controles de toque</string>
+    <string name="input_controls_auto_hide_on_controller_title">Ocultar automaticamente com controle</string>
+    <string name="input_controls_auto_hide_on_controller_summary">Ocultar os controles de toque quando um controle estiver conectado</string>
     <string name="session_gyroscope_title">Giroscopio</string>
     <string name="session_gyroscope_calibrate">Calibrar Giroscopio</string>
     <string name="session_gyroscope_enable_right_stick">Ativar Movimento Giroscopico do Analogico Direito</string>

@@ -352,6 +352,28 @@ static void write_descriptor_set(VkRenderer* r, VkDescriptorSet set, VkImageView
     vkUpdateDescriptorSets(r->device, 1, &w, 0, NULL);
 }
 
+static VkSampler active_shared_sampler(VkRenderer* r) {
+    switch (r->scale_filter) {
+        case 1:  return r->shared_sampler_nearest;
+        case 3:  return r->ext_filter_cubic ? r->shared_sampler_cubic : r->shared_sampler;
+        default: return r->shared_sampler;
+    }
+}
+
+// Caller must hold render_mutex with in-flight frames drained.
+void vkr_retarget_shared_sampler(VkRenderer* r) {
+    VkSampler s = active_shared_sampler(r);
+    if (s == VK_NULL_HANDLE) return;
+    pthread_mutex_lock(&r->texture_mutex);
+    for (uint32_t i = 0; i < r->live_texture_count; i++) {
+        VkTexture* t = r->live_textures[i];
+        if (!t || t->descriptor_set == VK_NULL_HANDLE || t->view == VK_NULL_HANDLE) continue;
+        if (t->ycbcr != VK_NULL_HANDLE) continue;
+        write_descriptor_set(r, t->descriptor_set, t->view, s);
+    }
+    pthread_mutex_unlock(&r->texture_mutex);
+}
+
 static void destroy_texture_resources(VkRenderer* r, VkTexture* tex) {
     if (!tex) return;
     if (tex->descriptor_set != VK_NULL_HANDLE) {
@@ -761,7 +783,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
         destroy_texture_resources(r, t);
         return NULL;
     }
-    write_descriptor_set(r, t->descriptor_set, t->view, r->shared_sampler);
+    write_descriptor_set(r, t->descriptor_set, t->view, active_shared_sampler(r));
 
     if (data && data_size > 0) {
         vkr_texture_update(r, t, width, height, data, data_size, stride_pixels,
@@ -1251,7 +1273,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
         }
         sampler_for_descriptor = t->sampler;
     } else if (r->shared_sampler != VK_NULL_HANDLE) {
-        sampler_for_descriptor = r->shared_sampler;
+        sampler_for_descriptor = active_shared_sampler(r);
     } else {
         VK_LOGE("AHB import: shared_sampler not initialized");
         vkDestroyImageView(r->device, t->view, NULL);

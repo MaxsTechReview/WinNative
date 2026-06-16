@@ -790,6 +790,9 @@
     <string name="session_gamepad_profile_name_empty">प्रोफ़ाइल नाम खाली नहीं हो सकता</string>
     <string name="session_gamepad_no_profiles">-- कोई प्रोफ़ाइल नहीं --</string>
     <string name="session_gamepad_error_loading_profile">प्रोफ़ाइल लोड करने में त्रुटि</string>
+    <string name="input_controls_auto_hide_section">टचस्क्रीन नियंत्रण</string>
+    <string name="input_controls_auto_hide_on_controller_title">कंट्रोलर पर अपने आप छिपाएँ</string>
+    <string name="input_controls_auto_hide_on_controller_summary">कंट्रोलर कनेक्ट होने पर टचस्क्रीन नियंत्रण छिपाएँ</string>
     <string name="session_gyroscope_title">जाइरोस्कोप</string>
     <string name="session_gyroscope_calibrate">जाइरोस्कोप कैलिब्रेट करें</string>
     <string name="session_gyroscope_enable_right_stick">राइट स्टिक जाइरोस्कोपिक मोशन सक्षम करें</string>

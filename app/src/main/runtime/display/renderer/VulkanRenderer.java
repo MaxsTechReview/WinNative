@@ -206,6 +206,9 @@ public class VulkanRenderer
             if (requestedPresentMode != PRESENT_MODE_FIFO) {
                 nativeSetPresentMode(nativeHandle, requestedPresentMode);
             }
+            if (requestedScaleFilter != SCALE_FILTER_OFF) {
+                nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
+            }
             destroyed.set(false);
             xServer.windowManager.addOnWindowModificationListener(this);
             xServer.pointer.addOnPointerMotionListener(this);
@@ -783,6 +786,22 @@ public class VulkanRenderer
         }
     }
 
+    // Scale-filter constants must mirror the switch in nativeSetScaleFilter.
+    public static final int SCALE_FILTER_OFF     = 0;
+    public static final int SCALE_FILTER_NEAREST = 1;
+    public static final int SCALE_FILTER_LINEAR  = 2;
+    public static final int SCALE_FILTER_BICUBIC = 3;
+
+    private int requestedScaleFilter = SCALE_FILTER_OFF;
+
+    public void setScaleFilter(int mode) {
+        requestedScaleFilter = mode;
+        if (nativeHandle != 0) {
+            nativeSetScaleFilter(nativeHandle, mode);
+            if (xServerView != null) xServerView.requestRender();
+        }
+    }
+
     public void setUnviewableWMClasses(String... names) {
         this.unviewableWMClasses = names;
     }
@@ -805,4 +824,5 @@ public class VulkanRenderer
     private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
     private static native void nativeSetPresentMode(long handle, int mode);
+    private static native void nativeSetScaleFilter(long handle, int mode);
 }
