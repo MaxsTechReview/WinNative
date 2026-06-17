@@ -1346,6 +1346,8 @@ Chemin installé :
     <string name="session_rts_double_tap_delay">Délai de double appui (ms)</string>
     <string name="session_rts_down">Bas</string>
     <string name="session_rts_drag">Glissement à 1 doigt</string>
+    <string name="session_rts_pan1">Déplacement à 1 doigt</string>
+    <string name="session_rts_drag2">Glissement à 2 doigts</string>
     <string name="session_rts_drag_threshold">Seuil de glissement (px)</string>
     <string name="session_rts_gesture_threshold">Seuil de geste (px)</string>
     <string name="session_rts_hold2">Maintien à 2 doigts</string>

@@ -1346,6 +1346,8 @@ Ruta instalada:
     <string name="session_rts_double_tap_delay">Retardo de doble toque (ms)</string>
     <string name="session_rts_down">Abajo</string>
     <string name="session_rts_drag">Arrastre con 1 dedo</string>
+    <string name="session_rts_pan1">Desplazar con 1 dedo</string>
+    <string name="session_rts_drag2">Arrastre con 2 dedos</string>
     <string name="session_rts_drag_threshold">Umbral de arrastre (px)</string>
     <string name="session_rts_gesture_threshold">Umbral de gesto (px)</string>
     <string name="session_rts_hold2">Mantener con 2 dedos</string>

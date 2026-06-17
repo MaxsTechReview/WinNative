@@ -1281,6 +1281,8 @@
     <string name="session_rts_double_tap_delay">डबल टैप विलंब (ms)</string>
     <string name="session_rts_down">नीचे</string>
     <string name="session_rts_drag">1-उंगली ड्रैग</string>
+    <string name="session_rts_pan1">1-उंगली पैन</string>
+    <string name="session_rts_drag2">2-उंगली ड्रैग</string>
     <string name="session_rts_drag_threshold">ड्रैग सीमा (px)</string>
     <string name="session_rts_gesture_threshold">जेस्चर सीमा (px)</string>
     <string name="session_rts_hold2">2-उंगली होल्ड</string>

@@ -1346,6 +1346,8 @@
     <string name="session_rts_double_tap_delay">双击延迟 (ms)</string>
     <string name="session_rts_down">下</string>
     <string name="session_rts_drag">单指拖动</string>
+    <string name="session_rts_pan1">单指平移</string>
+    <string name="session_rts_drag2">双指拖动</string>
     <string name="session_rts_drag_threshold">拖动阈值 (px)</string>
     <string name="session_rts_gesture_threshold">手势阈值 (px)</string>
     <string name="session_rts_hold2">双指长按</string>

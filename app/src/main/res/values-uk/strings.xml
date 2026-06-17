@@ -1352,6 +1352,8 @@
     <string name="session_rts_double_tap_delay">Затримка подвійного дотику (ms)</string>
     <string name="session_rts_down">Вниз</string>
     <string name="session_rts_drag">Перетягування 1 пальцем</string>
+    <string name="session_rts_pan1">Панорамування 1 пальцем</string>
+    <string name="session_rts_drag2">Перетягування 2 пальцями</string>
     <string name="session_rts_drag_threshold">Поріг перетягування (px)</string>
     <string name="session_rts_gesture_threshold">Поріг жесту (px)</string>
     <string name="session_rts_hold2">Утримання 2 пальцями</string>

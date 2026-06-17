@@ -1352,6 +1352,8 @@ Zainstalowana ścieżka:
     <string name="session_rts_double_tap_delay">Opóźnienie dwukrotnego dotknięcia (ms)</string>
     <string name="session_rts_down">W dół</string>
     <string name="session_rts_drag">Przeciąganie 1 palcem</string>
+    <string name="session_rts_pan1">Przesuwanie 1 palcem</string>
+    <string name="session_rts_drag2">Przeciąganie 2 palcami</string>
     <string name="session_rts_drag_threshold">Próg przeciągania (px)</string>
     <string name="session_rts_gesture_threshold">Próg gestu (px)</string>
     <string name="session_rts_hold2">Przytrzymanie 2 palcami</string>

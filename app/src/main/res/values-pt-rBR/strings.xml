@@ -1346,6 +1346,8 @@ Caminho instalado:
     <string name="session_rts_double_tap_delay">Atraso do toque duplo (ms)</string>
     <string name="session_rts_down">Baixo</string>
     <string name="session_rts_drag">Arrastar com 1 dedo</string>
+    <string name="session_rts_pan1">Mover com 1 dedo</string>
+    <string name="session_rts_drag2">Arrastar com 2 dedos</string>
     <string name="session_rts_drag_threshold">Limite de arrasto (px)</string>
     <string name="session_rts_gesture_threshold">Limite do gesto (px)</string>
     <string name="session_rts_hold2">Segurar com 2 dedos</string>

@@ -1346,6 +1346,8 @@ Installeret sti:
     <string name="session_rts_double_tap_delay">Forsinkelse for dobbelttryk (ms)</string>
     <string name="session_rts_down">Ned</string>
     <string name="session_rts_drag">1-finger-træk</string>
+    <string name="session_rts_pan1">1-finger-panorering</string>
+    <string name="session_rts_drag2">2-finger-træk</string>
     <string name="session_rts_drag_threshold">Trækgrænse (px)</string>
     <string name="session_rts_gesture_threshold">Gestusgrænse (px)</string>
     <string name="session_rts_hold2">2-finger-hold</string>

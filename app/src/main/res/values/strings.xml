@@ -673,8 +673,10 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_rts_left">Left</string>
     <string name="session_rts_right">Right</string>
     <string name="session_rts_pan">2-finger pan</string>
+    <string name="session_rts_pan1">1-finger pan</string>
     <string name="session_rts_zoom">Pinch zoom</string>
     <string name="session_rts_drag">1-finger drag</string>
+    <string name="session_rts_drag2">2-finger drag</string>
     <string name="session_rts_long_press_delay">Long press delay (ms)</string>
     <string name="session_rts_hold_delay">Hold delay (ms)</string>
     <string name="session_rts_swipe_threshold">Swipe threshold (px)</string>

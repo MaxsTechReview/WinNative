@@ -1346,6 +1346,8 @@ Percorso installato:
     <string name="session_rts_double_tap_delay">Ritardo doppio tocco (ms)</string>
     <string name="session_rts_down">Giù</string>
     <string name="session_rts_drag">Trascinamento a 1 dito</string>
+    <string name="session_rts_pan1">Scorrimento a 1 dito</string>
+    <string name="session_rts_drag2">Trascinamento a 2 dita</string>
     <string name="session_rts_drag_threshold">Soglia di trascinamento (px)</string>
     <string name="session_rts_gesture_threshold">Soglia gesto (px)</string>
     <string name="session_rts_hold2">Pressione a 2 dita</string>

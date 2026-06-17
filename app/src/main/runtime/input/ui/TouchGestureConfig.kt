@@ -55,9 +55,11 @@ class TouchGestureConfig {
     var swipe4Right = Binding.NONE
     var swipe4Threshold = 60
 
-    var panAction = PanAction.NONE
+    var panAction = PanAction.ARROWS
     var zoomAction = ZoomAction.NONE
     var dragAction = DragAction.MOVE
+    var pan1Action = PanAction.NONE
+    var drag2Action = DragAction.NONE
 
     var dragThreshold = 40
     var gestureThreshold = 40
@@ -82,6 +84,7 @@ class TouchGestureConfig {
         c.swipe4Up = swipe4Up; c.swipe4Down = swipe4Down; c.swipe4Left = swipe4Left; c.swipe4Right = swipe4Right
         c.swipe4Threshold = swipe4Threshold
         c.panAction = panAction; c.zoomAction = zoomAction; c.dragAction = dragAction
+        c.pan1Action = pan1Action; c.drag2Action = drag2Action
         c.dragThreshold = dragThreshold; c.gestureThreshold = gestureThreshold
         return c
     }
@@ -108,6 +111,7 @@ class TouchGestureConfig {
         o.put("swipe4Left", swipe4Left.name); o.put("swipe4Right", swipe4Right.name)
         o.put("swipe4Threshold", swipe4Threshold)
         o.put("panAction", panAction.name); o.put("zoomAction", zoomAction.name); o.put("dragAction", dragAction.name)
+        o.put("pan1Action", pan1Action.name); o.put("drag2Action", drag2Action.name)
         o.put("dragThreshold", dragThreshold); o.put("gestureThreshold", gestureThreshold)
         return o.toString()
     }
@@ -164,7 +168,8 @@ class TouchGestureConfig {
             val legacyGestureThreshold = o.optInt("gestureThreshold", c.gestureThreshold)
             c.swipe3Threshold = o.optInt("swipe3Threshold", o.optInt("swipeThreshold", c.swipe3Threshold))
             c.swipe4Threshold = o.optInt("swipe4Threshold", o.optInt("swipeThreshold", c.swipe4Threshold))
-            c.panAction = panAction(o, c.panAction); c.zoomAction = zoomAction(o, c.zoomAction); c.dragAction = dragAction(o, c.dragAction)
+            c.panAction = panAction(o, "panAction", c.panAction); c.zoomAction = zoomAction(o, c.zoomAction); c.dragAction = dragAction(o, "dragAction", c.dragAction)
+            c.pan1Action = panAction(o, "pan1Action", c.pan1Action); c.drag2Action = dragAction(o, "drag2Action", c.drag2Action)
             c.dragThreshold = o.optInt("dragThreshold", legacyGestureThreshold)
             c.gestureThreshold = legacyGestureThreshold
             return c
@@ -176,13 +181,13 @@ class TouchGestureConfig {
         private fun holdBehavior(o: JSONObject, key: String, def: HoldBehavior): HoldBehavior =
             try { HoldBehavior.valueOf(o.optString(key, def.name)) } catch (e: Exception) { def }
 
-        private fun panAction(o: JSONObject, def: PanAction): PanAction =
-            try { PanAction.valueOf(o.optString("panAction", def.name)) } catch (e: Exception) { def }
+        private fun panAction(o: JSONObject, key: String, def: PanAction): PanAction =
+            try { PanAction.valueOf(o.optString(key, def.name)) } catch (e: Exception) { def }
 
         private fun zoomAction(o: JSONObject, def: ZoomAction): ZoomAction =
             try { ZoomAction.valueOf(o.optString("zoomAction", def.name)) } catch (e: Exception) { def }
 
-        private fun dragAction(o: JSONObject, def: DragAction): DragAction =
-            try { DragAction.valueOf(o.optString("dragAction", def.name)) } catch (e: Exception) { def }
+        private fun dragAction(o: JSONObject, key: String, def: DragAction): DragAction =
+            try { DragAction.valueOf(o.optString(key, def.name)) } catch (e: Exception) { def }
     }
 }

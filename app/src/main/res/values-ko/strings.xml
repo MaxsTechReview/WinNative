@@ -1347,6 +1347,8 @@
     <string name="session_rts_double_tap_delay">더블 탭 지연 (ms)</string>
     <string name="session_rts_down">아래</string>
     <string name="session_rts_drag">1손가락 드래그</string>
+    <string name="session_rts_pan1">1손가락 이동</string>
+    <string name="session_rts_drag2">2손가락 드래그</string>
     <string name="session_rts_drag_threshold">드래그 임계값 (px)</string>
     <string name="session_rts_gesture_threshold">제스처 임계값 (px)</string>
     <string name="session_rts_hold2">2손가락 길게 누르기</string>

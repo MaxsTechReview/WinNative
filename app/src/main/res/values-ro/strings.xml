@@ -1344,6 +1344,8 @@ Cale instalata:
     <string name="session_rts_double_tap_delay">Întârziere atingere dublă (ms)</string>
     <string name="session_rts_down">Jos</string>
     <string name="session_rts_drag">Tragere cu 1 deget</string>
+    <string name="session_rts_pan1">Glisare cu 1 deget</string>
+    <string name="session_rts_drag2">Tragere cu 2 degete</string>
     <string name="session_rts_drag_threshold">Prag tragere (px)</string>
     <string name="session_rts_gesture_threshold">Prag gest (px)</string>
     <string name="session_rts_hold2">Apăsare cu 2 degete</string>

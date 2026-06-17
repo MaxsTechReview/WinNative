@@ -129,8 +129,8 @@ class RTSGestureEngine(
     private fun releaseContinuousInputs() {
         for (k in panKeys.toList()) xServer.injectKeyRelease(k)
         panKeys.clear()
-        if (panMode == PanMode.PAN && config.panAction == PanAction.MIDDLE_DRAG) releaseButton(Pointer.Button.BUTTON_MIDDLE)
-        if (dragActive && config.dragAction == DragAction.LEFT_DRAG) releaseButton(Pointer.Button.BUTTON_LEFT)
+        if (panMode == PanMode.PAN) releaseButton(Pointer.Button.BUTTON_MIDDLE)
+        if (dragActive) releaseButton(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun onMove() {
@@ -149,21 +149,36 @@ class RTSGestureEngine(
 
     private fun handleOneFingerMove(centroid: FloatArray) {
         if (holdFired) return
-        if (config.dragAction == DragAction.NONE) return
-        if (!dragActive) {
-            val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
-            if (travel < config.dragThreshold) return
-            dragActive = true
-            if (config.dragAction == DragAction.LEFT_DRAG) {
-                moveCursorTo(centroid[0], centroid[1])
-                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
-                pressedButtons.add(Pointer.Button.BUTTON_LEFT)
+        if (config.dragAction != DragAction.NONE) {
+            if (!dragActive) {
+                val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
+                if (travel < config.dragThreshold) return
+                dragActive = true
+                if (config.dragAction == DragAction.LEFT_DRAG) {
+                    moveCursorTo(centroid[0], centroid[1])
+                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                    pressedButtons.add(Pointer.Button.BUTTON_LEFT)
+                }
             }
+            moveCursorTo(centroid[0], centroid[1])
+            return
         }
-        moveCursorTo(centroid[0], centroid[1])
+        if (config.pan1Action != PanAction.NONE) {
+            if (panMode == PanMode.NONE) {
+                val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
+                if (travel < config.gestureThreshold) return
+                handler.removeCallbacks(holdRunnable)
+                panMode = PanMode.PAN
+            }
+            if (panMode == PanMode.PAN) performPan(config.pan1Action, centroid[0] - lastCx, centroid[1] - lastCy)
+        }
     }
 
     private fun handleTwoFingerMove(centroid: FloatArray) {
+        if (config.panAction == PanAction.NONE && config.zoomAction == ZoomAction.NONE && config.drag2Action != DragAction.NONE) {
+            handleTwoFingerDrag(centroid)
+            return
+        }
         val dist = distance()
         val framePinch = Math.abs(dist - lastDistance)
         val framePan = Math.hypot((centroid[0] - lastCx).toDouble(), (centroid[1] - lastCy).toDouble()).toFloat()
@@ -189,10 +204,26 @@ class RTSGestureEngine(
                     zoomAccum -= if (zoomIn) ZOOM_STEP else -ZOOM_STEP
                 }
             }
-            PanMode.PAN -> performPan(centroid[0] - lastCx, centroid[1] - lastCy)
+            PanMode.PAN -> performPan(config.panAction, centroid[0] - lastCx, centroid[1] - lastCy)
             PanMode.NONE -> {}
         }
         lastDistance = dist
+    }
+
+    private fun handleTwoFingerDrag(centroid: FloatArray) {
+        if (holdFired) return
+        if (!dragActive) {
+            val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
+            if (travel < config.dragThreshold) return
+            handler.removeCallbacks(holdRunnable)
+            dragActive = true
+            if (config.drag2Action == DragAction.LEFT_DRAG) {
+                moveCursorTo(centroid[0], centroid[1])
+                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                pressedButtons.add(Pointer.Button.BUTTON_LEFT)
+            }
+        }
+        moveCursorTo(centroid[0], centroid[1])
     }
 
     private fun finalizeSession() {
@@ -259,8 +290,8 @@ class RTSGestureEngine(
         clickBinding(binding)
     }
 
-    private fun performPan(dx: Float, dy: Float) {
-        when (config.panAction) {
+    private fun performPan(action: PanAction, dx: Float, dy: Float) {
+        when (action) {
             PanAction.MIDDLE_DRAG -> {
                 if (!pressedButtons.contains(Pointer.Button.BUTTON_MIDDLE)) {
                     xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE)

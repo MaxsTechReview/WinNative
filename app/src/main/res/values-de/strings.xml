@@ -1346,6 +1346,8 @@ Installierter Pfad:
     <string name="session_rts_double_tap_delay">Doppeltipp-Verzögerung (ms)</string>
     <string name="session_rts_down">Unten</string>
     <string name="session_rts_drag">1-Finger-Ziehen</string>
+    <string name="session_rts_pan1">1-Finger-Schwenken</string>
+    <string name="session_rts_drag2">2-Finger-Ziehen</string>
     <string name="session_rts_drag_threshold">Ziehschwelle (px)</string>
     <string name="session_rts_gesture_threshold">Gestenschwelle (px)</string>
     <string name="session_rts_hold2">2-Finger-Halten</string>

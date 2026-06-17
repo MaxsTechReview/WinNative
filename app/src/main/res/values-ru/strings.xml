@@ -1251,6 +1251,8 @@
     <string name="session_rts_double_tap_delay">Задержка двойного касания (мс)</string>
     <string name="session_rts_down">Вниз</string>
     <string name="session_rts_drag">Перетаскивание 1 пальцем</string>
+    <string name="session_rts_pan1">Прокрутка 1 пальцем</string>
+    <string name="session_rts_drag2">Перетаскивание 2 пальцами</string>
     <string name="session_rts_drag_threshold">Порог перетаскивания (пикс.)</string>
     <string name="session_rts_gesture_threshold">Порог жеста (пикс.)</string>
     <string name="session_rts_hold2">Удержание 2 пальцами</string>
