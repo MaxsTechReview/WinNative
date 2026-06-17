@@ -18,7 +18,7 @@ Designed for enthusiasts and power users, WinNative delivers the full Winlator e
 
 ### Installation
 
-1. **Download:** Get the latest APK from the [Releases](https://github.com/maxjivi05/WinNative/releases) section.
+1. **Download:** Get the latest APK from the [Releases](https://github.com/WinNative-Emu/WinNative/releases) section.
 2. **Variants:**
    - `Ludashi`: Best for Xiaomi/RedMagic (Performance Mode trigger).
    - `Vanilla`: Standard package name for side-loading with other forks.
