@@ -127,6 +127,12 @@ class InputControlsFragment : Fragment() {
                                 onChoiceDialogSelect = ::selectChoiceDialog,
                                 onMultiChoiceDialogConfirm = ::confirmMultiChoiceDialog,
                                 onOverlayOpacityChanged = ::setOverlayOpacity,
+                                onAutoHideTouchOnControllerChanged = { enabled ->
+                                    preferences.edit()
+                                        .putBoolean("auto_hide_touch_on_controller", enabled)
+                                        .apply()
+                                    publishUiState()
+                                },
                                 onGyroscopeEnabledChanged = { enabled ->
                                     val editor = preferences.edit()
                                     editor.putBoolean("gyro_enabled", enabled)
@@ -293,6 +299,7 @@ class InputControlsFragment : Fragment() {
                 selectedProfileElementCount = profile?.elementCountFromFile ?: 0,
                 selectedProfileCanReset = profile != null && manager.canResetProfile(profile),
                 overlayOpacity = (preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100).toInt(),
+                autoHideTouchOnController = preferences.getBoolean("auto_hide_touch_on_controller", false),
                 gyroscopeEnabled = preferences.getBoolean("gyro_enabled", false),
                 gyroscopeModeIndex = preferences.getInt("gyro_mode", 0),
                 gyroOrientationEnabled = preferences.getBoolean("gyro_orientation_enabled", false),

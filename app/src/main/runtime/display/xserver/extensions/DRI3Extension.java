@@ -324,7 +324,8 @@ public class DRI3Extension implements Extension {
     drawable.setPresentedSourceSize(width, height);
     drawable.setTexture(gpuImage);
     drawable.setDirectScanout(true);
-    client.xServer.pixmapManager.createPixmap(drawable);
+    Pixmap pixmap = client.xServer.pixmapManager.createPixmap(drawable);
+    client.registerAsOwnerOfResource(pixmap);
     if (ApplicationLogGate.isEnabled()) {
       Log.i(
           TAG,
@@ -364,7 +365,8 @@ public class DRI3Extension implements Extension {
       drawable.setData(buffer);
       drawable.setTexture(null);
       drawable.setOnDestroyListener(onDestroyDrawableListener);
-      client.xServer.pixmapManager.createPixmap(drawable);
+      Pixmap pixmap = client.xServer.pixmapManager.createPixmap(drawable);
+      client.registerAsOwnerOfResource(pixmap);
     } finally {
       XConnectorEpoll.closeFd(fd);
     }

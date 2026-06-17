@@ -141,6 +141,7 @@ data class InputControlsScreenState(
     val selectedProfileElementCount: Int = 0,
     val selectedProfileCanReset: Boolean = false,
     val overlayOpacity: Int = 40,
+    val autoHideTouchOnController: Boolean = false,
     val gyroscopeEnabled: Boolean = false,
     val gyroscopeModeIndex: Int = 0,
     val gyroOrientationEnabled: Boolean = false,
@@ -228,6 +229,7 @@ data class InputControlsScreenActions(
     val onChoiceDialogSelect: (Int) -> Unit,
     val onMultiChoiceDialogConfirm: (Set<Int>) -> Unit,
     val onOverlayOpacityChanged: (Int) -> Unit,
+    val onAutoHideTouchOnControllerChanged: (Boolean) -> Unit,
     val onGyroscopeEnabledChanged: (Boolean) -> Unit,
     val onGyroscopeModeSelected: (Int) -> Unit,
     val onGyroOrientationModeChanged: (Boolean) -> Unit,
@@ -285,6 +287,8 @@ fun InputControlsScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(InputCompactGap),
         ) {
+            item("auto-hide-label") { SectionLabel(stringResource(R.string.input_controls_auto_hide_section)) }
+            item("auto-hide-card") { AutoHideTouchCard(state, actions) }
             item("profile-card") { ProfileCard(state, actions) }
             item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
             item("overlay-card") { OverlayOpacityCard(state, actions) }
@@ -1503,6 +1507,41 @@ private fun ProfileActionMenuItem(
         },
         onClick = onClick,
     )
+}
+
+@Composable
+private fun AutoHideTouchCard(
+    state: InputControlsScreenState,
+    actions: InputControlsScreenActions,
+) {
+    CardShell {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconBox(Icons.Outlined.SportsEsports, InputTextSecondary)
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.input_controls_auto_hide_on_controller_title),
+                    color = InputTextPrimary,
+                    fontSize = InputPrimaryTextSize,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = stringResource(R.string.input_controls_auto_hide_on_controller_summary),
+                    color = InputTextSecondary,
+                    fontSize = InputSecondaryTextSize,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            AppSwitch(
+                checked = state.autoHideTouchOnController,
+                onCheckedChange = actions.onAutoHideTouchOnControllerChanged,
+            )
+        }
+    }
 }
 
 @Composable

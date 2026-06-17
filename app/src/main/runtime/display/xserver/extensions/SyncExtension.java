@@ -6,7 +6,12 @@ import android.util.SparseIntArray;
 import com.winlator.cmod.runtime.display.connector.SyncFenceFd;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
+import com.winlator.cmod.runtime.display.xserver.Pixmap;
+import com.winlator.cmod.runtime.display.xserver.Window;
 import com.winlator.cmod.runtime.display.xserver.XClient;
+import com.winlator.cmod.runtime.display.xserver.XResource;
+import com.winlator.cmod.runtime.display.xserver.XResourceManager;
+import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.display.xserver.errors.BadAlloc;
 import com.winlator.cmod.runtime.display.xserver.errors.BadFence;
 import com.winlator.cmod.runtime.display.xserver.errors.BadIdChoice;
@@ -17,11 +22,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SyncExtension implements Extension {
+public class SyncExtension
+    implements Extension, XResourceManager.OnResourceLifecycleListener {
   public static final byte MAJOR_OPCODE = -104;
   private byte firstEventId;
   private byte firstErrorId;
   private final SparseBooleanArray fences = new SparseBooleanArray();
+  /** Fence ID -> drawable id from CreateFence. */
+  private final SparseIntArray fenceDrawables = new SparseIntArray();
   /** Fence ID -> imported sync_file FD currently watched by the dispatcher. */
   private final SparseIntArray waitFds = new SparseIntArray();
   /** Fence ID -> eventfds we own, signaled when the fence triggers. */
@@ -36,6 +44,7 @@ public class SyncExtension implements Extension {
   /** eventfd used to wake the dispatcher when its watch set changes; -1 until lazy start. */
   private volatile int dispatcherControlFd = -1;
   private Thread dispatcherThread = null;
+  private boolean lifecycleListenersRegistered = false;
 
   private abstract static class ClientOpcodes {
     private static final byte CREATE_FENCE = 14;
@@ -287,7 +296,7 @@ public class SyncExtension implements Extension {
 
   private void createFence(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
-    inputStream.skip(4);
+    int drawableId = inputStream.readInt();
     int id = inputStream.readInt();
 
     boolean initiallyTriggered = inputStream.readByte() == 1;
@@ -297,6 +306,7 @@ public class SyncExtension implements Extension {
       if (fences.indexOfKey(id) >= 0) throw new BadIdChoice(id);
 
       fences.put(id, initiallyTriggered);
+      fenceDrawables.put(id, drawableId);
       if (initiallyTriggered) fenceLock.notifyAll();
     }
     if (initiallyTriggered) drainAndSignalExports(id);
@@ -332,6 +342,7 @@ public class SyncExtension implements Extension {
     synchronized (fenceLock) {
       if (fences.indexOfKey(id) < 0) throw new BadFence(id);
       fences.delete(id);
+      fenceDrawables.delete(id);
 
       int waitIdx = waitFds.indexOfKey(id);
       if (waitIdx >= 0) {
@@ -367,9 +378,55 @@ public class SyncExtension implements Extension {
     waitForFences(ids);
   }
 
+  private void registerLifecycleListeners(XServer xServer) {
+    if (lifecycleListenersRegistered) return;
+    synchronized (this) {
+      if (lifecycleListenersRegistered) return;
+      xServer.pixmapManager.addOnResourceLifecycleListener(this);
+      xServer.windowManager.addOnResourceLifecycleListener(this);
+      lifecycleListenersRegistered = true;
+    }
+  }
+
+  /** Drop fences bound to a freed drawable the client never destroyed; mirrors destroyFence. */
+  @Override
+  public void onFreeResource(XResource resource) {
+    if (!(resource instanceof Pixmap) && !(resource instanceof Window)) return;
+    int drawableId = resource.id;
+    List<Integer> exportsToClose = null;
+    boolean wake = false;
+    synchronized (fenceLock) {
+      for (int i = fenceDrawables.size() - 1; i >= 0; i--) {
+        if (fenceDrawables.valueAt(i) != drawableId) continue;
+        int id = fenceDrawables.keyAt(i);
+        fenceDrawables.removeAt(i);
+        fences.delete(id);
+
+        int waitIdx = waitFds.indexOfKey(id);
+        if (waitIdx >= 0) {
+          pendingCloseFds.add(waitFds.valueAt(waitIdx));
+          waitFds.removeAt(waitIdx);
+          wake = true;
+        }
+        List<Integer> exports = exportFds.get(id);
+        if (exports != null) {
+          if (exportsToClose == null) exportsToClose = new ArrayList<>();
+          exportsToClose.addAll(exports);
+          exportFds.remove(id);
+        }
+      }
+      fenceLock.notifyAll();
+    }
+    if (wake) wakeDispatcher();
+    if (exportsToClose != null) {
+      for (Integer fd : exportsToClose) SyncFenceFd.closeFd(fd);
+    }
+  }
+
   @Override
   public void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream)
       throws IOException, XRequestError {
+    registerLifecycleListeners(client.xServer);
     int opcode = client.getRequestData();
     switch (opcode) {
       case ClientOpcodes.CREATE_FENCE:

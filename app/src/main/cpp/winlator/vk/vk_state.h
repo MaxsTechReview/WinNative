@@ -111,6 +111,15 @@ typedef enum VkEffectType {
     VK_EFFECT_HDR = 2,
     VK_EFFECT_NATURAL = 3,
     VK_EFFECT_SGSR1 = 4,
+    VK_EFFECT_TOON = 5,
+    VK_EFFECT_NTSC = 6,
+    VK_EFFECT_COLORADJ = 7,
+    VK_EFFECT_COLORGRADE = 8,
+    VK_EFFECT_SHARPEN = 9,
+    VK_EFFECT_SCANLINES = 10,
+    VK_EFFECT_NTSC2 = 11,
+    VK_EFFECT_COLORBLIND = 12,
+    VK_EFFECT_PIXELATE = 13,
     VK_EFFECT_COUNT
 } VkEffectType;
 
@@ -430,6 +439,10 @@ typedef struct VkRenderer {
     // Shared sampler for all CPU-uploaded textures and AHB textures that don't need a Ycbcr
     // conversion. Created once at init.
     VkSampler        shared_sampler;
+    VkSampler        shared_sampler_nearest;
+    VkSampler        shared_sampler_cubic;
+    bool             ext_filter_cubic;
+    int              scale_filter;
 
     // Per-frame
     VkCommandPool    cmd_pool;
@@ -560,6 +573,7 @@ void       vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout f
                              VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
                              VkAccessFlags src_access, VkAccessFlags dst_access);
 bool       vkr_create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out);
+void       vkr_retarget_shared_sampler(VkRenderer* r);
 // Async layout transition through the staging pool; does not wait for the GPU.
 // Returns false on submit failure.
 bool       vkr_submit_async_transition(VkRenderer* r, VkImage image,

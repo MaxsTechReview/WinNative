@@ -1180,8 +1180,13 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val configStr = initialDxWrapperConfig()
         val config = DXVKConfigUtils.parseConfig(configStr)
         state.dxvkVkd3dFeatureLevelEntries.value = DXVKConfigUtils.VKD3D_FEATURE_LEVEL.toList()
-        state.dxvkDdrawWrapperEntries.value =
-            context.resources.getStringArray(R.array.ddrawrapper_entries).toList()
+        val ddrawWrapperItems =
+            context.resources.getStringArray(R.array.ddrawrapper_entries).toMutableList()
+        for (profile in contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_D7VK)) {
+            ddrawWrapperItems.add(ContentsManager.getEntryName(profile))
+        }
+        if (!isArm64EC) ddrawWrapperItems.removeAll { it.contains("arm64ec") }
+        state.dxvkDdrawWrapperEntries.value = ddrawWrapperItems
         loadDxvkVersions()
         loadVkd3dVersions()
         selectByIdentifier(state.dxvkVkd3dFeatureLevelEntries.value, config.get("vkd3dLevel"), state.dxvkSelectedVkd3dFeatureLevel)

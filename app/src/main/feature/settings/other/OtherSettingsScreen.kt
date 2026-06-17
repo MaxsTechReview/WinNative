@@ -145,6 +145,7 @@ fun OtherSettingsScreen(
     onRemoveSoundFont: () -> Unit,
     onPickWinlatorPath: () -> Unit,
     onPickShortcutExportPath: () -> Unit,
+    onExportAll: () -> Unit,
     onCursorSpeedChanged: (Int) -> Unit,
     onCursorLockChanged: (Boolean) -> Unit,
     onXinputDisabledChanged: (Boolean) -> Unit,
@@ -246,6 +247,8 @@ fun OtherSettingsScreen(
                 label = stringResource(R.string.settings_general_shortcut_export_path_title),
                 path = state.shortcutExportPath,
                 onBrowse = onPickShortcutExportPath,
+                secondaryLabel = stringResource(R.string.shortcuts_export_all),
+                onSecondary = onExportAll,
             )
         }
 
@@ -807,6 +810,8 @@ private fun FolderPathCard(
     label: String,
     path: String,
     onBrowse: () -> Unit,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     Box(
         modifier =
@@ -850,6 +855,14 @@ private fun FolderPathCard(
                 )
             }
             Spacer(Modifier.width(10.dp))
+            if (secondaryLabel != null && onSecondary != null) {
+                SmallActionButton(
+                    label = secondaryLabel,
+                    textColor = Accent,
+                    onClick = onSecondary,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             SmallActionButton(
                 label = stringResource(R.string.settings_general_choose_path),
                 textColor = Accent,
