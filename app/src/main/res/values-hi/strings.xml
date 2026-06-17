@@ -294,6 +294,10 @@
     <string name="shortcuts_list_clone_failed">शॉर्टकट क्लोन करने में विफल.</string>
     <string name="shortcuts_list_exported_to">शॉर्टकट %1$s पर निर्यात किया गया</string>
     <string name="shortcuts_list_failed_export">शॉर्टकट निर्यात करने में विफल</string>
+    <string name="shortcuts_export_all">सभी निर्यात करें</string>
+    <string name="shortcuts_export_to_frontend">फ्रंटएंड में निर्यात करें</string>
+    <string name="shortcuts_export_all_done">%1$d गेम %2$s में निर्यात किए गए</string>
+    <string name="shortcuts_export_all_none">निर्यात करने के लिए कोई गेम नहीं</string>
     <string name="shortcuts_list_added">शॉर्टकट सफलतापूर्वक जोड़ा गया.</string>
     <string name="shortcuts_list_readded_existing">मौजूदा शॉर्टकट पुनः जोड़ा गया</string>
     <string name="shortcuts_list_failed_add">शॉर्टकट जोड़ने में विफल.</string>

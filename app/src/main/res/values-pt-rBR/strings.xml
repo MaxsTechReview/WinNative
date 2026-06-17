@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Falha ao clonar atalho.</string>
     <string name="shortcuts_list_exported_to">Atalho exportado para %1$s</string>
     <string name="shortcuts_list_failed_export">Falha ao exportar atalho</string>
+    <string name="shortcuts_export_all">Exportar tudo</string>
+    <string name="shortcuts_export_to_frontend">Exportar para o frontend</string>
+    <string name="shortcuts_export_all_done">%1$d jogos exportados para %2$s</string>
+    <string name="shortcuts_export_all_none">Nenhum jogo para exportar</string>
     <string name="shortcuts_list_added">Atalho adicionado com sucesso.</string>
     <string name="shortcuts_list_failed_add">Falha ao adicionar atalho.</string>
 

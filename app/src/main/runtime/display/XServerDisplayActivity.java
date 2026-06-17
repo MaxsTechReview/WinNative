@@ -1077,6 +1077,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        if ((shortcutPath == null || shortcutPath.isEmpty()) && launchData != null) {
+            String dataPath = resolveDesktopPathFromUri(launchData);
+            if (dataPath != null && !dataPath.isEmpty()) {
+                shortcutPath = dataPath;
+                Log.d("XServerDisplayActivity", "Resolved shortcut path from VIEW data: " + shortcutPath);
+            }
+        }
+
         Shortcut resolvedShortcut = null;
         if (shortcutUuid != null && !shortcutUuid.isEmpty()) {
             resolvedShortcut = findShortcutByUuid(shortcutUuid, containerId);
@@ -1691,6 +1699,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }, 1000);
         }
+    }
+
+    private String resolveDesktopPathFromUri(android.net.Uri uri) {
+        if (uri == null) return null;
+        try {
+            String scheme = uri.getScheme();
+            if ("file".equalsIgnoreCase(scheme)) {
+                return uri.getPath();
+            }
+            if ("content".equalsIgnoreCase(scheme)) {
+                return com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri);
+            }
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to resolve .desktop path from URI", e);
+        }
+        return null;
     }
 
     private int parseContainerIdFromDesktopFile(File desktopFile) {

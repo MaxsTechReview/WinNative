@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -141,6 +142,7 @@ internal fun LibraryGameLaunchScreen(
     onAchievements: (() -> Unit)? = null,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
+    onExport: () -> Unit,
     onUninstall: () -> Unit,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -156,10 +158,10 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 48.dp
         val actionIconSpacing = 8.dp
-        // 5 action icons: Settings, Shortcut, (Saves), CloudSync, Delete.
+        // 6 action icons: Settings, Shortcut, (Saves), CloudSync, Export, Delete.
         // Saves only renders for stores that expose it; layout width tracks the static
         // count to keep the play button centered.
-        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
+        val actionWidth = actionIconSize * 6 + actionIconSpacing * 5
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -376,9 +378,6 @@ internal fun LibraryGameLaunchScreen(
                         horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Order (per user spec): Settings → Shortcut → (Saves) → Cloud Saves → Uninstall.
-                        // Saves is conditional but slots between Shortcut and Cloud Saves because the two
-                        // saves-related buttons read better next to each other.
                         LaunchIconActionButton(
                             icon = Icons.Outlined.Settings,
                             contentDescription = stringResource(R.string.common_ui_settings),
@@ -401,6 +400,12 @@ internal fun LibraryGameLaunchScreen(
                             ),
                             size = actionIconSize,
                             onClick = onShortcut,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.IosShare,
+                            contentDescription = stringResource(R.string.common_ui_export),
+                            size = actionIconSize,
+                            onClick = onExport,
                         )
                         LaunchIconActionButton(
                             icon = Icons.Outlined.CloudSync,

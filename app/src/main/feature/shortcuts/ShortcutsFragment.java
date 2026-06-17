@@ -230,64 +230,11 @@ public class ShortcutsFragment extends Fragment {
   }
 
   private void exportShortcut(Shortcut shortcut) {
-    SharedPreferences sharedPreferences =
-        PreferenceManager.getDefaultSharedPreferences(getContext());
-    String uriString = sharedPreferences.getString("shortcuts_export_path_uri", null);
-
-    File shortcutsDir;
-    if (uriString != null) {
-      String resolvedPath = FileUtils.getFilePathFromUri(getContext(), Uri.parse(uriString));
-      if (resolvedPath == null || resolvedPath.isEmpty()) {
-        WinToast.show(getContext(), R.string.common_ui_cannot_write_folder);
-        return;
-      }
-      shortcutsDir = new File(resolvedPath);
+    File exportFile = FrontendExporter.exportOne(getContext(), shortcut);
+    if (exportFile != null) {
+      WinToast.show(
+          getContext(), getString(R.string.shortcuts_list_exported_to, exportFile.getPath()));
     } else {
-      shortcutsDir = new File(SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH);
-    }
-
-    if (!shortcutsDir.exists() && !shortcutsDir.mkdirs()) {
-      WinToast.show(getContext(), R.string.common_ui_failed_create_directory);
-      return;
-    }
-
-    File exportFile = new File(shortcutsDir, shortcut.file.getName());
-    boolean fileExists = exportFile.exists();
-    boolean containerIdFound = false;
-
-    try {
-      List<String> lines = new ArrayList<>();
-      try (BufferedReader reader = new BufferedReader(new FileReader(shortcut.file))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          if (line.startsWith("container_id:")) {
-            lines.add("container_id:" + shortcut.container.id);
-            containerIdFound = true;
-          } else {
-            lines.add(line);
-          }
-        }
-      }
-
-      if (!containerIdFound) {
-        lines.add("container_id:" + shortcut.container.id);
-      }
-
-      try (FileWriter writer = new FileWriter(exportFile, false)) {
-        for (String line : lines) {
-          writer.write(line + "\n");
-        }
-        writer.flush();
-      }
-
-      Log.d("ShortcutsFragment", "Shortcut exported successfully to " + exportFile.getPath());
-      String message =
-          fileExists
-              ? getString(R.string.shortcuts_properties_updated_at, exportFile.getPath())
-              : getString(R.string.shortcuts_list_exported_to, exportFile.getPath());
-      WinToast.show(getContext(), message);
-    } catch (IOException e) {
-      Log.e("ShortcutsFragment", "Failed to export shortcut", e);
       WinToast.show(getContext(), R.string.shortcuts_list_failed_export);
     }
   }

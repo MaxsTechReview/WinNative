@@ -282,6 +282,10 @@
     <string name="shortcuts_list_clone_failed">Nie udało się sklonować skrótu.</string>
     <string name="shortcuts_list_exported_to">Skrót wyeksportowany do %1$s</string>
     <string name="shortcuts_list_failed_export">Nie udało się wyeksportować skrótu</string>
+    <string name="shortcuts_export_all">Eksportuj wszystko</string>
+    <string name="shortcuts_export_to_frontend">Eksportuj do frontendu</string>
+    <string name="shortcuts_export_all_done">Wyeksportowano %1$d gier do %2$s</string>
+    <string name="shortcuts_export_all_none">Brak gier do wyeksportowania</string>
     <string name="shortcuts_list_added">Skrót dodany pomyślnie.</string>
     <string name="shortcuts_list_failed_add">Nie udało się dodać skrótu.</string>
 

@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Kunne ikke klone genvej.</string>
     <string name="shortcuts_list_exported_to">Genvej eksporteret til %1$s</string>
     <string name="shortcuts_list_failed_export">Kunne ikke eksportere genvej</string>
+    <string name="shortcuts_export_all">Eksportér alle</string>
+    <string name="shortcuts_export_to_frontend">Eksportér til frontend</string>
+    <string name="shortcuts_export_all_done">Eksporterede %1$d spil til %2$s</string>
+    <string name="shortcuts_export_all_none">Ingen spil at eksportere</string>
     <string name="shortcuts_list_added">Genvej tilføjet.</string>
     <string name="shortcuts_list_failed_add">Kunne ikke tilføje genvej.</string>
 

@@ -27,6 +27,7 @@ import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
 import com.winlator.cmod.app.update.UpdateChecker
+import com.winlator.cmod.feature.shortcuts.FrontendExporter
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
@@ -135,6 +136,7 @@ class OtherSettingsFragment : Fragment() {
                                 SettingsConfig.DEFAULT_SHORTCUT_EXPORT_PATH,
                             )
                         },
+                        onExportAll = { exportAllShortcuts(ctx) },
                         onCursorSpeedChanged = { percent ->
                             preferences.edit { putFloat("cursor_speed", percent / 100f) }
                             refresh()
@@ -307,6 +309,20 @@ class OtherSettingsFragment : Fragment() {
             }
             refresh()
         }
+    }
+
+    private fun exportAllShortcuts(ctx: Context) {
+        Thread {
+            val count = FrontendExporter.exportAll(ctx)
+            val dir = FrontendExporter.resolveExportDir(ctx)
+            activity?.runOnUiThread {
+                if (count > 0) {
+                    WinToast.show(ctx, getString(R.string.shortcuts_export_all_done, count, dir?.path ?: ""))
+                } else {
+                    WinToast.show(ctx, R.string.shortcuts_export_all_none)
+                }
+            }
+        }.start()
     }
 
     private fun installSoundFont(uri: Uri) {

@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Verknüpfung konnte nicht geklont werden.</string>
     <string name="shortcuts_list_exported_to">Verknüpfung exportiert nach %1$s</string>
     <string name="shortcuts_list_failed_export">Verknüpfung konnte nicht exportiert werden</string>
+    <string name="shortcuts_export_all">Alle exportieren</string>
+    <string name="shortcuts_export_to_frontend">An Frontend exportieren</string>
+    <string name="shortcuts_export_all_done">%1$d Spiele nach %2$s exportiert</string>
+    <string name="shortcuts_export_all_none">Keine Spiele zum Exportieren</string>
     <string name="shortcuts_list_added">Verknüpfung erfolgreich hinzugefügt.</string>
     <string name="shortcuts_list_failed_add">Verknüpfung konnte nicht hinzugefügt werden.</string>
 

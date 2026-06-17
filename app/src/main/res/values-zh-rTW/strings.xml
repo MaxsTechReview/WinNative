@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">無法複製捷徑。</string>
     <string name="shortcuts_list_exported_to">捷徑已匯出至 %1$s</string>
     <string name="shortcuts_list_failed_export">無法匯出捷徑</string>
+    <string name="shortcuts_export_all">全部匯出</string>
+    <string name="shortcuts_export_to_frontend">匯出到前端</string>
+    <string name="shortcuts_export_all_done">已將 %1$d 個遊戲匯出至 %2$s</string>
+    <string name="shortcuts_export_all_none">沒有可匯出的遊戲</string>
     <string name="shortcuts_list_added">捷徑已成功新增。</string>
     <string name="shortcuts_list_failed_add">無法新增捷徑。</string>
 
