@@ -45,6 +45,7 @@ public abstract class Box64PresetManager {
         envVars.put("BOX64_AVX", "0");
         envVars.put("BOX64_UNITYPLAYER", "1");
         envVars.put("BOX64_MMAP32", "0");
+        envVars.put("BOX64_DYNACACHE", "0");
       }
     } else if (id.equals(Box64Preset.COMPATIBILITY)) {
       envVars.put(ucPrefix + "_DYNAREC_SAFEFLAGS", "2");
@@ -60,6 +61,7 @@ public abstract class Box64PresetManager {
         envVars.put("BOX64_AVX", "0");
         envVars.put("BOX64_UNITYPLAYER", "1");
         envVars.put("BOX64_MMAP32", "0");
+        envVars.put("BOX64_DYNACACHE", "0");
       }
     } else if (id.equals(Box64Preset.INTERMEDIATE)) {
       envVars.put(ucPrefix + "_DYNAREC_SAFEFLAGS", "2");
@@ -75,6 +77,7 @@ public abstract class Box64PresetManager {
         envVars.put("BOX64_AVX", "0");
         envVars.put("BOX64_UNITYPLAYER", "0");
         envVars.put("BOX64_MMAP32", "1");
+        envVars.put("BOX64_DYNACACHE", "0");
       }
     } else if (id.equals(Box64Preset.PERFORMANCE)) {
       envVars.put(ucPrefix + "_DYNAREC_SAFEFLAGS", "1");
@@ -90,6 +93,7 @@ public abstract class Box64PresetManager {
         envVars.put("BOX64_AVX", "0");
         envVars.put("BOX64_UNITYPLAYER", "0");
         envVars.put("BOX64_MMAP32", "1");
+        envVars.put("BOX64_DYNACACHE", "0");
       }
     } else if (id.startsWith(Box64Preset.CUSTOM)) {
       for (String[] preset : customPresetsIterator(prefix, context)) {

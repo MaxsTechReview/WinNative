@@ -514,6 +514,7 @@
     </string>
     <string name="box64_env_var_help__dynarec_noarch">संगतता ट्रेडऑफ़ के साथ मेमोरी को बचाने के लिए डायनारेक ब्लॉक मेटाडेटा को कम करता है।</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">64-बिट Windows गेम के लिए मजबूत मेमोरी अनुकरण का मार्गदर्शन करने के लिए PE अस्थिर मेटाडेटा का उपयोग करता है।</string>
+    <string name="box64_env_var_help__dynacache">स्टार्टअप को तेज़ करने के लिए रन के बीच जनरेट किए गए dynarec ब्लॉक की कैशिंग को नियंत्रित करता है।</string>
     <string name="box64_env_var_help__avx">
         guest को AVX क्षमताएँ दिखाता है।&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : AVX extension अक्षम करें&lt;br /&gt;

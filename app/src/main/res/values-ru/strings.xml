@@ -472,6 +472,7 @@
     <string name="box64_env_var_help__dynarec_pause">Включите эмуляцию PAUSE x86, это может улучшить производительность спин-блокировок.&lt;br /&gt;&lt;br /&gt;\n &lt;b&gt;0&lt;/b&gt;: игнорировать инструкцию PAUSE x86.&lt;br /&gt;\n &lt;b&gt;1&lt;/b&gt;: используйте YIELD для эмуляции инструкции PAUSE x86.&lt;br /&gt;\n &lt;b&gt;2&lt;/b&gt;: используйте WFI для эмуляции инструкции PAUSE x86.&lt;br /&gt;\n &lt;b&gt;3&lt;/b&gt;: используйте SEVL+WFE для эмуляции инструкции PAUSE x86.</string>
     <string name="box64_env_var_help__dynarec_noarch">Уменьшает метаданные блока dynarec для экономии памяти с компромиссом совместимости.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Использует изменчивые метаданные PE для управления надежной эмуляцией памяти для 64-битных игр для Windows.</string>
+    <string name="box64_env_var_help__dynacache">Управляет кэшированием сгенерированных блоков dynarec между запусками для ускорения запуска.</string>
     <string name="box64_env_var_help__avx">Предоставляет гостю возможности AVX.&lt;br /&gt;&lt;br /&gt;\n &lt;b&gt;0&lt;/b&gt;: отключить расширение AVX&lt;br /&gt;\n &lt;b&gt;1&lt;/b&gt;: включить расширение AVX, BMI1, F16C и VAES.&lt;br /&gt;\n &lt;b&gt;2&lt;/b&gt;: все 1 плюс включение AVX2, BMI2, FMA, ADX, VPCLMULQDQ и RDRAND.&lt;br /&gt;</string>
     <string name="box64_env_var_help__aes">Предоставляет гостевой системе возможности AES CPU.</string>
     <string name="box64_env_var_help__pclmulqdq">Предоставляет гостевой системе возможности PCLMULQDQ CPU.</string>

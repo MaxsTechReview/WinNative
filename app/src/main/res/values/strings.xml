@@ -538,6 +538,7 @@
     </string>
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">Controls caching of generated dynarec blocks between runs to speed up startup.</string>
     <string name="box64_env_var_help__avx">
         Exposes AVX capabilities to the guest.&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : Disable AVX extension&lt;br /&gt;
