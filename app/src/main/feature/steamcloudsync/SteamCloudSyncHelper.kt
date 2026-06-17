@@ -76,26 +76,49 @@ object SteamCloudSyncHelper {
         containerHint: Container? = null,
     ): Boolean =
         try {
-            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
-            val syncInfo =
-                SteamService
-                    .forceSyncUserFiles(
-                        appId = appId,
-                        prefixToPath = prefixToPath,
-                        preferredSave = SaveLocation.Remote,
-                        overrideLocalChangeNumber = -1,
-                    ).await()
-
-            val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
-            if (ok) {
-                probeCache.remove(appId)
-                runCatching {
-                    SteamService.pushCloudStateToLibSteamClient(appId)
-                }.onFailure { e ->
-                    Timber.w(e, "forceDownloadById: libsteamclient mirror refresh failed for app=%d", appId)
+            // MD-5: abort if we can't activate this game's container — proceeding would resolve
+            // every path against the wrong wineprefix and overwrite another game's saves.
+            if (!activateContainerForCloudOp(context, appId, containerHint)) {
+                Timber.e("forceDownloadById: aborting — container activation failed for appId=%d", appId)
+                false
+            } else {
+                val prefixToPath = steamPrefixResolver(context, appId, containerHint)
+                // Safety net: snapshot the current local save BEFORE the forced download overwrites
+                // and/or deletes local files. This download path forces cloud-wins
+                // (overrideLocalChangeNumber = -1) and has no rollback of its own — if the cloud
+                // copy turns out to be wrong, corrupt, or a transient API artifact, this snapshot
+                // lets the user recover the pre-download local state from Save History. Deduped +
+                // best-effort.
+                if (hasActualLocalSaves(context, appId, containerHint)) {
+                    runCatching {
+                        SteamSaveSnapshotManager.recordSnapshot(
+                            context,
+                            appId,
+                            GameSaveBackupManager.BackupOrigin.AUTO,
+                            containerHint,
+                        )
+                    }.onFailure { Timber.w(it, "Pre-download snapshot failed for appId=%d", appId) }
                 }
+                val syncInfo =
+                    SteamService
+                        .forceSyncUserFiles(
+                            appId = appId,
+                            prefixToPath = prefixToPath,
+                            preferredSave = SaveLocation.Remote,
+                            overrideLocalChangeNumber = -1,
+                        ).await()
+
+                val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+                if (ok) {
+                    probeCache.remove(appId)
+                    runCatching {
+                        SteamService.pushCloudStateToLibSteamClient(appId)
+                    }.onFailure { e ->
+                        Timber.w(e, "forceDownloadById: libsteamclient mirror refresh failed for app=%d", appId)
+                    }
+                }
+                ok
             }
-            ok
         } catch (e: Exception) {
             Timber.e(e, "Failed to force Steam cloud download for appId=%d", appId)
             false
@@ -377,30 +400,37 @@ object SteamCloudSyncHelper {
         containerHint: Container? = null,
     ): Boolean =
         try {
-            val prefixToPath = steamPrefixResolver(context, appId, containerHint)
-            val syncInfo =
-                SteamService
-                    .forceSyncUserFiles(
-                        appId = appId,
-                        prefixToPath = prefixToPath,
-                        preferredSave = SaveLocation.Local,
-                        overrideLocalChangeNumber = -1,
-                    ).await()
-            val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
-            if (ok) {
-                probeCache.remove(appId)
-                CoroutineScope(Dispatchers.IO).launch {
-                    runCatching {
-                        SteamSaveSnapshotManager.recordSnapshot(
-                            context,
-                            appId,
-                            GameSaveBackupManager.BackupOrigin.LOCAL,
-                            containerHint,
-                        )
-                    }.onFailure { Timber.w(it, "Snapshot after Use-Local upload failed for appId=%d", appId) }
+            // MD-5: abort if container activation fails — otherwise we'd upload the wrong game's
+            // wineprefix over this game's Steam Cloud.
+            if (!activateContainerForCloudOp(context, appId, containerHint)) {
+                Timber.e("uploadLocalSaves: aborting — container activation failed for appId=%d", appId)
+                false
+            } else {
+                val prefixToPath = steamPrefixResolver(context, appId, containerHint)
+                val syncInfo =
+                    SteamService
+                        .forceSyncUserFiles(
+                            appId = appId,
+                            prefixToPath = prefixToPath,
+                            preferredSave = SaveLocation.Local,
+                            overrideLocalChangeNumber = -1,
+                        ).await()
+                val ok = syncInfo?.syncResult == SyncResult.Success || syncInfo?.syncResult == SyncResult.UpToDate
+                if (ok) {
+                    probeCache.remove(appId)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        runCatching {
+                            SteamSaveSnapshotManager.recordSnapshot(
+                                context,
+                                appId,
+                                GameSaveBackupManager.BackupOrigin.LOCAL,
+                                containerHint,
+                            )
+                        }.onFailure { Timber.w(it, "Snapshot after Use-Local upload failed for appId=%d", appId) }
+                    }
                 }
+                ok
             }
-            ok
         } catch (e: Exception) {
             Timber.e(e, "Failed to upload local Steam saves for appId=%d", appId)
             false
@@ -471,20 +501,35 @@ object SteamCloudSyncHelper {
         context: Context,
         appId: Int,
         containerHint: Container?,
-    ) {
+    ): Boolean {
         val target =
             containerHint
                 ?: ContainerUtils.getUsableContainerOrNull(context, appId.toString())
-                ?: return
-        activateContainer(context, target)
+                ?: return true // no container to activate — nothing to point at the wrong prefix
+        return activateContainer(context, target)
     }
 
     private fun activateContainer(
         context: Context,
         container: Container,
-    ) {
-        runCatching {
-            ContainerManager(context).activateContainer(container)
-        }.onFailure { Timber.w(it, "Failed to activate container id=%d", container.id) }
+    ): Boolean {
+        // MD-5: ContainerManager.activateContainer returns false (WITHOUT throwing) when it can't
+        // re-point the global `home/xuser` symlink at this container. The old code only caught
+        // thrown exceptions via runCatching{}.onFailure{}, so that false return was silently
+        // swallowed — and every subsequent path resolution then read/wrote the PREVIOUSLY-active
+        // container's wineprefix, i.e. the wrong game's saves. Honor the boolean and surface it.
+        val ok =
+            runCatching {
+                ContainerManager(context).activateContainer(container)
+            }.onFailure { Timber.e(it, "Failed to activate container id=%d (threw)", container.id) }
+                .getOrDefault(false)
+        if (!ok) {
+            Timber.e(
+                "activateContainer: could not activate container id=%d; the xuser symlink may point " +
+                    "at the wrong wineprefix",
+                container.id,
+            )
+        }
+        return ok
     }
 }

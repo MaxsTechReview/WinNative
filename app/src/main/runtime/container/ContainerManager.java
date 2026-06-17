@@ -414,6 +414,14 @@ public class ContainerManager {
   }
 
   private void removeContainer(Container container) {
+    // MN-2: this deletes the whole container, including any game saves stored inside the wine
+    // prefix (drive_c/users, Steam userdata, etc.). The interactive remove flow confirms first
+    // (see containers_list_confirm_remove, which now warns about save loss); log here so the
+    // deletion is visible even on the non-interactive ContainerUtils.deleteContainer path.
+    Log.w(
+        "ContainerManager",
+        "removeContainer: deleting container " + container.id + " and ALL in-prefix saves at "
+            + container.getRootDir());
     if (FileUtils.delete(container.getRootDir())) containers.remove(container);
   }
 
@@ -764,18 +772,59 @@ public class ContainerManager {
         return false;
       }
 
+      // Move the existing (possibly corrupt) prefix ASIDE instead of deleting it. Many
+      // games store save data inside the prefix (drive_c/users/xuser/{Documents,Saved
+      // Games,AppData}, Steam userdata, GSE emu saves). This repair is auto-triggered at
+      // launch, so an outright delete here would silently and permanently destroy those
+      // saves. Instead we rename the old prefix to a sibling backup, copy in the repaired
+      // prefix, then migrate the user's save data across. The backup is retained as a
+      // recovery copy (bounded to one per container — the previous one is cleared first)
+      // in case a non-standard in-prefix save location is missed by the migration.
       File targetPrefixDir = new File(containerDir, ".wine");
-      if (targetPrefixDir.exists() && !FileUtils.delete(targetPrefixDir)) {
-        Log.e(
-            "ContainerManager",
-            "repairContainerWinePrefix: failed to clear existing prefix "
-                + targetPrefixDir.getAbsolutePath());
-        return false;
+      File backupPrefixDir = new File(containerDir, ".wine.broken-backup");
+      boolean movedAside = false;
+      if (targetPrefixDir.exists()) {
+        if (backupPrefixDir.exists() && !FileUtils.delete(backupPrefixDir)) {
+          Log.e(
+              "ContainerManager",
+              "repairContainerWinePrefix: failed to clear previous prefix backup "
+                  + backupPrefixDir.getAbsolutePath());
+          return false;
+        }
+        if (!targetPrefixDir.renameTo(backupPrefixDir)) {
+          // Do NOT fall back to deleting — that would destroy in-prefix saves. Abort the
+          // repair instead; the container keeps its original prefix (game may not launch,
+          // but no data is lost, which is the safer failure).
+          Log.e(
+              "ContainerManager",
+              "repairContainerWinePrefix: failed to move existing prefix aside; aborting "
+                  + "repair to avoid save-data loss " + targetPrefixDir.getAbsolutePath());
+          return false;
+        }
+        movedAside = true;
       }
 
       if (!copyWinePrefixTree(repairedPrefixDir, targetPrefixDir)) {
         Log.e("ContainerManager", "repairContainerWinePrefix: failed to copy repaired prefix");
+        // Roll back so the container is left with its original (recoverable) prefix rather
+        // than a half-written one.
+        if (movedAside) {
+          FileUtils.delete(targetPrefixDir);
+          if (!backupPrefixDir.renameTo(targetPrefixDir)) {
+            Log.e(
+                "ContainerManager",
+                "repairContainerWinePrefix: CRITICAL — failed to restore prefix after copy "
+                    + "failure; original prefix preserved at "
+                    + backupPrefixDir.getAbsolutePath());
+          }
+        }
         return false;
+      }
+
+      // Best-effort: carry the user's in-prefix save data over to the freshly repaired
+      // prefix so saves survive the repair without manual recovery.
+      if (movedAside) {
+        migrateInPrefixSaveData(backupPrefixDir, targetPrefixDir);
       }
 
       WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
@@ -790,9 +839,41 @@ public class ContainerManager {
       container.putExtra("mono_installed", null);
       container.putExtra("mono_version", null);
       container.saveData();
+      if (movedAside) {
+        Log.i(
+            "ContainerManager",
+            "repairContainerWinePrefix: original prefix preserved for save recovery at "
+                + backupPrefixDir.getAbsolutePath());
+      }
       return true;
     } finally {
       FileUtils.delete(tempDir);
+    }
+  }
+
+  /**
+   * Copy the user's in-prefix save data from a moved-aside old prefix into a freshly
+   * repaired one. Best-effort and non-fatal: the old prefix is retained as a backup, so a
+   * failure here does not lose data — it just means the user may need manual recovery.
+   * Covers every Windows-side save location used by Steam/Epic/GOG/custom games.
+   */
+  private void migrateInPrefixSaveData(File oldPrefixDir, File newPrefixDir) {
+    String[] saveSubPaths = {
+      "drive_c/users",
+      "drive_c/ProgramData",
+      "drive_c/Program Files (x86)/Steam/userdata",
+    };
+    for (String sub : saveSubPaths) {
+      File src = new File(oldPrefixDir, sub);
+      if (!src.exists()) continue;
+      File dst = new File(newPrefixDir, sub);
+      try {
+        if (!copyWinePrefixTree(src, dst)) {
+          Log.w("ContainerManager", "migrateInPrefixSaveData: failed to migrate " + sub);
+        }
+      } catch (Exception e) {
+        Log.w("ContainerManager", "migrateInPrefixSaveData: error migrating " + sub, e);
+      }
     }
   }
 

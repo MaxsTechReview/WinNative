@@ -87,6 +87,7 @@ import com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
 import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.feature.sync.google.WinePathUtils
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
@@ -157,6 +158,7 @@ internal fun CloudSavesContent(
             ?.takeIf { it > 0 }
             ?: shortcut?.container?.id?.takeIf { it > 0 }
     var gogZipBusy by remember { mutableStateOf(false) }
+    var googleBackupBusy by remember { mutableStateOf(false) }
     val gogZipLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -209,6 +211,12 @@ internal fun CloudSavesContent(
                                     emptyList()
                                 }
                             }
+                        // Surface the local rolling snapshots (pre-download safety net, exit/use-local
+                        // backups, the cloud-save pre-capture taken before "Use Local", and manual
+                        // imports). These STEAM_LOCAL entries are the only ones that support true
+                        // per-entry rollback (restoreFromEntry), so without listing them the user
+                        // could never recover those saves.
+                        val localSnapshots = SteamSaveSnapshotManager.listHistory(context, appId)
                         // Surface Google-mirrored "keep a copy" saves in the same list (silent no-op when not signed in).
                         val google =
                             GameSaveBackupManager.listGoogleHistory(
@@ -216,24 +224,32 @@ internal fun CloudSavesContent(
                                 GameSaveBackupManager.GameSource.STEAM,
                                 gameId,
                             )
-                        (cloud + google).sortedByDescending { it.timestampMs }
+                        (cloud + localSnapshots + google).sortedByDescending { it.timestampMs }
                     } else {
                         emptyList()
                     }
                 }
                 GameSaveBackupManager.GameSource.EPIC -> {
                     val appId = gameId.toIntOrNull()
-                    if (appId != null) {
-                        EpicCloudHistoryProvider
-                            .listCloudSaveGroups(context, appId)
-                    } else {
-                        emptyList()
-                    }
+                    val epic =
+                        if (appId != null) {
+                            EpicCloudHistoryProvider.listCloudSaveGroups(context, appId)
+                        } else {
+                            emptyList()
+                        }
+                    // Surface "Backup To Google" copies alongside the provider history.
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (epic + google).sortedByDescending { it.timestampMs }
                 }
                 GameSaveBackupManager.GameSource.GOG -> {
-                    GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val gog = GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (gog + google).sortedByDescending { it.timestampMs }
                 }
-                GameSaveBackupManager.GameSource.CUSTOM -> emptyList()
+                GameSaveBackupManager.GameSource.CUSTOM ->
+                    GameSaveBackupManager
+                        .listGoogleHistory(activity, gameSource, gameId)
+                        .sortedByDescending { it.timestampMs }
             }
         historyLoading = false
     }
@@ -661,6 +677,49 @@ internal fun CloudSavesContent(
                 }
             }
         }
+
+        // "Backup To Google" — available for every store (Steam/Epic/GOG/Custom). Saves a
+        // copy of the current local save to Google Play Games. Unlike the Steam-only auto
+        // backups, this is a manual, user-initiated action and will prompt for Google sign-in
+        // if needed.
+        if (googleBackupBusy) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                color = Accent,
+                trackColor = CardBorder,
+            )
+        }
+        ActionWithHelper(
+            icon = Icons.Outlined.CloudUpload,
+            label = stringResource(R.string.cloud_saves_google_backup_label),
+            helper = stringResource(R.string.cloud_saves_google_backup_helper),
+            tint = CloudSuccess,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isWorking && !googleBackupBusy && gameId.isNotEmpty(),
+            onClick = {
+                if (googleBackupBusy) return@ActionWithHelper
+                scope.launch {
+                    googleBackupBusy = true
+                    try {
+                        val result =
+                            withContext(Dispatchers.IO) {
+                                GameSaveBackupManager.backupSaveToGoogle(
+                                    activity = activity,
+                                    gameSource = gameSource,
+                                    gameId = gameId,
+                                    gameName = gameName,
+                                    origin = GameSaveBackupManager.BackupOrigin.MANUAL,
+                                    authMode = GoogleAuthMode.INTERACTIVE,
+                                )
+                            }
+                        notify(result.message, Toast.LENGTH_LONG)
+                    } finally {
+                        googleBackupBusy = false
+                        historyRefreshKey++
+                    }
+                }
+            },
+        )
 
         SaveHistorySection(
             loading = historyLoading,
@@ -1105,7 +1164,15 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    val canRestore = entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD
+    // STEAM_CLOUD "groups" are a time-clustered view of the CURRENT cloud file list — Steam keeps
+    // no server-side version history, so every group would restore the same current cloud state.
+    // Surfacing a per-group "Restore" implied a rollback that does not exist; the real per-entry
+    // rollback is the STEAM_LOCAL snapshots, and "Sync from Steam Cloud" pulls the current cloud.
+    // So STEAM_CLOUD entries are read-only history (like GOG_CLOUD).
+    val canRestore =
+        entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
+            entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+    val isReadOnlyCloudGroup = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
     Row(
         modifier =
             Modifier
@@ -1192,6 +1259,15 @@ private fun SaveHistoryRow(
                     label = stringResource(R.string.cloud_saves_history_restore),
                     tint = CloudSuccess,
                     onClick = onRestore,
+                )
+                Spacer(Modifier.width(6.dp))
+            } else if (isReadOnlyCloudGroup) {
+                Text(
+                    text = stringResource(R.string.cloud_saves_history_cloud_readonly),
+                    color = TextSecondary,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp,
                 )
                 Spacer(Modifier.width(6.dp))
             }

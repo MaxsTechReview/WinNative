@@ -282,7 +282,7 @@
     <string name="containers_list_duplicating">Duplicating Container</string>
     <string name="containers_list_remove_title">Remove container</string>
     <string name="containers_list_duplicate_title">Duplicate container</string>
-    <string name="containers_list_confirm_remove">Do you want to remove this container?</string>
+    <string name="containers_list_confirm_remove">Remove this container? Any game saves stored inside it will be permanently deleted. Cloud-synced saves stay in the cloud, but local changes that haven\'t synced yet will be lost — sync this game\'s cloud saves first if you want to keep them.</string>
     <string name="containers_list_confirm_duplicate">Do you want to duplicate this container?</string>
 
     <!-- Shortcuts > List -->
@@ -1236,6 +1236,9 @@ Installed path:
     <string name="cloud_saves_gog_zip_success">GOG cloud saves zip saved.</string>
     <string name="cloud_saves_gog_zip_failed">Could not save GOG cloud saves zip.</string>
     <string name="cloud_saves_gog_zip_empty">No GOG cloud save files found.</string>
+    <string name="cloud_saves_google_backup_label">Backup To Google</string>
+    <string name="cloud_saves_google_backup_helper">Save a copy to Google Play Games</string>
+    <string name="cloud_saves_google_backup_no_save">No save files found to back up.</string>
     <string name="cloud_saves_history_title">Save History</string>
     <string name="cloud_saves_history_empty">No previous saves backed up yet. Replaced saves and manual backups will appear here for 30 days.</string>
     <string name="cloud_saves_history_loading">Loading save history\u2026</string>
@@ -1250,6 +1253,7 @@ Installed path:
     <string name="cloud_saves_history_storage_epic">Epic</string>
     <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Restore</string>
+    <string name="cloud_saves_history_cloud_readonly">Read-only</string>
     <string name="cloud_saves_history_restore_confirm_title">Restore this backup?</string>
     <string name="cloud_saves_history_restore_confirm_body">This will replace your current local save with the backup from %1$s.</string>
     <string name="cloud_saves_history_restore_success">Save restored from backup.</string>

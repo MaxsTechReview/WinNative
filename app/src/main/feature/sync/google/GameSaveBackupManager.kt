@@ -503,8 +503,39 @@ object GameSaveBackupManager {
                     if (sources.isEmpty()) {
                         return@withContext BackupResult(false, "Cannot determine save directory for this game.")
                     }
-                    sources.forEach { it.localDir.mkdirs() }
-                    extractGzippedZipToSources(tmp, sources)
+
+                    // M-5: pre-restore rollback point for Steam (Steam has a local snapshot
+                    // backend; other stores fall back to the Google backup being restored plus the
+                    // provider's own cloud copy).
+                    if (gameSource == GameSource.STEAM) {
+                        gameId.toIntOrNull()?.let { appId ->
+                            runCatching {
+                                SteamSaveSnapshotManager.recordSnapshot(context, appId, BackupOrigin.AUTO, containerHint)
+                            }.onFailure { Timber.tag(TAG).w(it, "Pre-restore snapshot failed for $gameId") }
+                        }
+                    }
+
+                    // M-5: extract to a temp staging tree first, then atomically swap each save dir
+                    // into place (move-aside + copy + rollback on failure). Previously extraction
+                    // wrote straight into the live dirs, so a mid-extraction failure (OOM, disk
+                    // full, I/O error) left a corrupt partial save with no way to recover the
+                    // pre-restore content.
+                    val staging = File(context.cacheDir, "wnsv_restore_${System.currentTimeMillis()}")
+                    try {
+                        staging.deleteRecursively()
+                        staging.mkdirs()
+                        val stagingSources = sources.map { SaveBackupSource(it.zipRoot, File(staging, it.zipRoot)) }
+                        stagingSources.forEach { it.localDir.mkdirs() }
+                        extractGzippedZipToSources(tmp, stagingSources)
+                        if (!swapRestoredSources(sources, staging)) {
+                            return@withContext BackupResult(
+                                false,
+                                "Restore could not be applied safely; your existing save was left unchanged.",
+                            )
+                        }
+                    } finally {
+                        runCatching { staging.deleteRecursively() }
+                    }
 
                     val pushed =
                         when (gameSource) {
@@ -1056,10 +1087,18 @@ object GameSaveBackupManager {
                 )
             var conflictAttempts = 0
             while (result.isConflict && conflictAttempts < MAX_CONFLICT_RESOLVE_ATTEMPTS) {
-                val chosen =
-                    listOfNotNull(result.conflict?.snapshot, result.conflict?.conflictingSnapshot)
-                        .maxByOrNull { it.metadata.lastModifiedTimestamp }
-                        ?: return null
+                val candidates = listOfNotNull(result.conflict?.snapshot, result.conflict?.conflictingSnapshot)
+                val chosen = candidates.maxByOrNull { it.metadata.lastModifiedTimestamp } ?: return null
+                // MN-3: Play Games resolves by most-recent mtime, which trusts device clocks — a
+                // device with a wrong clock can win a conflict with an actually-older save. Log the
+                // auto-resolution (with all candidate timestamps) so a bad pick is diagnosable
+                // rather than fully silent.
+                Timber.tag(TAG).w(
+                    "Auto-resolving Google save conflict for %s by most-recent mtime; chose %d of %s",
+                    uniqueName,
+                    chosen.metadata.lastModifiedTimestamp,
+                    candidates.map { it.metadata.lastModifiedTimestamp },
+                )
                 result = Tasks.await(client.resolveConflict(result.conflict!!.conflictId, chosen))
                 conflictAttempts++
             }
@@ -1095,6 +1134,14 @@ object GameSaveBackupManager {
                 while (result.isConflict && conflictAttempts < MAX_CONFLICT_RESOLVE_ATTEMPTS) {
                     val candidates = listOfNotNull(result.conflict?.snapshot, result.conflict?.conflictingSnapshot)
                     val chosen = candidates.maxByOrNull { it.metadata.lastModifiedTimestamp } ?: return null
+                    // MN-3: see readSnapshotBytes — log clock-based auto-resolution so a wrong-clock
+                    // mis-pick is diagnosable.
+                    Timber.tag(TAG).w(
+                        "Auto-resolving Google save conflict for %s by most-recent mtime; chose %d of %s",
+                        uniqueName,
+                        chosen.metadata.lastModifiedTimestamp,
+                        candidates.map { it.metadata.lastModifiedTimestamp },
+                    )
                     result = Tasks.await(client.resolveConflict(result.conflict!!.conflictId, chosen))
                     conflictAttempts++
                 }
@@ -1250,6 +1297,63 @@ object GameSaveBackupManager {
     }
 
     // ── Restore: extract ──
+
+    /**
+     * Apply a staged restore (extracted under [staging]/<zipRoot>) onto the live save dirs.
+     * Each live source dir is cleared and repopulated from staging so the result mirrors the
+     * backup exactly (no stale leftover files). Returns false on any I/O failure; the restore is
+     * idempotent (the Google backup persists), and Steam additionally has a pre-restore snapshot,
+     * so a failed apply can be safely retried.
+     */
+    private fun swapRestoredSources(liveSources: List<SaveBackupSource>, staging: File): Boolean {
+        return try {
+            for (src in liveSources) {
+                val stagingDir = File(staging, src.zipRoot)
+                val live = src.localDir
+                if (!live.isDirectory && !live.mkdirs()) return false
+                clearDirectoryContents(live)
+                if (!copyDirContents(stagingDir, live)) return false
+            }
+            true
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "swapRestoredSources failed")
+            false
+        }
+    }
+
+    /** Delete the CONTENTS of [dir] (keeping [dir] itself). */
+    private fun clearDirectoryContents(dir: File) {
+        if (!dir.isDirectory) return
+        dir.listFiles()?.forEach { child -> runCatching { child.deleteRecursively() } }
+    }
+
+    /** Recursively copy the CONTENTS of [from] into [to]. Returns false on any I/O failure. */
+    private fun copyDirContents(from: File, to: File): Boolean {
+        if (!from.isDirectory) return true // nothing was staged for this source
+        val children = from.listFiles() ?: return true
+        for (child in children) {
+            val dest = File(to, child.name)
+            if (child.isDirectory) {
+                if (!dest.isDirectory && !dest.mkdirs()) return false
+                if (!copyDirContents(child, dest)) return false
+            } else {
+                try {
+                    dest.parentFile?.mkdirs()
+                    FileInputStream(child).use { input ->
+                        FileOutputStream(dest).use { output ->
+                            val buf = ByteArray(8192)
+                            var len: Int
+                            while (input.read(buf).also { len = it } > 0) output.write(buf, 0, len)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "copyDirContents: failed to copy %s", child.name)
+                    return false
+                }
+            }
+        }
+        return true
+    }
 
     private fun extractGzippedZipToSources(gzippedZipFile: File, sources: List<SaveBackupSource>) {
         val sortedSources = sources.sortedByDescending { it.zipRoot.length }
