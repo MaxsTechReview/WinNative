@@ -1,5 +1,4 @@
 // Master state header for the Vulkan compositor.
-// Internal use only — JNI entry points expose a long handle that wraps VkRenderer*.
 
 #pragma once
 
@@ -7,12 +6,12 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-// All vk* calls route through the dispatch table — vk_dispatch.h is the Vulkan header for
-// this translation unit (do not include <vulkan/vulkan.h> directly).
+// All vk* calls route through the dispatch table (do not include <vulkan/vulkan.h> directly).
 #include "vk_dispatch.h"
 
 #define VK_LOG_TAG "VkRenderer"
@@ -22,12 +21,21 @@
 
 #define VK_FRAMES_IN_FLIGHT 3
 #define VK_MAX_SWAPCHAIN_IMAGES 8
+#define FG_JOB_RING 6u
+
+// A queued FG present job, snapshotted at enqueue and executed by the worker pthread.
+typedef struct FgJob {
+    uint8_t  mode;          // 1 = INTERP, 2 = PRESENT_LAST
+    uint8_t  deep;          // bidirectional warp (model-1)
+    float    phase;
+    uint32_t curr_idx;      // history slots, snapshotted at enqueue
+    uint32_t prev_idx;
+    uint64_t deadline_ns;   // vsync-snapped present target (worker paces to this)
+    uint32_t seq;           // fg_promote_seq snapshot — worker drops the job if the slot was reused
+} FgJob;
 #define VK_MAX_EFFECTS 8
 #define VK_MAX_RENDERABLE_WINDOWS 64
-// Number of in-flight upload slots. Each slot owns a persistently-mapped staging buffer,
-// fence, and command pool. An upload only blocks when this many uploads are still pending
-// on the GPU — with 8 slots and ~100µs GPU upload time, we can sustain ~80k uploads/sec
-// without ever waiting.
+// Number of in-flight upload slots.
 #define VK_STAGING_POOL_SIZE 8
 
 #define VK_CHECK(expr) do { \
@@ -289,11 +297,8 @@ typedef struct VkDeviceCaps {
 // ============================================================
 // Image sub-allocator
 // ============================================================
-//
-// CPU-uploaded textures share large DEVICE_LOCAL blocks instead of each taking a dedicated
-// vkAllocateMemory — avoids per-pixmap allocator latency and hitting maxMemoryAllocationCount
-// (~4096 on Adreno) under X-server pixmap churn. Each block has a first-fit free list (offset-
-// sorted, coalesced on free); fully-drained blocks are returned. AHB imports stay dedicated.
+// CPU-uploaded textures share large DEVICE_LOCAL blocks via a first-fit free list;
+// AHB imports stay dedicated.
 
 #define VK_SUBALLOC_BLOCK_SIZE (32u * 1024u * 1024u)  // 32 MiB default block
 
@@ -326,23 +331,16 @@ typedef struct VkRenderer {
     // Lifecycle
     bool initialized;
     bool surface_ready;
-    // True when we deliberately create a fallback swapchain with a preTransform that differs
-    // from caps.currentTransform (Adreno reports SUBOPTIMAL on every present in that case).
+    // Set when using a fallback swapchain whose preTransform differs from currentTransform.
     bool ignore_suboptimal;
     pthread_mutex_t scene_mutex;     // guards r->scene + graveyard slots; held briefly by all
     pthread_mutex_t queue_mutex;     // serializes vkQueueSubmit across threads
     pthread_mutex_t texture_mutex;   // guards live_textures
     pthread_mutex_t descriptor_mutex;// external sync for descriptor_pool alloc/free
-    pthread_mutex_t render_mutex;    // serializes lifecycle vs render; held by render thread for
-                                     // the full acquire+record+submit+present, and by lifecycle
-                                     // ops (surface create/change/destroy) before they touch the
-                                     // swapchain. Scene producers do NOT take this — they only
-                                     // touch scene_mutex, so they never stall behind a frame.
+    pthread_mutex_t render_mutex;    // serializes lifecycle vs render
 
     // Instance + physical/logical device
-    // dlopen handle for the libvulkan we resolved through. dlclose'd in nativeDestroy AFTER
-    // vkd_unload() to avoid stale dispatch pointers calling into freed memory.
-    void*            vulkan_handle;
+    void*            vulkan_handle;          // dlopen handle for libvulkan
     VkInstance       instance;
     bool             validation_enabled;
     bool             debug_utils_enabled;
@@ -382,13 +380,15 @@ typedef struct VkRenderer {
     bool             fg_built;               // history + motion images allocated at fg_dims
     VkExtent2D       fg_dims;                // extent the fg images were built for
     VkFgImage        fg_history[3];          // composited-scene ring; fg_history_curr = newest
-    VkFgImage        fg_motion[3];           // per-parity rgba16f half-res backward-flow ring (1 per history
-                                             // slot): consecutive cycles write different buffers so the
-                                             // once-per-cycle motion compute pipelines instead of serializing.
+    VkFgImage        fg_motion[3];           // per-parity rgba16f half-res backward-flow ring (1 per history slot)
     VkFgImage        fg_motion_fwd[3];       // per-parity rgba16f half-res forward-flow ring (Quality bidirectional)
+    VkFgImage        fg_coarse[3];           // per-parity quarter-res backward coarse-flow (coarse-to-fine seed)
+    VkFgImage        fg_coarse_fwd[3];       // per-parity quarter-res forward coarse-flow
     VkSampler        fg_sampler;             // linear, clamp — for all fg sampled reads
-    VkDescriptorSet  fg_motion_set[3];       // [curr] prev,curr samplers + motion storage (motion.comp)
-    VkDescriptorSet  fg_motion_set_fwd[3];   // [curr] swapped prev,curr + fwd-motion storage (forward pass)
+    VkDescriptorSet  fg_motion_set[3];       // [curr] prev,curr,coarse samplers + motion storage (fine pass)
+    VkDescriptorSet  fg_motion_set_fwd[3];   // [curr] swapped prev,curr + fwd-coarse + fwd-motion storage
+    VkDescriptorSet  fg_coarse_set[3];       // [curr] prev,curr + coarse-bwd storage (coarse pass)
+    VkDescriptorSet  fg_coarse_set_fwd[3];   // [curr] swapped prev,curr + coarse-fwd storage
     VkDescriptorSet  fg_interp_set[3];       // [curr] prev,curr,mvBwd,mvFwd samplers (interpolate.frag)
     VkDescriptorSet  fg_interp_set_deep[3];  // deep mode: interp the pair one step behind the newest
     VkFence          fg_slot_fence[3];       // last submit that used each history slot
@@ -403,14 +403,32 @@ typedef struct VkRenderer {
     float            fg_occ_lo;              // interpolate.frag consistency lower bound (smoothness)
     float            fg_occ_hi;              // interpolate.frag consistency upper bound (smoothness)
     int32_t          fg_min_step;            // motion.comp lowest TSS step (quality preset; 1 = full search)
+    float            fg_flow_scale;          // flow-field resolution scale [0.2,1.0] (preset GPU-cost dial)
+    float            fg_built_flow_scale;    // flow_scale baked into the current motion resources
+
+    // --- Content-duplicate detection ------------------------------------------------------------
+    // Each composited frame is downsampled to a tiny host buffer; the HOLD promotes the interp
+    // pair only on a genuine content change so duplicate inputs don't advance.
+    VkImage          fg_sig_img;             // tiny blit target, reused each HOLD
+    VkDeviceMemory   fg_sig_img_mem;
+    VkBuffer         fg_sig_buf[3];          // per-slot host-visible downsample of each history slot
+    VkDeviceMemory   fg_sig_buf_mem[3];
+    void*            fg_sig_ptr[3];          // persistent map of fg_sig_buf
+    bool             fg_sig_supported;       // blit+readback path created OK (else dedup disabled)
+    int32_t          fg_stage_slot;          // history slot holding the pending (un-promoted) frame, -1 = none
+    VkFence          fg_stage_fence;         // fence that produced fg_sig_buf[fg_stage_slot]
+    uint64_t         fg_last_promote_ns;     // last promotion time (freeze backstop)
+    double           fg_last_sig_delta;      // last measured content delta (diagnostics)
+    uint64_t         fg_dup_dropped, fg_distinct;  // dedup telemetry
+    uint64_t         fg_promote_count;       // monotonic count of promotions (distinct content committed)
+    uint64_t         fg_promote_ns;          // CLOCK_MONOTONIC of the most recent promotion (for Java phase anchor)
 
     // Quad vertex buffer (window/cursor)
     VkBuffer         quad_vbo;
     VkDeviceMemory   quad_vbo_memory;
 
     // Shared sampler for all CPU-uploaded textures and AHB textures that don't need a Ycbcr
-    // conversion. Created once at init; vkCreateSampler costs ~50-200µs on Adreno, so giving
-    // every texture its own sampler is a non-trivial CPU+GPU tax during pixmap churn.
+    // conversion. Created once at init.
     VkSampler        shared_sampler;
 
     // Per-frame
@@ -430,8 +448,7 @@ typedef struct VkRenderer {
     VkGraveSlot      graveyard[VK_FRAMES_IN_FLIGHT + 1];
     uint32_t         graveyard_index;
 
-    // Live native textures owned by this renderer/device. Java Texture objects can outlive a
-    // renderer teardown, so nativeDestroy drains this list before the device is destroyed.
+    // Live native textures owned by this renderer/device; drained on nativeDestroy.
     VkTexture**      live_textures;
     uint32_t         live_texture_count;
     uint32_t         live_texture_capacity;
@@ -476,6 +493,22 @@ typedef struct VkRenderer {
     uint32_t         fg_dbg_done_n;
     uint64_t         fg_dbg_last_curr;
     uint32_t         fg_present_id;
+
+    // FG generation worker: GL thread enqueues; this pthread runs flow+generate+pace+present
+    // and owns the swapchain present path while FG is on.
+    FgJob            fg_job_ring[FG_JOB_RING];   // SPSC: GL produces (tail), worker consumes (head)
+    volatile uint32_t fg_job_head;
+    volatile uint32_t fg_job_tail;
+    sem_t            fg_gen_sem;
+    pthread_t        fg_gen_thread;
+    volatile int     fg_gen_running;
+    bool             fg_gen_started;
+    VkCommandPool    fg_worker_pool;             // worker-owned (command pools are not thread-safe)
+    VkFrame          fg_worker_frames[3];        // worker-owned cmd + fence + image_available
+    uint32_t         fg_worker_index;
+    volatile uint32_t fg_promote_seq;            // ++ on each HOLD promote; jobs snapshot it
+    volatile uint32_t fg_swapchain_gen;          // ++ on swapchain recreate; worker drops present across a change
+
     PFN_vkGetRefreshCycleDurationGOOGLE   fnGetRefreshCycleDuration;
     PFN_vkGetPastPresentationTimingGOOGLE fnGetPastPresentationTiming;
 
@@ -527,10 +560,8 @@ void       vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout f
                              VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
                              VkAccessFlags src_access, VkAccessFlags dst_access);
 bool       vkr_create_sampler(VkRenderer* r, VkSamplerYcbcrConversion ycbcr, VkSampler* out);
-// Async layout transition through the staging pool. Submits a tiny command buffer that runs
-// the requested barrier, but does NOT wait for the GPU. The barrier is ordered before all
-// subsequent submits on the same queue per Vulkan spec, so callers can sample the image as
-// soon as the next render submit happens. Returns false on submit failure.
+// Async layout transition through the staging pool; does not wait for the GPU.
+// Returns false on submit failure.
 bool       vkr_submit_async_transition(VkRenderer* r, VkImage image,
                                        VkImageLayout from, VkImageLayout to,
                                        VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,

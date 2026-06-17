@@ -39,8 +39,6 @@ bool vkd_init(void* libvulkan_handle) {
 bool vkd_load_instance(VkInstance instance) {
     if (!vkd.GetInstanceProcAddr || instance == VK_NULL_HANDLE) return false;
 
-    // Device entry points resolve via vkGetInstanceProcAddr too — the loader trampolines.
-    // See vk_dispatch.h for the rationale.
     #define LOAD(name) \
         vkd.name = (PFN_vk##name)vkd.GetInstanceProcAddr(instance, "vk" #name)
 
@@ -153,6 +151,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CmdPipelineBarrier);
     LOAD(CmdBlitImage);
     LOAD(CmdCopyBufferToImage);
+    LOAD(CmdCopyImageToBuffer);
 
     // Queue
     LOAD(QueueSubmit);

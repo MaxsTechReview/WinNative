@@ -1,0 +1,138 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2DArray uSrc;
+layout(set = 0, binding = 2) uniform sampler2DArray uSrc2;
+layout(set = 0, binding = 36) uniform sampler2D uFlow;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2DArray uDst;
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+const int V_LOGIT = 0;
+const int V_MIX   = 1;
+int  variant() { return (pc.flags >> 8) & 0xF; }
+bool useWarp()  { return (pc.flags & (1 << 12)) != 0; }
+
+const ivec2 TAP[9] = ivec2[](
+    ivec2(-1,-1), ivec2(0,-1), ivec2(1,-1),
+    ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0),
+    ivec2(-1, 1), ivec2(0, 1), ivec2(1, 1));
+
+f16vec4 wVec4(uint o) {
+    return f16vec4(W[o + 0u], W[o + 1u], W[o + 2u], W[o + 3u]);
+}
+f16mat4 wMat4(uint o) {
+    return f16mat4(wVec4(o), wVec4(o + 4u), wVec4(o + 8u), wVec4(o + 12u));
+}
+
+f16vec4 sampleA(int L, vec2 uv) { return f16vec4(textureLod(uSrc,  vec3(uv, float(L)), 0.0)); }
+f16vec4 sampleBoff(int L, vec2 uv, ivec2 off) {
+    vec2 texel = 1.0 / vec2(textureSize(uSrc2, 0).xy);
+    return f16vec4(textureLod(uSrc2, vec3(uv + vec2(off) * texel, float(L)), 0.0));
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, pc.size))) return;
+
+    int   cinT = pc.cinT;
+    vec2  sz   = vec2(textureSize(uSrc, 0).xy);
+    vec2  ctr  = vec2(p) + 0.5;
+
+    vec2 uvA = ctr / sz;
+    vec2 uvB = ctr / sz;
+    if (useWarp()) {
+        vec4 flow = texture(uFlow, ctr / sz) * pc.mvScale;
+        vec2 fwd  = flow.xy * pc.t;
+        vec2 bwd  = flow.zw * (1.0 - pc.t);
+        uvA = (ctr + fwd) / sz;
+        uvB = (ctr + bwd) / sz;
+    }
+
+    bool dualRef = (variant() == V_MIX);
+
+    f16vec4 scoreA = f16vec4(0.0hf);
+    f16vec4 scoreA2 = f16vec4(0.0hf);
+    float16_t scoreA8 = 0.0hf;
+    f16vec4 scoreB = f16vec4(0.0hf);
+    f16vec4 scoreB2 = f16vec4(0.0hf);
+    float16_t scoreB8 = 0.0hf;
+
+    for (int t = 0; t < 9; t++) {
+        float16_t sA = 0.0hf;
+        float16_t sB = 0.0hf;
+        for (int L = 0; L < cinT; L++) {
+            f16vec4 a  = sampleA(L, uvA);
+            f16vec4 bt = sampleBoff(L, uvB, TAP[t]);
+            sA += float16_t(dot(a, bt));
+            if (dualRef) {
+                f16vec4 a2 = sampleA(cinT + L, uvA);
+                sB += float16_t(dot(a2, bt));
+            }
+        }
+        if      (t < 4)  { scoreA[t]      = sA; scoreB[t]      = sB; }
+        else if (t < 8)  { scoreA2[t - 4] = sA; scoreB2[t - 4] = sB; }
+        else             { scoreA8        = sA; scoreB8        = sB; }
+    }
+
+    if (variant() == V_LOGIT) {
+        uint o = pc.wBase;
+        f16vec4 subA = wVec4(o);       f16vec4 mulA = wVec4(o + 4u);  f16vec4 addA = wVec4(o + 8u);
+        f16vec4 subB = wVec4(o + 12u); f16vec4 mulB = wVec4(o + 16u); f16vec4 addB = wVec4(o + 20u);
+        f16vec4 subC = wVec4(o + 24u); f16vec4 mulC = wVec4(o + 28u); f16vec4 addC = wVec4(o + 32u);
+
+        f16vec4 costA = (scoreA  - subA) * mulA + addA;
+        f16vec4 costB = (scoreA2 - subB) * mulB + addB;
+        float16_t costC = (scoreA8 - subC.x) * mulC.x + addC.x;
+
+        imageStore(uDst, ivec3(p, 0), vec4(costA));
+        imageStore(uDst, ivec3(p, 1), vec4(costB));
+        imageStore(uDst, ivec3(p, 2), vec4(costC, 0.0, 0.0, 0.0));
+        return;
+    }
+
+    uint o = pc.wBase;
+    f16vec4 subA  = wVec4(o);        f16vec4 mulA  = wVec4(o + 4u);   f16vec4 addA  = wVec4(o + 8u);
+    f16vec4 subB  = wVec4(o + 12u);  f16vec4 mulB  = wVec4(o + 16u);  f16vec4 addB  = wVec4(o + 20u);
+    f16vec4 subAb = wVec4(o + 24u);  f16vec4 mulAb = wVec4(o + 28u);  f16vec4 addAb = wVec4(o + 32u);
+    f16vec4 subBb = wVec4(o + 36u);  f16vec4 mulBb = wVec4(o + 40u);  f16vec4 addBb = wVec4(o + 44u);
+    f16vec4 subC  = wVec4(o + 48u);  f16vec4 mulC  = wVec4(o + 52u);  f16vec4 addC  = wVec4(o + 56u);
+
+    f16vec4 nA0 = clamp((scoreA  - subA ) * mulA  + addA , f16vec4(0.0hf), f16vec4(1.0hf));
+    f16vec4 nA1 = clamp((scoreA2 - subB ) * mulB  + addB , f16vec4(0.0hf), f16vec4(1.0hf));
+    f16vec4 nB0 = clamp((scoreB  - subAb) * mulAb + addAb, f16vec4(0.0hf), f16vec4(1.0hf));
+    f16vec4 nB1 = clamp((scoreB2 - subBb) * mulBb + addBb, f16vec4(0.0hf), f16vec4(1.0hf));
+    float16_t nAC = clamp((scoreA8 - subC.x) * mulC.x + addC.x, 0.0hf, 1.0hf);
+    float16_t nBC = clamp((scoreB8 - subC.x) * mulC.x + addC.x, 0.0hf, 1.0hf);
+
+    uint h = o + 60u;
+    for (int head = 0; head < 2; head++) {
+        f16mat4 M0 = wMat4(h);
+        f16mat4 M1 = wMat4(h + 16u);
+        f16mat4 M2 = wMat4(h + 32u);
+        f16mat4 M3 = wMat4(h + 48u);
+        f16vec4 V0 = wVec4(h + 64u);
+        f16vec4 V1 = wVec4(h + 68u);
+        f16vec4 oSub = wVec4(h + 72u);
+        f16vec4 oMul = wVec4(h + 76u);
+        f16vec4 oAdd = wVec4(h + 80u);
+
+        f16vec4 acc = M0 * nA0 + M1 * nA1 + V0 * nAC
+                    + M2 * nB0 + M3 * nB1 + V1 * nBC;
+        f16vec4 outv = (acc - oSub) * oMul + oAdd;
+        imageStore(uDst, ivec3(p, head), vec4(outv));
+
+        h += 84u;
+    }
+}

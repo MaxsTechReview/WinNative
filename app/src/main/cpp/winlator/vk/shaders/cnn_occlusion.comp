@@ -1,0 +1,124 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D uSrcA;
+layout(set = 0, binding = 2) uniform sampler2D uSrcB;
+
+layout(set = 0, binding = 1, r8) uniform writeonly image2D uMip0;
+layout(set = 0, binding = 3, r8) uniform writeonly image2D uMip1;
+layout(set = 0, binding = 4, r8) uniform writeonly image2D uMip2;
+layout(set = 0, binding = 5, r8) uniform writeonly image2D uMip3;
+layout(set = 0, binding = 6, r8) uniform writeonly image2D uMip4;
+layout(set = 0, binding = 7, r8) uniform writeonly image2D uMip5;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+    float occThresh;
+} pc;
+
+const ivec2 OTAP[9] = ivec2[](
+    ivec2(-1,-1), ivec2(-1, 0), ivec2(-1, 1),
+    ivec2( 0,-1), ivec2( 0, 0), ivec2( 0, 1),
+    ivec2( 1,-1), ivec2( 1, 0), ivec2( 1, 1)
+);
+
+f16vec4 wA(int tap) {
+    int o = int(pc.wBase) + tap * 4;
+    return f16vec4(W[o], W[o + 1], W[o + 2], W[o + 3]);
+}
+f16vec4 wB(int tap) {
+    int o = int(pc.wBase) + 36 + tap * 4;
+    return f16vec4(W[o], W[o + 1], W[o + 2], W[o + 3]);
+}
+
+shared float lds[32][32];
+
+void main() {
+    ivec2 wg  = ivec2(gl_WorkGroupID.xy);
+    ivec2 lid = ivec2(gl_LocalInvocationID.xy);
+    ivec2 sz  = pc.size;
+    ivec2 hi  = sz - ivec2(1);
+
+    float16_t bias = W[int(pc.wBase) + 72];
+
+    for (int by = 0; by < 2; ++by) {
+        for (int bx = 0; bx < 2; ++bx) {
+            ivec2 p = wg * 32 + lid * 2 + ivec2(bx, by);
+
+            float16_t acc = bias;
+            for (int k = 0; k < 9; ++k) {
+                ivec2 c = clamp(p + OTAP[k], ivec2(0), hi);
+                f16vec4 a = f16vec4(texelFetch(uSrcA, c, 0));
+                f16vec4 b = f16vec4(texelFetch(uSrcB, c, 0));
+                acc += dot(a, wA(k));
+                acc += dot(b, wB(k));
+            }
+
+            float occ  = 1.0 / (1.0 + exp(-float(acc)));
+            float mask = step(pc.occThresh, occ) * occ;
+
+            if (all(lessThan(p, sz)))
+                imageStore(uMip0, p, vec4(mask));
+
+            lds[lid.x * 2 + bx][lid.y * 2 + by] = mask;
+        }
+    }
+
+    barrier();
+
+    if (lid.x < 16 && lid.y < 16) {
+        int i = lid.x, j = lid.y;
+        float avg = 0.25 * (lds[2*i][2*j] + lds[2*i+1][2*j]
+                          + lds[2*i][2*j+1] + lds[2*i+1][2*j+1]);
+        ivec2 c = wg * 16 + ivec2(i, j);
+        if (all(lessThan(c, imageSize(uMip1)))) imageStore(uMip1, c, vec4(avg));
+        lds[i][j] = avg;
+    }
+    barrier();
+
+    if (lid.x < 8 && lid.y < 8) {
+        int i = lid.x, j = lid.y;
+        float avg = 0.25 * (lds[2*i][2*j] + lds[2*i+1][2*j]
+                          + lds[2*i][2*j+1] + lds[2*i+1][2*j+1]);
+        ivec2 c = wg * 8 + ivec2(i, j);
+        if (all(lessThan(c, imageSize(uMip2)))) imageStore(uMip2, c, vec4(avg));
+        lds[i][j] = avg;
+    }
+    barrier();
+
+    if (lid.x < 4 && lid.y < 4) {
+        int i = lid.x, j = lid.y;
+        float avg = 0.25 * (lds[2*i][2*j] + lds[2*i+1][2*j]
+                          + lds[2*i][2*j+1] + lds[2*i+1][2*j+1]);
+        ivec2 c = wg * 4 + ivec2(i, j);
+        if (all(lessThan(c, imageSize(uMip3)))) imageStore(uMip3, c, vec4(avg));
+        lds[i][j] = avg;
+    }
+    barrier();
+
+    if (lid.x < 2 && lid.y < 2) {
+        int i = lid.x, j = lid.y;
+        float avg = 0.25 * (lds[2*i][2*j] + lds[2*i+1][2*j]
+                          + lds[2*i][2*j+1] + lds[2*i+1][2*j+1]);
+        ivec2 c = wg * 2 + ivec2(i, j);
+        if (all(lessThan(c, imageSize(uMip4)))) imageStore(uMip4, c, vec4(avg));
+        lds[i][j] = avg;
+    }
+    barrier();
+
+    if (lid.x < 1 && lid.y < 1) {
+        float avg = 0.25 * (lds[0][0] + lds[1][0] + lds[0][1] + lds[1][1]);
+        ivec2 c = wg;
+        if (all(lessThan(c, imageSize(uMip5)))) imageStore(uMip5, c, vec4(avg));
+    }
+}

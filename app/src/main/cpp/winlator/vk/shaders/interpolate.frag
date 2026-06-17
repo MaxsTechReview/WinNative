@@ -1,132 +1,109 @@
 #version 450
 
-// Motion-compensated frame synthesis.
-//   mode 0 (standard):      warp prev/curr along the single backward flow, interpolate at phase t.
-//   mode 1 (bidirectional): prev warps along its own forward flow; forward-backward consistency
-//                           gives a geometric (dis)occlusion signal.
-//   mode 2 (extrapolate):   predict phase t past curr by continuing the backward flow forward;
-//                           single-image warp, flow-divergence occlusion, no added latency.
-//
-// Fallback policy (occLo/occHi = the Smoothness slider):
-//   warps agree -> motion-compensated blend; disagree or geometric occlusion -> per-channel
-//   median of the two warps and the non-warped phase blend; off-frame -> time-nearest real
-//   pixel. The fallback must never collapse to one fixed endpoint or low-confidence regions
-//   stop advancing between real frames.
-
 precision mediump float;
 precision highp int;
 
 layout(location = 0) in  highp vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
-layout(set = 0, binding = 0) uniform mediump sampler2D prevFrame;     // frame N-1
-layout(set = 0, binding = 1) uniform mediump sampler2D currFrame;     // frame N
-layout(set = 0, binding = 2) uniform highp   sampler2D motionField;   // backward curr->prev, .xy half-res px
-layout(set = 0, binding = 3) uniform highp   sampler2D motionFieldFwd;// forward  prev->curr, .xy half-res px
+layout(set = 0, binding = 0) uniform mediump sampler2D prevFrame;
+layout(set = 0, binding = 1) uniform mediump sampler2D currFrame;
+layout(set = 0, binding = 2) uniform highp   sampler2D motionField;
+layout(set = 0, binding = 3) uniform highp   sampler2D motionFieldFwd;
 
 layout(push_constant) uniform PC {
-    vec2  resolution;   // full-res target size (pixels)
-    float phase;        // synthesis phase t in (0,1)
-    float occlusionLo;  // consistency window: fully trusted at/below this delta
-    float occlusionHi;  // fully snapped at/above this delta
-    float mode;         // 0 standard, 1 bidirectional, 2 extrapolate
+    vec2  resolution;
+    float phase;
+    float occlusionLo;
+    float occlusionHi;
+    float mode;
 } pc;
 
 bool offFrame(highp vec2 uv) {
     return uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0;
 }
 
-vec2 med3(vec2 a, vec2 b, vec2 c) { return max(min(a, b), min(max(a, b), c)); }
-vec3 med3v(vec3 a, vec3 b, vec3 c) { return max(min(a, b), min(max(a, b), c)); }
+float luma1(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 
-// 3x3 median of the half-res flow field (kills block-match outliers before warping).
-vec2 sampleMV(highp sampler2D field, highp vec2 uv, highp vec2 texel) {
-    vec2 r0 = med3(texture(field, uv + texel * vec2(-1.0, -1.0)).xy,
-                   texture(field, uv + texel * vec2( 0.0, -1.0)).xy,
-                   texture(field, uv + texel * vec2( 1.0, -1.0)).xy);
-    vec2 r1 = med3(texture(field, uv + texel * vec2(-1.0,  0.0)).xy,
-                   texture(field, uv).xy,
-                   texture(field, uv + texel * vec2( 1.0,  0.0)).xy);
-    vec2 r2 = med3(texture(field, uv + texel * vec2(-1.0,  1.0)).xy,
-                   texture(field, uv + texel * vec2( 0.0,  1.0)).xy,
-                   texture(field, uv + texel * vec2( 1.0,  1.0)).xy);
-    return med3(r0, r1, r2);
+float valid(vec3 c, highp vec2 p) {
+    return (dot(c, c) > 1e-4 && !offFrame(p)) ? 1.0 : 0.0;
 }
 
 void main() {
-    float t  = clamp(pc.phase, 0.0, 1.0);
-    float lo = pc.occlusionLo > 0.0 ? pc.occlusionLo : 0.06;
-    float hi = pc.occlusionHi > lo  ? pc.occlusionHi : 0.25;
+    float t = clamp(pc.phase, 0.0, 1.0);
+    float steadier = clamp(pc.occlusionLo, 0.0, 1.0);
 
-    // motionField is half-res, stores displacement in half-res pixels. Normalize: mv * 2 / fullRes.
     highp vec2 norm = 2.0 / pc.resolution;
-
-    vec2 mvB  = sampleMV(motionField, vUV, norm);   // backward curr->prev (9-tap median)
+    vec2 mvB  = texture(motionField, vUV).xy;
     vec2 mvBn = mvB * norm;
 
     vec3 cCurrFlat = texture(currFrame, vUV).rgb;
     vec3 cPrevFlat = texture(prevFrame, vUV).rgb;
 
-    // Static guard at full resolution: a pixel whose colour is unchanged between the two real
-    // frames is static (HUD, text, sync bars, unmoving background) and must never be warped. This
-    // is per-pixel and exact, so it catches thin high-contrast overlays that the coarse block-match
-    // static mask (motionField.z) misses next to moving content.
-    float staticMask = texture(motionField, vUV).z;
-    float staticPix = max(staticMask, 1.0 - smoothstep(0.02, 0.06, length(cCurrFlat - cPrevFlat)));
+    vec2 maskConf    = texture(motionField, vUV).zw;
+    float staticMask = maskConf.x;
+    float staticPix  = max(staticMask, 1.0 - smoothstep(0.02, 0.06, length(cCurrFlat - cPrevFlat)));
+    float uniq       = smoothstep(0.08, 0.35, maskConf.y);
 
     if (pc.mode > 1.5) {
-        // Extrapolation: out(x, N+t) = curr(x + t*mvB(x)). Linear motion only.
         highp vec2 srcPos = vUV + t * mvBn;
         vec3 cWarp = texture(currFrame, srcPos).rgb;
-        // The flow at the source must agree with the flow here, else this pixel is being
-        // revealed and the warp would smear the object. Motion-proportional tolerance.
-        vec2 mvBsrc = sampleMV(motionField, srcPos, norm);
+        float v = valid(cWarp, srcPos);
+        cWarp = mix(cCurrFlat, cWarp, v);
+
+        vec2 mvBsrc = texture(motionField, srcPos).xy;
         vec2 dv = mvB - mvBsrc;
-        float tolE = 0.01 * dot(mvB, mvB) + 0.5;
-        float occ = smoothstep(tolE, 4.0 * tolE + 2.0, dot(dv, dv));
-        if (offFrame(srcPos)) occ = 1.0;
-        occ = max(occ, staticPix);   // static overlays / unchanged pixels stay anchored
-        outColor = vec4(clamp(mix(cWarp, cCurrFlat, occ), 0.0, 1.0), 1.0);
+        float tolE = 0.05 * dot(mvB, mvB) + 2.0;
+        float occ  = smoothstep(tolE, 6.0 * tolE + 6.0, dot(dv, dv));
+        float relTol   = 0.10 * dot(mvB, mvB) + 4.0;
+        float reliable = (1.0 - smoothstep(relTol, 3.0 * relTol, dot(dv, dv))) * uniq * v;
+
+        vec3 cPred = mix(cCurrFlat, cWarp, reliable);
+        vec3 col   = mix(cWarp, cPred, occ);
+
+        vec2 txE = norm * 0.5;
+        vec3 blurE = (texture(currFrame, srcPos + vec2(txE.x, 0.0)).rgb
+                    + texture(currFrame, srcPos - vec2(txE.x, 0.0)).rgb
+                    + texture(currFrame, srcPos + vec2(0.0, txE.y)).rgb
+                    + texture(currFrame, srcPos - vec2(0.0, txE.y)).rgb) * 0.25;
+        col += 0.55 * v * clamp(cWarp - blurE, -0.25, 0.25);
+
+        float staticHold = staticMask * (1.0 - smoothstep(1.0, 4.0, dot(mvB, mvB)));
+        col = mix(col, cCurrFlat, staticHold);
+        outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
         return;
     }
 
-    // ---- INTERPOLATION ----
-    highp vec2 currPos = vUV - (1.0 - t) * mvBn;     // curr sampled along the backward flow
-    highp vec2 prevPos;
-    float occGeo = 0.0;
+    highp vec2 uvA = vUV + t * mvBn;
+    highp vec2 uvB = vUV - (1.0 - t) * mvBn;
+    vec3 cA = texture(prevFrame, uvA).rgb;
+    vec3 cB = texture(currFrame, uvB).rgb;
+    float tolE = 0.05 * dot(mvB, mvB) + 2.0;
+    float hiE  = 6.0 * tolE + 6.0;
+    vec2  dA = mvB - texture(motionField, uvA).xy;
+    vec2  dB = mvB - texture(motionField, uvB).xy;
+    float occA = 1.0 - smoothstep(tolE, hiE, dot(dA, dA));
+    float occB = 1.0 - smoothstep(tolE, hiE, dot(dB, dB));
+    float lA = (occA - 1.0) * 16.0 + (valid(cA, uvA) - 1.0) * 24.0;
+    float lB = (occB - 1.0) * 16.0 + (valid(cB, uvB) - 1.0) * 24.0;
+    float mE = max(lA, lB);
+    float wA = (1.0 - t) * exp(lA - mE);
+    float wB = t * exp(lB - mE);
+    float wsum = wA + wB + 1e-6;
+    float selB = wB / wsum;
+    vec3 col = (cA * wA + cB * wB) / wsum;
 
-    if (pc.mode > 0.5) {
-        // Bidirectional: prev warps along its own forward flow; |mvB+mvF| ~ 0 for a coherent
-        // feature. The forward-backward residual is compared against a motion-proportional
-        // tolerance wide enough to ignore plain block-match search noise (~1px).
-        vec2 mvF = texture(motionFieldFwd, vUV).xy;
-        prevPos  = vUV - t * (mvF * norm);
-        vec2 fbv = mvB + mvF;
-        float tol = 0.05 * (dot(mvB, mvB) + dot(mvF, mvF)) + 2.0;
-        occGeo   = smoothstep(tol, 4.0 * tol + 4.0, dot(fbv, fbv));
-    } else {
-        prevPos  = vUV + t * mvBn;                   // single backward flow warps both
-    }
+    vec3 repeat = (t < 0.5) ? cPrevFlat : cCurrFlat;
+    col = mix(repeat, col, uniq * (1.0 - 0.30 * steadier));
 
-    vec3 cPrev = texture(prevFrame, prevPos).rgb;
-    vec3 cCurr = texture(currFrame, currPos).rgb;
+    vec2 tx = norm * 0.5;
+    vec3 blur = (texture(currFrame, uvB + vec2(tx.x, 0.0)).rgb
+               + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
+               + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
+               + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
+    float kdet = (0.55 - 0.30 * steadier) * selB * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
+    col += kdet * clamp(cB - blur, -0.25, 0.25);
 
-    // Seam: RGB delta between the two motion-compensated samples, scaled ~[0,1].
-    float disagree = length(cPrev - cCurr) * 0.5774;
-    float seam = smoothstep(lo, hi, disagree);
-    float fade = max(seam, occGeo);
-
-    vec3 warped   = mix(cPrev, cCurr, t);              // where the warps agree
-    vec3 dissolve = mix(cPrevFlat, cCurrFlat, t);      // non-warped phase blend
-    vec3 nearest  = (t < 0.5) ? cPrevFlat : cCurrFlat; // time-nearest real frame (sharp)
-    // Per-channel median of the two one-sided warps and the dissolve, biased toward the sharp
-    // nearest real frame as the seam strengthens. The median alone can settle on the dissolve (a
-    // 50/50 blend = visible double-image); leaning it toward the nearest frame keeps strong seams
-    // sharp instead of ghosted, while good-flow regions (fade~0) are untouched.
-    vec3 robust   = mix(med3v(cPrev, cCurr, dissolve), nearest, fade);
-
-    vec3 col = mix(warped, robust, fade);
-    if (offFrame(prevPos) || offFrame(currPos)) col = nearest;
-    col = mix(col, cCurrFlat, staticPix);              // static overlays / unchanged pixels: unwarped
+    col = mix(col, cCurrFlat, staticPix);
     outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

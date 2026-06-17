@@ -337,6 +337,7 @@ data class XServerDrawerState(
     val frameGenerationAdvanced: Boolean = false,
     val frameGenerationExtrapolate: Boolean = false,
     val frameGenerationFramesInFlight: Int = 3,
+    val frameGenerationPreset: Int = 2,
     val sgsrEnabled: Boolean = false,
     val sgsrSharpness: Int = 100,
     val vividEnabled: Boolean = false,
@@ -376,17 +377,24 @@ class XServerDrawerStateHolder(
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
+    private var drawerOpenListener: ((Boolean) -> Unit)? = null
+
+    fun setDrawerOpenListener(listener: ((Boolean) -> Unit)?) {
+        drawerOpenListener = listener
+    }
 
     val isDrawerOpen: Boolean
         get() = drawerOpen
 
     fun openDrawer() {
         drawerOpen = true
+        drawerOpenListener?.invoke(true)
     }
 
     fun closeDrawer() {
         drawerOpen = false
         openPane = null
+        drawerOpenListener?.invoke(false)
     }
 
     fun isPaneOpen(): Boolean = openPane != null
@@ -417,13 +425,6 @@ class XServerDrawerStateHolder(
         setOpenPaneAndNotify(DrawerPane.LOGS)
     }
 
-    /**
-     * Append a log line. Safe to call from any thread. When the logs pane is not
-     * visible, this only stores the line in an off-thread ring buffer — no
-     * recomposition or main-thread work is scheduled. The buffer is flushed into
-     * observable state when the pane becomes visible (and live while visible,
-     * coalesced through a single posted runnable).
-     */
     fun appendLogLine(line: String) {
         if (logsPausedFlag) return
         synchronized(logsBuffer) {
@@ -525,6 +526,8 @@ interface XServerDrawerActionListener {
     fun onFrameGenerationEnabledChanged(enabled: Boolean)
 
     fun onFrameGenerationMultiplierSelected(multiplier: Int)
+
+    fun onFrameGenerationPresetSelected(preset: Int)
 
     fun onFrameGenerationQualitySelected(quality: Int)
 
@@ -653,6 +656,7 @@ fun buildXServerDrawerState(
     frameGenerationAdvanced: Boolean = false,
     frameGenerationExtrapolate: Boolean = false,
     frameGenerationFramesInFlight: Int = 3,
+    frameGenerationPreset: Int = 2,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -812,6 +816,7 @@ fun buildXServerDrawerState(
         frameGenerationAdvanced = frameGenerationAdvanced,
         frameGenerationExtrapolate = frameGenerationExtrapolate,
         frameGenerationFramesInFlight = frameGenerationFramesInFlight,
+        frameGenerationPreset = frameGenerationPreset,
         sgsrEnabled = sgsrEnabled,
         sgsrSharpness = sgsrSharpness,
         vividEnabled = vividEnabled,
@@ -869,11 +874,6 @@ internal fun XServerDrawerContent(
     onDismiss: () -> Unit,
     revealCards: Boolean = true,
 ) {
-    // The drawer content stays composed even while the sheet is closed (the host
-    // just translates it off-screen), so opening no longer pays a full
-    // first-composition cost. Drive the staggered card reveal from the sheet's
-    // engaged state so it still replays each time the drawer opens, and stays
-    // stable while switching between panes.
     val cardsRevealed = remember { mutableStateOf(false) }
     LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
 
@@ -1009,7 +1009,6 @@ private fun TopRail(
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
 
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
-    // Tile bounds are Row-relative, so the indicator (in the un-scrolled parent) subtracts the scroll.
     val railScroll = rememberScrollState()
 
     val selectedKey =
@@ -1991,11 +1990,6 @@ private fun InputControlsPaneContent(
     }
 }
 
-/**
- * Compact dropdown shared by the Style and Label Theme rows in the Controls pane.
- * Mirrors the styling of [InputControlsProfileSelector] but omits the trailing edit-pencil button
- * since these are built-in choices, not user-editable.
- */
 @Composable
 private fun InputControlsSimpleDropdown(
     options: List<String>,
@@ -2408,130 +2402,14 @@ private fun ScreenEffectsPaneContent(
                                     )
                                 }
                             }
-                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_recommended))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-                            ) {
-                                val smoothestActive = !state.frameGenerationExtrapolate &&
-                                    state.frameGenerationDeepMode &&
-                                    state.frameGenerationQuality == 1 &&
-                                    abs(state.frameGenerationSmoothing - 0.75f) < 0.01f &&
-                                    state.frameGenerationFramesInFlight == 3
-                                HUDToggleChip(
-                                    label = stringResource(R.string.session_drawer_frame_generation_preset_smoothest),
-                                    checked = smoothestActive,
-                                    onClick = {
-                                        listener.onFrameGenerationExtrapolateChanged(false)
-                                        listener.onFrameGenerationDeepModeChanged(true)
-                                        listener.onFrameGenerationQualitySelected(1)
-                                        listener.onFrameGenerationSmoothingChanged(0.75f)
-                                        listener.onFrameGenerationFramesInFlightChanged(3)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                )
-                                val lowLatencyActive = state.frameGenerationExtrapolate &&
-                                    state.frameGenerationQuality == 1 &&
-                                    abs(state.frameGenerationSmoothing - 0.75f) < 0.01f &&
-                                    state.frameGenerationFramesInFlight == 1
-                                HUDToggleChip(
-                                    label = stringResource(R.string.session_drawer_frame_generation_preset_low_latency),
-                                    checked = lowLatencyActive,
-                                    onClick = {
-                                        listener.onFrameGenerationExtrapolateChanged(true)
-                                        listener.onFrameGenerationQualitySelected(1)
-                                        listener.onFrameGenerationSmoothingChanged(0.75f)
-                                        listener.onFrameGenerationFramesInFlightChanged(1)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            DrawerBooleanRow(
-                                title = "Advanced settings",
-                                checked = state.frameGenerationAdvanced,
-                                onCheckedChange = listener::onFrameGenerationAdvancedChanged,
-                                subtitle = "Generation method · scan passes · quality preset · smoothness · buffering",
-                            )
-
-                            if (state.frameGenerationAdvanced) {
-                                PaneSectionLabel("Generation method")
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-                                ) {
+                            PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_quality))
+                            val fgPresetLabels = listOf("Eco", "Flow", "Bal", "Boost", "Clear", "Max")
+                            ChipFlow {
+                                fgPresetLabels.forEachIndexed { index, label ->
                                     HUDToggleChip(
-                                        label = "Interpolation",
-                                        checked = !state.frameGenerationExtrapolate,
-                                        onClick = { listener.onFrameGenerationExtrapolateChanged(false) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    HUDToggleChip(
-                                        label = "Extrapolation",
-                                        checked = state.frameGenerationExtrapolate,
-                                        onClick = { listener.onFrameGenerationExtrapolateChanged(true) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                                PaneSectionLabel("Scan passes")
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy((8f * paneScale).dp),
-                                ) {
-                                    HUDToggleChip(
-                                        label = "1 · Single",
-                                        checked = !state.frameGenerationDeepMode,
-                                        onClick = { listener.onFrameGenerationDeepModeChanged(false) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    HUDToggleChip(
-                                        label = "2 · Bidirectional",
-                                        checked = state.frameGenerationDeepMode,
-                                        onClick = { listener.onFrameGenerationDeepModeChanged(true) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                                PaneSectionLabel(stringResource(R.string.session_drawer_frame_generation_quality))
-                                val qualityLabels =
-                                    listOf(
-                                        stringResource(R.string.session_drawer_frame_generation_quality_performance),
-                                        stringResource(R.string.session_drawer_frame_generation_quality_balanced),
-                                        stringResource(R.string.session_drawer_frame_generation_quality_quality),
-                                    )
-                                ChipFlow {
-                                    qualityLabels.forEachIndexed { index, label ->
-                                        HUDToggleChip(
-                                            label = label,
-                                            checked = state.frameGenerationQuality == index,
-                                            onClick = { listener.onFrameGenerationQualitySelected(index) },
-                                        )
-                                    }
-                                }
-                                DrawerSliderRow(
-                                    label = stringResource(R.string.session_drawer_frame_generation_smoothness),
-                                    valueText = "${(state.frameGenerationSmoothing * 100).roundToInt()}%",
-                                    value = state.frameGenerationSmoothing,
-                                    valueRange = 0f..1f,
-                                    steps = 0,
-                                    onValueChange = listener::onFrameGenerationSmoothingChanged,
-                                )
-                                // Buffering (frames-in-flight): latency <-> smoothness. Extrapolation
-                                // predicts frames instead of holding them, so buffering is irrelevant -> grayed.
-                                val fifLocked = state.frameGenerationExtrapolate
-                                Column(modifier = Modifier.alpha(if (fifLocked) 0.4f else 1f)) {
-                                    DrawerSliderRow(
-                                        label = if (fifLocked) "Buffering — n/a for extrapolation"
-                                                else "Buffering (latency ↔ smooth)",
-                                        valueText = state.frameGenerationFramesInFlight.toString(),
-                                        value = state.frameGenerationFramesInFlight.toFloat(),
-                                        valueRange = 1f..3f,
-                                        steps = 1,
-                                        onValueChange = {
-                                            if (!fifLocked) {
-                                                listener.onFrameGenerationFramesInFlightChanged(
-                                                    it.roundToInt().coerceIn(1, 3),
-                                                )
-                                            }
-                                        },
+                                        label = label,
+                                        checked = state.frameGenerationPreset == index,
+                                        onClick = { listener.onFrameGenerationPresetSelected(index) },
                                     )
                                 }
                             }
@@ -4547,10 +4425,6 @@ private fun FPSLimiterCard(
     val maxFps = maxRefreshRate.coerceAtLeast(FPS_LIMITER_MIN)
     val steps = (maxFps - FPS_LIMITER_MIN - 1).coerceAtLeast(0)
 
-    // Slider position is tracked locally so the readout follows the drag and the
-    // last value survives an off/on toggle; the limit/refresh-rate commit is
-    // deferred to release (onValueChangeFinished). Re-seeds when the panel's max
-    // changes — e.g. a mid-game refresh-rate change that clamps the limit.
     var sliderValue by remember(maxFps) {
         mutableStateOf(
             (if (currentLimit > 0) currentLimit else FPS_LIMITER_DEFAULT)

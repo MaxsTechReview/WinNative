@@ -1,0 +1,63 @@
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 32) uniform sampler2D backColor;
+layout(set = 0, binding = 33) uniform sampler2D fwdColor;
+layout(set = 0, binding = 34) uniform sampler2D flowB;
+layout(set = 0, binding = 35) uniform sampler2D flowF;
+layout(set = 0, binding = 36) uniform sampler2D logits;
+layout(set = 0, binding = 48, rgba16f) uniform writeonly image2D uDst;
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, pc.size)))
+        return;
+
+    vec2 texSize = vec2(textureSize(backColor, 0));
+    vec2 numer   = vec2(p) + 0.5;
+    vec2 uvc     = numer / texSize;
+
+    float m0 = pc.mvScale;
+    vec4 mvB = texture(flowB, uvc) * m0;
+    vec4 mvF = texture(flowF, uvc) * m0;
+
+    float t = pc.t;
+    float a = 2.0 * t;
+    float b = 2.0 * (1.0 - t);
+
+    vec2 c0 = (numer + mvB.xy * a) / texSize;
+    vec2 c1 = (numer + mvB.zw * b) / texSize;
+    vec2 c2 = (numer + mvF.xy * a) / texSize;
+    vec2 c3 = (numer + mvF.zw * b) / texSize;
+
+    vec4 L = vec4(texture(logits, c0).x,
+                  texture(logits, c1).y,
+                  texture(logits, c2).z,
+                  texture(logits, c3).w);
+
+    vec4 w = exp(L);
+    w /= dot(w, vec4(1.0));
+
+    float wb = 1.0 - t;
+    float wf = t;
+
+    vec4 acc = texture(backColor, c0) * (wb * w.x)
+             + texture(fwdColor,  c1) * (wf * w.y)
+             + texture(backColor, c2) * (wb * w.z)
+             + texture(fwdColor,  c3) * (wf * w.w);
+
+    float den = wb * (w.x + w.z) + wf * (w.y + w.w) + 1e-8;
+
+    imageStore(uDst, p, acc / den);
+}

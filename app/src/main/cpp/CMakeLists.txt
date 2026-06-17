@@ -6,8 +6,6 @@ include(FetchContent)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
 
-# Zstandard is used by winlator/native_content_io.cpp. Keep this dependency in
-# the parent build instead of relying on the Steam client subproject to create it.
 FetchContent_Declare(
     zstd
     GIT_REPOSITORY https://github.com/facebook/zstd.git
@@ -30,14 +28,6 @@ add_subdirectory(wn-libsteamclient)
 
 find_package(curl REQUIRED CONFIG)
 
-# ----------------------------------------------------------------------------
-# SPIR-V shader compilation
-# Each .glsl is compiled by glslc (shipped with the NDK) into a .spv binary,
-# then converted to a C uint32_t array via bin2c.cmake. Headers are emitted
-# under ${CMAKE_CURRENT_BINARY_DIR}/shaders/*.spv.h and included from vk_renderer.c.
-# ----------------------------------------------------------------------------
-
-# Locate glslc shipped with the NDK. ANDROID_NDK is provided by the Android Gradle plugin.
 if(NOT DEFINED ANDROID_NDK)
     message(FATAL_ERROR "ANDROID_NDK not defined; this project must be built via the Android Gradle plugin")
 endif()
@@ -76,10 +66,14 @@ set(SHADER_LIST
     "effect_hdr:frag:effect_hdr_frag"
     "effect_natural:frag:effect_natural_frag"
     "sgsr1:frag:sgsr1_frag"
-    # Frame generation: motion estimation (compute, fp16 + fp32 fallback) + interpolation (fragment).
     "motion:comp:motion_comp"
     "motion_fp32:comp:motion_fp32_comp"
     "interpolate:frag:interpolate_frag"
+    "cnn_pyramid:comp:cnn_pyramid_comp"
+    "cnn_conv:comp:cnn_conv_comp"
+    "cnn_correlation:comp:cnn_correlation_comp"
+    "cnn_occlusion:comp:cnn_occlusion_comp"
+    "cnn_generate:comp:cnn_generate_comp"
 )
 
 set(SHADER_HEADERS "")
@@ -108,10 +102,6 @@ foreach(entry ${SHADER_LIST})
 endforeach()
 
 add_custom_target(winlator_shaders DEPENDS ${SHADER_HEADERS})
-
-# ----------------------------------------------------------------------------
-# Winlator native library (X-server, AHB, Vulkan compositor, helpers)
-# ----------------------------------------------------------------------------
 
 add_library(winlator SHARED
         winlator/drawable.c

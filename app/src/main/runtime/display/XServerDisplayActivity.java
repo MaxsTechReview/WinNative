@@ -387,6 +387,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean frameGenerationAdvanced = false;
     private boolean frameGenerationExtrapolate = false;
     private int frameGenerationFramesInFlight = 3;
+    private int frameGenerationPreset = 2;   // Eco/Flow/Bal/Boost/Clear/Max
+    private int frameGenerationModel = 0;     // 0 = standard, 1 = steadier
     private boolean sgsrEnabled = false;
     private boolean sgsrRuntimeEnabled = false;
     private int sgsrUpscaleMode = 1;
@@ -639,9 +641,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return shortcut.getExtra("wineVersion");
     }
 
-    // Coalesce FG target changes into a single panel re-pin once the rate settles (~600ms). The
-    // renderer throttles hints to 500ms, so this debounce (> that) absorbs a burst of rapid swaps
-    // and the unstable-startup rate wobble into one mode switch instead of one stall per change.
+    // Debounce FG target changes into a single panel re-pin once the rate settles.
     private final Runnable fgRepinRunnable = this::applyPreferredRefreshRate;
 
     private void scheduleFgRefreshRepin() {
@@ -657,27 +657,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
             VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
             if (renderer != null && renderer.isFrameGenerationEnabled()) {
-                // Pin the panel to the renderer's live FG target (multiplier × measured game fps).
-                // Until the pump has measured, fall back to multiplier×(fps cap | 60). Passing the
-                // target as the fpsLimit makes the mode resolver demand a cadence-compatible mode
-                // (exact match first, then an integer multiple) instead of a raw nearest rate.
                 int panelMax = RefreshRateUtils.getMaxSupportedRefreshRate(this);
                 renderer.setFrameGenDisplayCap(panelMax);
-                int target = renderer.getFrameGenTargetHz();
-                if (target <= 0) {
-                    int engine = runtimeFpsLimit > 0 ? runtimeFpsLimit : 60;
-                    target = Math.max(60, engine * renderer.getFrameGenMultiplier());
-                }
-                target = Math.min(panelMax, target);
-                // Pin the panel's physical mode to the target (held even when untouched) and vote the
-                // rate on the surface. NOTE: on aggressive ADFR OEMs (e.g. OnePlus/ColorOS) the vendor
-                // refresh service still drops the *render* rate to 60 when there is no touch input
-                // unless the app is enrolled in the OEM game mode (Game Space) — that enrollment, not
-                // any app API, is what holds the render rate untouched. The appCategory="game" manifest
-                // flag signals the app so the OEM can offer it.
-                RefreshRateUtils.applyPreferredRefreshRate(this, target, target);
-                requestSurfaceFrameRate((float) target);
-                lastLoggedRefreshHz = 0f;  // force a fresh self-log line after a target change
+                // Hold the panel's native max mode while FG is on rather than down-switching.
+                RefreshRateUtils.applyPreferredRefreshRate(this, panelMax, panelMax);
+                requestSurfaceFrameRate((float) panelMax);
+                lastLoggedRefreshHz = 0f;
             } else {
                 RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
             }
@@ -691,8 +676,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     // Vote a frame rate on the surface so a VRR/ADFR panel holds the high refresh while FG is active.
-    // DEFAULT (exact-or-multiple) — FIXED_SOURCE is video semantics and lets the idle policy drop
-    // the panel to a non-multiple rate once touch boost ends.
     private void requestSurfaceFrameRate(float hz) {
         if (hz <= 0f || Build.VERSION.SDK_INT < Build.VERSION_CODES.R || xServerView == null) return;
         try {
@@ -707,9 +690,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } catch (Exception ignore) {}
     }
 
-    // Log the panel's actual physical refresh rate (what a refresh-rate monitor shows). De-duped so it
-    // only prints when the rate actually changes — makes it obvious in logcat whether the mode pin is
-    // holding the target Hz or the system has dropped it.
+    // Log the panel's actual physical refresh rate, de-duped so it only prints on change.
     private void logCurrentRefreshRate(String from) {
         try {
             android.view.Display d = getWindow().getDecorView().getDisplay();
@@ -3859,6 +3840,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void openDrawerMenu() {
         releasePointerCapture();
+        if (xServerView != null && xServerView.getRenderer() != null)
+            xServerView.getRenderer().fgSetOverlayActive(true);   // overlay GPU contention isn't a game slowdown
         renderDrawerMenu();
         if (drawerStateHolder != null) {
             drawerStateHolder.openDrawer();
@@ -3872,7 +3855,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (drawerStateHolder != null) {
             drawerStateHolder.closeDrawer();
         }
+        if (xServerView != null && xServerView.getRenderer() != null)
+            xServerView.getRenderer().fgSetOverlayActive(false);  // clears overlay + re-anchors the FG clock fresh
         tryCapturePointer();
+    }
+
+    // Safety net for the drawer-open listener: resumes FG if a close path missed it. Idempotent.
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+            VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+            if (r != null) r.fgClearOverlayIfActive();
+        }
     }
 
     private String currentGyroActivatorLabel() {
@@ -3982,7 +3977,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 frameGenerationDeepMode,
                 frameGenerationAdvanced,
                 frameGenerationExtrapolate,
-                frameGenerationFramesInFlight
+                frameGenerationFramesInFlight,
+                frameGenerationPreset
         );
 
         if (drawerActionListener == null) {
@@ -4186,6 +4182,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
                         if (r != null) r.setFrameGenerationMultiplier(multiplier);
                         applyPreferredRefreshRate();
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onFrameGenerationPresetSelected(int preset) {
+                        final int[] presetQuality     = {0, 1, 1, 2, 1, 2};
+                        final int[] presetModel       = {0, 0, 0, 0, 1, 1};
+                        final float[] presetFlowScale = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
+                        int idx = Math.max(0, Math.min(preset, presetQuality.length - 1));
+                        frameGenerationPreset = idx;
+                        frameGenerationQuality = presetQuality[idx];
+                        frameGenerationModel = presetModel[idx];
+                        frameGenerationExtrapolate = false;
+                        frameGenerationDeepMode = false;
+                        preferences.edit()
+                                .putInt(fgKey("frame_generation_preset"), idx)
+                                .putInt(fgKey("frame_generation_quality"), frameGenerationQuality)
+                                .putBoolean(fgKey("frame_generation_extrapolate"), false)
+                                .putBoolean(fgKey("frame_generation_deep_mode"), frameGenerationDeepMode)
+                                .apply();
+                        VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                        if (r != null) {
+                            r.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel, presetFlowScale[idx]);
+                            r.setFrameGenerationExtrapolate(false);
+                            r.setFrameGenerationDeepMode(frameGenerationDeepMode);
+                        }
                         renderDrawerMenu();
                     }
 
@@ -4493,6 +4515,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (drawerStateHolder == null) {
             drawerStateHolder = new XServerDrawerStateHolder(state);
+            // Pause/resume FG on every drawer open/close, including scrim/swipe closes.
+            drawerStateHolder.setDrawerOpenListener(open -> {
+                VulkanRenderer r = xServerView != null ? xServerView.getRenderer() : null;
+                if (r != null) r.fgSetOverlayActive(open);
+                return kotlin.Unit.INSTANCE;
+            });
             XServerDisplayHostKt.setupXServerDisplayHost(
                     displayHostComposeView,
                     xServerDisplayFrame,
@@ -6164,16 +6192,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         frameGenerationAdvanced = fgPrefBool("frame_generation_advanced", false);
         frameGenerationExtrapolate = fgPrefBool("frame_generation_extrapolate", false);
         frameGenerationFramesInFlight = fgPrefInt("frame_generation_fif", 3);
+        frameGenerationPreset = fgPrefInt("frame_generation_preset", 2);
+        frameGenerationModel = (frameGenerationPreset == 4 || frameGenerationPreset == 5) ? 1 : 0;
+        frameGenerationDeepMode = false;   // all presets single-flow to fit the 60fps budget (steadier = occLo)
+        final float[] startupPresetFlowScale = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
+        float startupFlowScale = startupPresetFlowScale[Math.max(0, Math.min(frameGenerationPreset, 5))];
         renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
-        renderer.setFrameGenerationQuality(frameGenerationQuality);
+        renderer.setFrameGenerationPreset(frameGenerationQuality, frameGenerationModel, startupFlowScale);
         renderer.setFrameGenerationSmoothness(frameGenerationSmoothing);
         renderer.setFrameGenerationDeepMode(frameGenerationDeepMode);
         renderer.setFrameGenerationExtrapolate(frameGenerationExtrapolate);
         renderer.setFrameGenerationFramesInFlight(frameGenerationFramesInFlight);
-        // Re-pin the window's preferred display mode whenever the measured FG target moves
-        // (the window pin outranks surface frame-rate votes, so it must track the live target).
-        // Debounced: a physical mode switch (60/90/120) stalls the panel a frame or two, so rapid
-        // multiplier swaps and startup rate-wobble must coalesce into one switch, not one per change.
+        // Re-pin the window's preferred display mode whenever the measured FG target moves.
         renderer.setFrameGenRateChangedListener(this::scheduleFgRefreshRepin);
         renderer.setFrameGeneration(frameGenerationEnabled);
 

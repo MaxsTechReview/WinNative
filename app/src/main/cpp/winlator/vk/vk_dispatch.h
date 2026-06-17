@@ -1,11 +1,3 @@
-// Function-pointer dispatch for the compositor's Vulkan calls.
-//
-// Required because adrenotools-loaded drivers live in an isolated linker namespace and do
-// not share global symbols with the system loader — every call must resolve through the
-// libvulkan handle chosen at dlopen time.
-//
-// Init order: vkd_init(handle) -> vkCreateInstance(...) -> vkd_load_instance(instance).
-
 #pragma once
 
 #ifndef VK_NO_PROTOTYPES
@@ -15,7 +7,6 @@
 #include <vulkan/vulkan.h>
 
 typedef struct VkDispatch {
-    // Loader-level (resolved via dlsym + vkGetInstanceProcAddr(NULL, ...))
     PFN_vkGetInstanceProcAddr GetInstanceProcAddr;
     PFN_vkCreateInstance CreateInstance;
     PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties;
@@ -130,6 +121,7 @@ typedef struct VkDispatch {
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdBlitImage CmdBlitImage;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
+    PFN_vkCmdCopyImageToBuffer CmdCopyImageToBuffer;
 
     // Queue
     PFN_vkQueueSubmit QueueSubmit;
@@ -147,14 +139,9 @@ extern VkDispatch vkd;
 
 bool vkd_init(void* libvulkan_handle);
 
-// Loads device-level pointers via vkGetInstanceProcAddr too — the loader trampolines, which
-// costs a few ns per call but avoids partitioning instance vs. device scope.
 bool vkd_load_instance(VkInstance instance);
 
-// Must be called before dlclose so stale-pointer crashes fault on NULL.
 void vkd_unload(void);
-
-// Redirect bare `vkFoo` names to the dispatch table.
 
 #define vkGetInstanceProcAddr vkd.GetInstanceProcAddr
 #define vkCreateInstance vkd.CreateInstance
@@ -259,6 +246,7 @@ void vkd_unload(void);
 #define vkCmdPipelineBarrier vkd.CmdPipelineBarrier
 #define vkCmdBlitImage vkd.CmdBlitImage
 #define vkCmdCopyBufferToImage vkd.CmdCopyBufferToImage
+#define vkCmdCopyImageToBuffer vkd.CmdCopyImageToBuffer
 
 #define vkQueueSubmit vkd.QueueSubmit
 #define vkQueueWaitIdle vkd.QueueWaitIdle

@@ -1,34 +1,35 @@
 #version 450
 
-// fp32 fallback of motion.comp for devices without shaderFloat16; identical algorithm.
-
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(set = 0, binding = 0) uniform sampler2D prevFrame;  // frame N-1 (full res)
-layout(set = 0, binding = 1) uniform sampler2D currFrame;  // frame N   (full res)
-layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D motionField; // half res, STORAGE
+layout(set = 0, binding = 0) uniform sampler2D prevFrame;
+layout(set = 0, binding = 1) uniform sampler2D currFrame;
+layout(set = 0, binding = 2) uniform sampler2D coarseFlow;
+layout(set = 0, binding = 3, rgba16f) uniform writeonly image2D motionField;
 
 layout(push_constant) uniform PC {
     ivec2 mvSize;
     vec2  invMvSize;
     float mvScale;
-    float minStep;    // lowest TSS step (quality preset): 1 = full search, larger = coarser/faster
-    float _pad1;
+    float minStep;
+    float upscale;
     float _pad2;
 } pc;
 
 const int LS   = 8;
 const int BR   = 2;
 const int RMAX = 15;
+const float WC = 3.0;
 
 const int TILE_P = LS + 2 * (RMAX + BR); // 42
 const int TILE_C = LS + 2 * BR;          // 12
 
-shared float sPrev[TILE_P * TILE_P];
-shared float sCurr[TILE_C * TILE_C];
+shared vec2 sPrev[TILE_P * TILE_P];
+shared vec2 sCurr[TILE_C * TILE_C];
 
 float luma(vec3 c) {
-    return dot(c, vec3(0.299, 0.587, 0.114));
+    vec3 e = exp2(log2(max(c, vec3(1e-6))) * 0.45454547);
+    return dot(e, vec3(0.299, 0.587, 0.114));
 }
 
 float blockCost(ivec2 l, ivec2 cCenter, ivec2 d) {
@@ -37,11 +38,34 @@ float blockCost(ivec2 l, ivec2 cCenter, ivec2 d) {
         for (int bx = -BR; bx <= BR; ++bx) {
             ivec2 cc = cCenter + ivec2(bx, by);
             ivec2 pp = l + ivec2(RMAX + BR) + d + ivec2(bx, by);
-            float dv = sCurr[cc.y * TILE_C + cc.x] - sPrev[pp.y * TILE_P + pp.x];
-            cost += dv * dv;
+            vec2 dv = sCurr[cc.y * TILE_C + cc.x] - sPrev[pp.y * TILE_P + pp.x];
+            cost += dv.x * dv.x + WC * dv.y * dv.y;
         }
     }
     return cost;
+}
+
+vec2 coarseAt(ivec2 q) {
+    return pc.upscale * texture(coarseFlow, (vec2(q) + 0.5) * pc.invMvSize).xy;
+}
+
+vec2 descAt(sampler2D img, vec2 uv, bool aa) {
+    vec2 ts = pc.invMvSize;
+    float c;
+    if (aa) {
+        vec2 o = 0.25 * ts;
+        c = 0.25 * (luma(textureLod(img, uv + vec2(-o.x, -o.y), 0.0).rgb)
+                  + luma(textureLod(img, uv + vec2( o.x, -o.y), 0.0).rgb)
+                  + luma(textureLod(img, uv + vec2(-o.x,  o.y), 0.0).rgb)
+                  + luma(textureLod(img, uv + vec2( o.x,  o.y), 0.0).rgb));
+    } else {
+        c = luma(textureLod(img, uv, 0.0).rgb);
+    }
+    float m = 0.25 * (luma(textureLod(img, uv + vec2(ts.x, 0.0), 0.0).rgb)
+                    + luma(textureLod(img, uv - vec2(ts.x, 0.0), 0.0).rgb)
+                    + luma(textureLod(img, uv + vec2(0.0, ts.y), 0.0).rgb)
+                    + luma(textureLod(img, uv - vec2(0.0, ts.y), 0.0).rgb));
+    return vec2(c, c - m);
 }
 
 void main() {
@@ -51,18 +75,21 @@ void main() {
 
     uint li = gl_LocalInvocationIndex;
     const uint THREADS = uint(LS * LS);
+    bool fine = pc.upscale > 0.0;
 
     for (uint i = li; i < uint(TILE_P * TILE_P); i += THREADS) {
         int lx = int(i) % TILE_P;
         int ly = int(i) / TILE_P;
-        vec2 uv = (vec2(prevOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
-        sPrev[i] = luma(textureLod(prevFrame, uv, 0.0).rgb);
+        ivec2 tp = prevOrigin + ivec2(lx, ly);
+        vec2 w = fine ? coarseAt(tp) : vec2(0.0);
+        vec2 uv = (vec2(tp) + w + 0.5) * pc.invMvSize;
+        sPrev[i] = descAt(prevFrame, uv, !fine);
     }
     for (uint i = li; i < uint(TILE_C * TILE_C); i += THREADS) {
         int lx = int(i) % TILE_C;
         int ly = int(i) / TILE_C;
         vec2 uv = (vec2(currOrigin + ivec2(lx, ly)) + 0.5) * pc.invMvSize;
-        sCurr[i] = luma(textureLod(currFrame, uv, 0.0).rgb);
+        sCurr[i] = descAt(currFrame, uv, !fine);
     }
     barrier();
 
@@ -92,29 +119,34 @@ void main() {
         if (localBest < bestCost) { bestCost = localBest; bestD = localBestD; center = localBestD; }
     }
 
-    vec2 sub = vec2(bestD);
-    if (abs(bestD.x) < RMAX) {
-        float cl = blockCost(l, cCenter, bestD + ivec2(-1, 0));
-        float cr = blockCost(l, cCenter, bestD + ivec2( 1, 0));
-        float dd = cl - 2.0 * bestCost + cr;
-        if (dd > 0.0) sub.x += clamp(0.5 * (cl - cr) / dd, -0.5, 0.5);
+    float wsum = 0.0;
+    vec2  disp = vec2(0.0);
+    for (int sy = -1; sy <= 1; ++sy) {
+        for (int sx = -1; sx <= 1; ++sx) {
+            ivec2 dd = bestD + ivec2(sx, sy);
+            if (abs(dd.x) > RMAX || abs(dd.y) > RMAX) continue;
+            float c = (sx == 0 && sy == 0) ? bestCost : blockCost(l, cCenter, dd);
+            float w = exp(-(c - bestCost) * 4.0);
+            disp += w * vec2(dd);
+            wsum += w;
+        }
     }
-    if (abs(bestD.y) < RMAX) {
-        float cu = blockCost(l, cCenter, bestD + ivec2(0, -1));
-        float cd = blockCost(l, cCenter, bestD + ivec2(0,  1));
-        float dd = cu - 2.0 * bestCost + cd;
-        if (dd > 0.0) sub.y += clamp(0.5 * (cu - cd) / dd, -0.5, 0.5);
-    }
+    vec2 sub = (fine ? coarseAt(p) : vec2(0.0)) + disp / max(wsum, 1e-6);
 
-    // Static-overlay (HUD/text) confidence -> .z: near-zero temporal delta at zero displacement
-    // plus a strong spatial gradient marks high-contrast UI that must never be warped. Soft on
-    // both axes so the interp's bilinear read feathers the mask edge (no hard seams).
-    float c0 = sCurr[cCenter.y * TILE_C + cCenter.x];
-    float p0 = sPrev[(l.y + RMAX + BR) * TILE_P + (l.x + RMAX + BR)];
-    float gx = abs(sCurr[cCenter.y * TILE_C + cCenter.x + 1] - c0);
-    float gy = abs(sCurr[(cCenter.y + 1) * TILE_C + cCenter.x] - c0);
+    float c0 = sCurr[cCenter.y * TILE_C + cCenter.x].x;
+    float p0 = luma(textureLod(prevFrame, (vec2(p) + 0.5) * pc.invMvSize, 0.0).rgb);
+    float gx = abs(sCurr[cCenter.y * TILE_C + cCenter.x + 1].x - c0);
+    float gy = abs(sCurr[(cCenter.y + 1) * TILE_C + cCenter.x].x - c0);
     float staticC = (1.0 - smoothstep(0.012, 0.025, abs(c0 - p0)))
                   * smoothstep(0.05, 0.12, gx + gy);
 
-    imageStore(motionField, p, vec4(sub * pc.mvScale, staticC, 0.0));
+    const int OFF = 2 * BR + 1;
+    float second = 3.0e30;
+    if (bestD.x + OFF <= RMAX)  second = min(second, blockCost(l, cCenter, bestD + ivec2( OFF, 0)));
+    if (bestD.x - OFF >= -RMAX) second = min(second, blockCost(l, cCenter, bestD + ivec2(-OFF, 0)));
+    if (bestD.y + OFF <= RMAX)  second = min(second, blockCost(l, cCenter, bestD + ivec2(0,  OFF)));
+    if (bestD.y - OFF >= -RMAX) second = min(second, blockCost(l, cCenter, bestD + ivec2(0, -OFF)));
+    float conf = clamp((second - bestCost) / (second + 1.0e-3), 0.0, 1.0);
+
+    imageStore(motionField, p, vec4(sub * pc.mvScale, staticC, conf));
 }
