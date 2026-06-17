@@ -543,13 +543,15 @@ private fun LaunchUninstallMenu(
             appName,
         )
 
-    LaunchDangerConfirmMenu(
-        expanded = expanded,
+    LaunchDangerConfirmDialog(
+        visible = expanded,
         title = title,
         message = message,
         confirmLabel = confirmLabel,
         onDismissRequest = onDismissRequest,
         onConfirm = onConfirm,
+        icon = Icons.Outlined.Delete,
+        cancelColor = LaunchAccent,
     )
 }
 
@@ -638,6 +640,7 @@ internal fun LaunchDangerConfirmDialog(
     titleTextAlign: TextAlign = TextAlign.Start,
     messageTextAlign: TextAlign = TextAlign.Start,
     accentColor: Color = LaunchDanger,
+    cancelColor: Color = LaunchTextSecondary,
 ) {
     if (!visible) return
 
@@ -682,6 +685,7 @@ internal fun LaunchDangerConfirmDialog(
                     titleTextAlign = titleTextAlign,
                     messageTextAlign = messageTextAlign,
                     accentColor = accentColor,
+                    cancelColor = cancelColor,
                 )
             }
         }
@@ -699,6 +703,7 @@ private fun LaunchDangerConfirmContent(
     titleTextAlign: TextAlign,
     messageTextAlign: TextAlign,
     accentColor: Color,
+    cancelColor: Color,
 ) {
     Column(
         modifier =
@@ -771,7 +776,7 @@ private fun LaunchDangerConfirmContent(
         ) {
             LaunchMenuTextAction(
                 label = stringResource(R.string.common_ui_cancel),
-                textColor = LaunchTextSecondary,
+                textColor = cancelColor,
                 onClick = onDismissRequest,
             )
             LaunchMenuTextAction(
