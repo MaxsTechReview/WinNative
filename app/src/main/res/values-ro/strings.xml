@@ -194,13 +194,9 @@
     <string name="library_games_custom_game">Joc personalizat</string>
     <string name="library_games_play">Joaca</string>
     <string name="hero_boot_to_desktop_title">Pornește pe desktop</string>
-    <string name="hero_boot_to_desktop_body">Dorești să pornești pe desktopul containerului?</string>
     <string name="hero_graphics_tests_title">Teste grafice</string>
-    <string name="hero_graphics_tests_body">Alege un test grafic de rulat:</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
-    <string name="hero_export_frontend_title">Exportă fișierul .desktop</string>
-    <string name="hero_export_frontend_body">Exporți acest joc ca fișier .desktop pentru frontend-uri externe?</string>
     <string name="library_games_add_custom_game">Adauga joc personalizat</string>
     <string name="library_games_game_name">Nume joc</string>
     <string name="library_games_game_folder_mapped_drive">Folder joc (unitate de joc mapata)</string>

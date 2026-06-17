@@ -48,7 +48,6 @@ import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -57,7 +56,6 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.ViewInAr
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -141,10 +139,8 @@ internal fun LibraryGameLaunchScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onBootToDesktop: () -> Unit,
-    onGraphicsTests: () -> Unit,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
-    onExport: () -> Unit,
     onUninstall: () -> Unit,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -158,10 +154,10 @@ internal fun LibraryGameLaunchScreen(
     Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
         val bottomPadding = 20.dp
-        val actionIconSize = 48.dp
+        val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // 7 action icons: Settings, Boot to Desktop, Graphics Tests, CloudSync, Shortcut, Export, Delete.
-        val actionWidth = actionIconSize * 7 + actionIconSpacing * 6
+        // 5 action icons: Settings, Boot, CloudSync, Shortcut, Delete.
+        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -391,12 +387,6 @@ internal fun LibraryGameLaunchScreen(
                             onClick = onBootToDesktop,
                         )
                         LaunchIconActionButton(
-                            icon = Icons.Outlined.ViewInAr,
-                            contentDescription = stringResource(R.string.hero_graphics_tests_title),
-                            size = actionIconSize,
-                            onClick = onGraphicsTests,
-                        )
-                        LaunchIconActionButton(
                             icon = Icons.Outlined.CloudSync,
                             contentDescription = stringResource(R.string.cloud_saves_title),
                             size = actionIconSize,
@@ -410,12 +400,6 @@ internal fun LibraryGameLaunchScreen(
                                 ),
                             size = actionIconSize,
                             onClick = onShortcut,
-                        )
-                        LaunchIconActionButton(
-                            icon = Icons.Outlined.IosShare,
-                            contentDescription = stringResource(R.string.common_ui_export),
-                            size = actionIconSize,
-                            onClick = onExport,
                         )
                         Box {
                             LaunchIconActionButton(

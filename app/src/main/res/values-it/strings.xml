@@ -194,13 +194,9 @@
     <string name="library_games_custom_game">Gioco personalizzato</string>
     <string name="library_games_play">Gioca</string>
     <string name="hero_boot_to_desktop_title">Avvia sul desktop</string>
-    <string name="hero_boot_to_desktop_body">Vuoi avviare sul desktop del contenitore?</string>
     <string name="hero_graphics_tests_title">Test grafici</string>
-    <string name="hero_graphics_tests_body">Scegli un test grafico da eseguire:</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
-    <string name="hero_export_frontend_title">Esporta file .desktop</string>
-    <string name="hero_export_frontend_body">Esportare questo gioco come file .desktop per frontend esterni?</string>
     <string name="library_games_add_custom_game">Aggiungi gioco personalizzato</string>
     <string name="library_games_game_name">Nome del gioco</string>
     <string name="library_games_game_folder_mapped_drive">Cartella del gioco (unità di gioco mappata)</string>

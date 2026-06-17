@@ -194,13 +194,9 @@
     <string name="library_games_custom_game">自訂遊戲</string>
     <string name="library_games_play">遊玩</string>
     <string name="hero_boot_to_desktop_title">啟動到桌面</string>
-    <string name="hero_boot_to_desktop_body">是否啟動到容器桌面？</string>
     <string name="hero_graphics_tests_title">圖形測試</string>
-    <string name="hero_graphics_tests_body">選擇要執行的圖形測試：</string>
     <string name="hero_graphics_test_32">32 位元</string>
     <string name="hero_graphics_test_64">64 位元</string>
-    <string name="hero_export_frontend_title">匯出 .desktop 檔案</string>
-    <string name="hero_export_frontend_body">將此遊戲匯出為 .desktop 檔案以用於外部前端？</string>
     <string name="library_games_add_custom_game">新增自訂遊戲</string>
     <string name="library_games_game_name">遊戲名稱</string>
     <string name="library_games_game_folder_mapped_drive">遊戲資料夾（映射的遊戲磁碟機）</string>

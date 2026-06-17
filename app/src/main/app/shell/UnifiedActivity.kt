@@ -3398,16 +3398,35 @@ class UnifiedActivity :
                     Column(
                         modifier = Modifier.padding(vertical = 6.dp),
                     ) {
-                        // Title header
-                        Text(
-                            text = title,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = title,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            IconButton(
+                                onClick = onDismissRequest,
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .size(34.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.common_ui_close),
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
                         HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
                         Column(
                             modifier =
@@ -3645,103 +3664,76 @@ class UnifiedActivity :
     }
 
     @Composable
-    private fun HeroBootToDesktopDialog(
-        onConfirm: () -> Unit,
+    private fun HeroBootDialog(
+        onConfirm: (HeroBootChoice) -> Unit,
         onDismissRequest: () -> Unit,
     ) {
+        var choice by remember { mutableStateOf(HeroBootChoice.Desktop) }
+        val graphicsTest = stringResource(R.string.hero_graphics_tests_title)
+        val test32 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_32)
+        val test64 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_64)
+        val title =
+            when (choice) {
+                HeroBootChoice.Desktop -> stringResource(R.string.hero_boot_to_desktop_title)
+                HeroBootChoice.Cube32 -> test32
+                HeroBootChoice.Cube64 -> test64
+            }
         Dialog(onDismissRequest = onDismissRequest) {
             PopupDialog(
-                title = stringResource(R.string.hero_boot_to_desktop_title),
-                message = stringResource(R.string.hero_boot_to_desktop_body),
+                title = title,
                 icon = Icons.Outlined.DesktopWindows,
                 accentColor = Accent,
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                footer = {
-                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = onConfirm)
-                },
-            )
-        }
-    }
-
-    @Composable
-    private fun HeroExportFrontendDialog(
-        onConfirm: () -> Unit,
-        onDismissRequest: () -> Unit,
-    ) {
-        Dialog(onDismissRequest = onDismissRequest) {
-            PopupDialog(
-                title = stringResource(R.string.hero_export_frontend_title),
-                message = stringResource(R.string.hero_export_frontend_body),
-                icon = Icons.Outlined.IosShare,
-                accentColor = Accent,
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                footer = {
-                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = onConfirm)
-                },
-            )
-        }
-    }
-
-    @Composable
-    private fun HeroGraphicsTestsDialog(
-        onConfirm: (use64: Boolean) -> Unit,
-        onDismissRequest: () -> Unit,
-    ) {
-        var use64 by remember { mutableStateOf(true) }
-        Dialog(onDismissRequest = onDismissRequest) {
-            PopupDialog(
-                title = stringResource(R.string.hero_graphics_tests_title),
-                message = stringResource(R.string.hero_graphics_tests_body),
-                icon = Icons.Outlined.ViewInAr,
-                accentColor = Accent,
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                modifier = Modifier.widthIn(min = 220.dp, max = 290.dp),
                 content = {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        HeroGraphicsTestChip(
-                            label = stringResource(R.string.hero_graphics_test_32),
-                            selected = !use64,
-                            modifier = Modifier.weight(1f),
-                            onClick = { use64 = false },
+                        HeroBootOptionRow(
+                            label = stringResource(R.string.hero_boot_to_desktop_title),
+                            selected = choice == HeroBootChoice.Desktop,
+                            onClick = { choice = HeroBootChoice.Desktop },
                         )
-                        HeroGraphicsTestChip(
-                            label = stringResource(R.string.hero_graphics_test_64),
-                            selected = use64,
-                            modifier = Modifier.weight(1f),
-                            onClick = { use64 = true },
+                        HeroBootOptionRow(
+                            label = test32,
+                            selected = choice == HeroBootChoice.Cube32,
+                            onClick = { choice = HeroBootChoice.Cube32 },
+                        )
+                        HeroBootOptionRow(
+                            label = test64,
+                            selected = choice == HeroBootChoice.Cube64,
+                            onClick = { choice = HeroBootChoice.Cube64 },
                         )
                     }
                 },
                 footer = {
-                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = { onConfirm(use64) })
+                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = { onConfirm(choice) })
                 },
             )
         }
     }
 
     @Composable
-    private fun HeroGraphicsTestChip(
+    private fun HeroBootOptionRow(
         label: String,
         selected: Boolean,
-        modifier: Modifier = Modifier,
         onClick: () -> Unit,
     ) {
-        val chipBlue = Color(0xFF3B82F6)
+        val glassBlue = Accent
         Box(
-            modifier = modifier
+            modifier = Modifier
+                .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (selected) chipBlue else chipBlue.copy(alpha = 0.16f))
-                .border(1.dp, chipBlue.copy(alpha = if (selected) 1f else 0.4f), RoundedCornerShape(8.dp))
+                .background(glassBlue.copy(alpha = if (selected) 0.26f else 0.05f))
+                .border(1.dp, glassBlue.copy(alpha = if (selected) 0.65f else 0.12f), RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick)
-                .padding(vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = label,
-                color = if (selected) Color.White else chipBlue,
-                fontSize = 13.sp,
+                color = if (selected) Color.White else glassBlue.copy(alpha = 0.5f),
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -4020,6 +4012,23 @@ class UnifiedActivity :
                                 },
                             ),
                             GameSettingsActionItem(
+                                title = stringResource(R.string.hero_boot_to_desktop_title),
+                                icon = Icons.Outlined.DesktopWindows,
+                                onClick = {
+                                    val shortcut =
+                                        findLibraryShortcutForGame(ContainerManager(context), app, isCustom, isEpic, epicId)
+                                    if (shortcut != null) {
+                                        context.startActivity(
+                                            Intent(context, XServerDisplayActivity::class.java)
+                                                .putExtra("container_id", shortcut.container.id),
+                                        )
+                                    } else {
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.shortcuts_list_not_available)
+                                    }
+                                    onDismissRequest()
+                                },
+                            ),
+                            GameSettingsActionItem(
                                 title =
                                     stringResource(
                                         if (hasPinnedShortcut) {
@@ -4046,10 +4055,6 @@ class UnifiedActivity :
                                                         epicArtworkUrl,
                                                     )
                                                 }
-                                            if (created) {
-                                                pinnedShortcutOverride = true
-                                                shortcutRefreshKey++
-                                            }
                                             if (!created) {
                                                 com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
@@ -4378,10 +4383,6 @@ class UnifiedActivity :
                                                     withContext(Dispatchers.IO) {
                                                         addGogShortcutToHomeScreen(context, app, artworkUrl)
                                                     }
-                                                if (created) {
-                                                    pinnedShortcutOverride = true
-                                                    shortcutRefreshKey++
-                                                }
                                                 if (!created) {
                                                     com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
@@ -4562,7 +4563,9 @@ class UnifiedActivity :
 
     private enum class LibraryDetailPopup { CloudSaves }
 
-    private enum class HeroLaunchPopup { BootToDesktop, GraphicsTests, RemoveShortcut, ExportFrontend }
+    private enum class HeroLaunchPopup { BootToDesktop, RemoveShortcut }
+
+    private enum class HeroBootChoice { Desktop, Cube32, Cube64 }
 
     @Composable
     private fun LibraryGameDetailDialog(
@@ -5263,19 +5266,6 @@ class UnifiedActivity :
                                             )
                                         }
                                     },
-                                    onGraphicsTests = {
-                                        val shortcut = resolveOrCreateShortcut()
-                                        if (shortcut != null) {
-                                            bootShortcut = shortcut
-                                            heroPopup = HeroLaunchPopup.GraphicsTests
-                                        } else {
-                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                context,
-                                                R.string.shortcuts_list_not_available,
-                                                heroToastAnchor,
-                                            )
-                                        }
-                                    },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
                                             heroPopup = HeroLaunchPopup.RemoveShortcut
@@ -5310,7 +5300,6 @@ class UnifiedActivity :
                                         }
                                     },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
-                                    onExport = { heroPopup = HeroLaunchPopup.ExportFrontend },
                                     onUninstall = uninstallGame,
                                     // Store source tag actions. Steam exposes verify/update/workshop;
                                     // Epic and GOG expose verify/update for installed games.
@@ -5374,36 +5363,25 @@ class UnifiedActivity :
 
                                 when (heroPopup) {
                                     HeroLaunchPopup.BootToDesktop ->
-                                        HeroBootToDesktopDialog(
-                                            onConfirm = {
+                                        HeroBootDialog(
+                                            onConfirm = { choice ->
                                                 heroPopup = null
                                                 bootShortcut?.let { sc ->
-                                                    context.startActivity(
-                                                        Intent(context, XServerDisplayActivity::class.java)
-                                                            .putExtra("container_id", sc.container.id),
-                                                    )
-                                                    onDismissRequest()
-                                                }
-                                            },
-                                            onDismissRequest = { heroPopup = null },
-                                        )
-                                    HeroLaunchPopup.GraphicsTests ->
-                                        HeroGraphicsTestsDialog(
-                                            onConfirm = { use64 ->
-                                                heroPopup = null
-                                                val exe =
-                                                    if (use64) {
-                                                        "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-64bit.exe"
-                                                    } else {
-                                                        "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-32bit.exe"
-                                                    }
-                                                bootShortcut?.let { sc ->
-                                                    context.startActivity(
+                                                    val intent =
                                                         Intent(context, XServerDisplayActivity::class.java)
                                                             .putExtra("container_id", sc.container.id)
-                                                            .putExtra("shortcut_path", sc.file.absolutePath)
-                                                            .putExtra("boot_exe", exe),
-                                                    )
+                                                    when (choice) {
+                                                        HeroBootChoice.Desktop -> {}
+                                                        HeroBootChoice.Cube32 ->
+                                                            intent
+                                                                .putExtra("shortcut_path", sc.file.absolutePath)
+                                                                .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-32bit.exe")
+                                                        HeroBootChoice.Cube64 ->
+                                                            intent
+                                                                .putExtra("shortcut_path", sc.file.absolutePath)
+                                                                .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-64bit.exe")
+                                                    }
+                                                    context.startActivity(intent)
                                                     onDismissRequest()
                                                 }
                                             },
@@ -5431,37 +5409,6 @@ class UnifiedActivity :
                                                             context.getString(R.string.common_ui_unknown_error)
                                                         },
                                                     )
-                                                }
-                                            },
-                                            onDismissRequest = { heroPopup = null },
-                                        )
-                                    HeroLaunchPopup.ExportFrontend ->
-                                        HeroExportFrontendDialog(
-                                            onConfirm = {
-                                                heroPopup = null
-                                                val shortcut = resolveOrCreateShortcut()
-                                                if (shortcut == null) {
-                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                        context,
-                                                        R.string.shortcuts_list_failed_export,
-                                                        heroToastAnchor,
-                                                    )
-                                                } else {
-                                                    scope.launch {
-                                                        val exported =
-                                                            withContext(Dispatchers.IO) {
-                                                                com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut, launchAppName)
-                                                            }
-                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                            context,
-                                                            if (exported != null) {
-                                                                context.getString(R.string.shortcuts_list_exported_to, exported.path)
-                                                            } else {
-                                                                context.getString(R.string.shortcuts_list_failed_export)
-                                                            },
-                                                            heroToastAnchor,
-                                                        )
-                                                    }
                                                 }
                                             },
                                             onDismissRequest = { heroPopup = null },

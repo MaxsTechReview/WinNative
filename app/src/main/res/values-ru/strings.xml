@@ -198,13 +198,9 @@
     <string name="library_games_custom_game">Пользовательская игра</string>
     <string name="library_games_play">Играть</string>
     <string name="hero_boot_to_desktop_title">Загрузить рабочий стол</string>
-    <string name="hero_boot_to_desktop_body">Загрузить рабочий стол контейнера?</string>
     <string name="hero_graphics_tests_title">Графические тесты</string>
-    <string name="hero_graphics_tests_body">Выберите графический тест для запуска:</string>
     <string name="hero_graphics_test_32">32-бит</string>
     <string name="hero_graphics_test_64">64-бит</string>
-    <string name="hero_export_frontend_title">Экспорт файла .desktop</string>
-    <string name="hero_export_frontend_body">Экспортировать эту игру в файл .desktop для внешних фронтендов?</string>
     <string name="library_games_add_custom_game">Добавить пользовательскую игру</string>
     <string name="library_games_game_name">Название игры</string>
     <string name="library_games_game_folder_mapped_drive">Папка с игрой (подключенный игровой диск)</string>

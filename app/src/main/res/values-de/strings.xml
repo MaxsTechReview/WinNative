@@ -194,13 +194,9 @@
     <string name="library_games_custom_game">Benutzerdefiniertes Spiel</string>
     <string name="library_games_play">Spielen</string>
     <string name="hero_boot_to_desktop_title">Zum Desktop booten</string>
-    <string name="hero_boot_to_desktop_body">Möchtest du zum Desktop des Containers booten?</string>
     <string name="hero_graphics_tests_title">Grafiktests</string>
-    <string name="hero_graphics_tests_body">Wähle einen auszuführenden Grafiktest:</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
-    <string name="hero_export_frontend_title">.desktop-Datei exportieren</string>
-    <string name="hero_export_frontend_body">Dieses Spiel als .desktop-Datei für externe Frontends exportieren?</string>
     <string name="library_games_add_custom_game">Benutzerdefiniertes Spiel hinzufügen</string>
     <string name="library_games_game_name">Spielname</string>
     <string name="library_games_game_folder_mapped_drive">Spieleordner (zugeordnetes Spielelaufwerk)</string>

@@ -194,13 +194,9 @@
     <string name="library_games_custom_game">사용자 지정 게임</string>
     <string name="library_games_play">플레이</string>
     <string name="hero_boot_to_desktop_title">데스크톱으로 부팅</string>
-    <string name="hero_boot_to_desktop_body">컨테이너 데스크톱으로 부팅하시겠습니까?</string>
     <string name="hero_graphics_tests_title">그래픽 테스트</string>
-    <string name="hero_graphics_tests_body">실행할 그래픽 테스트를 선택하세요:</string>
     <string name="hero_graphics_test_32">32비트</string>
     <string name="hero_graphics_test_64">64비트</string>
-    <string name="hero_export_frontend_title">.desktop 파일 내보내기</string>
-    <string name="hero_export_frontend_body">이 게임을 외부 프런트엔드용 .desktop 파일로 내보내시겠습니까?</string>
     <string name="library_games_add_custom_game">사용자 지정 게임 추가</string>
     <string name="library_games_game_name">게임 이름</string>
     <string name="library_games_game_folder_mapped_drive">게임 폴더(매핑된 게임 드라이브)</string>
