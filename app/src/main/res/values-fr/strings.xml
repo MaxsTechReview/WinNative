@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Échec du clonage du raccourci.</string>
     <string name="shortcuts_list_exported_to">Raccourci exporté vers %1$s</string>
     <string name="shortcuts_list_failed_export">Échec de l\'exportation du raccourci</string>
+    <string name="shortcuts_export_all">Tout exporter</string>
+    <string name="shortcuts_export_to_frontend">Exporter vers le frontend</string>
+    <string name="shortcuts_export_all_done">%1$d jeux exportés vers %2$s</string>
+    <string name="shortcuts_export_all_none">Aucun jeu à exporter</string>
     <string name="shortcuts_list_added">Raccourci ajouté avec succès.</string>
     <string name="shortcuts_list_failed_add">Échec de l\'ajout du raccourci.</string>
 

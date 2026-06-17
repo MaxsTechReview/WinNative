@@ -278,6 +278,10 @@
     <string name="shortcuts_list_clone_failed">Nu s-a putut clona comanda rapida.</string>
     <string name="shortcuts_list_exported_to">Comanda rapida exportata in %1$s</string>
     <string name="shortcuts_list_failed_export">Nu s-a putut exporta comanda rapida</string>
+    <string name="shortcuts_export_all">Exportă tot</string>
+    <string name="shortcuts_export_to_frontend">Exportă în frontend</string>
+    <string name="shortcuts_export_all_done">%1$d jocuri exportate în %2$s</string>
+    <string name="shortcuts_export_all_none">Niciun joc de exportat</string>
     <string name="shortcuts_list_added">Comanda rapida adaugata cu succes.</string>
     <string name="shortcuts_list_failed_add">Nu s-a putut adauga comanda rapida.</string>
 

@@ -308,6 +308,10 @@
     <string name="shortcuts_list_clone_failed">Failed to clone shortcut.</string>
     <string name="shortcuts_list_exported_to">Shortcut Exported to %1$s</string>
     <string name="shortcuts_list_failed_export">Failed to export shortcut</string>
+    <string name="shortcuts_export_all">Export All</string>
+    <string name="shortcuts_export_to_frontend">Export to Frontend</string>
+    <string name="shortcuts_export_all_done">Exported %1$d games to %2$s</string>
+    <string name="shortcuts_export_all_none">No games to export</string>
     <string name="shortcuts_list_added">Shortcut added successfully.</string>
     <string name="shortcuts_list_readded_existing">Re-added existing shortcut</string>
     <string name="shortcuts_list_failed_add">Failed to add shortcut.</string>
