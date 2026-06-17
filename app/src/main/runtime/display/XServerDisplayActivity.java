@@ -730,9 +730,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String incomingShortcutPath = intent.getStringExtra("shortcut_path");
         String incomingShortcutUuid = intent.getStringExtra("shortcut_uuid");
         int incomingContainerId = intent.getIntExtra("container_id", 0);
+        String incomingBootExe = intent.getStringExtra("boot_exe");
         String currentShortcutPath = shortcut != null ? shortcut.file.getAbsolutePath() : "";
         String currentShortcutUuid = shortcut != null ? shortcut.getExtra("uuid") : "";
         int currentContainerId = container != null ? container.id : 0;
+        String currentBootExe = bootExePath != null ? bootExePath : "";
 
         setIntent(intent);
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(intent);
@@ -744,8 +746,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 && !incomingShortcutUuid.isEmpty()
                 && !incomingShortcutUuid.equals(currentShortcutUuid);
         boolean containerChanged = incomingContainerId != 0 && incomingContainerId != currentContainerId;
+        boolean bootExeChanged = !(incomingBootExe != null ? incomingBootExe : "").equals(currentBootExe);
 
-        if (shortcutChanged || shortcutUuidChanged || containerChanged) {
+        if (shortcutChanged || shortcutUuidChanged || containerChanged || bootExeChanged) {
             Log.d("XServerDisplayActivity", "onNewIntent: launch target changed, cleaning up before recreation");
             switchLaunchTargetAfterCleanup(intent);
         }
@@ -5584,11 +5587,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         String wineArchKey = wineVersion != null && wineVersion.contains("arm64ec") ? "arm64ec" : "x86_64";
         String dxwrapperGateKey = dxwrapper + "|arch=" + wineArchKey;
-        if (!dxwrapperGateKey.equals(container.getExtra("dxwrapper")) || firstTimeBoot) {
+        boolean forceWrapperApply = bootExePath != null && !bootExePath.isEmpty();
+        if (!dxwrapperGateKey.equals(container.getExtra("dxwrapper")) || firstTimeBoot || forceWrapperApply) {
             Log.i("XServerDisplayActivity",
                     "DXVK/VKD3D extract: gate fired (key='" + dxwrapperGateKey
                             + "' prev='" + container.getExtra("dxwrapper")
-                            + "' firstTimeBoot=" + firstTimeBoot + ")");
+                            + "' firstTimeBoot=" + firstTimeBoot + " forced=" + forceWrapperApply + ")");
             wipeDxwrapperDllsForReextract();
             extractDXWrapperFiles(dxwrapper);
             container.putExtra("dxwrapper", dxwrapperGateKey);
@@ -6320,8 +6324,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                          : (container != null && container.getExtra("swapRB", "0").equals("1"));
         renderer.setSwapRB(swapRB);
 
-        if (shortcut != null) {
+        if (shortcut != null || (bootExePath != null && !bootExePath.isEmpty())) {
             renderer.setUnviewableWMClasses("explorer.exe");
+        }
+        if (shortcut != null) {
             String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
             try {
                 runtimeFpsLimit = Integer.parseInt(savedFpsLimit);
@@ -7324,7 +7330,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         EnvVars envVars = getOverrideEnvVars();
         String args = "";
 
-        if (shortcut != null) {
+        if (bootExePath != null && !bootExePath.isEmpty()) {
+            args = "\"" + bootExePath + "\"";
+        } else if (shortcut != null) {
             String path = shortcut.path;
             String gameSource = shortcut.getExtra("game_source", "CUSTOM");
             Log.d("XServerDisplayActivity", "getWineStartCommand: gameSource=" + gameSource + " shortcut.path=" + path);
@@ -7555,8 +7563,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     args = "\"wfm.exe\"";
                 }
             }
-        } else if (bootExePath != null && !bootExePath.isEmpty()) {
-            args = "\"" + bootExePath + "\"";
         } else {
             if (envVars.has("EXTRA_EXEC_ARGS")) {
                 args = envVars.get("EXTRA_EXEC_ARGS");

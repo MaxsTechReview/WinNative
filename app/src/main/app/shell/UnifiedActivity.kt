@@ -5185,7 +5185,7 @@ class UnifiedActivity :
                                     }
                                 val heroToastAnchor = LocalView.current
                                 var heroPopup by remember { mutableStateOf<HeroLaunchPopup?>(null) }
-                                var bootContainerId by remember { mutableStateOf(0) }
+                                var bootShortcut by remember { mutableStateOf<com.winlator.cmod.runtime.container.Shortcut?>(null) }
                                 val resolveOrCreateShortcut: () -> com.winlator.cmod.runtime.container.Shortcut? = {
                                     val containerManager = ContainerManager(context)
                                     when {
@@ -5253,7 +5253,7 @@ class UnifiedActivity :
                                     onBootToDesktop = {
                                         val shortcut = resolveOrCreateShortcut()
                                         if (shortcut != null) {
-                                            bootContainerId = shortcut.container.id
+                                            bootShortcut = shortcut
                                             heroPopup = HeroLaunchPopup.BootToDesktop
                                         } else {
                                             com.winlator.cmod.shared.ui.toast.WinToast.show(
@@ -5266,7 +5266,7 @@ class UnifiedActivity :
                                     onGraphicsTests = {
                                         val shortcut = resolveOrCreateShortcut()
                                         if (shortcut != null) {
-                                            bootContainerId = shortcut.container.id
+                                            bootShortcut = shortcut
                                             heroPopup = HeroLaunchPopup.GraphicsTests
                                         } else {
                                             com.winlator.cmod.shared.ui.toast.WinToast.show(
@@ -5377,11 +5377,13 @@ class UnifiedActivity :
                                         HeroBootToDesktopDialog(
                                             onConfirm = {
                                                 heroPopup = null
-                                                context.startActivity(
-                                                    Intent(context, XServerDisplayActivity::class.java)
-                                                        .putExtra("container_id", bootContainerId),
-                                                )
-                                                onDismissRequest()
+                                                bootShortcut?.let { sc ->
+                                                    context.startActivity(
+                                                        Intent(context, XServerDisplayActivity::class.java)
+                                                            .putExtra("container_id", sc.container.id),
+                                                    )
+                                                    onDismissRequest()
+                                                }
                                             },
                                             onDismissRequest = { heroPopup = null },
                                         )
@@ -5395,12 +5397,15 @@ class UnifiedActivity :
                                                     } else {
                                                         "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-32bit.exe"
                                                     }
-                                                context.startActivity(
-                                                    Intent(context, XServerDisplayActivity::class.java)
-                                                        .putExtra("container_id", bootContainerId)
-                                                        .putExtra("boot_exe", exe),
-                                                )
-                                                onDismissRequest()
+                                                bootShortcut?.let { sc ->
+                                                    context.startActivity(
+                                                        Intent(context, XServerDisplayActivity::class.java)
+                                                            .putExtra("container_id", sc.container.id)
+                                                            .putExtra("shortcut_path", sc.file.absolutePath)
+                                                            .putExtra("boot_exe", exe),
+                                                    )
+                                                    onDismissRequest()
+                                                }
                                             },
                                             onDismissRequest = { heroPopup = null },
                                         )
