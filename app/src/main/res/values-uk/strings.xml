@@ -197,6 +197,14 @@
     <string name="library_games_immersive_blur_description">Застосувати ефект розмиття до фону режиму занурення</string>
     <string name="library_games_custom_game">Користувацька гра</string>
     <string name="library_games_play">Грати</string>
+    <string name="hero_boot_to_desktop_title">Завантажити робочий стіл</string>
+    <string name="hero_boot_to_desktop_body">Завантажити робочий стіл контейнера?</string>
+    <string name="hero_graphics_tests_title">Графічні тести</string>
+    <string name="hero_graphics_tests_body">Виберіть графічний тест для запуску:</string>
+    <string name="hero_graphics_test_32">32-біт</string>
+    <string name="hero_graphics_test_64">64-біт</string>
+    <string name="hero_export_frontend_title">Експорт файлу .desktop</string>
+    <string name="hero_export_frontend_body">Експортувати цю гру у файл .desktop для зовнішніх фронтендів?</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>
     <string name="library_games_game_name">Назва гри</string>
     <string name="library_games_game_folder_mapped_drive">Папка гри (зіставлений ігровий диск)</string>

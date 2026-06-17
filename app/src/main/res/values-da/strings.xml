@@ -193,6 +193,14 @@
     <string name="library_games_immersive_blur_description">Anvend en sløringseffekt på den fordybende baggrund</string>
     <string name="library_games_custom_game">Brugerdefineret spil</string>
     <string name="library_games_play">Spil</string>
+    <string name="hero_boot_to_desktop_title">Boot til skrivebord</string>
+    <string name="hero_boot_to_desktop_body">Vil du boote til containerens skrivebord?</string>
+    <string name="hero_graphics_tests_title">Grafiktests</string>
+    <string name="hero_graphics_tests_body">Vælg en grafiktest, der skal køres:</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_export_frontend_title">Eksportér .desktop-fil</string>
+    <string name="hero_export_frontend_body">Eksportér dette spil som en .desktop-fil til eksterne frontends?</string>
     <string name="library_games_add_custom_game">Tilføj brugerdefineret spil</string>
     <string name="library_games_game_name">Spilnavn</string>
     <string name="library_games_game_folder_mapped_drive">Spilmappe (tilknyttet spildrev)</string>

@@ -344,6 +344,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isRefactorSizeEnabled = false;
     private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
     private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
+    private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
+    private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
+    private String bootExePath;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -1051,6 +1054,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         String shortcutUuid = getIntent().getStringExtra("shortcut_uuid");
         int shortcutPathHash = getIntent().getIntExtra("shortcut_path_hash", 0);
+        bootExePath = getIntent().getStringExtra("boot_exe");
 
         android.net.Uri launchData = getIntent().getData();
         if (launchData != null) {
@@ -5163,6 +5167,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void stageGraphicsTestExes() {
+        if (container == null) return;
+        File dir = new File(container.getRootDir(), ".wine/drive_c/ProgramData/Microsoft/Windows");
+        if (!dir.isDirectory() && !dir.mkdirs()) return;
+        stageBundledExe(dir, "Graphics-Test-32bit.exe", GRAPHICS_TEST_32_EXE_BYTES);
+        stageBundledExe(dir, "Graphics-Test-64bit.exe", GRAPHICS_TEST_64_EXE_BYTES);
+    }
+
+    private void stageBundledExe(File dir, String name, long expectedBytes) {
+        File dst = new File(dir, name);
+        if (dst.exists() && dst.length() == expectedBytes) return;
+        try (java.io.InputStream in = getAssets().open("winnative/" + name);
+             java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to stage " + name, e);
+        }
+    }
+
     private void unstageRefactorSizeHelper() {
         final File dst = new File(container.getRootDir(), ".wine/drive_c/WinNative/refactorsize.exe");
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
@@ -5606,6 +5631,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         WineStartMenuCreator.create(this, container);
+        stageGraphicsTestExes();
         WineUtils.createDosdevicesSymlinks(container, getActiveGameDirectoryPath(), isSteamShortcut());
 
         int inputType = container.getInputType();
@@ -7529,6 +7555,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     args = "\"wfm.exe\"";
                 }
             }
+        } else if (bootExePath != null && !bootExePath.isEmpty()) {
+            args = "\"" + bootExePath + "\"";
         } else {
             if (envVars.has("EXTRA_EXEC_ARGS")) {
                 args = envVars.get("EXTRA_EXEC_ARGS");

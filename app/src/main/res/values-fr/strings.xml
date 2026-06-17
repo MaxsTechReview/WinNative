@@ -193,6 +193,14 @@
     <string name="library_games_immersive_blur_description">Appliquer un effet de flou à l’arrière-plan immersif</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>
     <string name="library_games_play">Jouer</string>
+    <string name="hero_boot_to_desktop_title">Démarrer sur le bureau</string>
+    <string name="hero_boot_to_desktop_body">Voulez-vous démarrer sur le bureau du conteneur ?</string>
+    <string name="hero_graphics_tests_title">Tests graphiques</string>
+    <string name="hero_graphics_tests_body">Choisissez un test graphique à exécuter :</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_export_frontend_title">Exporter le fichier .desktop</string>
+    <string name="hero_export_frontend_body">Exporter ce jeu en fichier .desktop pour les frontends externes ?</string>
     <string name="library_games_add_custom_game">Ajouter un jeu personnalisé</string>
     <string name="library_games_game_name">Nom du jeu</string>
     <string name="library_games_game_folder_mapped_drive">Dossier du jeu (lecteur de jeu mappé)</string>

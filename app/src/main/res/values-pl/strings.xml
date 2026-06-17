@@ -197,6 +197,14 @@
     <string name="library_games_immersive_blur_description">Zastosuj efekt rozmycia do tła immersyjnego</string>
     <string name="library_games_custom_game">Własna gra</string>
     <string name="library_games_play">Graj</string>
+    <string name="hero_boot_to_desktop_title">Uruchom pulpit</string>
+    <string name="hero_boot_to_desktop_body">Czy chcesz uruchomić pulpit kontenera?</string>
+    <string name="hero_graphics_tests_title">Testy graficzne</string>
+    <string name="hero_graphics_tests_body">Wybierz test graficzny do uruchomienia:</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_export_frontend_title">Eksportuj plik .desktop</string>
+    <string name="hero_export_frontend_body">Wyeksportować tę grę jako plik .desktop dla zewnętrznych frontendów?</string>
     <string name="library_games_add_custom_game">Dodaj własną grę</string>
     <string name="library_games_game_name">Nazwa gry</string>
     <string name="library_games_game_folder_mapped_drive">Folder gry (zmapowany dysk gry)</string>

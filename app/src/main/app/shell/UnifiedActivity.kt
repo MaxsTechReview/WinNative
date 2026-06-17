@@ -3622,6 +3622,154 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun HeroLaunchConfirmFooter(
+        onCancel: () -> Unit,
+        onContinue: () -> Unit,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PopupTextAction(
+                label = stringResource(R.string.common_ui_cancel),
+                textColor = DangerRed,
+                onClick = onCancel,
+            )
+            PopupTextAction(
+                label = stringResource(R.string.common_ui_continue),
+                textColor = StatusOnline,
+                onClick = onContinue,
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroBootToDesktopDialog(
+        onConfirm: () -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = stringResource(R.string.hero_boot_to_desktop_title),
+                message = stringResource(R.string.hero_boot_to_desktop_body),
+                icon = Icons.Outlined.DesktopWindows,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                footer = {
+                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = onConfirm)
+                },
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroExportFrontendDialog(
+        onConfirm: () -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = stringResource(R.string.hero_export_frontend_title),
+                message = stringResource(R.string.hero_export_frontend_body),
+                icon = Icons.Outlined.IosShare,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                footer = {
+                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = onConfirm)
+                },
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroGraphicsTestsDialog(
+        onConfirm: (use64: Boolean) -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        var use64 by remember { mutableStateOf(true) }
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = stringResource(R.string.hero_graphics_tests_title),
+                message = stringResource(R.string.hero_graphics_tests_body),
+                icon = Icons.Outlined.ViewInAr,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                content = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        HeroGraphicsTestChip(
+                            label = stringResource(R.string.hero_graphics_test_32),
+                            selected = !use64,
+                            modifier = Modifier.weight(1f),
+                            onClick = { use64 = false },
+                        )
+                        HeroGraphicsTestChip(
+                            label = stringResource(R.string.hero_graphics_test_64),
+                            selected = use64,
+                            modifier = Modifier.weight(1f),
+                            onClick = { use64 = true },
+                        )
+                    }
+                },
+                footer = {
+                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = { onConfirm(use64) })
+                },
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroGraphicsTestChip(
+        label: String,
+        selected: Boolean,
+        modifier: Modifier = Modifier,
+        onClick: () -> Unit,
+    ) {
+        val chipBlue = Color(0xFF3B82F6)
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selected) chipBlue else chipBlue.copy(alpha = 0.16f))
+                .border(1.dp, chipBlue.copy(alpha = if (selected) 1f else 0.4f), RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                color = if (selected) Color.White else chipBlue,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroRemoveShortcutDialog(
+        gameName: String,
+        onConfirm: () -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = stringResource(R.string.common_ui_shortcut),
+                message = stringResource(R.string.shortcuts_list_remove_game_shortcut_message, gameName),
+                icon = Icons.Outlined.Home,
+                accentColor = DangerRed,
+                confirmButtonColor = DangerRed,
+                confirmLabel = stringResource(R.string.common_ui_remove),
+                progressLabel = stringResource(R.string.common_ui_working),
+                onConfirm = onConfirm,
+                onCancel = onDismissRequest,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            )
+        }
+    }
+
+    @Composable
     private fun GameSettingsDialog(
         app: SteamApp,
         onDismissRequest: () -> Unit,
@@ -4414,6 +4562,8 @@ class UnifiedActivity :
 
     private enum class LibraryDetailPopup { CloudSaves }
 
+    private enum class HeroLaunchPopup { BootToDesktop, GraphicsTests, RemoveShortcut, ExportFrontend }
+
     @Composable
     private fun LibraryGameDetailDialog(
         app: SteamApp,
@@ -5034,6 +5184,8 @@ class UnifiedActivity :
                                         else -> app.name
                                     }
                                 val heroToastAnchor = LocalView.current
+                                var heroPopup by remember { mutableStateOf<HeroLaunchPopup?>(null) }
+                                var bootContainerId by remember { mutableStateOf(0) }
                                 val resolveOrCreateShortcut: () -> com.winlator.cmod.runtime.container.Shortcut? = {
                                     val containerManager = ContainerManager(context)
                                     when {
@@ -5098,9 +5250,35 @@ class UnifiedActivity :
                                             ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                         }
                                     },
+                                    onBootToDesktop = {
+                                        val shortcut = resolveOrCreateShortcut()
+                                        if (shortcut != null) {
+                                            bootContainerId = shortcut.container.id
+                                            heroPopup = HeroLaunchPopup.BootToDesktop
+                                        } else {
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                context,
+                                                R.string.shortcuts_list_not_available,
+                                                heroToastAnchor,
+                                            )
+                                        }
+                                    },
+                                    onGraphicsTests = {
+                                        val shortcut = resolveOrCreateShortcut()
+                                        if (shortcut != null) {
+                                            bootContainerId = shortcut.container.id
+                                            heroPopup = HeroLaunchPopup.GraphicsTests
+                                        } else {
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                context,
+                                                R.string.shortcuts_list_not_available,
+                                                heroToastAnchor,
+                                            )
+                                        }
+                                    },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
-                                            currentScreen = LibraryDetailScreen.Shortcut
+                                            heroPopup = HeroLaunchPopup.RemoveShortcut
                                         } else {
                                             scope.launch {
                                                 val created =
@@ -5119,10 +5297,6 @@ class UnifiedActivity :
                                                             )
                                                         }
                                                     }
-                                                if (created) {
-                                                    pinnedShortcutOverride = true
-                                                    shortcutRefreshKey++
-                                                }
                                                 if (!created) {
                                                     com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
@@ -5136,32 +5310,7 @@ class UnifiedActivity :
                                         }
                                     },
                                     onCloudSaves = { activePopup = LibraryDetailPopup.CloudSaves },
-                                    onExport = {
-                                        val shortcut = resolveOrCreateShortcut()
-                                        if (shortcut == null) {
-                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                context,
-                                                R.string.shortcuts_list_failed_export,
-                                                heroToastAnchor,
-                                            )
-                                        } else {
-                                            scope.launch {
-                                                val exported =
-                                                    withContext(Dispatchers.IO) {
-                                                        com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut, launchAppName)
-                                                    }
-                                                com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                    context,
-                                                    if (exported != null) {
-                                                        context.getString(R.string.shortcuts_list_exported_to, exported.path)
-                                                    } else {
-                                                        context.getString(R.string.shortcuts_list_failed_export)
-                                                    },
-                                                    heroToastAnchor,
-                                                )
-                                            }
-                                        }
-                                    },
+                                    onExport = { heroPopup = HeroLaunchPopup.ExportFrontend },
                                     onUninstall = uninstallGame,
                                     // Store source tag actions. Steam exposes verify/update/workshop;
                                     // Epic and GOG expose verify/update for installed games.
@@ -5222,6 +5371,98 @@ class UnifiedActivity :
                                     },
                                     onWorkshop = { if (!isEpic && !isGog) showWorkshopDialog = true },
                                 )
+
+                                when (heroPopup) {
+                                    HeroLaunchPopup.BootToDesktop ->
+                                        HeroBootToDesktopDialog(
+                                            onConfirm = {
+                                                heroPopup = null
+                                                context.startActivity(
+                                                    Intent(context, XServerDisplayActivity::class.java)
+                                                        .putExtra("container_id", bootContainerId),
+                                                )
+                                                onDismissRequest()
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    HeroLaunchPopup.GraphicsTests ->
+                                        HeroGraphicsTestsDialog(
+                                            onConfirm = { use64 ->
+                                                heroPopup = null
+                                                val exe =
+                                                    if (use64) {
+                                                        "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-64bit.exe"
+                                                    } else {
+                                                        "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-32bit.exe"
+                                                    }
+                                                context.startActivity(
+                                                    Intent(context, XServerDisplayActivity::class.java)
+                                                        .putExtra("container_id", bootContainerId)
+                                                        .putExtra("boot_exe", exe),
+                                                )
+                                                onDismissRequest()
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    HeroLaunchPopup.RemoveShortcut ->
+                                        HeroRemoveShortcutDialog(
+                                            gameName = if (isGog) gogGame!!.title else app.name,
+                                            onConfirm = {
+                                                scope.launch {
+                                                    val removed =
+                                                        withContext(Dispatchers.IO) {
+                                                            homeShortcutState.shortcut?.let {
+                                                                LibraryShortcutUtils.disablePinnedHomeShortcut(context, it)
+                                                            } == true
+                                                        }
+                                                    pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
+                                                    shortcutRefreshKey++
+                                                    heroPopup = null
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        if (removed) {
+                                                            context.getString(R.string.shortcuts_list_removed)
+                                                        } else {
+                                                            context.getString(R.string.common_ui_unknown_error)
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    HeroLaunchPopup.ExportFrontend ->
+                                        HeroExportFrontendDialog(
+                                            onConfirm = {
+                                                heroPopup = null
+                                                val shortcut = resolveOrCreateShortcut()
+                                                if (shortcut == null) {
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        R.string.shortcuts_list_failed_export,
+                                                        heroToastAnchor,
+                                                    )
+                                                } else {
+                                                    scope.launch {
+                                                        val exported =
+                                                            withContext(Dispatchers.IO) {
+                                                                com.winlator.cmod.feature.shortcuts.FrontendExporter.exportOne(context, shortcut, launchAppName)
+                                                            }
+                                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                            context,
+                                                            if (exported != null) {
+                                                                context.getString(R.string.shortcuts_list_exported_to, exported.path)
+                                                            } else {
+                                                                context.getString(R.string.shortcuts_list_failed_export)
+                                                            },
+                                                            heroToastAnchor,
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    null -> {}
+                                }
                             }
 
                             LibraryDetailScreen.Shortcut -> {

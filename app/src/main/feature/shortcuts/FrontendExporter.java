@@ -12,18 +12,12 @@ import com.winlator.cmod.shared.io.FileUtils;
 import java.io.File;
 import java.util.ArrayList;
 
-/**
- * Writes shortcuts as standalone .desktop files (plus their icon) into the configured export
- * folder so external game frontends (ES-DE, Daijisho, etc.) can scan and launch them. The
- * exported file keeps the uuid/container_id in [Extra Data] that XServerDisplayActivity resolves
- * a game from, and points Icon= at a copied PNG so the frontend can render cover art.
- */
+/** Writes shortcuts as standalone .desktop files (plus icon) into the configured export folder. */
 public final class FrontendExporter {
   private static final String TAG = "FrontendExporter";
 
   private FrontendExporter() {}
 
-  /** Resolve (and create) the configured export directory, or null if it can't be written. */
   public static File resolveExportDir(Context context) {
     if (context == null) return null;
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
@@ -40,25 +34,22 @@ public final class FrontendExporter {
     return dir;
   }
 
-  /** Export a single shortcut to the configured folder. Returns the written file, or null. */
   public static File exportOne(Context context, Shortcut shortcut) {
     return exportOne(context, shortcut, (String) null);
   }
 
-  /** Export a single shortcut, naming it {@code displayName} when non-empty. */
   public static File exportOne(Context context, Shortcut shortcut, String displayName) {
     File dir = resolveExportDir(context);
     if (dir == null) return null;
     return exportOne(context, shortcut, dir, displayName);
   }
 
-  /** Export a single shortcut into {@code dir}. Returns the written .desktop file, or null. */
   public static File exportOne(Context context, Shortcut shortcut, File dir, String displayName) {
     if (dir == null || shortcut == null || shortcut.file == null || !shortcut.file.isFile()) {
       return null;
     }
     try {
-      // Frontends resolve our game by uuid / container_id, so make sure both are persisted first.
+      // Persist uuid / container_id so the launch can resolve this game.
       shortcut.genUUID();
       if (shortcut.getExtra("container_id").isEmpty()) {
         shortcut.putExtra("container_id", String.valueOf(shortcut.container.id));
@@ -74,7 +65,6 @@ public final class FrontendExporter {
       String baseName =
           sanitizeFileName(resolvedName != null ? resolvedName : FileUtils.getBasename(shortcut.file.getPath()));
 
-      // Copy the cover/icon next to the .desktop so the frontend can show art.
       String iconPath = null;
       File iconDst = new File(dir, baseName + ".png");
       File iconSrc = resolveIconFile(context, shortcut);
@@ -98,7 +88,6 @@ public final class FrontendExporter {
     }
   }
 
-  /** Export every shortcut across all containers. Returns the number exported. */
   public static int exportAll(Context context) {
     File dir = resolveExportDir(context);
     if (dir == null) return 0;
@@ -195,8 +184,6 @@ public final class FrontendExporter {
     return value.replaceAll("[^A-Za-z0-9._-]", "_");
   }
 
-  // Faithful copy of the source .desktop, but with the Icon line normalized to the exported PNG
-  // so the frontend can render it. uuid / container_id already live in [Extra Data].
   private static String buildDesktopContent(File source, String iconPath, String displayName) {
     StringBuilder out = new StringBuilder();
     boolean inExtra = false;

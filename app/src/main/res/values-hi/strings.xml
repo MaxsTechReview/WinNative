@@ -191,6 +191,14 @@
     <string name="library_games_immersive_blur_description">इमर्सिव बैकग्राउंड पर धुंधला प्रभाव लागू करें</string>
     <string name="library_games_custom_game">कस्टम गेम</string>
     <string name="library_games_play">खेलें</string>
+    <string name="hero_boot_to_desktop_title">डेस्कटॉप पर बूट करें</string>
+    <string name="hero_boot_to_desktop_body">क्या आप कंटेनर डेस्कटॉप पर बूट करना चाहते हैं?</string>
+    <string name="hero_graphics_tests_title">ग्राफ़िक्स परीक्षण</string>
+    <string name="hero_graphics_tests_body">चलाने के लिए एक ग्राफ़िक्स परीक्षण चुनें:</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="hero_export_frontend_title">.desktop फ़ाइल निर्यात करें</string>
+    <string name="hero_export_frontend_body">इस गेम को बाहरी फ़्रंटएंड के लिए .desktop फ़ाइल के रूप में निर्यात करें?</string>
     <string name="library_games_add_custom_game">कस्टम गेम जोड़ें</string>
     <string name="library_games_game_name">गेम का नाम</string>
     <string name="library_games_game_folder_mapped_drive">गेम फ़ोल्डर (मैप्ड गेम ड्राइव)</string>
