@@ -92,6 +92,10 @@ sealed interface ContainersDialogUiState {
         val container: Container,
     ) : ContainersDialogUiState
 
+    data class ComponentInstaller(
+        val container: Container,
+    ) : ContainersDialogUiState
+
     data class ConfirmRemove(
         val container: Container,
     ) : ContainersDialogUiState
@@ -122,6 +126,7 @@ fun ContainersScreen(
     onRunContainer: (Container) -> Unit,
     onEditContainer: (Container) -> Unit,
     onDuplicateContainer: (Container) -> Unit,
+    onInstallComponents: (Container) -> Unit,
     onRemoveContainer: (Container) -> Unit,
     onShowInfo: (Container) -> Unit,
     onDismissDialog: () -> Unit,
@@ -150,7 +155,7 @@ fun ContainersScreen(
         Spacer(Modifier.height(6.dp))
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Adaptive(138.dp),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -168,6 +173,7 @@ fun ContainersScreen(
                     onRun = { onRunContainer(container) },
                     onEdit = { onEditContainer(container) },
                     onDuplicate = { onDuplicateContainer(container) },
+                    onInstallComponents = { onInstallComponents(container) },
                     onRemove = { onRemoveContainer(container) },
                     onShowInfo = { onShowInfo(container) },
                 )
@@ -240,6 +246,13 @@ fun ContainersScreen(
             )
         }
 
+        is ContainersDialogUiState.ComponentInstaller -> {
+            ComponentInstallerSheet(
+                container = dialog.container,
+                onDismiss = onDismissDialog,
+            )
+        }
+
         is ContainersDialogUiState.Message -> {
             ContainersMessageDialog(
                 title = dialog.title,
@@ -267,8 +280,7 @@ private fun AddContainerCard(onClick: () -> Unit) {
     Column(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .height(138.dp)
+                .size(138.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
@@ -312,6 +324,7 @@ private fun ContainerCard(
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
+    onInstallComponents: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
 ) {
@@ -327,12 +340,11 @@ private fun ContainerCard(
     Column(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .height(138.dp)
+                .size(138.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                .padding(12.dp),
+                .padding(10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -349,7 +361,14 @@ private fun ContainerCard(
                 tint = ContainersTextSecondary,
                 onClick = onDuplicate,
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
+            SmallVectorIconButton(
+                image = ComponentContainerIcon,
+                contentDescription = "Install components",
+                tint = ContainersAccent,
+                onClick = onInstallComponents,
+            )
+            Spacer(Modifier.width(4.dp))
             Box {
                 SmallVectorIconButton(
                     image = Icons.Outlined.MoreVert,
@@ -415,7 +434,7 @@ private fun ContainerCard(
                 modifier = Modifier.weight(1f),
                 image = Icons.Outlined.Edit,
                 contentDescription = stringResource(R.string.common_ui_edit),
-                tint = ContainersTextSecondary,
+                tint = ContainersAccent,
                 onClick = onEdit,
             )
         }
@@ -430,7 +449,7 @@ private fun IconBox(
     Box(
         modifier =
             Modifier
-                .size(38.dp)
+                .size(36.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(ContainersIconBox),
         contentAlignment = Alignment.Center,
