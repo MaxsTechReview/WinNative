@@ -2198,11 +2198,11 @@ private fun GestureEditorBody(
             if (config.dragAction == DragAction.NONE) {
                 OptionDropdown(stringResource(R.string.session_rts_pan1), config.pan1Action, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { pan1Action = it } }
             }
+            OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
             if (config.dragAction != DragAction.NONE || config.drag2Action != DragAction.NONE) {
                 SliderField("${stringResource(R.string.session_rts_drag_threshold)}: ${config.dragThreshold}", config.dragThreshold.toFloat(), 10f..200f, 0) { mutate { dragThreshold = it.toInt() } }
             }
         SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
-        OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
     }
 }
 
