@@ -3,10 +3,39 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define WN_STEAMAPI_EXPORT __declspec(dllexport)
 
+static int wnb_logging_enabled(void) {
+    static volatile LONG cached = -1;
+    LONG v = cached;
+    if (v == -1) {
+        const char* e = getenv("WNB_LOG");
+        v = (e && e[0] && e[0] != '0') ? 1 : 0;
+        cached = v;
+    }
+    return (int)v;
+}
+
+static CRITICAL_SECTION g_resolver_cs;
+static volatile LONG g_resolver_cs_state = 0;
+
+static void resolver_lock(void) {
+    if (InterlockedCompareExchange(&g_resolver_cs_state, 1, 0) == 0) {
+        InitializeCriticalSection(&g_resolver_cs);
+        InterlockedExchange(&g_resolver_cs_state, 2);
+    }
+    while (g_resolver_cs_state != 2) Sleep(0);
+    EnterCriticalSection(&g_resolver_cs);
+}
+
+static void resolver_unlock(void) {
+    LeaveCriticalSection(&g_resolver_cs);
+}
+
 static void wnb_log_once(const char* name) {
+    if (!wnb_logging_enabled()) return;
     static const char* once_names[64];
     static int once_count = 0;
     for (int i = 0; i < once_count; ++i) {
@@ -48,12 +77,12 @@ static int g_steam_user = 0;
 extern void wnb_publish_dispatch_pointers(void);
 
 static void wnb_resolver_log(const char* msg) {
+    if (!wnb_logging_enabled()) return;
     FILE* f = fopen("C:\\wnb.log", "a");
     if (f) { fputs(msg, f); fputc('\n', f); fclose(f); }
 }
 
-static void* resolve_steam_client(void) {
-    if (g_steam_client != NULL) return g_steam_client;
+static void resolve_steam_client_locked(void) {
     wnb_publish_dispatch_pointers();
     SetDllDirectoryA("C:\\Program Files (x86)\\Steam");
     HMODULE sc = LoadLibraryExA(
@@ -66,14 +95,14 @@ static void* resolve_steam_client(void) {
     }
     if (sc == NULL) {
         wnb_resolver_log("[wnb] LoadLibrary(steamclient64.dll) failed");
-        return NULL;
+        return;
     }
     g_steamclient_module = sc;
     if (g_create_interface == NULL) {
         g_create_interface = (CreateInterface_fn)GetProcAddress(sc, "CreateInterface");
         if (g_create_interface == NULL) {
             wnb_resolver_log("[wnb] steamclient64.dll missing CreateInterface");
-            return NULL;
+            return;
         }
     }
     g_steam_bgetcallback = (Steam_BGetCallback_fn)
@@ -98,7 +127,7 @@ static void* resolve_steam_client(void) {
     if (g_steam_client == NULL) g_steam_client = g_create_interface("SteamClient017", &code);
     if (g_steam_client == NULL) {
         wnb_resolver_log("[wnb] CreateInterface(SteamClient0XX) returned NULL");
-        return NULL;
+        return;
     }
 
     {
@@ -122,6 +151,13 @@ static void* resolve_steam_client(void) {
             if (g_steam_user == 0) g_steam_user = 1;
         }
     }
+}
+
+static void* resolve_steam_client(void) {
+    if (g_steam_client != NULL) return g_steam_client;
+    resolver_lock();
+    if (g_steam_client == NULL) resolve_steam_client_locked();
+    resolver_unlock();
     return g_steam_client;
 }
 
@@ -190,14 +226,20 @@ static void* g_our_matchmaking = NULL;
 static void* g_our_matchmaking_servers = NULL;
 
 void* get_our_matchmaking(void) {
+    if (g_our_matchmaking != NULL) return g_our_matchmaking;
+    resolver_lock();
     if (g_our_matchmaking == NULL)
         g_our_matchmaking = resolve_interface(10, "SteamMatchMaking009");
+    resolver_unlock();
     return g_our_matchmaking;
 }
 
 void* get_our_matchmaking_servers(void) {
+    if (g_our_matchmaking_servers != NULL) return g_our_matchmaking_servers;
+    resolver_lock();
     if (g_our_matchmaking_servers == NULL)
         g_our_matchmaking_servers = resolve_interface(11, "SteamMatchMakingServers002");
+    resolver_unlock();
     return g_our_matchmaking_servers;
 }
 
