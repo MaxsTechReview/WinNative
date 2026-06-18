@@ -2686,18 +2686,27 @@ static uint64_t g_fg_dropped = 0;
 // desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
 #define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
 
-// Advance the present deadline by one target period. The target is the free, evenly-spaced present
-// instant on the measured CONTENT-rate grid — NOT snapped to the panel vsync grid. Snapping quantized
-// every present to a vblank, which for non-integer / variable content:panel ratios produced uneven
-// spacing (3:2-pulldown-style judder); pacing at the true temporal position removes that.
-static uint64_t fg_compute_deadline(VkRenderer* r) {
-    uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
-    if (period == 0) { r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0; }
+// Present instant for one output frame, anchored to the real-frame ARRIVAL clock: a frame at content-phase
+// `phase` of the [prev,curr] interval is shown at curr_arrival + phase*(curr-prev). This locks the present
+// cadence to the source's own timeline, so vblanks that emit nothing (holds) cannot drift the grid the way
+// a per-enqueue period accumulator did — that drift was the residual judder after vsync-snap removal. Before
+// the two arrivals are known it falls back to an evenly-spaced period grid. NOT snapped to the panel vsync.
+static uint64_t fg_compute_deadline(VkRenderer* r, float phase) {
     uint64_t now = now_monotonic_ns();
-    uint64_t deadline = r->fg_present_deadline_ns + period;
-    // Re-anchor on startup / stalls / rate changes so the evenly-spaced grid never drifts into the past
-    // or too far ahead of the real content clock.
-    if (deadline < now || deadline > now + 4u * period) deadline = now + period;
+    uint64_t ca = r->fg_curr_arrival_ns, pa = r->fg_prev_arrival_ns;
+    uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
+    uint64_t deadline;
+    if (ca != 0 && pa != 0 && ca > pa) {
+        uint64_t cp = ca - pa;                              // content period from the two real arrivals
+        if (phase < 0.0f) phase = 0.0f;
+        deadline = ca + (uint64_t)((double)phase * (double)cp);
+    } else if (period != 0) {
+        deadline = r->fg_present_deadline_ns + period;      // pre-lock fallback: even period grid
+    } else {
+        r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0;
+    }
+    if (deadline < now) deadline = now;                     // never schedule in the past
+    if (period != 0 && deadline > now + 4u * period) deadline = now + period;
     r->fg_present_deadline_ns = deadline;
     r->fg_present_target_ns = deadline;
     return deadline;
@@ -2884,8 +2893,8 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     uint32_t prev_idx = (parity + 2u) % 3u;
     VkFgImage* curr = &r->fg_history[curr_idx];
 
-    // Advance the vsync-aligned present deadline for the pacer (fg_sleep_to_deadline).
-    fg_compute_deadline(r);
+    // Advance the present deadline for the pacer (fg_sleep_to_deadline).
+    fg_compute_deadline(r, phase);
     if (do_interp) {
         if (r->fg_curr_arrival_ns != r->fg_dbg_last_curr) {
             r->fg_dbg_done_n = r->fg_dbg_n;
@@ -3259,7 +3268,7 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     job.curr_idx = curr;
     job.prev_idx = (curr + 2u) % 3u;
     job.seq = r->fg_promote_seq;
-    fg_compute_deadline(r);
+    fg_compute_deadline(r, phase);
     job.deadline_ns = r->fg_present_target_ns ? r->fg_present_target_ns : r->fg_present_deadline_ns;
     uint32_t tail = r->fg_job_tail;
     uint32_t next = (tail + 1u) % FG_JOB_RING;
@@ -3748,11 +3757,13 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderInterp)(JNIEnv* env, jclass clazz,
     return JNI_TRUE;
 }
 
-JNIEXPORT jboolean JNICALL JNI_FN(nativePresentLast)(JNIEnv* env, jclass clazz, jlong handle) {
+JNIEXPORT jboolean JNICALL JNI_FN(nativePresentLast)(JNIEnv* env, jclass clazz, jlong handle, jfloat phase, jlong prevNs, jlong currNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r || !r->surface_ready) return JNI_FALSE;
-    fg_enqueue(r, FG_MODE_PRESENT_LAST, 0.5f);
+    r->fg_prev_arrival_ns = prevNs > 0 ? (uint64_t)prevNs : 0;
+    r->fg_curr_arrival_ns = currNs > 0 ? (uint64_t)currNs : 0;
+    fg_enqueue(r, FG_MODE_PRESENT_LAST, phase);
     return JNI_TRUE;
 }
 

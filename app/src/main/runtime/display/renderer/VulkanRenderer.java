@@ -433,7 +433,7 @@ public class VulkanRenderer
         double secs = (double) (now - fgDiagLastNs) / 1e9;
         if (fgLockedGameHz > 0.0 && secs > 0.0 && secs <= 1.5) {
             double deliveredHz = (double) (fgDiagInterp + fgDiagReal) / secs;
-            double targetEff = Math.max(1, fgEffectiveMultiplier) * fgLockedGameHz;
+            double targetEff = Math.max(1, fgCadenceM) * fgLockedGameHz;
             if (fgDisplayCapHz > 0) targetEff = Math.min(targetEff, (double) fgDisplayCapHz);
             // Step down only on a sustained shortfall (>=4 consecutive slow seconds). Floor 2x.
             if (deliveredHz > 0.0 && deliveredHz < 0.85 * targetEff && !fgOverlayActive) {
@@ -443,9 +443,9 @@ public class VulkanRenderer
             }
         }
         Log.i(TAG, String.format(java.util.Locale.US,
-            "FG diag: content=%.0fHz (locked=%.0f) panel=%.0fHz slots=%d mult=%dx(eff=%dx) | present interp=%d real=%d none=%d | "
+            "FG diag: content=%.0fHz (locked=%.0f) panel=%.0fHz slots=%d mult=%dx(eff=%dx cad=%dx) | present interp=%d real=%d none=%d | "
           + "content-dedup distinct=%d/s dup-dropped=%d/s | id-dedup-dropped=%d accepted=%d",
-            gameHz, fgLockedGameHz, dispHz, (int) Math.round(ratio), fgMultiplier, fgEffectiveMultiplier,
+            gameHz, fgLockedGameHz, dispHz, (int) Math.round(ratio), fgMultiplier, fgEffectiveMultiplier, fgCadenceM,
             fgDiagInterp, fgDiagReal, fgDiagNone, dDist, dDup, fgDiagDedupDropped, fgDiagAccepted));
         fgDiagInterp = fgDiagReal = fgDiagNone = fgDiagDedupDropped = fgDiagAccepted = 0;
         fgDiagLastNs = now;
@@ -477,6 +477,8 @@ public class VulkanRenderer
     private long fgLastPromoteNs = 0, fgPrevPromoteNs = 0;  // times of the last two distinct content frames
     private long fgContentPeriodNs = 0;      // EMA of the interval between distinct content frames
     private int  fgPromoteSlotIdx = 0;       // display ticks since the last promote
+    private int  fgLastEmitSub = -1;         // output sub-frame index last presented this content interval
+    private volatile int fgCadenceM = 2;     // divisor-snapped multiplier actually used by the cadence
     private volatile boolean fgResyncPending = false;
     private volatile boolean fgOverlayActive = false;
 
@@ -490,6 +492,7 @@ public class VulkanRenderer
         fgLastPromoteNs = 0L;
         fgEngineFrames = 0;
         fgPromoteSlotIdx = 0;
+        fgLastEmitSub = -1;
         fgEffectiveMultiplier = fgMultiplier;
         fgBoundSecs = 0;
         fgNewScene.set(true);
@@ -527,13 +530,13 @@ public class VulkanRenderer
                             fgContentPeriodNs = fgContentPeriodNs == 0L ? d
                                     : fgContentPeriodNs + (d - fgContentPeriodNs) / 8L;
                             double inst = 1.0e9 / (double) fgContentPeriodNs;
-                            if (fgLockedGameHz <= 0.0) {
-                                fgLockedGameHz = inst;
-                            } else if (Math.abs(inst - fgLockedGameHz) > Math.max(2.0, 0.10 * fgLockedGameHz)) {
-                                if (++fgGameDriftFrames >= 24) { fgLockedGameHz = inst; fgGameDriftFrames = 0; }
-                            } else {
-                                fgGameDriftFrames = 0;
-                            }
+                            // Track the (already EMA-smoothed) instantaneous content rate with a light
+                            // quarter-step EMA: converges in a few frames and rejects single-frame outliers,
+                            // without the old drift-relock threshold that could leave the lock stale (e.g.
+                            // locked=27 while the game truly ran 30), which skewed the present spacing.
+                            fgLockedGameHz = fgLockedGameHz <= 0.0 ? inst
+                                    : fgLockedGameHz + (inst - fgLockedGameHz) * 0.25;
+                            fgGameDriftFrames = 0;
                             fgGamePeriodNs = fgContentPeriodNs;
                         }
                     }
@@ -541,6 +544,7 @@ public class VulkanRenderer
                     fgLastPromoteNs = pNs;
                     fgEngineFrames++;
                     fgPromoteSlotIdx = 0;
+                    fgLastEmitSub = -1;        // new content interval — allow its sub 0 (real frame) to present
                 }
             }
         }
@@ -548,7 +552,7 @@ public class VulkanRenderer
 
         // Drawer/menu overlay up: pause FG generation and present only the real frame.
         if (fgOverlayActive) {
-            if (fgEmitWasHold) { nativePresentLast(nativeHandle); return 2; }
+            if (fgEmitWasHold) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
             return 0;
         }
 
@@ -556,83 +560,55 @@ public class VulkanRenderer
         boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L
                             && fgLastPromoteNs != 0L && fgPrevPromoteNs != 0L;
         if (!canInterp) {
-            if (newGame || dirty) { nativePresentLast(nativeHandle); return 2; }
+            if (newGame || dirty) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
             return 0;
         }
         if (dirty && !newGame) {
             // Cursor/UI-only recomposite — show it sharply.
-            nativePresentLast(nativeHandle);
+            nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs);
             return 2;
         }
 
-        // Slot grid anchored to distinct content (promotes): each content period spans `slots` display
-        // ticks; generated frames interpolate the distinct pair at phase (k+1)/slots.
+        // Closed-loop placement: derive the output sub-frame purely from elapsed time since the last real
+        // frame (not a tick counter), so irregular promote arrival can't misalign the cadence. Each content
+        // interval is split into M sub-frames: sub 0 = the real frame (shown sharp), sub 1..M-1 = tweens at
+        // phase sub/M. One present per vblank; a sub-frame is shown once then held until the next sub/promote.
+        // Native applies interpolate vs extrapolate per the mode flag, so the placement rule is shared.
+        if (period <= 0L) return 0;
+        // Effective multiplier for the cadence, snapped DOWN to the largest divisor of the panel:content
+        // ratio (slots) so the output rate divides the panel evenly — each output frame is then held a whole
+        // number of vblanks. On 120Hz/30Hz (slots=4), 4x and 2x stay, but 3x (=90Hz, frames held 1,1,2
+        // vblanks = judder) snaps to 2x. Keeps every multiplier visually smooth on a fixed-refresh panel.
+        int M = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
-        double ratio = disp > 0L ? (double) period / (double) disp : 0.0;
-        int slots = (int) Math.round(ratio);
-        boolean gridOk = slots >= 2 && slots <= 16;
-        if (gridOk) {
-            // Even-hold path: when the panel rate is an integer multiple of the FG output, present each
-            // of the m generated frames for slots/m vsyncs (a clean 1:N hold).
-            int m = fgEffectiveMultiplier;
-            if (m >= 2 && slots > m && (slots % m) == 0) {
-                int spacing = slots / m;                 // vsyncs each generated frame is held on screen
-                int k = fgPromoteSlotIdx;
-                if (k >= slots) return 0;                // past the content period — hold
-                if ((k % spacing) != 0) return 0;        // mid-hold: keep the prior generated frame
-                int s = k / spacing;                     // which generated sub-frame, 0..m-1
-                if (fgExtrapolate) {
-                    double phe = (double) s / (double) m;
-                    if (s == 0 || phe >= 1.0) { nativePresentLast(nativeHandle); return 2; }
-                    nativeRenderInterp(nativeHandle, (float) phe, fgPrevPromoteNs, fgLastPromoteNs);
-                    return 1;
-                }
-                double phg = (double) (s + 1) / (double) m;
-                if (phg >= 1.0) { nativePresentLast(nativeHandle); return 2; }
-                nativeRenderInterp(nativeHandle, (float) phg, fgPrevPromoteNs, fgLastPromoteNs);
-                return 1;
+        if (disp > 0L) {
+            int slots = (int) Math.round((double) period / (double) disp);
+            if (slots >= 2) {
+                int best = 1;
+                for (int d = 2; d <= M && d <= slots; d++) if (slots % d == 0) best = d;
+                if (best >= 2) M = best;
             }
-            // Place each tween by the measured content:panel ratio so a variable source rate maps to the
-            // geometrically correct phase.
-            double r = ratio;
-            if (r > fgEffectiveMultiplier) r = fgEffectiveMultiplier;
-            int k = fgPromoteSlotIdx;
-            if (k >= slots * 2) return 0;        // content stalled — hold
-            if (fgExtrapolate) {
-                double phe = (double) k / r;
-                if (k == 0 || phe >= 1.0) { nativePresentLast(nativeHandle); return 2; }
-                nativeRenderInterp(nativeHandle, (float) phe, fgPrevPromoteNs, fgLastPromoteNs);
-                return 1;
-            }
-            double ph = (double) (k + 1) / r;
-            if (ph >= 1.0) { nativePresentLast(nativeHandle); return 2; }
-            nativeRenderInterp(nativeHandle, (float) ph, fgPrevPromoteNs, fgLastPromoteNs);
-            return 1;
         }
-
-        // Continuous-phase fallback (non-integer content:panel ratio): phase since the last promote.
+        fgCadenceM = M;
+        // Closed-loop phase from the stable EMA content period (robust to per-frame source jitter, which
+        // otherwise skewed the sub-frame timing and dropped interps on variable-rate games).
         long vsync = fgCurrentVsyncNs != 0L ? fgCurrentVsyncNs : System.nanoTime();
-        double phase = (double) (vsync - fgLastPromoteNs) / (double) period;
-        if (fgExtrapolate) {
-            if (phase >= 1.0) { if (phase < 2.0) { nativePresentLast(nativeHandle); return 2; } return 0; }
-            nativeRenderInterp(nativeHandle, (float) Math.max(0.001, phase), fgPrevPromoteNs, fgLastPromoteNs);
-            return 1;
-        }
-        if (phase < 1.0) {
-            nativeRenderInterp(nativeHandle, (float) Math.max(0.001, phase), fgPrevPromoteNs, fgLastPromoteNs);
-            return 1;
-        } else if (phase < 2.0) {
-            nativePresentLast(nativeHandle);
-            return 2;
-        }
-        return 0;
+        double frac = (double) (vsync - fgLastPromoteNs) / (double) period;
+        if (frac < 0.0) frac = 0.0;
+        int sub = (int) Math.floor(frac * (double) M);
+        if (sub >= M) return 0;                       // interval overran — hold until the next promote
+        if (sub == fgLastEmitSub) return 0;           // already presented this sub-frame — hold it on screen
+        fgLastEmitSub = sub;
+        if (sub <= 0) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }   // sub 0 = real frame, sharp
+        nativeRenderInterp(nativeHandle, (float) sub / (float) M, fgPrevPromoteNs, fgLastPromoteNs);
+        return 1;
     }
 
     // Target FG post rate (Hz): multiplier × locked game rate, capped to the panel max. 0 if not measured.
     private double fgTargetHz() {
         double g = fgLockedGameHz;
         if (g <= 0.0) return 0.0;
-        double target = Math.max(1, fgEffectiveMultiplier) * g;
+        double target = Math.max(1, fgCadenceM) * g;
         if (fgDisplayCapHz > 0) target = Math.min(target, (double) fgDisplayCapHz);
         return target;
     }
@@ -1407,7 +1383,7 @@ public class VulkanRenderer
     private static native boolean nativeRenderHold(long handle);
     private static native boolean nativeRenderInterp(long handle, float phase, long prevNs, long currNs);
     private static native void nativeFgPromoteInfo(long handle, long[] out);
-    private static native boolean nativePresentLast(long handle);
+    private static native boolean nativePresentLast(long handle, float phase, long prevNs, long currNs);
     private static native void nativeSetFrameGenParams(long handle, float occLo, float occHi, int minStep);
     private static native void nativeSetFrameGenFlowScale(long handle, float flowScale);
     private static native void nativeSetFrameGenDeepMode(long handle, boolean deep);
