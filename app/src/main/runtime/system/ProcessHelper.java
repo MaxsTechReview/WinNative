@@ -317,7 +317,12 @@ public abstract class ProcessHelper {
         createDebugThread(process.getErrorStream());
       }
 
-      pid = (int) process.pid();
+      try {
+        Object pidValue = java.lang.Process.class.getMethod("pid").invoke(process);
+        if (pidValue instanceof Long) pid = ((Long) pidValue).intValue();
+      } catch (Throwable t) {
+        Log.e("ProcessHelper", "Unable to obtain process pid", t);
+      }
       if (PRINT_DEBUG) Log.d("ProcessHelper", "Process started with pid: " + pid);
 
       if (terminationCallback != null) createWaitForThread(process, terminationCallback);
