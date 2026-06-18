@@ -2539,7 +2539,7 @@ static double fg_sig_delta(VkRenderer* r, uint32_t a, uint32_t b) {
         int dg = abs((int)pa[i*4+1] - (int)pb[i*4+1]);
         int db = abs((int)pa[i*4+2] - (int)pb[i*4+2]);
         int m = dr > dg ? dr : dg; if (db > m) m = db;
-        if (m > 4) changed++;        // noise floor: only light dithering is <=4/channel; real motion exceeds it
+        if (m > 2) changed++;        // noise floor: reject only the lightest dither/noise; subtle motion (3-4/ch) now counts as distinct so it isn't held
     }
     return (double)changed;          // 0 == identical re-present; >0 == distinct content frame
 }

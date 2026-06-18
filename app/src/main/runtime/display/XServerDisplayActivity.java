@@ -4294,7 +4294,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         frameGenerationQuality = presetQuality[idx];
                         frameGenerationModel = presetModel[idx];
                         frameGenerationExtrapolate = false;
-                        frameGenerationDeepMode = false;
+                        frameGenerationDeepMode = (idx == 5);   // Max engages the bidirectional (deep) flow
                         preferences.edit()
                                 .putInt(fgKey("frame_generation_preset"), idx)
                                 .putInt(fgKey("frame_generation_quality"), frameGenerationQuality)
@@ -6657,7 +6657,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         frameGenerationFramesInFlight = fgPrefInt("frame_generation_fif", 3);
         frameGenerationPreset = fgPrefInt("frame_generation_preset", 2);
         frameGenerationModel = (frameGenerationPreset == 4 || frameGenerationPreset == 5) ? 1 : 0;
-        frameGenerationDeepMode = false;   // all presets single-flow to fit the 60fps budget (steadier = occLo)
+        frameGenerationDeepMode = (frameGenerationPreset == 5);   // Max uses the bidirectional (deep) flow; others single-flow
         final float[] startupPresetFlowScale = {0.2f, 0.4f, 0.6f, 0.8f, 0.6f, 0.8f};
         float startupFlowScale = startupPresetFlowScale[Math.max(0, Math.min(frameGenerationPreset, 5))];
         renderer.setFrameGenerationMultiplier(frameGenerationMultiplier);
