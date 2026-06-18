@@ -1308,31 +1308,61 @@ object GameSaveBackupManager {
 
     /**
      * Apply a staged restore (extracted under [staging]/<zipRoot>) onto the live save dirs.
-     * Each live source dir is cleared and repopulated from staging so the result mirrors the
-     * backup exactly (no stale leftover files). Returns false on any I/O failure; the restore is
-     * idempotent (the Google backup persists), and Steam additionally has a pre-restore snapshot,
-     * so a failed apply can be safely retried.
+     *
+     * Each existing live dir is MOVED ASIDE first, the staged replacement is copied into a fresh
+     * dir, and the aside-backup is only deleted once EVERY source has copied successfully. On any
+     * failure, all moved-aside dirs are restored so the live save is left EXACTLY as it was —
+     * honoring the caller's "existing save was left unchanged" guarantee. This matters for
+     * Epic/GOG/Custom, which have no separate pre-restore snapshot to fall back on.
      */
     private fun swapRestoredSources(liveSources: List<SaveBackupSource>, staging: File): Boolean {
+        val done = mutableListOf<Triple<File, File?, Boolean>>() // (live, bak, hadLive)
+        fun rollback() {
+            for ((live, bak, hadLive) in done.asReversed()) {
+                runCatching { live.deleteRecursively() }
+                if (hadLive && bak != null) runCatching { bak.renameTo(live) }
+            }
+        }
         return try {
             for (src in liveSources) {
                 val stagingDir = File(staging, src.zipRoot)
                 val live = src.localDir
-                if (!live.isDirectory && !live.mkdirs()) return false
-                clearDirectoryContents(live)
-                if (!copyDirContents(stagingDir, live)) return false
+                val parent = live.parentFile
+                if (parent == null || (!parent.exists() && !parent.mkdirs())) {
+                    rollback()
+                    return false
+                }
+                val hadLive = live.exists()
+                var bak: File? = null
+                if (hadLive) {
+                    bak = File(parent, "${live.name}.wnrestorebak")
+                    runCatching { bak.deleteRecursively() }
+                    if (!live.renameTo(bak)) { // same-parent rename = atomic move-aside
+                        rollback()
+                        return false
+                    }
+                }
+                if (!live.mkdirs() && !live.isDirectory) {
+                    if (hadLive && bak != null) runCatching { bak.renameTo(live) }
+                    rollback()
+                    return false
+                }
+                if (!copyDirContents(stagingDir, live)) {
+                    runCatching { live.deleteRecursively() }
+                    if (hadLive && bak != null) runCatching { bak.renameTo(live) }
+                    rollback()
+                    return false
+                }
+                done += Triple(live, bak, hadLive)
             }
+            // Every source copied successfully — drop the move-aside backups (commit).
+            done.forEach { (_, bak, _) -> bak?.let { runCatching { it.deleteRecursively() } } }
             true
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "swapRestoredSources failed")
+            Timber.tag(TAG).e(e, "swapRestoredSources failed; rolling back")
+            rollback()
             false
         }
-    }
-
-    /** Delete the CONTENTS of [dir] (keeping [dir] itself). */
-    private fun clearDirectoryContents(dir: File) {
-        if (!dir.isDirectory) return
-        dir.listFiles()?.forEach { child -> runCatching { child.deleteRecursively() } }
     }
 
     /** Recursively copy the CONTENTS of [from] into [to]. Returns false on any I/O failure. */

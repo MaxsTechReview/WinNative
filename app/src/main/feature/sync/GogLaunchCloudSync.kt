@@ -124,6 +124,13 @@ object GogLaunchCloudSync {
                 statusSink.show(activity.getString(R.string.preloader_initializing))
             }
             useLocal -> {
+                if (keepBackup) {
+                    // "Use Local" pushes the local save over the GOG cloud. GOG has no
+                    // non-destructive way to capture the cloud copy (only Steam does), so honor the
+                    // checkbox by backing up the local save to Google as a recovery point at this
+                    // conflict — rather than silently doing nothing.
+                    backupLocalSaveToGoogle(activity, shortcut)
+                }
                 statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
                 CloudSyncHelper.uploadCloudSaves(activity, shortcut)
                 statusSink.show(activity.getString(R.string.preloader_initializing))

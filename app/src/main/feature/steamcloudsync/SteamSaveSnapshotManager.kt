@@ -445,14 +445,48 @@ object SteamSaveSnapshotManager {
                     runCatching { captureSnapshotLocked(context, appId, BackupOrigin.AUTO, containerHint) }
                         .onFailure { Timber.tag(TAG).w(it, "restoreFromEntry: pre-restore snapshot failed") }
 
-                    // M-4: clear the snapshot's target dirs so the restored state mirrors the
-                    // snapshot EXACTLY — without this, files newer than the snapshot survive and
-                    // produce a mixed save state that then gets pushed to cloud.
-                    targetSources.forEach {
-                        clearDirectoryContents(it.localDir)
-                        it.localDir.mkdirs()
+                    // M-4 / P1: move each snapshot target dir ASIDE, extract into a fresh dir, and
+                    // only delete the aside-backup once extraction fully succeeds. On failure (disk
+                    // full, I/O error) restore the moved-aside dirs so the user's current save is
+                    // left exactly as it was — the pre-restore snapshot above is best-effort, so
+                    // this move-aside is the real rollback guarantee. Starting from a fresh dir also
+                    // keeps the restore an EXACT mirror of the snapshot (no stale newer files).
+                    val asideDirs = mutableListOf<Triple<File, File?, Boolean>>() // (live, bak, hadLive)
+                    fun rollbackAside() {
+                        for ((live, bak, hadLive) in asideDirs.asReversed()) {
+                            runCatching { live.deleteRecursively() }
+                            if (hadLive && bak != null) runCatching { bak.renameTo(live) }
+                        }
                     }
-                    extractZipToSources(zipFile, sources)
+                    try {
+                        for (src in targetSources) {
+                            val live = src.localDir
+                            val parent = live.parentFile
+                            if (parent == null || (!parent.exists() && !parent.mkdirs())) {
+                                rollbackAside()
+                                return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                            }
+                            val hadLive = live.exists()
+                            var bak: File? = null
+                            if (hadLive) {
+                                bak = File(parent, "${live.name}.wnrestorebak")
+                                runCatching { bak.deleteRecursively() }
+                                if (!live.renameTo(bak)) { // same-parent rename = atomic move-aside
+                                    rollbackAside()
+                                    return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                                }
+                            }
+                            live.mkdirs()
+                            asideDirs += Triple(live, bak, hadLive)
+                        }
+                        extractZipToSources(zipFile, sources)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "restoreFromEntry: extraction failed; rolling back")
+                        rollbackAside()
+                        return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                    }
+                    // Extraction succeeded — drop the move-aside backups (commit).
+                    asideDirs.forEach { (_, bak, _) -> bak?.let { runCatching { it.deleteRecursively() } } }
 
                     // Push the restored state to Steam Cloud so the next launch is consistent.
                     val uploadOk = uploadLocalToSteam(context, appId)
@@ -963,12 +997,6 @@ object SteamSaveSnapshotManager {
             }
         }
         return written
-    }
-
-    /** Delete the CONTENTS of [dir] (keeping [dir] itself). Used to make a restore mirror the snapshot exactly. */
-    private fun clearDirectoryContents(dir: File) {
-        if (!dir.isDirectory) return
-        dir.listFiles()?.forEach { child -> runCatching { child.deleteRecursively() } }
     }
 
     private fun extractZipToSources(zipFile: File, sources: List<SaveSource>) {
