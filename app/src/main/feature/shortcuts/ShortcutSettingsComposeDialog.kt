@@ -68,6 +68,7 @@ import com.winlator.cmod.runtime.compat.fexcore.FEXCorePresetManager
 import com.winlator.cmod.feature.settings.OtherSettingsFragment
 import com.winlator.cmod.feature.shortcuts.ShortcutsFragment
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
+import com.winlator.cmod.runtime.input.controls.GestureProfileManager
 import com.winlator.cmod.runtime.input.controls.InputControlsManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.winhandler.WinHandler
@@ -101,6 +102,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
     // Java interop references
     private var inputControlsManager: InputControlsManager = InputControlsManager(context)
+    private var gestureProfileManager: GestureProfileManager = GestureProfileManager(context)
     private var contentsManager: ContentsManager = ContentsManager(context)
     private var isArm64EC = false
 
@@ -361,6 +363,17 @@ class ShortcutSettingsComposeDialog private constructor(
             if (it.isEmpty()) container.isExclusiveXInput() else it == "1"
         }
         state.simTouchScreen.value = shortcut.getExtra("simTouchScreen", "0") == "1"
+        state.screenTouchMode.intValue = shortcut.getExtra(
+            "screenTouchMode",
+            if (shortcut.getExtra("simTouchScreen", "0") == "1") "1" else "0"
+        ).toIntOrNull() ?: 0
+        val gestureProfiles = gestureProfileManager.profiles
+        state.gestureProfileEntries.value =
+            listOf(context.getString(R.string.common_ui_none)) + gestureProfiles.map { it.name }
+        state.gestureProfileIds.value = listOf(0) + gestureProfiles.map { it.id }
+        val gid = shortcut.getExtra("gestureProfileId", "0").toIntOrNull() ?: 0
+        state.selectedGestureProfile.intValue =
+            state.gestureProfileIds.value.indexOf(gid).let { if (it >= 0) it else 0 }
 
         // Steam options
         val gameSource = shortcut.getExtra("game_source", "")
@@ -1157,10 +1170,13 @@ class ShortcutSettingsComposeDialog private constructor(
             if (state.shortcutExclusiveXInput.value != container.isExclusiveXInput()) hasContainerOverride = true
 
             // Touchscreen mode
-            shortcut.putExtra(
-                "simTouchScreen",
-                if (state.simTouchScreen.value) "1" else "0"
-            )
+            val mode = state.screenTouchMode.intValue
+            shortcut.putExtra("simTouchScreen", if (mode == 1) "1" else "0")
+            shortcut.putExtra("screenTouchMode", mode.toString())
+            if (state.gestureProfileIds.value.isNotEmpty()) {
+                val gpid = state.gestureProfileIds.value.getOrNull(state.selectedGestureProfile.intValue) ?: 0
+                shortcut.putExtra("gestureProfileId", if (gpid > 0) gpid.toString() else null)
+            }
 
             // Launch EXE path
             val launchExePath = normalizeLaunchExeForShortcut(state.launchExePath.value)

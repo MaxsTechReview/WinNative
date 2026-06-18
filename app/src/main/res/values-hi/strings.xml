@@ -191,6 +191,10 @@
     <string name="library_games_immersive_blur_description">इमर्सिव बैकग्राउंड पर धुंधला प्रभाव लागू करें</string>
     <string name="library_games_custom_game">कस्टम गेम</string>
     <string name="library_games_play">खेलें</string>
+    <string name="hero_boot_to_desktop_title">डेस्कटॉप पर बूट करें</string>
+    <string name="hero_graphics_tests_title">ग्राफ़िक्स परीक्षण</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
     <string name="library_games_add_custom_game">कस्टम गेम जोड़ें</string>
     <string name="library_games_game_name">गेम का नाम</string>
     <string name="library_games_game_folder_mapped_drive">गेम फ़ोल्डर (मैप्ड गेम ड्राइव)</string>
@@ -514,6 +518,7 @@
     </string>
     <string name="box64_env_var_help__dynarec_noarch">संगतता ट्रेडऑफ़ के साथ मेमोरी को बचाने के लिए डायनारेक ब्लॉक मेटाडेटा को कम करता है।</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">64-बिट Windows गेम के लिए मजबूत मेमोरी अनुकरण का मार्गदर्शन करने के लिए PE अस्थिर मेटाडेटा का उपयोग करता है।</string>
+    <string name="box64_env_var_help__dynacache">स्टार्टअप को तेज़ करने के लिए रन के बीच जनरेट किए गए dynarec ब्लॉक की कैशिंग को नियंत्रित करता है।</string>
     <string name="box64_env_var_help__avx">
         guest को AVX क्षमताएँ दिखाता है।&lt;br /&gt;&lt;br /&gt;
         &lt;b&gt;0&lt;/b&gt; : AVX extension अक्षम करें&lt;br /&gt;
@@ -1264,4 +1269,48 @@
     <string name="workshop_loading_items">Workshop आइटम लोड हो रहे हैं</string>
     <string name="workshop_search_items">Workshop आइटम खोजें</string>
     <string name="common_ui_failed">विफल</string>
+    <string name="common_ui_new">नया</string>
+    <string name="common_ui_rename">नाम बदलें</string>
+    <string name="gesture_profile_export">जेस्चर प्रोफ़ाइल निर्यात करें</string>
+    <string name="gesture_profile_import">जेस्चर प्रोफ़ाइल आयात करें</string>
+    <string name="gesture_profile_new">नई जेस्चर प्रोफ़ाइल</string>
+    <string name="gesture_profile_none">कोई जेस्चर प्रोफ़ाइल नहीं</string>
+    <string name="input_controls_editor_input_profiles_section">इनपुट प्रोफ़ाइल</string>
+    <string name="session_drawer_right_stick_sensitivity">दायाँ स्टिक संवेदनशीलता</string>
+    <string name="session_drawer_rts_gestures">RTS जेस्चर</string>
+    <string name="session_drawer_rts_gestures_edit">संपादित करें</string>
+    <string name="session_drawer_touch">टच</string>
+    <string name="session_drawer_touch_map_right_stick">दाएँ स्टिक से मैप करें</string>
+    <string name="session_drawer_touch_touchscreen">टचस्क्रीन मोड</string>
+    <string name="session_drawer_touch_trackpad">ट्रैकपैड</string>
+    <string name="session_gesture_profile_section">जेस्चर प्रोफ़ाइल</string>
+    <string name="session_rts_action">क्रिया</string>
+    <string name="session_rts_behavior">व्यवहार</string>
+    <string name="session_rts_double_tap">डबल टैप (डबल लेफ़्ट-क्लिक)</string>
+    <string name="session_rts_double_tap_delay">डबल टैप विलंब (ms)</string>
+    <string name="session_rts_down">नीचे</string>
+    <string name="session_rts_drag">1-उंगली ड्रैग</string>
+    <string name="session_rts_pan1">1-उंगली पैन</string>
+    <string name="session_rts_drag2">2-उंगली ड्रैग</string>
+    <string name="session_rts_drag_threshold">ड्रैग सीमा (px)</string>
+    <string name="session_rts_gesture_threshold">जेस्चर सीमा (px)</string>
+    <string name="session_rts_hold2">2-उंगली होल्ड</string>
+    <string name="session_rts_hold3">3-उंगली होल्ड</string>
+    <string name="session_rts_hold4">4-उंगली होल्ड</string>
+    <string name="session_rts_hold_delay">होल्ड विलंब (ms)</string>
+    <string name="session_rts_left">बाएँ</string>
+    <string name="session_rts_long_press">लंबा दबाएँ</string>
+    <string name="session_rts_long_press_delay">लंबा दबाने का विलंब (ms)</string>
+    <string name="session_rts_pan">2-उंगली पैन</string>
+    <string name="session_rts_pan_threshold">पैन/पिंच शुरुआत (px)</string>
+    <string name="session_rts_right">दाएँ</string>
+    <string name="session_rts_swipe3">3-उंगली स्वाइप</string>
+    <string name="session_rts_swipe4">4-उंगली स्वाइप</string>
+    <string name="session_rts_swipe_threshold">स्वाइप सीमा (px)</string>
+    <string name="session_rts_tap1">1-उंगली टैप</string>
+    <string name="session_rts_tap2">2-उंगली टैप</string>
+    <string name="session_rts_tap3">3-उंगली टैप</string>
+    <string name="session_rts_tap4">4-उंगली टैप</string>
+    <string name="session_rts_up">ऊपर</string>
+    <string name="session_rts_zoom">पिंच ज़ूम</string>
 </resources>

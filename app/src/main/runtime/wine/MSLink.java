@@ -243,12 +243,21 @@ public abstract class MSLink {
       File containerRootDir = container != null ? container.getRootDir() : new File(imageFs.getRootDir(), "home/" + ImageFs.USER);
       winePrefix = new File(containerRootDir, ".wine").getAbsolutePath();
 
-      // PEACFUL UPGRADE: If getNativePath failed (common during first creation), 
+      // PEACFUL UPGRADE: If getNativePath failed (common during first creation),
       // calculate the Absolute Android Path math immediately so we have the parent folder.
       if (exeFile == null || !exeFile.exists()) {
         String relPath = windowsPath.substring(2).replace("\\", "/");
         while (relPath.startsWith("/")) relPath = relPath.substring(1);
         exeFile = new File(containerRootDir, ".wine/drive_c/" + relPath);
+      }
+    } else if (windowsPath.matches("^[zZ]:.*")) {
+      File containerRootDir = container != null ? container.getRootDir() : new File(imageFs.getRootDir(), "home/" + ImageFs.USER);
+      winePrefix = new File(containerRootDir, ".wine").getAbsolutePath();
+
+      if (exeFile == null || !exeFile.exists()) {
+        String relPath = windowsPath.substring(2).replace("\\", "/");
+        while (relPath.startsWith("/")) relPath = relPath.substring(1);
+        exeFile = new File(imageFs.getRootDir(), relPath);
       }
     }
 
