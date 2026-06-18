@@ -123,6 +123,8 @@ import com.winlator.cmod.runtime.input.ControllerAssignmentDialog;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
+import com.winlator.cmod.runtime.input.controls.GestureProfile;
+import com.winlator.cmod.runtime.input.controls.GestureProfileManager;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
 import com.winlator.cmod.runtime.input.controls.LabelTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
@@ -262,6 +264,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     protected Container container;
     private XServer xServer;
     private InputControlsManager inputControlsManager;
+    private GestureProfileManager gestureProfileManager;
+    private int currentGestureProfileId = 0;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
@@ -342,8 +346,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean reusingSession = false;
     private boolean isRelativeMouseMovement = false;
     private boolean isRefactorSizeEnabled = false;
+    private int screenTouchMode = 0;
+    private boolean rtsGesturesEnabled = false;
     private static final long REFACTOR_SIZE_EXE_BYTES = 17408L;
     private static final long REFACTOR_SIZE_UNSTAGE_DELAY_MS = 3000L;
+    private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
+    private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
+    private String bootExePath;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -727,9 +736,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String incomingShortcutPath = intent.getStringExtra("shortcut_path");
         String incomingShortcutUuid = intent.getStringExtra("shortcut_uuid");
         int incomingContainerId = intent.getIntExtra("container_id", 0);
+        String incomingBootExe = intent.getStringExtra("boot_exe");
         String currentShortcutPath = shortcut != null ? shortcut.file.getAbsolutePath() : "";
         String currentShortcutUuid = shortcut != null ? shortcut.getExtra("uuid") : "";
         int currentContainerId = container != null ? container.id : 0;
+        String currentBootExe = bootExePath != null ? bootExePath : "";
 
         setIntent(intent);
         launchedFromPinnedShortcut = isPinnedShortcutLaunchIntent(intent);
@@ -741,8 +752,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 && !incomingShortcutUuid.isEmpty()
                 && !incomingShortcutUuid.equals(currentShortcutUuid);
         boolean containerChanged = incomingContainerId != 0 && incomingContainerId != currentContainerId;
+        boolean bootExeChanged = !(incomingBootExe != null ? incomingBootExe : "").equals(currentBootExe);
 
-        if (shortcutChanged || shortcutUuidChanged || containerChanged) {
+        if (shortcutChanged || shortcutUuidChanged || containerChanged || bootExeChanged) {
             Log.d("XServerDisplayActivity", "onNewIntent: launch target changed, cleaning up before recreation");
             switchLaunchTargetAfterCleanup(intent);
         }
@@ -1051,6 +1063,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         String shortcutUuid = getIntent().getStringExtra("shortcut_uuid");
         int shortcutPathHash = getIntent().getIntExtra("shortcut_path_hash", 0);
+        bootExePath = getIntent().getStringExtra("boot_exe");
 
         android.net.Uri launchData = getIntent().getData();
         if (launchData != null) {
@@ -1074,6 +1087,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             } catch (Exception e) {
                 Log.e("XServerDisplayActivity", "Failed to parse shortcut URI fallback", e);
+            }
+        }
+
+        if ((shortcutPath == null || shortcutPath.isEmpty()) && launchData != null) {
+            String dataPath = resolveDesktopPathFromUri(launchData);
+            if (dataPath != null && !dataPath.isEmpty()) {
+                shortcutPath = dataPath;
+                Log.d("XServerDisplayActivity", "Resolved shortcut path from VIEW data: " + shortcutPath);
             }
         }
 
@@ -1475,6 +1496,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         inputControlsManager = new InputControlsManager(this);
+        gestureProfileManager = new GestureProfileManager(this);
         sgsrBaseScreenSize = screenSize;
         String effectiveScreenSize =
                 SGSRResolutionUtils.applyRenderScale(screenSize, sgsrEnabled, sgsrUpscaleMode);
@@ -1691,6 +1713,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }, 1000);
         }
+    }
+
+    private String resolveDesktopPathFromUri(android.net.Uri uri) {
+        if (uri == null) return null;
+        try {
+            String scheme = uri.getScheme();
+            if ("file".equalsIgnoreCase(scheme)) {
+                return uri.getPath();
+            }
+            if ("content".equalsIgnoreCase(scheme)) {
+                return com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri);
+            }
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to resolve .desktop path from URI", e);
+        }
+        return null;
     }
 
     private int parseContainerIdFromDesktopFile(File desktopFile) {
@@ -3839,6 +3877,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
         int selectedLabelThemeIndex = currentLabelTheme.ordinal();
 
+        List<String> gestureProfileNames = new ArrayList<>();
+        int gestureSelectedIndex = 0;
+        try {
+            gestureProfileNames = gestureProfileManager.getProfileNames();
+            gestureSelectedIndex = Math.max(0, gestureProfileManager.indexOfProfile(selectedGestureProfileId()));
+        } catch (Throwable t) {
+            android.util.Log.e("XServerDisplayActivity", "gesture drawer names failed", t);
+        }
+
         XServerDrawerState state = XServerDrawerMenuKt.buildXServerDrawerState(
                 this,
                 isRelativeMouseMovement,
@@ -3865,7 +3912,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("gyro_mouse_scale", 50.0f),
                 preferences.getFloat("gyro_x_sensitivity", 1.0f),
                 preferences.getFloat("gyro_y_sensitivity", 1.0f),
-                preferences.getFloat("gyro_smoothing", 0.1f),
+                preferences.getFloat("gyro_smoothing", 0.5f),
                 preferences.getFloat("gyro_deadzone", 0.05f),
                 preferences.getBoolean("invert_gyro_x", false),
                 preferences.getBoolean("invert_gyro_y", false),
@@ -3908,7 +3955,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 globalCursorSpeed,
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
-                isRefactorSizeEnabled
+                isRefactorSizeEnabled,
+                screenTouchMode,
+                rtsGesturesEnabled,
+                gestureProfileNames,
+                gestureSelectedIndex,
+                preferences.getFloat("right_stick_sensitivity", 1.0f),
+                preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
         );
 
         if (drawerActionListener == null) {
@@ -4434,6 +4487,88 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             renderDrawerMenu();
                         };
                         controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onScreenTouchModeChanged(int mode) {
+                        screenTouchMode = mode;
+                        rtsGesturesEnabled = false;
+                        if (touchpadView != null) {
+                            touchpadView.setScreenTouchMode(mode);
+                            touchpadView.setRtsGesturesEnabled(false);
+                        }
+                        if (winHandler != null) winHandler.setScreenTouchStickActive(mode == 2);
+                        if (shortcut != null) {
+                            shortcut.putExtra("screenTouchMode", String.valueOf(mode));
+                            shortcut.putExtra("simTouchScreen", mode == 1 ? "1" : "0");
+                            shortcut.putExtra("rtsGestures", "0");
+                            shortcut.saveData();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRtsGesturesToggled(boolean enabled) {
+                        rtsGesturesEnabled = enabled;
+                        screenTouchMode = 0;
+                        if (touchpadView != null) {
+                            touchpadView.setRtsGesturesEnabled(enabled);
+                            touchpadView.setScreenTouchMode(0);
+                        }
+                        if (winHandler != null) winHandler.setScreenTouchStickActive(false);
+                        if (enabled) pushSelectedGestureConfig();
+                        if (shortcut != null) {
+                            shortcut.putExtra("rtsGestures", enabled ? "1" : "0");
+                            shortcut.putExtra("screenTouchMode", "0");
+                            shortcut.putExtra("simTouchScreen", "0");
+                            shortcut.saveData();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onGestureProfileSelected(int index) {
+                        ArrayList<GestureProfile> profiles = gestureProfileManager.getProfiles();
+                        if (index < 0 || index >= profiles.size()) return;
+                        GestureProfile p = profiles.get(index);
+                        currentGestureProfileId = p.id;
+                        if (touchpadView != null) touchpadView.setGestureConfig(p.getConfigJson());
+                        renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onRtsGesturesEditClick() {
+                        ControlsProfile activeProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        Intent intent = new Intent(XServerDisplayActivity.this, UnifiedActivity.class);
+                        intent.putExtra("edit_input_controls", true);
+                        intent.putExtra("selected_profile_id", activeProfile != null ? activeProfile.id : 0);
+                        intent.putExtra("gesture_profile_id", selectedGestureProfileId());
+                        intent.putExtra("return_to_game_on_back", true);
+                        final ControlsProfile editingProfile = activeProfile;
+                        editInputControlsCallback = () -> {
+                            gestureProfileManager.loadProfiles();
+                            int gid = selectedGestureProfileId();
+                            GestureProfile gp = gid != 0 ? gestureProfileManager.getProfile(gid) : gestureProfileManager.getDefaultProfile();
+                            if (gp == null) gp = gestureProfileManager.getDefaultProfile();
+                            if (touchpadView != null) touchpadView.setGestureConfig(gp.getConfigJson());
+                            hideInputControls();
+                            if (inputControlsManager != null) inputControlsManager.loadProfiles(true);
+                            ControlsProfile reactivated = editingProfile != null && inputControlsManager != null ? inputControlsManager.getProfile(editingProfile.id) : null;
+                            if (reactivated != null) showInputControls(reactivated);
+                            renderDrawerMenu();
+                        };
+                        controlsEditorActivityResultLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void onRightStickSensitivityChanged(float sensitivity) {
+                        if (screenTouchMode == 2) {
+                            preferences.edit().putFloat("screen_touch_rs_sensitivity", sensitivity).apply();
+                        } else {
+                            preferences.edit().putFloat("right_stick_sensitivity", sensitivity).apply();
+                            if (winHandler != null) winHandler.setRightStickSensitivity(sensitivity);
+                        }
+                        renderDrawerMenu();
                     }
 
                     @Override
@@ -5139,6 +5274,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    private void stageGraphicsTestExes() {
+        if (container == null) return;
+        File dir = new File(container.getRootDir(), ".wine/drive_c/ProgramData/Microsoft/Windows");
+        if (!dir.isDirectory() && !dir.mkdirs()) return;
+        stageBundledExe(dir, "Graphics-Test-32bit.exe", GRAPHICS_TEST_32_EXE_BYTES);
+        stageBundledExe(dir, "Graphics-Test-64bit.exe", GRAPHICS_TEST_64_EXE_BYTES);
+    }
+
+    private void stageBundledExe(File dir, String name, long expectedBytes) {
+        File dst = new File(dir, name);
+        if (dst.exists() && dst.length() == expectedBytes) return;
+        try (java.io.InputStream in = getAssets().open("winnative/" + name);
+             java.io.FileOutputStream out = new java.io.FileOutputStream(dst)) {
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Failed to stage " + name, e);
+        }
+    }
+
     private void unstageRefactorSizeHelper() {
         final File dst = new File(container.getRootDir(), ".wine/drive_c/WinNative/refactorsize.exe");
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
@@ -5535,11 +5691,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         String wineArchKey = wineVersion != null && wineVersion.contains("arm64ec") ? "arm64ec" : "x86_64";
         String dxwrapperGateKey = dxwrapper + "|arch=" + wineArchKey;
-        if (!dxwrapperGateKey.equals(container.getExtra("dxwrapper")) || firstTimeBoot) {
+        boolean forceWrapperApply = bootExePath != null && !bootExePath.isEmpty();
+        if (!dxwrapperGateKey.equals(container.getExtra("dxwrapper")) || firstTimeBoot || forceWrapperApply) {
             Log.i("XServerDisplayActivity",
                     "DXVK/VKD3D extract: gate fired (key='" + dxwrapperGateKey
                             + "' prev='" + container.getExtra("dxwrapper")
-                            + "' firstTimeBoot=" + firstTimeBoot + ")");
+                            + "' firstTimeBoot=" + firstTimeBoot + " forced=" + forceWrapperApply + ")");
             wipeDxwrapperDllsForReextract();
             extractDXWrapperFiles(dxwrapper);
             container.putExtra("dxwrapper", dxwrapperGateKey);
@@ -5582,6 +5739,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         WineStartMenuCreator.create(this, container);
+        stageGraphicsTestExes();
         WineUtils.createDosdevicesSymlinks(container, getActiveGameDirectoryPath(), isSteamShortcut());
 
         int inputType = container.getInputType();
@@ -6270,8 +6428,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                          : (container != null && container.getExtra("swapRB", "0").equals("1"));
         renderer.setSwapRB(swapRB);
 
-        if (shortcut != null) {
+        if (shortcut != null || (bootExePath != null && !bootExePath.isEmpty())) {
             renderer.setUnviewableWMClasses("explorer.exe");
+        }
+        if (shortcut != null) {
             String savedFpsLimit = shortcut.getExtra("fpsLimit", "0");
             try {
                 runtimeFpsLimit = Integer.parseInt(savedFpsLimit);
@@ -6331,8 +6491,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
-            touchpadView.setSimTouchScreen(simTouchScreen.equals("1"));
+            screenTouchMode = Integer.parseInt(shortcut.getExtra("screenTouchMode", simTouchScreen.equals("1") ? "1" : "0"));
+            touchpadView.setScreenTouchMode(screenTouchMode);
+            if (winHandler != null) winHandler.setScreenTouchStickActive(screenTouchMode == 2);
+            rtsGesturesEnabled = shortcut.getExtra("rtsGestures", "0").equals("1");
+            touchpadView.setRtsGesturesEnabled(rtsGesturesEnabled);
         }
+
+        if (rtsGesturesEnabled) pushSelectedGestureConfig();
+
+        if (winHandler != null) winHandler.setRightStickSensitivity(preferences.getFloat("right_stick_sensitivity", 1.0f));
 
         startTouchscreenTimeout();
 
@@ -6606,6 +6774,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             editor.putInt("selected_profile_index", -1);
         }
         editor.apply();
+    }
+
+    private void pushSelectedGestureConfig() {
+        try {
+            int gid = selectedGestureProfileId();
+            GestureProfile gp = gid != 0 ? gestureProfileManager.getProfile(gid) : gestureProfileManager.getDefaultProfile();
+            if (gp == null) gp = gestureProfileManager.getDefaultProfile();
+            if (gp != null && touchpadView != null) touchpadView.setGestureConfig(gp.getConfigJson());
+        } catch (Throwable t) {
+            android.util.Log.e("XServerDisplayActivity", "gesture resolve failed", t);
+        }
+    }
+
+    private int selectedGestureProfileId() {
+        if (currentGestureProfileId != 0) return currentGestureProfileId;
+        int id = 0;
+        if (shortcut != null) {
+            try {
+                id = Integer.parseInt(shortcut.getExtra("gestureProfileId", "0"));
+            } catch (NumberFormatException e) {
+                id = 0;
+            }
+        }
+        if (id != 0) return id;
+        GestureProfile def = gestureProfileManager != null ? gestureProfileManager.getDefaultProfile() : null;
+        return def != null ? def.id : 0;
     }
 
     // Hide legacy label-only profiles unless one is already active.
@@ -7274,7 +7468,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         EnvVars envVars = getOverrideEnvVars();
         String args = "";
 
-        if (shortcut != null) {
+        if (bootExePath != null && !bootExePath.isEmpty()) {
+            args = "\"" + bootExePath + "\"";
+        } else if (shortcut != null) {
             String path = shortcut.path;
             String gameSource = shortcut.getExtra("game_source", "CUSTOM");
             Log.d("XServerDisplayActivity", "getWineStartCommand: gameSource=" + gameSource + " shortcut.path=" + path);

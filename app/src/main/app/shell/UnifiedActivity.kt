@@ -113,6 +113,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -917,7 +918,86 @@ class UnifiedActivity :
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (maybeForwardFrontendLaunch()) return
         handleSettingsIntent(intent)
+    }
+
+    private fun maybeForwardFrontendLaunch(): Boolean {
+        val source = intent ?: return false
+        val path = resolveIncomingDesktopPath(source) ?: return false
+        startActivity(
+            Intent(this, XServerDisplayActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                putExtra("shortcut_path", path)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+        )
+        finish()
+        return true
+    }
+
+    private fun resolveIncomingDesktopPath(source: Intent): String? {
+        materializeDesktop(source.data)?.let { return it }
+        source.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                materializeDesktop(clip.getItemAt(i).uri)?.let { return it }
+                materializeDesktop(clip.getItemAt(i).text?.toString())?.let { return it }
+            }
+        }
+        val extras = source.extras ?: return null
+        for (key in extras.keySet()) {
+            materializeDesktop(extras.get(key))?.let { return it }
+        }
+        return null
+    }
+
+    private fun materializeDesktop(value: Any?): String? =
+        when (value) {
+            is android.net.Uri -> materializeDesktopUri(value)
+            is String ->
+                if (value.startsWith("content://") || value.startsWith("file://")) {
+                    materializeDesktopUri(android.net.Uri.parse(value))
+                } else {
+                    java.io.File(value).takeIf { it.isFile && looksLikeDesktopFile(it) }?.absolutePath
+                }
+            else -> null
+        }
+
+    private fun materializeDesktopUri(uri: android.net.Uri): String? {
+        when (uri.scheme?.lowercase()) {
+            "file" -> {
+                val file = uri.path?.let { java.io.File(it) }
+                if (file != null && file.isFile && looksLikeDesktopFile(file)) return file.absolutePath
+            }
+            "content" -> {
+                val resolved = com.winlator.cmod.shared.io.FileUtils.getFilePathFromUri(this, uri)
+                if (!resolved.isNullOrEmpty()) {
+                    val file = java.io.File(resolved)
+                    if (file.isFile && looksLikeDesktopFile(file)) return file.absolutePath
+                }
+                return copyUriToCacheDesktop(uri)
+            }
+        }
+        return null
+    }
+
+    private fun copyUriToCacheDesktop(uri: android.net.Uri): String? =
+        runCatching {
+            val out = java.io.File(cacheDir, "frontend_launch.desktop")
+            val copied =
+                contentResolver.openInputStream(uri)?.use { input ->
+                    out.outputStream().use { output -> input.copyTo(output) }
+                    true
+                } ?: false
+            if (copied && out.isFile && looksLikeDesktopFile(out)) out.absolutePath else null
+        }.getOrNull()
+
+    private fun looksLikeDesktopFile(file: java.io.File): Boolean {
+        if (!file.isFile || file.length() > 1_000_000L) return false
+        return runCatching {
+            val text = file.readText()
+            text.contains("[Desktop Entry]") || text.contains("container_id")
+        }.getOrDefault(false)
     }
 
     private fun bootstrapStartupState() {
@@ -1006,6 +1086,8 @@ class UnifiedActivity :
             finish()
             return
         }
+
+        if (maybeForwardFrontendLaunch()) return
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
         bootstrapStartupState()
@@ -1672,6 +1754,23 @@ class UnifiedActivity :
                     onImmersiveBlurChanged = {
                         immersiveBlur = it
                         PrefManager.libraryImmersiveBlur = it
+                    },
+                    onExportAll = {
+                        scope.launch {
+                            val count =
+                                withContext(Dispatchers.IO) {
+                                    com.winlator.cmod.feature.shortcuts.FrontendExporter.exportAll(context)
+                                }
+                            val dir = com.winlator.cmod.feature.shortcuts.FrontendExporter.resolveExportDir(context)
+                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                context,
+                                if (count > 0) {
+                                    context.getString(R.string.shortcuts_export_all_done, count, dir?.path ?: "")
+                                } else {
+                                    context.getString(R.string.shortcuts_export_all_none)
+                                },
+                            )
+                        }
                     },
                     onExitApp = {
                         AppTerminationHelper.exitApplication(this@UnifiedActivity, "hub_drawer_exit")
@@ -3299,16 +3398,35 @@ class UnifiedActivity :
                     Column(
                         modifier = Modifier.padding(vertical = 6.dp),
                     ) {
-                        // Title header
-                        Text(
-                            text = title,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = title,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            IconButton(
+                                onClick = onDismissRequest,
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .size(34.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.common_ui_close),
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
                         HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
                         Column(
                             modifier =
@@ -3519,6 +3637,127 @@ class UnifiedActivity :
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun HeroLaunchConfirmFooter(
+        onCancel: () -> Unit,
+        onContinue: () -> Unit,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PopupTextAction(
+                label = stringResource(R.string.common_ui_cancel),
+                textColor = DangerRed,
+                onClick = onCancel,
+            )
+            PopupTextAction(
+                label = stringResource(R.string.common_ui_continue),
+                textColor = StatusOnline,
+                onClick = onContinue,
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroBootDialog(
+        onConfirm: (HeroBootChoice) -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        var choice by remember { mutableStateOf(HeroBootChoice.Desktop) }
+        val graphicsTest = stringResource(R.string.hero_graphics_tests_title)
+        val test32 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_32)
+        val test64 = graphicsTest + " " + stringResource(R.string.hero_graphics_test_64)
+        val title =
+            when (choice) {
+                HeroBootChoice.Desktop -> stringResource(R.string.hero_boot_to_desktop_title)
+                HeroBootChoice.Cube32 -> test32
+                HeroBootChoice.Cube64 -> test64
+            }
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = title,
+                icon = Icons.Outlined.DesktopWindows,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 220.dp, max = 290.dp),
+                content = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        HeroBootOptionRow(
+                            label = stringResource(R.string.hero_boot_to_desktop_title),
+                            selected = choice == HeroBootChoice.Desktop,
+                            onClick = { choice = HeroBootChoice.Desktop },
+                        )
+                        HeroBootOptionRow(
+                            label = test32,
+                            selected = choice == HeroBootChoice.Cube32,
+                            onClick = { choice = HeroBootChoice.Cube32 },
+                        )
+                        HeroBootOptionRow(
+                            label = test64,
+                            selected = choice == HeroBootChoice.Cube64,
+                            onClick = { choice = HeroBootChoice.Cube64 },
+                        )
+                    }
+                },
+                footer = {
+                    HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = { onConfirm(choice) })
+                },
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroBootOptionRow(
+        label: String,
+        selected: Boolean,
+        onClick: () -> Unit,
+    ) {
+        val glassBlue = Accent
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(glassBlue.copy(alpha = if (selected) 0.26f else 0.05f))
+                .border(1.dp, glassBlue.copy(alpha = if (selected) 0.65f else 0.12f), RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                color = if (selected) Color.White else glassBlue.copy(alpha = 0.5f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+
+    @Composable
+    private fun HeroRemoveShortcutDialog(
+        gameName: String,
+        onConfirm: () -> Unit,
+        onDismissRequest: () -> Unit,
+    ) {
+        Dialog(onDismissRequest = onDismissRequest) {
+            PopupDialog(
+                title = stringResource(R.string.common_ui_shortcut),
+                message = stringResource(R.string.shortcuts_list_remove_game_shortcut_message, gameName),
+                icon = Icons.Outlined.Home,
+                accentColor = DangerRed,
+                confirmButtonColor = DangerRed,
+                confirmLabel = stringResource(R.string.common_ui_remove),
+                progressLabel = stringResource(R.string.common_ui_working),
+                onConfirm = onConfirm,
+                onCancel = onDismissRequest,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            )
         }
     }
 
@@ -3773,6 +4012,23 @@ class UnifiedActivity :
                                 },
                             ),
                             GameSettingsActionItem(
+                                title = stringResource(R.string.hero_boot_to_desktop_title),
+                                icon = Icons.Outlined.DesktopWindows,
+                                onClick = {
+                                    val shortcut =
+                                        findLibraryShortcutForGame(ContainerManager(context), app, isCustom, isEpic, epicId)
+                                    if (shortcut != null) {
+                                        context.startActivity(
+                                            Intent(context, XServerDisplayActivity::class.java)
+                                                .putExtra("container_id", shortcut.container.id),
+                                        )
+                                    } else {
+                                        com.winlator.cmod.shared.ui.toast.WinToast.show(context, R.string.shortcuts_list_not_available)
+                                    }
+                                    onDismissRequest()
+                                },
+                            ),
+                            GameSettingsActionItem(
                                 title =
                                     stringResource(
                                         if (hasPinnedShortcut) {
@@ -3799,10 +4055,6 @@ class UnifiedActivity :
                                                         epicArtworkUrl,
                                                     )
                                                 }
-                                            if (created) {
-                                                pinnedShortcutOverride = true
-                                                shortcutRefreshKey++
-                                            }
                                             if (!created) {
                                                 com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                     context,
@@ -4131,10 +4383,6 @@ class UnifiedActivity :
                                                     withContext(Dispatchers.IO) {
                                                         addGogShortcutToHomeScreen(context, app, artworkUrl)
                                                     }
-                                                if (created) {
-                                                    pinnedShortcutOverride = true
-                                                    shortcutRefreshKey++
-                                                }
                                                 if (!created) {
                                                     com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
@@ -4314,6 +4562,10 @@ class UnifiedActivity :
     private enum class LibraryDetailScreen { Main, Shortcut, CloudSaves, Uninstall }
 
     private enum class LibraryDetailPopup { CloudSaves }
+
+    private enum class HeroLaunchPopup { BootToDesktop, RemoveShortcut }
+
+    private enum class HeroBootChoice { Desktop, Cube32, Cube64 }
 
     @Composable
     private fun LibraryGameDetailDialog(
@@ -4934,6 +5186,37 @@ class UnifiedActivity :
                                         isGog -> gogGame?.title?.takeIf { it.isNotBlank() } ?: app.name
                                         else -> app.name
                                     }
+                                val heroToastAnchor = LocalView.current
+                                var heroPopup by remember { mutableStateOf<HeroLaunchPopup?>(null) }
+                                var bootShortcut by remember { mutableStateOf<com.winlator.cmod.runtime.container.Shortcut?>(null) }
+                                val resolveOrCreateShortcut: () -> com.winlator.cmod.runtime.container.Shortcut? = {
+                                    val containerManager = ContainerManager(context)
+                                    when {
+                                        isGog ->
+                                            containerManager.loadShortcuts().find {
+                                                it.getExtra("game_source") == "GOG" &&
+                                                    it.getExtra("gog_id") == gogGame!!.id
+                                            } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                context = context,
+                                                containerManager = containerManager,
+                                                source = "GOG",
+                                                appId = gogPseudoId(gogGame!!.id),
+                                                gogId = gogGame.id,
+                                                appName = app.name,
+                                            )
+                                        isCustom -> findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                        else ->
+                                            findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
+                                                ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
+                                                    context = context,
+                                                    containerManager = containerManager,
+                                                    source = if (isEpic) "EPIC" else "STEAM",
+                                                    appId = if (isEpic) epicId else app.id,
+                                                    gogId = null,
+                                                    appName = app.name,
+                                                )
+                                    }
+                                }
                                 LibraryGameLaunchScreen(
                                     appName = launchAppName,
                                     subtitle = subtitle,
@@ -4964,47 +5247,28 @@ class UnifiedActivity :
                                         onDismissRequest()
                                     },
                                     onSettings = {
-                                        val containerManager = ContainerManager(context)
-                                        val shortcut: com.winlator.cmod.runtime.container.Shortcut? =
-                                            when {
-                                                isGog -> {
-                                                    containerManager.loadShortcuts().find {
-                                                        it.getExtra("game_source") == "GOG" &&
-                                                            it.getExtra("gog_id") == gogGame!!.id
-                                                    } ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                        context = context,
-                                                        containerManager = containerManager,
-                                                        source = "GOG",
-                                                        appId = gogPseudoId(gogGame!!.id),
-                                                        gogId = gogGame.id,
-                                                        appName = app.name,
-                                                    )
-                                                }
-
-                                                isCustom -> {
-                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                }
-
-                                                else -> {
-                                                    findLibraryShortcutForGame(containerManager, app, isCustom, isEpic, epicId)
-                                                        ?: ShortcutSettingsComposeDialog.createLibraryShortcut(
-                                                            context = context,
-                                                            containerManager = containerManager,
-                                                            source = if (isEpic) "EPIC" else "STEAM",
-                                                            appId = if (isEpic) epicId else app.id,
-                                                            gogId = null,
-                                                            appName = app.name,
-                                                        )
-                                                }
-                                            }
+                                        val shortcut = resolveOrCreateShortcut()
                                         if (shortcut != null) {
                                             // Layer the settings dialog on top; keep the detail dialog open underneath.
                                             ShortcutSettingsComposeDialog(this@UnifiedActivity, shortcut).show()
                                         }
                                     },
+                                    onBootToDesktop = {
+                                        val shortcut = resolveOrCreateShortcut()
+                                        if (shortcut != null) {
+                                            bootShortcut = shortcut
+                                            heroPopup = HeroLaunchPopup.BootToDesktop
+                                        } else {
+                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                context,
+                                                R.string.shortcuts_list_not_available,
+                                                heroToastAnchor,
+                                            )
+                                        }
+                                    },
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
-                                            currentScreen = LibraryDetailScreen.Shortcut
+                                            heroPopup = HeroLaunchPopup.RemoveShortcut
                                         } else {
                                             scope.launch {
                                                 val created =
@@ -5023,10 +5287,6 @@ class UnifiedActivity :
                                                             )
                                                         }
                                                     }
-                                                if (created) {
-                                                    pinnedShortcutOverride = true
-                                                    shortcutRefreshKey++
-                                                }
                                                 if (!created) {
                                                     com.winlator.cmod.shared.ui.toast.WinToast.show(
                                                         context,
@@ -5100,6 +5360,61 @@ class UnifiedActivity :
                                     },
                                     onWorkshop = { if (!isEpic && !isGog) showWorkshopDialog = true },
                                 )
+
+                                when (heroPopup) {
+                                    HeroLaunchPopup.BootToDesktop ->
+                                        HeroBootDialog(
+                                            onConfirm = { choice ->
+                                                heroPopup = null
+                                                bootShortcut?.let { sc ->
+                                                    val intent =
+                                                        Intent(context, XServerDisplayActivity::class.java)
+                                                            .putExtra("container_id", sc.container.id)
+                                                    when (choice) {
+                                                        HeroBootChoice.Desktop -> {}
+                                                        HeroBootChoice.Cube32 ->
+                                                            intent
+                                                                .putExtra("shortcut_path", sc.file.absolutePath)
+                                                                .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-32bit.exe")
+                                                        HeroBootChoice.Cube64 ->
+                                                            intent
+                                                                .putExtra("shortcut_path", sc.file.absolutePath)
+                                                                .putExtra("boot_exe", "C:\\ProgramData\\Microsoft\\Windows\\Graphics-Test-64bit.exe")
+                                                    }
+                                                    context.startActivity(intent)
+                                                    onDismissRequest()
+                                                }
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    HeroLaunchPopup.RemoveShortcut ->
+                                        HeroRemoveShortcutDialog(
+                                            gameName = if (isGog) gogGame!!.title else app.name,
+                                            onConfirm = {
+                                                scope.launch {
+                                                    val removed =
+                                                        withContext(Dispatchers.IO) {
+                                                            homeShortcutState.shortcut?.let {
+                                                                LibraryShortcutUtils.disablePinnedHomeShortcut(context, it)
+                                                            } == true
+                                                        }
+                                                    pinnedShortcutOverride = if (removed) false else hasPinnedShortcut
+                                                    shortcutRefreshKey++
+                                                    heroPopup = null
+                                                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                                                        context,
+                                                        if (removed) {
+                                                            context.getString(R.string.shortcuts_list_removed)
+                                                        } else {
+                                                            context.getString(R.string.common_ui_unknown_error)
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                            onDismissRequest = { heroPopup = null },
+                                        )
+                                    null -> {}
+                                }
                             }
 
                             LibraryDetailScreen.Shortcut -> {
@@ -10240,6 +10555,7 @@ class UnifiedActivity :
         onContentFiltersChanged: (String, Boolean) -> Unit,
         onImmersiveModeChanged: (Boolean) -> Unit,
         onImmersiveBlurChanged: (Boolean) -> Unit,
+        onExportAll: () -> Unit,
         onExitApp: () -> Unit,
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
@@ -10491,6 +10807,13 @@ class UnifiedActivity :
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
+                DrawerActionCard(
+                    icon = Icons.Outlined.IosShare,
+                    label = stringResource(R.string.shortcuts_export_to_frontend),
+                    onClick = onExportAll,
+                )
+
                 Spacer(Modifier.height(16.dp))
 
                 // ── Stores ──
@@ -10594,6 +10917,66 @@ class UnifiedActivity :
             Text(
                 text = stringResource(R.string.common_ui_exit_app),
                 color = Color(0xFFFFD6D6),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+
+    @Composable
+    private fun DrawerActionCard(
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        label: String,
+        onClick: () -> Unit,
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.97f else 1f,
+            animationSpec = tween(100),
+            label = "drawerActionCardScale",
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Accent.copy(alpha = 0.14f))
+                    .border(1.dp, Accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Accent.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Accent,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = label,
+                color = TextPrimary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

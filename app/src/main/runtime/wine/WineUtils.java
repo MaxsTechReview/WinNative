@@ -46,6 +46,15 @@ public abstract class WineUtils {
         if (relativePath.isEmpty()) return "C:\\";
         return "C:\\" + relativePath;
       }
+
+      String driveZRoot =
+          normalizeHostPath(new File(container.getRootDir(), "../..").getAbsolutePath());
+      if (pathStartsWith(normalizedHostPath, driveZRoot)) {
+        String relativePath = normalizedHostPath.substring(driveZRoot.length()).replace("/", "\\");
+        while (relativePath.startsWith("\\")) relativePath = relativePath.substring(1);
+        if (relativePath.isEmpty()) return "Z:\\";
+        return "Z:\\" + relativePath;
+      }
     }
 
     String bestDriveLetter = null;
@@ -1388,6 +1397,10 @@ public abstract class WineUtils {
       // Direct drive_c fallback
       if (drive.equals("c")) {
         return new File(homePrefix, ".wine/drive_c/" + relPath);
+      }
+      // Direct drive_z fallback (Z: maps to the imageFs root)
+      if (drive.equals("z")) {
+        return new File(imageFs.getRootDir(), relPath);
       }
     }
     return new File(imageFs.getRootDir(), path);

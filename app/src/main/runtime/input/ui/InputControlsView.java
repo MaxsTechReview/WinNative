@@ -824,6 +824,7 @@ public class InputControlsView extends View {
             batchingUpdates = true;
             boolean anyControlHandled = false;
             boolean unhandledPointerExists = false;
+            boolean capturesChanged = false;
 
             for (byte i = 0, count = (byte) event.getPointerCount(); i < count; i++) {
               int movePointerId = event.getPointerId(i);
@@ -838,6 +839,7 @@ public class InputControlsView extends View {
                 if (stickElement != null && stickElement.handleTouchMove(movePointerId, x, y)) {
                   activeTouchElements.put(movePointerId, stickElement);
                   pointerHandled = true;
+                  capturesChanged = true;
                 }
 
                 if (!pointerHandled) {
@@ -845,6 +847,7 @@ public class InputControlsView extends View {
                     if (element.handleTouchMove(movePointerId, x, y)) {
                       activeTouchElements.put(movePointerId, element);
                       pointerHandled = true;
+                      capturesChanged = true;
                       break;
                     }
                   }
@@ -861,7 +864,7 @@ public class InputControlsView extends View {
               winHandler.sendGamepadState();
             }
 
-            syncCapturedPointers();
+            if (capturesChanged) syncCapturedPointers();
             if (unhandledPointerExists) dispatchUnhandledTouch(event);
             break;
             }        case MotionEvent.ACTION_UP:

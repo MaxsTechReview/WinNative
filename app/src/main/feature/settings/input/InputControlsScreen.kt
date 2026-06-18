@@ -101,7 +101,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.input.controls.Binding
+import com.winlator.cmod.runtime.input.ui.DragAction
+import com.winlator.cmod.runtime.input.ui.HoldBehavior
 import com.winlator.cmod.runtime.input.ui.InputControlsView
+import com.winlator.cmod.runtime.input.ui.PanAction
+import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
+import com.winlator.cmod.runtime.input.ui.ZoomAction
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
@@ -156,6 +162,9 @@ data class InputControlsScreenState(
     val gyroDeadzone: Int = 5,
     val invertGyroX: Boolean = false,
     val invertGyroY: Boolean = false,
+    val selectedGestureProfileName: String? = null,
+    val gestureEditorExpanded: Boolean = false,
+    val selectedGestureConfig: TouchGestureConfig = TouchGestureConfig(),
     val triggerTypeIndex: Int = 1,
     val triggerCardExpanded: Boolean = false,
     val triggerDescription: String = "",
@@ -247,6 +256,15 @@ data class InputControlsScreenActions(
     val onResetGyroPreview: () -> Unit,
     val onAttachGyroPreview: (InputControlsView) -> Unit,
     val onDetachGyroPreview: () -> Unit,
+    val onSelectGestureProfile: () -> Unit,
+    val onToggleGestureEditor: () -> Unit,
+    val onGestureConfigChanged: (TouchGestureConfig) -> Unit,
+    val onNewGestureProfile: () -> Unit,
+    val onRenameGestureProfile: () -> Unit,
+    val onDuplicateGestureProfile: () -> Unit,
+    val onDeleteGestureProfile: () -> Unit,
+    val onImportGestureProfile: () -> Unit,
+    val onExportGestureProfile: () -> Unit,
     val onTriggerTypeSelected: (Int) -> Unit,
     val onTriggerCardExpandedChanged: (Boolean) -> Unit,
     val onImportProfile: () -> Unit,
@@ -290,13 +308,7 @@ fun InputControlsScreen(
             item("auto-hide-label") { SectionLabel(stringResource(R.string.input_controls_auto_hide_section)) }
             item("auto-hide-card") { AutoHideTouchCard(state, actions) }
             item("profile-card") { ProfileCard(state, actions) }
-            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
-            item("overlay-card") { OverlayOpacityCard(state, actions) }
-            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
-            item("gyro-card") { GyroscopeCard(state, actions) }
-            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
-            item("trigger-card") { TriggerTypeCard(state, actions) }
-            item("actions-label") { SectionLabel(stringResource(R.string.common_ui_profile)) }
+            item("actions-label") { SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section)) }
             item("import-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
@@ -316,6 +328,35 @@ fun InputControlsScreen(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.input_controls_editor_export_profile),
                     onClick = actions.onExportProfile,
+                )
+            }
+            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
+            item("overlay-card") { OverlayOpacityCard(state, actions) }
+            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
+            item("trigger-card") { TriggerTypeCard(state, actions) }
+            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
+            item("gyro-card") { GyroscopeCard(state, actions) }
+            item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
+            item("gesture-profile-card") { GestureProfileCard(state, actions) }
+            if (state.gestureEditorExpanded) {
+                item("gesture-editor-card") {
+                    CardShell {
+                        GestureEditorBody(state.selectedGestureConfig) { actions.onGestureConfigChanged(it) }
+                    }
+                }
+            }
+            item("gesture-import-card") {
+                ActionCard(
+                    icon = Icons.Outlined.FileDownload,
+                    title = stringResource(R.string.gesture_profile_import),
+                    onClick = actions.onImportGestureProfile,
+                )
+            }
+            item("gesture-export-card") {
+                ActionCard(
+                    icon = Icons.Outlined.FileUpload,
+                    title = stringResource(R.string.gesture_profile_export),
+                    onClick = actions.onExportGestureProfile,
                 )
             }
             item("controllers-label") { SectionLabel(stringResource(R.string.session_gamepad_external_controllers)) }
@@ -1787,6 +1828,384 @@ private fun CenteredPillButton(
     }
 }
 
+private enum class BindingCategory { MOUSE, KEYBOARD, GAMEPAD }
+
+private val MOUSE_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
+    add(Binding.MOUSE_LEFT_BUTTON); add(Binding.MOUSE_MIDDLE_BUTTON); add(Binding.MOUSE_RIGHT_BUTTON)
+    add(Binding.MOUSE_SCROLL_UP); add(Binding.MOUSE_SCROLL_DOWN)
+}
+private val KEYBOARD_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
+    for (b in Binding.values()) if (b.isKeyboard) add(b)
+}
+private val GAMEPAD_BINDING_OPTIONS: List<Binding> = buildList {
+    add(Binding.NONE)
+    for (b in Binding.values()) if (b.isGamepad) add(b)
+}
+
+private fun categoryOf(b: Binding): BindingCategory = when {
+    b.isGamepad -> BindingCategory.GAMEPAD
+    b.isKeyboard -> BindingCategory.KEYBOARD
+    else -> BindingCategory.MOUSE
+}
+
+private fun optionsFor(category: BindingCategory): List<Binding> = when (category) {
+    BindingCategory.MOUSE -> MOUSE_BINDING_OPTIONS
+    BindingCategory.KEYBOARD -> KEYBOARD_BINDING_OPTIONS
+    BindingCategory.GAMEPAD -> GAMEPAD_BINDING_OPTIONS
+}
+
+private fun prettyEnum(name: String): String =
+    name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+
+@Composable
+private fun <T> OptionDropdown(
+    label: String,
+    current: T,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
+        Box {
+            SelectionPill(text = optionLabel(current), onClick = { expanded = true })
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> PillDropdown(
+    current: T,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    modifier: Modifier = Modifier,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        SelectionPill(text = optionLabel(current), onClick = { expanded = true })
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun BindingPicker(
+    label: String,
+    binding: Binding,
+    onBinding: (Binding) -> Unit,
+) {
+    var category by remember { mutableStateOf(categoryOf(binding)) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
+        PillDropdown(category, BindingCategory.values().toList(), { prettyEnum(it.name) }) { newCategory ->
+            if (newCategory != category) {
+                category = newCategory
+                if (categoryOf(binding) != newCategory) onBinding(Binding.NONE)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        PillDropdown(binding, optionsFor(category), { it.toString() }) { onBinding(it) }
+    }
+}
+
+@Composable
+private fun GestureBindingRow(
+    title: String,
+    enabled: Boolean,
+    binding: Binding,
+    onEnabled: (Boolean) -> Unit,
+    onBinding: (Binding) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            BindingPicker(stringResource(R.string.session_rts_action), binding, onBinding)
+        }
+    }
+}
+
+@Composable
+private fun HoldRow(
+    title: String,
+    enabled: Boolean,
+    binding: Binding,
+    behavior: HoldBehavior,
+    delay: Int,
+    delayLabel: String,
+    onEnabled: (Boolean) -> Unit,
+    onBinding: (Binding) -> Unit,
+    onBehavior: (HoldBehavior) -> Unit,
+    onDelay: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            BindingPicker(stringResource(R.string.session_rts_action), binding, onBinding)
+            OptionDropdown(stringResource(R.string.session_rts_behavior), behavior, HoldBehavior.values().toList(), { prettyEnum(it.name) }, onBehavior)
+            SliderField("$delayLabel: $delay", delay.toFloat(), 200f..1500f, 0) { onDelay(it.toInt()) }
+        }
+    }
+}
+
+@Composable
+private fun SwipeSet(
+    title: String,
+    enabled: Boolean,
+    up: Binding,
+    down: Binding,
+    left: Binding,
+    right: Binding,
+    threshold: Int,
+    onEnabled: (Boolean) -> Unit,
+    onUp: (Binding) -> Unit,
+    onDown: (Binding) -> Unit,
+    onLeft: (Binding) -> Unit,
+    onRight: (Binding) -> Unit,
+    onThreshold: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+        SwitchRow(title = title, checked = enabled, onCheckedChange = onEnabled)
+        if (enabled) {
+            BindingPicker(stringResource(R.string.session_rts_up), up, onUp)
+            BindingPicker(stringResource(R.string.session_rts_down), down, onDown)
+            BindingPicker(stringResource(R.string.session_rts_left), left, onLeft)
+            BindingPicker(stringResource(R.string.session_rts_right), right, onRight)
+            SliderField("${stringResource(R.string.session_rts_swipe_threshold)}: $threshold", threshold.toFloat(), 20f..200f, 0) { onThreshold(it.toInt()) }
+        }
+    }
+}
+
+@Composable
+private fun GestureProfileCard(
+    state: InputControlsScreenState,
+    actions: InputControlsScreenActions,
+) {
+    val selectionInteraction = remember { MutableInteractionSource() }
+    val selectorPressed by selectionInteraction.collectIsPressedAsState()
+    val selectorTint by animateFloatAsState(
+        targetValue = if (selectorPressed) 1f else 0f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "gestureSelectorPressed",
+    )
+
+    CardShell(
+        horizontalPadding = 10.dp,
+        verticalPadding = 8.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            GestureSelectorRow(
+                state = state,
+                selectionInteraction = selectionInteraction,
+                selectorTint = selectorTint,
+                selectorPressed = selectorPressed,
+                onClick = actions.onSelectGestureProfile,
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(max = InputProfileSelectorMaxWidth),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProfileEditButton(
+                    onClick = actions.onToggleGestureEditor,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+                GestureActionRow(
+                    actions = actions,
+                    modifier = Modifier.padding(start = InputProfileActionStartGap),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GestureSelectorRow(
+    state: InputControlsScreenState,
+    selectionInteraction: MutableInteractionSource,
+    selectorTint: Float,
+    selectorPressed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(InputCardCorner))
+                .background(
+                    Color(
+                        red = InputField.red,
+                        green = InputField.green,
+                        blue = InputField.blue,
+                        alpha = 0.28f + (0.34f * selectorTint),
+                    ),
+                ).border(
+                    1.dp,
+                    Color(
+                        red = InputOutline.red + ((InputAccent.red - InputOutline.red) * selectorTint * 0.45f),
+                        green = InputOutline.green + ((InputAccent.green - InputOutline.green) * selectorTint * 0.45f),
+                        blue = InputOutline.blue + ((InputAccent.blue - InputOutline.blue) * selectorTint * 0.45f),
+                        alpha = 0.8f + (0.15f * selectorTint),
+                    ),
+                    RoundedCornerShape(InputCardCorner),
+                )
+                .clickable(
+                    interactionSource = selectionInteraction,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProfileSelectorIconBox(if (selectorPressed) InputTextPrimary else InputAccent)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text =
+                state.selectedGestureProfileName
+                    ?: stringResource(R.string.input_controls_editor_select_profile),
+            color = InputTextPrimary,
+            fontSize = InputPrimaryTextSize,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(InputItemGap))
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint =
+                if (selectorPressed) {
+                    InputTextPrimary
+                } else {
+                    InputAccent.copy(alpha = 0.9f)
+                },
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun GestureActionRow(
+    actions: InputControlsScreenActions,
+    modifier: Modifier = Modifier,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        ProfileOverflowButton(
+            onClick = { menuOpen = true },
+        )
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = InputCard,
+        ) {
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Add,
+                label = stringResource(R.string.common_ui_new),
+                onClick = {
+                    menuOpen = false
+                    actions.onNewGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Edit,
+                label = stringResource(R.string.common_ui_rename),
+                onClick = {
+                    menuOpen = false
+                    actions.onRenameGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.ContentCopy,
+                label = stringResource(R.string.common_ui_duplicate),
+                onClick = {
+                    menuOpen = false
+                    actions.onDuplicateGestureProfile()
+                },
+            )
+            ProfileActionMenuItem(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.common_ui_remove),
+                iconTint = InputDanger,
+                textColor = InputDanger,
+                onClick = {
+                    menuOpen = false
+                    actions.onDeleteGestureProfile()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun GestureEditorBody(
+    sourceConfig: TouchGestureConfig,
+    onConfigChanged: (TouchGestureConfig) -> Unit,
+) {
+    var config by remember(sourceConfig) { mutableStateOf(sourceConfig.clone()) }
+    fun mutate(block: TouchGestureConfig.() -> Unit) {
+        val next = config.clone(); next.block(); config = next; onConfigChanged(next)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(InputItemGap)) {
+        GestureBindingRow(stringResource(R.string.session_rts_tap1), config.tap1Enabled, config.tap1, { mutate { tap1Enabled = it } }, { mutate { tap1 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap2), config.tap2Enabled, config.tap2, { mutate { tap2Enabled = it } }, { mutate { tap2 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap3), config.tap3Enabled, config.tap3, { mutate { tap3Enabled = it } }, { mutate { tap3 = it } })
+            GestureBindingRow(stringResource(R.string.session_rts_tap4), config.tap4Enabled, config.tap4, { mutate { tap4Enabled = it } }, { mutate { tap4 = it } })
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(InputCompactGap)) {
+                SwitchRow(stringResource(R.string.session_rts_double_tap), config.doubleTapEnabled) { mutate { doubleTapEnabled = it } }
+                if (config.doubleTapEnabled) {
+                    SliderField("${stringResource(R.string.session_rts_double_tap_delay)}: ${config.doubleTapDelay}", config.doubleTapDelay.toFloat(), 200f..1500f, 0) { mutate { doubleTapDelay = it.toInt() } }
+                }
+            }
+            HoldRow(stringResource(R.string.session_rts_long_press), config.longPressEnabled, config.longPress, config.longPressBehavior, config.longPressDelay, stringResource(R.string.session_rts_long_press_delay),
+                { mutate { longPressEnabled = it } }, { mutate { longPress = it } }, { mutate { longPressBehavior = it } }, { mutate { longPressDelay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold2), config.hold2Enabled, config.hold2, config.hold2Behavior, config.hold2Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold2Enabled = it } }, { mutate { hold2 = it } }, { mutate { hold2Behavior = it } }, { mutate { hold2Delay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold3), config.hold3Enabled, config.hold3, config.hold3Behavior, config.hold3Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold3Enabled = it } }, { mutate { hold3 = it } }, { mutate { hold3Behavior = it } }, { mutate { hold3Delay = it } })
+            HoldRow(stringResource(R.string.session_rts_hold4), config.hold4Enabled, config.hold4, config.hold4Behavior, config.hold4Delay, stringResource(R.string.session_rts_hold_delay),
+                { mutate { hold4Enabled = it } }, { mutate { hold4 = it } }, { mutate { hold4Behavior = it } }, { mutate { hold4Delay = it } })
+            SwipeSet(stringResource(R.string.session_rts_swipe3), config.swipe3Enabled, config.swipe3Up, config.swipe3Down, config.swipe3Left, config.swipe3Right, config.swipe3Threshold,
+                { mutate { swipe3Enabled = it } }, { mutate { swipe3Up = it } }, { mutate { swipe3Down = it } }, { mutate { swipe3Left = it } }, { mutate { swipe3Right = it } }, { mutate { swipe3Threshold = it } })
+            SwipeSet(stringResource(R.string.session_rts_swipe4), config.swipe4Enabled, config.swipe4Up, config.swipe4Down, config.swipe4Left, config.swipe4Right, config.swipe4Threshold,
+                { mutate { swipe4Enabled = it } }, { mutate { swipe4Up = it } }, { mutate { swipe4Down = it } }, { mutate { swipe4Left = it } }, { mutate { swipe4Right = it } }, { mutate { swipe4Threshold = it } })
+            if (config.drag2Action == DragAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
+            }
+            if (config.panAction == PanAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_drag2), config.drag2Action, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { drag2Action = it } }
+            }
+            if (config.pan1Action == PanAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_drag), config.dragAction, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { dragAction = it } }
+            }
+            if (config.dragAction == DragAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_pan1), config.pan1Action, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { pan1Action = it } }
+            }
+            OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
+            if (config.dragAction != DragAction.NONE || config.drag2Action != DragAction.NONE) {
+                SliderField("${stringResource(R.string.session_rts_drag_threshold)}: ${config.dragThreshold}", config.dragThreshold.toFloat(), 10f..200f, 0) { mutate { dragThreshold = it.toInt() } }
+            }
+        SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
+    }
+}
+
 @Composable
 private fun GyroscopeCard(
     state: InputControlsScreenState,
@@ -1813,202 +2232,204 @@ private fun GyroscopeCard(
                 )
             }
 
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.common_ui_mode),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                )
-                Spacer(Modifier.width(InputItemGap))
-                ChipRow(
-                    options =
-                        listOf(
-                            stringResource(R.string.session_gyroscope_hold),
-                            stringResource(R.string.session_gyroscope_toggle),
-                        ),
-                    selectedIndex = state.gyroscopeModeIndex,
-                    onSelected = actions.onGyroscopeModeSelected,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_orientation_mode),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                AppSwitch(
-                    checked = state.gyroOrientationEnabled,
-                    onCheckedChange = actions.onGyroOrientationModeChanged,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_activator_button),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                SelectionPill(
-                    text = state.gyroscopeActivatorLabel,
-                    onClick = actions.onGyroscopeActivatorClick,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_enable_right_stick),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.common_ui_experimental),
-                    color = InputAccent,
-                    fontSize = InputSecondaryTextSize,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.width(8.dp))
-                AppSwitch(
-                    checked = state.rightStickGyroEnabled,
-                    onCheckedChange = actions.onRightStickGyroChanged,
-                )
-            }
-
-            Spacer(Modifier.height(InputItemGap))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
-                    color = InputTextSecondary,
-                    fontSize = InputPrimaryTextSize,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.common_ui_experimental),
-                    color = InputAccent,
-                    fontSize = InputSecondaryTextSize,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.width(8.dp))
-                AppSwitch(
-                    checked = state.gyroMouseEnabled,
-                    onCheckedChange = actions.onGyroMouseEnabledChanged,
-                )
-            }
-
-            if (state.gyroMouseEnabled) {
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_mouse_sensitivity_format, state.gyroMouseScale),
-                    value = state.gyroMouseScale.toFloat(),
-                    valueRange = 0f..200f,
-                    steps = 199,
-                    onValueChange = { actions.onGyroMouseScaleChanged(it.roundToInt().coerceIn(0, 200)) },
-                )
-            }
-
-            Spacer(Modifier.height(InputCompactGap))
-            Subcard(
-                title = stringResource(R.string.session_gyroscope_calibrate),
-                expanded = state.gyroscopeExpanded,
-                onToggleExpanded = {
-                    actions.onGyroscopeExpandedChanged(!state.gyroscopeExpanded)
-                },
-            ) {
+            if (state.gyroscopeEnabled) {
                 Spacer(Modifier.height(InputItemGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
-                    value = state.gyroXSensitivity.toFloat(),
-                    valueRange = 1f..300f,
-                    steps = 0,
-                    onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
-                    value = state.gyroYSensitivity.toFloat(),
-                    valueRange = 1f..300f,
-                    steps = 0,
-                    onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_smoothing_format, state.gyroSmoothing),
-                    value = state.gyroSmoothing.toFloat(),
-                    valueRange = 0f..100f,
-                    steps = 99,
-                    onValueChange = { actions.onGyroSmoothingChanged(it.roundToInt().coerceIn(0, 100)) },
-                )
-                Spacer(Modifier.height(InputCompactGap))
-                SliderField(
-                    label = stringResource(R.string.session_gyroscope_deadzone_format, state.gyroDeadzone),
-                    value = state.gyroDeadzone.toFloat(),
-                    valueRange = 0f..100f,
-                    steps = 99,
-                    onValueChange = { actions.onGyroDeadzoneChanged(it.roundToInt().coerceIn(0, 100)) },
-                )
-                Spacer(Modifier.height(InputItemGap))
-                SwitchRow(
-                    title = stringResource(R.string.session_gamepad_invert_x),
-                    checked = state.invertGyroX,
-                    onCheckedChange = actions.onInvertGyroXChanged,
-                )
-                Spacer(Modifier.height(4.dp))
-                SwitchRow(
-                    title = stringResource(R.string.session_gamepad_invert_y),
-                    checked = state.invertGyroY,
-                    onCheckedChange = actions.onInvertGyroYChanged,
-                )
-                Spacer(Modifier.height(InputItemGap))
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(136.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.Black),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AndroidView(
-                        factory = { context ->
-                            InputControlsView(context, true).apply {
-                                actions.onAttachGyroPreview(this)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        update = { view ->
-                            actions.onAttachGyroPreview(view)
-                        },
+                    Text(
+                        text = stringResource(R.string.common_ui_mode),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
                     )
-                    DisposableEffect(Unit) {
-                        onDispose { actions.onDetachGyroPreview() }
-                    }
+                    Spacer(Modifier.width(InputItemGap))
+                    ChipRow(
+                        options =
+                            listOf(
+                                stringResource(R.string.session_gyroscope_hold),
+                                stringResource(R.string.session_gyroscope_toggle),
+                            ),
+                        selectedIndex = state.gyroscopeModeIndex,
+                        onSelected = actions.onGyroscopeModeSelected,
+                    )
                 }
+
                 Spacer(Modifier.height(InputItemGap))
-                CenteredPillButton(
-                    text = stringResource(R.string.session_gyroscope_reset_stick),
-                    onClick = actions.onResetGyroPreview,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_orientation_mode),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AppSwitch(
+                        checked = state.gyroOrientationEnabled,
+                        onCheckedChange = actions.onGyroOrientationModeChanged,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_activator_button),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SelectionPill(
+                        text = state.gyroscopeActivatorLabel,
+                        onClick = actions.onGyroscopeActivatorClick,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_enable_right_stick),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_ui_experimental),
+                        color = InputAccent,
+                        fontSize = InputSecondaryTextSize,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    AppSwitch(
+                        checked = state.rightStickGyroEnabled,
+                        onCheckedChange = actions.onRightStickGyroChanged,
+                    )
+                }
+
+                Spacer(Modifier.height(InputItemGap))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
+                        color = InputTextSecondary,
+                        fontSize = InputPrimaryTextSize,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_ui_experimental),
+                        color = InputAccent,
+                        fontSize = InputSecondaryTextSize,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    AppSwitch(
+                        checked = state.gyroMouseEnabled,
+                        onCheckedChange = actions.onGyroMouseEnabledChanged,
+                    )
+                }
+
+                if (state.gyroMouseEnabled) {
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_mouse_sensitivity_format, state.gyroMouseScale),
+                        value = state.gyroMouseScale.toFloat(),
+                        valueRange = 0f..200f,
+                        steps = 199,
+                        onValueChange = { actions.onGyroMouseScaleChanged(it.roundToInt().coerceIn(0, 200)) },
+                    )
+                }
+
+                Spacer(Modifier.height(InputCompactGap))
+                Subcard(
+                    title = stringResource(R.string.session_gyroscope_calibrate),
+                    expanded = state.gyroscopeExpanded,
+                    onToggleExpanded = {
+                        actions.onGyroscopeExpandedChanged(!state.gyroscopeExpanded)
+                    },
+                ) {
+                    Spacer(Modifier.height(InputItemGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_x_sensitivity_format, state.gyroXSensitivity),
+                        value = state.gyroXSensitivity.toFloat(),
+                        valueRange = 1f..300f,
+                        steps = 0,
+                        onValueChange = { actions.onGyroXSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_y_sensitivity_format, state.gyroYSensitivity),
+                        value = state.gyroYSensitivity.toFloat(),
+                        valueRange = 1f..300f,
+                        steps = 0,
+                        onValueChange = { actions.onGyroYSensitivityChanged(it.roundToInt().coerceIn(1, 300)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_smoothing_format, state.gyroSmoothing),
+                        value = state.gyroSmoothing.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { actions.onGyroSmoothingChanged(it.roundToInt().coerceIn(0, 100)) },
+                    )
+                    Spacer(Modifier.height(InputCompactGap))
+                    SliderField(
+                        label = stringResource(R.string.session_gyroscope_deadzone_format, state.gyroDeadzone),
+                        value = state.gyroDeadzone.toFloat(),
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        onValueChange = { actions.onGyroDeadzoneChanged(it.roundToInt().coerceIn(0, 100)) },
+                    )
+                    Spacer(Modifier.height(InputItemGap))
+                    SwitchRow(
+                        title = stringResource(R.string.session_gamepad_invert_x),
+                        checked = state.invertGyroX,
+                        onCheckedChange = actions.onInvertGyroXChanged,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    SwitchRow(
+                        title = stringResource(R.string.session_gamepad_invert_y),
+                        checked = state.invertGyroY,
+                        onCheckedChange = actions.onInvertGyroYChanged,
+                    )
+                    Spacer(Modifier.height(InputItemGap))
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(136.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.Black),
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                InputControlsView(context, true).apply {
+                                    actions.onAttachGyroPreview(this)
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            update = { view ->
+                                actions.onAttachGyroPreview(view)
+                            },
+                        )
+                        DisposableEffect(Unit) {
+                            onDispose { actions.onDetachGyroPreview() }
+                        }
+                    }
+                    Spacer(Modifier.height(InputItemGap))
+                    CenteredPillButton(
+                        text = stringResource(R.string.session_gyroscope_reset_stick),
+                        onClick = actions.onResetGyroPreview,
+                    )
+                }
             }
         }
     }
