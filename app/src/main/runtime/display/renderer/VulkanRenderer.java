@@ -477,7 +477,7 @@ public class VulkanRenderer
     private long fgLastPromoteNs = 0, fgPrevPromoteNs = 0;  // times of the last two distinct content frames
     private long fgContentPeriodNs = 0;      // EMA of the interval between distinct content frames
     private int  fgPromoteSlotIdx = 0;       // display ticks since the last promote
-    private int  fgLastEmitSub = -1;         // output sub-frame index last presented this content interval
+    private int  fgVblankSincePromote = 0;   // vblanks since the last real frame — drives the steady output gate
     private volatile int fgCadenceM = 2;     // divisor-snapped multiplier actually used by the cadence
     private volatile boolean fgResyncPending = false;
     private volatile boolean fgOverlayActive = false;
@@ -492,7 +492,7 @@ public class VulkanRenderer
         fgLastPromoteNs = 0L;
         fgEngineFrames = 0;
         fgPromoteSlotIdx = 0;
-        fgLastEmitSub = -1;
+        fgVblankSincePromote = 0;
         fgEffectiveMultiplier = fgMultiplier;
         fgBoundSecs = 0;
         fgNewScene.set(true);
@@ -544,7 +544,7 @@ public class VulkanRenderer
                     fgLastPromoteNs = pNs;
                     fgEngineFrames++;
                     fgPromoteSlotIdx = 0;
-                    fgLastEmitSub = -1;        // new content interval — allow its sub 0 (real frame) to present
+                    fgVblankSincePromote = 0;  // new content interval — restart the output gate at the real frame
                 }
             }
         }
@@ -569,38 +569,40 @@ public class VulkanRenderer
             return 2;
         }
 
-        // Closed-loop placement: derive the output sub-frame purely from elapsed time since the last real
-        // frame (not a tick counter), so irregular promote arrival can't misalign the cadence. Each content
-        // interval is split into M sub-frames: sub 0 = the real frame (shown sharp), sub 1..M-1 = tweens at
-        // phase sub/M. One present per vblank; a sub-frame is shown once then held until the next sub/promote.
-        // Native applies interpolate vs extrapolate per the mode flag, so the placement rule is shared.
+        // Real frame just promoted: show it sharp; the gate was restarted at 0 in the promote block.
+        if (promoted) {
+            nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs);
+            return 2;
+        }
         if (period <= 0L) return 0;
-        // Effective multiplier for the cadence, snapped DOWN to the largest divisor of the panel:content
-        // ratio (slots) so the output rate divides the panel evenly — each output frame is then held a whole
-        // number of vblanks. On 120Hz/30Hz (slots=4), 4x and 2x stay, but 3x (=90Hz, frames held 1,1,2
-        // vblanks = judder) snaps to 2x. Keeps every multiplier visually smooth on a fixed-refresh panel.
+        // Cadence multiplier, snapped DOWN to the largest divisor of the panel:content ratio (slots) so the
+        // output divides the panel evenly (each output frame held a whole number of vblanks). On 120Hz/30Hz
+        // (slots=4): 4x and 2x stay; 3x (=90Hz, held 1,1,2 vblanks = judder) snaps to 2x.
         int M = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
+        int slots = M;
         if (disp > 0L) {
-            int slots = (int) Math.round((double) period / (double) disp);
-            if (slots >= 2) {
+            int s = (int) Math.round((double) period / (double) disp);
+            if (s >= 2) {
+                slots = s;
                 int best = 1;
                 for (int d = 2; d <= M && d <= slots; d++) if (slots % d == 0) best = d;
                 if (best >= 2) M = best;
             }
         }
         fgCadenceM = M;
-        // Closed-loop phase from the stable EMA content period (robust to per-frame source jitter, which
-        // otherwise skewed the sub-frame timing and dropped interps on variable-rate games).
+        // Steady output gate: emit a NEW frame every `hold` vblanks (hold = slots/M, integer since M divides
+        // slots), sampling the tween phase CONTINUOUSLY from the content clock. A fresh frame is produced on
+        // every gate vblank regardless of where the EMA boundary falls — this stops the tween under-production
+        // (skipped interps) that was dragging the output rate down and making it jittery.
+        int hold = Math.max(1, slots / M);
+        fgVblankSincePromote++;
+        if ((fgVblankSincePromote % hold) != 0) return 0;          // between gates — hold the current frame
         long vsync = fgCurrentVsyncNs != 0L ? fgCurrentVsyncNs : System.nanoTime();
-        double frac = (double) (vsync - fgLastPromoteNs) / (double) period;
-        if (frac < 0.0) frac = 0.0;
-        int sub = (int) Math.floor(frac * (double) M);
-        if (sub >= M) return 0;                       // interval overran — hold until the next promote
-        if (sub == fgLastEmitSub) return 0;           // already presented this sub-frame — hold it on screen
-        fgLastEmitSub = sub;
-        if (sub <= 0) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }   // sub 0 = real frame, sharp
-        nativeRenderInterp(nativeHandle, (float) sub / (float) M, fgPrevPromoteNs, fgLastPromoteNs);
+        double phase = (double) (vsync - fgLastPromoteNs) / (double) period;
+        if (phase >= 1.0) return 0;                                 // interval overran — hold until next promote
+        if (phase <= 0.0) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
+        nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs);
         return 1;
     }
 
