@@ -67,7 +67,7 @@ object SteamCloudSyncHelper {
         shortcut: Shortcut,
     ): Boolean {
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return forceDownloadById(context, appId, shortcut.container)
+        return forceDownloadById(context, appId, resolveShortcutContainer(context, shortcut))
     }
 
     suspend fun forceDownloadById(
@@ -134,7 +134,7 @@ object SteamCloudSyncHelper {
         if (appId.isEmpty()) return false
         val appIdInt = appId.toIntOrNull() ?: return false
 
-        return hasActualLocalSaves(context, appIdInt, shortcut.container)
+        return hasActualLocalSaves(context, appIdInt, resolveShortcutContainer(context, shortcut))
     }
 
     fun hasActualLocalSaves(
@@ -256,11 +256,11 @@ object SteamCloudSyncHelper {
         probeCache[appId]?.let { (ts, cached) ->
             if (System.currentTimeMillis() - ts < PROBE_CACHE_TTL_MS) return cached
         }
-        activateContainer(context, shortcut.container)
+        activateContainer(context, resolveShortcutContainer(context, shortcut) ?: shortcut.container)
         return runBlocking {
             try {
                 val snapshot = SteamService.fetchCloudConflictSnapshot(appId, context)
-                val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId, shortcut.container)
+                val localActual = getNewestActualLocalCloudSaveTimestamp(context, appId, resolveShortcutContainer(context, shortcut))
                 val localTracked =
                     SteamService.getTrackedCloudSaveFiles(appId)?.maxOfOrNull { it.timestamp }
                 val localTs = localActual ?: localTracked
@@ -311,7 +311,7 @@ object SteamCloudSyncHelper {
         val appId = shortcut.getExtra("app_id").toIntOrNull()
         return runBlocking {
             try {
-                val localActual = appId?.let { getNewestActualLocalCloudSaveTimestamp(context, it, shortcut.container) }
+                val localActual = appId?.let { getNewestActualLocalCloudSaveTimestamp(context, it, resolveShortcutContainer(context, shortcut)) }
                 val localTracked =
                     appId
                         ?.let { SteamService.getTrackedCloudSaveFiles(it) }
@@ -342,7 +342,7 @@ object SteamCloudSyncHelper {
         if (shortcut.getExtra("game_source") != "STEAM") return false
         val result = runBlocking { forceDownload(context, shortcut) }
         if (result) {
-            markCloudSaveSynced(context, shortcut.getExtra("app_id"), shortcut.container)
+            markCloudSaveSynced(context, shortcut.getExtra("app_id"), resolveShortcutContainer(context, shortcut))
         }
         Timber.i("Steam cloud save download for %s: %s", shortcut.name, result)
         return result
@@ -356,7 +356,7 @@ object SteamCloudSyncHelper {
     ): PostSyncInfo? {
         if (shortcut.getExtra("game_source") != "STEAM") return null
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return null
-        val prefixToPath = steamPrefixResolver(context, appId, shortcut.container)
+        val prefixToPath = steamPrefixResolver(context, appId, resolveShortcutContainer(context, shortcut))
         val syncInfo =
             SteamService
                 .beginLaunchApp(
@@ -443,7 +443,21 @@ object SteamCloudSyncHelper {
     ): Boolean {
         if (shortcut.getExtra("game_source") != "STEAM") return false
         val appId = shortcut.getExtra("app_id").toIntOrNull() ?: return false
-        return runBlocking { uploadLocalSaves(context, appId, shortcut.container) }
+        return runBlocking { uploadLocalSaves(context, appId, resolveShortcutContainer(context, shortcut)) }
+    }
+
+    /**
+     * Resolve the container a shortcut actually runs/saves in: the `container_id` override wins over
+     * shortcut.container (which is only the container whose folder holds the .desktop file and goes
+     * stale once a game is reassigned). Mirrors the launcher's resolveShortcutLaunchContainer so
+     * cloud ops activate the same wineprefix the game runs in.
+     */
+    fun resolveShortcutContainer(
+        context: Context,
+        shortcut: Shortcut,
+    ): Container? {
+        val overrideId = shortcut.getExtra("container_id").toIntOrNull()?.takeIf { it > 0 }
+        return overrideId?.let { ContainerManager(context).getContainerById(it) } ?: shortcut.container
     }
 
     @JvmStatic

@@ -205,7 +205,7 @@ object SteamLaunchCloudSync {
                     SteamSaveSnapshotManager.captureCloudSnapshot(
                         activity.applicationContext,
                         appId,
-                        shortcut.container,
+                        SteamCloudSyncHelper.resolveShortcutContainer(activity, shortcut),
                     )
                 }
             Timber.tag("SteamLaunchCloudSync").i(

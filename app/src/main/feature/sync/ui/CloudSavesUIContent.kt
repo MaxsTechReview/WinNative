@@ -89,6 +89,7 @@ import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
 import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.feature.sync.google.WinePathUtils
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeAccent
@@ -157,6 +158,15 @@ internal fun CloudSavesContent(
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: shortcut?.container?.id?.takeIf { it > 0 }
+    // Resolve the game's REAL container the way the launcher does (resolveShortcutLaunchContainer):
+    // the `container_id` override wins over shortcut.container, which is only the container whose
+    // folder physically holds the .desktop file and is stale once a game is reassigned. Passing
+    // shortcut.container directly made cloud ops activate the wrong wineprefix → "No save files
+    // found to back up" for any game whose run-container differs from its shortcut-file container.
+    val targetContainer =
+        remember(shortcut, targetContainerId) {
+            targetContainerId?.let { ContainerManager(context).getContainerById(it) } ?: shortcut?.container
+        }
     var gogZipBusy by remember { mutableStateOf(false) }
     var googleBackupBusy by remember { mutableStateOf(false) }
     val gogZipLauncher =
@@ -557,7 +567,7 @@ internal fun CloudSavesContent(
                                         gameName = gameName,
                                         origin = GameSaveBackupManager.BackupOrigin.MANUAL,
                                         authMode = GoogleAuthMode.INTERACTIVE,
-                                        containerHint = shortcut?.container,
+                                        containerHint = targetContainer,
                                     )
                                 }
                             notify(result.message, Toast.LENGTH_LONG)
@@ -584,7 +594,7 @@ internal fun CloudSavesContent(
                         try {
                             val result =
                                 SteamSaveSnapshotManager
-                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, sc.container)
+                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, targetContainer)
                             notify(
                                 result.message,
                                 Toast.LENGTH_LONG,
@@ -626,7 +636,7 @@ internal fun CloudSavesContent(
                                     val ok =
                                         withContext(Dispatchers.IO) {
                                             SteamCloudSyncHelper
-                                                .forceDownloadById(activity, appId, shortcut?.container)
+                                                .forceDownloadById(activity, appId, targetContainer)
                                         }
                                     notify(
                                         if (ok) steamSyncSuccess else steamSyncFailed,
@@ -794,7 +804,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -808,7 +818,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -838,7 +848,7 @@ internal fun CloudSavesContent(
                                     target,
                                     gameSource,
                                     gameId,
-                                    containerHint = shortcut?.container,
+                                    containerHint = targetContainer,
                                 )
                             }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
