@@ -4999,8 +4999,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         pixelateEnabled = false;
         pixelateBlock = 6;
         colorBlind = 0;
-        if (container == null) return;
-        String json = container.getExtra("screenEffectsSettings");
+        String json = null;
+        if (shortcut != null) {
+            String fromShortcut = shortcut.getExtra("screenEffectsSettings", "");
+            if (!fromShortcut.isEmpty()) json = fromShortcut;
+        }
+        if (json == null && container != null) {
+            json = container.getExtra("screenEffectsSettings");
+        }
         if (json == null || json.isEmpty()) return;
         try {
             JSONObject o = new JSONObject(json);
@@ -5027,7 +5033,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void saveScreenEffectsSettings() {
-        if (container == null) return;
+        if (shortcut == null && container == null) return;
         try {
             JSONObject o = new JSONObject();
             o.put("vividEnabled", vividEnabled);
@@ -5047,8 +5053,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             o.put("pixelateEnabled", pixelateEnabled);
             o.put("pixelateBlock", pixelateBlock);
             o.put("colorBlind", colorBlind);
-            container.putExtra("screenEffectsSettings", o.toString());
-            container.saveData();
+            String json = o.toString();
+            if (shortcut != null) {
+                shortcut.putExtra("screenEffectsSettings", json);
+                shortcut.saveData();
+            } else if (container != null) {
+                container.putExtra("screenEffectsSettings", json);
+                container.saveData();
+            }
         } catch (JSONException e) {
             Log.e("XServerDisplayActivity", "Failed to save screen effects", e);
         }
