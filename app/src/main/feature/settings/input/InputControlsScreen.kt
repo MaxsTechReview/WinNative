@@ -2186,12 +2186,16 @@ private fun GestureEditorBody(
                 { mutate { swipe3Enabled = it } }, { mutate { swipe3Up = it } }, { mutate { swipe3Down = it } }, { mutate { swipe3Left = it } }, { mutate { swipe3Right = it } }, { mutate { swipe3Threshold = it } })
             SwipeSet(stringResource(R.string.session_rts_swipe4), config.swipe4Enabled, config.swipe4Up, config.swipe4Down, config.swipe4Left, config.swipe4Right, config.swipe4Threshold,
                 { mutate { swipe4Enabled = it } }, { mutate { swipe4Up = it } }, { mutate { swipe4Down = it } }, { mutate { swipe4Left = it } }, { mutate { swipe4Right = it } }, { mutate { swipe4Threshold = it } })
-            OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
-            OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
+            if (config.drag2Action == DragAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
+                OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
+            }
             if (config.panAction == PanAction.NONE && config.zoomAction == ZoomAction.NONE) {
                 OptionDropdown(stringResource(R.string.session_rts_drag2), config.drag2Action, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { drag2Action = it } }
             }
-            OptionDropdown(stringResource(R.string.session_rts_drag), config.dragAction, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { dragAction = it } }
+            if (config.pan1Action == PanAction.NONE) {
+                OptionDropdown(stringResource(R.string.session_rts_drag), config.dragAction, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { dragAction = it } }
+            }
             if (config.dragAction == DragAction.NONE) {
                 OptionDropdown(stringResource(R.string.session_rts_pan1), config.pan1Action, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { pan1Action = it } }
             }
