@@ -193,6 +193,10 @@
     <string name="library_games_immersive_blur_description">몰입 배경에 흐림 효과 적용</string>
     <string name="library_games_custom_game">사용자 지정 게임</string>
     <string name="library_games_play">플레이</string>
+    <string name="hero_boot_to_desktop_title">데스크톱으로 부팅</string>
+    <string name="hero_graphics_tests_title">그래픽 테스트</string>
+    <string name="hero_graphics_test_32">32비트</string>
+    <string name="hero_graphics_test_64">64비트</string>
     <string name="library_games_add_custom_game">사용자 지정 게임 추가</string>
     <string name="library_games_game_name">게임 이름</string>
     <string name="library_games_game_folder_mapped_drive">게임 폴더(매핑된 게임 드라이브)</string>
@@ -1122,6 +1126,7 @@
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">실행 사이에 생성된 dynarec 블록의 캐싱을 제어하여 시작 속도를 높입니다.</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
     <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
@@ -1328,5 +1333,51 @@
     <string name="workshop_loading_items">Workshop 항목 로드 중</string>
     <string name="workshop_search_items">Workshop 항목 검색</string>
     <string name="common_ui_failed">실패</string>
+
+    <!-- Session > Touch & Gesture Profiles -->
+    <string name="common_ui_new">새로 만들기</string>
+    <string name="common_ui_rename">이름 변경</string>
+    <string name="gesture_profile_export">제스처 프로필 내보내기</string>
+    <string name="gesture_profile_import">제스처 프로필 가져오기</string>
+    <string name="gesture_profile_new">새 제스처 프로필</string>
+    <string name="gesture_profile_none">제스처 프로필 없음</string>
+    <string name="input_controls_editor_input_profiles_section">입력 프로필</string>
+    <string name="session_drawer_right_stick_sensitivity">오른쪽 스틱 감도</string>
+    <string name="session_drawer_rts_gestures">RTS 제스처</string>
+    <string name="session_drawer_rts_gestures_edit">편집</string>
+    <string name="session_drawer_touch">터치</string>
+    <string name="session_drawer_touch_map_right_stick">오른쪽 스틱에 매핑</string>
+    <string name="session_drawer_touch_touchscreen">터치스크린 모드</string>
+    <string name="session_drawer_touch_trackpad">트랙패드</string>
+    <string name="session_gesture_profile_section">제스처 프로필</string>
+    <string name="session_rts_action">동작</string>
+    <string name="session_rts_behavior">방식</string>
+    <string name="session_rts_double_tap">더블 탭 (더블 좌클릭)</string>
+    <string name="session_rts_double_tap_delay">더블 탭 지연 (ms)</string>
+    <string name="session_rts_down">아래</string>
+    <string name="session_rts_drag">1손가락 드래그</string>
+    <string name="session_rts_pan1">1손가락 이동</string>
+    <string name="session_rts_drag2">2손가락 드래그</string>
+    <string name="session_rts_drag_threshold">드래그 임계값 (px)</string>
+    <string name="session_rts_gesture_threshold">제스처 임계값 (px)</string>
+    <string name="session_rts_hold2">2손가락 길게 누르기</string>
+    <string name="session_rts_hold3">3손가락 길게 누르기</string>
+    <string name="session_rts_hold4">4손가락 길게 누르기</string>
+    <string name="session_rts_hold_delay">길게 누르기 지연 (ms)</string>
+    <string name="session_rts_left">왼쪽</string>
+    <string name="session_rts_long_press">길게 누르기</string>
+    <string name="session_rts_long_press_delay">길게 누르기 지연 (ms)</string>
+    <string name="session_rts_pan">2손가락 이동</string>
+    <string name="session_rts_pan_threshold">이동/핀치 시작 (px)</string>
+    <string name="session_rts_right">오른쪽</string>
+    <string name="session_rts_swipe3">3손가락 스와이프</string>
+    <string name="session_rts_swipe4">4손가락 스와이프</string>
+    <string name="session_rts_swipe_threshold">스와이프 임계값 (px)</string>
+    <string name="session_rts_tap1">1손가락 탭</string>
+    <string name="session_rts_tap2">2손가락 탭</string>
+    <string name="session_rts_tap3">3손가락 탭</string>
+    <string name="session_rts_tap4">4손가락 탭</string>
+    <string name="session_rts_up">위</string>
+    <string name="session_rts_zoom">핀치 줌</string>
 </resources>
 

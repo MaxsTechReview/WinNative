@@ -1,7 +1,6 @@
 package com.winlator.cmod.runtime.input.ui
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.StateListDrawable
@@ -11,7 +10,6 @@ import android.view.MotionEvent
 import android.view.PointerIcon
 import android.view.View
 import android.widget.FrameLayout
-import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.renderer.ViewTransformation
@@ -39,9 +37,19 @@ class TouchpadView(
         private const val UPDATE_FORM_DELAYED_TIME = 50
         private val CLICK_DELAYED_TIME = 50.toByte()
         private val EFFECTIVE_TOUCH_DISTANCE = 20.toByte()
+        const val MODE_TRACKPAD = 0
+        const val MODE_TOUCHSCREEN = 1
+        const val MODE_MAP_TO_RIGHT_STICK = 2
+        private const val TOUCHSCREEN_DOUBLE_TAP_MS = 500L
+        private const val TOUCHSCREEN_DOUBLE_TAP_DISTANCE = 100f
     }
 
     private var continueClick = true
+    private var lastTapDownTime = 0L
+    private var lastTapRawX = 0f
+    private var lastTapRawY = 0f
+    private var lastTapTransX = 0
+    private var lastTapTransY = 0
     private var fingerPointerButtonLeft: Finger? = null
     private var fingerPointerButtonRight: Finger? = null
     private val fingers = arrayOfNulls<Finger>(4)
@@ -52,13 +60,17 @@ class TouchpadView(
     private var numFingers: Byte = 0
     private var pointerButtonLeftEnabled = true
     private var pointerButtonRightEnabled = true
-    private val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
     private var resolutionScale = 0f
     private var scrollAccumY = 0f
     private var scrolling = false
     private var sensitivity = 1.0f
     private var simTouchScreen = false
+    private var screenTouchMode = MODE_TRACKPAD
+    private var rtsGesturesEnabled = false
     private val xform = XForm.getInstance()
+    private val screenTouchStick = ScreenTouchStick(context, xServer)
+    private val rtsGestureEngine = RTSGestureEngine(xServer, xform)
+    private var activeTouchHandler: ((MotionEvent) -> Boolean)? = null
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var longPressActive = false
     private val longPressRunnable = Runnable {
@@ -89,6 +101,13 @@ class TouchpadView(
         super.onSizeChanged(w, h, oldw, oldh)
         updateXform(w, h, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
         resolutionScale = 1000.0f / Math.min(xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
+        screenTouchStick.setSurfaceSize(w, h)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        rtsGestureEngine.releaseAll()
+        screenTouchStick.releaseAll()
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
@@ -155,12 +174,24 @@ class TouchpadView(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!mouseEnabled) return true
-        val isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false)
         resetTouchscreenTimeout()
-        return when (event.getToolType(0)) {
-            MotionEvent.TOOL_TYPE_STYLUS -> handleStylusEvent(event)
-            else -> if (isTouchscreenMode) handleTouchscreenEvent(event) else handleTouchpadEvent(event)
+        if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) return handleStylusEvent(event)
+        val action = event.actionMasked
+        if (action == MotionEvent.ACTION_DOWN || activeTouchHandler == null) {
+            activeTouchHandler = selectTouchHandler()
         }
+        val result = activeTouchHandler!!(event)
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            activeTouchHandler = null
+        }
+        return result
+    }
+
+    private fun selectTouchHandler(): (MotionEvent) -> Boolean = when {
+        rtsGesturesEnabled -> rtsGestureEngine::onTouch
+        screenTouchMode == MODE_MAP_TO_RIGHT_STICK && xServer.winHandler.canUseScreenTouchStick() -> screenTouchStick::onTouch
+        screenTouchMode == MODE_TOUCHSCREEN -> ::handleTouchscreenEvent
+        else -> ::handleTouchpadEvent
     }
 
     private fun resetTouchscreenTimeout() {
@@ -321,13 +352,8 @@ class TouchpadView(
             1, 6 -> { if (event.pointerCount == 2) handleTwoFingerTap(event) else handleTouchUp(event); return true }
             2 -> { if (event.pointerCount == 2) handleTwoFingerScroll(event) else handleTouchMove(event); return true }
             3 -> {
-                if (xServer.isRelativeMouseMovement) {
-                    xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0)
-                    xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
-                } else {
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
-                }
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 return true
             }
         }
@@ -336,29 +362,32 @@ class TouchpadView(
 
     private fun handleTouchDown(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-            updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        } else {
-            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        }
+        var tx = transformedPoint[0].toInt()
+        var ty = transformedPoint[1].toInt()
         if (event.pointerCount == 1) {
-            if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0) else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+            val now = System.currentTimeMillis()
+            val near = Math.hypot((event.x - lastTapRawX).toDouble(), (event.y - lastTapRawY).toDouble()) < TOUCHSCREEN_DOUBLE_TAP_DISTANCE
+            if (now - lastTapDownTime < TOUCHSCREEN_DOUBLE_TAP_MS && near) {
+                tx = lastTapTransX
+                ty = lastTapTransY
+            }
+            lastTapDownTime = now
+            lastTapRawX = event.x
+            lastTapRawY = event.y
+            lastTapTransX = tx
+            lastTapTransY = ty
         }
+        xServer.injectPointerMove(tx, ty)
+        if (event.pointerCount == 1) xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleTouchMove(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        if (xServer.isRelativeMouseMovement) {
-            xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, transformedPoint[0].toInt(), transformedPoint[1].toInt(), 0)
-            updateVisibleRelativeCursor(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        } else {
-            xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        }
+        xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
     }
 
     private fun handleTouchUp(event: MotionEvent) {
-        if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0) else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleTwoFingerScroll(event: MotionEvent) {
@@ -376,16 +405,11 @@ class TouchpadView(
 
     private fun handleTwoFingerTap(event: MotionEvent) {
         if (event.pointerCount == 2) {
-            if (xServer.isRelativeMouseMovement) {
-                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0)
-                xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0)
-            } else {
-                if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
-                }
-                xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
+                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
             }
+            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
         }
     }
 
@@ -594,6 +618,27 @@ class TouchpadView(
 
     fun isSimTouchScreen(): Boolean = simTouchScreen
 
+    fun setScreenTouchMode(mode: Int) {
+        setSimTouchScreen(mode == MODE_TOUCHSCREEN)
+        if (screenTouchMode == mode) return
+        screenTouchMode = mode
+        screenTouchStick.releaseAll()
+        resetInputState()
+    }
+
+    fun getScreenTouchMode(): Int = screenTouchMode
+
+    fun setRtsGesturesEnabled(enabled: Boolean) {
+        if (rtsGesturesEnabled == enabled) return
+        rtsGesturesEnabled = enabled
+        rtsGestureEngine.releaseAll()
+        resetInputState()
+    }
+
+    fun setGestureConfig(json: String?) {
+        rtsGestureEngine.setConfig(TouchGestureConfig.fromJson(json))
+    }
+
     fun toggleFullscreen() {
         Handler(Looper.getMainLooper()).postDelayed({
             updateXform(width, height, xServer.screenInfo.width.toInt(), xServer.screenInfo.height.toInt())
@@ -621,6 +666,8 @@ class TouchpadView(
     }
 
     fun resetInputState() {
+        screenTouchStick.releaseAll()
+        rtsGestureEngine.releaseAll()
         continueClick = false
         scrolling = false
         scrollAccumY = 0f

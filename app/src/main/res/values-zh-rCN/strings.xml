@@ -193,6 +193,10 @@
     <string name="library_games_immersive_blur_description">对沉浸背景应用模糊效果</string>
     <string name="library_games_custom_game">自定义游戏</string>
     <string name="library_games_play">开始游戏</string>
+    <string name="hero_boot_to_desktop_title">启动到桌面</string>
+    <string name="hero_graphics_tests_title">图形测试</string>
+    <string name="hero_graphics_test_32">32 位</string>
+    <string name="hero_graphics_test_64">64 位</string>
     <string name="library_games_add_custom_game">添加自定义游戏</string>
     <string name="library_games_game_name">游戏名称</string>
     <string name="library_games_game_folder_mapped_drive">游戏文件夹（映射的游戏驱动器）</string>
@@ -1122,6 +1126,7 @@
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">控制在多次运行之间缓存生成的动态重编译块，以加快启动速度。</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
     <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
@@ -1327,5 +1332,51 @@
     <string name="workshop_loading_items">正在加载 Workshop 项目</string>
     <string name="workshop_search_items">搜索 Workshop 项目</string>
     <string name="common_ui_failed">失败</string>
+
+    <!-- Touch Input & Gesture Profiles -->
+    <string name="common_ui_new">新建</string>
+    <string name="common_ui_rename">重命名</string>
+    <string name="gesture_profile_export">导出手势配置文件</string>
+    <string name="gesture_profile_import">导入手势配置文件</string>
+    <string name="gesture_profile_new">新建手势配置文件</string>
+    <string name="gesture_profile_none">没有手势配置文件</string>
+    <string name="input_controls_editor_input_profiles_section">输入配置文件</string>
+    <string name="session_drawer_right_stick_sensitivity">右摇杆灵敏度</string>
+    <string name="session_drawer_rts_gestures">RTS 手势</string>
+    <string name="session_drawer_rts_gestures_edit">编辑</string>
+    <string name="session_drawer_touch">触摸</string>
+    <string name="session_drawer_touch_map_right_stick">映射到右摇杆</string>
+    <string name="session_drawer_touch_touchscreen">触摸屏模式</string>
+    <string name="session_drawer_touch_trackpad">触控板</string>
+    <string name="session_gesture_profile_section">手势配置文件</string>
+    <string name="session_rts_action">操作</string>
+    <string name="session_rts_behavior">行为</string>
+    <string name="session_rts_double_tap">双击（双击左键）</string>
+    <string name="session_rts_double_tap_delay">双击延迟 (ms)</string>
+    <string name="session_rts_down">下</string>
+    <string name="session_rts_drag">单指拖动</string>
+    <string name="session_rts_pan1">单指平移</string>
+    <string name="session_rts_drag2">双指拖动</string>
+    <string name="session_rts_drag_threshold">拖动阈值 (px)</string>
+    <string name="session_rts_gesture_threshold">手势阈值 (px)</string>
+    <string name="session_rts_hold2">双指长按</string>
+    <string name="session_rts_hold3">三指长按</string>
+    <string name="session_rts_hold4">四指长按</string>
+    <string name="session_rts_hold_delay">长按延迟 (ms)</string>
+    <string name="session_rts_left">左</string>
+    <string name="session_rts_long_press">长按</string>
+    <string name="session_rts_long_press_delay">长按延迟 (ms)</string>
+    <string name="session_rts_pan">双指平移</string>
+    <string name="session_rts_pan_threshold">平移/缩放起始 (px)</string>
+    <string name="session_rts_right">右</string>
+    <string name="session_rts_swipe3">三指滑动</string>
+    <string name="session_rts_swipe4">四指滑动</string>
+    <string name="session_rts_swipe_threshold">滑动阈值 (px)</string>
+    <string name="session_rts_tap1">单指点按</string>
+    <string name="session_rts_tap2">双指点按</string>
+    <string name="session_rts_tap3">三指点按</string>
+    <string name="session_rts_tap4">四指点按</string>
+    <string name="session_rts_up">上</string>
+    <string name="session_rts_zoom">捏合缩放</string>
 </resources>
 

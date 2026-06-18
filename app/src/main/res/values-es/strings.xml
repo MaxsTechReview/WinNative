@@ -193,6 +193,10 @@
     <string name="library_games_immersive_blur_description">Aplicar un efecto de desenfoque al fondo inmersivo</string>
     <string name="library_games_custom_game">Juego personalizado</string>
     <string name="library_games_play">Jugar</string>
+    <string name="hero_boot_to_desktop_title">Arrancar al escritorio</string>
+    <string name="hero_graphics_tests_title">Pruebas gráficas</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
     <string name="library_games_add_custom_game">Añadir juego personalizado</string>
     <string name="library_games_game_name">Nombre del juego</string>
     <string name="library_games_game_folder_mapped_drive">Carpeta del juego (unidad de juego asignada)</string>
@@ -1122,6 +1126,7 @@ Ruta instalada:
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">Controla el almacenamiento en caché de los bloques dynarec generados entre ejecuciones para acelerar el inicio.</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
     <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
@@ -1327,5 +1332,51 @@ Ruta instalada:
     <string name="workshop_loading_items">Cargando elementos de Workshop</string>
     <string name="workshop_search_items">Buscar elementos de Workshop</string>
     <string name="common_ui_failed">Fallido</string>
+
+    <!-- Session > Touch & Gesture Profiles -->
+    <string name="common_ui_new">Nuevo</string>
+    <string name="common_ui_rename">Renombrar</string>
+    <string name="gesture_profile_export">Exportar perfil de gestos</string>
+    <string name="gesture_profile_import">Importar perfil de gestos</string>
+    <string name="gesture_profile_new">Nuevo perfil de gestos</string>
+    <string name="gesture_profile_none">No hay perfiles de gestos</string>
+    <string name="input_controls_editor_input_profiles_section">Perfiles de entrada</string>
+    <string name="session_drawer_right_stick_sensitivity">Sensibilidad del stick derecho</string>
+    <string name="session_drawer_rts_gestures">Gestos RTS</string>
+    <string name="session_drawer_rts_gestures_edit">Editar</string>
+    <string name="session_drawer_touch">Táctil</string>
+    <string name="session_drawer_touch_map_right_stick">Asignar al stick derecho</string>
+    <string name="session_drawer_touch_touchscreen">Modo pantalla táctil</string>
+    <string name="session_drawer_touch_trackpad">Trackpad</string>
+    <string name="session_gesture_profile_section">Perfil de gestos</string>
+    <string name="session_rts_action">Acción</string>
+    <string name="session_rts_behavior">Comportamiento</string>
+    <string name="session_rts_double_tap">Doble toque (doble clic izquierdo)</string>
+    <string name="session_rts_double_tap_delay">Retardo de doble toque (ms)</string>
+    <string name="session_rts_down">Abajo</string>
+    <string name="session_rts_drag">Arrastre con 1 dedo</string>
+    <string name="session_rts_pan1">Desplazar con 1 dedo</string>
+    <string name="session_rts_drag2">Arrastre con 2 dedos</string>
+    <string name="session_rts_drag_threshold">Umbral de arrastre (px)</string>
+    <string name="session_rts_gesture_threshold">Umbral de gesto (px)</string>
+    <string name="session_rts_hold2">Mantener con 2 dedos</string>
+    <string name="session_rts_hold3">Mantener con 3 dedos</string>
+    <string name="session_rts_hold4">Mantener con 4 dedos</string>
+    <string name="session_rts_hold_delay">Retardo de mantener (ms)</string>
+    <string name="session_rts_left">Izquierda</string>
+    <string name="session_rts_long_press">Pulsación larga</string>
+    <string name="session_rts_long_press_delay">Retardo de pulsación larga (ms)</string>
+    <string name="session_rts_pan">Desplazar con 2 dedos</string>
+    <string name="session_rts_pan_threshold">Inicio de desplazar/pellizcar (px)</string>
+    <string name="session_rts_right">Derecha</string>
+    <string name="session_rts_swipe3">Deslizar con 3 dedos</string>
+    <string name="session_rts_swipe4">Deslizar con 4 dedos</string>
+    <string name="session_rts_swipe_threshold">Umbral de deslizar (px)</string>
+    <string name="session_rts_tap1">Toque con 1 dedo</string>
+    <string name="session_rts_tap2">Toque con 2 dedos</string>
+    <string name="session_rts_tap3">Toque con 3 dedos</string>
+    <string name="session_rts_tap4">Toque con 4 dedos</string>
+    <string name="session_rts_up">Arriba</string>
+    <string name="session_rts_zoom">Zoom con pellizco</string>
 </resources>
 

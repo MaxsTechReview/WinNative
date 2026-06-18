@@ -197,6 +197,10 @@
     <string name="library_games_immersive_blur_description">Застосувати ефект розмиття до фону режиму занурення</string>
     <string name="library_games_custom_game">Користувацька гра</string>
     <string name="library_games_play">Грати</string>
+    <string name="hero_boot_to_desktop_title">Завантажити робочий стіл</string>
+    <string name="hero_graphics_tests_title">Графічні тести</string>
+    <string name="hero_graphics_test_32">32-біт</string>
+    <string name="hero_graphics_test_64">64-біт</string>
     <string name="library_games_add_custom_game">Додати користувацьку гру</string>
     <string name="library_games_game_name">Назва гри</string>
     <string name="library_games_game_folder_mapped_drive">Папка гри (зіставлений ігровий диск)</string>
@@ -1128,6 +1132,7 @@
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">Керує кешуванням згенерованих блоків dynarec між запусками для пришвидшення запуску.</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
     <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
@@ -1333,5 +1338,51 @@
     <string name="workshop_loading_items">Завантаження елементів Workshop</string>
     <string name="workshop_search_items">Пошук елементів Workshop</string>
     <string name="common_ui_failed">Помилка</string>
+
+    <!-- Touch Input & Gesture Profiles -->
+    <string name="common_ui_new">Створити</string>
+    <string name="common_ui_rename">Перейменувати</string>
+    <string name="gesture_profile_export">Експортувати профіль жестів</string>
+    <string name="gesture_profile_import">Імпортувати профіль жестів</string>
+    <string name="gesture_profile_new">Новий профіль жестів</string>
+    <string name="gesture_profile_none">Немає профілів жестів</string>
+    <string name="input_controls_editor_input_profiles_section">Профілі введення</string>
+    <string name="session_drawer_right_stick_sensitivity">Чутливість правого стіка</string>
+    <string name="session_drawer_rts_gestures">RTS-жести</string>
+    <string name="session_drawer_rts_gestures_edit">Редагувати</string>
+    <string name="session_drawer_touch">Дотик</string>
+    <string name="session_drawer_touch_map_right_stick">Призначити на правий стік</string>
+    <string name="session_drawer_touch_touchscreen">Режим сенсорного екрана</string>
+    <string name="session_drawer_touch_trackpad">Тачпад</string>
+    <string name="session_gesture_profile_section">Профіль жестів</string>
+    <string name="session_rts_action">Дія</string>
+    <string name="session_rts_behavior">Поведінка</string>
+    <string name="session_rts_double_tap">Подвійний дотик (подвійний лівий клік)</string>
+    <string name="session_rts_double_tap_delay">Затримка подвійного дотику (ms)</string>
+    <string name="session_rts_down">Вниз</string>
+    <string name="session_rts_drag">Перетягування 1 пальцем</string>
+    <string name="session_rts_pan1">Панорамування 1 пальцем</string>
+    <string name="session_rts_drag2">Перетягування 2 пальцями</string>
+    <string name="session_rts_drag_threshold">Поріг перетягування (px)</string>
+    <string name="session_rts_gesture_threshold">Поріг жесту (px)</string>
+    <string name="session_rts_hold2">Утримання 2 пальцями</string>
+    <string name="session_rts_hold3">Утримання 3 пальцями</string>
+    <string name="session_rts_hold4">Утримання 4 пальцями</string>
+    <string name="session_rts_hold_delay">Затримка утримання (ms)</string>
+    <string name="session_rts_left">Вліво</string>
+    <string name="session_rts_long_press">Довге натискання</string>
+    <string name="session_rts_long_press_delay">Затримка довгого натискання (ms)</string>
+    <string name="session_rts_pan">Панорамування 2 пальцями</string>
+    <string name="session_rts_pan_threshold">Початок панорамування/щипка (px)</string>
+    <string name="session_rts_right">Вправо</string>
+    <string name="session_rts_swipe3">Свайп 3 пальцями</string>
+    <string name="session_rts_swipe4">Свайп 4 пальцями</string>
+    <string name="session_rts_swipe_threshold">Поріг свайпу (px)</string>
+    <string name="session_rts_tap1">Дотик 1 пальцем</string>
+    <string name="session_rts_tap2">Дотик 2 пальцями</string>
+    <string name="session_rts_tap3">Дотик 3 пальцями</string>
+    <string name="session_rts_tap4">Дотик 4 пальцями</string>
+    <string name="session_rts_up">Вгору</string>
+    <string name="session_rts_zoom">Масштабування щипком</string>
 </resources>
 

@@ -193,6 +193,10 @@
     <string name="library_games_immersive_blur_description">Appliquer un effet de flou à l’arrière-plan immersif</string>
     <string name="library_games_custom_game">Jeu personnalisé</string>
     <string name="library_games_play">Jouer</string>
+    <string name="hero_boot_to_desktop_title">Démarrer sur le bureau</string>
+    <string name="hero_graphics_tests_title">Tests graphiques</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
     <string name="library_games_add_custom_game">Ajouter un jeu personnalisé</string>
     <string name="library_games_game_name">Nom du jeu</string>
     <string name="library_games_game_folder_mapped_drive">Dossier du jeu (lecteur de jeu mappé)</string>
@@ -1122,6 +1126,7 @@ Chemin installé :
     <string name="box64_env_var_help__dynarec_noarch">Reduces dynarec block metadata to save memory, with compatibility tradeoffs.</string>
     <string name="box64_env_var_help__dynarec_sep">Adds secondary entry points to optimize CALL/RET when CALLRET is enabled.</string>
     <string name="box64_env_var_help__dynarec_volatile_metadata">Uses PE volatile metadata to guide strong memory emulation for 64-bit Windows games.</string>
+    <string name="box64_env_var_help__dynacache">Contrôle la mise en cache des blocs dynarec générés entre les exécutions pour accélérer le démarrage.</string>
     <string name="box64_env_var_help__dynarec">Enables or disables the Box64 dynamic recompiler.</string>
     <string name="box64_env_var_help__pclmulqdq">Exposes PCLMULQDQ CPU capabilities to the guest.</string>
     <string name="box64_env_var_help__shaext">Exposes SHA extension CPU capabilities to the guest.</string>
@@ -1327,5 +1332,51 @@ Chemin installé :
     <string name="workshop_loading_items">Chargement des éléments du Workshop</string>
     <string name="workshop_search_items">Rechercher des éléments du Workshop</string>
     <string name="common_ui_failed">Échec</string>
+
+    <!-- Session > Touch & Gesture Profiles -->
+    <string name="common_ui_new">Nouveau</string>
+    <string name="common_ui_rename">Renommer</string>
+    <string name="gesture_profile_export">Exporter le profil de gestes</string>
+    <string name="gesture_profile_import">Importer un profil de gestes</string>
+    <string name="gesture_profile_new">Nouveau profil de gestes</string>
+    <string name="gesture_profile_none">Aucun profil de gestes</string>
+    <string name="input_controls_editor_input_profiles_section">Profils de saisie</string>
+    <string name="session_drawer_right_stick_sensitivity">Sensibilité du stick droit</string>
+    <string name="session_drawer_rts_gestures">Gestes RTS</string>
+    <string name="session_drawer_rts_gestures_edit">Modifier</string>
+    <string name="session_drawer_touch">Tactile</string>
+    <string name="session_drawer_touch_map_right_stick">Mapper sur le stick droit</string>
+    <string name="session_drawer_touch_touchscreen">Mode écran tactile</string>
+    <string name="session_drawer_touch_trackpad">Trackpad</string>
+    <string name="session_gesture_profile_section">Profil de gestes</string>
+    <string name="session_rts_action">Action</string>
+    <string name="session_rts_behavior">Comportement</string>
+    <string name="session_rts_double_tap">Double appui (double clic gauche)</string>
+    <string name="session_rts_double_tap_delay">Délai de double appui (ms)</string>
+    <string name="session_rts_down">Bas</string>
+    <string name="session_rts_drag">Glissement à 1 doigt</string>
+    <string name="session_rts_pan1">Déplacement à 1 doigt</string>
+    <string name="session_rts_drag2">Glissement à 2 doigts</string>
+    <string name="session_rts_drag_threshold">Seuil de glissement (px)</string>
+    <string name="session_rts_gesture_threshold">Seuil de geste (px)</string>
+    <string name="session_rts_hold2">Maintien à 2 doigts</string>
+    <string name="session_rts_hold3">Maintien à 3 doigts</string>
+    <string name="session_rts_hold4">Maintien à 4 doigts</string>
+    <string name="session_rts_hold_delay">Délai de maintien (ms)</string>
+    <string name="session_rts_left">Gauche</string>
+    <string name="session_rts_long_press">Appui long</string>
+    <string name="session_rts_long_press_delay">Délai d\'appui long (ms)</string>
+    <string name="session_rts_pan">Déplacement à 2 doigts</string>
+    <string name="session_rts_pan_threshold">Début déplacement/pincement (px)</string>
+    <string name="session_rts_right">Droite</string>
+    <string name="session_rts_swipe3">Balayage à 3 doigts</string>
+    <string name="session_rts_swipe4">Balayage à 4 doigts</string>
+    <string name="session_rts_swipe_threshold">Seuil de balayage (px)</string>
+    <string name="session_rts_tap1">Appui à 1 doigt</string>
+    <string name="session_rts_tap2">Appui à 2 doigts</string>
+    <string name="session_rts_tap3">Appui à 3 doigts</string>
+    <string name="session_rts_tap4">Appui à 4 doigts</string>
+    <string name="session_rts_up">Haut</string>
+    <string name="session_rts_zoom">Zoom par pincement</string>
 </resources>
 
