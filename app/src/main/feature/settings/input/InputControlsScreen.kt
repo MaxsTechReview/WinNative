@@ -2188,9 +2188,8 @@ private fun GestureEditorBody(
                 { mutate { swipe4Enabled = it } }, { mutate { swipe4Up = it } }, { mutate { swipe4Down = it } }, { mutate { swipe4Left = it } }, { mutate { swipe4Right = it } }, { mutate { swipe4Threshold = it } })
             if (config.drag2Action == DragAction.NONE) {
                 OptionDropdown(stringResource(R.string.session_rts_pan), config.panAction, PanAction.values().toList(), { prettyEnum(it.name) }) { mutate { panAction = it } }
-                OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
             }
-            if (config.panAction == PanAction.NONE && config.zoomAction == ZoomAction.NONE) {
+            if (config.panAction == PanAction.NONE) {
                 OptionDropdown(stringResource(R.string.session_rts_drag2), config.drag2Action, DragAction.values().toList(), { prettyEnum(it.name) }) { mutate { drag2Action = it } }
             }
             if (config.pan1Action == PanAction.NONE) {
@@ -2203,6 +2202,7 @@ private fun GestureEditorBody(
                 SliderField("${stringResource(R.string.session_rts_drag_threshold)}: ${config.dragThreshold}", config.dragThreshold.toFloat(), 10f..200f, 0) { mutate { dragThreshold = it.toInt() } }
             }
         SliderField("${stringResource(R.string.session_rts_pan_threshold)}: ${config.gestureThreshold}", config.gestureThreshold.toFloat(), 10f..120f, 0) { mutate { gestureThreshold = it.toInt() } }
+        OptionDropdown(stringResource(R.string.session_rts_zoom), config.zoomAction, ZoomAction.values().toList(), { prettyEnum(it.name) }) { mutate { zoomAction = it } }
     }
 }
 

@@ -15,7 +15,7 @@ class RTSGestureEngine(
     private val xServer: XServer,
     private val xform: FloatArray,
 ) {
-    private enum class PanMode { NONE, PAN, PINCH }
+    private enum class PanMode { NONE, PAN }
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -40,7 +40,7 @@ class RTSGestureEngine(
     private var dragActive = false
     private var panMode = PanMode.NONE
     private var accumPan = 0f
-    private var accumPinch = 0f
+    private var zoomActive = false
     private var lastDistance = 0f
     private var lastCx = 0f
     private var lastCy = 0f
@@ -102,7 +102,7 @@ class RTSGestureEngine(
         maxFingerCount = 0
         sessionStartMs = SystemClock.uptimeMillis()
         holdFired = false; movedBeyondTap = false; dragActive = false
-        panMode = PanMode.NONE; accumPan = 0f; accumPinch = 0f; zoomAccum = 0f
+        panMode = PanMode.NONE; accumPan = 0f; zoomAccum = 0f; zoomActive = false
     }
 
     private fun onFingerCountChanged() {
@@ -111,7 +111,7 @@ class RTSGestureEngine(
         if (panMode != PanMode.NONE || dragActive) {
             releaseContinuousInputs()
             panMode = PanMode.NONE; dragActive = false
-            accumPan = 0f; accumPinch = 0f; zoomAccum = 0f
+            accumPan = 0f; zoomAccum = 0f; zoomActive = false
         }
         if (holdFired) {
             if (heldBehavior == HoldBehavior.HOLD) releaseBinding(heldBinding)
@@ -175,39 +175,32 @@ class RTSGestureEngine(
     }
 
     private fun handleTwoFingerMove(centroid: FloatArray) {
-        if (config.panAction == PanAction.NONE && config.zoomAction == ZoomAction.NONE && config.drag2Action != DragAction.NONE) {
-            handleTwoFingerDrag(centroid)
-            return
-        }
         val dist = distance()
-        val framePinch = Math.abs(dist - lastDistance)
-        val framePan = Math.hypot((centroid[0] - lastCx).toDouble(), (centroid[1] - lastCy).toDouble()).toFloat()
-        if (panMode == PanMode.NONE) {
-            accumPinch += framePinch
-            accumPan += framePan
-            if (accumPinch + accumPan > config.gestureThreshold) {
+        // Pinch zoom is its own function: it runs alongside any 2-finger pan/drag, driven by finger-distance change.
+        if (config.zoomAction != ZoomAction.NONE) {
+            zoomAccum += dist - lastDistance
+            while (Math.abs(zoomAccum) >= ZOOM_STEP) {
+                val zoomIn = zoomAccum > 0
+                performZoom(zoomIn)
+                zoomAccum -= if (zoomIn) ZOOM_STEP else -ZOOM_STEP
+                zoomActive = true
                 handler.removeCallbacks(holdRunnable)
-                panMode = when {
-                    accumPinch > accumPan * PINCH_RATIO && config.zoomAction != ZoomAction.NONE -> PanMode.PINCH
-                    config.panAction != PanAction.NONE -> PanMode.PAN
-                    config.zoomAction != ZoomAction.NONE -> PanMode.PINCH
-                    else -> PanMode.NONE
-                }
             }
-        }
-        when (panMode) {
-            PanMode.PINCH -> {
-                zoomAccum += dist - lastDistance
-                while (Math.abs(zoomAccum) >= ZOOM_STEP) {
-                    val zoomIn = zoomAccum > 0
-                    performZoom(zoomIn)
-                    zoomAccum -= if (zoomIn) ZOOM_STEP else -ZOOM_STEP
-                }
-            }
-            PanMode.PAN -> performPan(config.panAction, centroid[0] - lastCx, centroid[1] - lastCy)
-            PanMode.NONE -> {}
         }
         lastDistance = dist
+        // Translation gesture: 2-finger pan (priority) or 2-finger drag.
+        if (config.panAction != PanAction.NONE) {
+            if (panMode == PanMode.NONE) {
+                accumPan += Math.hypot((centroid[0] - lastCx).toDouble(), (centroid[1] - lastCy).toDouble()).toFloat()
+                if (accumPan > config.gestureThreshold) {
+                    handler.removeCallbacks(holdRunnable)
+                    panMode = PanMode.PAN
+                }
+            }
+            if (panMode == PanMode.PAN) performPan(config.panAction, centroid[0] - lastCx, centroid[1] - lastCy)
+        } else if (config.drag2Action != DragAction.NONE) {
+            handleTwoFingerDrag(centroid)
+        }
     }
 
     private fun handleTwoFingerDrag(centroid: FloatArray) {
@@ -228,7 +221,7 @@ class RTSGestureEngine(
 
     private fun finalizeSession() {
         handler.removeCallbacks(holdRunnable)
-        val continuous = holdFired || dragActive || panMode != PanMode.NONE
+        val continuous = holdFired || dragActive || panMode != PanMode.NONE || zoomActive
         if (!continuous) {
             val centroid = lastCentroidGuess()
             val travel = Math.hypot((centroid[0] - startCx).toDouble(), (centroid[1] - startCy).toDouble()).toFloat()
@@ -342,7 +335,7 @@ class RTSGestureEngine(
         owned.clear(); positions.clear()
         fingerCount = 0; maxFingerCount = 0
         holdFired = false; movedBeyondTap = false; dragActive = false
-        panMode = PanMode.NONE; accumPan = 0f; accumPinch = 0f; zoomAccum = 0f
+        panMode = PanMode.NONE; accumPan = 0f; zoomAccum = 0f; zoomActive = false
     }
 
     private fun centroid(): FloatArray {
@@ -428,7 +421,6 @@ class RTSGestureEngine(
     companion object {
         private const val TAP_TRAVEL_MAX = 30f
         private const val DOUBLE_TAP_DIST = 100.0
-        private const val PINCH_RATIO = 1.5f
         private const val ZOOM_STEP = 40f
         private const val PAN_DEADZONE = 3f
     }
