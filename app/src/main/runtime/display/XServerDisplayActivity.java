@@ -4978,10 +4978,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             sgsrUpscaleMode = clampSGSRUpscaleMode(preferences.getInt("sgsr_upscale_mode", 1));
             sgsrSharpness = preferences.getInt("sgsr_sharpness", legacyStrength);
         }
-        loadScreenEffectsFromContainer();
+        loadScreenEffects();
     }
 
-    private void loadScreenEffectsFromContainer() {
+    private void loadScreenEffects() {
         vividEnabled = false;
         vividStrength = 100;
         colorProfile = 0;
@@ -5003,9 +5003,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (shortcut != null) {
             String fromShortcut = shortcut.getExtra("screenEffectsSettings", "");
             if (!fromShortcut.isEmpty()) json = fromShortcut;
-        }
-        if (json == null && container != null) {
-            json = container.getExtra("screenEffectsSettings");
+        } else if (preferences != null) {
+            json = preferences.getString("screenEffectsSettings", null);
         }
         if (json == null || json.isEmpty()) return;
         try {
@@ -5033,7 +5032,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void saveScreenEffectsSettings() {
-        if (shortcut == null && container == null) return;
+        if (shortcut == null && preferences == null) return;
         try {
             JSONObject o = new JSONObject();
             o.put("vividEnabled", vividEnabled);
@@ -5057,9 +5056,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (shortcut != null) {
                 shortcut.putExtra("screenEffectsSettings", json);
                 shortcut.saveData();
-            } else if (container != null) {
-                container.putExtra("screenEffectsSettings", json);
-                container.saveData();
+            } else if (preferences != null) {
+                preferences.edit().putString("screenEffectsSettings", json).apply();
             }
         } catch (JSONException e) {
             Log.e("XServerDisplayActivity", "Failed to save screen effects", e);
