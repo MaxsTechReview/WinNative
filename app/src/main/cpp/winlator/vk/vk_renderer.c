@@ -2686,25 +2686,21 @@ static uint64_t g_fg_dropped = 0;
 // desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
 #define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
 
-// Advance the present deadline by one target period, then snap it to the panel vsync grid.
+// Advance the present deadline by one target period. The target is the free, evenly-spaced present
+// instant on the measured CONTENT-rate grid — NOT snapped to the panel vsync grid. Snapping quantized
+// every present to a vblank, which for non-integer / variable content:panel ratios produced uneven
+// spacing (3:2-pulldown-style judder); pacing at the true temporal position removes that.
 static uint64_t fg_compute_deadline(VkRenderer* r) {
     uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
     if (period == 0) { r->fg_present_deadline_ns = 0; r->fg_present_target_ns = 0; return 0; }
     uint64_t now = now_monotonic_ns();
     uint64_t deadline = r->fg_present_deadline_ns + period;
+    // Re-anchor on startup / stalls / rate changes so the evenly-spaced grid never drifts into the past
+    // or too far ahead of the real content clock.
     if (deadline < now || deadline > now + 4u * period) deadline = now + period;
     r->fg_present_deadline_ns = deadline;
-
-    uint64_t target = deadline;
-    uint64_t vs = r->fg_display_period_ns ? r->fg_display_period_ns : r->refresh_duration_ns;
-    uint64_t anchor = r->fg_vsync_anchor_ns;
-    // Snap only while the panel carries the target rate (vsync period <= present period).
-    if (vs != 0 && anchor != 0 && deadline > anchor && vs <= period + period / 8u) {
-        target = anchor + ((deadline - anchor + vs / 2u) / vs) * vs;
-        if (target <= r->fg_present_target_ns) target = r->fg_present_target_ns + vs;  // one present per vblank
-    }
-    r->fg_present_target_ns = target;
-    return target;
+    r->fg_present_target_ns = deadline;
+    return deadline;
 }
 
 static void fg_sleep_to_deadline(VkRenderer* r) {
@@ -3211,7 +3207,10 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
     pinfo.swapchainCount = 1; pinfo.pSwapchains = &swapchain; pinfo.pImageIndices = &image_index;
     VkPresentTimeGOOGLE ptg; VkPresentTimesInfoGOOGLE pti;
     if (r->ext_display_timing) {
-        ptg.presentID = ++r->fg_present_id; ptg.desiredPresentTime = 0;
+        // Ask the display engine to latch this frame at its computed present instant (CLOCK_MONOTONIC ns).
+        // The CPU nanosleep above already woke us near the deadline; this lets a panel that honours
+        // display-timing place the frame on the correct vblank instead of "next vblank, whenever".
+        ptg.presentID = ++r->fg_present_id; ptg.desiredPresentTime = job->deadline_ns;
         pti.sType = VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE;
         pti.pNext = NULL; pti.swapchainCount = 1; pti.pTimes = &ptg;
         pinfo.pNext = &pti;

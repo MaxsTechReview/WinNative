@@ -30,7 +30,7 @@ typedef struct FgJob {
     float    phase;
     uint32_t curr_idx;      // history slots, snapshotted at enqueue
     uint32_t prev_idx;
-    uint64_t deadline_ns;   // vsync-snapped present target (worker paces to this)
+    uint64_t deadline_ns;   // free content-rate present target, ns CLOCK_MONOTONIC (worker paces to this)
     uint32_t seq;           // fg_promote_seq snapshot — worker drops the job if the slot was reused
 } FgJob;
 #define VK_MAX_EFFECTS 8
@@ -486,7 +486,7 @@ typedef struct VkRenderer {
     uint64_t         refresh_duration_ns;   // panel vsync period from the swapchain (fallback)
     uint64_t         fg_present_period_ns;   // target inter-present interval (ns) fed from Java
     uint64_t         fg_present_deadline_ns; // unsnapped deadline accumulator (target-rate grid)
-    uint64_t         fg_present_target_ns;   // vsync-snapped sleep target for the next present
+    uint64_t         fg_present_target_ns;   // free content-rate sleep/present target for the next present
     uint64_t         fg_display_period_ns;   // live panel vsync period fed from Java (Choreographer EMA)
     uint64_t         fg_vsync_anchor_ns;     // latest Choreographer vsync timestamp (CLOCK_MONOTONIC)
     uint64_t         fg_prev_arrival_ns;     // real-frame arrival times, for time-based interp phase

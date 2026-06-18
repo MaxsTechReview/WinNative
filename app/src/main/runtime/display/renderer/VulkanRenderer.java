@@ -234,7 +234,10 @@ public class VulkanRenderer
         synchronized (this) {
             if (nativeHandle != 0) {
                 nativeSetFrameGeneration(nativeHandle, enabled);
-                nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_FIFO : requestedPresentMode);
+                // FG presents under a non-blocking mode so the worker's deadline pacer drives the present
+                // instant. FIFO would block the present on vblank and make the panel vsync the pacer,
+                // re-introducing the quantization judder the deadline model exists to avoid.
+                nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_MAILBOX : requestedPresentMode);
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
             }
         }
@@ -648,15 +651,13 @@ public class VulkanRenderer
         return Math.max(0, Math.min(maxInterps, interps));
     }
 
-    // Presents per pump tick: enough to sustain the target rate from the current refresh (1 under FIFO).
+    // Presents per pump tick. The pump fires once per vblank (AChoreographer), so exactly one present per
+    // tick = one present per vblank = the panel-rate ceiling. Emitting more than one per tick would post
+    // multiple frames into a single vblank (MAILBOX keeps only the last), wasting work and inflating the
+    // present count into an uneven ">panel" rate. Sub-panel output rates are handled by the per-vblank
+    // phase logic (hold vs interp), so one-per-tick is always correct.
     private int fgComputePerTick() {
-        if (fgActivePresentMode == PRESENT_MODE_FIFO) return 1;
-        long disp = fgDisplayPeriodNs;
-        double target = fgTargetHz();
-        if (disp <= 0L || target <= 0.0) return 1;
-        double panelHz = 1.0e9 / (double) disp;
-        int n = (int) Math.round(target / Math.max(1.0, panelHz));
-        return Math.max(1, Math.min(n, 8));
+        return 1;
     }
 
     // Vote the FG post rate on the content surface, then notify the activity so it mirrors the target
