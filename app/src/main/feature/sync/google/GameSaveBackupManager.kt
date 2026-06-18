@@ -333,6 +333,7 @@ object GameSaveBackupManager {
         authMode: GoogleAuthMode = GoogleAuthMode.INTERACTIVE,
         label: String? = null,
         customSaveDir: File? = null,
+        containerHint: Container? = null,
     ): BackupResult =
         withContext(Dispatchers.IO) {
             try {
@@ -340,7 +341,8 @@ object GameSaveBackupManager {
                     return@withContext BackupResult(false, "Not signed in to Google Play Games.")
                 }
                 val context = activity.applicationContext
-                val sources = getLocalSaveSources(context, gameSource, gameId, customSaveDir, forRestore = false)
+                val sources =
+                    getLocalSaveSources(context, gameSource, gameId, customSaveDir, forRestore = false, containerHint = containerHint)
                 if (sources.isEmpty()) {
                     return@withContext BackupResult(false, "No save files found to back up.")
                 }
@@ -759,8 +761,8 @@ object GameSaveBackupManager {
                     .enumerateGoogleSaveSources(context, appId, forRestore, containerHint)
                     .map { (zipRoot, dir) -> SaveBackupSource("steam/$zipRoot", dir) }
             }
-            GameSource.EPIC -> getEpicSaveSources(context, gameId, forRestore)
-            GameSource.GOG -> getGogSaveSources(context, gameId, forRestore)
+            GameSource.EPIC -> getEpicSaveSources(context, gameId, forRestore, containerHint)
+            GameSource.GOG -> getGogSaveSources(context, gameId, forRestore, containerHint)
             GameSource.CUSTOM -> getCustomSaveSources(context, gameId, customSaveDir, forRestore)
         }
 
@@ -768,9 +770,14 @@ object GameSaveBackupManager {
         context: Context,
         gameId: String,
         forRestore: Boolean,
+        containerHint: Container? = null,
     ): List<SaveBackupSource> {
         val appId = gameId.toIntOrNull() ?: return emptyList()
-        val saveDir = EpicCloudSavesManager.getResolvedSaveDirectory(context, appId) ?: return emptyList()
+        // Pass the game's container so the save dir resolves against the right wineprefix — without
+        // it a manual backup/restore from the Cloud Saves screen (game not running) would resolve
+        // the wrong/default container and find no saves.
+        val saveDir =
+            EpicCloudSavesManager.getResolvedSaveDirectory(context, appId, containerHint?.id) ?: return emptyList()
         return if (forRestore || (saveDir.exists() && !saveDir.listFiles().isNullOrEmpty())) {
             listOf(SaveBackupSource("epic/save", saveDir))
         } else {
@@ -782,8 +789,9 @@ object GameSaveBackupManager {
         context: Context,
         gameId: String,
         forRestore: Boolean,
+        containerHint: Container? = null,
     ): List<SaveBackupSource> {
-        val saveDirs = GOGService.getResolvedSaveDirectories(context, "GOG_$gameId")
+        val saveDirs = GOGService.getResolvedSaveDirectories(context, "GOG_$gameId", containerHint?.id)
         return saveDirs.mapIndexedNotNull { index, saveDir ->
             if (forRestore || (saveDir.exists() && !saveDir.listFiles().isNullOrEmpty())) {
                 SaveBackupSource("gog/location_$index", saveDir)

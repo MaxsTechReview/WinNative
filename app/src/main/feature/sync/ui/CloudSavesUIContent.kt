@@ -531,6 +531,45 @@ internal fun CloudSavesContent(
 
         }
 
+        // "Backup To Google" — manual backup of the current local save to Google Play Games,
+        // available for every store. Reused both inside the Steam action grid (to the right of
+        // "Import Files") and as a standalone button for other stores. Passes the game's container
+        // so the save resolves against the correct wineprefix — without it the wrong/default
+        // container is used and no saves are found.
+        val backupToGoogleAction: @Composable (Modifier) -> Unit = { mod ->
+            ActionWithHelper(
+                icon = Icons.Outlined.CloudUpload,
+                label = stringResource(R.string.cloud_saves_google_backup_label),
+                tint = CloudSuccess,
+                modifier = mod,
+                enabled = !isWorking && !googleBackupBusy && gameId.isNotEmpty(),
+                onClick = {
+                    if (googleBackupBusy) return@ActionWithHelper
+                    scope.launch {
+                        googleBackupBusy = true
+                        try {
+                            val result =
+                                withContext(Dispatchers.IO) {
+                                    GameSaveBackupManager.backupSaveToGoogle(
+                                        activity = activity,
+                                        gameSource = gameSource,
+                                        gameId = gameId,
+                                        gameName = gameName,
+                                        origin = GameSaveBackupManager.BackupOrigin.MANUAL,
+                                        authMode = GoogleAuthMode.INTERACTIVE,
+                                        containerHint = shortcut?.container,
+                                    )
+                                }
+                            notify(result.message, Toast.LENGTH_LONG)
+                        } finally {
+                            googleBackupBusy = false
+                            historyRefreshKey++
+                        }
+                    }
+                },
+            )
+        }
+
         if (steamManagedCloud) {
             val steamAppIdInt = gameId.toIntOrNull()
             var steamBusy by remember { mutableStateOf(false) }
@@ -557,7 +596,7 @@ internal fun CloudSavesContent(
                     }
                 }
 
-            if (steamBusy) {
+            if (steamBusy || googleBackupBusy) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -571,7 +610,6 @@ internal fun CloudSavesContent(
             val steamPushSuccess = stringResource(R.string.cloud_saves_steam_push_success)
             val steamPushFailed = stringResource(R.string.cloud_saves_steam_push_failed)
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compact = maxWidth < 520.dp
                 val syncAction: @Composable (Modifier) -> Unit = { mod ->
                     ActionWithHelper(
                         icon = Icons.Outlined.CloudSync,
@@ -651,75 +689,43 @@ internal fun CloudSavesContent(
                         },
                     )
                 }
-                if (compact) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            syncAction(Modifier.weight(1f))
-                            pushAction(Modifier.weight(1f))
-                        }
-                        importAction(Modifier.fillMaxWidth())
-                    }
-                } else {
+                // 2x2 grid: Sync / Push on top, Import / Backup To Google below — each cell the
+                // same width so "Import Files" and "Backup To Google" line up under "Sync from
+                // Steam Cloud" and "Push to Steam Cloud".
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         syncAction(Modifier.weight(1f))
                         pushAction(Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         importAction(Modifier.weight(1f))
+                        backupToGoogleAction(Modifier.weight(1f))
                     }
                 }
             }
         }
 
-        // "Backup To Google" — available for every store (Steam/Epic/GOG/Custom). Saves a
-        // copy of the current local save to Google Play Games. Unlike the Steam-only auto
-        // backups, this is a manual, user-initiated action and will prompt for Google sign-in
-        // if needed.
-        if (googleBackupBusy) {
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth(),
-                color = Accent,
-                trackColor = CardBorder,
-            )
+        // For non-Steam stores, "Backup To Google" is its own full-width button (for Steam it
+        // lives in the action grid above, to the right of "Import Files").
+        if (!steamManagedCloud) {
+            if (googleBackupBusy) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Accent,
+                    trackColor = CardBorder,
+                )
+            }
+            backupToGoogleAction(Modifier.fillMaxWidth())
         }
-        ActionWithHelper(
-            icon = Icons.Outlined.CloudUpload,
-            label = stringResource(R.string.cloud_saves_google_backup_label),
-            helper = stringResource(R.string.cloud_saves_google_backup_helper),
-            tint = CloudSuccess,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isWorking && !googleBackupBusy && gameId.isNotEmpty(),
-            onClick = {
-                if (googleBackupBusy) return@ActionWithHelper
-                scope.launch {
-                    googleBackupBusy = true
-                    try {
-                        val result =
-                            withContext(Dispatchers.IO) {
-                                GameSaveBackupManager.backupSaveToGoogle(
-                                    activity = activity,
-                                    gameSource = gameSource,
-                                    gameId = gameId,
-                                    gameName = gameName,
-                                    origin = GameSaveBackupManager.BackupOrigin.MANUAL,
-                                    authMode = GoogleAuthMode.INTERACTIVE,
-                                )
-                            }
-                        notify(result.message, Toast.LENGTH_LONG)
-                    } finally {
-                        googleBackupBusy = false
-                        historyRefreshKey++
-                    }
-                }
-            },
-        )
 
         SaveHistorySection(
             loading = historyLoading,
