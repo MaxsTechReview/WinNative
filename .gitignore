@@ -53,3 +53,6 @@ signing.properties
 References/
 *.hprof
 android_sysvshm/build64/
+
+# Community config HMAC secret (never commit)
+tools/community_hmac.secret

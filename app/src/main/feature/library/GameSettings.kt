@@ -199,6 +199,10 @@ class GameSettingsStateHolder {
 
     // Container edits expose container-only fields and hide shortcut fields.
     val isContainerEditMode = mutableStateOf(false)
+
+    // Preview mode: rendering a community config (not a saved shortcut). Shows a
+    // green "Preview" badge and turns Save into Apply.
+    val isPreview = mutableStateOf(false)
     val wineVersionEditable = mutableStateOf(false)
 
     val name = mutableStateOf("")
@@ -397,6 +401,11 @@ interface GameSettingsCallbacks {
     fun onDismiss()
     fun onAddToHomeScreen()
 
+    // Community config sharing (header buttons). Default no-ops so other
+    // implementers are unaffected.
+    fun onDownloadCommunityConfig() {}
+    fun onUploadCommunityConfig() {}
+
     fun onPickGameCardArtwork() {}
     fun onRemoveGameCardArtwork() {}
     fun onPickGridArtwork() {}
@@ -493,6 +502,7 @@ fun GameSettingsContent(
 ) {
     val isSteam by state.isSteamGame
     val isContainer by state.isContainerEditMode
+    val isPreview by state.isPreview
     val sections = remember(isSteam, isContainer) { buildSections(isSteam, isContainer) }
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
@@ -513,6 +523,10 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                showCommunity = !isContainer && !isPreview,
+                onDownloadCommunity = { callbacks.onDownloadCommunityConfig() },
+                onUploadCommunity = { callbacks.onUploadCommunityConfig() },
+                isPreview = isPreview,
                 modifier = Modifier
                     .width(220.dp)
                     .fillMaxHeight()
@@ -592,6 +606,10 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    showCommunity: Boolean = false,
+    onDownloadCommunity: () -> Unit = {},
+    onUploadCommunity: () -> Unit = {},
+    isPreview: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -599,22 +617,60 @@ private fun Sidebar(
             .background(SidebarBg)
             .padding(top = 14.dp, bottom = 12.dp)
     ) {
-        // Header: shortcut/game title being edited
+        // Header: shortcut/game title being edited (+ green Preview badge)
         if (title.isNotBlank()) {
-            Text(
-                text = title,
-                color = TextPrimary,
-                fontSize = SettingLabelSize,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.2.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 10.dp)
-            )
+                    .padding(bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.2.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (isPreview) {
+                    val green = Color(0xFF35C46B)
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(green.copy(alpha = 0.16f))
+                            .border(1.dp, green.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text("Preview", color = green, fontSize = SettingLabelSize,
+                            fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            // Community config sharing: Download / Upload for this game.
+            if (showCommunity) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CommunityHeaderButton(
+                        Icons.Outlined.Download, "Download",
+                        Modifier.weight(1f), onDownloadCommunity
+                    )
+                    CommunityHeaderButton(
+                        Icons.Outlined.Upload, "Upload",
+                        Modifier.weight(1f), onUploadCommunity
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             Box(
                 modifier = Modifier
                     .padding(horizontal = 12.dp)
@@ -683,6 +739,7 @@ private fun Sidebar(
                 height = 30.dp,
                 corner = 8.dp,
                 fontSize = SettingLabelSize,
+                label = if (isPreview) "Apply" else null,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -696,6 +753,7 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
+    label: String? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -715,11 +773,45 @@ private fun SaveButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            stringResource(R.string.common_ui_save),
+            label ?: stringResource(R.string.common_ui_save),
             color = if (enabled) AccentBlue else TextDim,
             fontSize = fontSize,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun CommunityHeaderButton(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(28.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, AccentBlue.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .background(AccentBlue.copy(alpha = 0.08f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = AccentBlue,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                label,
+                color = AccentBlue,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

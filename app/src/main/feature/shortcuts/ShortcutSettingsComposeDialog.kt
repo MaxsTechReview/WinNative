@@ -18,7 +18,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -106,6 +109,33 @@ class ShortcutSettingsComposeDialog private constructor(
     private var contentsManager: ContentsManager = ContentsManager(context)
     private var isArm64EC = false
 
+    // Community config sharing controller (Download/Upload header buttons).
+    private val communityControllerLazy = lazy {
+        com.winlator.cmod.feature.community.ui.CommunityController(
+            activity, shortcut, contentsManager
+        ).also { it.onConfigApplied = { reloadAfterCommunityApply() } }
+    }
+    private val communityController get() = communityControllerLazy.value
+
+    // Preview mode: this dialog edits a TEMP shortcut seeded from a community
+    // config; Apply writes the (edited) settings to the real shortcut. The temp
+    // file lives in cacheDir and is deleted on dismiss. The real shortcut and
+    // stored community config are untouched unless the user taps Apply.
+    private var previewMode = false
+    private var previewRealShortcut: Shortcut? = null
+    private var previewTempFile: File? = null
+    private var previewOnApplied: () -> Unit = {}
+    private val previewMissing =
+        mutableStateOf<List<com.winlator.cmod.feature.community.ComponentChecker.Missing>?>(null)
+
+    fun enablePreview(realShortcut: Shortcut, tempFile: File, onApplied: () -> Unit) {
+        previewMode = true
+        previewRealShortcut = realShortcut
+        previewTempFile = tempFile
+        previewOnApplied = onApplied
+        state.isPreview.value = true
+    }
+
 
     // Preset ID lists (parallel to display name lists)
     private var box64PresetIds = mutableListOf<String>()
@@ -181,10 +211,17 @@ class ShortcutSettingsComposeDialog private constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(
-                            state = state,
-                            callbacks = createCallbacks()
-                        )
+                        Box(Modifier) {
+                            GameSettingsContent(
+                                state = state,
+                                callbacks = createCallbacks()
+                            )
+                            previewMissing.value?.let { miss ->
+                                com.winlator.cmod.feature.community.ui.MissingComponentDialog(miss) {
+                                    previewMissing.value = null
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -204,6 +241,10 @@ class ShortcutSettingsComposeDialog private constructor(
     private fun createCallbacks(): GameSettingsCallbacks {
         return object : GameSettingsCallbacks {
             override fun onConfirm() {
+                if (previewMode) {
+                    applyPreview()
+                    return
+                }
                 saveSettings()
                 emitLibraryRefreshIfNeeded()
                 dismiss()
@@ -211,6 +252,16 @@ class ShortcutSettingsComposeDialog private constructor(
 
             override fun onDismiss() {
                 dismiss()
+            }
+
+            override fun onDownloadCommunityConfig() {
+                communityController.openDownload()
+            }
+
+            override fun onUploadCommunityConfig() {
+                // Upload implies Save so we share the persisted, current settings.
+                saveSettings()
+                communityController.upload()
             }
 
             override fun onAddToHomeScreen() {
@@ -340,6 +391,38 @@ class ShortcutSettingsComposeDialog private constructor(
         }
     }
 
+
+    /** Reload all UI state after a community config is applied to the shortcut. */
+    private fun reloadAfterCommunityApply() {
+        loadInitialData()
+        loadResourceArrays()
+        loadContentsAsync()
+        shouldRefreshLibraryOnSave = true
+    }
+
+    /**
+     * Preview "Apply": persist the user's (possibly edited) settings to the temp
+     * shortcut, then apply them to the REAL shortcut after a component check.
+     * If anything is missing, show the MISSING COMPONENT overlay and do nothing.
+     */
+    private fun applyPreview() {
+        saveSettings()  // writes edited UI state into the temp shortcut
+        val real = previewRealShortcut ?: return
+        val edited = com.winlator.cmod.feature.community.ConfigSerializer.serialize(shortcut)
+        Executors.newSingleThreadExecutor().execute {
+            val miss = com.winlator.cmod.feature.community.ComponentChecker
+                .findMissing(context, contentsManager, edited)
+            activity.runOnUiThread {
+                if (miss.isEmpty()) {
+                    com.winlator.cmod.feature.community.ConfigApplier.apply(real, edited)
+                    previewOnApplied()
+                    dismiss()
+                } else {
+                    previewMissing.value = miss
+                }
+            }
+        }
+    }
 
     private fun loadInitialData() {
         val container = shortcut.container
@@ -2346,6 +2429,8 @@ class ShortcutSettingsComposeDialog private constructor(
     }
 
     fun dismiss() {
+        if (communityControllerLazy.isInitialized()) communityControllerLazy.value.dispose()
+        if (previewMode) runCatching { previewTempFile?.delete() }
         AppUtils.hideKeyboard(activity)
         dialog.dismiss()
     }
@@ -2353,6 +2438,34 @@ class ShortcutSettingsComposeDialog private constructor(
     companion object {
         private const val TAG = "ShortcutSettingsCompose"
         private const val EXTRA_USE_CONTAINER_DEFAULTS = "use_container_defaults"
+
+        /**
+         * Open this dialog in PREVIEW mode for a community config: it shows the
+         * real Shortcut-Settings UI (same tabs/toggles/dropdowns) seeded from
+         * [communitySettings] on a throwaway temp shortcut, with a green Preview
+         * badge and an Apply button. The user may edit anything; Apply writes the
+         * result to [realShortcut] (after a MISSING-COMPONENT check). The stored
+         * community config and the real shortcut are untouched until Apply.
+         */
+        @JvmStatic
+        fun preview(
+            activity: Activity,
+            realShortcut: Shortcut,
+            communitySettings: org.json.JSONObject,
+            onApplied: () -> Unit,
+        ) {
+            // Keep the real file name so the shown title is the game name (the
+            // Shortcut derives its name from the file name). cacheDir keeps it out
+            // of any container Desktop dir, so it never appears as a real shortcut.
+            val tempDir = File(activity.cacheDir, "wn_preview").apply { mkdirs() }
+            val tempFile = File(tempDir, realShortcut.file.name)
+            FileUtils.copy(realShortcut.file, tempFile)
+            val temp = Shortcut(realShortcut.container, tempFile)
+            com.winlator.cmod.feature.community.ConfigApplier.apply(temp, communitySettings)
+            val dlg = ShortcutSettingsComposeDialog(activity, temp)
+            dlg.enablePreview(realShortcut, tempFile, onApplied)
+            dlg.show()
+        }
 
         /**
          * Creates a minimal `.desktop` file on the preferred game container and returns a
