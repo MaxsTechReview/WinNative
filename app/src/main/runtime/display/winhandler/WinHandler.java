@@ -17,6 +17,7 @@ import androidx.preference.PreferenceManager;
 import com.winlator.cmod.runtime.display.XServerDisplayActivity;
 import com.winlator.cmod.runtime.display.xserver.XServer;
 import com.winlator.cmod.runtime.input.controls.ControllerManager;
+import com.winlator.cmod.runtime.input.controls.Binding;
 import com.winlator.cmod.runtime.input.controls.ControlsProfile;
 import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.FakeInputWriter;
@@ -113,6 +114,10 @@ public class WinHandler {
   private float smoothedGyroY = 0.0f;
   private float currentGyroStickX = 0.0f;
   private float currentGyroStickY = 0.0f;
+  private float currentTouchStickX = 0.0f;
+  private float currentTouchStickY = 0.0f;
+  private boolean screenTouchStickActive = false;
+  private float rightStickSensitivity = 1.0f;
   private float accumulatedGyroX = 0.0f;
   private float accumulatedGyroY = 0.0f;
   private boolean gyroToggleEnabled = false;
@@ -634,7 +639,63 @@ public class WinHandler {
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
+  public boolean canUseScreenTouchStick() {
+    ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+    return profile != null && profile.isVirtualGamepad();
+  }
+
+  public void setScreenTouchStickActive(boolean active) {
+    if (this.screenTouchStickActive == active) return;
+    this.screenTouchStickActive = active;
+    this.currentTouchStickX = 0.0f;
+    this.currentTouchStickY = 0.0f;
+    writeScreenTouchStickFrame();
+    requestScreenTouchRender();
+  }
+
+  public void setRightStickSensitivity(float sensitivity) {
+    this.rightStickSensitivity = sensitivity;
+  }
+
+  public void setScreenTouchRightStick(float x, float y) {
+    if (!this.screenTouchStickActive) return;
+    this.currentTouchStickX = x;
+    this.currentTouchStickY = y;
+    writeScreenTouchStickFrame();
+    requestScreenTouchRender();
+  }
+
+  private void writeScreenTouchStickFrame() {
+    if (this.lastGamepadSource == GAMEPAD_SOURCE_CONTROLLER && this.currentController != null) {
+      writeControllerGamepadState(
+          this.currentController, shouldApplyGyroToTarget(GAMEPAD_SOURCE_CONTROLLER, this.currentController));
+    } else {
+      writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null), true);
+    }
+  }
+
+  private void requestScreenTouchRender() {
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
   private void writeVirtualGamepadState(boolean applyGyroOverlay) {
+    writeVirtualGamepadState(applyGyroOverlay, false);
+  }
+
+  // allowHiddenControls relaxes the on-screen-controls gate for gesture-driven gamepad output.
+  public void injectGestureGamepad(Binding binding, boolean pressed) {
+    if (binding == null || !binding.isGamepad()) return;
+    ControlsProfile profile = this.activity.getInputControlsView().getProfile();
+    if (profile == null || !profile.isVirtualGamepad()) return;
+    this.activity.getInputControlsView().handleInputEvent(null, binding, pressed, 0f, false);
+    setLastGamepadSource(GAMEPAD_SOURCE_VIRTUAL, null);
+    writeVirtualGamepadState(shouldApplyGyroToTarget(GAMEPAD_SOURCE_VIRTUAL, null), true);
+    XServer xServer = activity.getXServer();
+    if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
+  }
+
+  private void writeVirtualGamepadState(boolean applyGyroOverlay, boolean allowHiddenControls) {
     ControlsProfile profile = this.activity.getInputControlsView().getProfile();
     if (profile == null) {
       return;
@@ -642,7 +703,7 @@ public class WinHandler {
     GamepadState gamepadState = profile.getGamepadState();
     boolean useVirtualGamepad =
         profile.isVirtualGamepad()
-            && this.activity.getInputControlsView().isShowTouchscreenControls();
+            && (allowHiddenControls || this.activity.getInputControlsView().isShowTouchscreenControls());
     if (useVirtualGamepad) {
       int slot = assignSlot(-1);
       if (slot >= 0 && this.writers[slot] != null) {
@@ -1582,12 +1643,12 @@ public class WinHandler {
         this.preferences.getInt("gyro_trigger_button", KeyEvent.KEYCODE_BUTTON_L1);
     settings.applyToRightStick =
         this.preferences.getBoolean("process_gyro_with_left_trigger", false);
-    // Slider 100% maps to 200% effective (+1.0 offset): the displayed % was too weak on its own.
-    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
-    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + GYRO_SENSITIVITY_OFFSET;
-    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.1f), 0.0f, 0.99f);
-    // Deadzone forced to 0 while gyro is in use; the saved gyro_deadzone pref is left intact.
-    settings.deadzone = 0.0f;
+    float sensitivityOffset =
+        this.preferences.getBoolean("gyro_orientation_enabled", false) ? 0.0f : GYRO_SENSITIVITY_OFFSET;
+    settings.sensitivityX = getFloatPreference("gyro_x_sensitivity", 1.0f) + sensitivityOffset;
+    settings.sensitivityY = getFloatPreference("gyro_y_sensitivity", 1.0f) + sensitivityOffset;
+    settings.smoothing = clamp(getFloatPreference("gyro_smoothing", 0.5f), 0.0f, 0.99f);
+    settings.deadzone = getFloatPreference("gyro_deadzone", 0.05f);
     settings.invertX = this.preferences.getBoolean("invert_gyro_x", false);
     settings.invertY = this.preferences.getBoolean("invert_gyro_y", false);
     return settings;
@@ -1751,22 +1812,42 @@ public class WinHandler {
   }
 
   private GamepadState getOutputGamepadState(GamepadState baseState, boolean applyGyroOverlay) {
-    if (!applyGyroOverlay || baseState == null) {
+    boolean applyTouch = this.screenTouchStickActive;
+    boolean applyRsScale = !applyTouch && this.rightStickSensitivity != 1.0f;
+    if ((!applyGyroOverlay && !applyTouch && !applyRsScale) || baseState == null) {
       return baseState;
     }
 
-    GyroSettings gyroSettings = getGyroSettings();
     this.outputGamepadState.copy(baseState);
-    if (gyroSettings.applyToRightStick) {
+    if (applyGyroOverlay) {
+      GyroSettings gyroSettings = getGyroSettings();
+      if (gyroSettings.applyToRightStick) {
+        this.outputGamepadState.thumbRX =
+            clamp(baseState.thumbRX + this.currentGyroStickX, -1.0f, 1.0f);
+        this.outputGamepadState.thumbRY =
+            clamp(baseState.thumbRY + this.currentGyroStickY, -1.0f, 1.0f);
+      } else {
+        this.outputGamepadState.thumbLX =
+            clamp(baseState.thumbLX + this.currentGyroStickX, -1.0f, 1.0f);
+        this.outputGamepadState.thumbLY =
+            clamp(baseState.thumbLY + this.currentGyroStickY, -1.0f, 1.0f);
+      }
+    }
+    if (applyTouch) {
       this.outputGamepadState.thumbRX =
-          clamp(baseState.thumbRX + this.currentGyroStickX, -1.0f, 1.0f);
+          clamp(this.outputGamepadState.thumbRX + this.currentTouchStickX, -1.0f, 1.0f);
       this.outputGamepadState.thumbRY =
-          clamp(baseState.thumbRY + this.currentGyroStickY, -1.0f, 1.0f);
-    } else {
-      this.outputGamepadState.thumbLX =
-          clamp(baseState.thumbLX + this.currentGyroStickX, -1.0f, 1.0f);
-      this.outputGamepadState.thumbLY =
-          clamp(baseState.thumbLY + this.currentGyroStickY, -1.0f, 1.0f);
+          clamp(this.outputGamepadState.thumbRY + this.currentTouchStickY, -1.0f, 1.0f);
+    }
+    if (applyRsScale) {
+      float rx = this.outputGamepadState.thumbRX;
+      float ry = this.outputGamepadState.thumbRY;
+      float mag = (float) Math.sqrt(rx * rx + ry * ry);
+      if (mag > 0.0f) {
+        float k = Math.min(mag * this.rightStickSensitivity, 1.0f) / mag;
+        this.outputGamepadState.thumbRX = rx * k;
+        this.outputGamepadState.thumbRY = ry * k;
+      }
     }
     return this.outputGamepadState;
   }

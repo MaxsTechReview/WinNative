@@ -14,6 +14,14 @@
             "path" : "C:/windows/system32/write.exe"
         },
         {
+            "name" : "Graphics Test (32-bit)",
+            "path" : "C:/ProgramData/Microsoft/Windows/Graphics-Test-32bit.exe"
+        },
+        {
+            "name" : "Graphics Test (64-bit)",
+            "path" : "C:/ProgramData/Microsoft/Windows/Graphics-Test-64bit.exe"
+        },
+        {
             "name" : "Ajay Prefix Pro v1.7.1 Downloader",
             "path" : "Z:/home/.Ajay_Prefix/Ajay_Prefix_Pro_v1.7.1_Downloader.exe"
         }

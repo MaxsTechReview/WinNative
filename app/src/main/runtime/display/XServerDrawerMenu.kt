@@ -63,6 +63,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.Add
@@ -84,6 +85,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ZoomIn
 import androidx.compose.material3.DropdownMenu
@@ -212,7 +214,7 @@ private enum class HUDMetricEditor(
     BACKGROUND_ALPHA(minPercent = 10, maxPercent = 100),
 }
 
-internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS }
+internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, TASK_MANAGER, LOGS, TOUCH }
 
 internal const val LogsPaneMaxLines = 2000
 
@@ -370,6 +372,14 @@ data class XServerDrawerState(
     val inputControlsGamepadVibration: Boolean = true,
     val inputControlsGcmRumbleMode: String = "disabled",
     val cursorSpeed: Float = 1.0f,
+    val mouseEnabled: Boolean = true,
+    val relativeMouseEnabled: Boolean = false,
+    val screenTouchMode: Int = 0,
+    val rtsGesturesEnabled: Boolean = false,
+    val gestureProfileNames: List<String> = emptyList(),
+    val gestureSelectedProfileIndex: Int = 0,
+    val rightStickSensitivity: Float = 1.0f,
+    val screenTouchRsSensitivity: Float = 1.25f,
 )
 
 class XServerDrawerStateHolder(
@@ -617,6 +627,16 @@ interface XServerDrawerActionListener {
 
     fun onInputControlsEditClick()
 
+    fun onScreenTouchModeChanged(mode: Int)
+
+    fun onRtsGesturesToggled(enabled: Boolean)
+
+    fun onGestureProfileSelected(index: Int)
+
+    fun onRtsGesturesEditClick()
+
+    fun onRightStickSensitivityChanged(sensitivity: Float)
+
     fun onTaskManagerVisibilityChanged(visible: Boolean)
 
     fun onTaskManagerCpuExpandedChanged(expanded: Boolean)
@@ -715,6 +735,12 @@ fun buildXServerDrawerState(
     frameGenerationExtrapolate: Boolean = false,
     frameGenerationFramesInFlight: Int = 3,
     frameGenerationPreset: Int = 2,
+    screenTouchMode: Int = 0,
+    rtsGesturesEnabled: Boolean = false,
+    gestureProfileNames: List<String> = emptyList(),
+    gestureSelectedProfileIndex: Int = 0,
+    rightStickSensitivity: Float = 1.0f,
+    screenTouchRsSensitivity: Float = 1.25f,
 ): XServerDrawerState {
     val items =
         mutableListOf(
@@ -747,20 +773,11 @@ fun buildXServerDrawerState(
                 active = gyroscopeEnabled,
             ),
             XServerDrawerItem(
-                itemId = R.id.main_menu_relative_mouse_movement,
-                title = context.getString(R.string.session_drawer_relative_mouse_movement),
-                subtitle =
-                    if (relativeMouseEnabled) context.getString(R.string.common_ui_enabled) else context.getString(R.string.common_ui_disabled),
-                icon = Icons.Outlined.Mouse,
-                active = relativeMouseEnabled,
-            ),
-            XServerDrawerItem(
-                itemId = R.id.main_menu_disable_mouse,
-                title = context.getString(R.string.session_drawer_mouse_input),
-                subtitle =
-                    if (mouseDisabled) context.getString(R.string.common_ui_disabled) else context.getString(R.string.common_ui_enabled),
-                icon = Icons.Outlined.Mouse,
-                active = !mouseDisabled,
+                itemId = R.id.main_menu_touch,
+                title = context.getString(R.string.session_drawer_touch),
+                subtitle = "",
+                icon = Icons.Outlined.TouchApp,
+                active = screenTouchMode != 0 || rtsGesturesEnabled || !mouseDisabled,
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_toggle_fullscreen,
@@ -910,6 +927,14 @@ fun buildXServerDrawerState(
         inputControlsGamepadVibration = inputControlsGamepadVibration,
         inputControlsGcmRumbleMode = inputControlsGcmRumbleMode,
         cursorSpeed = cursorSpeed,
+        mouseEnabled = !mouseDisabled,
+        relativeMouseEnabled = relativeMouseEnabled,
+        screenTouchMode = screenTouchMode,
+        rtsGesturesEnabled = rtsGesturesEnabled,
+        gestureProfileNames = gestureProfileNames,
+        gestureSelectedProfileIndex = gestureSelectedProfileIndex,
+        rightStickSensitivity = rightStickSensitivity,
+        screenTouchRsSensitivity = screenTouchRsSensitivity,
     )
 }
 
@@ -1025,6 +1050,7 @@ internal fun XServerDrawerContent(
                                 DrawerPane.INPUT_CONTROLS -> InputControlsPaneContent(state = state, listener = listener)
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
                                 DrawerPane.GYROSCOPE -> GyroscopePaneContent(state = state, listener = listener)
+                                DrawerPane.TOUCH -> TouchPaneContent(state = state, listener = listener, onClose = { onOpenPaneChange(null) })
                                 DrawerPane.SCREEN_EFFECTS -> ScreenEffectsPaneContent(state = state, listener = listener)
                                 DrawerPane.TASK_MANAGER ->
                                     TaskManagerPaneContent(
@@ -1045,6 +1071,7 @@ internal fun XServerDrawerContent(
                                         cardsRevealed = cardsRevealed.value,
                                         onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
                                         onOpenLogs = { onOpenPaneChange(DrawerPane.LOGS) },
+                                        onOpenTouch = { onOpenPaneChange(DrawerPane.TOUCH) },
                                     )
                             }
                         }
@@ -1290,6 +1317,7 @@ private fun ActionCardGrid(
     cardsRevealed: Boolean,
     onOpenTaskManager: () -> Unit,
     onOpenLogs: () -> Unit,
+    onOpenTouch: () -> Unit,
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -1331,8 +1359,7 @@ private fun ActionCardGrid(
                             when (item.itemId) {
                                 R.id.main_menu_task_manager -> onOpenTaskManager()
                                 R.id.main_menu_logs -> onOpenLogs()
-                                R.id.main_menu_relative_mouse_movement,
-                                R.id.main_menu_disable_mouse,
+                                R.id.main_menu_touch -> onOpenTouch()
                                 R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
                                 else -> listener.onActionSelected(item.itemId)
                             }
@@ -1789,6 +1816,88 @@ private fun HUDPaneContent(
 }
 
 @Composable
+private fun TouchPaneContent(
+    state: XServerDrawerState,
+    listener: XServerDrawerActionListener,
+    onClose: () -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val paneScale = computePaneScale(maxHeight)
+        CompositionLocalProvider(LocalPaneScale provides paneScale) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size((30f * paneScale).dp)
+                            .clip(RoundedCornerShape((8f * paneScale).dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onClose,
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.common_ui_back),
+                        tint = DrawerTextSecondary,
+                        modifier = Modifier.size((20f * paneScale).dp),
+                    )
+                }
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_mouse_input),
+                    checked = state.mouseEnabled,
+                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_disable_mouse) },
+                )
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_relative_mouse_movement),
+                    checked = state.relativeMouseEnabled,
+                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) },
+                )
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_touch_trackpad),
+                    checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
+                    onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
+                )
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_touch_touchscreen),
+                    checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
+                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
+                )
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_touch_map_right_stick),
+                    checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
+                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
+                )
+                DrawerBooleanRow(
+                    title = stringResource(R.string.session_drawer_rts_gestures),
+                    checked = state.rtsGesturesEnabled,
+                    onCheckedChange = { listener.onRtsGesturesToggled(it) },
+                )
+                if (state.rtsGesturesEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
+                        InputControlsProfileSelector(
+                            profileNames = state.gestureProfileNames,
+                            selectedIndex = state.gestureSelectedProfileIndex,
+                            onProfileSelected = listener::onGestureProfileSelected,
+                            onEditClick = listener::onRtsGesturesEditClick,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun GyroscopePaneContent(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
@@ -2041,6 +2150,17 @@ private fun InputControlsPaneContent(
                     valueRange = 10f..300f,
                     steps = 0,
                     onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
+                )
+
+                val rsMapMode = state.screenTouchMode == 2
+                val rsValue = if (rsMapMode) state.screenTouchRsSensitivity else state.rightStickSensitivity
+                DrawerSliderRow(
+                    label = stringResource(R.string.session_drawer_right_stick_sensitivity),
+                    valueText = "${Math.round(rsValue * 100)}%",
+                    value = rsValue * 100f,
+                    valueRange = (if (rsMapMode) 25f else 10f)..200f,
+                    steps = 0,
+                    onValueChange = { listener.onRightStickSensitivityChanged(it / 100f) },
                 )
 
                 LaunchedEffect(gcmEnabled) {
