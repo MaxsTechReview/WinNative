@@ -4978,10 +4978,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             sgsrUpscaleMode = clampSGSRUpscaleMode(preferences.getInt("sgsr_upscale_mode", 1));
             sgsrSharpness = preferences.getInt("sgsr_sharpness", legacyStrength);
         }
-        loadScreenEffectsFromContainer();
+        loadScreenEffects();
     }
 
-    private void loadScreenEffectsFromContainer() {
+    private void loadScreenEffects() {
         vividEnabled = false;
         vividStrength = 100;
         colorProfile = 0;
@@ -4999,8 +4999,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         pixelateEnabled = false;
         pixelateBlock = 6;
         colorBlind = 0;
-        if (container == null) return;
-        String json = container.getExtra("screenEffectsSettings");
+        String json = null;
+        if (shortcut != null) {
+            String fromShortcut = shortcut.getExtra("screenEffectsSettings", "");
+            if (!fromShortcut.isEmpty()) json = fromShortcut;
+        } else if (preferences != null) {
+            json = preferences.getString("screenEffectsSettings", null);
+        }
         if (json == null || json.isEmpty()) return;
         try {
             JSONObject o = new JSONObject(json);
@@ -5027,7 +5032,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void saveScreenEffectsSettings() {
-        if (container == null) return;
+        if (shortcut == null && preferences == null) return;
         try {
             JSONObject o = new JSONObject();
             o.put("vividEnabled", vividEnabled);
@@ -5047,8 +5052,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             o.put("pixelateEnabled", pixelateEnabled);
             o.put("pixelateBlock", pixelateBlock);
             o.put("colorBlind", colorBlind);
-            container.putExtra("screenEffectsSettings", o.toString());
-            container.saveData();
+            String json = o.toString();
+            if (shortcut != null) {
+                shortcut.putExtra("screenEffectsSettings", json);
+                shortcut.saveData();
+            } else if (preferences != null) {
+                preferences.edit().putString("screenEffectsSettings", json).apply();
+            }
         } catch (JSONException e) {
             Log.e("XServerDisplayActivity", "Failed to save screen effects", e);
         }
