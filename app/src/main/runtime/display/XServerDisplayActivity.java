@@ -353,6 +353,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long GRAPHICS_TEST_32_EXE_BYTES = 2333245L;
     private static final long GRAPHICS_TEST_64_EXE_BYTES = 2361407L;
     private String bootExePath;
+    private String bootExeArgs;
+    private boolean isDependencyInstall;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -1064,6 +1066,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String shortcutUuid = getIntent().getStringExtra("shortcut_uuid");
         int shortcutPathHash = getIntent().getIntExtra("shortcut_path_hash", 0);
         bootExePath = getIntent().getStringExtra("boot_exe");
+        bootExeArgs = getIntent().getStringExtra("boot_exe_args");
+        isDependencyInstall = getIntent().getBooleanExtra("is_dependency_installer", false);
 
         android.net.Uri launchData = getIntent().getData();
         if (launchData != null) {
@@ -6341,6 +6345,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "Guest process terminated with status: " + status);
             stopWnLauncherStatusTailer();
 
+            if (isDependencyInstall) {
+                com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(status);
+                exit();
+                return;
+            }
+
 
             boolean planWActiveTerm = com.winlator.cmod.feature.stores.steam.utils
                     .PrefManager.INSTANCE.getWnPlanW();
@@ -7470,6 +7480,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (bootExePath != null && !bootExePath.isEmpty()) {
             args = "\"" + bootExePath + "\"";
+            if (bootExeArgs != null && !bootExeArgs.isEmpty()) args += " " + bootExeArgs;
         } else if (shortcut != null) {
             String path = shortcut.path;
             String gameSource = shortcut.getExtra("game_source", "CUSTOM");

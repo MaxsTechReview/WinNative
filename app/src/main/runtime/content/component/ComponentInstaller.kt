@@ -1,9 +1,11 @@
 package com.winlator.cmod.runtime.content.component
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
+import com.winlator.cmod.runtime.display.XServerDisplayActivity
 import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
 import com.winlator.cmod.shared.io.FileUtils
@@ -189,10 +191,12 @@ class ComponentInstaller(
                 "override_dll" -> overrideDll(step)
                 "set_register_key" -> setRegisterKey(step)
                 "delete_dlls" -> deleteDlls(step)
-                "install_exe", "install_msi" ->
-                    throw InstallException("Runs an installer — not supported yet.")
-                "register_dll", "register_font", "replace_font", "install_fonts", "install_cab_fonts" ->
-                    throw InstallException("Needs DLL/font registration — not supported yet.")
+                "install_exe" -> runInstaller(step, isMsi = false)
+                "install_msi" -> runInstaller(step, isMsi = true)
+                "register_font" -> registerFont(step)
+                "replace_font" -> replaceFont(step)
+                "install_fonts", "install_cab_fonts" -> installFonts(step)
+                "register_dll" -> registerDlls(step)
                 "set_windows", "use_windows", "uninstall" ->
                     throw InstallException("Needs '$action' — not supported yet.")
                 else -> Log.w(TAG, "Unknown action: $action")
@@ -269,6 +273,99 @@ class ComponentInstaller(
         for (d in dlls) File(dir, d).delete()
     }
 
+    private fun registerFont(step: Map<String, Any?>) {
+        val name = step["name"] as? String ?: return
+        val file = step["file"] as? String ?: return
+        WineRegistryEditor(systemReg).use { reg ->
+            reg.setCreateKeyIfNotExist(true)
+            reg.setStringValue("Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", name, file)
+        }
+    }
+
+    private fun replaceFont(step: Map<String, Any?>) {
+        val font = step["font"] as? String ?: return
+        val replacement = (step["replace"] as? List<*>)?.firstOrNull()?.toString() ?: return
+        WineRegistryEditor(userReg).use { reg ->
+            reg.setCreateKeyIfNotExist(true)
+            reg.setStringValue("Software\\Wine\\Fonts\\Replacements", font, replacement)
+        }
+    }
+
+    private fun installFonts(step: Map<String, Any?>) {
+        val srcDir = resolveDest(step["url"] as? String ?: return)
+        val fonts = step["fonts"] as? List<*> ?: return
+        val fontsDir = File(driveC, "windows/Fonts")
+        fontsDir.mkdirs()
+        for (f in fonts) {
+            val fn = f?.toString() ?: continue
+            val src = File(srcDir, fn)
+            if (src.isFile) FileUtils.copy(src, File(fontsDir, fn))
+        }
+    }
+
+    /** Stages the installer into the container and runs it inside Wine (via the boot session), waiting. */
+    private fun runInstaller(
+        step: Map<String, Any?>,
+        isMsi: Boolean,
+    ) {
+        val fileName = (step["rename"] as? String) ?: (step["file_name"] as String)
+        val src = File(componentDir, fileName)
+        if (!src.isFile) throw InstallException("Installer not found: $fileName")
+        val stageDir = File(driveC, "wn-install")
+        stageDir.mkdirs()
+        val staged = File(stageDir, fileName)
+        if (!FileUtils.copy(src, staged)) throw InstallException("Couldn't stage installer: $fileName")
+
+        val winPath = "C:\\wn-install\\$fileName"
+        val arguments = (step["arguments"] as? String).orEmpty()
+        listener.onStatus("Running installer: $fileName")
+        listener.onProgress(-1f)
+
+        val bootExe: String
+        val bootArgs: String
+        if (isMsi) {
+            bootExe = "C:\\windows\\system32\\msiexec.exe"
+            bootArgs = "/i \"$winPath\" $arguments".trim()
+        } else {
+            bootExe = winPath
+            bootArgs = arguments
+        }
+        val code = launchInContainerAndWait(bootExe, bootArgs)
+        // 0 = success, 3010 = success but reboot required (common for redists/MSI).
+        if (code != 0 && code != 3010) throw InstallException("Installer exited with code $code: $fileName")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun registerDlls(step: Map<String, Any?>) {
+        val dlls = (step["dlls"] as? List<String>)?.filter { it.isNotBlank() } ?: return
+        if (dlls.isEmpty()) return
+        listener.onStatus("Registering ${dlls.size} DLL(s)")
+        listener.onProgress(-1f)
+        val batch = dlls.joinToString(" & ") { "regsvr32 /s $it" }
+        val code = launchInContainerAndWait("C:\\windows\\system32\\cmd.exe", "/c \"$batch\"")
+        // regsvr32 /s exit codes are unreliable; the DLLs are already placed + overridden, so don't hard-fail.
+        if (code != 0) Log.w(TAG, "register_dll batch for $componentName exited $code")
+    }
+
+    /** Boots the container with the given Wine program (gated dependency mode) and blocks for its exit code. */
+    private fun launchInContainerAndWait(
+        bootExe: String,
+        bootArgs: String,
+    ): Int {
+        DependencyInstallBridge.begin()
+        val intent =
+            Intent(context, XServerDisplayActivity::class.java).apply {
+                putExtra("container_id", container.id)
+                putExtra("boot_exe", bootExe)
+                putExtra("boot_exe_args", bootArgs)
+                putExtra("is_dependency_installer", true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        context.startActivity(intent)
+        return DependencyInstallBridge.await(INSTALL_TIMEOUT_MS)
+            ?: throw InstallException("Installer timed out or the session was closed.")
+    }
+
     // ---- path templates ----
     // q(): where a source file currently lives (downloads in componentDir, extracted under temp/=workingDir).
     private fun resolveSource(path: String): File {
@@ -319,5 +416,6 @@ class ComponentInstaller(
     companion object {
         private const val TAG = "ComponentInstaller"
         private const val DLL_OVERRIDES = "Software\\Wine\\DllOverrides"
+        private const val INSTALL_TIMEOUT_MS = 20L * 60L * 1000L
     }
 }
