@@ -3,20 +3,20 @@
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-layout(set = 0, binding = 0) uniform sampler2DArray uSrc;            // input feature tiles (cinT layers)
-layout(set = 0, binding = 1, rgba8) uniform writeonly image2DArray uDst; // output tiles (coutT layers)
-layout(set = 0, binding = 3) uniform sampler2D       uLuma;          // R8 luma source
+layout(set = 0, binding = 0) uniform sampler2DArray uSrc;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2DArray uDst;
+layout(set = 0, binding = 3) uniform sampler2D       uLuma;
 
 layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
 
 layout(push_constant) uniform PC {
-    ivec2 size;     // dst extent in pixels
-    float t;        // interpolation phase (unused here)
-    float mvScale;  // flow scale (unused here)
-    uint  wBase;    // weight offset (fp16 elements)
-    int   cinT;     // Cin/4
-    int   coutT;    // Cout/4
-    int   flags;    // bit0=stem-luma-norm bit1=stride2 bit2=residual-add bit3=relu
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
 } pc;
 
 const ivec2 TAP[9] = ivec2[](
@@ -31,10 +31,10 @@ mat4 convMat(int k, int ci, int co) {
     mat4 M;
     for (int c = 0; c < 4; ++c) {
         uint cb = b + uint(c);
-        M[c] = vec4(float(W[cb +  0u]),   // r=0
-                    float(W[cb +  4u]),   // r=1
-                    float(W[cb +  8u]),   // r=2
-                    float(W[cb + 12u]));  // r=3
+        M[c] = vec4(float(W[cb +  0u]),
+                    float(W[cb +  4u]),
+                    float(W[cb +  8u]),
+                    float(W[cb + 12u]));
     }
     return M;
 }
@@ -47,25 +47,30 @@ void main() {
     bool stride2 = (pc.flags & 2) != 0;
     bool resid   = (pc.flags & 4) != 0;
     bool doRelu  = (pc.flags & 8) != 0;
+    bool stem2x  = (pc.flags & 16) != 0;
 
-    // Base sample position in *source* texels.
-    ivec2 sp = stride2 ? (p * 2) : p;
+    ivec2 sp = (stride2 || stem2x) ? (p * 2) : p;
+
+    ivec2 hi = stem    ? (textureSize(uLuma, 0) - ivec2(1))
+             : stride2 ? (textureSize(uSrc, 0).xy - ivec2(1))
+             :           (pc.size - ivec2(1));
 
     vec4 acc[MAX_T];
     for (int co = 0; co < pc.coutT; ++co) acc[co] = vec4(0.0);
 
-    // affine base offset (fp16 elements) = wBase + 9*cinT*coutT*16
     uint affBase = pc.wBase + uint(9 * pc.cinT * pc.coutT * 16);
 
     for (int k = 0; k < 9; ++k) {
-        ivec2 q = clamp(sp + TAP[k], ivec2(0), pc.size - 1);
+        ivec2 q = clamp(sp + TAP[k], ivec2(0), hi);
 
         if (stem) {
+
             float luma = texelFetch(uLuma, q, 0).r;
-            vec4 x = vec4((luma - 0.2139) * 1.4961 + 0.7695, 0.0, 0.0, 0.0);
+            vec4 x = vec4((luma - 0.208008) * 1.496094 + 0.769531, 0.0, 0.0, 0.0);
             for (int co = 0; co < pc.coutT; ++co)
                 acc[co] += convMat(k, 0, co) * x;
         } else {
+
             for (int ci = 0; ci < pc.cinT; ++ci) {
                 vec4 x = texelFetch(uSrc, ivec3(q, ci), 0);
                 for (int co = 0; co < pc.coutT; ++co)

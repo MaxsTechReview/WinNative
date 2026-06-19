@@ -80,7 +80,12 @@ set(SHADER_LIST
     "interpolate:frag:interpolate_frag"
     "cnn_pyramid:comp:cnn_pyramid_comp"
     "cnn_conv:comp:cnn_conv_comp"
+    "cnn_conv_2pass:comp:cnn_conv_2pass_comp"
     "cnn_correlation:comp:cnn_correlation_comp"
+    "cnn_correlation_cost9:comp:cnn_correlation_cost9_comp"
+    "cnn_correlation_g09:comp:cnn_correlation_g09_comp"
+    "cnn_correlation_warpfollow:comp:cnn_correlation_warpfollow_comp"
+    "cnn_flowreg:comp:cnn_flowreg_comp"
     "cnn_occlusion:comp:cnn_occlusion_comp"
     "cnn_generate:comp:cnn_generate_comp"
 )
@@ -108,6 +113,26 @@ foreach(entry ${SHADER_LIST})
         VERBATIM
     )
     list(APPEND SHADER_HEADERS "${hdr}")
+endforeach()
+
+set(WEIGHTS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/winlator/vk/weights_v2")
+set(BIN2C_BYTES_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/winlator/vk/bin2c_bytes.cmake")
+set(WEIGHTS_LIST 05 06 07 14 20 21 22 24 25 26 27 28 29 36 37 42 51)
+foreach(id ${WEIGHTS_LIST})
+    set(winput "${WEIGHTS_SRC_DIR}/wnfg_${id}.weights.fp16")
+    set(whdr   "${SHADER_OUT_DIR}/wnfg_${id}_weights.h")
+    add_custom_command(
+        OUTPUT  "${whdr}"
+        COMMAND "${CMAKE_COMMAND}"
+            -DINPUT_FILE=${winput}
+            -DOUTPUT_FILE=${whdr}
+            -DVAR_NAME=wnfg_${id}_weights
+            -P "${BIN2C_BYTES_SCRIPT}"
+        DEPENDS "${winput}" "${BIN2C_BYTES_SCRIPT}"
+        COMMENT "Embedding weights wnfg_${id}.weights.fp16 -> wnfg_${id}_weights.h"
+        VERBATIM
+    )
+    list(APPEND SHADER_HEADERS "${whdr}")
 endforeach()
 
 add_custom_target(winlator_shaders DEPENDS ${SHADER_HEADERS})

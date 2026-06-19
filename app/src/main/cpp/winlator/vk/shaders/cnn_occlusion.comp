@@ -49,28 +49,33 @@ void main() {
     ivec2 sz  = pc.size;
     ivec2 hi  = sz - ivec2(1);
 
-    float16_t bias = W[int(pc.wBase) + 72];
+    const float16_t bias    = W[int(pc.wBase) + 72];
+    const float16_t thr16   = float16_t(pc.occThresh);
+    const float16_t one16   = float16_t(1.0);
 
     for (int by = 0; by < 2; ++by) {
         for (int bx = 0; bx < 2; ++bx) {
             ivec2 p = wg * 32 + lid * 2 + ivec2(bx, by);
 
-            float16_t acc = bias;
-            for (int k = 0; k < 9; ++k) {
-                ivec2 c = clamp(p + OTAP[k], ivec2(0), hi);
-                f16vec4 a = f16vec4(texelFetch(uSrcA, c, 0));
-                f16vec4 b = f16vec4(texelFetch(uSrcB, c, 0));
+            f16vec4 a0 = f16vec4(texelFetch(uSrcA, clamp(p + OTAP[0], ivec2(0), hi), 0));
+            float16_t acc = dot(a0, wA(0));
+            for (int k = 1; k < 9; ++k) {
+                f16vec4 a = f16vec4(texelFetch(uSrcA, clamp(p + OTAP[k], ivec2(0), hi), 0));
                 acc += dot(a, wA(k));
+            }
+            for (int k = 0; k < 9; ++k) {
+                f16vec4 b = f16vec4(texelFetch(uSrcB, clamp(p + OTAP[k], ivec2(0), hi), 0));
                 acc += dot(b, wB(k));
             }
+            acc += bias;
 
-            float occ  = 1.0 / (1.0 + exp(-float(acc)));
-            float mask = step(pc.occThresh, occ) * occ;
+            float16_t occ  = one16 / (one16 + exp(-acc));
+            float16_t mask = step(thr16, occ) * occ;
 
             if (all(lessThan(p, sz)))
-                imageStore(uMip0, p, vec4(mask));
+                imageStore(uMip0, p, vec4(float(mask)));
 
-            lds[lid.x * 2 + bx][lid.y * 2 + by] = mask;
+            lds[lid.x * 2 + bx][lid.y * 2 + by] = float(mask);
         }
     }
 

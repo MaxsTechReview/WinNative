@@ -1,0 +1,87 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 32) uniform sampler2D uIn0;
+layout(set = 0, binding = 33) uniform sampler2D uIn1;
+layout(set = 0, binding = 34) uniform sampler2D uIn2;
+layout(set = 0, binding = 35) uniform sampler2D uIn3;
+layout(set = 0, binding = 36) uniform sampler2D uFlow;
+layout(set = 0, binding = 37) uniform sampler2D uOcc;
+layout(set = 0, binding = 48, rgba16f) uniform writeonly image2D uDst;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+const ivec2 TAP[9] = ivec2[](
+    ivec2(-1,-1), ivec2(0,-1), ivec2(1,-1),
+    ivec2(-1, 0), ivec2(0, 0), ivec2(1, 0),
+    ivec2(-1, 1), ivec2(0, 1), ivec2(1, 1));
+
+vec4 sampIn(int ci, vec2 uv) {
+    if (ci == 0) return textureLod(uIn0, uv, 0.0);
+    if (ci == 1) return textureLod(uIn1, uv, 0.0);
+    if (ci == 2) return textureLod(uIn2, uv, 0.0);
+    return            textureLod(uIn3, uv, 0.0);
+}
+
+f16vec4 wRow(int ci, int k, int row) {
+    uint b = pc.wBase + uint((ci * 9 + k) * 8 + row * 4);
+    return f16vec4(W[b + 0u], W[b + 1u], W[b + 2u], W[b + 3u]);
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, pc.size))) return;
+
+    vec2 fsz   = vec2(textureSize(uIn0, 0));
+    vec2 numer = vec2(p) + 0.5;
+    vec2 uv    = numer / fsz;
+
+    f16vec2 res = f16vec2(0.0hf);
+    vec2 texel = vec2(1.0) / fsz;
+    for (int ci = 0; ci < pc.cinT; ++ci) {
+        for (int k = 0; k < 9; ++k) {
+            vec2 tuv    = uv + vec2(TAP[k]) * texel;
+            f16vec4 s   = f16vec4(sampIn(ci, tuv));
+            f16vec4 r0  = wRow(ci, k, 0);
+            f16vec4 r1  = wRow(ci, k, 1);
+            res.x += dot(r0, s);
+            res.y += dot(r1, s);
+        }
+    }
+
+    uint bb = pc.wBase + uint(pc.cinT * 9 * 8);
+    res += f16vec2(W[bb + 0u], W[bb + 1u]);
+
+    vec2 flow = vec2(res);
+
+    vec4 base = 2.0 * textureLod(uFlow, uv, 0.0);
+    vec2 fwd  = base.xy + flow;
+    vec2 bwd  = base.zw - flow;
+
+    float t = pc.t;
+
+    vec2  uvF  = (numer + fwd * (2.0 * t) * 0.25) / fsz;
+    float occF = textureLod(uOcc, uvF, 0.0).x;
+    fwd *= (1.0 - occF);
+
+    vec2  uvB  = (numer + bwd * (2.0 * (1.0 - t)) * 0.25) / fsz;
+    float occB = textureLod(uOcc, uvB, 0.0).x;
+    bwd *= (1.0 - occB);
+
+    float occC = textureLod(uOcc, uv, 0.0).x;
+    vec4  outv = vec4(fwd.x, fwd.y, bwd.x, bwd.y) * (1.0 - occC);
+
+    imageStore(uDst, p, outv);
+}

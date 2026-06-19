@@ -102,6 +102,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(DestroyDescriptorSetLayout);
     LOAD(CreateDescriptorPool);
     LOAD(DestroyDescriptorPool);
+    LOAD(ResetDescriptorPool);
     LOAD(AllocateDescriptorSets);
     LOAD(FreeDescriptorSets);
     LOAD(UpdateDescriptorSets);
@@ -150,6 +151,8 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CmdDispatch);
     LOAD(CmdPipelineBarrier);
     LOAD(CmdBlitImage);
+    LOAD(CmdCopyImage);
+    LOAD(CmdClearColorImage);
     LOAD(CmdCopyBufferToImage);
     LOAD(CmdCopyImageToBuffer);
 

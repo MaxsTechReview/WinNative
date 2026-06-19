@@ -202,6 +202,13 @@ typedef struct VkPipelineSet {
     VkPipelineLayout      fg_interp_pipe_layout; // [interp] set + 24B fragment push range
     VkPipeline            fg_motion_pipeline;    // compute (block matching)
     VkPipeline            fg_interp_pipeline;    // graphics (interpolation, swapchain_pass)
+
+    VkDescriptorSetLayout cnn_pyramid_dsl, cnn_conv_dsl, cnn_cost9_dsl,
+                          cnn_flowreg_dsl, cnn_warpfollow_dsl, cnn_generate_dsl;
+    VkPipelineLayout      cnn_pyramid_pl,  cnn_conv_pl,  cnn_cost9_pl,
+                          cnn_flowreg_pl,  cnn_warpfollow_pl,  cnn_generate_pl;
+    VkPipeline            cnn_pyramid_pipe, cnn_conv_pipe, cnn_cost9_pipe,
+                          cnn_flowreg_pipe, cnn_warpfollow_pipe, cnn_generate_pipe;
 } VkPipelineSet;
 
 // ============================================================
@@ -244,6 +251,44 @@ typedef struct VkFgImage {
     VkDescriptorSet blit_set;        // history only: single-binding set (sampler_set_layout) for present
     uint32_t        width, height;
 } VkFgImage;
+
+// ============================================================
+#define CNN_LEVELS 7
+typedef struct VkCnnImg {
+    VkImage        image;
+    VkImageView    view;
+    VkImageView    layerView[4];
+    VkDeviceMemory memory;
+    uint32_t       w, h, layers;
+} VkCnnImg;
+typedef struct VkCnnFeatSet {
+    VkCnnImg luma  [CNN_LEVELS];
+    VkCnnImg feat4a[CNN_LEVELS];
+    VkCnnImg feat4b[CNN_LEVELS];
+    VkCnnImg feat8 [CNN_LEVELS];
+} VkCnnFeatSet;
+#define CNN_POOLS 8
+
+typedef struct VkFgCnn {
+    bool             ready;
+    VkDescriptorPool pool[CNN_POOLS];
+    uint32_t         curPool;
+    VkCnnFeatSet     featPrev, featCurr;
+    VkCnnImg feat8_pair[CNN_LEVELS];
+    VkCnnImg hG0[CNN_LEVELS], hG1[CNN_LEVELS], hG23[CNN_LEVELS], hG4[CNN_LEVELS];
+    VkCnnImg hD0[CNN_LEVELS], hD1[CNN_LEVELS], hD2[CNN_LEVELS], hD3[CNN_LEVELS];
+    VkCnnImg hD5[CNN_LEVELS], hD6[CNN_LEVELS], hD7[CNN_LEVELS], hD8[CNN_LEVELS];
+    VkCnnImg dpair[CNN_LEVELS];
+    VkCnnImg flowMid[CNN_LEVELS];
+    VkCnnImg flowRef[CNN_LEVELS];
+    VkCnnImg occ;
+    VkCnnImg seedBlack;
+    VkCnnImg dummy;
+    VkBuffer ubo; VkDeviceMemory uboMem;
+    VkBuffer       w[64];
+    VkDeviceMemory wMem[64];
+    VkDeviceSize   wLen[64];
+} VkFgCnn;
 
 // ============================================================
 // Staging pool for async texture uploads
@@ -415,6 +460,10 @@ typedef struct VkRenderer {
     float            fg_flow_scale;          // flow-field resolution scale [0.2,1.0] (preset GPU-cost dial)
     float            fg_built_flow_scale;    // flow_scale baked into the current motion resources
 
+    bool             fg_use_cnn;
+    bool             fg_cnn_capable;
+    VkFgCnn          fg_cnn;
+
     // --- Content-duplicate detection ------------------------------------------------------------
     // Each composited frame is downsampled to a tiny host buffer; the HOLD promotes the interp
     // pair only on a genuine content change so duplicate inputs don't advance.
@@ -524,6 +573,14 @@ typedef struct VkRenderer {
 
     PFN_vkGetRefreshCycleDurationGOOGLE   fnGetRefreshCycleDuration;
     PFN_vkGetPastPresentationTimingGOOGLE fnGetPastPresentationTiming;
+
+    // VK_NV_optical_flow: driver-accelerated motion estimation (replaces the classical block-match flow).
+    bool                                  fg_optical_flow;   // extension available + feature enabled
+    PFN_vkGetPhysicalDeviceOpticalFlowImageFormatsNV fnOFFormats;
+    PFN_vkCreateOpticalFlowSessionNV      fnOFCreate;
+    PFN_vkDestroyOpticalFlowSessionNV     fnOFDestroy;
+    PFN_vkBindOpticalFlowSessionImageNV   fnOFBind;
+    PFN_vkCmdOpticalFlowExecuteNV         fnOFExecute;
 
     // Async upload pool (created in nativeCreate after device).
     VkStagingPool staging_pool;

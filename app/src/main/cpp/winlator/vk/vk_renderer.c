@@ -18,6 +18,7 @@
 #include <time.h>
 #include <errno.h>
 #include <math.h>
+#include <sys/system_properties.h>
 
 #include "shaders/window_vert.spv.h"
 #include "shaders/window_frag.spv.h"
@@ -41,6 +42,29 @@
 #include "shaders/motion_comp.spv.h"
 #include "shaders/motion_fp32_comp.spv.h"
 #include "shaders/interpolate_frag.spv.h"
+#include "shaders/cnn_pyramid_comp.spv.h"
+#include "shaders/cnn_conv_comp.spv.h"
+#include "shaders/cnn_correlation_cost9_comp.spv.h"
+#include "shaders/cnn_correlation_warpfollow_comp.spv.h"
+#include "shaders/cnn_flowreg_comp.spv.h"
+#include "shaders/cnn_generate_comp.spv.h"
+#include "shaders/wnfg_05_weights.h"
+#include "shaders/wnfg_06_weights.h"
+#include "shaders/wnfg_07_weights.h"
+#include "shaders/wnfg_14_weights.h"
+#include "shaders/wnfg_20_weights.h"
+#include "shaders/wnfg_21_weights.h"
+#include "shaders/wnfg_22_weights.h"
+#include "shaders/wnfg_24_weights.h"
+#include "shaders/wnfg_25_weights.h"
+#include "shaders/wnfg_26_weights.h"
+#include "shaders/wnfg_27_weights.h"
+#include "shaders/wnfg_28_weights.h"
+#include "shaders/wnfg_29_weights.h"
+#include "shaders/wnfg_36_weights.h"
+#include "shaders/wnfg_37_weights.h"
+#include "shaders/wnfg_42_weights.h"
+#include "shaders/wnfg_51_weights.h"
 
 static uint64_t now_monotonic_ns(void) {
     struct timespec ts;
@@ -57,6 +81,13 @@ static void destroy_debug_messenger(VkRenderer* r);
 static bool pick_physical_device(VkRenderer* r);
 static bool create_device(VkRenderer* r);
 static void query_device_caps(VkRenderer* r);
+static bool cnn_wanted(void);
+static bool create_cnn_pipelines(VkRenderer* r);
+static void destroy_cnn_pipelines(VkRenderer* r);
+static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h);
+static void fg_destroy_cnn_resources(VkRenderer* r);
+static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
+                          VkFgImage* prevFrame, VkFgImage* currFrame, bool forward, VkFgImage* outFlow);
 static bool create_command_pool(VkRenderer* r);
 static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity);
 static bool create_pipelines(VkRenderer* r);
@@ -370,10 +401,38 @@ static bool create_device(VkRenderer* r) {
     bool has_f16 = has_extension(exts, ext_count, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
     bool has_display_timing = has_extension(exts, ext_count, VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
     bool has_cubic = has_extension(exts, ext_count, VK_EXT_FILTER_CUBIC_EXTENSION_NAME);
+    bool has_optical_flow = has_extension(exts, ext_count, VK_NV_OPTICAL_FLOW_EXTENSION_NAME);
+    bool has_sync2 = has_extension(exts, ext_count, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    bool has_fmt_feat2 = has_extension(exts, ext_count, VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+    { uint32_t pdc = 0; vkEnumeratePhysicalDevices(r->instance, &pdc, NULL);
+      VkPhysicalDevice* pds = calloc(pdc ? pdc : 1, sizeof(VkPhysicalDevice));
+      PFN_vkGetPhysicalDeviceProperties2 gpdp2 =
+          (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceProperties2");
+      if (!gpdp2) gpdp2 = (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceProperties2KHR");
+      if (pds && pdc) { vkEnumeratePhysicalDevices(r->instance, &pdc, pds);
+        for (uint32_t d = 0; d < pdc; d++) {
+          VkPhysicalDeviceProperties pp; vkGetPhysicalDeviceProperties(pds[d], &pp);
+          VkPhysicalDeviceDriverProperties drv = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+          VkPhysicalDeviceProperties2 p2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &drv};
+          if (gpdp2) gpdp2(pds[d], &p2);
+          uint32_t ec = 0; vkEnumerateDeviceExtensionProperties(pds[d], NULL, &ec, NULL);
+          VkExtensionProperties* ep = calloc(ec ? ec : 1, sizeof(VkExtensionProperties)); int ofd = 0;
+          if (ep && ec) { vkEnumerateDeviceExtensionProperties(pds[d], NULL, &ec, ep);
+            for (uint32_t e = 0; e < ec; e++) if (!strcmp(ep[e].extensionName, "VK_NV_optical_flow")) ofd = 1; }
+          free(ep);
+          VK_LOGI("FG OF probe[%u/%u]: '%s' driverName='%s' driverID=%u apiV=%u.%u extCount=%u of=%d %s",
+                  d, pdc, pp.deviceName, drv.driverName, (unsigned)drv.driverID,
+                  VK_VERSION_MAJOR(pp.apiVersion), VK_VERSION_MINOR(pp.apiVersion), ec, ofd,
+                  pds[d] == r->physical_device ? "<-SELECTED" : "");
+        }
+      }
+      free(pds);
+      VK_LOGI("FG OF probe: selected extCount=%u of=%d sync2=%d fmtfeat2=%d",
+              ext_count, has_optical_flow, has_sync2, has_fmt_feat2); }
 
     free(exts);
 
-    const char* enable[16];
+    const char* enable[24];
     uint32_t enable_n = 0;
     enable[enable_n++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
@@ -411,11 +470,36 @@ static bool create_device(VkRenderer* r) {
         enable[enable_n++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
         f16_feat.shaderFloat16 = VK_TRUE;
     }
-    if (has_display_timing && enable_n < 16) {
+    if (has_display_timing && enable_n < 24) {
         enable[enable_n++] = VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME;
         r->ext_display_timing = true;
     }
     VK_LOGI("Frame generation fp16 support: ext=%d feature=%d", has_f16, r->fg_float16_supported);
+
+    // VK_NV_optical_flow: driver-accelerated motion estimation, the cheap flow path.
+    r->fg_optical_flow = false;
+    VkPhysicalDeviceOpticalFlowFeaturesNV of_feat = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPTICAL_FLOW_FEATURES_NV };
+    if (has_optical_flow && has_sync2 && has_fmt_feat2 && enable_n + 3 <= 24) {
+        VkPhysicalDeviceOpticalFlowFeaturesNV ofq = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPTICAL_FLOW_FEATURES_NV };
+        VkPhysicalDeviceFeatures2 feats2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        feats2.pNext = &ofq;
+        PFN_vkGetPhysicalDeviceFeatures2 fnFeat2 = (PFN_vkGetPhysicalDeviceFeatures2)
+            vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceFeatures2");
+        if (!fnFeat2) fnFeat2 = (PFN_vkGetPhysicalDeviceFeatures2)
+            vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceFeatures2KHR");
+        if (fnFeat2) { fnFeat2(r->physical_device, &feats2); r->fg_optical_flow = (ofq.opticalFlow == VK_TRUE); }
+    }
+    // Note: on Adreno 8xx (Turnip chip8) the OF compute impl exists but the extension is chip-gated off,
+    // so it never advertises. Enabling it anyway is rejected (VK_ERROR_EXTENSION_NOT_PRESENT) and calling
+    // the entry points without it enabled null-derefs — confirmed on-device. Only a driver patch that
+    // advertises the extension can unlock it here; the classical flow is used until then.
+    if (r->fg_optical_flow) {
+        enable[enable_n++] = VK_NV_OPTICAL_FLOW_EXTENSION_NAME;
+        enable[enable_n++] = VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME;
+        enable[enable_n++] = VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME;
+        of_feat.opticalFlow = VK_TRUE;
+    }
+    VK_LOGI("Frame generation optical flow (VK_NV_optical_flow): ext=%d enabled=%d", has_optical_flow, r->fg_optical_flow);
 
     VK_LOGI("AHB Vulkan device support: android_hardware_buffer=%d external_memory=%d dedicated=%d get_memory_requirements2=%d queue_family_foreign=%d enabled=%d",
             has_ahb, has_extmem, has_dedicated, has_get_mem_req2, has_queue_fam, r->ext_ahb);
@@ -438,6 +522,7 @@ static bool create_device(VkRenderer* r) {
     void* feat_chain = NULL;
     if (has_ycbcr)               { ycbcr_feat.pNext = feat_chain; feat_chain = &ycbcr_feat; }
     if (r->fg_float16_supported) { f16_feat.pNext   = feat_chain; feat_chain = &f16_feat; }
+    if (r->fg_optical_flow)      { of_feat.pNext    = feat_chain; feat_chain = &of_feat; }
     dci.pNext = feat_chain;
     dci.queueCreateInfoCount = 1;
     dci.pQueueCreateInfos = &qci;
@@ -449,6 +534,43 @@ static bool create_device(VkRenderer* r) {
         return false;
     }
     vkGetDeviceQueue(r->device, r->graphics_queue_family, 0, &r->graphics_queue);
+
+    if (r->fg_optical_flow) {
+        r->fnOFFormats = (PFN_vkGetPhysicalDeviceOpticalFlowImageFormatsNV)
+            vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceOpticalFlowImageFormatsNV");
+        r->fnOFCreate  = (PFN_vkCreateOpticalFlowSessionNV)  vkGetDeviceProcAddr(r->device, "vkCreateOpticalFlowSessionNV");
+        r->fnOFDestroy = (PFN_vkDestroyOpticalFlowSessionNV) vkGetDeviceProcAddr(r->device, "vkDestroyOpticalFlowSessionNV");
+        r->fnOFBind    = (PFN_vkBindOpticalFlowSessionImageNV) vkGetDeviceProcAddr(r->device, "vkBindOpticalFlowSessionImageNV");
+        r->fnOFExecute = (PFN_vkCmdOpticalFlowExecuteNV)     vkGetDeviceProcAddr(r->device, "vkCmdOpticalFlowExecuteNV");
+        // fnOFFormats is optional (the format enumerator is chip-gated off on Adreno 8xx); the session/
+        // bind/execute entry points are what we actually need.
+        if (!r->fnOFCreate || !r->fnOFDestroy || !r->fnOFBind || !r->fnOFExecute) {
+            VK_LOGW("optical flow entry points missing; disabling OF flow");
+            r->fg_optical_flow = false;
+        }
+    }
+
+    // Optical-flow session probe: the extension was enabled at vkCreateDevice (advertised, or forced
+    // on Turnip), so the OF device state is initialized. Create a real session to confirm the chip8
+    // compute path actually works (vs the earlier null-deref when called without the extension enabled).
+    if (r->fg_optical_flow && r->fnOFCreate && r->fnOFDestroy) {
+        VkOpticalFlowSessionCreateInfoNV sci = { VK_STRUCTURE_TYPE_OPTICAL_FLOW_SESSION_CREATE_INFO_NV };
+        sci.width = 960; sci.height = 540;
+        sci.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        sci.flowVectorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        sci.outputGridSize = VK_OPTICAL_FLOW_GRID_SIZE_8X8_BIT_NV;
+        sci.performanceLevel = VK_OPTICAL_FLOW_PERFORMANCE_LEVEL_MEDIUM_NV;
+        VkOpticalFlowSessionNV sess = VK_NULL_HANDLE;
+        VkResult sr = r->fnOFCreate(r->device, &sci, NULL, &sess);
+        VK_LOGI("OF session create probe: result=%d session=%p", (int)sr, (void*)sess);
+        if (sr == VK_SUCCESS && sess) {
+            r->fnOFDestroy(r->device, sess, NULL);
+            VK_LOGI("OF flow path CONFIRMED working");
+        } else {
+            VK_LOGW("OF session create failed (result=%d); disabling OF flow", (int)sr);
+            r->fg_optical_flow = false;
+        }
+    }
 
     if (r->ext_ahb) {
         r->fnGetAhbProps = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)
@@ -1137,6 +1259,8 @@ static bool create_pipelines(VkRenderer* r) {
         r, vs_quad, fs_interp, r->pipelines.fg_interp_pipe_layout, r->pipelines.swapchain_pass,
         false, false, NULL);
 
+    r->fg_cnn_capable = cnn_wanted() && create_cnn_pipelines(r);
+
     vkDestroyShaderModule(r->device, vs_window, NULL);
     vkDestroyShaderModule(r->device, fs_window, NULL);
     vkDestroyShaderModule(r->device, fs_cursor, NULL);
@@ -1200,6 +1324,7 @@ static void destroy_pipelines(VkRenderer* r) {
     if (r->pipelines.offscreen_blit_pipeline)   vkDestroyPipeline(r->device, r->pipelines.offscreen_blit_pipeline, NULL);
     if (r->pipelines.fg_motion_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_motion_pipeline, NULL);
     if (r->pipelines.fg_interp_pipeline) vkDestroyPipeline(r->device, r->pipelines.fg_interp_pipeline, NULL);
+    destroy_cnn_pipelines(r);
     if (r->pipelines.window_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.window_layout, NULL);
     if (r->pipelines.effect_layout)   vkDestroyPipelineLayout(r->device, r->pipelines.effect_layout, NULL);
     if (r->pipelines.fg_motion_pipe_layout) vkDestroyPipelineLayout(r->device, r->pipelines.fg_motion_pipe_layout, NULL);
@@ -2305,6 +2430,7 @@ static void fg_destroy_resources(VkRenderer* r) {
         if (o->memory)      vkFreeMemory(r->device, o->memory, NULL);
         memset(o, 0, sizeof(*o));
     }
+    fg_destroy_cnn_resources(r);
     for (uint32_t mi = 0; mi < 3; mi++) {
         VkFgImage* m = &r->fg_motion[mi];
         if (m->view)   vkDestroyImageView(r->device, m->view, NULL);
@@ -2441,6 +2567,8 @@ static void fg_motion_pass(VkRenderer* r, VkCommandBuffer cmd,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
+#include "vk_cnn_fg.c"
+
 // Content-signature resources for duplicate detection: a tiny blit target + per-slot host buffers.
 #define FG_SIG_W 64u
 #define FG_SIG_H 36u
@@ -2566,6 +2694,15 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
             if (!fg_create_motion(r, &r->fg_coarse_fwd[mi], cw, ch)) goto fail;
         }
     }
+
+    if (r->fg_cnn_capable) {
+        if (!fg_create_cnn_resources(r, w, h)) {
+            VK_LOGW("CNN-FG resources unavailable; classical flow only");
+            fg_destroy_cnn_resources(r);
+            r->fg_cnn_capable = false;
+        }
+    }
+
     memset(r->fg_slot_fence, 0, sizeof(r->fg_slot_fence));
 
     for (uint32_t p = 0; p < 3; p++) {
@@ -2922,21 +3059,26 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         if (compute_bwd) {
-            // Backward flow (curr->prev) -> fg_motion[parity], 1st interp of the pair (both modes).
-            fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
-                           r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
+            if (r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.ready) {
+                cnn_flow_pass(r, f->cmd, parity, prev, curr, false, &r->fg_motion[parity]);
+            } else {
+                fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
+                               r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
+            }
             r->fg_motion_valid = true;
         } else {
-            // Backward flow reused (later interps of the pair). Re-establish compute-write -> fragment-read.
             vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                 VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
         }
         if (compute_fwd) {
-            // Quality forward flow (prev->curr) -> fg_motion_fwd[parity].
-            fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
-                           r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+            if (r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.ready) {
+                cnn_flow_pass(r, f->cmd, parity, curr, prev, true, &r->fg_motion_fwd[parity]);
+            } else {
+                fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
+                               r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+            }
             r->fg_motion_fwd_valid = true;
         } else if (deep && r->fg_motion_fwd_valid) {
             // Forward flow reused. Re-establish its compute-write -> fragment-read dep.
@@ -3157,11 +3299,34 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-        fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
-                       r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
-        if (compute_fwd) {
-            fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
-                           r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+        if (r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.ready) {
+            if (!r->fg_motion_valid) {
+                cnn_flow_pass(r, f->cmd, parity, prev, curr, false, &r->fg_motion[parity]);
+                r->fg_motion_valid = true;
+            } else {
+                vkr_image_barrier(f->cmd, r->fg_motion[parity].image,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            }
+            if (compute_fwd) {
+                if (!r->fg_motion_fwd_valid) {
+                    cnn_flow_pass(r, f->cmd, parity, curr, prev, true, &r->fg_motion_fwd[parity]);
+                    r->fg_motion_fwd_valid = true;
+                } else {
+                    vkr_image_barrier(f->cmd, r->fg_motion_fwd[parity].image,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+                }
+            }
+        } else {
+            fg_motion_pass(r, f->cmd, r->fg_coarse_set[parity], &r->fg_coarse[parity],
+                           r->fg_motion_set[parity], &r->fg_motion[parity], (float)r->fg_min_step);
+            if (compute_fwd) {
+                fg_motion_pass(r, f->cmd, r->fg_coarse_set_fwd[parity], &r->fg_coarse_fwd[parity],
+                               r->fg_motion_set_fwd[parity], &r->fg_motion_fwd[parity], (float)r->fg_min_step);
+            }
         }
     }
 
@@ -3284,7 +3449,7 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     uint32_t curr = r->fg_history_curr;
     FgJob job;
     job.mode = mode;
-    job.deep = (r->fg_deep_mode && r->fg_history_count >= 2u) ? 1u : 0u;
+    job.deep = (((r->fg_deep_mode) || (r->fg_use_cnn && r->fg_cnn_capable)) && r->fg_history_count >= 2u) ? 1u : 0u;
     job.phase = phase;
     job.curr_idx = curr;
     job.prev_idx = (curr + 2u) % 3u;
@@ -3467,6 +3632,8 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_occ_hi = 0.25f;
     r->fg_min_step = 1;
     r->fg_flow_scale = 0.5f;   // default = legacy half-res flow; presets override (Eco 0.2 .. Max 0.8)
+    r->fg_use_cnn = cnn_wanted();
+    r->fg_deep_mode = r->fg_use_cnn ? true : r->fg_deep_mode;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);
@@ -3854,6 +4021,20 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenDeepMode)(JNIEnv* env, jclass cla
     pthread_mutex_lock(&r->render_mutex);
     r->fg_deep_mode = want;
     // Restart the cadence cleanly so the new mode warms up from scratch (a brief re-prime).
+    r->fg_history_count = 0;
+    r->fg_motion_valid = false;
+    r->fg_motion_fwd_valid = false;
+    pthread_mutex_unlock(&r->render_mutex);
+}
+
+JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenUseCnn)(JNIEnv* env, jclass clazz, jlong handle, jboolean useCnn) {
+    (void)env; (void)clazz;
+    VkRenderer* r = (VkRenderer*)(intptr_t)handle;
+    if (!r) return;
+    bool want = useCnn ? true : false;
+    if (want == r->fg_use_cnn) return;
+    pthread_mutex_lock(&r->render_mutex);
+    r->fg_use_cnn = want;
     r->fg_history_count = 0;
     r->fg_motion_valid = false;
     r->fg_motion_fwd_valid = false;

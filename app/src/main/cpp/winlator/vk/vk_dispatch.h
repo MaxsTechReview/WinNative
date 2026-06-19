@@ -72,6 +72,7 @@ typedef struct VkDispatch {
     PFN_vkDestroyDescriptorSetLayout DestroyDescriptorSetLayout;
     PFN_vkCreateDescriptorPool CreateDescriptorPool;
     PFN_vkDestroyDescriptorPool DestroyDescriptorPool;
+    PFN_vkResetDescriptorPool ResetDescriptorPool;
     PFN_vkAllocateDescriptorSets AllocateDescriptorSets;
     PFN_vkFreeDescriptorSets FreeDescriptorSets;
     PFN_vkUpdateDescriptorSets UpdateDescriptorSets;
@@ -120,6 +121,8 @@ typedef struct VkDispatch {
     PFN_vkCmdDispatch CmdDispatch;
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdBlitImage CmdBlitImage;
+    PFN_vkCmdCopyImage CmdCopyImage;
+    PFN_vkCmdClearColorImage CmdClearColorImage;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
     PFN_vkCmdCopyImageToBuffer CmdCopyImageToBuffer;
 
@@ -201,6 +204,7 @@ void vkd_unload(void);
 #define vkDestroyDescriptorSetLayout vkd.DestroyDescriptorSetLayout
 #define vkCreateDescriptorPool vkd.CreateDescriptorPool
 #define vkDestroyDescriptorPool vkd.DestroyDescriptorPool
+#define vkResetDescriptorPool vkd.ResetDescriptorPool
 #define vkAllocateDescriptorSets vkd.AllocateDescriptorSets
 #define vkFreeDescriptorSets vkd.FreeDescriptorSets
 #define vkUpdateDescriptorSets vkd.UpdateDescriptorSets
@@ -245,6 +249,8 @@ void vkd_unload(void);
 #define vkCmdDispatch vkd.CmdDispatch
 #define vkCmdPipelineBarrier vkd.CmdPipelineBarrier
 #define vkCmdBlitImage vkd.CmdBlitImage
+#define vkCmdCopyImage vkd.CmdCopyImage
+#define vkCmdClearColorImage vkd.CmdClearColorImage
 #define vkCmdCopyBufferToImage vkd.CmdCopyBufferToImage
 #define vkCmdCopyImageToBuffer vkd.CmdCopyImageToBuffer
 

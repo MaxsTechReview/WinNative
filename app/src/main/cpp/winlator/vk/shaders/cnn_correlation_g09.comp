@@ -1,0 +1,122 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 32) uniform sampler2D uA0;
+layout(set = 0, binding = 33) uniform sampler2D uA1;
+layout(set = 0, binding = 34) uniform sampler2D uB0;
+layout(set = 0, binding = 35) uniform sampler2D uB1;
+layout(set = 0, binding = 36) uniform sampler2D uC0;
+layout(set = 0, binding = 37) uniform sampler2D uC1;
+
+layout(set = 0, binding = 48, rgba8) uniform writeonly image2D uOut0;
+layout(set = 0, binding = 49, rgba8) uniform writeonly image2D uOut1;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+const float16_t SUB_S = float16_t(2.509765625);
+const float16_t MUL_S = float16_t(0.480712890625);
+const float16_t ADD_S = float16_t(0.278076171875);
+const float16_t F0    = float16_t(0.0);
+const float16_t F1    = float16_t(1.0);
+
+f16vec4 wVec4(uint o) { return f16vec4(W[o], W[o + 1u], W[o + 2u], W[o + 3u]); }
+
+f16mat4 wMat4(uint o) { return f16mat4(wVec4(o), wVec4(o + 4u), wVec4(o + 8u), wVec4(o + 12u)); }
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, pc.size))) return;
+
+    vec2 sz  = vec2(textureSize(uA0, 0));
+    vec2 uv  = (vec2(p) + 0.5) / sz;
+    vec2 tpx = 1.0 / sz;
+
+    f16vec4 A0 = f16vec4(textureLod(uA0, uv, 0.0));
+    f16vec4 A1 = f16vec4(textureLod(uA1, uv, 0.0));
+    f16vec4 B0 = f16vec4(textureLod(uB0, uv, 0.0));
+    f16vec4 B1 = f16vec4(textureLod(uB1, uv, 0.0));
+
+    #define COSTAB(ox, oy, outA, outB) {                                   \
+        vec2 _uv = uv + vec2(float(ox), float(oy)) * tpx;                  \
+        f16vec4 _c0 = f16vec4(textureLod(uC0, _uv, 0.0));                  \
+        f16vec4 _c1 = f16vec4(textureLod(uC1, _uv, 0.0));                  \
+        outA = dot(A0,_c0); outA += dot(A1,_c1);                          \
+        outB = dot(B0,_c0); outB += dot(B1,_c1);                          \
+    }
+
+    float16_t a_mm, b_mm, a_zm, b_zm, a_pm, b_pm, a_mz, b_mz;
+    float16_t a_zz, b_zz, a_pz, b_pz, a_mp, b_mp, a_zp, b_zp;
+    float16_t a_pp, b_pp;
+
+    COSTAB(-1,-1, a_mm, b_mm)
+    COSTAB( 0,-1, a_zm, b_zm)
+    COSTAB( 1,-1, a_pm, b_pm)
+    COSTAB(-1, 0, a_mz, b_mz)
+    COSTAB( 0, 0, a_zz, b_zz)
+    COSTAB( 1, 0, a_pz, b_pz)
+    COSTAB(-1, 1, a_mp, b_mp)
+    COSTAB( 0, 1, a_zp, b_zp)
+    COSTAB( 1, 1, a_pp, b_pp)
+
+    f16vec4 cvA1 = f16vec4(a_mm, a_zm, a_pm, a_mz);
+    f16vec4 cvA2 = f16vec4(a_zz, a_pz, a_mp, a_zp);
+    f16vec4 cvB1 = f16vec4(b_mm, b_zm, b_pm, b_mz);
+    f16vec4 cvB2 = f16vec4(b_zz, b_pz, b_mp, b_zp);
+    float16_t sAv = a_pp;
+    float16_t sBv = b_pp;
+
+    f16vec4 sub1 = wVec4(pc.wBase +  0u), mul1 = wVec4(pc.wBase +  4u), add1 = wVec4(pc.wBase +  8u);
+    f16vec4 lo   = wVec4(pc.wBase + 12u), hi   = wVec4(pc.wBase + 16u);
+    f16vec4 sub2 = wVec4(pc.wBase + 20u), mul2 = wVec4(pc.wBase + 24u), add2 = wVec4(pc.wBase + 28u);
+
+    f16vec4 qA1 = clamp((cvA1 - sub1) * mul1 + add1, lo, hi);
+    f16vec4 qB1 = clamp((cvB1 - sub1) * mul1 + add1, lo, hi);
+    f16vec4 qA2 = clamp((cvA2 - sub2) * mul2 + add2, lo, hi);
+    f16vec4 qB2 = clamp((cvB2 - sub2) * mul2 + add2, lo, hi);
+    float16_t qSa = clamp((sAv - SUB_S) * MUL_S + ADD_S, F0, F1);
+    float16_t qSb = clamp((sBv - SUB_S) * MUL_S + ADD_S, F0, F1);
+
+    {
+        uint h = pc.wBase + 32u;
+        f16mat4 M_a = wMat4(h);        f16mat4 M_b = wMat4(h + 16u);  f16vec4 v_c = wVec4(h + 32u);
+        f16mat4 M_d = wMat4(h + 36u);  f16mat4 M_e = wMat4(h + 52u);  f16vec4 v_f = wVec4(h + 68u);
+        f16vec4 oSub = wVec4(h + 72u), oMul = wVec4(h + 76u), oAdd = wVec4(h + 80u);
+
+        f16vec4 acc = M_a * qA1;
+        acc += M_b * qA2;
+        acc += v_c * qSa;
+        acc += M_d * qB1;
+        acc += M_e * qB2;
+        acc += v_f * qSb;
+        f16vec4 outv = (acc - oSub) * oMul + oAdd;
+        imageStore(uOut0, p, vec4(outv));
+    }
+
+    {
+        uint h = pc.wBase + 116u;
+        f16mat4 M_a = wMat4(h);        f16mat4 M_b = wMat4(h + 16u);  f16vec4 v_c = wVec4(h + 32u);
+        f16mat4 M_d = wMat4(h + 36u);  f16mat4 M_e = wMat4(h + 52u);  f16vec4 v_f = wVec4(h + 68u);
+        f16vec4 oSub = wVec4(h + 72u), oMul = wVec4(h + 76u), oAdd = wVec4(h + 80u);
+
+        f16vec4 acc = M_a * qA1;
+        acc += M_b * qA2;
+        acc += v_c * qSa;
+        acc += M_d * qB1;
+        acc += M_e * qB2;
+        acc += v_f * qSb;
+        f16vec4 outv = (acc - oSub) * oMul + oAdd;
+        imageStore(uOut1, p, vec4(outv));
+    }
+}

@@ -1,0 +1,161 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 32) uniform sampler2D uR0;
+layout(set = 0, binding = 33) uniform sampler2D uR1;
+layout(set = 0, binding = 34) uniform sampler2D uR2;
+layout(set = 0, binding = 35) uniform sampler2D uR3;
+layout(set = 0, binding = 36) uniform sampler2D uFlow0;
+layout(set = 0, binding = 37) uniform sampler2D uFlow1;
+
+layout(set = 0, binding = 48, rgba8) uniform writeonly image2D uOut;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(set = 0, binding = 0) uniform UBO { float m0; float m1; float m2; } ubo;
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+f16vec4 wVec4(uint o){ return f16vec4(W[o],W[o+1u],W[o+2u],W[o+3u]); }
+
+f16vec4 wMatVec(uint o, f16vec4 v){
+    return wVec4(o+ 0u)*v.x + wVec4(o+ 4u)*v.y + wVec4(o+ 8u)*v.z + wVec4(o+12u)*v.w;
+}
+
+void main(){
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if(any(greaterThanEqual(p, imageSize(uOut)))) return;
+
+    vec2 sz       = vec2(textureSize(uR0, 0));
+    ivec2 cmax    = ivec2(sz) - ivec2(1);
+    vec2 numer    = vec2(p) + 0.5;
+    vec2 uvCenter = numer / sz;
+
+    float m1   = ubo.m1;
+    float16_t wFwd = float16_t(1.0 - m1);
+    float16_t wBwd = float16_t(m1);
+
+    f16vec4 f0 = f16vec4(textureLod(uFlow0, uvCenter, 0.0));
+    vec2 uvA0  = (numer + vec2(f0.xy * wFwd)) / sz;
+    vec2 uvB0  = (numer + vec2(f16vec2(textureLod(uFlow0, uvA0, 0.0).xy))) / sz;
+    vec2 uvC0  = (numer + vec2(f0.zw * wBwd)) / sz;
+    vec2 uvD0  = (numer + vec2(f16vec2(textureLod(uFlow0, uvC0, 0.0).zw))) / sz;
+
+    f16vec4 f1 = f16vec4(textureLod(uFlow1, uvCenter, 0.0));
+    vec2 uvA1  = (numer + vec2(f1.xy * wFwd)) / sz;
+    f16vec2 g1fwd = f16vec2(textureLod(uFlow1, uvA1, 0.0).xy);
+    vec2 uvC1  = (numer + vec2(f1.zw * wBwd)) / sz;
+    f16vec2 g1bwd = f16vec2(textureLod(uFlow1, uvC1, 0.0).zw);
+    vec2 uvB1  = (numer + vec2(g1fwd)) / sz;
+    vec2 uvD1  = (numer + vec2(g1bwd)) / sz;
+
+    f16vec4 rA0_0 = f16vec4(textureLod(uR0, uvB0, 0.0));
+    f16vec4 rA0_1 = f16vec4(textureLod(uR1, uvB0, 0.0));
+    f16vec4 rA1_0 = f16vec4(textureLod(uR0, uvB1, 0.0));
+    f16vec4 rA1_1 = f16vec4(textureLod(uR1, uvB1, 0.0));
+    f16vec4 rB0_0 = f16vec4(textureLod(uR2, uvD0, 0.0));
+    f16vec4 rB0_1 = f16vec4(textureLod(uR3, uvD0, 0.0));
+    f16vec4 rB1_0 = f16vec4(textureLod(uR2, uvD1, 0.0));
+    f16vec4 rB1_1 = f16vec4(textureLod(uR3, uvD1, 0.0));
+
+    ivec2 t_mm = clamp(p+ivec2(-1,-1), ivec2(0), cmax);
+    ivec2 t_zm = clamp(p+ivec2( 0,-1), ivec2(0), cmax);
+    ivec2 t_pm = clamp(p+ivec2( 1,-1), ivec2(0), cmax);
+    ivec2 t_mz = clamp(p+ivec2(-1, 0), ivec2(0), cmax);
+    ivec2 t_pz = clamp(p+ivec2( 1, 0), ivec2(0), cmax);
+    ivec2 t_mp = clamp(p+ivec2(-1, 1), ivec2(0), cmax);
+    ivec2 t_zp = clamp(p+ivec2( 0, 1), ivec2(0), cmax);
+    ivec2 t_pp = clamp(p+ivec2( 1, 1), ivec2(0), cmax);
+
+    f16vec4 a2_mm=f16vec4(texelFetch(uR2,t_mm,0)), a3_mm=f16vec4(texelFetch(uR3,t_mm,0));
+    f16vec4 a2_zm=f16vec4(texelFetch(uR2,t_zm,0)), a3_zm=f16vec4(texelFetch(uR3,t_zm,0));
+    f16vec4 a2_pm=f16vec4(texelFetch(uR2,t_pm,0)), a3_pm=f16vec4(texelFetch(uR3,t_pm,0));
+    f16vec4 a2_mz=f16vec4(texelFetch(uR2,t_mz,0)), a3_mz=f16vec4(texelFetch(uR3,t_mz,0));
+    f16vec4 a2_zz=f16vec4(textureLod(uR2,uvCenter,0.0)), a3_zz=f16vec4(textureLod(uR3,uvCenter,0.0));
+    f16vec4 a2_pz=f16vec4(texelFetch(uR2,t_pz,0)), a3_pz=f16vec4(texelFetch(uR3,t_pz,0));
+    f16vec4 a2_mp=f16vec4(texelFetch(uR2,t_mp,0)), a3_mp=f16vec4(texelFetch(uR3,t_mp,0));
+    f16vec4 a2_zp=f16vec4(texelFetch(uR2,t_zp,0)), a3_zp=f16vec4(texelFetch(uR3,t_zp,0));
+    f16vec4 a2_pp=f16vec4(texelFetch(uR2,t_pp,0)), a3_pp=f16vec4(texelFetch(uR3,t_pp,0));
+
+    f16vec4 b0_mm=f16vec4(texelFetch(uR0,t_mm,0)), b1_mm=f16vec4(texelFetch(uR1,t_mm,0));
+    f16vec4 b0_zm=f16vec4(texelFetch(uR0,t_zm,0)), b1_zm=f16vec4(texelFetch(uR1,t_zm,0));
+    f16vec4 b0_pm=f16vec4(texelFetch(uR0,t_pm,0)), b1_pm=f16vec4(texelFetch(uR1,t_pm,0));
+    f16vec4 b0_mz=f16vec4(texelFetch(uR0,t_mz,0)), b1_mz=f16vec4(texelFetch(uR1,t_mz,0));
+    f16vec4 b0_zz=f16vec4(textureLod(uR0,uvCenter,0.0)), b1_zz=f16vec4(textureLod(uR1,uvCenter,0.0));
+    f16vec4 b0_pz=f16vec4(texelFetch(uR0,t_pz,0)), b1_pz=f16vec4(texelFetch(uR1,t_pz,0));
+    f16vec4 b0_mp=f16vec4(texelFetch(uR0,t_mp,0)), b1_mp=f16vec4(texelFetch(uR1,t_mp,0));
+    f16vec4 b0_zp=f16vec4(texelFetch(uR0,t_zp,0)), b1_zp=f16vec4(texelFetch(uR1,t_zp,0));
+    f16vec4 b0_pp=f16vec4(texelFetch(uR0,t_pp,0)), b1_pp=f16vec4(texelFetch(uR1,t_pp,0));
+
+    f16vec4 hA0g1 = f16vec4(
+        dot(rA0_0,a2_mm)+dot(rA0_1,a3_mm), dot(rA0_0,a2_zm)+dot(rA0_1,a3_zm),
+        dot(rA0_0,a2_pm)+dot(rA0_1,a3_pm), dot(rA0_0,a2_mz)+dot(rA0_1,a3_mz));
+    f16vec4 hA0g2 = f16vec4(
+        dot(rA0_0,a2_zz)+dot(rA0_1,a3_zz), dot(rA0_0,a2_pz)+dot(rA0_1,a3_pz),
+        dot(rA0_0,a2_mp)+dot(rA0_1,a3_mp), dot(rA0_0,a2_zp)+dot(rA0_1,a3_zp));
+    float16_t sA0 = dot(rA0_0,a2_pp)+dot(rA0_1,a3_pp);
+
+    f16vec4 hA1g1 = f16vec4(
+        dot(rA1_0,a2_mm)+dot(rA1_1,a3_mm), dot(rA1_0,a2_zm)+dot(rA1_1,a3_zm),
+        dot(rA1_0,a2_pm)+dot(rA1_1,a3_pm), dot(rA1_0,a2_mz)+dot(rA1_1,a3_mz));
+    f16vec4 hA1g2 = f16vec4(
+        dot(rA1_0,a2_zz)+dot(rA1_1,a3_zz), dot(rA1_0,a2_pz)+dot(rA1_1,a3_pz),
+        dot(rA1_0,a2_mp)+dot(rA1_1,a3_mp), dot(rA1_0,a2_zp)+dot(rA1_1,a3_zp));
+    float16_t sA1 = dot(rA1_0,a2_pp)+dot(rA1_1,a3_pp);
+
+    f16vec4 hB0g1 = f16vec4(
+        dot(rB0_0,b0_mm)+dot(rB0_1,b1_mm), dot(rB0_0,b0_zm)+dot(rB0_1,b1_zm),
+        dot(rB0_0,b0_pm)+dot(rB0_1,b1_pm), dot(rB0_0,b0_mz)+dot(rB0_1,b1_mz));
+    f16vec4 hB0g2 = f16vec4(
+        dot(rB0_0,b0_zz)+dot(rB0_1,b1_zz), dot(rB0_0,b0_pz)+dot(rB0_1,b1_pz),
+        dot(rB0_0,b0_mp)+dot(rB0_1,b1_mp), dot(rB0_0,b0_zp)+dot(rB0_1,b1_zp));
+    float16_t sB0 = dot(rB0_0,b0_pp)+dot(rB0_1,b1_pp);
+
+    f16vec4 hB1g1 = f16vec4(
+        dot(rB1_0,b0_mm)+dot(rB1_1,b1_mm), dot(rB1_0,b0_zm)+dot(rB1_1,b1_zm),
+        dot(rB1_0,b0_pm)+dot(rB1_1,b1_pm), dot(rB1_0,b0_mz)+dot(rB1_1,b1_mz));
+    f16vec4 hB1g2 = f16vec4(
+        dot(rB1_0,b0_zz)+dot(rB1_1,b1_zz), dot(rB1_0,b0_pz)+dot(rB1_1,b1_pz),
+        dot(rB1_0,b0_mp)+dot(rB1_1,b1_mp), dot(rB1_0,b0_zp)+dot(rB1_1,b1_zp));
+    float16_t sB1 = dot(rB1_0,b0_pp)+dot(rB1_1,b1_pp);
+
+    uint b = pc.wBase;
+    f16vec4 e0s=wVec4(b+144u), e0m=wVec4(b+148u), e0a=wVec4(b+152u);
+    f16vec4 e1s=wVec4(b+156u), e1m=wVec4(b+160u), e1a=wVec4(b+164u);
+    float16_t sSub=W[b+168u], sMul=W[b+169u], sAdd=W[b+170u];
+
+    f16vec4 ZERO = f16vec4(0.0hf), ONE = f16vec4(1.0hf);
+
+    #define ENC0(v) clamp(((v) - e0s)*e0m + e0a, ZERO, ONE)
+    #define ENC1(v) clamp(((v) - e1s)*e1m + e1a, ZERO, ONE)
+    #define ENCS(s) clamp(((s) - sSub)*sMul + sAdd, float16_t(0.0hf), float16_t(1.0hf))
+
+    f16vec4 acc = f16vec4(0.0hf);
+    acc += wMatVec(b+  0u, ENC0(hA0g1));
+    acc += wMatVec(b+ 16u, ENC1(hA0g2));
+    acc += wVec4(b+128u) * ENCS(sA0);
+    acc += wMatVec(b+ 32u, ENC0(hB0g1));
+    acc += wMatVec(b+ 48u, ENC1(hB0g2));
+    acc += wVec4(b+132u) * ENCS(sB0);
+    acc += wMatVec(b+ 64u, ENC0(hA1g1));
+    acc += wMatVec(b+ 80u, ENC1(hA1g2));
+    acc += wVec4(b+136u) * ENCS(sA1);
+    acc += wMatVec(b+ 96u, ENC0(hB1g1));
+    acc += wMatVec(b+112u, ENC1(hB1g2));
+    acc += wVec4(b+140u) * ENCS(sB1);
+
+    f16vec4 oSub=wVec4(b+171u), oMul=wVec4(b+175u), oAdd=wVec4(b+179u);
+    f16vec4 outv = (acc - oSub)*oMul + oAdd;
+
+    imageStore(uOut, p, vec4(outv));
+}

@@ -1,0 +1,151 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(constant_id = 0) const int  CIN_T  = 2;
+layout(constant_id = 1) const int  MID_T  = 2;
+layout(constant_id = 2) const int  COUT_T = 2;
+
+const int TILE = 18;
+const int MAX_T = 2;
+
+layout(set = 0, binding = 32) uniform sampler2D uIn0;
+layout(set = 0, binding = 33) uniform sampler2D uIn1;
+
+layout(set = 0, binding = 48, rgba8) uniform writeonly image2D uOut0;
+layout(set = 0, binding = 49, rgba8) uniform writeonly image2D uOut1;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+const ivec2 TAP_XOUTER[9] = ivec2[](
+    ivec2(-1,-1), ivec2(-1, 0), ivec2(-1, 1),
+    ivec2( 0,-1), ivec2( 0, 0), ivec2( 0, 1),
+    ivec2( 1,-1), ivec2( 1, 0), ivec2( 1, 1));
+
+shared f16vec4 sMid[MAX_T][TILE][TILE];
+
+mat4 convMatAt(uint blockBase, int k, int ci, int co, int cinT, int coutT) {
+    uint b = blockBase + uint((((k * cinT + ci) * coutT + co) * 4) * 4);
+    mat4 M;
+    for (int c = 0; c < 4; ++c) {
+        uint cb = b + uint(c);
+        M[c] = vec4(float(W[cb +  0u]), float(W[cb +  4u]),
+                    float(W[cb +  8u]), float(W[cb + 12u]));
+    }
+    return M;
+}
+
+void affineAt(uint affBase, int co, int coutT,
+              out vec4 bias, out vec4 scale, out vec4 offset) {
+    bias   = vec4(float(W[affBase + uint((0*coutT + co)*4 + 0)]),
+                  float(W[affBase + uint((0*coutT + co)*4 + 1)]),
+                  float(W[affBase + uint((0*coutT + co)*4 + 2)]),
+                  float(W[affBase + uint((0*coutT + co)*4 + 3)]));
+    scale  = vec4(float(W[affBase + uint((1*coutT + co)*4 + 0)]),
+                  float(W[affBase + uint((1*coutT + co)*4 + 1)]),
+                  float(W[affBase + uint((1*coutT + co)*4 + 2)]),
+                  float(W[affBase + uint((1*coutT + co)*4 + 3)]));
+    offset = vec4(float(W[affBase + uint((2*coutT + co)*4 + 0)]),
+                  float(W[affBase + uint((2*coutT + co)*4 + 1)]),
+                  float(W[affBase + uint((2*coutT + co)*4 + 2)]),
+                  float(W[affBase + uint((2*coutT + co)*4 + 3)]));
+}
+
+void main() {
+    bool PASS1_CONV  = (pc.flags & 1) != 0;
+    bool PASS1_CLAMP = (pc.flags & 2) != 0;
+
+    ivec2 base = ivec2(gl_WorkGroupID.xy) * 16 - ivec2(1);
+    ivec2 lid  = ivec2(gl_LocalInvocationID.xy);
+    ivec2 p    = base + ivec2(1) + lid;
+    ivec2 hi   = pc.size - ivec2(1);
+
+    uint p1ConvBase = pc.wBase;
+    uint p1AffBase  = p1ConvBase + uint(9 * CIN_T * MID_T * 16);
+
+    uint p2ConvBase = PASS1_CONV ? (p1AffBase + uint(3 * MID_T * 4)) : pc.wBase;
+    uint p2AffBase  = p2ConvBase + uint(9 * MID_T * COUT_T * 16);
+
+    uint lindex = gl_LocalInvocationIndex;
+    for (uint idx = lindex; idx < uint(TILE*TILE); idx += 256u) {
+        int tx = int(idx % uint(TILE));
+        int ty = int(idx / uint(TILE));
+        ivec2 sp = base + ivec2(tx, ty);
+
+        if (PASS1_CONV) {
+
+            bool centerOOB = any(lessThan(sp, ivec2(0))) || any(greaterThan(sp, hi));
+            vec4 acc[MAX_T];
+            for (int co = 0; co < MID_T; ++co) acc[co] = vec4(0.0);
+            if (!centerOOB) {
+                for (int k = 0; k < 9; ++k) {
+                    ivec2 q = sp + TAP_XOUTER[k];
+                    bool inb = all(greaterThanEqual(q, ivec2(0))) && all(lessThanEqual(q, hi));
+
+                    vec4 x0 = inb ? texelFetch(uIn0, q, 0) : vec4(0.0);
+                    vec4 x1 = inb ? texelFetch(uIn1, q, 0) : vec4(0.0);
+                    for (int co = 0; co < MID_T; ++co) {
+                        acc[co] += convMatAt(p1ConvBase, k, 0, co, CIN_T, MID_T) * x0;
+                        if (CIN_T > 1)
+                            acc[co] += convMatAt(p1ConvBase, k, 1, co, CIN_T, MID_T) * x1;
+                    }
+                }
+            }
+            for (int co = 0; co < MID_T; ++co) {
+                vec4 v;
+                if (centerOOB) {
+                    v = vec4(0.0);
+                } else {
+                    vec4 bias, scale, offset;
+                    affineAt(p1AffBase, co, MID_T, bias, scale, offset);
+                    v = (acc[co] - bias) * scale + offset;
+                    if (PASS1_CLAMP) v = clamp(v, 0.0, 1.0);
+                }
+                sMid[co][tx][ty] = f16vec4(v);
+            }
+        } else {
+
+            ivec2 q = clamp(sp, ivec2(0), hi);
+            sMid[0][tx][ty] = f16vec4(texelFetch(uIn0, q, 0));
+            if (MID_T > 1)
+                sMid[1][tx][ty] = f16vec4(texelFetch(uIn1, q, 0));
+        }
+    }
+
+    barrier();
+
+    if (any(greaterThanEqual(p, pc.size))) return;
+
+    ivec2 c = lid + ivec2(1);
+
+    vec4 acc[MAX_T];
+    for (int co = 0; co < COUT_T; ++co) acc[co] = vec4(0.0);
+
+    for (int k = 0; k < 9; ++k) {
+        ivec2 li = c + TAP_XOUTER[k];
+        for (int ci = 0; ci < MID_T; ++ci) {
+            vec4 x = vec4(sMid[ci][li.x][li.y]);
+            for (int co = 0; co < COUT_T; ++co)
+                acc[co] += convMatAt(p2ConvBase, k, ci, co, MID_T, COUT_T) * x;
+        }
+    }
+
+    for (int co = 0; co < COUT_T; ++co) {
+        vec4 bias, scale, offset;
+        affineAt(p2AffBase, co, COUT_T, bias, scale, offset);
+        vec4 v = (acc[co] - bias) * scale + offset;
+        if (co == 0)      imageStore(uOut0, p, v);
+        else if (co == 1) imageStore(uOut1, p, v);
+    }
+}

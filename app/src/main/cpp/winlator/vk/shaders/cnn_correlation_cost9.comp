@@ -1,0 +1,107 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 32) uniform sampler2D uR0;
+layout(set = 0, binding = 33) uniform sampler2D uR1;
+layout(set = 0, binding = 34) uniform sampler2D uR2;
+layout(set = 0, binding = 35) uniform sampler2D uR3;
+layout(set = 0, binding = 36) uniform sampler2D uS0;
+layout(set = 0, binding = 37) uniform sampler2D uS1;
+layout(set = 0, binding = 38) uniform sampler2D uS2;
+layout(set = 0, binding = 39) uniform sampler2D uS3;
+
+layout(set = 0, binding = 40) uniform sampler2D uFlow;
+
+layout(set = 0, binding = 48, rgba8) uniform writeonly image2D uOut0;
+layout(set = 0, binding = 49, rgba8) uniform writeonly image2D uOut1;
+layout(set = 0, binding = 50, rgba8) uniform writeonly image2D uOut2;
+
+layout(set = 0, binding = 8, std430) readonly buffer Weights { float16_t W[]; };
+
+layout(push_constant) uniform PC {
+    ivec2 size;
+    float t;
+    float mvScale;
+    uint  wBase;
+    int   cinT;
+    int   coutT;
+    int   flags;
+} pc;
+
+f16vec4 wVec4(uint o){ return f16vec4(W[o],W[o+1u],W[o+2u],W[o+3u]); }
+
+f16vec4 refTile(int i, vec2 uv){
+    if(i==0) return f16vec4(textureLod(uR0,uv,0.0));
+    if(i==1) return f16vec4(textureLod(uR1,uv,0.0));
+    if(i==2) return f16vec4(textureLod(uR2,uv,0.0));
+    return        f16vec4(textureLod(uR3,uv,0.0));
+}
+
+f16vec4 srchTile(int i, vec2 uv, vec2 texel, ivec2 off){
+    vec2 u = uv + vec2(off)*texel;
+    if(pc.cinT==2){
+
+        if(i==0) return f16vec4(textureLod(uR2,u,0.0));
+        return        f16vec4(textureLod(uR3,u,0.0));
+    }
+
+    if(i==0) return f16vec4(textureLod(uS0,u,0.0));
+    if(i==1) return f16vec4(textureLod(uS1,u,0.0));
+    if(i==2) return f16vec4(textureLod(uS2,u,0.0));
+    return        f16vec4(textureLod(uS3,u,0.0));
+}
+
+void main(){
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if(any(greaterThanEqual(p, pc.size))) return;
+
+    vec2 sz    = vec2(textureSize(uR0,0));
+    vec2 numer = vec2(p) + 0.5;
+    vec2 texel = 1.0 / sz;
+
+    vec4 flow = textureLod(uFlow, numer/sz, 0.0);
+    float m1  = pc.t;
+    vec2 dispA = flow.xy * m1;
+    vec2 dispB = flow.zw * (1.0 - m1);
+    vec2 uvRef = (numer + dispA) / sz;
+    vec2 uvSrc = (numer + dispB) / sz;
+
+    int refT = pc.cinT;
+
+    f16vec4 R[4];
+    for(int i=0;i<refT;i++) R[i] = refTile(i, uvRef);
+
+    #define COST(ox,oy) ( \
+        dot(R[0], srchTile(0,uvSrc,texel,ivec2(ox,oy))) + \
+        ((refT>1)? dot(R[1], srchTile(1,uvSrc,texel,ivec2(ox,oy))):float16_t(0.0hf)) + \
+        ((refT>2)? dot(R[2], srchTile(2,uvSrc,texel,ivec2(ox,oy))):float16_t(0.0hf)) + \
+        ((refT>3)? dot(R[3], srchTile(3,uvSrc,texel,ivec2(ox,oy))):float16_t(0.0hf)) )
+
+    float16_t c_mm = COST(-1,-1);
+    float16_t c_zm = COST( 0,-1);
+    float16_t c_pm = COST( 1,-1);
+    float16_t c_mz = COST(-1, 0);
+    float16_t c_zz = COST( 0, 0);
+    float16_t c_pz = COST( 1, 0);
+    float16_t c_mp = COST(-1, 1);
+    float16_t c_zp = COST( 0, 1);
+    float16_t c_pp = COST( 1, 1);
+
+    f16vec4 head0 = f16vec4(c_mm, c_zm, c_pm, c_mz);
+    f16vec4 head1 = f16vec4(c_zz, c_pz, c_mp, c_zp);
+    float16_t sc  = c_pp;
+
+    f16vec4 sub0=wVec4(pc.wBase+0u),  mul0=wVec4(pc.wBase+4u),  add0=wVec4(pc.wBase+8u);
+    f16vec4 sub1=wVec4(pc.wBase+12u), mul1=wVec4(pc.wBase+16u), add1=wVec4(pc.wBase+20u);
+    float16_t subS=W[pc.wBase+24u], mulS=W[pc.wBase+25u], addS=W[pc.wBase+26u];
+
+    f16vec4 o0 = (head0 - sub0)*mul0 + add0;
+    f16vec4 o1 = (head1 - sub1)*mul1 + add1;
+    float16_t oS = (sc - subS)*mulS + addS;
+
+    imageStore(uOut0, p, vec4(o0));
+    imageStore(uOut1, p, vec4(o1));
+    imageStore(uOut2, p, vec4(float(oS),0.0,0.0,0.0));
+}

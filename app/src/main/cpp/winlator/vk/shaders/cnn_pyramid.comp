@@ -4,7 +4,9 @@
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) uniform sampler2D uSrc;
+
 layout(set = 0, binding = 1, r8) uniform writeonly image2D uDst;
+
 layout(set = 0, binding = 2) uniform sampler2D uLumaPrev;
 
 layout(push_constant) uniform PC {
@@ -21,16 +23,19 @@ const vec3 LUMA = vec3(0.298828125, 0.5869140625, 0.11395263671875);
 
 void main() {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+
     if (any(greaterThanEqual(p, pc.size))) return;
 
     float luma;
 
     if ((pc.flags & 1) != 0) {
+
         ivec2 srcSize = textureSize(uSrc, 0);
         vec2 uv = (vec2(p) + 0.5) / vec2(srcSize);
         f16vec3 c = f16vec3(textureLod(uSrc, uv, 0.0).rgb);
         luma = float(dot(c, f16vec3(LUMA)));
     } else {
+
         ivec2 prevSize = textureSize(uLumaPrev, 0);
         ivec2 b = p * 2;
         ivec2 i00 = clamp(b,                ivec2(0), prevSize - 1);
