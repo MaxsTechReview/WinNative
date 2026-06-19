@@ -3695,7 +3695,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     (void)clazz;
     VkRenderer* r = calloc(1, sizeof(VkRenderer));
     if (!r) return 0;
-    r->target_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    r->target_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
     r->active_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     r->fg_occ_lo = 0.06f;
     r->fg_occ_hi = 0.25f;
