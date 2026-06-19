@@ -46,13 +46,15 @@ public class SysVSharedMemory {
   }
 
   public void delete(int shmid) {
-    SHMemory shmemory = shmemories.get(shmid);
-    if (shmemory != null) {
-      if (shmemory.fd != -1) {
-        XConnectorEpoll.closeFd(shmemory.fd);
-        shmemory.fd = -1;
+    synchronized (shmemories) {
+      SHMemory shmemory = shmemories.get(shmid);
+      if (shmemory != null) {
+        if (shmemory.fd != -1) {
+          XConnectorEpoll.closeFd(shmemory.fd);
+          shmemory.fd = -1;
+        }
+        shmemories.remove(shmid);
       }
-      shmemories.remove(shmid);
     }
   }
 

@@ -50,6 +50,7 @@ public class ALSARequestHandler implements RequestHandler {
       case RequestCodes.WRITE:
         ByteBuffer buffer = alsaClient.getSharedBuffer();
         if (buffer != null) {
+          if (requestLength < 0 || requestLength > buffer.capacity()) break;
           buffer.limit(requestLength);
           ByteBuffer auxBuffer = alsaClient.getAuxBuffer();
           auxBuffer.position(0).limit(requestLength);

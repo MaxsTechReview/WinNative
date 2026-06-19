@@ -1845,6 +1845,17 @@ static bool record_and_submit_frame(VkRenderer* r) {
     VkFrame* f = &r->frames[r->frame_index];
     uint32_t grave_slot = r->graveyard_index;
 
+    if (f->in_flight == VK_NULL_HANDLE) {
+        VkFenceCreateInfo fci = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        if (vkCreateFence(r->device, &fci, NULL, &f->in_flight) != VK_SUCCESS) {
+            f->in_flight = VK_NULL_HANDLE;
+            VK_LOGE("frame fence unavailable; skipping frame");
+            pthread_mutex_unlock(&r->render_mutex);
+            return false;
+        }
+    }
+
     vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
 
     // Snapshot the scene under scene_mutex (cheap memcpy of a few KB), then release it so
@@ -2531,12 +2542,15 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
         default: vk_mode = VK_PRESENT_MODE_FIFO_KHR; break;
     }
     if (r->target_present_mode == vk_mode) return;
-    r->target_present_mode = vk_mode;
 
-    // Rebuild swapchain only if one currently exists; otherwise the next create_swapchain
-    // (e.g. on first surface attach) will pick up the new mode automatically.
-    if (!r->surface) return;
+    if (!r->surface) {
+        pthread_mutex_lock(&r->render_mutex);
+        r->target_present_mode = vk_mode;
+        pthread_mutex_unlock(&r->render_mutex);
+        return;
+    }
     lifecycle_begin(r);
+    r->target_present_mode = vk_mode;
     if (r->device) vkDeviceWaitIdle(r->device);
     uint32_t fw = r->surface_extent.width;
     uint32_t fh = r->surface_extent.height;
