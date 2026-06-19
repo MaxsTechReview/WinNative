@@ -51,11 +51,16 @@ import com.winlator.cmod.runtime.content.component.ComponentInstaller
 import com.winlator.cmod.shared.util.StringUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private const val DATASET_BASE = "https://huggingface.co/datasets/Xnick417x/WN-Components/resolve/main"
 private const val INDEX_URL = "$DATASET_BASE/index.json"
+
+// One install at a time across the app (the boot session + result bridge are single-instance).
+private val installMutex = Mutex()
 
 private val SheetRoot = Color(0xFF18181D)
 private val SheetCard = Color(0xFF1C1C2A)
@@ -204,30 +209,33 @@ fun ComponentInstallerSheet(
                                 items = state.items,
                                 installStates = installStates,
                                 onInstall = { item ->
-                                    installStates[item.name] = InstallUi.Running("Starting…")
+                                    installStates[item.name] = InstallUi.Running("Queued…")
                                     scope.launch(Dispatchers.IO) {
-                                        try {
-                                            val yaml =
-                                                Downloader.downloadString("$DATASET_BASE/${item.manifest}")
-                                                    ?: throw Exception("Couldn't fetch the manifest.")
-                                            ComponentInstaller(
-                                                context = context,
-                                                container = container,
-                                                componentName = item.name,
-                                                manifestYaml = yaml,
-                                                listener =
-                                                    object : ComponentInstaller.Listener {
-                                                        override fun onStatus(text: String) {
-                                                            installStates[item.name] = InstallUi.Running(text)
-                                                        }
+                                        installMutex.withLock {
+                                            try {
+                                                installStates[item.name] = InstallUi.Running("Starting…")
+                                                val yaml =
+                                                    Downloader.downloadString("$DATASET_BASE/${item.manifest}")
+                                                        ?: throw Exception("Couldn't fetch the manifest.")
+                                                ComponentInstaller(
+                                                    context = context,
+                                                    container = container,
+                                                    componentName = item.name,
+                                                    manifestYaml = yaml,
+                                                    listener =
+                                                        object : ComponentInstaller.Listener {
+                                                            override fun onStatus(text: String) {
+                                                                installStates[item.name] = InstallUi.Running(text)
+                                                            }
 
-                                                        override fun onProgress(fraction: Float) {}
-                                                    },
-                                            ).run()
-                                            installStates[item.name] = InstallUi.Done
-                                        } catch (e: Exception) {
-                                            installStates[item.name] =
-                                                InstallUi.Failed(e.message ?: "Install failed.")
+                                                            override fun onProgress(fraction: Float) {}
+                                                        },
+                                                ).run()
+                                                installStates[item.name] = InstallUi.Done
+                                            } catch (e: Exception) {
+                                                installStates[item.name] =
+                                                    InstallUi.Failed(e.message ?: "Install failed.")
+                                            }
                                         }
                                     }
                                 },
