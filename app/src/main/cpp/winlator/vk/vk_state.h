@@ -462,6 +462,7 @@ typedef struct VkRenderer {
 
     bool             fg_use_cnn;
     bool             fg_cnn_capable;
+    uint32_t         fg_cnn_flow_seq;
     VkFgCnn          fg_cnn;
 
     // --- Content-duplicate detection ------------------------------------------------------------

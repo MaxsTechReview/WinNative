@@ -10,9 +10,6 @@ typedef struct CnnPC {
 #define CNN_FLOW_LEVELS 3
 
 static bool cnn_wanted(void) {
-    char v[PROP_VALUE_MAX] = {0};
-    if (__system_property_get("debug.winnative.fgcnn", v) > 0 &&
-        (v[0] == '0' || v[0] == 'f' || v[0] == 'n')) return false;
     return true;
 }
 

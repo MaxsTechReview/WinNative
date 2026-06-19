@@ -111,6 +111,7 @@ typedef enum {
     FG_MODE_HOLD = 0,
     FG_MODE_INTERP = 1,
     FG_MODE_PRESENT_LAST = 2,
+    FG_MODE_FLOW = 3,
 } FgMode;
 
 typedef struct { bool has_effects; bool wants_sgsr1; } SceneTargets;
@@ -3252,6 +3253,57 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
         || r->swapchain_extent.width == 0u || !r->pipelines_built) { g_fg_dropped++; return p; }
 
+    if (job->mode == FG_MODE_FLOW) {
+        if (!(r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.ready)) return p;
+        VkFrame* ff = &r->fg_worker_frames[r->fg_worker_index];
+        r->fg_worker_index = (r->fg_worker_index + 1u) % 3u;
+        if (ff->in_flight) vkWaitForFences(r->device, 1, &ff->in_flight, VK_TRUE, UINT64_MAX);
+        VkCommandBufferBeginInfo fbi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        fbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        pthread_mutex_lock(&r->render_mutex);
+        if (!r->fg_built || r->fg_history_count < 2u || r->fg_motion_valid
+            || (uint32_t)(r->fg_promote_seq - job->seq) >= 2u) {
+            pthread_mutex_unlock(&r->render_mutex); return p;
+        }
+        uint32_t fcurr = job->curr_idx, fprev = job->prev_idx;
+        VkFgImage* fc = &r->fg_history[fcurr];
+        VkFgImage* fp = &r->fg_history[fprev];
+        bool fdeep = job->deep && !r->fg_extrapolate;
+        vkResetFences(r->device, 1, &ff->in_flight);
+        vkBeginCommandBuffer(ff->cmd, &fbi);
+        vkr_image_barrier(ff->cmd, fp->image,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        vkr_image_barrier(ff->cmd, fc->image,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        cnn_flow_pass(r, ff->cmd, fcurr, fp, fc, false, &r->fg_motion[fcurr]);
+        r->fg_motion_valid = true;
+        if (fdeep) {
+            cnn_flow_pass(r, ff->cmd, fcurr, fc, fp, true, &r->fg_motion_fwd[fcurr]);
+            r->fg_motion_fwd_valid = true;
+        }
+        vkEndCommandBuffer(ff->cmd);
+        VkSubmitInfo fsi = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        fsi.commandBufferCount = 1; fsi.pCommandBuffers = &ff->cmd;
+        pthread_mutex_lock(&r->queue_mutex);
+        VkResult fsr = vkQueueSubmit(r->graphics_queue, 1, &fsi, ff->in_flight);
+        pthread_mutex_unlock(&r->queue_mutex);
+        if (fsr != VK_SUCCESS) {
+            vkDestroyFence(r->device, ff->in_flight, NULL);
+            VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            vkCreateFence(r->device, &rfi, NULL, &ff->in_flight);
+            r->fg_motion_valid = false; r->fg_motion_fwd_valid = false;
+        } else {
+            r->fg_slot_fence[fcurr] = ff->in_flight;
+            r->fg_slot_fence[fprev] = ff->in_flight;
+        }
+        pthread_mutex_unlock(&r->render_mutex);
+        return p;
+    }
+
     VkFrame* f = &r->fg_worker_frames[r->fg_worker_index];
     r->fg_worker_index = (r->fg_worker_index + 1u) % 3u;
     if (f->in_flight) vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
@@ -3456,16 +3508,32 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     job.seq = r->fg_promote_seq;
     fg_compute_deadline(r, phase);
     job.deadline_ns = r->fg_present_target_ns ? r->fg_present_target_ns : r->fg_present_deadline_ns;
+
+    if (mode == FG_MODE_INTERP && r->fg_use_cnn && r->fg_cnn_capable
+        && r->fg_history_count >= 2u && r->fg_promote_seq != r->fg_cnn_flow_seq) {
+        uint32_t ftail = r->fg_job_tail;
+        uint32_t fnext = (ftail + 1u) % FG_JOB_RING;
+        if (fnext != r->fg_job_head) {
+            r->fg_cnn_flow_seq = r->fg_promote_seq;
+            FgJob fj = job;
+            fj.mode = (uint8_t)FG_MODE_FLOW;
+            fj.deadline_ns = 0u;
+            r->fg_job_ring[ftail] = fj;
+            __atomic_store_n(&r->fg_job_tail, fnext, __ATOMIC_RELEASE);
+            sem_post(&r->fg_gen_sem);
+        }
+    }
+
     uint32_t tail = r->fg_job_tail;
     uint32_t next = (tail + 1u) % FG_JOB_RING;
-    if (next == r->fg_job_head) {   // ring full: worker is behind -> drop (emit fewer in-betweens)
+    if (next == r->fg_job_head) {
         pthread_mutex_unlock(&r->render_mutex);
         g_fg_dropped++;
         return;
     }
     r->fg_job_ring[tail] = job;
     __atomic_store_n(&r->fg_job_tail, next, __ATOMIC_RELEASE);
-    sem_post(&r->fg_gen_sem);                 // sem_post INSIDE the lock — serialized with fg_worker_stop's sem_destroy
+    sem_post(&r->fg_gen_sem);
     pthread_mutex_unlock(&r->render_mutex);
 }
 
