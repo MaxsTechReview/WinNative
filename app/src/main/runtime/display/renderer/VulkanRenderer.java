@@ -523,7 +523,11 @@ public class VulkanRenderer
                 if (fgPromoteInfo[0] != fgPromoteSeen) {
                     fgPromoteSeen = fgPromoteInfo[0];
                     promoted = true;
-                    long pNs = fgPromoteInfo[1] != 0L ? fgPromoteInfo[1] : System.nanoTime();
+                    // Clock the cadence off the precise buffer-swap arrival time (onFramePresented), not the
+                    // vblank-quantized native promote time — this is the source's own present clock (GameScopeVK
+                    // model). With content-dedup off, one promote happens per accepted buffer-swap.
+                    long pNs = fgLastGameNs != 0L ? fgLastGameNs
+                            : (fgPromoteInfo[1] != 0L ? fgPromoteInfo[1] : System.nanoTime());
                     if (fgLastPromoteNs != 0L) {
                         long d = pNs - fgLastPromoteNs;   // interval between distinct frames = content period
                         if (d > 0L && d < 500_000_000L) {
