@@ -1366,7 +1366,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
 
     uint32_t image_count = caps.minImageCount + 1;
     if (image_count < VK_FRAMES_IN_FLIGHT + 1u) image_count = VK_FRAMES_IN_FLIGHT + 1u;
-    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 4) image_count = 4;
+    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 5) image_count = 5;  // generate-ahead holds one extra image in flight
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -3090,10 +3090,25 @@ static void fg_worker_recreate(VkRenderer* r) {
     pthread_mutex_unlock(&r->render_mutex);
 }
 
-// Run ONE queued job: acquire, record flow+generate (or present_last blit), submit, pace, present.
-static void fg_worker_present(VkRenderer* r, const FgJob* job) {
+// Carried between generate and present so the next frame's GPU work overlaps the current frame's deadline
+// wait: each output frame then has ~2 present intervals of GPU budget instead of one.
+typedef struct FgPending {
+    bool           valid;
+    bool           need_recreate;      // acquire returned OUT_OF_DATE
+    uint32_t       image_index;
+    VkSemaphore    render_finished;
+    VkSwapchainKHR swapchain;
+    uint64_t       deadline_ns;
+    bool           recreate_after;     // acquire SUBOPTIMAL
+    bool           do_interp;
+} FgPending;
+
+// Generate ONE queued job: acquire, record flow+generate (or present_last blit), submit. The caller paces and
+// presents the returned handle one frame later, so this job's GPU runs during that wait.
+static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
+    FgPending p = {0};
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
-        || r->swapchain_extent.width == 0u || !r->pipelines_built) { g_fg_dropped++; return; }
+        || r->swapchain_extent.width == 0u || !r->pipelines_built) { g_fg_dropped++; return p; }
 
     VkFrame* f = &r->fg_worker_frames[r->fg_worker_index];
     r->fg_worker_index = (r->fg_worker_index + 1u) % 3u;
@@ -3106,17 +3121,17 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
     uint32_t image_index = 0;
     VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, acq_timeout,
                                          f->image_available, VK_NULL_HANDLE, &image_index);
-    if (acq == VK_NOT_READY || acq == VK_TIMEOUT) { g_fg_dropped++; return; }
-    if (acq == VK_ERROR_OUT_OF_DATE_KHR) { fg_worker_recreate(r); return; }
+    if (acq == VK_NOT_READY || acq == VK_TIMEOUT) { g_fg_dropped++; return p; }
+    if (acq == VK_ERROR_OUT_OF_DATE_KHR) { p.need_recreate = true; return p; }
     bool recreate_after_present = (acq == VK_SUBOPTIMAL_KHR) && !r->ignore_suboptimal;
-    if (acq != VK_SUCCESS && acq != VK_SUBOPTIMAL_KHR) { VK_LOGE("fg-gen acquire -> %d", acq); g_fg_dropped++; return; }
+    if (acq != VK_SUCCESS && acq != VK_SUBOPTIMAL_KHR) { VK_LOGE("fg-gen acquire -> %d", acq); g_fg_dropped++; return p; }
 
     VkSemaphore render_finished = r->swapchain_render_finished[image_index];
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     pthread_mutex_lock(&r->render_mutex);
-    if (!r->fg_built) { pthread_mutex_unlock(&r->render_mutex); g_fg_dropped++; return; }
+    if (!r->fg_built) { pthread_mutex_unlock(&r->render_mutex); g_fg_dropped++; return p; }
     // A job whose pair was reused by 2+ newer promotes falls back to present_last of the LIVE newest
     // frame (never drop the acquired image — that would strand its semaphore).
     bool stale = (uint32_t)(r->fg_promote_seq - job->seq) >= 2u;
@@ -3200,22 +3215,34 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
         VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         vkCreateFence(r->device, &rfi, NULL, &f->in_flight);
         pthread_mutex_unlock(&r->render_mutex);
-        return;
+        return p;
     }
     r->fg_slot_fence[curr_idx] = f->in_flight;
     if (do_interp) r->fg_slot_fence[prev_idx] = f->in_flight;
     VkSwapchainKHR swapchain = r->swapchain;
     pthread_mutex_unlock(&r->render_mutex);
 
-    fg_sleep_to(r, job->deadline_ns);
+    p.valid = true;
+    p.image_index = image_index;
+    p.render_finished = render_finished;
+    p.swapchain = swapchain;
+    p.deadline_ns = job->deadline_ns;
+    p.recreate_after = recreate_after_present;
+    p.do_interp = do_interp;
+    return p;
+}
+
+// Pace to the deadline and present a generated frame. Returns true when the swapchain needs recreating.
+static bool fg_worker_do_present(VkRenderer* r, const FgPending* p) {
+    fg_sleep_to(r, p->deadline_ns);
 
     VkPresentInfoKHR pinfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-    pinfo.waitSemaphoreCount = 1; pinfo.pWaitSemaphores = &render_finished;
-    pinfo.swapchainCount = 1; pinfo.pSwapchains = &swapchain; pinfo.pImageIndices = &image_index;
+    pinfo.waitSemaphoreCount = 1; pinfo.pWaitSemaphores = &p->render_finished;
+    pinfo.swapchainCount = 1; pinfo.pSwapchains = &p->swapchain; pinfo.pImageIndices = &p->image_index;
     VkPresentTimeGOOGLE ptg; VkPresentTimesInfoGOOGLE pti;
     if (r->ext_display_timing) {
         // Request the computed present instant so a panel that honours display-timing places it (CLOCK_MONOTONIC ns).
-        ptg.presentID = ++r->fg_present_id; ptg.desiredPresentTime = job->deadline_ns;
+        ptg.presentID = ++r->fg_present_id; ptg.desiredPresentTime = p->deadline_ns;
         pti.sType = VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE;
         pti.pNext = NULL; pti.swapchainCount = 1; pti.pTimes = &ptg;
         pinfo.pNext = &pti;
@@ -3224,7 +3251,7 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
     VkResult pr = vkQueuePresentKHR(r->graphics_queue, &pinfo);
     if (pr == VK_SUCCESS || pr == VK_SUBOPTIMAL_KHR) {
         r->fg_present_count++;
-        if (do_interp) g_fg_interp++; else g_fg_plast++;
+        if (p->do_interp) g_fg_interp++; else g_fg_plast++;
         fg_collect_present_timing(r);
         if (((g_fg_interp + g_fg_plast) % 120u) == 0u) {
             double mean = r->fg_t_count ? r->fg_t_sum_ms / r->fg_t_count : 0.0;
@@ -3246,10 +3273,8 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
     }
     pthread_mutex_unlock(&r->queue_mutex);
 
-    if (recreate_after_present || pr == VK_ERROR_OUT_OF_DATE_KHR
-        || (pr == VK_SUBOPTIMAL_KHR && !r->ignore_suboptimal)) {
-        fg_worker_recreate(r);
-    }
+    return p->recreate_after || pr == VK_ERROR_OUT_OF_DATE_KHR
+        || (pr == VK_SUBOPTIMAL_KHR && !r->ignore_suboptimal);
 }
 
 // Producer (GL thread): snapshot the cadence decision into a job + enqueue + wake the worker. O(1).
@@ -3283,19 +3308,50 @@ static void* fg_gen_loop(void* arg) {
     VkRenderer* r = (VkRenderer*)arg;
     prctl(PR_SET_NAME, "fg-gen", 0, 0, 0);
     setpriority(PRIO_PROCESS, 0, -8);
+    FgPending pending = {0};
     while (r->fg_gen_running) {
-        sem_wait(&r->fg_gen_sem);
+        // Wait for the next job. While a frame is pending, cap the wait (~2 vsync) so a content stall can
+        // still flush the pending frame instead of holding it.
+        bool got_job;
+        if (pending.valid) {
+            uint64_t wait_ns = (r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull) * 2u;
+            struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += (time_t)(wait_ns / 1000000000ull);
+            ts.tv_nsec += (long)(wait_ns % 1000000000ull);
+            if (ts.tv_nsec >= 1000000000L) { ts.tv_nsec -= 1000000000L; ts.tv_sec++; }
+            got_job = (sem_timedwait(&r->fg_gen_sem, &ts) == 0);
+        } else {
+            got_job = (sem_wait(&r->fg_gen_sem) == 0);
+        }
         if (!r->fg_gen_running) break;
-        uint32_t head = r->fg_job_head;
-        if (head == __atomic_load_n(&r->fg_job_tail, __ATOMIC_ACQUIRE)) continue;  // nothing (spurious/drain)
-        FgJob job = r->fg_job_ring[head];
-        __atomic_store_n(&r->fg_job_head, (head + 1u) % FG_JOB_RING, __ATOMIC_RELEASE);
-        // drop-late: skip an INTERP whose deadline already passed by >1 vsync; never drop a PRESENT_LAST.
-        uint64_t period = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
-        if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
-            && now_monotonic_ns() > job.deadline_ns + period) { g_fg_dropped++; continue; }
-        fg_worker_present(r, &job);
+
+        bool need_recreate = false;
+        FgPending ready = {0};
+        if (got_job) {
+            uint32_t head = r->fg_job_head;
+            if (head != __atomic_load_n(&r->fg_job_tail, __ATOMIC_ACQUIRE)) {
+                FgJob job = r->fg_job_ring[head];
+                __atomic_store_n(&r->fg_job_head, (head + 1u) % FG_JOB_RING, __ATOMIC_RELEASE);
+                // drop-late: skip an INTERP whose deadline already passed by >1 vsync; never drop a PRESENT_LAST.
+                uint64_t period = r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull;
+                if (job.mode == FG_MODE_INTERP && job.deadline_ns != 0u
+                    && now_monotonic_ns() > job.deadline_ns + period) {
+                    g_fg_dropped++;
+                } else {
+                    ready = fg_worker_generate(r, &job);
+                    if (ready.need_recreate) need_recreate = true;
+                }
+            }
+        }
+        // Present the previously generated frame; the just-generated one's GPU runs during this deadline wait.
+        if (pending.valid && fg_worker_do_present(r, &pending)) need_recreate = true;
+        pending = ready;
+        if (need_recreate) {
+            fg_worker_recreate(r);
+            pending.valid = false;   // anything acquired before the recreate is now stale
+        }
     }
+    if (pending.valid) fg_worker_do_present(r, &pending);   // flush the trailing frame on stop
     return NULL;
 }
 
