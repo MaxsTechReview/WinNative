@@ -49,8 +49,10 @@ import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.content.component.ComponentInstaller
 import com.winlator.cmod.shared.util.StringUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -238,24 +240,28 @@ fun ComponentInstallerSheet(
                                         installMutex.withLock {
                                             try {
                                                 installStates[item.name] = InstallUi.Running("Starting…")
-                                                val yaml =
-                                                    Downloader.downloadString("$DATASET_BASE/${item.manifest}")
-                                                        ?: throw Exception("Couldn't fetch the manifest.")
-                                                ComponentInstaller(
-                                                    context = context,
-                                                    container = container,
-                                                    componentName = item.name,
-                                                    manifestYaml = yaml,
-                                                    listener =
-                                                        object : ComponentInstaller.Listener {
-                                                            override fun onStatus(text: String) {
-                                                                installStates[item.name] = InstallUi.Running(text)
-                                                            }
+                                                runInterruptible {
+                                                    val yaml =
+                                                        Downloader.downloadString("$DATASET_BASE/${item.manifest}")
+                                                            ?: throw Exception("Couldn't fetch the manifest.")
+                                                    ComponentInstaller(
+                                                        context = context,
+                                                        container = container,
+                                                        componentName = item.name,
+                                                        manifestYaml = yaml,
+                                                        listener =
+                                                            object : ComponentInstaller.Listener {
+                                                                override fun onStatus(text: String) {
+                                                                    installStates[item.name] = InstallUi.Running(text)
+                                                                }
 
-                                                            override fun onProgress(fraction: Float) {}
-                                                        },
-                                                ).run()
+                                                                override fun onProgress(fraction: Float) {}
+                                                            },
+                                                    ).run()
+                                                }
                                                 installStates[item.name] = InstallUi.Done
+                                            } catch (e: CancellationException) {
+                                                throw e
                                             } catch (e: Exception) {
                                                 installStates[item.name] =
                                                     InstallUi.Failed(e.message ?: "Install failed.")

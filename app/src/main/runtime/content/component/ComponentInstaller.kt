@@ -63,13 +63,21 @@ class ComponentInstaller(
             ?: throw InstallException("Manifest has no steps")
 
         try {
+            checkCancel()
             download(steps)
+            checkCancel()
             extractArchives(steps)
+            checkCancel()
             runSteps(steps)
             markInstalled()
         } finally {
             File(driveC, "wn-install").deleteRecursively()
         }
+    }
+
+    // Abort if the worker thread was interrupted (the install sheet was closed).
+    private fun checkCancel() {
+        if (Thread.currentThread().isInterrupted) throw InstallException("Cancelled")
     }
 
     private fun markInstalled() {
@@ -87,6 +95,7 @@ class ComponentInstaller(
         val dlActions = setOf("download_archive", "install_exe", "install_msi", "cab_extract", "archive_extract")
         val toDownload = steps.filter { (it["action"] as? String) in dlActions && it["url"] is String }
         toDownload.forEachIndexed { i, step ->
+            checkCancel()
             val url = step["url"] as String
             val name = (step["rename"] as? String) ?: (step["file_name"] as String)
             val dst = File(componentDir, name)
@@ -110,6 +119,7 @@ class ComponentInstaller(
     // ---- phase 2: extract archives into the working dir ----
     private fun extractArchives(steps: List<Map<String, Any?>>) {
         for (step in steps) {
+            checkCancel()
             when (step["action"] as? String) {
                 "archive_extract" -> {
                     val name = (step["rename"] as? String) ?: (step["file_name"] as String)
@@ -200,9 +210,13 @@ class ComponentInstaller(
         val devNull = File("/dev/null")
         pb.redirectOutput(ProcessBuilder.Redirect.to(devNull))
         pb.redirectError(ProcessBuilder.Redirect.to(devNull))
+        val proc = pb.start()
         try {
-            val exit = pb.start().waitFor()
+            val exit = proc.waitFor()
             if (exit != 0) throw InstallException("CAB extract failed (exit $exit): ${cab.name}")
+        } catch (e: InterruptedException) {
+            proc.destroy()
+            throw InstallException("Cancelled")
         } catch (e: java.io.IOException) {
             throw InstallException("Couldn't run cabextract: ${e.message}")
         }
@@ -222,6 +236,7 @@ class ComponentInstaller(
         listener.onStatus("Installing into ${container.name}")
         listener.onProgress(-1f)
         for (step in steps) {
+            checkCancel()
             when (val action = step["action"] as? String) {
                 "download_archive", "archive_extract" -> {} // already handled
                 "copy_dll", "copy_file", "link_dir" -> copyFiles(step)
