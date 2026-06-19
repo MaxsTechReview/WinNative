@@ -217,12 +217,13 @@ static void fg_destroy_cnn_resources(VkRenderer* r) {
     }
     if (C->ubo)    { vkDestroyBuffer(r->device, C->ubo, NULL); C->ubo = VK_NULL_HANDLE; }
     if (C->uboMem) { vkFreeMemory(r->device, C->uboMem, NULL); C->uboMem = VK_NULL_HANDLE; }
-    VkCnnFeatSet* sets[2] = { &C->featPrev, &C->featCurr };
-    for (int s = 0; s < 2; s++)
+    VkCnnFeatSet* sets[3] = { &C->feat[0], &C->feat[1], &C->feat[2] };
+    for (int s = 0; s < 3; s++)
         for (int L = 0; L < CNN_LEVELS; L++) {
             cnn_free_img(r, &sets[s]->luma[L]);   cnn_free_img(r, &sets[s]->feat4a[L]);
             cnn_free_img(r, &sets[s]->feat4b[L]);  cnn_free_img(r, &sets[s]->feat8[L]);
         }
+    C->featValid[0] = C->featValid[1] = C->featValid[2] = false;
     for (int L = 0; L < CNN_LEVELS; L++) {
         cnn_free_img(r, &C->feat8_pair[L]); cnn_free_img(r, &C->dpair[L]);
         cnn_free_img(r, &C->hG0[L]);  cnn_free_img(r, &C->hG1[L]);
@@ -296,8 +297,9 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         fw[L]  = f2w[L] > 1 ? f2w[L] / 2 : 1u; fh[L]  = f2h[L] > 1 ? f2h[L] / 2 : 1u;
     }
 
-    VkCnnFeatSet* fsets[2] = { &C->featPrev, &C->featCurr };
-    for (int s = 0; s < 2; s++)
+    VkCnnFeatSet* fsets[3] = { &C->feat[0], &C->feat[1], &C->feat[2] };
+    C->featValid[0] = C->featValid[1] = C->featValid[2] = false;
+    for (int s = 0; s < 3; s++)
         for (int L = 0; L < CNN_LEVELS; L++) {
             if (!cnn_make_img(r, &fsets[s]->luma[L],   lw[L],  lh[L],  R8,    1, false)) return false;
             if (!cnn_make_img(r, &fsets[s]->feat4a[L], f2w[L], f2h[L], RGBA8, 1, true))  return false;
@@ -526,31 +528,32 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
     if (!forward) {
         C->curPool = (C->curPool + 1u) % (uint32_t)CNN_POOLS;
         vkResetDescriptorPool(r->device, C->pool[C->curPool], 0);
+        cnn_clear_f16(cmd, &C->occ);
+        cnn_clear_f16(cmd, &C->seedBlack);
+        cnn_clear_f16(cmd, &C->dummy);
     }
 
-    cnn_clear_f16(cmd, &C->occ);
-    cnn_clear_f16(cmd, &C->seedBlack);
-    cnn_clear_f16(cmd, &C->dummy);
-
-    VkImageView pv = forward ? currFrame->view : prevFrame->view;
-    VkImageView cv = forward ? prevFrame->view : currFrame->view;
-    cnn_ingest(r, cmd, pv, &C->featPrev);
-    cnn_ingest(r, cmd, cv, &C->featCurr);
+    uint32_t prevSlot = (uint32_t)(prevFrame - r->fg_history); if (prevSlot > 2u) prevSlot = 0u;
+    uint32_t currSlot = (uint32_t)(currFrame - r->fg_history); if (currSlot > 2u) currSlot = 0u;
+    if (!C->featValid[prevSlot]) { cnn_ingest(r, cmd, prevFrame->view, &C->feat[prevSlot]); C->featValid[prevSlot] = true; }
+    if (!C->featValid[currSlot]) { cnn_ingest(r, cmd, currFrame->view, &C->feat[currSlot]); C->featValid[currSlot] = true; }
+    VkCnnFeatSet* fp = &C->feat[prevSlot];
+    VkCnnFeatSet* fc = &C->feat[currSlot];
 
     for (int L = CNN_FLOW_LEVELS - 1; L >= 0; --L) {
         uint32_t w = C->hG0[L].w, h = C->hG0[L].h;
         VkImageView seedView = (L == CNN_FLOW_LEVELS - 1) ? C->seedBlack.view : C->flowMid[L+1].view;
 
-        cnn_concat4(cmd, &C->featPrev.feat8[L], &C->featCurr.feat8[L], &C->feat8_pair[L]);
+        cnn_concat4(cmd, &fp->feat8[L], &fc->feat8[L], &C->feat8_pair[L]);
 
         cnn_to_write(cmd, C->hG0[L].image, 2);
-        cnn_conv_dispatch(r, cmd, C->feat8_pair[L].view, C->featCurr.luma[L].view, C->hG0[L].view, 36, 4, 2, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->feat8_pair[L].view, fc->luma[L].view, C->hG0[L].view, 36, 4, 2, 0, w, h);
         cnn_to_read(cmd, C->hG0[L].image, 2);
         cnn_to_write(cmd, C->hG1[L].image, 2);
-        cnn_conv_dispatch(r, cmd, C->hG0[L].view, C->featCurr.luma[L].view, C->hG1[L].view, 37, 2, 2, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->hG0[L].view, fc->luma[L].view, C->hG1[L].view, 37, 2, 2, 0, w, h);
         cnn_to_read(cmd, C->hG1[L].image, 2);
         cnn_to_write(cmd, C->hG23[L].image, 4);
-        cnn_conv_dispatch(r, cmd, C->hG1[L].view, C->featCurr.luma[L].view, C->hG23[L].view, 42, 4, 4, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->hG1[L].view, fc->luma[L].view, C->hG23[L].view, 42, 4, 4, 0, w, h);
         cnn_to_read(cmd, C->hG23[L].image, 4);
         cnn_to_write(cmd, C->hG4[L].image, 2);
         cnn_conv_dispatch(r, cmd, C->hG23[L].view, seedView, C->hG4[L].view, 21, 3, 2, 0, w, h);
@@ -567,10 +570,10 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
           cnn_cost9_dispatch(r, cmd, in5, out3, 20, w, h); }
         cnn_to_read(cmd, C->hD1[L].image, 3);
         cnn_to_write(cmd, C->hD2[L].image, 2);
-        cnn_conv_dispatch(r, cmd, C->hD1[L].view, C->featCurr.luma[L].view, C->hD2[L].view, 22, 2, 2, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->hD1[L].view, fc->luma[L].view, C->hD2[L].view, 22, 2, 2, 0, w, h);
         cnn_to_read(cmd, C->hD2[L].image, 2);
         cnn_to_write(cmd, C->hD3[L].image, 1);
-        cnn_conv_dispatch(r, cmd, C->hD2[L].view, C->featCurr.luma[L].view, C->hD3[L].view, 26, 1, 1, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->hD2[L].view, fc->luma[L].view, C->hD3[L].view, 26, 1, 1, 0, w, h);
         cnn_to_read(cmd, C->hD3[L].image, 1);
 
         VkImageView fdst = (L == 0) ? outFlow->view  : C->flowMid[L].view;

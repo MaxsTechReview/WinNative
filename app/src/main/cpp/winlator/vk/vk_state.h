@@ -273,7 +273,8 @@ typedef struct VkFgCnn {
     bool             ready;
     VkDescriptorPool pool[CNN_POOLS];
     uint32_t         curPool;
-    VkCnnFeatSet     featPrev, featCurr;
+    VkCnnFeatSet     feat[3];
+    bool             featValid[3];
     VkCnnImg feat8_pair[CNN_LEVELS];
     VkCnnImg hG0[CNN_LEVELS], hG1[CNN_LEVELS], hG23[CNN_LEVELS], hG4[CNN_LEVELS];
     VkCnnImg hD0[CNN_LEVELS], hD1[CNN_LEVELS], hD2[CNN_LEVELS], hD3[CNN_LEVELS];

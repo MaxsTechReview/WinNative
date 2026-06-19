@@ -2945,6 +2945,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         // When dedup is unavailable, fall back to the original behavior (advance every HOLD).
         uint32_t stage = (r->fg_history_curr + 1u) % 3u;
         VkFgImage* hist = &r->fg_history[stage];
+        r->fg_cnn.featValid[stage] = false;
         if (r->fg_slot_fence[stage] != VK_NULL_HANDLE)
             vkWaitForFences(r->device, 1, &r->fg_slot_fence[stage], VK_TRUE, UINT64_MAX);
         vkResetFences(r->device, 1, &f->in_flight);
