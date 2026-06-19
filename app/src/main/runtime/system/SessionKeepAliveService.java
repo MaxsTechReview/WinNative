@@ -55,10 +55,10 @@ public class SessionKeepAliveService extends Service {
     private static final HashSet<String> activeDownloads = new HashSet<>();
     private static final AtomicBoolean serviceRunning = new AtomicBoolean(false);
 
-    private static XEnvironment activeEnvironment;
-    private static XServer activeXServer;
+    private static volatile XEnvironment activeEnvironment;
+    private static volatile XServer activeXServer;
 
-    private static boolean isContainerPaused = false;
+    private static volatile boolean isContainerPaused = false;
 
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;

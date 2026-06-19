@@ -213,6 +213,7 @@ public class XClientRequestHandler implements RequestHandler {
                   XServer.Lockable.INPUT_DEVICE)) {
             WindowRequests.destroySubWindows(client, inputStream, outputStream);
           }
+          break;
         case ClientOpcodes.REPARENT_WINDOW:
           try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
             WindowRequests.reparentWindow(client, inputStream, outputStream);
