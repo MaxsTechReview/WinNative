@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define WN_STEAMAPI_EXPORT __declspec(dllexport)
 
@@ -14,9 +15,37 @@ static void* g_steam_client = NULL;
 typedef void* (*CreateInterface_fn)(const char*, int*);
 static CreateInterface_fn g_CreateInterface = NULL;
 
+static int wnb_logging_enabled(void) {
+    static volatile LONG cached = -1;
+    LONG v = cached;
+    if (v == -1) {
+        const char* e = getenv("WNB_LOG");
+        v = (e && e[0] && e[0] != '0') ? 1 : 0;
+        cached = v;
+    }
+    return (int)v;
+}
+
 static void wnb_log(const char* msg) {
+    if (!wnb_logging_enabled()) return;
     FILE* f = fopen("C:\\wnb.log", "a");
     if (f) { fputs(msg, f); fputs("\n", f); fclose(f); }
+}
+
+static CRITICAL_SECTION g_init_cs;
+static volatile LONG g_init_cs_state = 0;
+
+static void init_lock(void) {
+    if (InterlockedCompareExchange(&g_init_cs_state, 1, 0) == 0) {
+        InitializeCriticalSection(&g_init_cs);
+        InterlockedExchange(&g_init_cs_state, 2);
+    }
+    while (g_init_cs_state != 2) Sleep(0);
+    EnterCriticalSection(&g_init_cs);
+}
+
+static void init_unlock(void) {
+    LeaveCriticalSection(&g_init_cs);
 }
 
 static int load_wine_bridge(void) {
@@ -84,9 +113,13 @@ static int gbe_init(void) {
 
 WN_STEAMAPI_EXPORT int SteamAPI_Init(void) {
     if (g_inited) return 1;
-    wnb_log("[lifecycle] SteamAPI_Init called");
-    gbe_init();
-    g_inited = 1;
+    init_lock();
+    if (!g_inited) {
+        wnb_log("[lifecycle] SteamAPI_Init called");
+        gbe_init();
+        g_inited = 1;
+    }
+    init_unlock();
     return 1;
 }
 

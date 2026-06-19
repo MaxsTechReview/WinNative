@@ -42,6 +42,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private static final AtomicBoolean dependencyCheckScheduled = new AtomicBoolean(false);
   private String guestExecutable;
   private int pid = -1;
+  private int launchGeneration = 0;
   private String[] bindingPaths;
   private EnvVars envVars;
   private WineInfo wineInfo;
@@ -506,6 +507,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
       }
 
+      launchGeneration++;
       pid = execGuestProgram();
       Log.d(
           TAG,
@@ -634,6 +636,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
       } else {
         Log.d("GuestProgramLauncherComponent", "Stop requested with no tracked guest process");
       }
+      dependencyCheckScheduled.set(false);
     }
   }
 
@@ -834,6 +837,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   }
 
   private int execGuestProgram() {
+    final int gen = launchGeneration;
     Context context = environment.getContext();
     ImageFs imageFs = environment.getImageFs();
     File rootDir = imageFs.getRootDir();
@@ -1159,7 +1163,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         workingDir != null ? workingDir : rootDir,
         (status) -> {
           synchronized (lock) {
-            pid = -1;
+            if (gen == launchGeneration) pid = -1;
           }
 
           ProcessHelper.drainDeadChildren("guest process termination callback");
