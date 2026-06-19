@@ -234,9 +234,7 @@ public class VulkanRenderer
         synchronized (this) {
             if (nativeHandle != 0) {
                 nativeSetFrameGeneration(nativeHandle, enabled);
-                // FG presents under a non-blocking mode so the worker's deadline pacer drives the present
-                // instant. FIFO would block the present on vblank and make the panel vsync the pacer,
-                // re-introducing the quantization judder the deadline model exists to avoid.
+                // Non-blocking present so the worker's deadline pacer drives the present instant (not FIFO/vsync).
                 nativeSetPresentMode(nativeHandle, enabled ? PRESENT_MODE_MAILBOX : requestedPresentMode);
                 fgActivePresentMode = nativeGetActivePresentMode(nativeHandle);
             }
@@ -523,9 +521,7 @@ public class VulkanRenderer
                 if (fgPromoteInfo[0] != fgPromoteSeen) {
                     fgPromoteSeen = fgPromoteInfo[0];
                     promoted = true;
-                    // Clock the cadence off the precise buffer-swap arrival time (onFramePresented), not the
-                    // vblank-quantized native promote time — this is the source's own present clock (GameScopeVK
-                    // model). With content-dedup off, one promote happens per accepted buffer-swap.
+                    // Anchor to the precise buffer-swap arrival time, not the vblank-quantized promote time.
                     long pNs = fgLastGameNs != 0L ? fgLastGameNs
                             : (fgPromoteInfo[1] != 0L ? fgPromoteInfo[1] : System.nanoTime());
                     if (fgLastPromoteNs != 0L) {
@@ -534,10 +530,7 @@ public class VulkanRenderer
                             fgContentPeriodNs = fgContentPeriodNs == 0L ? d
                                     : fgContentPeriodNs + (d - fgContentPeriodNs) / 8L;
                             double inst = 1.0e9 / (double) fgContentPeriodNs;
-                            // Track the (already EMA-smoothed) instantaneous content rate with a light
-                            // quarter-step EMA: converges in a few frames and rejects single-frame outliers,
-                            // without the old drift-relock threshold that could leave the lock stale (e.g.
-                            // locked=27 while the game truly ran 30), which skewed the present spacing.
+                            // Light EMA toward the measured content rate (converges fast, rejects outliers).
                             fgLockedGameHz = fgLockedGameHz <= 0.0 ? inst
                                     : fgLockedGameHz + (inst - fgLockedGameHz) * 0.25;
                             fgGameDriftFrames = 0;
@@ -579,9 +572,7 @@ public class VulkanRenderer
             return 2;
         }
         if (period <= 0L) return 0;
-        // Cadence multiplier, snapped DOWN to the largest divisor of the panel:content ratio (slots) so the
-        // output divides the panel evenly (each output frame held a whole number of vblanks). On 120Hz/30Hz
-        // (slots=4): 4x and 2x stay; 3x (=90Hz, held 1,1,2 vblanks = judder) snaps to 2x.
+        // Snap the multiplier to the largest divisor of the panel:content ratio so output divides the panel evenly.
         int M = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
         int slots = M;
@@ -595,10 +586,7 @@ public class VulkanRenderer
             }
         }
         fgCadenceM = M;
-        // Steady output gate: emit a NEW frame every `hold` vblanks (hold = slots/M, integer since M divides
-        // slots), sampling the tween phase CONTINUOUSLY from the content clock. A fresh frame is produced on
-        // every gate vblank regardless of where the EMA boundary falls — this stops the tween under-production
-        // (skipped interps) that was dragging the output rate down and making it jittery.
+        // Emit a new frame every `hold` vblanks (hold = slots/M); sample the tween phase from the content clock.
         int hold = Math.max(1, slots / M);
         fgVblankSincePromote++;
         if ((fgVblankSincePromote % hold) != 0) return 0;          // between gates — hold the current frame
@@ -633,11 +621,7 @@ public class VulkanRenderer
         return Math.max(0, Math.min(maxInterps, interps));
     }
 
-    // Presents per pump tick. The pump fires once per vblank (AChoreographer), so exactly one present per
-    // tick = one present per vblank = the panel-rate ceiling. Emitting more than one per tick would post
-    // multiple frames into a single vblank (MAILBOX keeps only the last), wasting work and inflating the
-    // present count into an uneven ">panel" rate. Sub-panel output rates are handled by the per-vblank
-    // phase logic (hold vs interp), so one-per-tick is always correct.
+    // One present per pump tick: the pump fires once per vblank, so one present per vblank is the panel ceiling.
     private int fgComputePerTick() {
         return 1;
     }

@@ -2686,11 +2686,9 @@ static uint64_t g_fg_dropped = 0;
 // desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
 #define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
 
-// Present instant for one output frame, anchored to the real-frame ARRIVAL clock: a frame at content-phase
-// `phase` of the [prev,curr] interval is shown at curr_arrival + phase*(curr-prev). This locks the present
-// cadence to the source's own timeline, so vblanks that emit nothing (holds) cannot drift the grid the way
-// a per-enqueue period accumulator did — that drift was the residual judder after vsync-snap removal. Before
-// the two arrivals are known it falls back to an evenly-spaced period grid. NOT snapped to the panel vsync.
+// Present instant for one output frame: a frame at content-phase `phase` of the [prev,curr] interval is shown
+// at curr_arrival + phase*(curr-prev), anchoring the cadence to the source clock. Falls back to an evenly
+// spaced period grid before the arrivals are known. Not snapped to the panel vsync.
 static uint64_t fg_compute_deadline(VkRenderer* r, float phase) {
     uint64_t now = now_monotonic_ns();
     uint64_t ca = r->fg_curr_arrival_ns, pa = r->fg_prev_arrival_ns;
@@ -3216,9 +3214,7 @@ static void fg_worker_present(VkRenderer* r, const FgJob* job) {
     pinfo.swapchainCount = 1; pinfo.pSwapchains = &swapchain; pinfo.pImageIndices = &image_index;
     VkPresentTimeGOOGLE ptg; VkPresentTimesInfoGOOGLE pti;
     if (r->ext_display_timing) {
-        // Ask the display engine to latch this frame at its computed present instant (CLOCK_MONOTONIC ns).
-        // The CPU nanosleep above already woke us near the deadline; this lets a panel that honours
-        // display-timing place the frame on the correct vblank instead of "next vblank, whenever".
+        // Request the computed present instant so a panel that honours display-timing places it (CLOCK_MONOTONIC ns).
         ptg.presentID = ++r->fg_present_id; ptg.desiredPresentTime = job->deadline_ns;
         pti.sType = VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE;
         pti.pNext = NULL; pti.swapchainCount = 1; pti.pTimes = &ptg;
