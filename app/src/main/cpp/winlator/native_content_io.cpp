@@ -40,6 +40,11 @@ constexpr uint32_t kXzDictSizeMax = 128U << 20;
 #define NATIVE_LOGW(...) __android_log_print(ANDROID_LOG_WARN, kLogTag, __VA_ARGS__)
 
 std::once_flag g_xz_crc_once;
+std::once_flag g_curl_global_once;
+
+static void ensure_curl_global_init() {
+    std::call_once(g_curl_global_once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
+}
 
 std::string jstr(JNIEnv* env, jstring value) {
     if (!value) return {};
@@ -685,6 +690,11 @@ bool extract_tar(
                 if (!reader.skip(size + padding)) return false;
                 continue;
             }
+            if (has_symlink_ancestor(clean_link_name, symlink_entries)) {
+                NATIVE_LOGW("skipping hard link through symlink ancestor: %s", clean_link_name.c_str());
+                if (!reader.skip(size + padding)) return false;
+                continue;
+            }
             std::string link_path = join_path(destination, clean_link_name);
             if (::link(link_path.c_str(), out_path.c_str()) != 0) {
                 NATIVE_LOGW("hard link failed for %s: %s", out_path.c_str(), std::strerror(errno));
@@ -808,7 +818,7 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeDownloadFile(
     std::string ca_bundle = jstr(env, jca_bundle);
     if (address.empty() || destination.empty() || !ensure_parent_dir(destination)) return JNI_FALSE;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+    ensure_curl_global_init();
     std::string partial = destination + ".part";
     FILE* file = std::fopen(partial.c_str(), "wb");
     if (!file) return JNI_FALSE;
@@ -877,7 +887,7 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeFetchContentLength(
     std::string ca_bundle = jstr(env, jca_bundle);
     if (address.empty()) return -1;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+    ensure_curl_global_init();
     CURL* curl = curl_easy_init();
     if (!curl) return -1;
     configure_curl_common(curl, address, ca_bundle);

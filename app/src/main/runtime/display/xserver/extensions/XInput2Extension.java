@@ -9,7 +9,6 @@ import com.winlator.cmod.runtime.display.xserver.Window;
 import com.winlator.cmod.runtime.display.xserver.XClient;
 import com.winlator.cmod.runtime.display.xserver.XLock;
 import com.winlator.cmod.runtime.display.xserver.XServer;
-import com.winlator.cmod.runtime.display.xserver.errors.BadValue;
 import com.winlator.cmod.runtime.display.xserver.errors.BadWindow;
 import com.winlator.cmod.runtime.display.xserver.errors.XRequestError;
 import com.winlator.cmod.runtime.display.xserver.events.XIRawButtonPressNotify;
@@ -281,10 +280,6 @@ public class XInput2Extension implements Extension {
     private void selectEvents(final XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
         final int windowId = inputStream.readInt();
         int numMasks = inputStream.readShort() & 0xFFFF;
-        if (numMasks == 0) {
-            inputStream.skip(client.getRemainingRequestLength());
-            throw new BadValue(numMasks);
-        }
         inputStream.readShort();
         Window window = client.xServer.windowManager.getWindow(windowId);
         if (window == null) {
