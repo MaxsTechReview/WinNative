@@ -36,7 +36,7 @@ public class ALSAClient {
   private int previousUnderrunCount = 0;
   private float[] bassLowpassState = new float[2];
   private float bassLowpassAlpha = 0.0f;
-  private static short framesPerBuffer = 256;
+  private static volatile short framesPerBuffer = 256;
   private static volatile boolean outputSuspended = false;
   private final Options options;
 
@@ -209,7 +209,7 @@ public class ALSAClient {
   public synchronized void drain() {
     if (audioTrack != null) {
       try {
-        audioTrack.flush();
+        audioTrack.stop();
       } catch (Exception ignored) {
       }
     }

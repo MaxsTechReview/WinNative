@@ -285,7 +285,8 @@ static snd_pcm_ioplug_callback_t android_aserver_callback = {
 
 static int android_aserver_connect() {
     char* path = getenv("ANDROID_ALSA_SERVER");
-    
+    if (path == NULL) return -1;
+
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) return -1;
     
