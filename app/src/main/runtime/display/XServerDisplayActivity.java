@@ -6965,6 +6965,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        boolean wantLeegao = "wrapper-leegao".equals(graphicsDriver);
+        File leegaoMarker = new File(rootDir, "usr/lib/.wrapper_leegao");
+        if (wantLeegao) {
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper-leegao.tzst", rootDir);
+            try { leegaoMarker.createNewFile(); } catch (IOException ignored) {}
+        } else if (leegaoMarker.exists()) {
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
+            leegaoMarker.delete();
+        }
+
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
                 && !adrenoToolsDriverId.equals("System")) {
             AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
@@ -6975,6 +6986,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     adrenoToolsDriverId + "' name='" + driverDisplayName +
                     "' version='" + driverVersion + "' library='" + driverLibrary + "'");
             adrenotoolsManager.setDriverById(envVars, imageFs, adrenoToolsDriverId);
+            if (wantLeegao) envVars.put("ADRENOTOOLS_HOOKS_PATH", imageFs.getLibDir().getPath());
             Log.i("GraphicsDriverExtraction", "Loaded graphics/Turnip driver env: id='" +
                     adrenoToolsDriverId + "' path=" +
                     envVars.get("ADRENOTOOLS_DRIVER_PATH") + " name=" +
