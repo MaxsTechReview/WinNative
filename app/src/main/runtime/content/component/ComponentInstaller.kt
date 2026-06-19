@@ -62,10 +62,14 @@ class ComponentInstaller(
         val steps = (doc["Steps"] as? List<Map<String, Any?>>)
             ?: throw InstallException("Manifest has no steps")
 
-        download(steps)
-        extractArchives(steps)
-        runSteps(steps)
-        markInstalled()
+        try {
+            download(steps)
+            extractArchives(steps)
+            runSteps(steps)
+            markInstalled()
+        } finally {
+            File(driveC, "wn-install").deleteRecursively()
+        }
     }
 
     private fun markInstalled() {
