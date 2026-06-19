@@ -101,6 +101,11 @@ public abstract class WineUtils {
   }
 
   public static String normalizePersistentDrives(Context context, String drives) {
+    return normalizePersistentDrives(context, drives, true);
+  }
+
+  public static String normalizePersistentDrives(
+      Context context, String drives, boolean ensureDefaults) {
     List<String[]> entries = new ArrayList<>();
     LinkedHashSet<String> usedLetters = new LinkedHashSet<>();
     LinkedHashSet<String> usedPaths = new LinkedHashSet<>();
@@ -124,15 +129,17 @@ public abstract class WineUtils {
       }
     }
 
-    String downloadsPath =
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            .getAbsolutePath();
-    String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath();
+    if (ensureDefaults) {
+      String downloadsPath =
+          Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+              .getAbsolutePath();
+      String externalStoragePath = Environment.getExternalStorageDirectory().getAbsolutePath();
 
-    ensureDriveMapping(entries, usedLetters, usedPaths, "D", downloadsPath);
-    ensureDriveMapping(entries, usedLetters, usedPaths, "F", externalStoragePath);
-    for (String sdCardRootPath : getMountedSdCardRootPaths(context)) {
-      ensureDriveMapping(entries, usedLetters, usedPaths, "G", sdCardRootPath);
+      ensureDriveMapping(entries, usedLetters, usedPaths, "D", downloadsPath);
+      ensureDriveMapping(entries, usedLetters, usedPaths, "F", externalStoragePath);
+      for (String sdCardRootPath : getMountedSdCardRootPaths(context)) {
+        ensureDriveMapping(entries, usedLetters, usedPaths, "G", sdCardRootPath);
+      }
     }
 
     StringBuilder normalized = new StringBuilder();
@@ -392,41 +399,21 @@ public abstract class WineUtils {
 
     String packageStorageSuffix = "/com.winnative.cmod/storage";
     String legacyPackageStorageSuffix = "/com.winlator.cmod/storage";
-    String packageStoragePath = "/data/data/com.winnative.cmod/storage";
     Context context = null;
     if (container.getManager() != null && container.getManager().getContext() != null) {
       context = container.getManager().getContext();
       String packageName = context.getPackageName();
       packageStorageSuffix = "/" + packageName + "/storage";
-      packageStoragePath = "/data/data/" + packageName + "/storage";
     }
 
     if (context != null) {
-      String normalizedDrives = normalizePersistentDrives(context, container.getDrives());
+      String normalizedDrives = normalizePersistentDrives(context, container.getDrives(), false);
       if (normalizedDrives != null
           && !normalizedDrives.isEmpty()
           && !normalizedDrives.equals(container.getDrives())) {
         container.setDrives(normalizedDrives);
         Log.d("WineUtils", "Normalized launch drives in memory to: " + normalizedDrives);
       }
-    }
-
-    String currentDrives = container.getDrives();
-    if (currentDrives != null && (!currentDrives.contains("D:") || !currentDrives.contains("E:"))) {
-      Log.d("WineUtils", "Container missing D: or E: drives, appending them...");
-      StringBuilder updatedDrives = new StringBuilder(currentDrives);
-      if (!currentDrives.contains("D:")) {
-        updatedDrives
-            .append("D:")
-            .append(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS));
-      }
-      if (!currentDrives.contains("E:")) {
-        updatedDrives.append("E:").append(packageStoragePath);
-      }
-      container.setDrives(updatedDrives.toString());
-      Log.d("WineUtils", "Updated container drives (in-memory only) to: " + updatedDrives);
     }
 
     int driveCount = 0;

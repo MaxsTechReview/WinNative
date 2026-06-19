@@ -893,7 +893,10 @@ return boundingBox;
     int accent = resolveAccentColor();
     boolean hasAccent = accent != -1;
 
-    float gameHubDim = Math.min(1.0f, 0.5f + overlayOpacity * 0.7f);
+    // Anchored at 40% default; steeper below, gentle to full above.
+    float gameHubDim = overlayOpacity <= 0.4f
+        ? 0.28f + (overlayOpacity - 0.1f) * (0.5f / 0.3f)
+        : 0.78f + (overlayOpacity - 0.4f) * (0.22f / 0.6f);
     int fillAlpha = (int) (90 * gameHubDim * effectiveOpacity);
     int strokeAlpha = (int) (150 * gameHubDim * effectiveOpacity);
     int pressedFillAlpha = (int) (60 * gameHubDim * effectiveOpacity);
