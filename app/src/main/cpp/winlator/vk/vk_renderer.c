@@ -3117,7 +3117,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
         ipc.resW = 2.0f * (float)r->fg_motion[parity].width;
         ipc.resH = 2.0f * (float)r->fg_motion[parity].height;
         ipc.phase = phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi;
-        ipc.mode = r->fg_extrapolate ? 2.0f : (use_fwd ? 1.0f : 0.0f);
+        ipc.mode = (r->fg_extrapolate ? 2.0f : (use_fwd ? 1.0f : 0.0f)) + ((r->fg_use_cnn && r->fg_cnn_capable) ? 4.0f : 0.0f);
         vkCmdPushConstants(f->cmd, r->pipelines.fg_interp_pipe_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(ipc), &ipc);
         vkCmdDraw(f->cmd, 3, 1, 0, 0);
@@ -3405,7 +3405,7 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         ipc.resW = 2.0f * (float)r->fg_motion[parity].width;
         ipc.resH = 2.0f * (float)r->fg_motion[parity].height;
         ipc.phase = job->phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi;
-        ipc.mode = r->fg_extrapolate ? 2.0f : (use_fwd ? 1.0f : 0.0f);
+        ipc.mode = (r->fg_extrapolate ? 2.0f : (use_fwd ? 1.0f : 0.0f)) + ((r->fg_use_cnn && r->fg_cnn_capable) ? 4.0f : 0.0f);
         vkCmdPushConstants(f->cmd, r->pipelines.fg_interp_pipe_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(ipc), &ipc);
         vkCmdDraw(f->cmd, 3, 1, 0, 0);
@@ -3502,7 +3502,7 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     uint32_t curr = r->fg_history_curr;
     FgJob job;
     job.mode = mode;
-    job.deep = (((r->fg_deep_mode) || (r->fg_use_cnn && r->fg_cnn_capable)) && r->fg_history_count >= 2u) ? 1u : 0u;
+    job.deep = (r->fg_deep_mode && r->fg_history_count >= 2u) ? 1u : 0u;
     job.phase = phase;
     job.curr_idx = curr;
     job.prev_idx = (curr + 2u) % 3u;
@@ -3702,7 +3702,6 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_min_step = 1;
     r->fg_flow_scale = 0.5f;   // default = legacy half-res flow; presets override (Eco 0.2 .. Max 0.8)
     r->fg_use_cnn = cnn_wanted();
-    r->fg_deep_mode = r->fg_use_cnn ? true : r->fg_deep_mode;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);

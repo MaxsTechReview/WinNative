@@ -32,6 +32,8 @@ float valid(vec3 c, highp vec2 p) {
 void main() {
     float t = clamp(pc.phase, 0.0, 1.0);
     float steadier = clamp(pc.occlusionLo, 0.0, 1.0);
+    bool cnn = pc.mode >= 3.5;
+    float imode = cnn ? pc.mode - 4.0 : pc.mode;
 
     highp vec2 norm = 2.0 / pc.resolution;
     vec2 mvB  = texture(motionField, vUV).xy;
@@ -41,11 +43,11 @@ void main() {
     vec3 cPrevFlat = texture(prevFrame, vUV).rgb;
 
     vec2 maskConf    = texture(motionField, vUV).zw;
-    float staticMask = maskConf.x;
+    float staticMask = cnn ? 0.0 : maskConf.x;
     float staticPix  = max(staticMask, 1.0 - smoothstep(0.02, 0.06, length(cCurrFlat - cPrevFlat)));
-    float uniq       = smoothstep(0.08, 0.35, maskConf.y);
+    float uniq       = cnn ? 1.0 : smoothstep(0.08, 0.35, maskConf.y);
 
-    if (pc.mode > 1.5) {
+    if (imode > 1.5) {
         highp vec2 srcPos = vUV + t * mvBn;
         vec3 cWarp = texture(currFrame, srcPos).rgb;
         float v = valid(cWarp, srcPos);
