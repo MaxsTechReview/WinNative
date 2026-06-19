@@ -28,8 +28,10 @@ object DependencyInstallBridge {
     @JvmStatic
     fun complete(code: Int) {
         synchronized(lock) {
+            val l = latch ?: return
+            if (l.count == 0L) return
             exitCode = code
-            latch?.countDown()
+            l.countDown()
         }
     }
 

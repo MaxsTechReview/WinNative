@@ -65,6 +65,17 @@ class ComponentInstaller(
         download(steps)
         extractArchives(steps)
         runSteps(steps)
+        markInstalled()
+    }
+
+    private fun markInstalled() {
+        val dir = File(container.rootDir, INSTALLED_DIR)
+        dir.mkdirs()
+        try {
+            File(dir, componentName).writeText(System.currentTimeMillis().toString())
+        } catch (e: Exception) {
+            Log.w(TAG, "couldn't write installed marker for $componentName", e)
+        }
     }
 
     // ---- phase 1: download the referenced files ----
@@ -103,15 +114,17 @@ class ComponentInstaller(
                     outDir.mkdirs()
                     listener.onStatus("Extracting $name")
                     listener.onProgress(-1f)
-                    val type =
-                        when {
-                            name.endsWith(".tar.xz") || name.endsWith(".xz") -> TarCompressorUtils.Type.XZ
-                            name.endsWith(".tar.zst") || name.endsWith(".zst") || name.endsWith(".tzst") ->
-                                TarCompressorUtils.Type.ZSTD
-                            else -> throw InstallException("Unsupported archive format: $name")
-                        }
-                    if (!TarCompressorUtils.extract(type, src, outDir)) {
-                        throw InstallException("Extract failed: $name")
+                    when {
+                        name.endsWith(".zip") -> extractZip(src, outDir)
+                        name.endsWith(".tar.xz") || name.endsWith(".xz") ->
+                            if (!TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, src, outDir)) {
+                                throw InstallException("Extract failed: $name")
+                            }
+                        name.endsWith(".tar.zst") || name.endsWith(".zst") || name.endsWith(".tzst") ->
+                            if (!TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, src, outDir)) {
+                                throw InstallException("Extract failed: $name")
+                            }
+                        else -> throw InstallException("Unsupported archive format: $name")
                     }
                 }
 
@@ -131,6 +144,26 @@ class ComponentInstaller(
                     listener.onProgress(-1f)
                     for (cab in resolveCabSources(source)) extractCab(cab, dest, pattern)
                 }
+            }
+        }
+    }
+
+    private fun extractZip(
+        zip: File,
+        outDir: File,
+    ) {
+        java.util.zip.ZipInputStream(zip.inputStream().buffered()).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                val out = File(outDir, entry.name)
+                if (entry.isDirectory) {
+                    out.mkdirs()
+                } else {
+                    out.parentFile?.mkdirs()
+                    out.outputStream().use { o -> zis.copyTo(o) }
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
             }
         }
     }
@@ -197,7 +230,8 @@ class ComponentInstaller(
                 "replace_font" -> replaceFont(step)
                 "install_fonts", "install_cab_fonts" -> installFonts(step)
                 "register_dll" -> registerDlls(step)
-                "set_windows", "use_windows", "uninstall" ->
+                "uninstall" -> Log.w(TAG, "skipping uninstall for $componentName (installer handles replacement)")
+                "set_windows", "use_windows" ->
                     throw InstallException("Needs '$action' — not supported yet.")
                 else -> Log.w(TAG, "Unknown action: $action")
             }
@@ -325,7 +359,7 @@ class ComponentInstaller(
         val bootArgs: String
         if (isMsi) {
             bootExe = "C:\\windows\\system32\\msiexec.exe"
-            bootArgs = "/i \"$winPath\" $arguments".trim()
+            bootArgs = "/i \"$winPath\" ${arguments.ifBlank { "/passive" }}".trim()
         } else {
             bootExe = winPath
             bootArgs = arguments
@@ -417,5 +451,13 @@ class ComponentInstaller(
         private const val TAG = "ComponentInstaller"
         private const val DLL_OVERRIDES = "Software\\Wine\\DllOverrides"
         private const val INSTALL_TIMEOUT_MS = 20L * 60L * 1000L
+        private const val INSTALLED_DIR = ".wn-components"
+
+        /** Names of components already installed into [container] (persisted per container). */
+        @JvmStatic
+        fun installedComponents(container: Container): Set<String> {
+            val dir = File(container.rootDir, INSTALLED_DIR)
+            return dir.listFiles()?.filter { it.isFile }?.map { it.name }?.toSet() ?: emptySet()
+        }
     }
 }

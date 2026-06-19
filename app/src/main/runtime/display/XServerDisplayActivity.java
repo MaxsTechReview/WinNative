@@ -3677,6 +3677,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        if (isDependencyInstall) {
+            com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(0);
+        }
         unregisterDisplayChangeListener();
         unregisterControllerAutoHideListener();
         if (preloaderDialog != null) {

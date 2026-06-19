@@ -159,6 +159,14 @@ fun ComponentInstallerSheet(
             }
     }
 
+    LaunchedEffect(container.id) {
+        val installed =
+            withContext(Dispatchers.IO) {
+                ComponentInstaller.installedComponents(container)
+            }
+        installed.forEach { installStates[it] = InstallUi.Done }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties =
