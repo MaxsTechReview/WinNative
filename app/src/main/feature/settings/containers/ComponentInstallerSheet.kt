@@ -135,6 +135,24 @@ private fun parseCatalog(json: String): List<CatalogComponent> {
     return out
 }
 
+private val CATEGORY_ORDER =
+    listOf(
+        "Wine Mono / Gecko",
+        "Visual C++ / VB",
+        "OS Update",
+        "Graphics",
+        "DirectX",
+        ".NET",
+        "Media / Codecs",
+        "System / Web",
+    )
+
+private fun categoryRank(category: String): Int =
+    when {
+        category == "Other" -> Int.MAX_VALUE
+        else -> CATEGORY_ORDER.indexOf(category).let { if (it >= 0) it else CATEGORY_ORDER.size }
+    }
+
 @Composable
 fun ComponentInstallerSheet(
     container: Container,
@@ -155,7 +173,13 @@ fun ComponentInstallerSheet(
                     try {
                         CatalogUiState.Loaded(
                             parseCatalog(json)
-                                .sortedWith(compareBy({ it.category }, { it.name.lowercase() })),
+                                .sortedWith(
+                                    compareBy(
+                                        { categoryRank(it.category) },
+                                        { it.category },
+                                        { it.name.lowercase() },
+                                    ),
+                                ),
                         )
                     } catch (e: Exception) {
                         CatalogUiState.Error("The component catalog is malformed.")

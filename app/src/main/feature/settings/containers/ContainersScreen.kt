@@ -154,7 +154,7 @@ fun ContainersScreen(
         Spacer(Modifier.height(6.dp))
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Adaptive(160.dp),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
