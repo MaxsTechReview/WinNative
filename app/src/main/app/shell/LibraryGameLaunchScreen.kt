@@ -46,9 +46,9 @@ import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -139,10 +139,10 @@ internal fun LibraryGameLaunchScreen(
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSettings: () -> Unit,
+    onBootToDesktop: () -> Unit,
     onAchievements: (() -> Unit)? = null,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
-    onExport: () -> Unit,
     onUninstall: () -> Unit,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
@@ -156,12 +156,11 @@ internal fun LibraryGameLaunchScreen(
     Box(Modifier.fillMaxSize()) {
         val edgePadding = 22.dp
         val bottomPadding = 20.dp
-        val actionIconSize = 48.dp
+        val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // 6 action icons: Settings, Shortcut, (Saves), CloudSync, Export, Delete.
-        // Saves only renders for stores that expose it; layout width tracks the static
-        // count to keep the play button centered.
-        val actionWidth = actionIconSize * 6 + actionIconSpacing * 5
+        // Action icons: Settings, (Achievements), Boot, CloudSync, Shortcut, Delete.
+        val actionIconCount = if (onAchievements != null) 6 else 5
+        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1)
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -393,25 +392,25 @@ internal fun LibraryGameLaunchScreen(
                             )
                         }
                         LaunchIconActionButton(
-                            icon = Icons.Outlined.Home,
-                            contentDescription =
-                                stringResource(
-                                    if (hasPinnedShortcut) R.string.common_ui_remove else R.string.common_ui_shortcut,
-                            ),
+                            icon = Icons.Outlined.DesktopWindows,
+                            contentDescription = stringResource(R.string.hero_boot_to_desktop_title),
                             size = actionIconSize,
-                            onClick = onShortcut,
-                        )
-                        LaunchIconActionButton(
-                            icon = Icons.Outlined.IosShare,
-                            contentDescription = stringResource(R.string.common_ui_export),
-                            size = actionIconSize,
-                            onClick = onExport,
+                            onClick = onBootToDesktop,
                         )
                         LaunchIconActionButton(
                             icon = Icons.Outlined.CloudSync,
                             contentDescription = stringResource(R.string.cloud_saves_title),
                             size = actionIconSize,
                             onClick = onCloudSaves,
+                        )
+                        LaunchIconActionButton(
+                            icon = Icons.Outlined.Home,
+                            contentDescription =
+                                stringResource(
+                                    if (hasPinnedShortcut) R.string.common_ui_remove else R.string.common_ui_shortcut,
+                                ),
+                            size = actionIconSize,
+                            onClick = onShortcut,
                         )
                         Box {
                             LaunchIconActionButton(
@@ -539,13 +538,15 @@ private fun LaunchUninstallMenu(
             appName,
         )
 
-    LaunchDangerConfirmMenu(
-        expanded = expanded,
+    LaunchDangerConfirmDialog(
+        visible = expanded,
         title = title,
         message = message,
         confirmLabel = confirmLabel,
         onDismissRequest = onDismissRequest,
         onConfirm = onConfirm,
+        icon = Icons.Outlined.Delete,
+        cancelColor = LaunchAccent,
     )
 }
 
@@ -634,6 +635,7 @@ internal fun LaunchDangerConfirmDialog(
     titleTextAlign: TextAlign = TextAlign.Start,
     messageTextAlign: TextAlign = TextAlign.Start,
     accentColor: Color = LaunchDanger,
+    cancelColor: Color = LaunchTextSecondary,
 ) {
     if (!visible) return
 
@@ -678,6 +680,7 @@ internal fun LaunchDangerConfirmDialog(
                     titleTextAlign = titleTextAlign,
                     messageTextAlign = messageTextAlign,
                     accentColor = accentColor,
+                    cancelColor = cancelColor,
                 )
             }
         }
@@ -695,6 +698,7 @@ private fun LaunchDangerConfirmContent(
     titleTextAlign: TextAlign,
     messageTextAlign: TextAlign,
     accentColor: Color,
+    cancelColor: Color,
 ) {
     Column(
         modifier =
@@ -767,7 +771,7 @@ private fun LaunchDangerConfirmContent(
         ) {
             LaunchMenuTextAction(
                 label = stringResource(R.string.common_ui_cancel),
-                textColor = LaunchTextSecondary,
+                textColor = cancelColor,
                 onClick = onDismissRequest,
             )
             LaunchMenuTextAction(

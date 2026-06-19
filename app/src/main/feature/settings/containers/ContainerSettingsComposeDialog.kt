@@ -730,7 +730,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val wincomponents = buildWinComponentsString()
         val drivesString = com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
             context,
-            buildDrivesString()
+            buildDrivesString(),
+            false
         )
 
         val cpuList = buildCpuListString(state.cpuChecked.value)
