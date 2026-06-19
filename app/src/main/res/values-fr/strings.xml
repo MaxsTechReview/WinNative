@@ -1378,5 +1378,37 @@ Chemin installé :
     <string name="session_rts_tap4">Appui à 4 doigts</string>
     <string name="session_rts_up">Haut</string>
     <string name="session_rts_zoom">Zoom par pincement</string>
+    <string name="session_drawer_brightness">Luminosité</string>
+    <string name="session_drawer_contrast">Contraste</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_saturation">Saturation</string>
+    <string name="session_drawer_temperature">Température</string>
+    <string name="session_drawer_tint">Teinte</string>
+    <string name="session_drawer_intensity">Intensité</string>
+    <string name="session_drawer_strength">Force</string>
+    <string name="session_drawer_sharpen">Netteté</string>
+    <string name="session_drawer_scanlines">Lignes de balayage</string>
+    <string name="session_drawer_pixelate">Pixelliser</string>
+    <string name="session_drawer_block_size">Taille de bloc</string>
+    <string name="session_drawer_scale">Échelle</string>
+    <string name="session_drawer_scale_nearest">Plus proche</string>
+    <string name="session_drawer_scale_linear">Linéaire</string>
+    <string name="session_drawer_scale_bicubic">Bicubique</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">Cartoon</string>
+    <string name="session_drawer_color_blind">Daltonisme</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Réinitialiser les effets</string>
+    <string name="session_drawer_hud_background">Arrière-plan</string>
+    <string name="session_drawer_hud_background_alpha">Alpha de l\'arrière-plan</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Définir l\'alpha de l\'arrière-plan</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">Ajuster la taille</string>
+    <string name="session_task_bring_to_front">Mettre au premier plan</string>
+    <string name="session_task_custom_value">Valeur personnalisée</string>
+    <string name="session_gyroscope_orientation_mode">Incliner pour viser (orientation)</string>
 </resources>
 

@@ -1384,5 +1384,37 @@ Zainstalowana ścieżka:
     <string name="session_rts_tap4">Dotknięcie 4 palcami</string>
     <string name="session_rts_up">W górę</string>
     <string name="session_rts_zoom">Powiększenie szczypaniem</string>
+    <string name="session_drawer_brightness">Jasność</string>
+    <string name="session_drawer_contrast">Kontrast</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_saturation">Nasycenie</string>
+    <string name="session_drawer_temperature">Temperatura</string>
+    <string name="session_drawer_tint">Odcień</string>
+    <string name="session_drawer_intensity">Intensywność</string>
+    <string name="session_drawer_strength">Siła</string>
+    <string name="session_drawer_sharpen">Wyostrzanie</string>
+    <string name="session_drawer_scanlines">Linie skanowania</string>
+    <string name="session_drawer_pixelate">Pikselizacja</string>
+    <string name="session_drawer_block_size">Rozmiar bloku</string>
+    <string name="session_drawer_scale">Skalowanie</string>
+    <string name="session_drawer_scale_nearest">Najbliższe</string>
+    <string name="session_drawer_scale_linear">Liniowe</string>
+    <string name="session_drawer_scale_bicubic">Dwusześcienne</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">Kreskówka</string>
+    <string name="session_drawer_color_blind">Daltonizm</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Resetuj efekty</string>
+    <string name="session_drawer_hud_background">Tło</string>
+    <string name="session_drawer_hud_background_alpha">Alfa tła</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Ustaw alfę tła</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">Dopasuj rozmiar</string>
+    <string name="session_task_bring_to_front">Przenieś na wierzch</string>
+    <string name="session_task_custom_value">Wartość niestandardowa</string>
+    <string name="session_gyroscope_orientation_mode">Przechyl, aby celować (orientacja)</string>
 </resources>
 

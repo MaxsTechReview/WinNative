@@ -1378,5 +1378,37 @@ Ruta instalada:
     <string name="session_rts_tap4">Toque con 4 dedos</string>
     <string name="session_rts_up">Arriba</string>
     <string name="session_rts_zoom">Zoom con pellizco</string>
+    <string name="session_drawer_brightness">Brillo</string>
+    <string name="session_drawer_contrast">Contraste</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_saturation">Saturación</string>
+    <string name="session_drawer_temperature">Temperatura</string>
+    <string name="session_drawer_tint">Tinte</string>
+    <string name="session_drawer_intensity">Intensidad</string>
+    <string name="session_drawer_strength">Fuerza</string>
+    <string name="session_drawer_sharpen">Nitidez</string>
+    <string name="session_drawer_scanlines">Líneas de escaneo</string>
+    <string name="session_drawer_pixelate">Pixelar</string>
+    <string name="session_drawer_block_size">Tamaño de bloque</string>
+    <string name="session_drawer_scale">Escalado</string>
+    <string name="session_drawer_scale_nearest">Más cercano</string>
+    <string name="session_drawer_scale_linear">Lineal</string>
+    <string name="session_drawer_scale_bicubic">Bicúbico</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">Caricatura</string>
+    <string name="session_drawer_color_blind">Daltonismo</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Restablecer efectos</string>
+    <string name="session_drawer_hud_background">Fondo</string>
+    <string name="session_drawer_hud_background_alpha">Alfa del fondo</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Establecer alfa del fondo</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">Ajustar tamaño</string>
+    <string name="session_task_bring_to_front">Traer al frente</string>
+    <string name="session_task_custom_value">Valor personalizado</string>
+    <string name="session_gyroscope_orientation_mode">Inclinar para apuntar (orientación)</string>
 </resources>
 

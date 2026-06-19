@@ -1376,5 +1376,37 @@ Cale instalata:
     <string name="session_rts_tap4">Atingere cu 4 degete</string>
     <string name="session_rts_up">Sus</string>
     <string name="session_rts_zoom">Zoom prin ciupire</string>
+    <string name="session_drawer_brightness">Luminozitate</string>
+    <string name="session_drawer_contrast">Contrast</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_saturation">Saturație</string>
+    <string name="session_drawer_temperature">Temperatură</string>
+    <string name="session_drawer_tint">Nuanță</string>
+    <string name="session_drawer_intensity">Intensitate</string>
+    <string name="session_drawer_strength">Putere</string>
+    <string name="session_drawer_sharpen">Claritate</string>
+    <string name="session_drawer_scanlines">Linii de scanare</string>
+    <string name="session_drawer_pixelate">Pixelare</string>
+    <string name="session_drawer_block_size">Dimensiune bloc</string>
+    <string name="session_drawer_scale">Scalare</string>
+    <string name="session_drawer_scale_nearest">Cel mai apropiat</string>
+    <string name="session_drawer_scale_linear">Liniar</string>
+    <string name="session_drawer_scale_bicubic">Bicubic</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">Caricatură</string>
+    <string name="session_drawer_color_blind">Daltonism</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Resetează efectele</string>
+    <string name="session_drawer_hud_background">Fundal</string>
+    <string name="session_drawer_hud_background_alpha">Alfa fundal</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Setează alfa fundalului</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">Ajustează dimensiunea</string>
+    <string name="session_task_bring_to_front">Adu în față</string>
+    <string name="session_task_custom_value">Valoare personalizată</string>
+    <string name="session_gyroscope_orientation_mode">Înclină pentru a ținti (orientare)</string>
 </resources>
 

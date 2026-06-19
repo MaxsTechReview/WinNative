@@ -1379,5 +1379,37 @@
     <string name="session_rts_tap4">4손가락 탭</string>
     <string name="session_rts_up">위</string>
     <string name="session_rts_zoom">핀치 줌</string>
+    <string name="session_drawer_brightness">밝기</string>
+    <string name="session_drawer_contrast">대비</string>
+    <string name="session_drawer_gamma">감마</string>
+    <string name="session_drawer_saturation">채도</string>
+    <string name="session_drawer_temperature">색온도</string>
+    <string name="session_drawer_tint">색조</string>
+    <string name="session_drawer_intensity">강도</string>
+    <string name="session_drawer_strength">세기</string>
+    <string name="session_drawer_sharpen">선명화</string>
+    <string name="session_drawer_scanlines">스캔라인</string>
+    <string name="session_drawer_pixelate">픽셀화</string>
+    <string name="session_drawer_block_size">블록 크기</string>
+    <string name="session_drawer_scale">스케일링</string>
+    <string name="session_drawer_scale_nearest">최근접</string>
+    <string name="session_drawer_scale_linear">선형</string>
+    <string name="session_drawer_scale_bicubic">바이큐빅</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">카툰</string>
+    <string name="session_drawer_color_blind">색맹</string>
+    <string name="session_drawer_color_blind_protan">적색맹</string>
+    <string name="session_drawer_color_blind_deutan">녹색맹</string>
+    <string name="session_drawer_color_blind_tritan">청색맹</string>
+    <string name="session_drawer_reset_effects">효과 초기화</string>
+    <string name="session_drawer_hud_background">배경</string>
+    <string name="session_drawer_hud_background_alpha">배경 알파</string>
+    <string name="session_drawer_hud_background_alpha_input_title">배경 알파 설정</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">크기 조정</string>
+    <string name="session_task_bring_to_front">앞으로 가져오기</string>
+    <string name="session_task_custom_value">사용자 지정 값</string>
+    <string name="session_gyroscope_orientation_mode">기울여 조준 (방향)</string>
 </resources>
 
