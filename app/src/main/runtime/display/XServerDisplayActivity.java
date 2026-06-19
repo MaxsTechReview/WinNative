@@ -355,6 +355,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private String bootExePath;
     private String bootExeArgs;
     private boolean isDependencyInstall;
+    private volatile int dependencyExitStatus = 0;
 
     public boolean isPaused() { return isPaused; }
     public boolean isInputSuspended() {
@@ -3678,7 +3679,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     protected void onDestroy() {
         activityDestroyed.set(true);
         if (isDependencyInstall) {
-            com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(0);
+            com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(dependencyExitStatus);
         }
         unregisterDisplayChangeListener();
         unregisterControllerAutoHideListener();
@@ -6349,7 +6350,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             stopWnLauncherStatusTailer();
 
             if (isDependencyInstall) {
-                com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(status);
+                // Signal completion only after the single-instance session window is fully torn down
+                // (in onDestroy). The teardown in exit() takes several seconds; releasing the installer
+                // here would let the next queued install launch into this still-alive activity.
+                dependencyExitStatus = status;
                 exit();
                 return;
             }
