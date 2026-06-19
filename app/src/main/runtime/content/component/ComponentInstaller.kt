@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
+import com.winlator.cmod.runtime.display.environment.ImageFs
 import com.winlator.cmod.runtime.wine.WineRegistryEditor
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.TarCompressorUtils
@@ -112,10 +113,69 @@ class ComponentInstaller(
                     }
                 }
 
-                "cab_extract", "get_from_cab" ->
-                    throw InstallException("Needs CAB extraction (not supported yet).")
+                "cab_extract" -> {
+                    val name = (step["rename"] as? String) ?: (step["file_name"] as String)
+                    val dest = resolveDest(step["dest"] as? String ?: "temp/")
+                    listener.onStatus("Extracting $name")
+                    listener.onProgress(-1f)
+                    extractCab(resolveSource(name), dest, null)
+                }
+
+                "get_from_cab" -> {
+                    val source = step["source"] as? String ?: continue
+                    val pattern = step["file_name"] as? String
+                    val dest = resolveDest(step["dest"] as? String ?: "temp/")
+                    listener.onStatus("Extracting from CAB")
+                    listener.onProgress(-1f)
+                    for (cab in resolveCabSources(source)) extractCab(cab, dest, pattern)
+                }
             }
         }
+    }
+
+    /** Runs the bionic-native cabextract shipped in the system image, blocking until it finishes. */
+    private fun extractCab(
+        cab: File,
+        destDir: File,
+        pattern: String?,
+    ) {
+        if (!cab.isFile) throw InstallException("CAB not found: ${cab.name}")
+        destDir.mkdirs()
+        val rootDir = ImageFs.find(context).rootDir
+        val cabextract = File(rootDir, "usr/bin/cabextract")
+        if (!cabextract.isFile) throw InstallException("cabextract is missing from the system image.")
+        FileUtils.chmod(cabextract, "755".toInt(8))
+
+        val args = ArrayList<String>()
+        args.add(cabextract.absolutePath)
+        if (pattern != null) {
+            args.add("-F")
+            args.add(pattern)
+        }
+        args.add("-d")
+        args.add(destDir.absolutePath)
+        args.add(cab.absolutePath)
+
+        val pb = ProcessBuilder(args)
+        pb.environment()["LD_LIBRARY_PATH"] = File(rootDir, "usr/lib").absolutePath + ":/system/lib64"
+        val devNull = File("/dev/null")
+        pb.redirectOutput(ProcessBuilder.Redirect.to(devNull))
+        pb.redirectError(ProcessBuilder.Redirect.to(devNull))
+        try {
+            val exit = pb.start().waitFor()
+            if (exit != 0) throw InstallException("CAB extract failed (exit $exit): ${cab.name}")
+        } catch (e: java.io.IOException) {
+            throw InstallException("Couldn't run cabextract: ${e.message}")
+        }
+    }
+
+    /** Resolves a get_from_cab source, expanding a `*` glob in the filename to the matching cab files. */
+    private fun resolveCabSources(source: String): List<File> {
+        if (!source.contains("*")) return listOf(resolveSource(source))
+        val resolved = resolveSource(source)
+        val parent = resolved.parentFile ?: return emptyList()
+        val nameGlob = globToRegex(resolved.name)
+        return parent.listFiles()?.filter { it.isFile && nameGlob.matches(it.name) } ?: emptyList()
     }
 
     // ---- phase 3: apply the install steps ----

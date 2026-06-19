@@ -34,7 +34,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Info
@@ -155,7 +154,7 @@ fun ContainersScreen(
         Spacer(Modifier.height(6.dp))
 
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(138.dp),
+            columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -280,7 +279,8 @@ private fun AddContainerCard(onClick: () -> Unit) {
     Column(
         modifier =
             Modifier
-                .size(138.dp)
+                .fillMaxWidth()
+                .height(138.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
@@ -340,11 +340,12 @@ private fun ContainerCard(
     Column(
         modifier =
             Modifier
-                .size(138.dp)
+                .fillMaxWidth()
+                .height(138.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                .padding(10.dp),
+                .padding(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -356,19 +357,12 @@ private fun ContainerCard(
             )
             Spacer(Modifier.weight(1f))
             SmallVectorIconButton(
-                image = Icons.Outlined.ContentCopy,
-                contentDescription = stringResource(R.string.common_ui_duplicate),
-                tint = ContainersTextSecondary,
-                onClick = onDuplicate,
-            )
-            Spacer(Modifier.width(4.dp))
-            SmallVectorIconButton(
                 image = ComponentContainerIcon,
                 contentDescription = "Install components",
                 tint = ContainersAccent,
                 onClick = onInstallComponents,
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
             Box {
                 SmallVectorIconButton(
                     image = Icons.Outlined.MoreVert,
@@ -381,6 +375,13 @@ private fun ContainerCard(
                     onDismissRequest = { menuExpanded = false },
                     containerColor = ContainersCard,
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.common_ui_duplicate), color = ContainersTextPrimary) },
+                        onClick = {
+                            menuExpanded = false
+                            onDuplicate()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.container_config_storage_info), color = ContainersTextPrimary) },
                         onClick = {
@@ -449,7 +450,7 @@ private fun IconBox(
     Box(
         modifier =
             Modifier
-                .size(36.dp)
+                .size(38.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(ContainersIconBox),
         contentAlignment = Alignment.Center,
