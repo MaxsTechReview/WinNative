@@ -10194,6 +10194,7 @@ class UnifiedActivity :
             com.winlator.cmod.runtime.wine.WineUtils.normalizePersistentDrives(
                 this,
                 container.drives ?: com.winlator.cmod.runtime.container.Container.DEFAULT_DRIVES,
+                false,
             )
     }
 
