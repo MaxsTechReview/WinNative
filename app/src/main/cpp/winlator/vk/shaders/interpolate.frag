@@ -103,7 +103,8 @@ void main() {
                + texture(currFrame, uvB - vec2(tx.x, 0.0)).rgb
                + texture(currFrame, uvB + vec2(0.0, tx.y)).rgb
                + texture(currFrame, uvB - vec2(0.0, tx.y)).rgb) * 0.25;
-    float kdet = (0.55 - 0.30 * steadier) * selB * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
+    float kdet = cnn ? (0.30 - 0.15 * steadier)
+                     : (0.55 - 0.30 * steadier) * selB * (1.0 - smoothstep(9.0, 64.0, dot(mvB, mvB)));
     col += kdet * clamp(cB - blur, -0.25, 0.25);
 
     col = mix(col, cCurrFlat, staticPix);
