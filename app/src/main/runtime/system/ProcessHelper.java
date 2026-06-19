@@ -10,6 +10,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -317,12 +318,12 @@ public abstract class ProcessHelper {
         createDebugThread(process.getErrorStream());
       }
 
-      try {
-        Object pidValue = java.lang.Process.class.getMethod("pid").invoke(process);
-        if (pidValue instanceof Long) pid = ((Long) pidValue).intValue();
-      } catch (Throwable t) {
-        Log.e("ProcessHelper", "Unable to obtain process pid", t);
-      }
+      // Accessing hidden field
+      if (PRINT_DEBUG) Log.d("ProcessHelper", "Accessing hidden field to get PID");
+      Field pidField = process.getClass().getDeclaredField("pid");
+      pidField.setAccessible(true);
+      pid = pidField.getInt(process);
+      pidField.setAccessible(false);
       if (PRINT_DEBUG) Log.d("ProcessHelper", "Process started with pid: " + pid);
 
       if (terminationCallback != null) createWaitForThread(process, terminationCallback);

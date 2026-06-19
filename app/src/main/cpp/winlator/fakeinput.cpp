@@ -156,8 +156,6 @@ static ssize_t (*my_write)(int, const void *, size_t) = nullptr;
 static std::unordered_map<int, struct ff_effect> ff_effects;
 static int next_ff_id = 0;
 
-static std::recursive_mutex g_input_mutex;
-
 namespace Logger {
 int log_enabled;
 
@@ -238,27 +236,18 @@ check_ff_event(const struct input_event *ev, uint16_t slot) {
 
   int id = ev->code;
   if (ev->value > 0) {
-    uint16_t effect_type = 0;
-    uint16_t duration = 0;
-    int strong = 0;
-    int weak = 0;
-    {
-      std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-      auto it = ff_effects.find(id);
-      if (it == ff_effects.end())
-        return;
-      effect_type = it->second.type;
-      duration = it->second.replay.length;
-      if (it->second.type == FF_RUMBLE) {
-        strong = it->second.u.rumble.strong_magnitude;
-        weak = it->second.u.rumble.weak_magnitude;
-      } else if (it->second.type == FF_PERIODIC) {
-        strong = it->second.u.periodic.magnitude;
-        weak = it->second.u.periodic.magnitude;
-      }
+    auto it = ff_effects.find(id);
+    if (it == ff_effects.end())
+      return;
+
+    uint16_t duration = it->second.replay.length;
+    if (it->second.type == FF_RUMBLE) {
+      send_vibration(it->second.u.rumble.strong_magnitude,
+                     it->second.u.rumble.weak_magnitude, duration, slot);
+    } else if (it->second.type == FF_PERIODIC) {
+      send_vibration(it->second.u.periodic.magnitude,
+                     it->second.u.periodic.magnitude, duration, slot);
     }
-    if (effect_type == FF_RUMBLE || effect_type == FF_PERIODIC)
-      send_vibration(strong, weak, duration, slot);
   } else {
     send_vibration(0, 0, 0, slot);
   }
@@ -266,8 +255,7 @@ check_ff_event(const struct input_event *ev, uint16_t slot) {
 
 __attribute__((visibility("hidden"))) char *
 from_real_to_fake_path(const char *pathname) {
-  const char *slash = strrchr(pathname, '/');
-  const char *event = slash ? slash + 1 : pathname;
+  const char *event = strrchr(pathname, '/') + 1;
   char *fake_path = nullptr;
   if (asprintf(&fake_path, "%s/%s", hook_dir, event) < 0)
     fake_path = nullptr;
@@ -292,8 +280,7 @@ is_fake_udev_data_path(const char *pathname) {
 
 __attribute__((visibility("hidden"))) char *
 from_real_to_fake_udev_data_path(const char *pathname) {
-  const char *slash = strrchr(pathname, '/');
-  const char *name = slash ? slash + 1 : pathname;
+  const char *name = strrchr(pathname, '/') + 1;
   char *fake_path = nullptr;
   if (asprintf(&fake_path, "%s/%s", udev_data_dir, name) < 0)
     fake_path = nullptr;
@@ -302,8 +289,8 @@ from_real_to_fake_udev_data_path(const char *pathname) {
 
 __attribute__((visibility("hidden"))) const char *
 get_event(const char *pathname) {
-  const char *slash = strrchr(pathname, '/');
-  return slash ? slash + 1 : pathname;
+  const char *event = strrchr(pathname, '/') + 1;
+  return event;
 }
 
 __attribute__((visibility("hidden"))) int get_event_number(const char *event) {
@@ -332,7 +319,6 @@ get_fake_input_rdev(const char *event) {
 }
 
 __attribute__((visibility("hidden"))) static void load_ring_paths() {
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   if (ring_paths_loaded)
     return;
 
@@ -363,7 +349,6 @@ __attribute__((visibility("hidden"))) static void load_ring_paths() {
 
 __attribute__((visibility("hidden"))) static const char *
 get_ring_path_for_slot(int slot) {
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   load_ring_paths();
   auto it = ring_paths.find(slot);
   return it == ring_paths.end() ? nullptr : it->second.c_str();
@@ -505,10 +490,7 @@ open_fake_input_ring(const char *event, int flags) {
   // Emit the current absolute state as the first frame so a guest that opens
   // mid-hold (or reopens after a slot hand-off) starts already in sync.
   capture_keyframe(controller, "open", fd);
-  {
-    std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-    controller_map[fd] = controller;
-  }
+  controller_map[fd] = controller;
 
   Logger::log("Adding ring-backed controller, fd %d event %s slot %d\n", fd,
               event, slot);
@@ -525,12 +507,10 @@ copy_slot_ioctl_string(int op, void *argp, const char *format, int event_number)
 }
 
 __attribute__((visibility("hidden"))) static bool is_fake_input_fd(int fd) {
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   return controller_map.find(fd) != controller_map.end();
 }
 
 __attribute__((visibility("hidden"))) static bool fake_fd_is_stale(int fd) {
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   auto controller = controller_map.find(fd);
   return controller != controller_map.end() &&
          ring_generation(controller->second.ring) != controller->second.generation;
@@ -538,7 +518,6 @@ __attribute__((visibility("hidden"))) static bool fake_fd_is_stale(int fd) {
 
 __attribute__((visibility("hidden"))) static bool
 fake_fd_has_unread_data(int fd) {
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   auto controller = controller_map.find(fd);
   if (controller == controller_map.end())
     return false;
@@ -757,7 +736,6 @@ EXPORT int fstat(int fd, struct stat *buf) {
 
   int ret = my_fstat(fd, buf);
 
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
   auto controller = controller_map.find(fd);
   if (ret == 0 && controller != controller_map.end()) {
     buf->st_mode = (buf->st_mode & ~S_IFMT) | S_IFCHR;
@@ -879,10 +857,8 @@ EXPORT int ioctl(int fd, int op, ...) {
   argp = va_arg(va, void *);
   va_end(va);
 
-  std::unique_lock<std::recursive_mutex> guard(g_input_mutex);
   auto controller = controller_map.find(fd);
   if (controller == controller_map.end()) {
-    guard.unlock();
     return syscall(SYS_ioctl, fd, op, argp);
   }
 
@@ -977,7 +953,6 @@ EXPORT int ioctl(int fd, int op, ...) {
 
     uint16_t duration = effect->replay.length;
     uint16_t slot = static_cast<uint16_t>(event_number);
-    guard.unlock();
     if (effect->type == FF_RUMBLE) {
       send_vibration(effect->u.rumble.strong_magnitude,
                      effect->u.rumble.weak_magnitude, duration, slot);
@@ -1037,7 +1012,6 @@ EXPORT int ioctl(int fd, int op, ...) {
     return 0;
   } else {
     Logger::log("Unhandled evdev ioctl, type %d number %d\n", type, number);
-    guard.unlock();
     return syscall(SYS_ioctl, fd, op, argp);
   }
 }
@@ -1046,197 +1020,169 @@ EXPORT int close(int fd) {
   if (!my_close)
     *(void **)&my_close = dlsym(RTLD_NEXT, "close");
 
-  {
-    std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-    auto controller = controller_map.find(fd);
-    if (controller != controller_map.end()) {
-      Logger::log("Removing controller, fd %d event %s\n", controller->first,
-                  controller->second.event ? controller->second.event : "(unknown)");
-      if (controller->second.ring)
-        munmap(controller->second.ring, controller->second.mapping_size);
-      free(controller->second.event);
-      controller_map.erase(fd);
-    }
+  auto controller = controller_map.find(fd);
+  if (controller != controller_map.end()) {
+    Logger::log("Removing controller, fd %d event %s\n", controller->first,
+                controller->second.event ? controller->second.event : "(unknown)");
+    if (controller->second.ring)
+      munmap(controller->second.ring, controller->second.mapping_size);
+    free(controller->second.event);
+    controller_map.erase(fd);
   }
 
   return my_close(fd);
 }
 
 EXPORT ssize_t read(int fd, void *buf, size_t count) {
-  {
-    std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-    if (controller_map.find(fd) == controller_map.end())
-      return syscall(SYS_read, fd, buf, count);
-  }
+  auto controller = controller_map.find(fd);
 
-  if (count < FAKE_INPUT_EVENT_SIZE) {
-    errno = EINVAL;
-    return -1;
-  }
+  if (controller != controller_map.end()) {
+    FakeController &fake = controller->second;
+    if (count < FAKE_INPUT_EVENT_SIZE) {
+      errno = EINVAL;
+      return -1;
+    }
 
-  int flags = fcntl(fd, F_GETFL);
-  bool isNonBlock = flags >= 0 && (flags & O_NONBLOCK);
+    int flags = fcntl(fd, F_GETFL);
+    bool isNonBlock = flags >= 0 && (flags & O_NONBLOCK);
 
-  if (fake_fd_is_stale(fd)) {
-    errno = ENODEV;
-    return -1;
-  }
-
-  long backoff_ns = 1000 * 1000; // 1ms initial
-  while (!fake_fd_has_unread_data(fd)) {
     if (fake_fd_is_stale(fd)) {
       errno = ENODEV;
       return -1;
     }
-    if (isNonBlock) {
-      errno = EAGAIN;
-      return -1;
-    }
-    setup_signal_handler();
-    if (stop_flag) {
-      errno = EINTR;
-      return -1;
-    }
-    struct timespec sleep_time = {0, backoff_ns};
-    nanosleep(&sleep_time, nullptr);
-    if (backoff_ns < 16 * 1000 * 1000)
-      backoff_ns *= 2;
-  }
 
-  std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-  auto controller = controller_map.find(fd);
-  if (controller == controller_map.end()) {
-    errno = ENODEV;
-    return -1;
-  }
-  FakeController &fake = controller->second;
-
-  uint64_t write_seq = ring_write_seq(fake.ring);
-  if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
-    fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-    if (fake.keyframe_remaining == 0) {
-      capture_keyframe(fake, "overflow", fd);
+    long backoff_ns = 1000 * 1000; // 1ms initial
+    while (!fake_fd_has_unread_data(fd)) {
+      if (fake_fd_is_stale(fd)) {
+        errno = ENODEV;
+        return -1;
+      }
+      if (isNonBlock) {
+        errno = EAGAIN;
+        return -1;
+      }
+      setup_signal_handler();
+      if (stop_flag) {
+        errno = EINTR;
+        return -1;
+      }
+      struct timespec sleep_time = {0, backoff_ns};
+      nanosleep(&sleep_time, nullptr);
+      if (backoff_ns < 16 * 1000 * 1000)
+        backoff_ns *= 2;
     }
-  }
 
-  uint8_t *out = static_cast<uint8_t *>(buf);
-  size_t out_events = 0;
-  size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
-
-  // A keyframe is pending (open / ring overflow). Replay the full
-  // absolute baseline — every button and axis at its snapshot value — before
-  // any surviving delta events, so a lost button-up / axis-return can't stick.
-  // The frame streams across reads of any size: we emit as much as fits and do
-  // NOT consume the ring until it is fully delivered, so even a
-  // one-event-at-a-time consumer recovers. keyframe_remaining keeps the fd
-  // readable (see fake_fd_has_unread_data) so poll wakes us to finish it.
-  if (fake.keyframe_remaining > 0) {
-    struct timeval now = {};
-    gettimeofday(&now, nullptr);
-    while (fake.keyframe_remaining > 0 && out_events < requested_events) {
-      size_t idx = kNeutralEventCount - fake.keyframe_remaining;
-      struct input_event ev;
-      memset(&ev, 0, sizeof(ev));
-      ev.time = now;
-      ev.type = kNeutralEvents[idx].type;
-      ev.code = kNeutralEvents[idx].code;
-      ev.value = keyframe_value(fake, kNeutralEvents[idx].type,
-                                kNeutralEvents[idx].code);
-      memcpy(out + (out_events * FAKE_INPUT_EVENT_SIZE), &ev,
-             FAKE_INPUT_EVENT_SIZE);
-      out_events++;
-      fake.keyframe_remaining--;
+    uint64_t write_seq = ring_write_seq(fake.ring);
+    if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
+      fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
+      if (fake.keyframe_remaining == 0) {
+        capture_keyframe(fake, "overflow", fd);
+      }
     }
+
+    uint8_t *out = static_cast<uint8_t *>(buf);
+    size_t out_events = 0;
+    size_t requested_events = count / FAKE_INPUT_EVENT_SIZE;
+
+    // A keyframe is pending (open / ring overflow). Replay the full
+    // absolute baseline — every button and axis at its snapshot value — before
+    // any surviving delta events, so a lost button-up / axis-return can't stick.
+    // The frame streams across reads of any size: we emit as much as fits and do
+    // NOT consume the ring until it is fully delivered, so even a
+    // one-event-at-a-time consumer recovers. keyframe_remaining keeps the fd
+    // readable (see fake_fd_has_unread_data) so poll wakes us to finish it.
     if (fake.keyframe_remaining > 0) {
-      // Buffer filled before the baseline finished; deliver the remainder (and
-      // only then fresh events) on subsequent reads. out_events >= 1 here.
-      return static_cast<ssize_t>(out_events * FAKE_INPUT_EVENT_SIZE);
+      struct timeval now = {};
+      gettimeofday(&now, nullptr);
+      while (fake.keyframe_remaining > 0 && out_events < requested_events) {
+        size_t idx = kNeutralEventCount - fake.keyframe_remaining;
+        struct input_event ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.time = now;
+        ev.type = kNeutralEvents[idx].type;
+        ev.code = kNeutralEvents[idx].code;
+        ev.value = keyframe_value(fake, kNeutralEvents[idx].type,
+                                  kNeutralEvents[idx].code);
+        memcpy(out + (out_events * FAKE_INPUT_EVENT_SIZE), &ev,
+               FAKE_INPUT_EVENT_SIZE);
+        out_events++;
+        fake.keyframe_remaining--;
+      }
+      if (fake.keyframe_remaining > 0) {
+        // Buffer filled before the baseline finished; deliver the remainder (and
+        // only then fresh events) on subsequent reads. out_events >= 1 here.
+        return static_cast<ssize_t>(out_events * FAKE_INPUT_EVENT_SIZE);
+      }
     }
+
+    size_t available_events =
+        static_cast<size_t>(std::min<uint64_t>(write_seq - fake.read_seq,
+                                              FAKE_INPUT_RING_CAPACITY));
+    size_t events_to_read =
+        std::min(requested_events - out_events, available_events);
+    const uint8_t *ring_events =
+        reinterpret_cast<const uint8_t *>(fake.ring) +
+        FAKE_INPUT_RING_HEADER_SIZE;
+
+    for (size_t i = 0; i < events_to_read; i++) {
+      size_t event_index =
+          static_cast<size_t>((fake.read_seq + i) % FAKE_INPUT_RING_CAPACITY);
+      memcpy(out + ((out_events + i) * FAKE_INPUT_EVENT_SIZE),
+             ring_events + (event_index * FAKE_INPUT_EVENT_SIZE),
+             FAKE_INPUT_EVENT_SIZE);
+    }
+
+    fake.read_seq += events_to_read;
+    return static_cast<ssize_t>((out_events + events_to_read) *
+                                FAKE_INPUT_EVENT_SIZE);
   }
-
-  size_t available_events =
-      static_cast<size_t>(std::min<uint64_t>(write_seq - fake.read_seq,
-                                            FAKE_INPUT_RING_CAPACITY));
-  size_t events_to_read =
-      std::min(requested_events - out_events, available_events);
-  const uint8_t *ring_events =
-      reinterpret_cast<const uint8_t *>(fake.ring) +
-      FAKE_INPUT_RING_HEADER_SIZE;
-
-  for (size_t i = 0; i < events_to_read; i++) {
-    size_t event_index =
-        static_cast<size_t>((fake.read_seq + i) % FAKE_INPUT_RING_CAPACITY);
-    memcpy(out + ((out_events + i) * FAKE_INPUT_EVENT_SIZE),
-           ring_events + (event_index * FAKE_INPUT_EVENT_SIZE),
-           FAKE_INPUT_EVENT_SIZE);
-  }
-
-  fake.read_seq += events_to_read;
-  return static_cast<ssize_t>((out_events + events_to_read) *
-                              FAKE_INPUT_EVENT_SIZE);
+  return syscall(SYS_read, fd, buf, count);
 }
 
 EXPORT ssize_t write(int fd, const void *buf, size_t count) {
   if (!my_write)
     *(void **)&my_write = dlsym(RTLD_NEXT, "write");
 
-  bool is_fake = false;
-  bool stale = false;
-  uint16_t slot = 0;
-  {
-    std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-    auto controller = controller_map.find(fd);
-    if (controller != controller_map.end()) {
-      is_fake = true;
-      stale = ring_generation(controller->second.ring) !=
-              controller->second.generation;
-      slot = static_cast<uint16_t>(controller->second.slot);
+  auto controller = controller_map.find(fd);
+  if (controller != controller_map.end()) {
+    if (fake_fd_is_stale(fd)) {
+      errno = ENODEV;
+      return -1;
     }
-  }
 
-  if (!is_fake)
-    return my_write(fd, buf, count);
-  if (stale) {
-    errno = ENODEV;
-    return -1;
+    const struct input_event *ev = nullptr;
+    uint16_t slot = static_cast<uint16_t>(controller->second.slot);
+    if (count == sizeof(struct input_event)) {
+      ev = static_cast<const struct input_event *>(buf);
+      check_ff_event(ev, slot);
+    }
+
+    return static_cast<ssize_t>(count);
   }
-  if (count == sizeof(struct input_event))
-    check_ff_event(static_cast<const struct input_event *>(buf), slot);
-  return static_cast<ssize_t>(count);
+  return my_write(fd, buf, count);
 }
 
 EXPORT ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
-  bool is_fake = false;
-  bool stale = false;
-  uint16_t slot = 0;
-  {
-    std::lock_guard<std::recursive_mutex> guard(g_input_mutex);
-    auto controller = controller_map.find(fd);
-    if (controller != controller_map.end()) {
-      is_fake = true;
-      stale = ring_generation(controller->second.ring) !=
-              controller->second.generation;
-      slot = static_cast<uint16_t>(controller->second.slot);
+  auto controller = controller_map.find(fd);
+  if (controller != controller_map.end()) {
+    if (fake_fd_is_stale(fd)) {
+      errno = ENODEV;
+      return -1;
     }
-  }
 
-  if (!is_fake)
-    return syscall(SYS_writev, fd, iov, iovcnt);
-  if (stale) {
-    errno = ENODEV;
-    return -1;
-  }
-
-  ssize_t total = 0;
-  for (int i = 0; i < iovcnt; i++) {
-    if (iov[i].iov_len == sizeof(struct input_event)) {
-      const struct input_event *ev =
-          static_cast<const struct input_event *>(iov[i].iov_base);
-      check_ff_event(ev, slot);
+    uint16_t slot = static_cast<uint16_t>(controller->second.slot);
+    ssize_t total = 0;
+    for (int i = 0; i < iovcnt; i++) {
+      if (iov[i].iov_len == sizeof(struct input_event)) {
+        const struct input_event *ev =
+            static_cast<const struct input_event *>(iov[i].iov_base);
+        check_ff_event(ev, slot);
+      }
+      total += static_cast<ssize_t>(iov[i].iov_len);
     }
-    total += static_cast<ssize_t>(iov[i].iov_len);
+    return total;
   }
-  return total;
+  return syscall(SYS_writev, fd, iov, iovcnt);
 }
 
 EXPORT int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
