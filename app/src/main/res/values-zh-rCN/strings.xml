@@ -1378,5 +1378,37 @@
     <string name="session_rts_tap4">四指点按</string>
     <string name="session_rts_up">上</string>
     <string name="session_rts_zoom">捏合缩放</string>
+    <string name="session_drawer_brightness">亮度</string>
+    <string name="session_drawer_contrast">对比度</string>
+    <string name="session_drawer_gamma">伽马</string>
+    <string name="session_drawer_saturation">饱和度</string>
+    <string name="session_drawer_temperature">色温</string>
+    <string name="session_drawer_tint">色调</string>
+    <string name="session_drawer_intensity">强度</string>
+    <string name="session_drawer_strength">力度</string>
+    <string name="session_drawer_sharpen">锐化</string>
+    <string name="session_drawer_scanlines">扫描线</string>
+    <string name="session_drawer_pixelate">像素化</string>
+    <string name="session_drawer_block_size">块大小</string>
+    <string name="session_drawer_scale">缩放</string>
+    <string name="session_drawer_scale_nearest">最近邻</string>
+    <string name="session_drawer_scale_linear">线性</string>
+    <string name="session_drawer_scale_bicubic">双三次</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">卡通</string>
+    <string name="session_drawer_color_blind">色盲</string>
+    <string name="session_drawer_color_blind_protan">红色盲</string>
+    <string name="session_drawer_color_blind_deutan">绿色盲</string>
+    <string name="session_drawer_color_blind_tritan">蓝色盲</string>
+    <string name="session_drawer_reset_effects">重置效果</string>
+    <string name="session_drawer_hud_background">背景</string>
+    <string name="session_drawer_hud_background_alpha">背景透明度</string>
+    <string name="session_drawer_hud_background_alpha_input_title">设置背景透明度</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">调整大小</string>
+    <string name="session_task_bring_to_front">置于顶层</string>
+    <string name="session_task_custom_value">自定义值</string>
+    <string name="session_gyroscope_orientation_mode">倾斜瞄准（方向）</string>
 </resources>
 
