@@ -793,6 +793,8 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_debug_share_logs">Compartir registros</string>
     <string name="settings_debug_delete_logs">Eliminar registros</string>
     <string name="settings_debug_share_all_logs_short">Compartir todo</string>
+    <string name="settings_debug_download_all_logs_short">Descargar todo</string>
+    <string name="settings_debug_logs_saved">Guardado en %1$s</string>
     <string name="settings_debug_delete_logs_short">Eliminar</string>
     <string name="settings_debug_delete_all_logs_short">Eliminar todo</string>
     <string name="settings_debug_open_logs_folder_short">Abrir gestor de registros</string>

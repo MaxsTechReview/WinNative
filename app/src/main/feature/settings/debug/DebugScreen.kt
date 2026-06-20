@@ -58,6 +58,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.Memory
@@ -112,6 +113,7 @@ private val IconBoxBg = Color(0xFF242434)
 private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val Warning = Color(0xFFFF4444)
+private val Success = Color(0xFF7CC142)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 
@@ -155,10 +157,12 @@ fun DebugScreen(
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
+    onDownloadLogs: () -> Unit,
     onDeleteLogs: () -> Unit,
     onListLogFiles: () -> List<LogFileEntry>,
     onReadLogFile: (LogFileEntry) -> String,
     onShareLogFile: (LogFileEntry) -> Unit,
+    onDownloadLogFile: (LogFileEntry) -> Unit,
     onDeleteLogFile: (LogFileEntry) -> Unit,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
@@ -188,8 +192,10 @@ fun DebugScreen(
             logsSize = state.logsSize,
             onReadLogFile = onReadLogFile,
             onShareAllLogs = onShareLogs,
+            onDownloadAllLogs = onDownloadLogs,
             onDeleteAllLogs = onDeleteLogs,
             onShareLogFile = onShareLogFile,
+            onDownloadLogFile = onDownloadLogFile,
             onDeleteLogFile = onDeleteLogFile,
             onDismiss = { showLogsBrowser = false },
         )
@@ -834,8 +840,10 @@ private fun LogsBrowserDialog(
     logsSize: String,
     onReadLogFile: (LogFileEntry) -> String,
     onShareAllLogs: () -> Unit,
+    onDownloadAllLogs: () -> Unit,
     onDeleteAllLogs: () -> Unit,
     onShareLogFile: (LogFileEntry) -> Unit,
+    onDownloadLogFile: (LogFileEntry) -> Unit,
     onDeleteLogFile: (LogFileEntry) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -895,8 +903,10 @@ private fun LogsBrowserDialog(
                                 files = files,
                                 onOpen = { selected = it },
                                 onShareAllLogs = onShareAllLogs,
+                                onDownloadAllLogs = onDownloadAllLogs,
                                 onDeleteAllLogs = { showDeleteAllConfirm = true },
                                 onShareLogFile = onShareLogFile,
+                                onDownloadLogFile = onDownloadLogFile,
                                 onDeleteLogFile = { entry ->
                                     onDeleteLogFile(entry)
                                     files = files.filterNot { it.absolutePath == entry.absolutePath }
@@ -982,6 +992,50 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
 }
 
 @Composable
+private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        label = "downloadAllScale",
+    )
+    Row(
+        modifier =
+            Modifier
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF222232))
+                .border(1.dp, Success.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .pointerInput(onClick) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed = true
+                            tryAwaitRelease()
+                            isPressed = false
+                        },
+                        onTap = { onClick() },
+                    )
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Download,
+            contentDescription = null,
+            tint = Success,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.settings_debug_download_all_logs_short),
+            color = Success,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
 private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1057,6 +1111,7 @@ private fun ColumnScope.LogFileList(
     files: List<LogFileEntry>,
     onOpen: (LogFileEntry) -> Unit,
     onShare: (LogFileEntry) -> Unit,
+    onDownload: (LogFileEntry) -> Unit,
     onDelete: (LogFileEntry) -> Unit,
 ) {
     if (files.isEmpty()) {
@@ -1080,6 +1135,7 @@ private fun ColumnScope.LogFileList(
                 entry = entry,
                 onOpen = { onOpen(entry) },
                 onShare = { onShare(entry) },
+                onDownload = { onDownload(entry) },
                 onDelete = { onDelete(entry) },
             )
         }
@@ -1091,6 +1147,7 @@ private fun LogFileRow(
     entry: LogFileEntry,
     onOpen: () -> Unit,
     onShare: () -> Unit,
+    onDownload: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -1122,6 +1179,13 @@ private fun LogFileRow(
         }
         Spacer(Modifier.width(10.dp))
         LogRowIconButton(
+            icon = Icons.Outlined.Delete,
+            tint = Warning,
+            contentDescription = stringResource(R.string.settings_debug_delete_logs),
+            onClick = onDelete,
+        )
+        Spacer(Modifier.width(12.dp))
+        LogRowIconButton(
             icon = Icons.Outlined.Share,
             tint = Accent,
             contentDescription = stringResource(R.string.settings_debug_share_logs),
@@ -1129,10 +1193,10 @@ private fun LogFileRow(
         )
         Spacer(Modifier.width(12.dp))
         LogRowIconButton(
-            icon = Icons.Outlined.Delete,
-            tint = Warning,
-            contentDescription = stringResource(R.string.settings_debug_delete_logs),
-            onClick = onDelete,
+            icon = Icons.Outlined.Download,
+            tint = Success,
+            contentDescription = stringResource(R.string.settings_debug_download_logs),
+            onClick = onDownload,
         )
     }
 }
@@ -1170,8 +1234,10 @@ private fun LogFileListView(
     files: List<LogFileEntry>,
     onOpen: (LogFileEntry) -> Unit,
     onShareAllLogs: () -> Unit,
+    onDownloadAllLogs: () -> Unit,
     onDeleteAllLogs: () -> Unit,
     onShareLogFile: (LogFileEntry) -> Unit,
+    onDownloadLogFile: (LogFileEntry) -> Unit,
     onDeleteLogFile: (LogFileEntry) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -1189,6 +1255,8 @@ private fun LogFileListView(
             LogsHeaderDeleteAll(onClick = onDeleteAllLogs)
             Spacer(Modifier.width(16.dp))
             LogsHeaderShareAll(onClick = onShareAllLogs)
+            Spacer(Modifier.width(16.dp))
+            LogsHeaderDownloadAll(onClick = onDownloadAllLogs)
             Spacer(Modifier.width(8.dp))
             LogsHeaderIcon(
                 icon = Icons.Outlined.Close,
@@ -1203,6 +1271,7 @@ private fun LogFileListView(
             files = files,
             onOpen = onOpen,
             onShare = onShareLogFile,
+            onDownload = onDownloadLogFile,
             onDelete = onDeleteLogFile,
         )
     }

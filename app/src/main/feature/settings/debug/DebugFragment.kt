@@ -164,10 +164,12 @@ class DebugFragment : Fragment() {
                                 refresh()
                             },
                             onShareLogs = { shareLogs() },
+                            onDownloadLogs = { downloadLogs() },
                             onDeleteLogs = { deleteLogs() },
                             onListLogFiles = { listLogFiles() },
                             onReadLogFile = { entry -> readLogFile(entry) },
                             onShareLogFile = { entry -> shareLogFile(entry) },
+                            onDownloadLogFile = { entry -> downloadLogFile(entry) },
                             onDeleteLogFile = { entry -> deleteLogFile(entry) },
                         )
                     }
@@ -231,15 +233,7 @@ class DebugFragment : Fragment() {
         try {
             val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
             val zipFile = File(ctx.cacheDir, "winnative_logs_$timestamp.zip")
-            ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
-                files.forEach { file ->
-                    if (file.isFile) {
-                        zos.putNextEntry(ZipEntry(file.name))
-                        file.inputStream().use { it.copyTo(zos) }
-                        zos.closeEntry()
-                    }
-                }
-            }
+            writeLogsZip(zipFile, files)
 
             lastSharedLogFile = zipFile
 
@@ -262,6 +256,52 @@ class DebugFragment : Fragment() {
             startActivity(Intent.createChooser(shareIntent, getString(R.string.settings_debug_share_logs)))
 
             Handler(Looper.getMainLooper()).postDelayed({ cleanupSharedLogs() }, 3 * 60 * 1000L)
+        } catch (e: Exception) {
+            WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+        }
+    }
+
+    private fun logsDownloadDir(): File {
+        val dir =
+            File(
+                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+                "WinNative/logs",
+            )
+        dir.mkdirs()
+        return dir
+    }
+
+    private fun writeLogsZip(
+        dest: File,
+        files: Array<File>,
+    ) {
+        ZipOutputStream(FileOutputStream(dest)).use { zos ->
+            files.forEach { file ->
+                if (file.isFile) {
+                    zos.putNextEntry(ZipEntry(file.name))
+                    file.inputStream().use { it.copyTo(zos) }
+                    zos.closeEntry()
+                }
+            }
+        }
+    }
+
+    private fun downloadLogs() {
+        val ctx = requireContext()
+        val files =
+            com.winlator.cmod.runtime.system.LogManager
+                .getShareableLogFiles(ctx)
+
+        if (files.isEmpty()) {
+            WinToast.show(ctx, R.string.settings_debug_no_logs_available)
+            return
+        }
+
+        try {
+            val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+            val dest = File(logsDownloadDir(), "winnative_logs_$timestamp.zip")
+            writeLogsZip(dest, files)
+            WinToast.show(ctx, getString(R.string.settings_debug_logs_saved, dest.absolutePath))
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
         }
@@ -342,6 +382,22 @@ class DebugFragment : Fragment() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
             startActivity(Intent.createChooser(shareIntent, getString(R.string.settings_debug_share_logs)))
+        } catch (e: Exception) {
+            WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+        }
+    }
+
+    private fun downloadLogFile(entry: LogFileEntry) {
+        val ctx = requireContext()
+        val file = File(entry.absolutePath)
+        if (!file.isFile) {
+            WinToast.show(ctx, R.string.settings_debug_no_logs_available)
+            return
+        }
+        try {
+            val dest = File(logsDownloadDir(), file.name)
+            file.inputStream().use { input -> FileOutputStream(dest).use { input.copyTo(it) } }
+            WinToast.show(ctx, getString(R.string.settings_debug_logs_saved, dest.absolutePath))
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
         }
