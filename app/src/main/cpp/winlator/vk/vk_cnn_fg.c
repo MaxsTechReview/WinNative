@@ -760,7 +760,7 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
-    float mvScale = (float)gw / (2.0f * (float)r->fg_motion[parity].width);
+    float mvScale = 0.5f;
 
     cnn_to_write(cmd, C->gen[slot].image, 1);
     {
