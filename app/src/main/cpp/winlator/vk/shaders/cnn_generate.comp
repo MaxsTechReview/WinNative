@@ -1,4 +1,7 @@
 #version 450
+// wnfg_04 generate: bilinear bidirectional warp + 4-way softmax blend over the
+// trained wnfg_53 logits pyramid. flowB/flowF = two pyramid levels (each .xy/.zw
+// = two motion hypotheses); logits = the fine level (4 per-candidate logits).
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
@@ -29,41 +32,39 @@ void main() {
     vec2 uvc     = numer / texSize;
 
     float m0 = abs(pc.mvScale);
+    vec4 mvB = texture(flowB, uvc) * m0;
+    vec4 mvF = texture(flowF, uvc) * m0;
+
     float t = pc.t;
     float a = 2.0 * t;
     float b = 2.0 * (1.0 - t);
 
-    vec2 flB = texture(flowB, uvc).xy * m0;
-    vec2 flF = texture(flowF, uvc).xy * m0;
+    vec2 c0 = (numer + mvB.xy * a) / texSize;
+    vec2 c1 = (numer + mvB.zw * b) / texSize;
+    vec2 c2 = (numer + mvF.xy * a) / texSize;
+    vec2 c3 = (numer + mvF.zw * b) / texSize;
 
-    // 4 candidates: prev forward + curr backward, for each flow scale.
-    vec2 c0 = (numer + flB * a) / texSize;
-    vec2 c1 = (numer - flB * b) / texSize;
-    vec2 c2 = (numer + flF * a) / texSize;
-    vec2 c3 = (numer - flF * b) / texSize;
+    vec4 L = vec4(texture(logits, c0).x,
+                  texture(logits, c1).y,
+                  texture(logits, c2).z,
+                  texture(logits, c3).w);
 
-    vec3 k0 = texture(backColor, c0).rgb;
-    vec3 k1 = texture(fwdColor,  c1).rgb;
-    vec3 k2 = texture(backColor, c2).rgb;
-    vec3 k3 = texture(fwdColor,  c3).rgb;
-
-    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(k2 - k3), 1.0)); return; }
-
-    // Per-candidate reliability = flow consistency at its landing point (picks the
-    // flow scale that is right for THIS pixel; coarse where fast, fine where slow).
-    vec2 e0 = texture(flowB, c0).xy * m0 - flB;
-    vec2 e1 = texture(flowB, c1).xy * m0 + flB;
-    vec2 e2 = texture(flowF, c2).xy * m0 - flF;
-    vec2 e3 = texture(flowF, c3).xy * m0 + flF;
-    const float SHARP = 0.5;
-    vec4 L = -SHARP * vec4(dot(e0,e0), dot(e1,e1), dot(e2,e2), dot(e3,e3));
     float mx = max(max(L.x, L.y), max(L.z, L.w));
-    vec4 e = exp(L - mx);
-    float w0 = (1.0 - t) * e.x;
-    float w1 = t * e.y;
-    float w2 = (1.0 - t) * e.z;
-    float w3 = t * e.w;
-    vec3 col = (k0*w0 + k1*w1 + k2*w2 + k3*w3) / (w0 + w1 + w2 + w3 + 1e-6);
+    vec4 w = exp(L - mx);
+    w /= dot(w, vec4(1.0));
+
+    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(w.x, w.y, w.z, 1.0)); return; }
+
+    float wb = 1.0 - t;
+    float wf = t;
+
+    vec4 acc = texture(backColor, c0) * (wb * w.x)
+             + texture(fwdColor,  c1) * (wf * w.y)
+             + texture(backColor, c2) * (wb * w.z)
+             + texture(fwdColor,  c3) * (wf * w.w);
+
+    float den = wb * (w.x + w.z) + wf * (w.y + w.w) + 1e-8;
+    vec3 col = (acc / den).rgb;
 
     vec3 cPrevFlat = texture(backColor, uvc).rgb;
     vec3 cCurrFlat = texture(fwdColor,  uvc).rgb;
