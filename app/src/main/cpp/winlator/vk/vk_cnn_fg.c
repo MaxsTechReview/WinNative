@@ -733,11 +733,10 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
           cnn_gh_dispatch(r, cmd, P->gh_d9_pipe, P->gh_d9_pl, P->gh_d9_dsl, 0, in, 2, out, 1, rw, rh); }
         if (L != 0) cnn_to_read(cmd, rimg, 1);
 
-        // delta9 = wnfg_53: trained occlusion-logits pyramid (b32/b33 = refined-flow pair,
-        // b34 = coarser level's logits = recurrence). Read by the generate at 3 levels.
-        VkImageView lrec = (L >= 2) ? C->seedBlack.view : C->logits[L+1].view;
+        // delta9 = wnfg_53: trained occlusion-logits pyramid. b32/b33 = the delta8
+        // ping-pong pair (hD8=D, hD7=C), b34 = seed (GT-harness-validated wiring).
         cnn_to_write(cmd, C->logits[L].image, 1);
-        { VkImageView in[3]={C->hD6[L].layerView[0], C->hD6[L].layerView[1], lrec};
+        { VkImageView in[3]={C->hD8[L].layerView[0], C->hD7[L].layerView[0], seedView};
           VkImageView out[1]={C->logits[L].layerView[0]};
           cnn_gh_dispatch(r, cmd, P->gh_d10_pipe, P->gh_d10_pl, P->gh_d10_dsl, 0, in, 3, out, 1, w, h); }
         cnn_to_read(cmd, C->logits[L].image, 1);
