@@ -768,7 +768,7 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
         VkDescriptorSet ds = cnn_alloc(r, P->cnn_generate_dsl); if (!ds) return;
         VkDescriptorImageInfo s32 = {r->fg_sampler, prevView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s33 = {r->fg_sampler, currView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s34 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s34 = {r->fg_sampler, C->flowRef[2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s35 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s36 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo oi  = {VK_NULL_HANDLE, C->gen[slot].view, VK_IMAGE_LAYOUT_GENERAL};

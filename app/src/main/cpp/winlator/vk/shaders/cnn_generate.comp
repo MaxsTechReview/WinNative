@@ -29,29 +29,41 @@ void main() {
     vec2 uvc     = numer / texSize;
 
     float m0 = abs(pc.mvScale);
-    vec2 fl = texture(flowB, uvc).xy * m0;
-
     float t = pc.t;
-    vec2 c0 = (numer + fl * (2.0 * t)) / texSize;
-    vec2 c1 = (numer - fl * (2.0 * (1.0 - t))) / texSize;
+    float a = 2.0 * t;
+    float b = 2.0 * (1.0 - t);
 
-    vec3 back = texture(backColor, c0).rgb;
-    vec3 fwd  = texture(fwdColor,  c1).rgb;
+    vec2 flB = texture(flowB, uvc).xy * m0;
+    vec2 flF = texture(flowF, uvc).xy * m0;
 
-    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(back - fwd), 1.0)); return; }
+    // 4 candidates: prev forward + curr backward, for each flow scale.
+    vec2 c0 = (numer + flB * a) / texSize;
+    vec2 c1 = (numer - flB * b) / texSize;
+    vec2 c2 = (numer + flF * a) / texSize;
+    vec2 c3 = (numer - flF * b) / texSize;
 
-    // Reliability of each warp = how consistent the flow is at its landing point
-    // (a warp that lands where the flow disagrees is an occlusion/bad estimate).
-    vec2 eb = texture(flowB, c0).xy * m0 - fl;
-    vec2 ef = texture(flowB, c1).xy * m0 + fl;
-    float rb = dot(eb, eb);
-    float rf = dot(ef, ef);
-    // Decisive select: where the two warps disagree, pick the more-consistent one
-    // sharply instead of averaging two positions (which smears/jitters).
+    vec3 k0 = texture(backColor, c0).rgb;
+    vec3 k1 = texture(fwdColor,  c1).rgb;
+    vec3 k2 = texture(backColor, c2).rgb;
+    vec3 k3 = texture(fwdColor,  c3).rgb;
+
+    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(k2 - k3), 1.0)); return; }
+
+    // Per-candidate reliability = flow consistency at its landing point (picks the
+    // flow scale that is right for THIS pixel; coarse where fast, fine where slow).
+    vec2 e0 = texture(flowB, c0).xy * m0 - flB;
+    vec2 e1 = texture(flowB, c1).xy * m0 + flB;
+    vec2 e2 = texture(flowF, c2).xy * m0 - flF;
+    vec2 e3 = texture(flowF, c3).xy * m0 + flF;
     const float SHARP = 0.5;
-    float wb = (1.0 - t) * exp(-SHARP * rb);
-    float wf = t * exp(-SHARP * rf);
-    vec3 col = (back * wb + fwd * wf) / (wb + wf + 1e-6);
+    vec4 L = -SHARP * vec4(dot(e0,e0), dot(e1,e1), dot(e2,e2), dot(e3,e3));
+    float mx = max(max(L.x, L.y), max(L.z, L.w));
+    vec4 e = exp(L - mx);
+    float w0 = (1.0 - t) * e.x;
+    float w1 = t * e.y;
+    float w2 = (1.0 - t) * e.z;
+    float w3 = t * e.w;
+    vec3 col = (k0*w0 + k1*w1 + k2*w2 + k3*w3) / (w0 + w1 + w2 + w3 + 1e-6);
 
     vec3 cPrevFlat = texture(backColor, uvc).rgb;
     vec3 cCurrFlat = texture(fwdColor,  uvc).rgb;
