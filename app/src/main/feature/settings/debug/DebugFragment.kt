@@ -267,6 +267,18 @@ class DebugFragment : Fragment() {
         return dir
     }
 
+    private fun logDownloadKey(file: File): String = "${file.name}@${file.lastModified()}"
+
+    private fun downloadedLogKeys(): Set<String> =
+        preferences.getStringSet(KEY_DOWNLOADED_LOGS, emptySet()) ?: emptySet()
+
+    private fun markLogDownloaded(file: File) {
+        val set = HashSet(downloadedLogKeys())
+        if (set.add(logDownloadKey(file))) {
+            preferences.edit { putStringSet(KEY_DOWNLOADED_LOGS, set) }
+        }
+    }
+
     private fun writeLogsZip(
         dest: File,
         files: Array<File>,
@@ -317,6 +329,7 @@ class DebugFragment : Fragment() {
 
         com.winlator.cmod.runtime.system.LogManager
             .deleteShareableLogs(ctx)
+        preferences.edit { remove(KEY_DOWNLOADED_LOGS) }
         WinToast.show(ctx, R.string.settings_debug_logs_deleted)
         refresh()
     }
@@ -324,6 +337,7 @@ class DebugFragment : Fragment() {
     /** Log files, newest first. */
     private fun listLogFiles(): List<LogFileEntry> {
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+        val downloadedKeys = downloadedLogKeys()
         return com.winlator.cmod.runtime.system.LogManager
             .getShareableLogFiles(requireContext())
             .filter { it.isFile }
@@ -334,6 +348,7 @@ class DebugFragment : Fragment() {
                     sizeText = StorageUtils.formatDecimalSize(file.length()),
                     dateText = dateFormat.format(java.util.Date(file.lastModified())),
                     absolutePath = file.absolutePath,
+                    downloaded = downloadedKeys.contains(logDownloadKey(file)),
                 )
             }
     }
@@ -394,6 +409,7 @@ class DebugFragment : Fragment() {
         return try {
             val dest = File(logsDownloadDir(), file.name)
             file.inputStream().use { input -> FileOutputStream(dest).use { input.copyTo(it) } }
+            markLogDownloaded(file)
             "/WinNative/logs/${dest.name}"
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
@@ -403,11 +419,17 @@ class DebugFragment : Fragment() {
 
     /** Deletes one log file. */
     private fun deleteLogFile(entry: LogFileEntry) {
-        File(entry.absolutePath).delete()
+        val file = File(entry.absolutePath)
+        val key = logDownloadKey(file)
+        file.delete()
+        val set = HashSet(downloadedLogKeys())
+        if (set.remove(key)) preferences.edit { putStringSet(KEY_DOWNLOADED_LOGS, set) }
         refresh()
     }
 
     companion object {
+        private const val KEY_DOWNLOADED_LOGS = "downloaded_log_keys"
+
         @Volatile
         var lastSharedLogFile: File? = null
 

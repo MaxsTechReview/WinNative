@@ -86,7 +86,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -140,6 +142,7 @@ data class LogFileEntry(
     val sizeText: String,
     val dateText: String,
     val absolutePath: String,
+    val downloaded: Boolean = false,
 )
 
 // Root
@@ -853,7 +856,9 @@ private fun LogsBrowserDialog(
     var files by remember { mutableStateOf(initialFiles) }
     var selected by remember { mutableStateOf<LogFileEntry?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
-    var downloaded by remember { mutableStateOf(setOf<String>()) }
+    var downloaded by remember {
+        mutableStateOf(initialFiles.filter { it.downloaded }.map { it.absolutePath }.toSet())
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1212,9 +1217,10 @@ private fun LogFileRow(
         Spacer(Modifier.width(12.dp))
         LogRowIconButton(
             icon = Icons.Outlined.Download,
-            tint = if (isDownloaded) Success else TextSecondary,
+            tint = Success,
             contentDescription = stringResource(R.string.settings_debug_download_logs),
             onClick = onDownload,
+            filled = isDownloaded,
         )
     }
 }
@@ -1225,14 +1231,22 @@ private fun LogRowIconButton(
     tint: Color,
     contentDescription: String,
     onClick: () -> Unit,
+    filled: Boolean = false,
 ) {
+    val shape = RoundedCornerShape(10.dp)
+    val fillBrush =
+        if (filled) {
+            Brush.verticalGradient(listOf(tint.copy(alpha = 0.34f), tint.copy(alpha = 0.14f)))
+        } else {
+            SolidColor(Color(0xFF222232))
+        }
     Box(
         modifier =
             Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF222232))
-                .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                .clip(shape)
+                .background(fillBrush, shape)
+                .border(1.dp, tint.copy(alpha = if (filled) 0.65f else 0.30f), shape)
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
