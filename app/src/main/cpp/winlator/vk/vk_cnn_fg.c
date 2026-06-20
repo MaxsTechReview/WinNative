@@ -760,7 +760,8 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
-    float mvScale = 0.5f;
+    char mvs[16] = {0}; __system_property_get("debug.winnative.fgmvscale", mvs);
+    float mvScale = mvs[0] ? (float)atof(mvs) : 0.4f;
 
     cnn_to_write(cmd, C->gen[slot].image, 1);
     {
