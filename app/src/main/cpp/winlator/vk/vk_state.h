@@ -209,6 +209,14 @@ typedef struct VkPipelineSet {
                           cnn_flowreg_pl,  cnn_warpfollow_pl,  cnn_generate_pl;
     VkPipeline            cnn_pyramid_pipe, cnn_conv_pipe, cnn_cost9_pipe,
                           cnn_flowreg_pipe, cnn_warpfollow_pipe, cnn_generate_pipe;
+
+    VkDescriptorSetLayout gh_d5_dsl, gh_d6_dsl, gh_d7_dsl, gh_d8_dsl, gh_d9_dsl, gh_d10_dsl;
+    VkPipelineLayout      gh_d5_pl,  gh_d6_pl,  gh_d7_pl,  gh_d8_pl,  gh_d9_pl,  gh_d10_pl;
+    VkPipeline            gh_d5_pipe, gh_d6_pipe, gh_d7_pipe, gh_d8_pipe, gh_d9_pipe, gh_d10_pipe;
+
+    VkDescriptorSetLayout gh_occ_dsl, gh_gen_dsl;     // wnfg_13 occlusion, wnfg_04 generate
+    VkPipelineLayout      gh_occ_pl,  gh_gen_pl;
+    VkPipeline            gh_occ_pipe, gh_gen_pipe;
 } VkPipelineSet;
 
 // ============================================================
@@ -282,6 +290,7 @@ typedef struct VkFgCnn {
     VkCnnImg dpair[CNN_LEVELS];
     VkCnnImg flowMid[CNN_LEVELS];
     VkCnnImg flowRef[CNN_LEVELS];
+    VkCnnImg logits[CNN_LEVELS];
     VkCnnImg occ;
     VkCnnImg seedBlack;
     VkCnnImg dummy;
@@ -289,6 +298,15 @@ typedef struct VkFgCnn {
     VkBuffer       w[64];
     VkDeviceMemory wMem[64];
     VkDeviceSize   wLen[64];
+
+    // terminal generate (wnfg_13 occlusion + wnfg_04 generate)
+    VkCnnImg        occOut[3][6];
+    VkCnnImg        gen[3];         // RGBA16F generated frame ring, full swapchain res
+    VkDescriptorSet genSet[3];      // sampler_set_layout, binding0 = gen[i].view (present blit)
+    VkBuffer        genUbo[3];      // per-frame {mvScale, t, _} for wnfg_04
+    VkDeviceMemory  genUboMem[3];
+    void*           genUboMap[3];
+    bool            genReady;
 } VkFgCnn;
 
 // ============================================================
@@ -463,6 +481,7 @@ typedef struct VkRenderer {
 
     bool             fg_use_cnn;
     bool             fg_cnn_capable;
+    bool             fg_cnn_gen;
     uint32_t         fg_cnn_flow_seq;
     VkFgCnn          fg_cnn;
 
@@ -482,6 +501,18 @@ typedef struct VkRenderer {
     uint64_t         fg_dup_dropped, fg_distinct;  // dedup telemetry
     uint64_t         fg_promote_count;       // monotonic count of promotions (distinct content committed)
     uint64_t         fg_promote_ns;          // CLOCK_MONOTONIC of the most recent promotion (for Java phase anchor)
+
+    // --- Debug burst dump (debug.winnative.fgdump 1) --------------------------------------------
+    // Captures FG_DUMP_N consecutive generated frames + the pair's two real history frames to disk.
+    bool             fg_dump_supported;      // dump image + buffers created OK
+    bool             fg_dump_armed;          // a burst is in progress
+    bool             fg_dump_seen_zero;      // prop read "0" since the last dump (edge-trigger gate)
+    uint32_t         fg_dump_count;          // frames captured so far in the current burst
+    VkImage          fg_dump_img;            // 480x270 RGBA8 blit target (reused per capture)
+    VkDeviceMemory   fg_dump_img_mem;
+    VkBuffer         fg_dump_buf[10];        // 8 gen + prev + curr, host-visible
+    VkDeviceMemory   fg_dump_buf_mem[10];
+    void*            fg_dump_ptr[10];        // persistent map of fg_dump_buf
 
     // Quad vertex buffer (window/cursor)
     VkBuffer         quad_vbo;

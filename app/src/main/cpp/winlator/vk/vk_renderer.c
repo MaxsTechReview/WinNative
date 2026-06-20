@@ -48,6 +48,14 @@
 #include "shaders/cnn_correlation_warpfollow_comp.spv.h"
 #include "shaders/cnn_flowreg_comp.spv.h"
 #include "shaders/cnn_generate_comp.spv.h"
+#include "wnfg_spv/wnfg_04_spv.h"
+#include "wnfg_spv/wnfg_13_spv.h"
+#include "wnfg_spv/wnfg_25_spv.h"
+#include "wnfg_spv/wnfg_27_spv.h"
+#include "wnfg_spv/wnfg_28_spv.h"
+#include "wnfg_spv/wnfg_29_spv.h"
+#include "wnfg_spv/wnfg_51_spv.h"
+#include "wnfg_spv/wnfg_53_spv.h"
 #include "shaders/wnfg_05_weights.h"
 #include "shaders/wnfg_06_weights.h"
 #include "shaders/wnfg_07_weights.h"
@@ -88,6 +96,8 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h);
 static void fg_destroy_cnn_resources(VkRenderer* r);
 static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
                           VkFgImage* prevFrame, VkFgImage* currFrame, bool forward, VkFgImage* outFlow);
+static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity, uint32_t slot,
+                               VkImageView prevView, VkImageView currView, float phase);
 static bool create_command_pool(VkRenderer* r);
 static bool create_descriptor_pool(VkRenderer* r, uint32_t capacity);
 static bool create_pipelines(VkRenderer* r);
@@ -2412,6 +2422,7 @@ static void fg_free_set(VkRenderer* r, VkDescriptorSet set) {
 }
 
 static void fg_destroy_sig(VkRenderer* r);   // content-dedup signature teardown (defined below)
+static void fg_destroy_dump(VkRenderer* r);  // debug burst-dump teardown (defined below)
 
 static void fg_destroy_resources(VkRenderer* r) {
     if (!r->device) return;
@@ -2456,6 +2467,7 @@ static void fg_destroy_resources(VkRenderer* r) {
     memset(r->fg_coarse_fwd, 0, sizeof(r->fg_coarse_fwd));
     if (r->fg_sampler) { vkDestroySampler(r->device, r->fg_sampler, NULL); r->fg_sampler = VK_NULL_HANDLE; }
     fg_destroy_sig(r);
+    fg_destroy_dump(r);
     r->fg_built = false;
     r->fg_history_count = 0;
     r->fg_history_curr = 0;
@@ -2673,6 +2685,137 @@ static double fg_sig_delta(VkRenderer* r, uint32_t a, uint32_t b) {
     return (double)changed;          // 0 == identical re-present; >0 == distinct content frame
 }
 
+// --- Debug burst dump -----------------------------------------------------------------------------
+#define FG_DUMP_W 480u
+#define FG_DUMP_H 270u
+#define FG_DUMP_N 8u
+#define FG_DUMP_BUFS 10u   // FG_DUMP_N gen + prev + curr
+
+static bool fg_create_dump(VkRenderer* r) {
+    r->fg_dump_supported = false;
+    r->fg_dump_armed = false; r->fg_dump_count = 0; r->fg_dump_seen_zero = false;
+    VkImageCreateInfo ic = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ic.imageType = VK_IMAGE_TYPE_2D; ic.format = VK_FORMAT_R8G8B8A8_UNORM;
+    ic.extent.width = FG_DUMP_W; ic.extent.height = FG_DUMP_H; ic.extent.depth = 1;
+    ic.mipLevels = 1; ic.arrayLayers = 1; ic.samples = VK_SAMPLE_COUNT_1_BIT;
+    ic.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ic.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE; ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vkCreateImage(r->device, &ic, NULL, &r->fg_dump_img) != VK_SUCCESS) return false;
+    VkMemoryRequirements mr; vkGetImageMemoryRequirements(r->device, r->fg_dump_img, &mr);
+    VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO}; ai.allocationSize = mr.size;
+    ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX) return false;
+    if (vkAllocateMemory(r->device, &ai, NULL, &r->fg_dump_img_mem) != VK_SUCCESS) return false;
+    vkBindImageMemory(r->device, r->fg_dump_img, r->fg_dump_img_mem, 0);
+    for (uint32_t i = 0; i < FG_DUMP_BUFS; i++) {
+        VkBufferCreateInfo bc = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bc.size = (VkDeviceSize)FG_DUMP_W * FG_DUMP_H * 4; bc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        if (vkCreateBuffer(r->device, &bc, NULL, &r->fg_dump_buf[i]) != VK_SUCCESS) return false;
+        VkMemoryRequirements br; vkGetBufferMemoryRequirements(r->device, r->fg_dump_buf[i], &br);
+        VkMemoryAllocateInfo bai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO}; bai.allocationSize = br.size;
+        bai.memoryTypeIndex = vkr_find_memory_type(r, br.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (bai.memoryTypeIndex == UINT32_MAX) return false;
+        if (vkAllocateMemory(r->device, &bai, NULL, &r->fg_dump_buf_mem[i]) != VK_SUCCESS) return false;
+        vkBindBufferMemory(r->device, r->fg_dump_buf[i], r->fg_dump_buf_mem[i], 0);
+        if (vkMapMemory(r->device, r->fg_dump_buf_mem[i], 0, VK_WHOLE_SIZE, 0, &r->fg_dump_ptr[i]) != VK_SUCCESS) return false;
+        memset(r->fg_dump_ptr[i], 0, (size_t)FG_DUMP_W * FG_DUMP_H * 4);
+    }
+    r->fg_dump_supported = true;
+    return true;
+}
+
+static void fg_destroy_dump(VkRenderer* r) {
+    if (r->fg_dump_img) { vkDestroyImage(r->device, r->fg_dump_img, NULL); r->fg_dump_img = VK_NULL_HANDLE; }
+    if (r->fg_dump_img_mem) { vkFreeMemory(r->device, r->fg_dump_img_mem, NULL); r->fg_dump_img_mem = VK_NULL_HANDLE; }
+    for (uint32_t i = 0; i < FG_DUMP_BUFS; i++) {
+        if (r->fg_dump_buf[i]) { vkDestroyBuffer(r->device, r->fg_dump_buf[i], NULL); r->fg_dump_buf[i] = VK_NULL_HANDLE; }
+        if (r->fg_dump_buf_mem[i]) { vkFreeMemory(r->device, r->fg_dump_buf_mem[i], NULL); r->fg_dump_buf_mem[i] = VK_NULL_HANDLE; }
+        r->fg_dump_ptr[i] = NULL;
+    }
+    r->fg_dump_supported = false;
+    r->fg_dump_armed = false; r->fg_dump_count = 0;
+}
+
+// Blit srcImg (full res, given layout) -> fg_dump_img (480x270) -> fg_dump_buf[bufIdx]. Restores srcImg.
+static void fg_record_dump(VkRenderer* r, VkCommandBuffer cmd, VkImage srcImg, VkImageLayout srcLayout, uint32_t bufIdx) {
+    if (!r->fg_dump_supported || bufIdx >= FG_DUMP_BUFS) return;
+    vkr_image_barrier(cmd, srcImg,
+        srcLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    vkr_image_barrier(cmd, r->fg_dump_img,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT);
+    VkImageBlit blit = {0};
+    blit.srcSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    blit.srcOffsets[1] = (VkOffset3D){(int32_t)r->fg_dims.width, (int32_t)r->fg_dims.height, 1};
+    blit.dstSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    blit.dstOffsets[1] = (VkOffset3D){(int32_t)FG_DUMP_W, (int32_t)FG_DUMP_H, 1};
+    vkCmdBlitImage(cmd, srcImg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   r->fg_dump_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    vkr_image_barrier(cmd, r->fg_dump_img,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    VkBufferImageCopy cp = {0};
+    cp.imageSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    cp.imageExtent = (VkExtent3D){FG_DUMP_W, FG_DUMP_H, 1};
+    vkCmdCopyImageToBuffer(cmd, r->fg_dump_img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           r->fg_dump_buf[bufIdx], 1, &cp);
+    vkr_image_barrier(cmd, srcImg,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcLayout,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
+}
+
+// Edge-trigger: arm one burst on each 0->1 transition of debug.winnative.fgdump.
+static void fg_dump_poll(VkRenderer* r) {
+    char val[8] = {0};
+    __system_property_get("debug.winnative.fgdump", val);
+    if (val[0] == '0') r->fg_dump_seen_zero = true;
+    if (val[0] == '1' && r->fg_dump_seen_zero && !r->fg_dump_armed && r->fg_dump_count == 0) {
+        r->fg_dump_armed = true; r->fg_dump_seen_zero = false;
+        VK_LOGI("fgdump armed");
+    }
+}
+
+// Write the 10 host buffers to disk (raw RGBA8). Drain the queue first (one-shot debug path).
+static void fg_dump_flush(VkRenderer* r) {
+    pthread_mutex_lock(&r->queue_mutex);
+    vkQueueWaitIdle(r->graphics_queue);
+    pthread_mutex_unlock(&r->queue_mutex);
+    static const char* dirs[2] = {
+        "/sdcard/Android/data/com.winnative.cmod/files",
+        "/data/data/com.winnative.cmod/files"
+    };
+    const size_t sz = (size_t)FG_DUMP_W * FG_DUMP_H * 4;
+    const char* used = NULL;
+    for (uint32_t d = 0; d < 2 && !used; d++) {
+        char path[256];
+        bool ok = true;
+        for (uint32_t i = 0; i < FG_DUMP_BUFS && ok; i++) {
+            snprintf(path, sizeof(path), "%s/fgdump_%02u.raw", dirs[d], i);
+            FILE* fp = fopen(path, "wb");
+            if (!fp) { ok = false; break; }
+            ok = (fwrite(r->fg_dump_ptr[i], 1, sz, fp) == sz);
+            fclose(fp);
+        }
+        if (ok) {
+            snprintf(path, sizeof(path), "%s/fgdump_info.txt", dirs[d]);
+            FILE* fp = fopen(path, "w");
+            if (fp) { fprintf(fp, "480 270 RGBA8 8gen+prev+curr\n"); fclose(fp); }
+            used = dirs[d];
+        }
+    }
+    if (used) VK_LOGI("fgdump written: %s/fgdump_NN.raw (00-07 gen, 08 prev, 09 curr)", used);
+    else      VK_LOGE("fgdump write failed (no writable path)");
+    r->fg_dump_armed = false; r->fg_dump_count = 0;
+}
+
 static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     VkSamplerCreateInfo si = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     si.magFilter = VK_FILTER_LINEAR; si.minFilter = VK_FILTER_LINEAR;
@@ -2767,6 +2910,8 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
 
     // Content-dedup signature resources (best-effort; if it fails, dedup just stays disabled).
     if (!fg_create_sig(r)) { fg_destroy_sig(r); VK_LOGW("FG content-dedup unavailable; running without it"); }
+    // Debug burst-dump resources (best-effort; if it fails, dump stays disabled).
+    if (!fg_create_dump(r)) { fg_destroy_dump(r); VK_LOGW("FG debug dump unavailable"); }
     r->fg_stage_slot = -1;
     r->fg_last_promote_ns = 0;
 
@@ -3305,6 +3450,10 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         return p;
     }
 
+    // Debug burst-dump: a completed burst (all submits fenced by now) gets written out and disarmed.
+    if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count >= FG_DUMP_N) fg_dump_flush(r);
+
+    uint32_t genslot = r->fg_worker_index;
     VkFrame* f = &r->fg_worker_frames[r->fg_worker_index];
     r->fg_worker_index = (r->fg_worker_index + 1u) % 3u;
     if (f->in_flight) vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
@@ -3383,6 +3532,24 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         }
     }
 
+    bool gen_present = false;
+    if (do_interp && r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.genReady && r->fg_cnn_gen
+        && deep && !r->fg_extrapolate && r->fg_motion_fwd_valid) {
+        cnn_generate_frame(r, f->cmd, parity, genslot,
+                           r->fg_history[prev_idx].view, curr->view, job->phase);
+        gen_present = true;
+
+        fg_dump_poll(r);
+        if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N) {
+            fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dump_count);
+            if (r->fg_dump_count == 0) {   // capture the pair's real frames once, into slots 8 and 9
+                fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 8);
+                fg_record_dump(r, f->cmd, curr->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 9);
+            }
+            r->fg_dump_count++;
+        }
+    }
+
     VkClearValue clear = {0};
     clear.color.float32[3] = 1.0f;
     VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
@@ -3395,7 +3562,13 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     VkRect2D scis = {{0, 0}, r->swapchain_extent};
     vkCmdSetViewport(f->cmd, 0, 1, &vp);
     vkCmdSetScissor(f->cmd, 0, 1, &scis);
-    if (do_interp) {
+    if (gen_present) {
+        // CNN SELECT result: present gen[genslot] via the blit pipeline (mirror PRESENT_LAST).
+        vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.blit_pipeline);
+        vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            r->pipelines.effect_layout, 0, 1, &r->fg_cnn.genSet[genslot], 0, NULL);
+        vkCmdDraw(f->cmd, 3, 1, 0, 0);
+    } else if (do_interp) {
         vkCmdBindPipeline(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipelines.fg_interp_pipeline);
         bool use_fwd = deep && !r->fg_extrapolate;
         vkCmdBindDescriptorSets(f->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -3502,7 +3675,8 @@ static void fg_enqueue(VkRenderer* r, uint8_t mode, float phase) {
     uint32_t curr = r->fg_history_curr;
     FgJob job;
     job.mode = mode;
-    job.deep = (r->fg_deep_mode && r->fg_history_count >= 2u) ? 1u : 0u;
+    // CNN generate needs the forward field -> force deep on the CNN path.
+    job.deep = ((r->fg_deep_mode || (r->fg_use_cnn && r->fg_cnn_capable)) && r->fg_history_count >= 2u) ? 1u : 0u;
     job.phase = phase;
     job.curr_idx = curr;
     job.prev_idx = (curr + 2u) % 3u;
@@ -3702,6 +3876,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_min_step = 1;
     r->fg_flow_scale = 0.5f;   // default = legacy half-res flow; presets override (Eco 0.2 .. Max 0.8)
     r->fg_use_cnn = cnn_wanted();
+    r->fg_cnn_gen = true;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
     pthread_mutex_init(&r->scene_mutex, NULL);
     pthread_mutex_init(&r->queue_mutex, NULL);

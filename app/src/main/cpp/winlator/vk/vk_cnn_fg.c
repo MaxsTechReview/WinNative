@@ -7,7 +7,7 @@ typedef struct CnnPC {
 } CnnPC;
 
 #define CNN_GRID(w,h) ((uint32_t)(((w)+15u)/16u)), ((uint32_t)(((h)+15u)/16u)), 1u
-#define CNN_FLOW_LEVELS 3
+#define CNN_FLOW_LEVELS 5
 
 static bool cnn_wanted(void) {
     return true;
@@ -68,15 +68,40 @@ static bool cnn_make_pipe(VkRenderer* r, const uint32_t* spv, size_t spvLen,
     return *outPipe != VK_NULL_HANDLE;
 }
 
+static bool cnn_make_gh_pipe(VkRenderer* r, const uint32_t* spv, size_t spvLen,
+                             int hasUBO, int nIn, int nOut,
+                             VkDescriptorSetLayout* outDsl, VkPipelineLayout* outPL, VkPipeline* outPipe) {
+    CnnBind b[24]; uint32_t n = 0;
+    if (hasUBO) { b[n].binding = 0; b[n].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; n++; }
+    for (int i = 0; i < nIn; i++)  { b[n].binding = 32 + (uint32_t)i; b[n].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; n++; }
+    for (int o = 0; o < nOut; o++) { b[n].binding = 48 + (uint32_t)o; b[n].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; n++; }
+    *outDsl = cnn_make_dsl(r, b, n);
+    if (!*outDsl) return false;
+    VkPipelineLayoutCreateInfo pli = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pli.setLayoutCount = 1; pli.pSetLayouts = outDsl;
+    if (vkCreatePipelineLayout(r->device, &pli, NULL, outPL) != VK_SUCCESS) return false;
+    VkShaderModule mod = load_shader_module(r, spv, spvLen);
+    if (!mod) return false;
+    *outPipe = create_compute_pipeline(r, mod, *outPL);
+    vkDestroyShaderModule(r->device, mod, NULL);
+    return *outPipe != VK_NULL_HANDLE;
+}
+
 static void destroy_cnn_pipelines(VkRenderer* r) {
     VkPipelineSet* P = &r->pipelines;
     VkPipeline pipes[] = { P->cnn_pyramid_pipe, P->cnn_conv_pipe, P->cnn_cost9_pipe,
-                           P->cnn_flowreg_pipe, P->cnn_warpfollow_pipe, P->cnn_generate_pipe };
+                           P->cnn_flowreg_pipe, P->cnn_warpfollow_pipe, P->cnn_generate_pipe,
+                           P->gh_d5_pipe, P->gh_d6_pipe, P->gh_d7_pipe, P->gh_d8_pipe, P->gh_d9_pipe, P->gh_d10_pipe,
+                           P->gh_occ_pipe, P->gh_gen_pipe };
     VkPipelineLayout pls[] = { P->cnn_pyramid_pl, P->cnn_conv_pl, P->cnn_cost9_pl,
-                               P->cnn_flowreg_pl, P->cnn_warpfollow_pl, P->cnn_generate_pl };
+                               P->cnn_flowreg_pl, P->cnn_warpfollow_pl, P->cnn_generate_pl,
+                               P->gh_d5_pl, P->gh_d6_pl, P->gh_d7_pl, P->gh_d8_pl, P->gh_d9_pl, P->gh_d10_pl,
+                               P->gh_occ_pl, P->gh_gen_pl };
     VkDescriptorSetLayout dsls[] = { P->cnn_pyramid_dsl, P->cnn_conv_dsl, P->cnn_cost9_dsl,
-                                     P->cnn_flowreg_dsl, P->cnn_warpfollow_dsl, P->cnn_generate_dsl };
-    for (int i = 0; i < 6; i++) {
+                                     P->cnn_flowreg_dsl, P->cnn_warpfollow_dsl, P->cnn_generate_dsl,
+                                     P->gh_d5_dsl, P->gh_d6_dsl, P->gh_d7_dsl, P->gh_d8_dsl, P->gh_d9_dsl, P->gh_d10_dsl,
+                                     P->gh_occ_dsl, P->gh_gen_dsl };
+    for (int i = 0; i < 14; i++) {
         if (pipes[i]) vkDestroyPipeline(r->device, pipes[i], NULL);
         if (pls[i])   vkDestroyPipelineLayout(r->device, pls[i], NULL);
         if (dsls[i])  vkDestroyDescriptorSetLayout(r->device, dsls[i], NULL);
@@ -87,6 +112,12 @@ static void destroy_cnn_pipelines(VkRenderer* r) {
         P->cnn_flowreg_pl = P->cnn_warpfollow_pl = P->cnn_generate_pl = VK_NULL_HANDLE;
     P->cnn_pyramid_dsl = P->cnn_conv_dsl = P->cnn_cost9_dsl =
         P->cnn_flowreg_dsl = P->cnn_warpfollow_dsl = P->cnn_generate_dsl = VK_NULL_HANDLE;
+    P->gh_d5_pipe = P->gh_d6_pipe = P->gh_d7_pipe = P->gh_d8_pipe = P->gh_d9_pipe = P->gh_d10_pipe = VK_NULL_HANDLE;
+    P->gh_d5_pl = P->gh_d6_pl = P->gh_d7_pl = P->gh_d8_pl = P->gh_d9_pl = P->gh_d10_pl = VK_NULL_HANDLE;
+    P->gh_d5_dsl = P->gh_d6_dsl = P->gh_d7_dsl = P->gh_d8_dsl = P->gh_d9_dsl = P->gh_d10_dsl = VK_NULL_HANDLE;
+    P->gh_occ_pipe = P->gh_gen_pipe = VK_NULL_HANDLE;
+    P->gh_occ_pl = P->gh_gen_pl = VK_NULL_HANDLE;
+    P->gh_occ_dsl = P->gh_gen_dsl = VK_NULL_HANDLE;
 }
 
 static bool create_cnn_pipelines(VkRenderer* r) {
@@ -126,6 +157,24 @@ static bool create_cnn_pipelines(VkRenderer* r) {
                        P->cnn_warpfollow_dsl, &P->cnn_warpfollow_pl, &P->cnn_warpfollow_pipe)) goto cnn_fail;
     if (!cnn_make_pipe(r, cnn_generate_comp, cnn_generate_comp_size,
                        P->cnn_generate_dsl, &P->cnn_generate_pl, &P->cnn_generate_pipe)) goto cnn_fail;
+
+    if (!cnn_make_gh_pipe(r, wnfg_25_spv, wnfg_25_spv_size, 1, 6, 1,
+                          &P->gh_d5_dsl, &P->gh_d5_pl, &P->gh_d5_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_51_spv, wnfg_51_spv_size, 0, 2, 2,
+                          &P->gh_d6_dsl, &P->gh_d6_pl, &P->gh_d6_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_27_spv, wnfg_27_spv_size, 0, 1, 1,
+                          &P->gh_d7_dsl, &P->gh_d7_pl, &P->gh_d7_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_28_spv, wnfg_28_spv_size, 0, 1, 1,
+                          &P->gh_d8_dsl, &P->gh_d8_pl, &P->gh_d8_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_29_spv, wnfg_29_spv_size, 0, 2, 1,
+                          &P->gh_d9_dsl, &P->gh_d9_pl, &P->gh_d9_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_53_spv, wnfg_53_spv_size, 0, 3, 1,
+                          &P->gh_d10_dsl, &P->gh_d10_pl, &P->gh_d10_pipe)) goto cnn_fail;
+
+    if (!cnn_make_gh_pipe(r, wnfg_13_spv, wnfg_13_spv_size, 1, 2, 6,
+                          &P->gh_occ_dsl, &P->gh_occ_pl, &P->gh_occ_pipe)) goto cnn_fail;
+    if (!cnn_make_gh_pipe(r, wnfg_04_spv, wnfg_04_spv_size, 1, 5, 1,
+                          &P->gh_gen_dsl, &P->gh_gen_pl, &P->gh_gen_pipe)) goto cnn_fail;
 
     VK_LOGI("CNN-FG pipelines built");
     return true;
@@ -232,9 +281,19 @@ static void fg_destroy_cnn_resources(VkRenderer* r) {
         cnn_free_img(r, &C->hD2[L]);  cnn_free_img(r, &C->hD3[L]);
         cnn_free_img(r, &C->hD5[L]);  cnn_free_img(r, &C->hD6[L]);
         cnn_free_img(r, &C->hD7[L]);  cnn_free_img(r, &C->hD8[L]);
-        cnn_free_img(r, &C->flowMid[L]); cnn_free_img(r, &C->flowRef[L]);
+        cnn_free_img(r, &C->flowMid[L]); cnn_free_img(r, &C->flowRef[L]); cnn_free_img(r, &C->logits[L]);
     }
     cnn_free_img(r, &C->occ); cnn_free_img(r, &C->seedBlack); cnn_free_img(r, &C->dummy);
+    for (int s = 0; s < 3; s++) for (int m = 0; m < 6; m++) cnn_free_img(r, &C->occOut[s][m]);
+    for (int s = 0; s < 3; s++) {
+        if (C->genUboMem[s]) { vkUnmapMemory(r->device, C->genUboMem[s]); }
+        if (C->genUbo[s])    { vkDestroyBuffer(r->device, C->genUbo[s], NULL); C->genUbo[s] = VK_NULL_HANDLE; }
+        if (C->genUboMem[s]) { vkFreeMemory(r->device, C->genUboMem[s], NULL); C->genUboMem[s] = VK_NULL_HANDLE; }
+        C->genUboMap[s] = NULL;
+        if (C->genSet[s]) { vkr_free_descriptor_set(r, C->genSet[s]); C->genSet[s] = VK_NULL_HANDLE; }
+        cnn_free_img(r, &C->gen[s]);
+    }
+    C->genReady = false;
     for (int pi = 0; pi < CNN_POOLS; pi++)
         if (C->pool[pi]) { vkDestroyDescriptorPool(r->device, C->pool[pi], NULL); C->pool[pi] = VK_NULL_HANDLE; }
     C->ready = false;
@@ -323,10 +382,42 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         if (!cnn_make_img(r, &C->dpair[L], fw[L], fh[L], RGBA8, 2, true)) return false;
         if (!cnn_make_img(r, &C->flowMid[L], fw[L], fh[L], F16, 1, false)) return false;
         if (!cnn_make_img(r, &C->flowRef[L], fw[L], fh[L], F16, 1, false)) return false;
+        if (!cnn_make_img(r, &C->logits[L], fw[L], fh[L], F16, 1, false)) return false;
     }
     if (!cnn_make_img(r, &C->occ,       mw, mh, F16,   1, false)) return false;
     if (!cnn_make_img(r, &C->seedBlack, mw, mh, F16,   1, false)) return false;
     if (!cnn_make_img(r, &C->dummy,      1,  1, RGBA8, 1, true))  return false;
+
+    for (int s = 0; s < 3; s++) for (int m = 0; m < 6; m++) {
+        uint32_t ow = mw, oh = mh;
+        for (int k = 0; k < m; k++) { ow = ow > 1 ? ow / 2 : 1u; oh = oh > 1 ? oh / 2 : 1u; }
+        if (!cnn_make_img(r, &C->occOut[s][m], ow, oh, R8, 1, false)) return false;
+    }
+    for (int s = 0; s < 3; s++) {
+        if (!cnn_make_img(r, &C->gen[s], w, h, F16, 1, false)) return false;
+        C->genSet[s] = vkr_alloc_descriptor_set(r);
+        if (C->genSet[s] == VK_NULL_HANDLE) return false;
+        VkDescriptorImageInfo dii = { r->fg_sampler, C->gen[s].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        VkWriteDescriptorSet wr = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        wr.dstSet = C->genSet[s]; wr.dstBinding = 0; wr.descriptorCount = 1;
+        wr.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; wr.pImageInfo = &dii;
+        vkUpdateDescriptorSets(r->device, 1, &wr, 0, NULL);
+
+        VkBufferCreateInfo bc = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bc.size = 4 * sizeof(float); bc.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        bc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        if (vkCreateBuffer(r->device, &bc, NULL, &C->genUbo[s]) != VK_SUCCESS) return false;
+        VkMemoryRequirements mr; vkGetBufferMemoryRequirements(r->device, C->genUbo[s], &mr);
+        VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        ai.allocationSize = mr.size;
+        ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (ai.memoryTypeIndex == UINT32_MAX) return false;
+        if (vkAllocateMemory(r->device, &ai, NULL, &C->genUboMem[s]) != VK_SUCCESS) return false;
+        vkBindBufferMemory(r->device, C->genUbo[s], C->genUboMem[s], 0);
+        if (vkMapMemory(r->device, C->genUboMem[s], 0, bc.size, 0, &C->genUboMap[s]) != VK_SUCCESS) return false;
+    }
+    C->genReady = true;
 
     C->ready = true;
     VK_LOGI("CNN-FG resources allocated (L0 %ux%u, %d levels, fs=%.2f)", mw, mh, CNN_LEVELS, (double)fs);
@@ -453,6 +544,31 @@ static void cnn_flowreg_dispatch(VkRenderer* r, VkCommandBuffer cmd,
     vkCmdDispatch(cmd, CNN_GRID(w, h));
 }
 
+static void cnn_gh_dispatch(VkRenderer* r, VkCommandBuffer cmd,
+                            VkPipeline pipe, VkPipelineLayout pl, VkDescriptorSetLayout dsl,
+                            int hasUBO, const VkImageView* inViews, int nIn,
+                            const VkImageView* outViews, int nOut, uint32_t w, uint32_t h) {
+    VkDescriptorSet ds = cnn_alloc(r, dsl); if (!ds) return;
+    VkDescriptorImageInfo si[8], oi[4]; VkDescriptorBufferInfo ub;
+    VkWriteDescriptorSet ws[16]; int nw = 0;
+    if (hasUBO) {
+        ub = (VkDescriptorBufferInfo){r->fg_cnn.ubo, 0, VK_WHOLE_SIZE};
+        ws[nw++] = cnn_wbuf(ds, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &ub);
+    }
+    for (int i = 0; i < nIn; i++) {
+        si[i] = (VkDescriptorImageInfo){r->fg_sampler, inViews[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        ws[nw++] = cnn_wimg(ds, 32 + (uint32_t)i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &si[i]);
+    }
+    for (int o = 0; o < nOut; o++) {
+        oi[o] = (VkDescriptorImageInfo){VK_NULL_HANDLE, outViews[o], VK_IMAGE_LAYOUT_GENERAL};
+        ws[nw++] = cnn_wimg(ds, 48 + (uint32_t)o, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &oi[o]);
+    }
+    vkUpdateDescriptorSets(r->device, (uint32_t)nw, ws, 0, NULL);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipe);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pl, 0, 1, &ds, 0, NULL);
+    vkCmdDispatch(cmd, CNN_GRID(w, h));
+}
+
 static void cnn_clear_f16(VkCommandBuffer cmd, VkCnnImg* im) {
     cnn_to_write(cmd, im->image, im->layers);
     VkClearColorValue cc; memset(&cc, 0, sizeof(cc));
@@ -540,9 +656,12 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
     VkCnnFeatSet* fp = &C->feat[prevSlot];
     VkCnnFeatSet* fc = &C->feat[currSlot];
 
+    VkPipelineSet* P = &r->pipelines;
     for (int L = CNN_FLOW_LEVELS - 1; L >= 0; --L) {
         uint32_t w = C->hG0[L].w, h = C->hG0[L].h;
-        VkImageView seedView = (L == CNN_FLOW_LEVELS - 1) ? C->seedBlack.view : C->flowMid[L+1].view;
+        bool refine = (L <= 2);
+        VkImageView seedView = (L == CNN_FLOW_LEVELS - 1) ? C->seedBlack.view
+                             : ((L+1 <= 2) ? C->flowRef[L+1].view : C->flowMid[L+1].view);
 
         cnn_concat4(cmd, &fp->feat8[L], &fc->feat8[L], &C->feat8_pair[L]);
 
@@ -576,17 +695,98 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
         cnn_conv_dispatch(r, cmd, C->hD2[L].view, fc->luma[L].view, C->hD3[L].view, 26, 1, 1, 0, w, h);
         cnn_to_read(cmd, C->hD3[L].image, 1);
 
-        VkImageView fdst = (L == 0) ? outFlow->view  : C->flowMid[L].view;
-        VkImage     fimg = (L == 0) ? outFlow->image : C->flowMid[L].image;
-        uint32_t    dw   = (L == 0) ? outFlow->width  : w;
-        uint32_t    dh   = (L == 0) ? outFlow->height : h;
-        cnn_to_write(cmd, fimg, 1);
+        cnn_to_write(cmd, C->flowMid[L].image, 1);
         cnn_flowreg_dispatch(r, cmd, C->hD3[L].layerView[0], C->hD2[L].layerView[0], seedView,
-                             C->occ.view, fdst, dw, dh);
-        if (L != 0) cnn_to_read(cmd, fimg, 1);
+                             C->occ.view, C->flowMid[L].view, w, h);
+        cnn_to_read(cmd, C->flowMid[L].image, 1);
+
+        if (!refine) continue;
+
+        cnn_to_write(cmd, C->hD5[L].image, 1);
+        { VkImageView in[6]={C->hD3[L].layerView[0],C->hD2[L].layerView[0],C->hG4[L].layerView[0],C->hG4[L].layerView[1],C->flowMid[L].view,seedView};
+          VkImageView out[1]={C->hD5[L].layerView[0]};
+          cnn_gh_dispatch(r, cmd, P->gh_d5_pipe, P->gh_d5_pl, P->gh_d5_dsl, 1, in, 6, out, 1, w, h); }
+        cnn_to_read(cmd, C->hD5[L].image, 1);
+        cnn_to_write(cmd, C->hD6[L].image, 2);
+        { VkImageView in[2]={C->hD5[L].layerView[0],C->hD2[L].layerView[0]};
+          VkImageView out[2]={C->hD6[L].layerView[0],C->hD6[L].layerView[1]};
+          cnn_gh_dispatch(r, cmd, P->gh_d6_pipe, P->gh_d6_pl, P->gh_d6_dsl, 0, in, 2, out, 2, w, h); }
+        cnn_to_read(cmd, C->hD6[L].image, 2);
+        cnn_to_write(cmd, C->hD7[L].image, 1);
+        { VkImageView in[1]={C->hD6[L].layerView[1]};
+          VkImageView out[1]={C->hD7[L].layerView[0]};
+          cnn_gh_dispatch(r, cmd, P->gh_d7_pipe, P->gh_d7_pl, P->gh_d7_dsl, 0, in, 1, out, 1, w, h); }
+        cnn_to_read(cmd, C->hD7[L].image, 1);
+        cnn_to_write(cmd, C->hD8[L].image, 1);
+        { VkImageView in[1]={C->hD7[L].layerView[0]};
+          VkImageView out[1]={C->hD8[L].layerView[0]};
+          cnn_gh_dispatch(r, cmd, P->gh_d8_pipe, P->gh_d8_pl, P->gh_d8_dsl, 0, in, 1, out, 1, w, h); }
+        cnn_to_read(cmd, C->hD8[L].image, 1);
+
+        VkImageView rdst = (L == 0) ? outFlow->view  : C->flowRef[L].view;
+        VkImage     rimg = (L == 0) ? outFlow->image : C->flowRef[L].image;
+        uint32_t    rw   = (L == 0) ? outFlow->width  : w;
+        uint32_t    rh   = (L == 0) ? outFlow->height : h;
+        cnn_to_write(cmd, rimg, 1);
+        { VkImageView in[2]={C->hD8[L].layerView[0], seedView};
+          VkImageView out[1]={rdst};
+          cnn_gh_dispatch(r, cmd, P->gh_d9_pipe, P->gh_d9_pl, P->gh_d9_dsl, 0, in, 2, out, 1, rw, rh); }
+        if (L != 0) cnn_to_read(cmd, rimg, 1);
     }
 
     vkr_image_barrier(cmd, outFlow->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+}
+
+static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity, uint32_t slot,
+                               VkImageView prevView, VkImageView currView, float phase) {
+    VkFgCnn* C = &r->fg_cnn;
+    if (!C->ready || !C->genReady) return;
+    VkPipelineSet* P = &r->pipelines;
+    uint32_t gw = C->gen[slot].w, gh = C->gen[slot].h;
+
+    vkr_image_barrier(cmd, r->fg_motion[parity].image,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+    vkr_image_barrier(cmd, C->flowRef[2].image,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+    vkr_image_barrier(cmd, C->flowRef[1].image,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+    float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
+    float mvScale = 1.0f;
+
+    cnn_to_write(cmd, C->gen[slot].image, 1);
+    {
+        VkDescriptorSet ds = cnn_alloc(r, P->cnn_generate_dsl); if (!ds) return;
+        VkDescriptorImageInfo s32 = {r->fg_sampler, prevView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s33 = {r->fg_sampler, currView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s34 = {r->fg_sampler, C->flowRef[2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s35 = {r->fg_sampler, C->flowRef[1].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s36 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo oi  = {VK_NULL_HANDLE, C->gen[slot].view, VK_IMAGE_LAYOUT_GENERAL};
+        VkWriteDescriptorSet w[6] = {
+            cnn_wimg(ds, 32, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s32),
+            cnn_wimg(ds, 33, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s33),
+            cnn_wimg(ds, 34, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s34),
+            cnn_wimg(ds, 35, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s35),
+            cnn_wimg(ds, 36, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s36),
+            cnn_wimg(ds, 48, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &oi),
+        };
+        vkUpdateDescriptorSets(r->device, 6, w, 0, NULL);
+        CnnPC pc = {0}; pc.sx = (int32_t)gw; pc.sy = (int32_t)gh; pc.t = t; pc.mvScale = mvScale;
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pipe);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pl, 0, 1, &ds, 0, NULL);
+        vkCmdPushConstants(cmd, P->cnn_generate_pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, 32, &pc);
+        vkCmdDispatch(cmd, (gw + 15u) / 16u, (gh + 15u) / 16u, 1u);
+    }
+    vkr_image_barrier(cmd, C->gen[slot].image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }

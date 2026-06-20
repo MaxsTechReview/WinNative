@@ -61,6 +61,7 @@ public class VulkanRenderer
     private volatile int fgMultiplier = 2;   // target display:engine ratio (2, 3, 4) — the user ceiling
     private volatile int fgEffectiveMultiplier = 2;  // adaptive working multiplier (2..ceiling)
     private volatile int fgBoundSecs = 0;
+    private volatile int fgRecoverSecs = 0;          // consecutive healthy seconds -> step the multiplier back up
     private final AtomicBoolean fgNewScene = new AtomicBoolean(false);
     private final AtomicBoolean fgSceneDirty = new AtomicBoolean(false);
     private final AtomicBoolean fgPumpScheduled = new AtomicBoolean(false);
@@ -435,9 +436,16 @@ public class VulkanRenderer
             if (fgDisplayCapHz > 0) targetEff = Math.min(targetEff, (double) fgDisplayCapHz);
             // Step down only on a sustained shortfall (>=4 consecutive slow seconds). Floor 2x.
             if (deliveredHz > 0.0 && deliveredHz < 0.85 * targetEff && !fgOverlayActive) {
+                fgRecoverSecs = 0;
                 if (++fgBoundSecs >= 4 && fgEffectiveMultiplier > 2) { fgEffectiveMultiplier--; fgBoundSecs = 0; }
+            } else if (deliveredHz >= 0.95 * targetEff && fgEffectiveMultiplier < fgMultiplier && !fgOverlayActive) {
+                // Delivery is keeping up with the current working multiplier and we're below the user
+                // ceiling -> climb back up so transient load doesn't permanently strand us at a low rate.
+                fgBoundSecs = 0;
+                if (++fgRecoverSecs >= 3) { fgEffectiveMultiplier++; fgRecoverSecs = 0; }
             } else {
                 fgBoundSecs = 0;
+                fgRecoverSecs = 0;
             }
         }
         Log.i(TAG, String.format(java.util.Locale.US,
@@ -547,12 +555,6 @@ public class VulkanRenderer
         }
         if (!promoted) fgPromoteSlotIdx++;
 
-        // Drawer/menu overlay up: pause FG generation and present only the real frame.
-        if (fgOverlayActive) {
-            if (fgEmitWasHold) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
-            return 0;
-        }
-
         long period = fgContentPeriodNs;
         boolean canInterp = fgMultiplier > 1 && fgEngineFrames >= 2 && period > 0L
                             && fgLastPromoteNs != 0L && fgPrevPromoteNs != 0L;
@@ -572,24 +574,23 @@ public class VulkanRenderer
             return 2;
         }
         if (period <= 0L) return 0;
-        // Snap the multiplier to the largest divisor of the panel:content ratio so output divides the panel evenly.
-        int M = Math.max(2, fgEffectiveMultiplier);
+        // Fill the panel: emit min(eff, slots) unique frames per content interval, spread evenly with a
+        // Bresenham gate. No divisor-snapping (which used to collapse e.g. 3x@4-slots down to 2x = half rate).
+        int eff = Math.max(2, fgEffectiveMultiplier);
         long disp = fgDisplayPeriodNs;
-        int slots = M;
+        int slots = eff;
         if (disp > 0L) {
             int s = (int) Math.round((double) period / (double) disp);
-            if (s >= 2) {
-                slots = s;
-                int best = 1;
-                for (int d = 2; d <= M && d <= slots; d++) if (slots % d == 0) best = d;
-                if (best >= 2) M = best;
-            }
+            if (s >= 2) slots = s;
         }
-        fgCadenceM = M;
-        // Emit a new frame every `hold` vblanks (hold = slots/M); sample the tween phase from the content clock.
-        int hold = Math.max(1, slots / M);
+        int emits = Math.min(eff, slots);   // can't show more unique frames than panel refreshes per interval
+        fgCadenceM = emits;
         fgVblankSincePromote++;
-        if ((fgVblankSincePromote % hold) != 0) return 0;          // between gates — hold the current frame
+        int vi = fgVblankSincePromote;                             // vblanks since the real frame (1..slots-1)
+        if (vi >= slots) return 0;                                 // interval fully spanned — hold for next promote
+        // vblank 0 already showed the real frame; place the (emits-1) interps evenly across the rest.
+        boolean emit = (int) ((long) vi * emits / slots) != (int) ((long) (vi - 1) * emits / slots);
+        if (!emit) return 0;                                       // between gates — hold the current frame
         long vsync = fgCurrentVsyncNs != 0L ? fgCurrentVsyncNs : System.nanoTime();
         double phase = (double) (vsync - fgLastPromoteNs) / (double) period;
         if (phase >= 1.0) return 0;                                 // interval overran — hold until next promote
@@ -683,6 +684,9 @@ public class VulkanRenderer
         fgSurface = surface;
         fgFrameRateHint = -1f;   // fresh surface carries no frame-rate preference; re-apply
         if (nativeHandle == 0) {
+            // Keep the compositor on the guest-matched driver (Turnip) for AHB-tiling parity.
+            // Turnip carries a chip8 VK_NV_optical_flow compute implementation but ships it
+            // disabled; the native side force-enables it via FD_DEV_FEATURES before device init.
             nativeHandle = nativeCreate(shouldEnableValidationLayers(),
                     graphicsDriverName, xServerView.getContext().getApplicationContext());
             if (nativeHandle == 0) {
