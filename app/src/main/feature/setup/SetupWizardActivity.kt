@@ -1578,33 +1578,32 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     }
                 }
 
-                if (transferState.value == null) {
-                    Spacer(Modifier.height(10.dp))
+                val transferActive = transferState.value != null
+                Spacer(Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        GhostPillButton(
-                            label = stringResource(R.string.common_ui_back),
-                            enabled = page > 0,
-                            onClick = { if (page > 0) pageIndex.intValue -= 1 },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    GhostPillButton(
+                        label = stringResource(R.string.common_ui_back),
+                        enabled = page > 0 && !transferActive,
+                        onClick = { if (page > 0) pageIndex.intValue -= 1 },
+                    )
+
+                    if (page < lastPage) {
+                        AccentPillButton(
+                            label = stringResource(R.string.setup_wizard_next),
+                            enabled = canGoNext && !transferActive,
+                            onClick = { if (canGoNext) pageIndex.intValue += 1 },
                         )
-
-                        if (page < lastPage) {
-                            AccentPillButton(
-                                label = stringResource(R.string.setup_wizard_next),
-                                enabled = canGoNext,
-                                onClick = { if (canGoNext) pageIndex.intValue += 1 },
-                            )
-                        } else {
-                            AccentPillButton(
-                                label = stringResource(R.string.setup_wizard_finish),
-                                enabled = !creatingContainer.value,
-                                onClick = { finishWizard() },
-                            )
-                        }
+                    } else {
+                        AccentPillButton(
+                            label = stringResource(R.string.setup_wizard_finish),
+                            enabled = !creatingContainer.value && !transferActive,
+                            onClick = { finishWizard() },
+                        )
                     }
                 }
             }
