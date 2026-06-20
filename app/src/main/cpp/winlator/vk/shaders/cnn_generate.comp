@@ -29,45 +29,25 @@ void main() {
     vec2 uvc     = numer / texSize;
 
     float m0 = pc.mvScale;
-    vec4 mvB = texture(flowB, uvc) * m0;
-    vec4 mvF = texture(flowF, uvc) * m0;
+    vec2 fl = texture(flowB, uvc).xy * m0;
 
     float t = pc.t;
-    float a = 2.0 * t;
-    float b = 2.0 * (1.0 - t);
+    vec2 c0 = (numer + fl * (2.0 * t)) / texSize;
+    vec2 c1 = (numer - fl * (2.0 * (1.0 - t))) / texSize;
 
-    vec2 c0 = (numer + mvB.xy * a) / texSize;
-    vec2 c1 = (numer + mvB.zw * b) / texSize;
-    vec2 c2 = (numer + mvF.xy * a) / texSize;
-    vec2 c3 = (numer + mvF.zw * b) / texSize;
-
-    vec4 L = vec4(texture(logits, c0).x,
-                  texture(logits, c1).y,
-                  texture(logits, c2).z,
-                  texture(logits, c3).w);
+    vec3 back = texture(backColor, c0).rgb;
+    vec3 fwd  = texture(fwdColor,  c1).rgb;
 
     const float CONS = 6.0;
-    vec2 e0 = texture(flowB, c0).xy * m0 - mvB.xy;
-    vec2 e1 = texture(flowB, c1).zw * m0 - mvB.zw;
-    vec2 e2 = texture(flowF, c2).xy * m0 - mvF.xy;
-    vec2 e3 = texture(flowF, c3).zw * m0 - mvF.zw;
-    L -= CONS * vec4(dot(e0, e0), dot(e1, e1), dot(e2, e2), dot(e3, e3));
-
     const float TEMP = 4.0;
-    float mx = max(max(L.x, L.y), max(L.z, L.w));
-    vec4 w = exp((L - mx) / TEMP);
-    w /= dot(w, vec4(1.0));
-
-    float wb = 1.0 - t;
-    float wf = t;
-
-    vec4 acc = texture(backColor, c0) * (wb * w.x)
-             + texture(fwdColor,  c1) * (wf * w.y)
-             + texture(backColor, c2) * (wb * w.z)
-             + texture(fwdColor,  c3) * (wf * w.w);
-
-    float den = wb * (w.x + w.z) + wf * (w.y + w.w) + 1e-8;
-    vec3 col = (acc / den).rgb;
+    vec2 eb = texture(flowB, c0).xy * m0 - fl;
+    vec2 ef = texture(flowB, c1).xy * m0 + fl;
+    float Lb = texture(logits, c0).x - CONS * dot(eb, eb);
+    float Lf = texture(logits, c1).y - CONS * dot(ef, ef);
+    float mx = max(Lb, Lf);
+    float wb = (1.0 - t) * exp((Lb - mx) / TEMP);
+    float wf = t * exp((Lf - mx) / TEMP);
+    vec3 col = (back * wb + fwd * wf) / (wb + wf + 1e-6);
 
     vec3 cPrevFlat = texture(backColor, uvc).rgb;
     vec3 cCurrFlat = texture(fwdColor,  uvc).rgb;
