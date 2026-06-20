@@ -6644,11 +6644,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerSurfaceView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
-        // Match guest libvulkan so imported AHB tiling matches the producer.
+        // Match guest libvulkan so imported AHB tiling matches the producer. When no
+        // explicit compositor-driver version is configured, fall back to the GAME's
+        // actual driver (not "System") so writer==reader: importing a Turnip-written
+        // tiled AHB with the Qualcomm system driver mismatches tile order and produces
+        // vertical-stripe corruption on Adreno 840 (was hidden on 830 where the layouts
+        // coincided). System-driver games still resolve to "System" via graphicsDriver.
         String compositorGraphicsDriver =
                 graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : null;
         if (compositorGraphicsDriver == null || compositorGraphicsDriver.isEmpty()) {
-            compositorGraphicsDriver = "System";
+            compositorGraphicsDriver = (graphicsDriver != null && !graphicsDriver.isEmpty())
+                    ? graphicsDriver : "System";
         }
         Log.i("XServerDisplayActivity", "Compositor graphics driver='"
                 + compositorGraphicsDriver + "' from graphicsDriver='" + graphicsDriver + "'");
