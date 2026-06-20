@@ -1376,5 +1376,37 @@
     <string name="session_rts_tap4">4 指輕觸</string>
     <string name="session_rts_up">上</string>
     <string name="session_rts_zoom">雙指縮放</string>
+    <string name="session_drawer_brightness">亮度</string>
+    <string name="session_drawer_contrast">對比度</string>
+    <string name="session_drawer_gamma">伽瑪</string>
+    <string name="session_drawer_saturation">飽和度</string>
+    <string name="session_drawer_temperature">色溫</string>
+    <string name="session_drawer_tint">色調</string>
+    <string name="session_drawer_intensity">強度</string>
+    <string name="session_drawer_strength">力度</string>
+    <string name="session_drawer_sharpen">銳化</string>
+    <string name="session_drawer_scanlines">掃描線</string>
+    <string name="session_drawer_pixelate">像素化</string>
+    <string name="session_drawer_block_size">區塊大小</string>
+    <string name="session_drawer_scale">縮放</string>
+    <string name="session_drawer_scale_nearest">最近鄰</string>
+    <string name="session_drawer_scale_linear">線性</string>
+    <string name="session_drawer_scale_bicubic">雙三次</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">卡通</string>
+    <string name="session_drawer_color_blind">色盲</string>
+    <string name="session_drawer_color_blind_protan">紅色盲</string>
+    <string name="session_drawer_color_blind_deutan">綠色盲</string>
+    <string name="session_drawer_color_blind_tritan">藍色盲</string>
+    <string name="session_drawer_reset_effects">重置效果</string>
+    <string name="session_drawer_hud_background">背景</string>
+    <string name="session_drawer_hud_background_alpha">背景透明度</string>
+    <string name="session_drawer_hud_background_alpha_input_title">設定背景透明度</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">調整大小</string>
+    <string name="session_task_bring_to_front">置於最上層</string>
+    <string name="session_task_custom_value">自訂值</string>
+    <string name="session_gyroscope_orientation_mode">傾斜瞄準（方向）</string>
 </resources>
 

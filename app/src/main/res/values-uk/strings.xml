@@ -1384,5 +1384,37 @@
     <string name="session_rts_tap4">Дотик 4 пальцями</string>
     <string name="session_rts_up">Вгору</string>
     <string name="session_rts_zoom">Масштабування щипком</string>
+    <string name="session_drawer_brightness">Яскравість</string>
+    <string name="session_drawer_contrast">Контраст</string>
+    <string name="session_drawer_gamma">Гамма</string>
+    <string name="session_drawer_saturation">Насиченість</string>
+    <string name="session_drawer_temperature">Температура</string>
+    <string name="session_drawer_tint">Відтінок</string>
+    <string name="session_drawer_intensity">Інтенсивність</string>
+    <string name="session_drawer_strength">Сила</string>
+    <string name="session_drawer_sharpen">Різкість</string>
+    <string name="session_drawer_scanlines">Рядки розгортки</string>
+    <string name="session_drawer_pixelate">Пікселізація</string>
+    <string name="session_drawer_block_size">Розмір блока</string>
+    <string name="session_drawer_scale">Масштабування</string>
+    <string name="session_drawer_scale_nearest">Найближчий</string>
+    <string name="session_drawer_scale_linear">Лінійний</string>
+    <string name="session_drawer_scale_bicubic">Бікубічний</string>
+    <string name="session_drawer_color_profile_ntsc">NTSC</string>
+    <string name="session_drawer_color_profile_ntsc2">NTSC2</string>
+    <string name="session_drawer_color_profile_toon">Мультяшний</string>
+    <string name="session_drawer_color_blind">Дальтонізм</string>
+    <string name="session_drawer_color_blind_protan">Протан</string>
+    <string name="session_drawer_color_blind_deutan">Дейтан</string>
+    <string name="session_drawer_color_blind_tritan">Тритан</string>
+    <string name="session_drawer_reset_effects">Скинути ефекти</string>
+    <string name="session_drawer_hud_background">Фон</string>
+    <string name="session_drawer_hud_background_alpha">Альфа фону</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Задати альфу фону</string>
+    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_refactor_size">Змінити розмір</string>
+    <string name="session_task_bring_to_front">На передній план</string>
+    <string name="session_task_custom_value">Власне значення</string>
+    <string name="session_gyroscope_orientation_mode">Нахил для прицілювання (орієнтація)</string>
 </resources>
 
