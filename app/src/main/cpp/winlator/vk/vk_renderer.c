@@ -3542,6 +3542,7 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         fg_dump_poll(r);
         if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N) {
             fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dump_count);
+            VK_LOGI("fgdump[%u] phase=%.3f prev=%u curr=%u seq=%u", r->fg_dump_count, job->phase, prev_idx, curr_idx, job->seq);
             if (r->fg_dump_count == 0) {   // capture the pair's real frames once, into slots 8 and 9
                 fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 8);
                 fg_record_dump(r, f->cmd, curr->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 9);

@@ -591,10 +591,7 @@ public class VulkanRenderer
         // vblank 0 already showed the real frame; place the (emits-1) interps evenly across the rest.
         boolean emit = (int) ((long) vi * emits / slots) != (int) ((long) (vi - 1) * emits / slots);
         if (!emit) return 0;                                       // between gates — hold the current frame
-        long vsync = fgCurrentVsyncNs != 0L ? fgCurrentVsyncNs : System.nanoTime();
-        double phase = (double) (vsync - fgLastPromoteNs) / (double) period;
-        if (phase >= 1.0) return 0;                                 // interval overran — hold until next promote
-        if (phase <= 0.0) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
+        double phase = (double) vi / (double) slots;               // deterministic slot phase, jitter-free
         nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs);
         return 1;
     }
