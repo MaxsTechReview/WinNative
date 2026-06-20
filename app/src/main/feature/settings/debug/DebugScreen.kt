@@ -89,7 +89,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -101,6 +103,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -157,12 +160,12 @@ fun DebugScreen(
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
-    onDownloadLogs: () -> Unit,
+    onDownloadLogs: () -> String?,
     onDeleteLogs: () -> Unit,
     onListLogFiles: () -> List<LogFileEntry>,
     onReadLogFile: (LogFileEntry) -> String,
     onShareLogFile: (LogFileEntry) -> Unit,
-    onDownloadLogFile: (LogFileEntry) -> Unit,
+    onDownloadLogFile: (LogFileEntry) -> String?,
     onDeleteLogFile: (LogFileEntry) -> Unit,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
@@ -840,16 +843,17 @@ private fun LogsBrowserDialog(
     logsSize: String,
     onReadLogFile: (LogFileEntry) -> String,
     onShareAllLogs: () -> Unit,
-    onDownloadAllLogs: () -> Unit,
+    onDownloadAllLogs: () -> String?,
     onDeleteAllLogs: () -> Unit,
     onShareLogFile: (LogFileEntry) -> Unit,
-    onDownloadLogFile: (LogFileEntry) -> Unit,
+    onDownloadLogFile: (LogFileEntry) -> String?,
     onDeleteLogFile: (LogFileEntry) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var files by remember { mutableStateOf(initialFiles) }
     var selected by remember { mutableStateOf<LogFileEntry?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var downloaded by remember { mutableStateOf(setOf<String>()) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -859,6 +863,11 @@ private fun LogsBrowserDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        val dialogView = LocalView.current
+        val context = LocalContext.current
+        val showSavedToast: (String) -> Unit = { path ->
+            WinToast.show(context, context.getString(R.string.settings_debug_logs_saved, path), dialogView)
+        }
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -903,10 +912,16 @@ private fun LogsBrowserDialog(
                                 files = files,
                                 onOpen = { selected = it },
                                 onShareAllLogs = onShareAllLogs,
-                                onDownloadAllLogs = onDownloadAllLogs,
+                                onDownloadAllLogs = { onDownloadAllLogs()?.let(showSavedToast) },
                                 onDeleteAllLogs = { showDeleteAllConfirm = true },
                                 onShareLogFile = onShareLogFile,
-                                onDownloadLogFile = onDownloadLogFile,
+                                downloadedPaths = downloaded,
+                                onDownloadLogFile = { entry ->
+                                    onDownloadLogFile(entry)?.let { path ->
+                                        downloaded = downloaded + entry.absolutePath
+                                        showSavedToast(path)
+                                    }
+                                },
                                 onDeleteLogFile = { entry ->
                                     onDeleteLogFile(entry)
                                     files = files.filterNot { it.absolutePath == entry.absolutePath }
@@ -1111,6 +1126,7 @@ private fun ColumnScope.LogFileList(
     files: List<LogFileEntry>,
     onOpen: (LogFileEntry) -> Unit,
     onShare: (LogFileEntry) -> Unit,
+    downloadedPaths: Set<String>,
     onDownload: (LogFileEntry) -> Unit,
     onDelete: (LogFileEntry) -> Unit,
 ) {
@@ -1135,6 +1151,7 @@ private fun ColumnScope.LogFileList(
                 entry = entry,
                 onOpen = { onOpen(entry) },
                 onShare = { onShare(entry) },
+                isDownloaded = entry.absolutePath in downloadedPaths,
                 onDownload = { onDownload(entry) },
                 onDelete = { onDelete(entry) },
             )
@@ -1147,6 +1164,7 @@ private fun LogFileRow(
     entry: LogFileEntry,
     onOpen: () -> Unit,
     onShare: () -> Unit,
+    isDownloaded: Boolean,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1194,7 +1212,7 @@ private fun LogFileRow(
         Spacer(Modifier.width(12.dp))
         LogRowIconButton(
             icon = Icons.Outlined.Download,
-            tint = Success,
+            tint = if (isDownloaded) Success else TextSecondary,
             contentDescription = stringResource(R.string.settings_debug_download_logs),
             onClick = onDownload,
         )
@@ -1237,6 +1255,7 @@ private fun LogFileListView(
     onDownloadAllLogs: () -> Unit,
     onDeleteAllLogs: () -> Unit,
     onShareLogFile: (LogFileEntry) -> Unit,
+    downloadedPaths: Set<String>,
     onDownloadLogFile: (LogFileEntry) -> Unit,
     onDeleteLogFile: (LogFileEntry) -> Unit,
     onClose: () -> Unit,
@@ -1271,6 +1290,7 @@ private fun LogFileListView(
             files = files,
             onOpen = onOpen,
             onShare = onShareLogFile,
+            downloadedPaths = downloadedPaths,
             onDownload = onDownloadLogFile,
             onDelete = onDeleteLogFile,
         )

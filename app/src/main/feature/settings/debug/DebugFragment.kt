@@ -262,11 +262,7 @@ class DebugFragment : Fragment() {
     }
 
     private fun logsDownloadDir(): File {
-        val dir =
-            File(
-                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-                "WinNative/logs",
-            )
+        val dir = File(android.os.Environment.getExternalStorageDirectory(), "WinNative/logs")
         dir.mkdirs()
         return dir
     }
@@ -286,7 +282,7 @@ class DebugFragment : Fragment() {
         }
     }
 
-    private fun downloadLogs() {
+    private fun downloadLogs(): String? {
         val ctx = requireContext()
         val files =
             com.winlator.cmod.runtime.system.LogManager
@@ -294,16 +290,17 @@ class DebugFragment : Fragment() {
 
         if (files.isEmpty()) {
             WinToast.show(ctx, R.string.settings_debug_no_logs_available)
-            return
+            return null
         }
 
-        try {
+        return try {
             val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
             val dest = File(logsDownloadDir(), "winnative_logs_$timestamp.zip")
             writeLogsZip(dest, files)
-            WinToast.show(ctx, getString(R.string.settings_debug_logs_saved, dest.absolutePath))
+            "/WinNative/logs/${dest.name}"
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+            null
         }
     }
 
@@ -387,19 +384,20 @@ class DebugFragment : Fragment() {
         }
     }
 
-    private fun downloadLogFile(entry: LogFileEntry) {
+    private fun downloadLogFile(entry: LogFileEntry): String? {
         val ctx = requireContext()
         val file = File(entry.absolutePath)
         if (!file.isFile) {
             WinToast.show(ctx, R.string.settings_debug_no_logs_available)
-            return
+            return null
         }
-        try {
+        return try {
             val dest = File(logsDownloadDir(), file.name)
             file.inputStream().use { input -> FileOutputStream(dest).use { input.copyTo(it) } }
-            WinToast.show(ctx, getString(R.string.settings_debug_logs_saved, dest.absolutePath))
+            "/WinNative/logs/${dest.name}"
         } catch (e: Exception) {
             WinToast.show(ctx, getString(R.string.settings_debug_capture_failed, e.message ?: ""))
+            null
         }
     }
 
