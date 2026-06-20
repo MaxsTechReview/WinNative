@@ -732,14 +732,6 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
           VkImageView out[1]={rdst};
           cnn_gh_dispatch(r, cmd, P->gh_d9_pipe, P->gh_d9_pl, P->gh_d9_dsl, 0, in, 2, out, 1, rw, rh); }
         if (L != 0) cnn_to_read(cmd, rimg, 1);
-
-        // delta9 = wnfg_53: trained occlusion-logits pyramid. b32/b33 = the delta8
-        // ping-pong pair (hD8=D, hD7=C), b34 = seed (GT-harness-validated wiring).
-        cnn_to_write(cmd, C->logits[L].image, 1);
-        { VkImageView in[3]={C->hD8[L].layerView[0], C->hD7[L].layerView[0], seedView};
-          VkImageView out[1]={C->logits[L].layerView[0]};
-          cnn_gh_dispatch(r, cmd, P->gh_d10_pipe, P->gh_d10_pl, P->gh_d10_dsl, 0, in, 3, out, 1, w, h); }
-        cnn_to_read(cmd, C->logits[L].image, 1);
     }
 
     vkr_image_barrier(cmd, outFlow->image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -754,32 +746,31 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
     VkPipelineSet* P = &r->pipelines;
     uint32_t gw = C->gen[slot].w, gh = C->gen[slot].h;
 
-    vkr_image_barrier(cmd, C->logits[2].image,
+    vkr_image_barrier(cmd, r->fg_motion[parity].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-    vkr_image_barrier(cmd, C->logits[1].image,
+    vkr_image_barrier(cmd, C->flowRef[2].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-    vkr_image_barrier(cmd, C->logits[0].image,
+    vkr_image_barrier(cmd, C->flowRef[1].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
     char mvs[16] = {0}; __system_property_get("debug.winnative.fgmvscale", mvs);
-    float scl = r->fg_built_flow_scale;
-    float mvScale = mvs[0] ? (float)atof(mvs) : (1.0f / (scl < 0.2f ? 0.2f : (scl > 1.0f ? 1.0f : scl)));
+    float mvScale = mvs[0] ? (float)atof(mvs) : 0.4f;
 
     cnn_to_write(cmd, C->gen[slot].image, 1);
     {
         VkDescriptorSet ds = cnn_alloc(r, P->cnn_generate_dsl); if (!ds) return;
         VkDescriptorImageInfo s32 = {r->fg_sampler, prevView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s33 = {r->fg_sampler, currView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s34 = {r->fg_sampler, C->logits[2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s35 = {r->fg_sampler, C->logits[1].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s36 = {r->fg_sampler, C->logits[0].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s34 = {r->fg_sampler, C->flowRef[2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s35 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s36 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo oi  = {VK_NULL_HANDLE, C->gen[slot].view, VK_IMAGE_LAYOUT_GENERAL};
         VkWriteDescriptorSet w[6] = {
             cnn_wimg(ds, 32, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s32),

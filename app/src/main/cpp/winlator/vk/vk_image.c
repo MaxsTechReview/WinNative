@@ -1178,7 +1178,12 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     ic.mipLevels = 1;
     ic.arrayLayers = 1;
     ic.samples = VK_SAMPLE_COUNT_1_BIT;
-    ic.tiling = VK_IMAGE_TILING_OPTIMAL;
+    // A CPU-accessible AHB is laid out linearly; importing it as OPTIMAL makes the
+    // driver apply its tile swizzle to linear data (vertical-stripe corruption on
+    // Adreno 840+, where OPTIMAL is a real tiling — older Adreno's OPTIMAL was linear).
+    // Match the import tiling to the buffer's actual layout.
+    bool ahb_cpu_access = (desc.usage & 0xFFull) != 0ull; // CPU read(0xF)|write(0xF0) masks
+    ic.tiling = ahb_cpu_access ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
     ic.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
