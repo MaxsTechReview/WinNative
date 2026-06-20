@@ -28,7 +28,7 @@ void main() {
     vec2 numer   = vec2(p) + 0.5;
     vec2 uvc     = numer / texSize;
 
-    float m0 = pc.mvScale;
+    float m0 = abs(pc.mvScale);
     vec2 fl = texture(flowB, uvc).xy * m0;
 
     float t = pc.t;
@@ -38,15 +38,19 @@ void main() {
     vec3 back = texture(backColor, c0).rgb;
     vec3 fwd  = texture(fwdColor,  c1).rgb;
 
-    const float CONS = 6.0;
-    const float TEMP = 4.0;
+    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(back - fwd), 1.0)); return; }
+
+    // Reliability of each warp = how consistent the flow is at its landing point
+    // (a warp that lands where the flow disagrees is an occlusion/bad estimate).
     vec2 eb = texture(flowB, c0).xy * m0 - fl;
     vec2 ef = texture(flowB, c1).xy * m0 + fl;
-    float Lb = texture(logits, c0).x - CONS * dot(eb, eb);
-    float Lf = texture(logits, c1).y - CONS * dot(ef, ef);
-    float mx = max(Lb, Lf);
-    float wb = (1.0 - t) * exp((Lb - mx) / TEMP);
-    float wf = t * exp((Lf - mx) / TEMP);
+    float rb = dot(eb, eb);
+    float rf = dot(ef, ef);
+    // Decisive select: where the two warps disagree, pick the more-consistent one
+    // sharply instead of averaging two positions (which smears/jitters).
+    const float SHARP = 0.5;
+    float wb = (1.0 - t) * exp(-SHARP * rb);
+    float wf = t * exp(-SHARP * rf);
     vec3 col = (back * wb + fwd * wf) / (wb + wf + 1e-6);
 
     vec3 cPrevFlat = texture(backColor, uvc).rgb;
