@@ -508,6 +508,7 @@ typedef struct VkRenderer {
     bool             fg_dump_armed;          // a burst is in progress
     bool             fg_dump_seen_zero;      // prop read "0" since the last dump (edge-trigger gate)
     uint32_t         fg_dump_count;          // frames captured so far in the current burst
+    float            fg_dump_last_phase;     // previous interp phase (start a burst at a pair boundary)
     VkImage          fg_dump_img;            // 480x270 RGBA8 blit target (reused per capture)
     VkDeviceMemory   fg_dump_img_mem;
     VkBuffer         fg_dump_buf[10];        // 8 gen + prev + curr, host-visible

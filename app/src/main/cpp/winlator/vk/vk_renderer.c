@@ -3540,8 +3540,10 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         gen_present = true;
 
         fg_dump_poll(r);
+        float fg_dump_prevph = r->fg_dump_last_phase;
+        r->fg_dump_last_phase = job->phase;
         if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N
-            && !(r->fg_dump_count == 0 && job->phase > 0.35f)) {
+            && !(r->fg_dump_count == 0 && job->phase > fg_dump_prevph + 0.01f)) {
             fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dump_count);
             VK_LOGI("fgdump[%u] phase=%.3f prev=%u curr=%u seq=%u", r->fg_dump_count, job->phase, prev_idx, curr_idx, job->seq);
             if (r->fg_dump_count == 0) {   // capture the pair's real frames once, into slots 8 and 9
