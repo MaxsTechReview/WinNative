@@ -2686,8 +2686,8 @@ static double fg_sig_delta(VkRenderer* r, uint32_t a, uint32_t b) {
 }
 
 // --- Debug burst dump -----------------------------------------------------------------------------
-#define FG_DUMP_W 480u
-#define FG_DUMP_H 270u
+#define FG_DUMP_W 270u
+#define FG_DUMP_H 594u
 #define FG_DUMP_N 8u
 #define FG_DUMP_BUFS 10u   // FG_DUMP_N gen + prev + curr
 
@@ -3545,7 +3545,7 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N
             && !(r->fg_dump_count == 0 && job->phase > fg_dump_prevph + 0.01f)) {
             fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dump_count);
-            VK_LOGI("fgdump[%u] phase=%.3f prev=%u curr=%u seq=%u", r->fg_dump_count, job->phase, prev_idx, curr_idx, job->seq);
+            VK_LOGI("fgdump[%u] phase=%.3f prev=%u curr=%u seq=%u gen=%ux%u", r->fg_dump_count, job->phase, prev_idx, curr_idx, job->seq, r->fg_cnn.gen[genslot].w, r->fg_cnn.gen[genslot].h);
             if (r->fg_dump_count == 0) {   // capture the pair's real frames once, into slots 8 and 9
                 fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 8);
                 fg_record_dump(r, f->cmd, curr->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 9);
