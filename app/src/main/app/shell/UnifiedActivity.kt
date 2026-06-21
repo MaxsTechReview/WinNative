@@ -10528,7 +10528,7 @@ class UnifiedActivity :
                 Icon(
                     Icons.Outlined.Person,
                     contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.5f),
+                    tint = Accent,
                     modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))
