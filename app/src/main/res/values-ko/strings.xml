@@ -793,6 +793,8 @@
     <string name="settings_debug_share_logs">로그 공유</string>
     <string name="settings_debug_delete_logs">로그 삭제</string>
     <string name="settings_debug_share_all_logs_short">모두 공유</string>
+    <string name="settings_debug_download_all_logs_short">모두 다운로드</string>
+    <string name="settings_debug_logs_saved">%1$s에 저장됨</string>
     <string name="settings_debug_delete_logs_short">삭제</string>
     <string name="settings_debug_delete_all_logs_short">모두 삭제</string>
     <string name="settings_debug_open_logs_folder_short">로그 관리자 열기</string>

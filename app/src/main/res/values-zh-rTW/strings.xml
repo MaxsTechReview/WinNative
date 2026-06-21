@@ -793,6 +793,8 @@
     <string name="settings_debug_share_logs">分享日誌</string>
     <string name="settings_debug_delete_logs">刪除日誌</string>
     <string name="settings_debug_share_all_logs_short">全部分享</string>
+    <string name="settings_debug_download_all_logs_short">全部下載</string>
+    <string name="settings_debug_logs_saved">已儲存至 %1$s</string>
     <string name="settings_debug_delete_logs_short">刪除</string>
     <string name="settings_debug_delete_all_logs_short">全部刪除</string>
     <string name="settings_debug_open_logs_folder_short">開啟日誌管理器</string>

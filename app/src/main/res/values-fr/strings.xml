@@ -793,6 +793,8 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_debug_share_logs">Partager les journaux</string>
     <string name="settings_debug_delete_logs">Supprimer les journaux</string>
     <string name="settings_debug_share_all_logs_short">Tout partager</string>
+    <string name="settings_debug_download_all_logs_short">Tout télécharger</string>
+    <string name="settings_debug_logs_saved">Enregistré dans %1$s</string>
     <string name="settings_debug_delete_logs_short">Supprimer</string>
     <string name="settings_debug_delete_all_logs_short">Tout supprimer</string>
     <string name="settings_debug_open_logs_folder_short">Ouvrir le gestionnaire des journaux</string>

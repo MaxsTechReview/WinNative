@@ -633,6 +633,8 @@ private fun IconTapButton(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .background(tint.copy(alpha = 0.14f))
+                .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

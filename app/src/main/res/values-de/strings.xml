@@ -793,6 +793,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_share_logs">Protokolle teilen</string>
     <string name="settings_debug_delete_logs">Protokolle löschen</string>
     <string name="settings_debug_share_all_logs_short">Alle teilen</string>
+    <string name="settings_debug_download_all_logs_short">Alle herunterladen</string>
+    <string name="settings_debug_logs_saved">Gespeichert in %1$s</string>
     <string name="settings_debug_delete_logs_short">Löschen</string>
     <string name="settings_debug_delete_all_logs_short">Alle löschen</string>
     <string name="settings_debug_open_logs_folder_short">Protokollverwaltung öffnen</string>

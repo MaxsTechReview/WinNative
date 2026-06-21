@@ -900,6 +900,8 @@
     <string name="settings_debug_share_logs">लॉग शेयर करें</string>
     <string name="settings_debug_delete_logs">लॉग हटाएं</string>
     <string name="settings_debug_share_all_logs_short">सभी शेयर करें</string>
+    <string name="settings_debug_download_all_logs_short">सभी डाउनलोड करें</string>
+    <string name="settings_debug_logs_saved">%1$s में सहेजा गया</string>
     <string name="settings_debug_delete_logs_short">हटाएं</string>
     <string name="settings_debug_delete_all_logs_short">सभी हटाएं</string>
     <string name="settings_debug_open_logs_folder_short">लॉग मैनेजर खोलें</string>
