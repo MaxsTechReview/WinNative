@@ -7313,6 +7313,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
         String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
 
+        // The libvulkan_wrapper's BCn emulation patches the Adreno driver to advertise
+        // native BC support; that patch corrupts rendering on newer Adreno GPUs (Adreno
+        // 840 whole-frame vertical stripes). Mesa Turnip decodes BC itself, so on Adreno
+        // force "none" (no wrapper patch). Non-Adreno GPUs keep the configured value.
+        if (bcnEmulation == null || com.winlator.cmod.runtime.system.GPUInformation.isAdrenoGPU(this)) {
+            bcnEmulation = "none";
+        }
+
         switch (bcnEmulation) {
             case "auto" -> {
                 if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {

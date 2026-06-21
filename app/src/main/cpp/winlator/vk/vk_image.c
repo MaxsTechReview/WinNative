@@ -1178,11 +1178,8 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     ic.mipLevels = 1;
     ic.arrayLayers = 1;
     ic.samples = VK_SAMPLE_COUNT_1_BIT;
-    // A dedicated AHB import derives its real layout from the buffer's gralloc metadata,
-    // not from ic.tiling, so this value is a formality. Use OPTIMAL (the producer's
-    // sampled-image default); fall back to LINEAR only if the driver rejects it, so a
-    // stricter driver can never black-screen the import. (The actual stripe fix is
-    // making the compositor use the same driver as the producer — see XServerDisplayActivity.)
+    // Dedicated AHB imports derive layout from gralloc metadata; ic.tiling is a formality.
+    // Use OPTIMAL, falling back to LINEAR only if the driver rejects it (no black-screen).
     ic.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
