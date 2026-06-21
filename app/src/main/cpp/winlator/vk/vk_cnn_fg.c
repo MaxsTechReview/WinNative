@@ -723,6 +723,14 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
           cnn_gh_dispatch(r, cmd, P->gh_d8_pipe, P->gh_d8_pl, P->gh_d8_dsl, 0, in, 1, out, 1, w, h); }
         cnn_to_read(cmd, C->hD8[L].image, 1);
 
+        if (P->gh_d10_pipe) {
+            cnn_to_write(cmd, C->logits[L].image, 1);
+            { VkImageView in[3]={C->hD8[L].layerView[0], C->hD7[L].layerView[0], seedView};
+              VkImageView out[1]={C->logits[L].view};
+              cnn_gh_dispatch(r, cmd, P->gh_d10_pipe, P->gh_d10_pl, P->gh_d10_dsl, 0, in, 3, out, 1, w, h); }
+            cnn_to_read(cmd, C->logits[L].image, 1);
+        }
+
         VkImageView rdst = (L == 0) ? outFlow->view  : C->flowRef[L].view;
         VkImage     rimg = (L == 0) ? outFlow->image : C->flowRef[L].image;
         uint32_t    rw   = (L == 0) ? outFlow->width  : w;
@@ -750,27 +758,27 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-    vkr_image_barrier(cmd, C->flowRef[2].image,
+    vkr_image_barrier(cmd, r->fg_motion_fwd[parity].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-    vkr_image_barrier(cmd, C->flowRef[1].image,
+    vkr_image_barrier(cmd, C->logits[0].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
-    char mvs[16] = {0}; __system_property_get("debug.winnative.fgmvscale", mvs);
-    float mvScale = mvs[0] ? (float)atof(mvs) : 0.4f;
+    char m0s[16] = {0}; __system_property_get("debug.winnative.fgm0", m0s);
+    float m0 = m0s[0] ? (float)atof(m0s) : 0.25f;
 
     cnn_to_write(cmd, C->gen[slot].image, 1);
     {
         VkDescriptorSet ds = cnn_alloc(r, P->cnn_generate_dsl); if (!ds) return;
         VkDescriptorImageInfo s32 = {r->fg_sampler, prevView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s33 = {r->fg_sampler, currView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s34 = {r->fg_sampler, C->flowRef[2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s34 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s35 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s36 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkDescriptorImageInfo s36 = {r->fg_sampler, C->logits[0].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo oi  = {VK_NULL_HANDLE, C->gen[slot].view, VK_IMAGE_LAYOUT_GENERAL};
         VkWriteDescriptorSet w[6] = {
             cnn_wimg(ds, 32, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s32),
@@ -781,7 +789,7 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
             cnn_wimg(ds, 48, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &oi),
         };
         vkUpdateDescriptorSets(r->device, 6, w, 0, NULL);
-        CnnPC pc = {0}; pc.sx = (int32_t)gw; pc.sy = (int32_t)gh; pc.t = t; pc.mvScale = mvScale;
+        CnnPC pc = {0}; pc.sx = (int32_t)gw; pc.sy = (int32_t)gh; pc.t = t; pc.mvScale = m0;
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pipe);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pl, 0, 1, &ds, 0, NULL);
         vkCmdPushConstants(cmd, P->cnn_generate_pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, 32, &pc);

@@ -36,7 +36,6 @@ void main() {
     vec2 flB = texture(flowB, uvc).xy * m0;
     vec2 flF = texture(flowF, uvc).xy * m0;
 
-    // 4 candidates: prev forward + curr backward, for each flow scale.
     vec2 c0 = (numer + flB * a) / texSize;
     vec2 c1 = (numer - flB * b) / texSize;
     vec2 c2 = (numer + flF * a) / texSize;
@@ -49,14 +48,8 @@ void main() {
 
     if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(k2 - k3), 1.0)); return; }
 
-    // Per-candidate reliability = flow consistency at its landing point (picks the
-    // flow scale that is right for THIS pixel; coarse where fast, fine where slow).
-    vec2 e0 = texture(flowB, c0).xy * m0 - flB;
-    vec2 e1 = texture(flowB, c1).xy * m0 + flB;
-    vec2 e2 = texture(flowF, c2).xy * m0 - flF;
-    vec2 e3 = texture(flowF, c3).xy * m0 + flF;
-    const float SHARP = 0.5;
-    vec4 L = -SHARP * vec4(dot(e0,e0), dot(e1,e1), dot(e2,e2), dot(e3,e3));
+    vec4 L = vec4(texture(logits, c0).x, texture(logits, c1).y,
+                  texture(logits, c2).z, texture(logits, c3).w);
     float mx = max(max(L.x, L.y), max(L.z, L.w));
     vec4 e = exp(L - mx);
     float w0 = (1.0 - t) * e.x;

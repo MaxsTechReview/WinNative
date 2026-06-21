@@ -697,7 +697,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (renderer != null && renderer.isFrameGenerationEnabled()) {
                 int panelMax = RefreshRateUtils.getMaxSupportedRefreshRate(this);
                 renderer.setFrameGenDisplayCap(panelMax);
-                // Hold the panel's native max mode while FG is on rather than down-switching.
                 RefreshRateUtils.applyPreferredRefreshRate(this, panelMax, panelMax);
                 requestSurfaceFrameRate((float) panelMax);
                 lastLoggedRefreshHz = 0f;
@@ -3911,7 +3910,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void openDrawerMenu() {
         releasePointerCapture();
         if (xServerView != null && xServerView.getRenderer() != null)
-            xServerView.getRenderer().fgSetOverlayActive(true);   // overlay GPU contention isn't a game slowdown
+            xServerView.getRenderer().fgSetOverlayActive(true);
         renderDrawerMenu();
         if (drawerStateHolder != null) {
             drawerStateHolder.openDrawer();
@@ -3926,7 +3925,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             drawerStateHolder.closeDrawer();
         }
         if (xServerView != null && xServerView.getRenderer() != null)
-            xServerView.getRenderer().fgSetOverlayActive(false);  // clears overlay + re-anchors the FG clock fresh
+            xServerView.getRenderer().fgSetOverlayActive(false);
         tryCapturePointer();
     }
 
@@ -6644,14 +6643,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerSurfaceView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
-        // The compositor only needs the guest driver (Turnip) when native frame
-        // generation runs its optical-flow compute in the compositor process. For normal
-        // rendering use the System (Qualcomm) driver: it imports the game's presented AHB
-        // correctly on all GPUs, whereas the guest Turnip's dedicated-AHB import mis-reads
-        // the producer's tile layout on Adreno 840 -> vertical-stripe corruption. This is
-        // a regression from guest-matching the compositor for FG (a6acd95c); the same
-        // WN-Turnip rendered MHS fine on this device before that. FG-off games (the
-        // default) keep the pre-FG System path that always worked.
         boolean fgWantsCompositorDriver = fgPrefBool("native_frame_generation", false);
         String compositorGraphicsDriver = "System";
         if (fgWantsCompositorDriver) {
@@ -7313,10 +7304,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
         String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
 
-        // The libvulkan_wrapper's BCn emulation patches the Adreno driver to advertise
-        // native BC support; that patch corrupts rendering on newer Adreno GPUs (Adreno
-        // 840 whole-frame vertical stripes). Mesa Turnip decodes BC itself, so on Adreno
-        // force "none" (no wrapper patch). Non-Adreno GPUs keep the configured value.
         if (bcnEmulation == null || com.winlator.cmod.runtime.system.GPUInformation.isAdrenoGPU(this)) {
             bcnEmulation = "none";
         }

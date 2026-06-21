@@ -487,7 +487,6 @@ static bool create_device(VkRenderer* r) {
     }
     VK_LOGI("Frame generation fp16 support: ext=%d feature=%d", has_f16, r->fg_float16_supported);
 
-    // VK_NV_optical_flow: driver-accelerated motion estimation, the cheap flow path.
     r->fg_optical_flow = false;
     VkPhysicalDeviceOpticalFlowFeaturesNV of_feat = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPTICAL_FLOW_FEATURES_NV };
     if (has_optical_flow && has_sync2 && has_fmt_feat2 && enable_n + 3 <= 24) {
@@ -500,10 +499,6 @@ static bool create_device(VkRenderer* r) {
             vkGetInstanceProcAddr(r->instance, "vkGetPhysicalDeviceFeatures2KHR");
         if (fnFeat2) { fnFeat2(r->physical_device, &feats2); r->fg_optical_flow = (ofq.opticalFlow == VK_TRUE); }
     }
-    // Note: on Adreno 8xx (Turnip chip8) the OF compute impl exists but the extension is chip-gated off,
-    // so it never advertises. Enabling it anyway is rejected (VK_ERROR_EXTENSION_NOT_PRESENT) and calling
-    // the entry points without it enabled null-derefs — confirmed on-device. Only a driver patch that
-    // advertises the extension can unlock it here; the classical flow is used until then.
     if (r->fg_optical_flow) {
         enable[enable_n++] = VK_NV_OPTICAL_FLOW_EXTENSION_NAME;
         enable[enable_n++] = VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME;
@@ -553,17 +548,12 @@ static bool create_device(VkRenderer* r) {
         r->fnOFDestroy = (PFN_vkDestroyOpticalFlowSessionNV) vkGetDeviceProcAddr(r->device, "vkDestroyOpticalFlowSessionNV");
         r->fnOFBind    = (PFN_vkBindOpticalFlowSessionImageNV) vkGetDeviceProcAddr(r->device, "vkBindOpticalFlowSessionImageNV");
         r->fnOFExecute = (PFN_vkCmdOpticalFlowExecuteNV)     vkGetDeviceProcAddr(r->device, "vkCmdOpticalFlowExecuteNV");
-        // fnOFFormats is optional (the format enumerator is chip-gated off on Adreno 8xx); the session/
-        // bind/execute entry points are what we actually need.
         if (!r->fnOFCreate || !r->fnOFDestroy || !r->fnOFBind || !r->fnOFExecute) {
             VK_LOGW("optical flow entry points missing; disabling OF flow");
             r->fg_optical_flow = false;
         }
     }
 
-    // Optical-flow session probe: the extension was enabled at vkCreateDevice (advertised, or forced
-    // on Turnip), so the OF device state is initialized. Create a real session to confirm the chip8
-    // compute path actually works (vs the earlier null-deref when called without the extension enabled).
     if (r->fg_optical_flow && r->fnOFCreate && r->fnOFDestroy) {
         VkOpticalFlowSessionCreateInfoNV sci = { VK_STRUCTURE_TYPE_OPTICAL_FLOW_SESSION_CREATE_INFO_NV };
         sci.width = 960; sci.height = 540;
@@ -922,8 +912,6 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
-    // Window/cursor: push constants = float xform[6] + vec2 viewSize + vec4 uvRect
-    // + int swapRB = 52 bytes
     VkPushConstantRange pcr_window = {0};
     pcr_window.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pcr_window.offset = 0;
@@ -938,8 +926,6 @@ static bool create_pipeline_layouts(VkRenderer* r) {
         return false;
     }
 
-    // Effect: push constants = vec2 resolution + 4 floats (sat, contrast, sharp, mode) = 24 bytes.
-    // Other effect shaders only declare the first 16 bytes and ignore the rest.
     VkPushConstantRange pcr_effect = {0};
     pcr_effect.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     pcr_effect.offset = 0;
@@ -1145,7 +1131,6 @@ static bool create_pipelines(VkRenderer* r) {
     VkShaderModule fs_colorblind = load_shader_module(r, effect_colorblind_frag, effect_colorblind_frag_size);
     VkShaderModule fs_pixelate = load_shader_module(r, effect_pixelate_frag, effect_pixelate_frag_size);
     VkShaderModule fs_sgsr1 = load_shader_module(r, sgsr1_frag, sgsr1_frag_size);
-    // Frame generation: pick the fp16 or fp32 motion shader by device support.
     VkShaderModule cs_motion = r->fg_float16_supported
         ? load_shader_module(r, motion_comp, motion_comp_size)
         : load_shader_module(r, motion_fp32_comp, motion_fp32_comp_size);
@@ -1262,8 +1247,6 @@ static bool create_pipelines(VkRenderer* r) {
         r, vs_quad, fs_pixelate, r->pipelines.effect_layout, r->pipelines.offscreen_pass,
         false, false, NULL);
 
-    // Frame generation: compute motion estimation + fullscreen-triangle interpolation (no vertex
-    // input, no blend — opaque full-screen write) onto the swapchain.
     r->pipelines.fg_motion_pipeline = create_compute_pipeline(
         r, cs_motion, r->pipelines.fg_motion_pipe_layout);
     r->pipelines.fg_interp_pipeline = create_graphics_pipeline(
@@ -1448,7 +1431,6 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
         if (have_want) {
             present_mode = want;
         } else if (want == VK_PRESENT_MODE_MAILBOX_KHR && have_immediate) {
-            // MAILBOX is often unsupported on Adreno/Mali; IMMEDIATE is also non-blocking, which FG needs.
             present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
             VK_LOGW("MAILBOX unavailable; using IMMEDIATE for off-vsync present");
         } else {
@@ -1493,8 +1475,6 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
     r->surface_extent = surface_extent;
     r->swapchain_extent = extent;
     r->swapchain_transform = pre_transform;
-    // Only possible for unsupported mirrored transforms; avoid an Adreno present loop
-    // while still letting normal rotation changes recreate the swapchain.
     r->ignore_suboptimal = r->caps.is_adreno && (pre_transform != caps.currentTransform);
     VK_LOGI("Swapchain surface=%ux%u extent=%ux%u currentTransform=0x%x preTransform=0x%x mode=%d",
             surface_extent.width, surface_extent.height, extent.width, extent.height,
@@ -1502,7 +1482,7 @@ static bool create_swapchain(VkRenderer* r, uint32_t fallback_width, uint32_t fa
 
     uint32_t image_count = caps.minImageCount + 1;
     if (image_count < VK_FRAMES_IN_FLIGHT + 1u) image_count = VK_FRAMES_IN_FLIGHT + 1u;
-    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 5) image_count = 5;  // generate-ahead holds one extra image in flight
+    if (present_mode != VK_PRESENT_MODE_FIFO_KHR && image_count < 5) image_count = 5;
     if (caps.maxImageCount > 0 && image_count > caps.maxImageCount) image_count = caps.maxImageCount;
     if (image_count > VK_MAX_SWAPCHAIN_IMAGES) image_count = VK_MAX_SWAPCHAIN_IMAGES;
 
@@ -2352,8 +2332,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
     pthread_mutex_unlock(&r->queue_mutex);
     if (sr != VK_SUCCESS) {
         VK_LOGE("vkQueueSubmit -> %d", sr);
-        // The frame fence was reset before submit. If submit fails, nothing will ever signal
-        // it, so restore a signaled fence before returning or the next frame can block forever.
         vkDestroyFence(r->device, f->in_flight, NULL);
         VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -2399,8 +2377,6 @@ static bool record_and_submit_frame(VkRenderer* r) {
 // Frame generation resources + submit
 // ============================================================
 
-// Descriptor sets for the FG compute/interp layouts are allocated directly (not via the
-// texture free-list, which assumes sampler_set_layout). The pool is externally synchronized.
 static VkDescriptorSet fg_alloc_set(VkRenderer* r, VkDescriptorSetLayout layout) {
     VkDescriptorSetAllocateInfo ai = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     ai.descriptorPool = r->descriptor_pool;
@@ -2552,8 +2528,6 @@ static bool fg_create_motion(VkRenderer* r, VkFgImage* o, uint32_t w, uint32_t h
     return true;
 }
 
-// Coarse-to-fine motion: a plain low-res search (coarse, upscale=0) seeds a fine pass (upscale=2)
-// that warps prev by the upsampled coarse flow as it loads its tile and resolves only the residual.
 static void fg_motion_pass(VkRenderer* r, VkCommandBuffer cmd,
                            VkDescriptorSet coarseSet, VkFgImage* coarseImg,
                            VkDescriptorSet fineSet, VkFgImage* fineImg, float minStep) {
@@ -2633,12 +2607,8 @@ static void fg_destroy_sig(VkRenderer* r) {
     r->fg_stage_slot = -1;
 }
 
-// Record a downsample of history[slot] into fg_sig_buf[slot] (blit -> tiny image -> host buffer).
-// history[slot] is in SHADER_READ_ONLY_OPTIMAL on entry and is restored to it on exit.
 static void fg_record_sig(VkRenderer* r, VkCommandBuffer cmd, uint32_t slot) {
     if (!r->fg_sig_supported) return;
-    // history[slot] was just written by the offscreen composite (render-pass final layout
-    // SHADER_READ_ONLY_OPTIMAL); wait on those colour writes before the transfer read.
     vkr_image_barrier(cmd, r->fg_history[slot].image,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -2680,16 +2650,17 @@ static double fg_sig_delta(VkRenderer* r, uint32_t a, uint32_t b) {
         int dg = abs((int)pa[i*4+1] - (int)pb[i*4+1]);
         int db = abs((int)pa[i*4+2] - (int)pb[i*4+2]);
         int m = dr > dg ? dr : dg; if (db > m) m = db;
-        if (m > 2) changed++;        // noise floor: reject only the lightest dither/noise; subtle motion (3-4/ch) now counts as distinct so it isn't held
+        if (m > 2) changed++;
     }
-    return (double)changed;          // 0 == identical re-present; >0 == distinct content frame
+    return (double)changed;
 }
 
 // --- Debug burst dump -----------------------------------------------------------------------------
 #define FG_DUMP_W 636u
 #define FG_DUMP_H 1386u
-#define FG_DUMP_N 8u
-#define FG_DUMP_BUFS 10u   // FG_DUMP_N gen + prev + curr
+#define FG_DUMP_N 10u
+#define FG_DUMP_BUFS 10u
+static uint32_t s_fgseq_last_curr = 0xFFFFFFFFu;
 
 static bool fg_create_dump(VkRenderer* r) {
     r->fg_dump_supported = false;
@@ -2740,19 +2711,31 @@ static void fg_destroy_dump(VkRenderer* r) {
 }
 
 // Blit srcImg (full res, given layout) -> fg_dump_img (480x270) -> fg_dump_buf[bufIdx]. Restores srcImg.
-static void fg_record_dump(VkRenderer* r, VkCommandBuffer cmd, VkImage srcImg, VkImageLayout srcLayout, uint32_t bufIdx) {
+static void fg_record_dump(VkRenderer* r, VkCommandBuffer cmd, VkImage srcImg, VkImageLayout srcLayout, uint32_t srcW, uint32_t srcH, uint32_t bufIdx, int rawF16) {
     if (!r->fg_dump_supported || bufIdx >= FG_DUMP_BUFS) return;
     vkr_image_barrier(cmd, srcImg,
         srcLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    if (rawF16) {
+        uint32_t cw = srcW < 512u ? srcW : 512u, chh = srcH < 512u ? srcH : 512u;
+        VkBufferImageCopy rcp = {0};
+        rcp.imageSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        rcp.imageExtent = (VkExtent3D){cw, chh, 1};
+        vkCmdCopyImageToBuffer(cmd, srcImg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, r->fg_dump_buf[bufIdx], 1, &rcp);
+        vkr_image_barrier(cmd, srcImg,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcLayout,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
+        return;
+    }
     vkr_image_barrier(cmd, r->fg_dump_img,
         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
         0, VK_ACCESS_TRANSFER_WRITE_BIT);
     VkImageBlit blit = {0};
     blit.srcSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    blit.srcOffsets[1] = (VkOffset3D){(int32_t)r->fg_dims.width, (int32_t)r->fg_dims.height, 1};
+    blit.srcOffsets[1] = (VkOffset3D){(int32_t)srcW, (int32_t)srcH, 1};
     blit.dstSubresource = (VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
     blit.dstOffsets[1] = (VkOffset3D){(int32_t)FG_DUMP_W, (int32_t)FG_DUMP_H, 1};
     vkCmdBlitImage(cmd, srcImg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -2858,11 +2841,9 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         r->fg_interp_set_deep[p] = fg_alloc_set(r, r->pipelines.fg_interp_layout);
         if (!r->fg_motion_set[p] || !r->fg_motion_set_fwd[p] || !r->fg_coarse_set[p] || !r->fg_coarse_set_fwd[p] || !r->fg_interp_set[p] || !r->fg_interp_set_deep[p]) goto fail;
 
-        VkImageView prevV = r->fg_history[(p + 2u) % 3u].view;  // curr=history[p], prev=history[(p+2)%3]
+        VkImageView prevV = r->fg_history[(p + 2u) % 3u].view;
         VkImageView currV = r->fg_history[p].view;
 
-        // 4-binding motion set: b0 prev, b1 curr, b2 coarseFlow (sampler; dummy on the coarse pass),
-        // b3 output (storage). Coarse pass writes fg_coarse; fine pass reads fg_coarse and writes fg_motion.
         VkDescriptorImageInfo sPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo sCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         #define FG_MOTION_WRITE(SET, B0, B1, B2VIEW, B2LAYOUT, B3VIEW) do { \
@@ -2887,8 +2868,6 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         #undef FG_MOTION_WRITE
         (void)sPrev; (void)sCurr;
 
-        // interpolate.frag set: b0 prev, b1 curr, b2 mvBwd, b3 mvFwd — all sampled (SHADER_READ).
-        // Standard binds fg_motion as the (unread) b3 dummy; deep binds the real forward field.
         VkDescriptorImageInfo iPrev  = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo iCurr  = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo iMv    = { r->fg_sampler, r->fg_motion[p].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
@@ -2898,8 +2877,6 @@ static bool fg_create_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         iw_[0].pImageInfo = &iPrev; iw_[1].pImageInfo = &iCurr; iw_[2].pImageInfo = &iMv; iw_[3].pImageInfo = &iMv;
         vkUpdateDescriptorSets(r->device, 4, iw_, 0, NULL);
 
-        // Quality interp set: same newest pair as Standard, but bidirectional — b2 backward
-        // (fg_motion) + b3 forward (fg_motion_fwd), both computed in-path (lazy) each pair.
         VkDescriptorImageInfo dPrev = { r->fg_sampler, prevV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkDescriptorImageInfo dCurr = { r->fg_sampler, currV, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         VkWriteDescriptorSet dw_[4] = {0};
@@ -2940,15 +2917,11 @@ static bool fg_ensure_resources(VkRenderer* r) {
         return true;
     }
     wait_inflight_frames(r);
-    // The FG worker may have in-flight GPU work reading these resources (it submits outside the GL
-    // frame fences), so drain the whole queue before destroying them. Rare path (dims/flowScale change).
     if (r->fg_gen_started) { pthread_mutex_lock(&r->queue_mutex); vkQueueWaitIdle(r->graphics_queue); pthread_mutex_unlock(&r->queue_mutex); }
     fg_destroy_resources(r);
     return fg_create_resources(r, r->swapchain_extent.width, r->swapchain_extent.height);
 }
 
-// Restore a frame fence to the signaled state after a submit failure (so the next frame that
-// reuses this index does not block forever on an unsignaled fence).
 static void fg_restore_fence(VkRenderer* r, VkFrame* f) {
     for (uint32_t i = 0; i < 3; i++) if (r->fg_slot_fence[i] == f->in_flight) r->fg_slot_fence[i] = VK_NULL_HANDLE;
     vkDestroyFence(r->device, f->in_flight, NULL);
@@ -2966,12 +2939,8 @@ static uint64_t g_fg_interp = 0;
 static uint64_t g_fg_plast = 0;
 static uint64_t g_fg_dropped = 0;
 
-// desiredPresentTime (CLOCK_MONOTONIC ns) for the next FG present; 0 = no constraint (real frame never delayed).
-#define FG_PRESENT_LEAD_NS 150000ull  // wake this much before the deadline so the present latches this vblank
+#define FG_PRESENT_LEAD_NS 150000ull
 
-// Present instant for one output frame: a frame at content-phase `phase` of the [prev,curr] interval is shown
-// at curr_arrival + phase*(curr-prev), anchoring the cadence to the source clock. Falls back to an evenly
-// spaced period grid before the arrivals are known. Not snapped to the panel vsync.
 static uint64_t fg_compute_deadline(VkRenderer* r, float phase) {
     uint64_t now = now_monotonic_ns();
     uint64_t ca = r->fg_curr_arrival_ns, pa = r->fg_prev_arrival_ns;
@@ -3025,8 +2994,6 @@ static void fg_collect_present_timing(VkRenderer* r) {
     }
 }
 
-// FG submit. HOLD renders the scene into the history ring (no present); INTERP synthesizes and
-// presents an in-between frame; PRESENT_LAST presents the held real frame.
 static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     if (!r->surface_ready || !r->swapchain) return false;
     pthread_mutex_lock(&r->render_mutex);
@@ -3041,7 +3008,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     VkFrame* f = &r->frames[r->frame_index];
     uint64_t fw0 = now_monotonic_ns();
     vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
-    { double fw = (double)(now_monotonic_ns() - fw0) / 1.0e6;   // GL-thread block on the FIF=2 in_flight fence
+    { double fw = (double)(now_monotonic_ns() - fw0) / 1.0e6;
       r->fg_fw_sum_ms += fw; if (fw > r->fg_fw_max_ms) r->fg_fw_max_ms = fw; r->fg_fw_n++; }
 
     if (!fg_ensure_resources(r)) { pthread_mutex_unlock(&r->render_mutex); return false; }
@@ -3086,8 +3053,7 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             r->fg_stage_slot = -1;
         }
 
-        // --- Step 2: composite the incoming frame into a staging slot (neither curr nor prev). -------
-        // When dedup is unavailable, fall back to the original behavior (advance every HOLD).
+        // Step 2: composite the incoming frame into a staging slot (neither curr nor prev).
         uint32_t stage = (r->fg_history_curr + 1u) % 3u;
         VkFgImage* hist = &r->fg_history[stage];
         r->fg_cnn.featValid[stage] = false;
@@ -3131,13 +3097,9 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     }
 
     // -------- INTERP / PRESENT_LAST: acquire swapchain image, present --------
-    // Quality (deep flag) interpolates the same newest pair as Standard, adding a forward flow
-    // for a bidirectional warp; the flow cost is amortized across the pair's interps.
     bool deep = r->fg_deep_mode && (r->fg_history_count >= 2u);
     bool do_interp = (mode == FG_MODE_INTERP) && (r->fg_history_count >= 2u);
 
-    // Interps are optional: under a non-blocking mode acquire without waiting, so a panel that can't run
-    // ahead skips the synthetic frame instead of stalling. PRESENT_LAST always blocks (never dropped).
     uint64_t acq_timeout = (do_interp && r->active_present_mode != VK_PRESENT_MODE_FIFO_KHR)
         ? 0u : UINT64_MAX;
     uint32_t image_index = 0;
@@ -3169,8 +3131,6 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
     vkResetFences(r->device, 1, &f->in_flight);
 
     uint32_t parity = r->fg_history_curr;
-    // Both modes show the newest pair (history[(parity+2)%3] -> history[parity]); curr is the frame
-    // PRESENT_LAST blits. Quality differs only by adding the forward flow + bidirectional warp below.
     uint32_t curr_idx = parity;
     uint32_t prev_idx = (parity + 2u) % 3u;
     VkFgImage* curr = &r->fg_history[curr_idx];
@@ -3257,8 +3217,6 @@ static bool fg_submit(VkRenderer* r, FgMode mode, float phase) {
             r->pipelines.fg_interp_pipe_layout, 0, 1,
             use_fwd ? &r->fg_interp_set_deep[parity] : &r->fg_interp_set[parity], 0, NULL);
         struct { float resW, resH, phase, occLo, occHi, mode; } ipc;
-        // interp norm = 2/resolution must equal 1/flow_field_res so warp magnitude is correct at any
-        // flowScale (reduces to swapchain res at the 0.5 default). Pass 2*field_res.
         ipc.resW = 2.0f * (float)r->fg_motion[parity].width;
         ipc.resH = 2.0f * (float)r->fg_motion[parity].height;
         ipc.phase = phase; ipc.occLo = r->fg_occ_lo; ipc.occHi = r->fg_occ_hi;
@@ -3366,8 +3324,6 @@ static void fg_sleep_to(VkRenderer* r, uint64_t deadline) {
     while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR) {}
 }
 
-// Swapchain recreate from the worker (only the worker touches the swapchain while FG is on). Takes
-// render_mutex because it tears down fg_history, which the GL HOLD writes.
 static void fg_worker_recreate(VkRenderer* r) {
     pthread_mutex_lock(&r->render_mutex);
     r->surface_ready = false;
@@ -3379,21 +3335,17 @@ static void fg_worker_recreate(VkRenderer* r) {
     pthread_mutex_unlock(&r->render_mutex);
 }
 
-// Carried between generate and present so the next frame's GPU work overlaps the current frame's deadline
-// wait: each output frame then has ~2 present intervals of GPU budget instead of one.
 typedef struct FgPending {
     bool           valid;
-    bool           need_recreate;      // acquire returned OUT_OF_DATE
+    bool           need_recreate;
     uint32_t       image_index;
     VkSemaphore    render_finished;
     VkSwapchainKHR swapchain;
     uint64_t       deadline_ns;
-    bool           recreate_after;     // acquire SUBOPTIMAL
+    bool           recreate_after;
     bool           do_interp;
 } FgPending;
 
-// Generate ONE queued job: acquire, record flow+generate (or present_last blit), submit. The caller paces and
-// presents the returned handle one frame later, so this job's GPU runs during that wait.
 static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     FgPending p = {0};
     if (!r->surface_ready || !r->swapchain || r->swapchain_image_count == 0
@@ -3459,8 +3411,6 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
     if (f->in_flight) vkWaitForFences(r->device, 1, &f->in_flight, VK_TRUE, UINT64_MAX);
 
     bool want_interp = (job->mode == FG_MODE_INTERP);
-    // Bounded (not UINT64_MAX) so the worker re-checks fg_gen_running ~10x/s and the stop-join never hangs
-    // on a surface that stopped releasing images. Interp in a non-blocking mode drops immediately.
     uint64_t acq_timeout = (want_interp && r->active_present_mode != VK_PRESENT_MODE_FIFO_KHR) ? 0u : 100000000ull;
     uint32_t image_index = 0;
     VkResult acq = vkAcquireNextImageKHR(r->device, r->swapchain, acq_timeout,
@@ -3476,8 +3426,6 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
 
     pthread_mutex_lock(&r->render_mutex);
     if (!r->fg_built) { pthread_mutex_unlock(&r->render_mutex); g_fg_dropped++; return p; }
-    // A job whose pair was reused by 2+ newer promotes falls back to present_last of the LIVE newest
-    // frame (never drop the acquired image — that would strand its semaphore).
     bool stale = (uint32_t)(r->fg_promote_seq - job->seq) >= 2u;
     bool do_interp = want_interp && !stale && r->fg_history_count >= 2u;
     uint32_t curr_idx = do_interp ? job->curr_idx : r->fg_history_curr;
@@ -3544,13 +3492,18 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         r->fg_dump_last_phase = job->phase;
         if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N
             && !(r->fg_dump_count == 0 && job->phase > fg_dump_prevph + 0.01f)) {
-            fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dump_count);
-            VK_LOGI("fgdump[%u] phase=%.3f prev=%u curr=%u seq=%u gen=%ux%u", r->fg_dump_count, job->phase, prev_idx, curr_idx, job->seq, r->fg_cnn.gen[genslot].w, r->fg_cnn.gen[genslot].h);
-            if (r->fg_dump_count == 0) {   // capture the pair's real frames once, into slots 8 and 9
-                fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 8);
-                fg_record_dump(r, f->cmd, curr->image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 9);
+            if (r->fg_dump_count == 0) s_fgseq_last_curr = 0xFFFFFFFFu;
+            if (curr_idx != s_fgseq_last_curr && r->fg_dump_count < FG_DUMP_N) {
+                fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, 0);
+                VK_LOGI("fgseq[%u] REAL (prev=%u curr=%u)", r->fg_dump_count, prev_idx, curr_idx);
+                r->fg_dump_count++;
+                s_fgseq_last_curr = curr_idx;
             }
-            r->fg_dump_count++;
+            if (r->fg_dump_count < FG_DUMP_N) {
+                fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, 0);
+                VK_LOGI("fgseq[%u] GENERATED (phase=%.3f prev=%u curr=%u)", r->fg_dump_count, job->phase, prev_idx, curr_idx);
+                r->fg_dump_count++;
+            }
         }
     }
 
@@ -3722,8 +3675,6 @@ static void* fg_gen_loop(void* arg) {
     setpriority(PRIO_PROCESS, 0, -8);
     FgPending pending = {0};
     while (r->fg_gen_running) {
-        // Wait for the next job. While a frame is pending, cap the wait (~2 vsync) so a content stall can
-        // still flush the pending frame instead of holding it.
         bool got_job;
         if (pending.valid) {
             uint64_t wait_ns = (r->fg_display_period_ns ? r->fg_display_period_ns : 16666667ull) * 2u;
@@ -3785,13 +3736,13 @@ static void fg_worker_start(VkRenderer* r) {
 
 static void fg_worker_stop(VkRenderer* r) {
     if (!r->fg_gen_started) return;
-    pthread_mutex_lock(&r->render_mutex);   // serialize with fg_enqueue: once this is false (under the
-    r->fg_gen_started = false;              // lock) no future fg_enqueue will sem_post, and any in-flight
-    r->fg_gen_running = 0;                  // one already finished its sem_post before we got the lock.
+    pthread_mutex_lock(&r->render_mutex);   // serialize with fg_enqueue
+    r->fg_gen_started = false;
+    r->fg_gen_running = 0;
     pthread_mutex_unlock(&r->render_mutex);
-    sem_post(&r->fg_gen_sem);               // wake the worker (semaphore still valid here)
+    sem_post(&r->fg_gen_sem);
     pthread_join(r->fg_gen_thread, NULL);
-    sem_destroy(&r->fg_gen_sem);            // safe: no producer can sem_post this anymore
+    sem_destroy(&r->fg_gen_sem);
     pthread_mutex_lock(&r->queue_mutex); vkQueueWaitIdle(r->graphics_queue); pthread_mutex_unlock(&r->queue_mutex);
     fg_worker_destroy_resources(r);
     VK_LOGI("fg-gen worker stopped");
@@ -3803,8 +3754,6 @@ static void fg_worker_stop(VkRenderer* r) {
 
 #define JNI_FN(name) Java_com_winlator_cmod_runtime_display_renderer_VulkanRenderer_##name
 
-// Native FG pump: a pthread running its own ALooper + AChoreographer; each vsync it calls
-// back into VulkanRenderer.fgPumpTickFromNative(frameTimeNanos).
 static JavaVM*         g_pump_jvm = NULL;
 static jobject         g_pump_renderer = NULL;
 static jmethodID       g_pump_tick = NULL;
@@ -3827,15 +3776,15 @@ static void fg_pump_frame(long frameTimeNanos, void* data) {
 
 static void* fg_pump_loop(void* arg) {
     (void)arg;
-    prctl(PR_SET_NAME, "fg-pump", 0, 0, 0);   // visible in /proc/<pid>/task/*/comm for verification
-    setpriority(PRIO_PROCESS, 0, -8);         // urgent-display: fire the vsync callback without scheduling lag
+    prctl(PR_SET_NAME, "fg-pump", 0, 0, 0);
+    setpriority(PRIO_PROCESS, 0, -8);
     JNIEnv* env = NULL;
     (*g_pump_jvm)->AttachCurrentThread(g_pump_jvm, &env, NULL);
     ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
     g_pump_chor = AChoreographer_getInstance();
     if (g_pump_chor) AChoreographer_postFrameCallback(g_pump_chor, fg_pump_frame, NULL);
     else VK_LOGE("AChoreographer_getInstance returned NULL");
-    while (g_pump_running) ALooper_pollOnce(100, NULL, NULL, NULL);  // vsync wakes it; 100ms re-checks running
+    while (g_pump_running) ALooper_pollOnce(100, NULL, NULL, NULL);
     g_pump_chor = NULL;
     (*g_pump_jvm)->DetachCurrentThread(g_pump_jvm);
     return NULL;
@@ -3878,7 +3827,7 @@ JNIEXPORT jlong JNICALL JNI_FN(nativeCreate)(JNIEnv* env, jclass clazz,
     r->fg_occ_lo = 0.06f;
     r->fg_occ_hi = 0.25f;
     r->fg_min_step = 1;
-    r->fg_flow_scale = 0.5f;   // default = legacy half-res flow; presets override (Eco 0.2 .. Max 0.8)
+    r->fg_flow_scale = 0.5f;
     r->fg_use_cnn = cnn_wanted();
     r->fg_cnn_gen = true;
     r->validation_enabled = (enableValidationLayers == JNI_TRUE);
@@ -4017,8 +3966,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeDestroy)(JNIEnv* env, jclass clazz, jlong ha
     destroy_debug_messenger(r);
     if (r->instance)vkDestroyInstance(r->instance, NULL);
 
-    // Clear dispatch BEFORE dlclose so a stray call from another thread faults on NULL
-    // rather than jumping into freed library memory.
+    // Clear dispatch BEFORE dlclose so a stray call faults on NULL, not freed memory.
     vkd_unload();
     if (r->vulkan_handle) { dlclose(r->vulkan_handle); r->vulkan_handle = NULL; }
 
@@ -4157,8 +4105,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGeneration)(JNIEnv* env, jclass claz
     VK_LOGI("Frame generation %s (fp16=%d)", now ? "ENABLED" : "disabled", r->fg_float16_supported);
 }
 
-// Present mode actually in use (Java convention: 0 FIFO, 1 MAILBOX, 2 IMMEDIATE). FG uses this to
-// know whether presents are non-blocking — only then may it post above the panel's idle refresh.
+// Present mode actually in use (Java convention: 0 FIFO, 1 MAILBOX, 2 IMMEDIATE).
 JNIEXPORT jint JNICALL JNI_FN(nativeGetActivePresentMode)(JNIEnv* env, jclass clazz, jlong handle) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -4173,13 +4120,10 @@ JNIEXPORT jint JNICALL JNI_FN(nativeGetActivePresentMode)(JNIEnv* env, jclass cl
 JNIEXPORT jboolean JNICALL JNI_FN(nativeFrameGenerationSupported)(JNIEnv* env, jclass clazz, jlong handle) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
-    // Compute + rgba16f storage are universal on Vulkan 1.1 Android GPUs, and the fp32 motion
-    // shader covers devices without shaderFloat16, so FG is effectively always available.
     return (r != NULL) ? JNI_TRUE : JNI_FALSE;
 }
 
-// Monotonic count of actual vkQueuePresentKHR calls (real + interpolated). The HUD derives
-// Display FPS from deltas of this; Engine FPS stays on the X11-Present path in Java.
+// Monotonic count of actual vkQueuePresentKHR calls (real + interpolated).
 JNIEXPORT jlong JNICALL JNI_FN(nativeGetDisplayFrameCount)(JNIEnv* env, jclass clazz, jlong handle) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -4197,8 +4141,7 @@ JNIEXPORT jboolean JNICALL JNI_FN(nativeRenderHold)(JNIEnv* env, jclass clazz, j
     return fg_submit(r, FG_MODE_HOLD, 0.5f) ? JNI_TRUE : JNI_FALSE;
 }
 
-// Content-dedup telemetry for the Java scheduler: out[0]=promote count, out[1]=last promote time (ns),
-// out[2]=duplicates dropped, out[3]=distinct total.
+// out[0]=promote count, out[1]=last promote time (ns), out[2]=duplicates dropped, out[3]=distinct total.
 JNIEXPORT void JNICALL JNI_FN(nativeFgPromoteInfo)(JNIEnv* env, jclass clazz, jlong handle, jlongArray out) {
     (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -4248,8 +4191,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenParams)(JNIEnv* env, jclass clazz
     VK_LOGI("FG params set: model(occLo)=%.2f minStep(quality)=%d", lo, r->fg_min_step);
 }
 
-// Preset flow-resolution dial [0.2,1.0]. Sets the desired scale; the render thread rebuilds the
-// motion fields (fg_ensure_resources) when it differs from the built value. NOT a per-frame call.
+// Preset flow-resolution dial [0.2,1.0]; the render thread rebuilds the motion fields when it changes.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenFlowScale)(JNIEnv* env, jclass clazz, jlong handle, jfloat flowScale) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -4288,8 +4230,7 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenUseCnn)(JNIEnv* env, jclass clazz
     pthread_mutex_unlock(&r->render_mutex);
 }
 
-// Generation method: false = interpolation, true = extrapolation. Re-primes the cadence so the
-// new method starts from a clean pair.
+// Generation method: false = interpolation, true = extrapolation.
 JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenExtrapolate)(JNIEnv* env, jclass clazz, jlong handle, jboolean extrapolate) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
@@ -4459,8 +4400,6 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetScene)(JNIEnv* env, jclass clazz, jlong h
     }
 
     pthread_mutex_unlock(&r->scene_mutex);
-    // Offscreen rebuild is handled in record_and_submit_frame under render_mutex; nothing
-    // here needs to touch swapchain-tied resources.
 }
 
 // No-op, kept for Java-side ABI compatibility (FPS pacing is enforced elsewhere).
@@ -4498,12 +4437,9 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
     if (r->target_present_mode == vk_mode) return;
     r->target_present_mode = vk_mode;
 
-    // Rebuild swapchain only if one currently exists; otherwise the next create_swapchain
-    // (e.g. on first surface attach) will pick up the new mode automatically.
     if (!r->surface) return;
-    // The FG worker owns the swapchain, so stop it before tearing it down and restart it after.
     bool restart_worker = r->fg_gen_started;
-    fg_worker_stop(r);   // no-op if not running; takes render_mutex internally + joins the worker
+    fg_worker_stop(r);
     lifecycle_begin(r);
     if (r->device) vkDeviceWaitIdle(r->device);
     uint32_t fw = r->surface_extent.width;
@@ -4569,8 +4505,6 @@ JNIEXPORT jboolean JNICALL TEX_FN(nativeUpdate)(JNIEnv* env, jclass clazz, jlong
         ? JNI_TRUE : JNI_FALSE;
 }
 
-// Grow-only scratch for parsed batch entries. Render-thread-only, so unlocked; every element
-// is fully populated before use, so no zeroing. (Mirrors get_prepared_scratch in vk_image.c.)
 static VkTextureBatchUpload* get_entry_scratch(VkRenderer* r, uint32_t count) {
     if (r->batch_entry_cap < count) {
         uint32_t new_cap = r->batch_entry_cap ? r->batch_entry_cap : 64;

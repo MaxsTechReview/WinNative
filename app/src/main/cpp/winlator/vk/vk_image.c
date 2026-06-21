@@ -1,16 +1,4 @@
 // VkTexture allocation, upload, AHB import.
-//
-// Two creation paths:
-//   1. CPU-uploaded: caller hands us BGRA pixel data; we allocate VkImage in DEVICE_LOCAL memory,
-//      stage the upload through a host-visible buffer, and transition to SHADER_READ_OPTIMAL.
-//   2. AHardwareBuffer import: caller hands us an AHB; we allocate dedicated memory backed by the
-//      AHB (no copy) and bind it to a VkImage. For non-RGB formats (DRI3 vendor formats), we use
-//      a Ycbcr conversion so the sampler can read them.
-//
-// Texture lifetimes:
-//   - Created/updated synchronously on caller's thread (Java/render).
-//   - Submits go through vkQueueSubmit which is serialized via VkRenderer::queue_mutex.
-//   - Destruction is deferred via the graveyard so in-flight frames don't see freed handles.
 
 #include "vk_state.h"
 #include <stdlib.h>
@@ -51,15 +39,6 @@ void vkr_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageLayout from, V
 // ============================================================
 // Staging pool — async upload infrastructure
 // ============================================================
-//
-// Each slot owns a VkBuffer, persistently-mapped HOST_VISIBLE memory, a VkCommandPool with
-// one VkCommandBuffer, and a VkFence. Round-robin acquisition under a tiny mutex; per-slot
-// mutex provides exclusive ownership for the lifetime of an upload (acquire→submit→release).
-//
-// On a single graphics queue, the upload's terminal pipeline barrier (TRANSFER_WRITE →
-// SHADER_READ, dstStage=FRAGMENT_SHADER) extends into all subsequent submits per Vulkan
-// spec — so the renderer needs no extra synchronization to safely sample a freshly-updated
-// texture as long as the upload was submitted before the render.
 
 bool vkr_staging_pool_init(VkRenderer* r) {
     if (r->staging_pool.initialized) return true;
@@ -74,7 +53,7 @@ bool vkr_staging_pool_init(VkRenderer* r) {
     for (uint32_t i = 0; i < VK_STAGING_POOL_SIZE; i++) {
         VkStagingSlot* s = &r->staging_pool.slots[i];
         pthread_mutex_init(&s->mutex, NULL);
-        r->staging_pool.valid_slots = i + 1;  // mutex is now valid; destroy must clean it up
+        r->staging_pool.valid_slots = i + 1;
 
         VkCommandPoolCreateInfo cpci = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         cpci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -97,15 +76,13 @@ bool vkr_staging_pool_init(VkRenderer* r) {
             VK_LOGE("staging pool: vkCreateFence slot %u failed", i);
             return false;
         }
-        // buffer/memory allocated lazily on first use, sized to the actual upload.
+        // buffer/memory allocated lazily on first use
     }
     r->staging_pool.initialized = true;
     return true;
 }
 
 void vkr_staging_pool_destroy(VkRenderer* r) {
-    // Tolerates partially-initialized pools — only iterate the slots whose mutexes were
-    // successfully initialized.
     for (uint32_t i = 0; i < r->staging_pool.valid_slots; i++) {
         VkStagingSlot* s = &r->staging_pool.slots[i];
         if (s->fence) {
@@ -128,14 +105,11 @@ void vkr_staging_pool_destroy(VkRenderer* r) {
 
 // Re-allocate a slot's staging buffer to at least `needed` bytes. Caller must own the slot.
 static bool grow_staging_slot(VkRenderer* r, VkStagingSlot* s, VkDeviceSize needed) {
-    // Round up to 64 KiB so consecutive size bumps don't trigger reallocs.
     VkDeviceSize new_size = (needed + 65535ull) & ~(VkDeviceSize)65535ull;
 
     if (s->mapped && s->memory) { vkUnmapMemory(r->device, s->memory); s->mapped = NULL; }
     if (s->buffer) { vkDestroyBuffer(r->device, s->buffer, NULL); s->buffer = VK_NULL_HANDLE; }
     if (s->memory) { vkFreeMemory(r->device, s->memory, NULL); s->memory = VK_NULL_HANDLE; }
-    // Reset size now so a later allocation failure leaves the slot in a state where the next
-    // acquire will retry grow_staging_slot rather than skip it and hand back a NULL buffer.
     s->size = 0;
 
     VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -149,12 +123,6 @@ static bool grow_staging_slot(VkRenderer* r, VkStagingSlot* s, VkDeviceSize need
 
     VkMemoryAllocateInfo ai = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     ai.allocationSize = mr.size;
-    // Require HOST_VISIBLE | HOST_COHERENT (typically write-combined on Adreno). Skipping
-    // HOST_CACHED avoids polluting CPU caches with write-once-then-GPU-read staging, which
-    // hurts throughput by 5-20% on Adreno. We do not fall back to non-coherent memory:
-    // vkr_texture_update submits without vkFlushMappedMemoryRanges, so non-coherent staging
-    // would render undefined data. Vulkan spec §11.6 mandates that every device expose at
-    // least one HOST_VISIBLE | HOST_COHERENT memory type, so this lookup cannot legally fail.
     ai.memoryTypeIndex = vkr_find_memory_type(r, mr.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (ai.memoryTypeIndex == UINT32_MAX) {
@@ -184,15 +152,9 @@ VkStagingSlot* vkr_staging_pool_acquire(VkRenderer* r, VkDeviceSize needed) {
 
     VkStagingSlot* s = &r->staging_pool.slots[idx];
 
-    // Per-slot lock guards the slot's resources (buffer/cmd/fence) until release. Round-robin
-    // means contention only happens once VK_STAGING_POOL_SIZE acquires have wrapped — i.e.
-    // when the producer is consistently faster than the GPU can drain uploads.
     pthread_mutex_lock(&s->mutex);
 
-    // Wait for the slot's previous submission to retire. With pool_size=8 this almost never
-    // blocks because the fence signaled long ago. The fence is left signaled here on purpose
-    // — it gets reset right before vkQueueSubmit, so any no-submit failure path between here
-    // and submit leaves the fence safely signaled and the slot reusable.
+    // Wait for the slot's previous submission to retire.
     vkWaitForFences(r->device, 1, &s->fence, VK_TRUE, UINT64_MAX);
     vkResetCommandPool(r->device, s->cmd_pool, 0);
 
@@ -247,7 +209,6 @@ void vkr_run_one_shot_cmd(VkRenderer* r, void (*fn)(VkCommandBuffer, void*), voi
 VkDescriptorSet vkr_alloc_descriptor_set(VkRenderer* r);
 void            vkr_free_descriptor_set(VkRenderer* r, VkDescriptorSet set);
 
-// Image sub-allocator — implemented lower in this file.
 static bool vkr_suballoc_image(VkRenderer* r, VkImage image, VkSuballoc* out);
 static void vkr_suballoc_free(VkRenderer* r, VkSuballoc* a);
 
@@ -293,8 +254,7 @@ bool vkr_submit_async_transition(VkRenderer* r, VkImage image,
                                  VkImageLayout from, VkImageLayout to,
                                  VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
                                  VkAccessFlags src_access, VkAccessFlags dst_access) {
-    // Reuse the staging pool's per-slot command pool/buffer/fence for this transition. We
-    // pass needed=0 so the slot's staging buffer isn't grown (we only use the cmd buffer).
+    // needed=0 reuses the slot's cmd buffer without growing its staging buffer.
     VkStagingSlot* slot = vkr_staging_pool_acquire(r, 0);
     if (!slot) {
         VK_LOGE("vkr_submit_async_transition: staging slot acquire failed");
@@ -324,8 +284,7 @@ bool vkr_submit_async_transition(VkRenderer* r, VkImage image,
     pthread_mutex_unlock(&r->queue_mutex);
     if (sr != VK_SUCCESS) {
         VK_LOGE("vkr_submit_async_transition: vkQueueSubmit -> %d", sr);
-        // Restore a signaled fence so the slot is reusable. (Same recovery path as
-        // vkr_texture_update.)
+        // Restore a signaled fence so the slot is reusable.
         vkDestroyFence(r->device, slot->fence, NULL);
         VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -436,10 +395,6 @@ static VkTexture* pop_live_texture(VkRenderer* r) {
 // ----------------------------------------------------------------------
 // Image sub-allocator
 // ----------------------------------------------------------------------
-//
-// First-fit over a list of large DEVICE_LOCAL blocks, all under image_suballoc.mutex (alloc on
-// producer threads, free on the render thread). Region nodes are malloc'd only on new-block
-// creation or a non-coalescing free, so steady-state pixmap churn doesn't touch the C heap.
 
 void vkr_suballoc_init(VkRenderer* r) {
     VkImageSuballocator* sa = &r->image_suballoc;
@@ -453,9 +408,7 @@ static VkDeviceSize suballoc_align_up(VkDeviceSize v, VkDeviceSize a) {
     return (v + a - 1) & ~(a - 1);
 }
 
-// Carve [reg->offset .. bind+size) out of free region `reg` (`prev` = its free-list
-// predecessor, or NULL). The leading alignment pad folds into the span so free recovers it
-// verbatim. Caller verified the region fits.
+// Carve [reg->offset .. bind+size) out of free region `reg`. Caller verified the region fits.
 static void suballoc_carve(VkMemBlock* block, VkMemRegion* prev, VkMemRegion* reg,
                            VkDeviceSize bind, VkDeviceSize size, VkSuballoc* out) {
     VkDeviceSize span_offset = reg->offset;
@@ -463,10 +416,10 @@ static void suballoc_carve(VkMemBlock* block, VkMemRegion* prev, VkMemRegion* re
     VkDeviceSize reg_end     = reg->offset + reg->size;
 
     if (span_end < reg_end) {
-        reg->offset = span_end;          // shrink region to the trailing remainder
+        reg->offset = span_end;          // shrink to the trailing remainder
         reg->size   = reg_end - span_end;
     } else {
-        if (prev) prev->next = reg->next; // region fully consumed — unlink + free
+        if (prev) prev->next = reg->next; // region fully consumed
         else      block->free_list = reg->next;
         free(reg);
     }
@@ -478,9 +431,8 @@ static void suballoc_carve(VkMemBlock* block, VkMemRegion* prev, VkMemRegion* re
     out->span_size   = span_end - span_offset;
 }
 
-// Reserve a span sized/aligned for `image` into `out`. Does NOT bind — caller issues the one
-// vkBindImageMemory so a bind failure never forces an illegal rebind. False (nothing reserved)
-// if no DEVICE_LOCAL type fits or a new block can't be allocated.
+// Reserve a span sized/aligned for `image` into `out`. Does NOT bind — caller binds.
+// False if no DEVICE_LOCAL type fits or a new block can't be allocated.
 static bool vkr_suballoc_image(VkRenderer* r, VkImage image, VkSuballoc* out) {
     VkMemoryRequirements mr;
     vkGetImageMemoryRequirements(r->device, image, &mr);
@@ -583,14 +535,13 @@ static void vkr_suballoc_free(VkRenderer* r, VkSuballoc* a) {
             if (prev) prev->next = node;
             else      b->free_list = node;
         } else {
-            // Node alloc failed (near-impossible): leak the span; the block is reclaimed at
-            // teardown anyway.
+            // Node alloc failed: leak the span; the block is reclaimed at teardown.
             VK_LOGE("suballoc free: region node alloc failed; leaking %llu bytes",
                     (unsigned long long)sz);
         }
     }
 
-    // Return a fully-drained block so churn doesn't pin memory forever.
+    // Return a fully-drained block to the device.
     if (b->free_list && b->free_list->next == NULL
         && b->free_list->offset == 0 && b->free_list->size == b->size) {
         VkMemBlock* pb = NULL;
@@ -700,7 +651,7 @@ static bool create_image_basic(VkRenderer* r, uint32_t w, uint32_t h, VkFormat f
 
     if (vkCreateImage(r->device, &ic, NULL, &t->image) != VK_SUCCESS) return false;
 
-    // Preferred path: pooled span (no per-texture vkAllocateMemory). Bind once here.
+    // Preferred path: pooled span.
     VkSuballoc sub = {0};
     if (vkr_suballoc_image(r, t->image, &sub)) {
         if (vkBindImageMemory(r->device, t->image, sub.memory, sub.bind_offset) == VK_SUCCESS) {
@@ -708,15 +659,13 @@ static bool create_image_basic(VkRenderer* r, uint32_t w, uint32_t h, VkFormat f
             t->suballocated = true;
             return true;
         }
-        // Bind attempted -> image can't be rebound via the dedicated path; fail (OOM-grade,
-        // effectively never happens).
         vkr_suballoc_free(r, &sub);
         vkDestroyImage(r->device, t->image, NULL);
         t->image = VK_NULL_HANDLE;
         return false;
     }
 
-    // Fallback: dedicated allocation (pool OOM / no DEVICE_LOCAL type). No bind attempted yet.
+    // Fallback: dedicated allocation.
     VkMemoryRequirements mr;
     vkGetImageMemoryRequirements(r->device, t->image, &mr);
 
@@ -770,8 +719,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
         return NULL;
     }
 
-    // CPU-uploaded textures all want the same sampler config, so use the renderer's shared
-    // sampler. tex->sampler stays VK_NULL_HANDLE; destroy_texture_resources skips it.
+    // Use the renderer's shared sampler; tex->sampler stays VK_NULL_HANDLE.
     if (r->shared_sampler == VK_NULL_HANDLE) {
         VK_LOGE("vkr_texture_create_uploaded: shared_sampler not initialized");
         destroy_texture_resources(r, t);
@@ -789,9 +737,7 @@ VkTexture* vkr_texture_create_uploaded(VkRenderer* r, uint32_t width, uint32_t h
         vkr_texture_update(r, t, width, height, data, data_size, stride_pixels,
                            0, 0, width, height);
     } else {
-        // No initial data — async transition to SHADER_READ so the texture is safe to sample
-        // as black. Doesn't block the caller; the barrier orders before the next render submit
-        // on the same queue per Vulkan spec.
+        // No initial data — async transition to SHADER_READ so the texture samples as black.
         if (!vkr_submit_async_transition(r, t->image,
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -814,13 +760,11 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
                         uint32_t dirty_w, uint32_t dirty_h) {
     if (!tex || tex->external || !data || data_size == 0) return false;
     if (width != tex->width || height != tex->height) {
-        // Caller is expected to size-match. Reject mismatches to avoid silent corruption.
         VK_LOGW("vkr_texture_update size mismatch (have %ux%u, got %ux%u)",
                 tex->width, tex->height, width, height);
         return false;
     }
 
-    // BGRA8 = 4 bytes per pixel. Caller provides stride_pixels (per-row pixel count).
     if (stride_pixels == 0) stride_pixels = width;
     if (dirty_w == 0 || dirty_h == 0) {
         dirty_x = 0;
@@ -885,8 +829,7 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
     si.commandBufferCount = 1;
     si.pCommandBuffers = &slot->cmd;
 
-    // Reset fence here, not in acquire — guarantees that the only path that leaves a fence
-    // unsignaled is one where vkQueueSubmit also runs to take ownership of it.
+    // Reset fence here, not in acquire, so only a path that also submits leaves it unsignaled.
     vkResetFences(r->device, 1, &slot->fence);
 
     pthread_mutex_lock(&r->queue_mutex);
@@ -894,9 +837,7 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
     pthread_mutex_unlock(&r->queue_mutex);
     if (sr != VK_SUCCESS) {
         VK_LOGE("vkr_texture_update: vkQueueSubmit -> %d", sr);
-        // Submit failed but we already reset the fence, so it's unsignaled and would deadlock
-        // the next acquire. Replace with a signaled fence. (Submit failures usually mean
-        // device-lost; the renderer is going to need a restart anyway.)
+        // Replace with a signaled fence so the next acquire doesn't deadlock.
         vkDestroyFence(r->device, slot->fence, NULL);
         VkFenceCreateInfo rfi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         rfi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -905,9 +846,6 @@ bool vkr_texture_update(VkRenderer* r, VkTexture* tex, uint32_t width, uint32_t 
         return false;
     }
 
-    // The barrier emitted by upload_cmds (TRANSFER_WRITE → SHADER_READ, dstStage=
-    // FRAGMENT_SHADER) extends into all subsequent submits on the same queue, so the next
-    // render submit will observe the writes without any additional renderer-side barrier.
     tex->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     vkr_staging_pool_release(slot);
     return true;
@@ -953,8 +891,7 @@ static void batch_transition_to_shader_read(VkCommandBuffer cmd, VkTexture* tex)
         VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
-// Grow-only PreparedBatchUpload[] scratch. Render-thread-only, so unlocked; every element is
-// fully overwritten before use, so no zeroing.
+// Grow-only PreparedBatchUpload[] scratch (render-thread-only).
 static PreparedBatchUpload* get_prepared_scratch(VkRenderer* r, uint32_t count) {
     if (r->batch_prepared_cap < count) {
         uint32_t new_cap = r->batch_prepared_cap ? r->batch_prepared_cap : 64;
@@ -1153,11 +1090,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     t->ahb = transfer_ownership ? ahb : NULL;
     if (transfer_ownership) AHardwareBuffer_acquire(ahb);
 
-    // External-format AHB sampling requires a YCbCr conversion bound through an immutable
-    // sampler in the descriptor-set layout. This renderer uses one mutable combined
-    // image/sampler layout for all regular textures, so accepting external-format AHBs here
-    // would be Vulkan-invalid on strict drivers. Keep the import path to RGB formats until a
-    // separate immutable-sampler pipeline/layout path exists.
+    // External-format AHBs need an immutable-sampler layout this renderer lacks; RGB only.
     if (format_props.format == VK_FORMAT_UNDEFINED) {
         VK_LOGW("AHB external-format import unsupported by current descriptor layout");
         if (t->ahb) AHardwareBuffer_release(t->ahb);
@@ -1178,8 +1111,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     ic.mipLevels = 1;
     ic.arrayLayers = 1;
     ic.samples = VK_SAMPLE_COUNT_1_BIT;
-    // Dedicated AHB imports derive layout from gralloc metadata; ic.tiling is a formality.
-    // Use OPTIMAL, falling back to LINEAR only if the driver rejects it (no black-screen).
+    // OPTIMAL, falling back to LINEAR only if the driver rejects it.
     ic.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1237,12 +1169,10 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     vi.image = t->image;
     vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
     vi.format = format_props.format;
-    // samplerYcbcrConversionComponents is only defined when a Ycbcr conversion is in use;
-    // some non-Adreno drivers populate non-identity swizzles for RGB AHBs.
     if (t->ycbcr != VK_NULL_HANDLE) {
         vi.components = format_props.samplerYcbcrConversionComponents;
     } else {
-        // fixes devices that supports vulkan bgra8 format, but doesn't support bgra8 ahb images
+        // swizzle for devices that support vulkan bgra8 but not bgra8 AHB images
         bool swizzle_rb = format_props.format == VK_FORMAT_R8G8B8A8_UNORM
             && r->caps.upload_format == VK_FORMAT_B8G8R8A8_UNORM;
         vi.components.r = swizzle_rb ? VK_COMPONENT_SWIZZLE_B : VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -1264,8 +1194,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
         return NULL;
     }
 
-    // Ycbcr-bound samplers must be created per-texture (driver pairs them with the conversion).
-    // For plain RGB AHB imports we can reuse the renderer's shared sampler.
+    // Ycbcr-bound samplers are per-texture; plain RGB imports reuse the shared sampler.
     VkSampler sampler_for_descriptor;
     if (t->ycbcr != VK_NULL_HANDLE) {
         if (!vkr_create_sampler(r, t->ycbcr, &t->sampler)) {
@@ -1304,9 +1233,7 @@ VkTexture* vkr_texture_import_ahb(VkRenderer* r, AHardwareBuffer* ahb, bool tran
     }
     write_descriptor_set(r, t->descriptor_set, t->view, sampler_for_descriptor);
 
-    // Async transition to SHADER_READ. The barrier orders before all subsequent submits on
-    // the same queue per Vulkan spec, so the next render submit safely samples this image
-    // without an additional renderer-side wait.
+    // Async transition to SHADER_READ.
     if (!vkr_submit_async_transition(r, t->image,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -1354,7 +1281,7 @@ void vkr_texture_schedule_destroy(VkRenderer* r, VkTexture* tex) {
     }
     tex->destroy_scheduled = true;
 
-    // Defensive: drop any references in the live scene state.
+    // Drop any references in the live scene state.
     for (uint32_t i = 0; i < r->scene.window_count; i++) {
         if (r->scene.windows[i].texture == tex) {
             r->scene.windows[i].texture = NULL;
@@ -1370,7 +1297,7 @@ void vkr_texture_schedule_destroy(VkRenderer* r, VkTexture* tex) {
         VkTexture** ng = realloc(slot->textures, new_cap * sizeof(VkTexture*));
         if (!ng) {
             pthread_mutex_unlock(&r->scene_mutex);
-            // As a last resort, leak rather than crash. Better than UAF.
+            // Leak rather than risk a use-after-free.
             VK_LOGE("graveyard alloc failed; leaking texture %p", (void*)tex);
             return;
         }
