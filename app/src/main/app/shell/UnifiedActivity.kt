@@ -8036,7 +8036,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    accentColor = TextSecondary,
+                    accentColor = Accent,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
                     },
