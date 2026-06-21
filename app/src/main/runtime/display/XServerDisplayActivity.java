@@ -6644,17 +6644,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         FrameLayout rootView = xServerDisplayFrame;
         xServerView = new XServerSurfaceView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
-        // Match guest libvulkan so imported AHB tiling matches the producer. When no
-        // explicit compositor-driver version is configured, fall back to the GAME's
-        // actual driver (not "System") so writer==reader: importing a Turnip-written
-        // tiled AHB with the Qualcomm system driver mismatches tile order and produces
-        // vertical-stripe corruption on Adreno 840 (was hidden on 830 where the layouts
-        // coincided). System-driver games still resolve to "System" via graphicsDriver.
-        String compositorGraphicsDriver =
-                graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : null;
-        if (compositorGraphicsDriver == null || compositorGraphicsDriver.isEmpty()) {
-            compositorGraphicsDriver = (graphicsDriver != null && !graphicsDriver.isEmpty())
-                    ? graphicsDriver : "System";
+        // The compositor only needs the guest driver (Turnip) when native frame
+        // generation runs its optical-flow compute in the compositor process. For normal
+        // rendering use the System (Qualcomm) driver: it imports the game's presented AHB
+        // correctly on all GPUs, whereas the guest Turnip's dedicated-AHB import mis-reads
+        // the producer's tile layout on Adreno 840 -> vertical-stripe corruption. This is
+        // a regression from guest-matching the compositor for FG (a6acd95c); the same
+        // WN-Turnip rendered MHS fine on this device before that. FG-off games (the
+        // default) keep the pre-FG System path that always worked.
+        boolean fgWantsCompositorDriver = fgPrefBool("native_frame_generation", false);
+        String compositorGraphicsDriver = "System";
+        if (fgWantsCompositorDriver) {
+            String cfgVer = graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : null;
+            compositorGraphicsDriver = (cfgVer != null && !cfgVer.isEmpty()) ? cfgVer
+                    : (graphicsDriver != null && !graphicsDriver.isEmpty() ? graphicsDriver : "System");
         }
         Log.i("XServerDisplayActivity", "Compositor graphics driver='"
                 + compositorGraphicsDriver + "' from graphicsDriver='" + graphicsDriver + "'");
