@@ -95,7 +95,6 @@ private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
-private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
 private val SuccessGreen = Color(0xFF5BD68F)
 private val DangerRed = Color(0xFFFF7A88)
@@ -1011,8 +1010,7 @@ private fun AssetRow(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(SurfaceDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .background(IconBoxBg)
                 .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
