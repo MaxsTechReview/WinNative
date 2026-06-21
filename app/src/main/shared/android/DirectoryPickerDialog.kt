@@ -65,9 +65,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -77,6 +79,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,6 +115,13 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.toast.WinToast
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object DirectoryPickerDialog {
     private const val ContentEnterMillis = 220
@@ -377,11 +387,15 @@ object DirectoryPickerDialog {
     ) {
         val manage = mode == SelectionMode.MANAGE
         val context = LocalContext.current
+        val scope = rememberCoroutineScope()
         var currentDir by remember(initialDir.absolutePath) { mutableStateOf(initialDir) }
         var selectedFile by remember(currentDir.absolutePath) { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
         var clipboard by remember { mutableStateOf<Pair<File, Boolean>?>(null) }
+        var transferProgress by remember { mutableStateOf<Float?>(null) }
+        var transferLabel by remember { mutableStateOf("") }
+        var transferJob by remember { mutableStateOf<Job?>(null) }
         var menuTarget by remember { mutableStateOf<File?>(null) }
         var renameTarget by remember { mutableStateOf<File?>(null) }
         var deleteTarget by remember { mutableStateOf<File?>(null) }
@@ -398,23 +412,43 @@ object DirectoryPickerDialog {
 
         fun pasteInto(dir: File) {
             val cb = clipboard ?: return
+            if (transferProgress != null) return
             val src = cb.first
             val isCut = cb.second
             val dest = File(dir, src.name)
-            try {
-                if (dest.absolutePath == src.absolutePath) return
-                if (isCut && src.renameTo(dest)) {
-                    clipboard = null
-                    refreshEntries()
-                    return
-                }
-                src.copyRecursively(dest, overwrite = false)
-                if (isCut) src.deleteRecursively()
-                clipboard = null
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message ?: "Operation failed", Toast.LENGTH_SHORT).show()
+            if (dest.absolutePath == src.absolutePath) return
+            if (src.isDirectory && isSameOrDescendant(dest, src)) {
+                Toast.makeText(context, "Can't paste a folder into itself", Toast.LENGTH_SHORT).show()
+                return
             }
-            refreshEntries()
+            transferLabel = (if (isCut) "Moving " else "Copying ") + src.name
+            transferProgress = 0f
+            transferJob = scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        transferRecursively(
+                            src = src,
+                            dest = dest,
+                            isCut = isCut,
+                            onProgress = { transferProgress = it },
+                            isActive = { isActive },
+                        )
+                    }
+                    clipboard = null
+                } catch (e: CancellationException) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        runCatching {
+                            if (dest.exists() && dest.absolutePath != src.absolutePath) dest.deleteRecursively()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: "Operation failed", Toast.LENGTH_SHORT).show()
+                } finally {
+                    transferProgress = null
+                    transferJob = null
+                    refreshEntries()
+                }
+            }
         }
 
         fun deleteFile(f: File) {
@@ -745,6 +779,8 @@ object DirectoryPickerDialog {
                             FooterActionButton(
                                 label = "Close",
                                 textColor = TextPrimary,
+                                backgroundColor = Color.Transparent,
+                                rippleColor = Accent,
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
@@ -860,6 +896,14 @@ object DirectoryPickerDialog {
                             runTarget = null
                         },
                         onDismiss = { runTarget = null },
+                    )
+                }
+                transferProgress?.let { p ->
+                    TransferProgressOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        label = transferLabel,
+                        progress = p,
+                        onCancel = { transferJob?.cancel() },
                     )
                 }
             }
@@ -1161,7 +1205,7 @@ object DirectoryPickerDialog {
         accent: Boolean = false,
         onClick: () -> Unit,
     ) {
-        val chipBackground = if (accent) Accent.copy(alpha = 0.12f) else WinNativePanel
+        val chipBackground = if (accent) Color.Transparent else WinNativePanel
         val chipBorder = if (accent) Accent.copy(alpha = 0.4f) else CardBorder
         val iconTint = if (accent) Accent else TextSecondary
         val labelColor = if (accent) Accent else TextPrimary
@@ -1173,7 +1217,7 @@ object DirectoryPickerDialog {
                     .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = if (accent) ripple(color = Accent) else null,
                         onClick = onClick,
                     ).padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1214,6 +1258,7 @@ object DirectoryPickerDialog {
         modifier: Modifier = Modifier,
         backgroundColor: Color = WinNativePanel,
         borderColor: Color = CardBorder,
+        rippleColor: Color? = null,
         onClick: () -> Unit,
     ) {
         Box(
@@ -1226,7 +1271,7 @@ object DirectoryPickerDialog {
                     .border(1.dp, borderColor, RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = if (rippleColor != null) ripple(color = rippleColor) else null,
                         onClick = onClick,
                     ),
             contentAlignment = Alignment.Center,
@@ -1281,6 +1326,53 @@ object DirectoryPickerDialog {
         }
 
         return entries
+    }
+
+    private fun transferRecursively(
+        src: File,
+        dest: File,
+        isCut: Boolean,
+        onProgress: (Float) -> Unit,
+        isActive: () -> Boolean,
+    ) {
+        if (isCut && runCatching { src.renameTo(dest) }.getOrDefault(false)) {
+            onProgress(1f)
+            return
+        }
+        val total =
+            src.walkTopDown()
+                .filter { it.isFile }
+                .fold(0L) { acc, f -> acc + f.length() }
+                .coerceAtLeast(1L)
+        var copied = 0L
+        var lastPercent = -1
+        val buffer = ByteArray(1 shl 16)
+        src.walkTopDown().forEach { f ->
+            if (!isActive()) throw CancellationException()
+            val target = if (f == src) dest else File(dest, f.relativeTo(src).path)
+            if (f.isDirectory) {
+                target.mkdirs()
+            } else {
+                target.parentFile?.mkdirs()
+                f.inputStream().use { input ->
+                    target.outputStream().use { output ->
+                        while (true) {
+                            if (!isActive()) throw CancellationException()
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            output.write(buffer, 0, read)
+                            copied += read
+                            val percent = ((copied * 100) / total).toInt()
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                onProgress((percent / 100f).coerceIn(0f, 1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (isCut) src.deleteRecursively()
     }
 
     private fun entryLabel(file: File): String = file.name.ifBlank { file.absolutePath }
@@ -1679,6 +1771,78 @@ object DirectoryPickerDialog {
                         backgroundColor = danger.copy(alpha = 0.12f),
                         borderColor = danger.copy(alpha = 0.3f),
                         onClick = onConfirm,
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun TransferProgressOverlay(
+        modifier: Modifier,
+        label: String,
+        progress: Float,
+        onCancel: () -> Unit,
+    ) {
+        Box(
+            modifier =
+                modifier
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.86f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ).padding(16.dp),
+            ) {
+                Text(
+                    text = label,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(14.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                    color = Accent,
+                    trackColor = WinNativePanel,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FooterActionButton(
+                        label = "Cancel",
+                        textColor = TextPrimary,
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onCancel,
                     )
                 }
             }
