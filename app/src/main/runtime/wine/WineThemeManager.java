@@ -22,6 +22,7 @@ public abstract class WineThemeManager {
 
   public enum BackgroundType {
     IMAGE,
+    ORIGINAL,
     COLOR
   }
 
@@ -56,11 +57,11 @@ public abstract class WineThemeManager {
             + " "
             + Color.blue(themeInfo.backgroundColor);
 
-    if (themeInfo.backgroundType == BackgroundType.IMAGE)
-      createWallpaperBMPFile(context, screenInfo);
+    if (themeInfo.backgroundType != BackgroundType.COLOR)
+      createWallpaperBMPFile(context, screenInfo, themeInfo.backgroundType);
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
-      if (themeInfo.backgroundType == BackgroundType.IMAGE) {
+      if (themeInfo.backgroundType != BackgroundType.COLOR) {
         registryEditor.setStringValue(
             "Control Panel\\Desktop", "Wallpaper", ImageFs.CACHE_PATH + "/wallpaper.bmp");
       } else registryEditor.removeValue("Control Panel\\Desktop", "Wallpaper");
@@ -133,7 +134,8 @@ public abstract class WineThemeManager {
     }
   }
 
-  private static void createWallpaperBMPFile(Context context, ScreenInfo screenInfo) {
+  private static void createWallpaperBMPFile(
+      Context context, ScreenInfo screenInfo, BackgroundType backgroundType) {
     final int outputHeight = screenInfo.height;
     int outputWidth = screenInfo.width;
 
@@ -142,33 +144,46 @@ public abstract class WineThemeManager {
     Canvas canvas = new Canvas(outputBitmap);
 
     File userWallpaperFile = getUserWallpaperFile(context);
-    if (userWallpaperFile.isFile()) {
+    if (backgroundType == BackgroundType.ORIGINAL) {
+      drawOriginalWallpaper(context, canvas, paint, outputWidth, outputHeight);
+    } else if (userWallpaperFile.isFile()) {
       Bitmap image = BitmapFactory.decodeFile(userWallpaperFile.getPath());
       Rect srcRect = new Rect(0, 0, image.getWidth(), image.getHeight());
       Rect dstRect = new Rect(0, 0, outputWidth, outputHeight);
       canvas.drawBitmap(image, srcRect, dstRect, paint);
     } else {
       BitmapFactory.Options options = new BitmapFactory.Options();
-      options.inTargetDensity = DisplayMetrics.DENSITY_HIGH;
-      Bitmap wallpaperBitmap =
-          BitmapFactory.decodeResource(context.getResources(), R.drawable.wallpaper, options);
-      paint.setStyle(Paint.Style.FILL);
-      paint.setColor(0xff01579b);
-      canvas.drawRect(0, 0, outputWidth, outputHeight * 0.5f, paint);
-      paint.setColor(0xff0277bd);
-      canvas.drawRect(0, outputHeight * 0.5f, outputWidth, outputHeight, paint);
-
-      float targetSize = outputHeight * (320.0f / 480.0f);
-      float centerX = (outputWidth - targetSize) * 0.5f;
-      float centerY = (outputHeight - targetSize) * 0.5f;
-      Rect srcRect = new Rect(0, 0, wallpaperBitmap.getWidth(), wallpaperBitmap.getHeight());
-      RectF dstRect = new RectF(centerX, centerY, centerX + targetSize, centerY + targetSize);
-      canvas.drawBitmap(wallpaperBitmap, srcRect, dstRect, paint);
+      options.inScaled = false;
+      Bitmap image =
+          BitmapFactory.decodeResource(context.getResources(), R.drawable.wallpaper_default, options);
+      Rect srcRect = new Rect(0, 0, image.getWidth(), image.getHeight());
+      Rect dstRect = new Rect(0, 0, outputWidth, outputHeight);
+      canvas.drawBitmap(image, srcRect, dstRect, paint);
     }
 
     ImageFs imageFs = ImageFs.find(context);
     MSBitmap.create(
         outputBitmap, new File(imageFs.getRootDir(), ImageFs.CACHE_PATH + "/wallpaper.bmp"));
+  }
+
+  private static void drawOriginalWallpaper(
+      Context context, Canvas canvas, Paint paint, int outputWidth, int outputHeight) {
+    BitmapFactory.Options options = new BitmapFactory.Options();
+    options.inTargetDensity = DisplayMetrics.DENSITY_HIGH;
+    Bitmap wallpaperBitmap =
+        BitmapFactory.decodeResource(context.getResources(), R.drawable.wallpaper, options);
+    paint.setStyle(Paint.Style.FILL);
+    paint.setColor(0xff01579b);
+    canvas.drawRect(0, 0, outputWidth, outputHeight * 0.5f, paint);
+    paint.setColor(0xff0277bd);
+    canvas.drawRect(0, outputHeight * 0.5f, outputWidth, outputHeight, paint);
+
+    float targetSize = outputHeight * (320.0f / 480.0f);
+    float centerX = (outputWidth - targetSize) * 0.5f;
+    float centerY = (outputHeight - targetSize) * 0.5f;
+    Rect srcRect = new Rect(0, 0, wallpaperBitmap.getWidth(), wallpaperBitmap.getHeight());
+    RectF dstRect = new RectF(centerX, centerY, centerX + targetSize, centerY + targetSize);
+    canvas.drawBitmap(wallpaperBitmap, srcRect, dstRect, paint);
   }
 
   public static File getUserWallpaperFile(Context context) {

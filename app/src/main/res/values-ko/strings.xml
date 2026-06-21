@@ -1413,5 +1413,26 @@
     <string name="session_task_bring_to_front">앞으로 가져오기</string>
     <string name="session_task_custom_value">사용자 지정 값</string>
     <string name="session_gyroscope_orientation_mode">기울여 조준 (방향)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">파일</string>
+    <string name="file_manager_copy">복사</string>
+    <string name="file_manager_cut">잘라내기</string>
+    <string name="file_manager_paste">붙여넣기</string>
+    <string name="file_manager_paste_here">여기에 붙여넣기</string>
+    <string name="file_manager_new_folder">새 폴더</string>
+    <string name="file_manager_create">만들기</string>
+    <string name="file_manager_delete">삭제</string>
+    <string name="file_manager_run_boot">실행 / 부팅</string>
+    <string name="file_manager_create_shortcut">바로가기 만들기</string>
+    <string name="file_manager_run_in_container">컨테이너에서 실행</string>
+    <string name="file_manager_no_containers">사용 가능한 컨테이너가 없습니다</string>
+    <string name="file_manager_delete_confirm">\"%1$s\"을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
+    <string name="file_manager_copying">%1$s 복사 중</string>
+    <string name="file_manager_moving">%1$s 이동 중</string>
+    <string name="file_manager_paste_into_itself">폴더를 자기 자신 안에 붙여넣을 수 없습니다</string>
+    <string name="file_manager_operation_failed">작업에 실패했습니다</string>
+    <string name="file_manager_delete_failed">삭제에 실패했습니다</string>
+    <string name="file_manager_rename_failed">이름 변경에 실패했습니다</string>
+    <string name="file_manager_create_folder_failed">폴더 만들기에 실패했습니다</string>
 </resources>
 

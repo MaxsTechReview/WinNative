@@ -1412,4 +1412,26 @@ Installierter Pfad:
     <string name="session_task_bring_to_front">In den Vordergrund</string>
     <string name="session_task_custom_value">Benutzerdefinierter Wert</string>
     <string name="session_gyroscope_orientation_mode">Zum Zielen neigen (Ausrichtung)</string>
+
+    <!-- File manager -->
+    <string name="file_manager_title">Dateien</string>
+    <string name="file_manager_copy">Kopieren</string>
+    <string name="file_manager_cut">Ausschneiden</string>
+    <string name="file_manager_paste">Einfügen</string>
+    <string name="file_manager_paste_here">Hier einfügen</string>
+    <string name="file_manager_new_folder">Neuer Ordner</string>
+    <string name="file_manager_create">Erstellen</string>
+    <string name="file_manager_delete">Löschen</string>
+    <string name="file_manager_run_boot">Ausführen / Booten</string>
+    <string name="file_manager_create_shortcut">Verknüpfung erstellen</string>
+    <string name="file_manager_run_in_container">Im Container ausführen</string>
+    <string name="file_manager_no_containers">Keine Container verfügbar</string>
+    <string name="file_manager_delete_confirm">\"%1$s\" löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="file_manager_copying">%1$s wird kopiert</string>
+    <string name="file_manager_moving">%1$s wird verschoben</string>
+    <string name="file_manager_paste_into_itself">Ein Ordner kann nicht in sich selbst eingefügt werden</string>
+    <string name="file_manager_operation_failed">Vorgang fehlgeschlagen</string>
+    <string name="file_manager_delete_failed">Löschen fehlgeschlagen</string>
+    <string name="file_manager_rename_failed">Umbenennen fehlgeschlagen</string>
+    <string name="file_manager_create_folder_failed">Ordner erstellen fehlgeschlagen</string>
 </resources>

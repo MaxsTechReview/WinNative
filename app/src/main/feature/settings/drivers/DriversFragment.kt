@@ -312,10 +312,26 @@ class DriversFragment : Fragment() {
     }
 
     private fun fetchGithubReleases(source: DriverRepo): List<DriverReleaseItem> {
-        val apiUrl = if (source.apiUrl.contains("api.github.com")) {
-            if (source.apiUrl.contains("?")) "${source.apiUrl}&per_page=100" else "${source.apiUrl}?per_page=100"
-        } else source.apiUrl
+        if (!source.apiUrl.contains("api.github.com")) {
+            return fetchReleasePage(source.apiUrl).second
+        }
 
+        val perPage = 100
+        val maxPages = 2
+        val items = mutableListOf<DriverReleaseItem>()
+        var page = 1
+        while (page <= maxPages) {
+            val separator = if (source.apiUrl.contains("?")) "&" else "?"
+            val pageUrl = "${source.apiUrl}${separator}per_page=$perPage&page=$page"
+            val (rawCount, pageItems) = fetchReleasePage(pageUrl)
+            items += pageItems
+            if (rawCount < perPage) break
+            page++
+        }
+        return items
+    }
+
+    private fun fetchReleasePage(apiUrl: String): Pair<Int, List<DriverReleaseItem>> {
         val connection =
             (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -327,7 +343,7 @@ class DriversFragment : Fragment() {
 
         return connection.useResponse { responseText ->
             val json = JSONArray(responseText)
-            buildList {
+            val parsed = buildList {
                 for (index in 0 until json.length()) {
                     val releaseObject = json.optJSONObject(index) ?: continue
                     val assets = releaseObject.optJSONArray("assets").toZipAssets()
@@ -349,6 +365,7 @@ class DriversFragment : Fragment() {
                     )
                 }
             }
+            json.length() to parsed
         }
     }
 
