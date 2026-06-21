@@ -1412,5 +1412,26 @@ Caminho instalado:
     <string name="session_task_bring_to_front">Trazer para frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
     <string name="session_gyroscope_orientation_mode">Incline para mirar (orientação)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Arquivos</string>
+    <string name="file_manager_copy">Copiar</string>
+    <string name="file_manager_cut">Recortar</string>
+    <string name="file_manager_paste">Colar</string>
+    <string name="file_manager_paste_here">Colar aqui</string>
+    <string name="file_manager_new_folder">Nova Pasta</string>
+    <string name="file_manager_create">Criar</string>
+    <string name="file_manager_delete">Excluir</string>
+    <string name="file_manager_run_boot">Executar / Inicializar</string>
+    <string name="file_manager_create_shortcut">Criar Atalho</string>
+    <string name="file_manager_run_in_container">Executar no container</string>
+    <string name="file_manager_no_containers">Nenhum container disponivel</string>
+    <string name="file_manager_delete_confirm">Excluir \"%1$s\"? Isso nao pode ser desfeito.</string>
+    <string name="file_manager_copying">Copiando %1$s</string>
+    <string name="file_manager_moving">Movendo %1$s</string>
+    <string name="file_manager_paste_into_itself">Nao e possivel colar uma pasta dentro dela mesma</string>
+    <string name="file_manager_operation_failed">Falha na operacao</string>
+    <string name="file_manager_delete_failed">Falha ao excluir</string>
+    <string name="file_manager_rename_failed">Falha ao renomear</string>
+    <string name="file_manager_create_folder_failed">Falha ao criar pasta</string>
 </resources>
 

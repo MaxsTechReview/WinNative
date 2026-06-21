@@ -1347,4 +1347,25 @@
     <string name="session_task_bring_to_front">सामने लाएँ</string>
     <string name="session_task_custom_value">कस्टम मान</string>
     <string name="session_gyroscope_orientation_mode">निशाना लगाने के लिए झुकाएँ (ओरिएंटेशन)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">फ़ाइलें</string>
+    <string name="file_manager_copy">कॉपी करें</string>
+    <string name="file_manager_cut">काटें</string>
+    <string name="file_manager_paste">पेस्ट करें</string>
+    <string name="file_manager_paste_here">यहाँ पेस्ट करें</string>
+    <string name="file_manager_new_folder">नया फ़ोल्डर</string>
+    <string name="file_manager_create">बनाएँ</string>
+    <string name="file_manager_delete">हटाएँ</string>
+    <string name="file_manager_run_boot">चलाएँ / बूट करें</string>
+    <string name="file_manager_create_shortcut">शॉर्टकट बनाएँ</string>
+    <string name="file_manager_run_in_container">कंटेनर में चलाएँ</string>
+    <string name="file_manager_no_containers">कोई कंटेनर उपलब्ध नहीं</string>
+    <string name="file_manager_delete_confirm">\"%1$s\" को हटाएँ? इसे पूर्ववत नहीं किया जा सकता।</string>
+    <string name="file_manager_copying">%1$s कॉपी हो रहा है</string>
+    <string name="file_manager_moving">%1$s स्थानांतरित हो रहा है</string>
+    <string name="file_manager_paste_into_itself">किसी फ़ोल्डर को उसी में पेस्ट नहीं किया जा सकता</string>
+    <string name="file_manager_operation_failed">कार्रवाई विफल रही</string>
+    <string name="file_manager_delete_failed">हटाना विफल रहा</string>
+    <string name="file_manager_rename_failed">नाम बदलना विफल रहा</string>
+    <string name="file_manager_create_folder_failed">फ़ोल्डर बनाना विफल रहा</string>
 </resources>
