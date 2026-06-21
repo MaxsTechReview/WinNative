@@ -1418,5 +1418,26 @@ Zainstalowana ścieżka:
     <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_custom_value">Wartość niestandardowa</string>
     <string name="session_gyroscope_orientation_mode">Przechyl, aby celować (orientacja)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Pliki</string>
+    <string name="file_manager_copy">Kopiuj</string>
+    <string name="file_manager_cut">Wytnij</string>
+    <string name="file_manager_paste">Wklej</string>
+    <string name="file_manager_paste_here">Wklej tutaj</string>
+    <string name="file_manager_new_folder">Nowy folder</string>
+    <string name="file_manager_create">Utwórz</string>
+    <string name="file_manager_delete">Usuń</string>
+    <string name="file_manager_run_boot">Uruchom / Rozruch</string>
+    <string name="file_manager_create_shortcut">Utwórz skrót</string>
+    <string name="file_manager_run_in_container">Uruchom w kontenerze</string>
+    <string name="file_manager_no_containers">Brak dostępnych kontenerów</string>
+    <string name="file_manager_delete_confirm">Usunąć \"%1$s\"? Tej operacji nie można cofnąć.</string>
+    <string name="file_manager_copying">Kopiowanie %1$s</string>
+    <string name="file_manager_moving">Przenoszenie %1$s</string>
+    <string name="file_manager_paste_into_itself">Nie można wkleić folderu do niego samego</string>
+    <string name="file_manager_operation_failed">Operacja nie powiodła się</string>
+    <string name="file_manager_delete_failed">Usuwanie nie powiodło się</string>
+    <string name="file_manager_rename_failed">Zmiana nazwy nie powiodła się</string>
+    <string name="file_manager_create_folder_failed">Tworzenie folderu nie powiodło się</string>
 </resources>
 

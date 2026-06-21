@@ -1412,5 +1412,26 @@ Ruta instalada:
     <string name="session_task_bring_to_front">Traer al frente</string>
     <string name="session_task_custom_value">Valor personalizado</string>
     <string name="session_gyroscope_orientation_mode">Inclinar para apuntar (orientación)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Archivos</string>
+    <string name="file_manager_copy">Copiar</string>
+    <string name="file_manager_cut">Cortar</string>
+    <string name="file_manager_paste">Pegar</string>
+    <string name="file_manager_paste_here">Pegar aquí</string>
+    <string name="file_manager_new_folder">Nueva carpeta</string>
+    <string name="file_manager_create">Crear</string>
+    <string name="file_manager_delete">Eliminar</string>
+    <string name="file_manager_run_boot">Ejecutar / Arrancar</string>
+    <string name="file_manager_create_shortcut">Crear acceso directo</string>
+    <string name="file_manager_run_in_container">Ejecutar en contenedor</string>
+    <string name="file_manager_no_containers">No hay contenedores disponibles</string>
+    <string name="file_manager_delete_confirm">¿Eliminar \"%1$s\"? Esto no se puede deshacer.</string>
+    <string name="file_manager_copying">Copiando %1$s</string>
+    <string name="file_manager_moving">Moviendo %1$s</string>
+    <string name="file_manager_paste_into_itself">No se puede pegar una carpeta dentro de sí misma</string>
+    <string name="file_manager_operation_failed">La operación falló</string>
+    <string name="file_manager_delete_failed">Error al eliminar</string>
+    <string name="file_manager_rename_failed">Error al renombrar</string>
+    <string name="file_manager_create_folder_failed">Error al crear la carpeta</string>
 </resources>
 

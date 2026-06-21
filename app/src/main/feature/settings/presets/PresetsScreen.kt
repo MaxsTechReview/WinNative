@@ -97,7 +97,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
-private val BgDark = Color(0xFF18181D)
+private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)

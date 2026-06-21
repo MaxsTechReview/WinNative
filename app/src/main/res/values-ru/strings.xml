@@ -1317,4 +1317,25 @@
     <string name="session_task_bring_to_front">На передний план</string>
     <string name="session_task_custom_value">Своё значение</string>
     <string name="session_gyroscope_orientation_mode">Наклон для прицеливания (ориентация)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Файлы</string>
+    <string name="file_manager_copy">Копировать</string>
+    <string name="file_manager_cut">Вырезать</string>
+    <string name="file_manager_paste">Вставить</string>
+    <string name="file_manager_paste_here">Вставить сюда</string>
+    <string name="file_manager_new_folder">Новая папка</string>
+    <string name="file_manager_create">Создать</string>
+    <string name="file_manager_delete">Удалить</string>
+    <string name="file_manager_run_boot">Запустить / Загрузить</string>
+    <string name="file_manager_create_shortcut">Создать ярлык</string>
+    <string name="file_manager_run_in_container">Запустить в контейнере</string>
+    <string name="file_manager_no_containers">Нет доступных контейнеров</string>
+    <string name="file_manager_delete_confirm">Удалить \"%1$s\"? Это действие нельзя отменить.</string>
+    <string name="file_manager_copying">Копирование %1$s</string>
+    <string name="file_manager_moving">Перемещение %1$s</string>
+    <string name="file_manager_paste_into_itself">Нельзя вставить папку в саму себя</string>
+    <string name="file_manager_operation_failed">Не удалось выполнить операцию</string>
+    <string name="file_manager_delete_failed">Не удалось удалить</string>
+    <string name="file_manager_rename_failed">Не удалось переименовать</string>
+    <string name="file_manager_create_folder_failed">Не удалось создать папку</string>
 </resources>

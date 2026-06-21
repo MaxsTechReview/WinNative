@@ -1412,5 +1412,26 @@ Percorso installato:
     <string name="session_task_bring_to_front">Porta in primo piano</string>
     <string name="session_task_custom_value">Valore personalizzato</string>
     <string name="session_gyroscope_orientation_mode">Inclina per mirare (orientamento)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">File</string>
+    <string name="file_manager_copy">Copia</string>
+    <string name="file_manager_cut">Taglia</string>
+    <string name="file_manager_paste">Incolla</string>
+    <string name="file_manager_paste_here">Incolla qui</string>
+    <string name="file_manager_new_folder">Nuova cartella</string>
+    <string name="file_manager_create">Crea</string>
+    <string name="file_manager_delete">Elimina</string>
+    <string name="file_manager_run_boot">Avvia / Boot</string>
+    <string name="file_manager_create_shortcut">Crea scorciatoia</string>
+    <string name="file_manager_run_in_container">Esegui nel contenitore</string>
+    <string name="file_manager_no_containers">Nessun contenitore disponibile</string>
+    <string name="file_manager_delete_confirm">Eliminare \"%1$s\"? L\'operazione non può essere annullata.</string>
+    <string name="file_manager_copying">Copia di %1$s in corso</string>
+    <string name="file_manager_moving">Spostamento di %1$s in corso</string>
+    <string name="file_manager_paste_into_itself">Impossibile incollare una cartella in sé stessa</string>
+    <string name="file_manager_operation_failed">Operazione non riuscita</string>
+    <string name="file_manager_delete_failed">Eliminazione non riuscita</string>
+    <string name="file_manager_rename_failed">Rinomina non riuscita</string>
+    <string name="file_manager_create_folder_failed">Creazione cartella non riuscita</string>
 </resources>
 
