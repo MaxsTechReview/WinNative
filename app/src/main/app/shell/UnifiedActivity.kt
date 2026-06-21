@@ -92,6 +92,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -1959,9 +1960,19 @@ class UnifiedActivity :
                                         )
                                         .padding(end = addGameFabMargin, bottom = addGameFabMargin)
                                         .size(addGameFabSize)
-                                        .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
+                                        .drawBehind {
+                                            drawCircle(
+                                                brush =
+                                                    Brush.radialGradient(
+                                                        colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
+                                                        center = center,
+                                                        radius = size.minDimension * 0.4f,
+                                                    ),
+                                                radius = size.minDimension * 0.4f,
+                                            )
+                                        }
                                         .clip(CircleShape)
-                                        .background(SurfaceDark.copy(alpha = 0.96f), CircleShape)
+                                        .background(Color.Transparent, CircleShape)
                                         .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
                                         .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
                                         .clickable { showAddCustomGame = true },
@@ -1970,7 +1981,7 @@ class UnifiedActivity :
                                 Icon(
                                     Icons.Outlined.Add,
                                     contentDescription = "Add Custom Game",
-                                    tint = Color.White,
+                                    tint = Accent,
                                     modifier = Modifier.size(addGameFabIconSize),
                                 )
                             }
@@ -2266,14 +2277,15 @@ class UnifiedActivity :
                                 .size(44.dp)
                                 .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
                         IconButton(onClick = {
                             navigateToSettings(SettingsNavItem.STORES)
                         }, modifier = Modifier.size(44.dp), enabled = true) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = Accent, modifier = Modifier.size(24.dp))
                         }
                     }
                     if (isControllerConnected) {
@@ -2300,13 +2312,15 @@ class UnifiedActivity :
                                 .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(
-                                    if (isDownloadsTab) {
-                                        SurfaceDark.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
+                                    if (isSearchExpanded) {
                                         Accent.copy(alpha = 0.15f)
                                     } else {
-                                        SurfaceDark
+                                        Color.Transparent
                                     },
+                                ).border(
+                                    1.dp,
+                                    Accent.copy(alpha = if (isDownloadsTab) 0.25f else 0.5f),
+                                    CircleShape,
                                 ).focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -2330,10 +2344,8 @@ class UnifiedActivity :
                                 tint =
                                     if (isDownloadsTab) {
                                         TextSecondary.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
-                                        Accent
                                     } else {
-                                        TextPrimary
+                                        Accent
                                     },
                                 modifier =
                                     Modifier
@@ -2363,12 +2375,13 @@ class UnifiedActivity :
                                 .size(44.dp)
                                 .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab }
                                 .clickable { onFilterClicked() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
