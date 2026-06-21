@@ -166,6 +166,7 @@ object DirectoryPickerDialog {
         dimBackground: Boolean = true,
         dimAmount: Float = 0.30f,
         preserveBackdropBlur: Boolean = false,
+        extraRoots: List<ManagedRoot> = emptyList(),
         onSelected: (String) -> Unit,
     ) {
         showPicker(
@@ -177,6 +178,7 @@ object DirectoryPickerDialog {
             dimBackground = dimBackground,
             dimAmount = dimAmount,
             preserveBackdropBlur = preserveBackdropBlur,
+            extraRoots = extraRoots,
             onSelected = onSelected,
         )
     }
@@ -189,6 +191,7 @@ object DirectoryPickerDialog {
         dimBackground: Boolean = true,
         dimAmount: Float = 0.30f,
         preserveBackdropBlur: Boolean = false,
+        extraRoots: List<ManagedRoot> = emptyList(),
         onSelected: (String) -> Unit,
     ) {
         showPicker(
@@ -200,6 +203,7 @@ object DirectoryPickerDialog {
             dimBackground = dimBackground,
             dimAmount = dimAmount,
             preserveBackdropBlur = preserveBackdropBlur,
+            extraRoots = extraRoots,
             onSelected = onSelected,
         )
     }
@@ -243,6 +247,7 @@ object DirectoryPickerDialog {
         dimAmount: Float,
         preserveBackdropBlur: Boolean,
         managedRoots: List<ManagedRoot> = emptyList(),
+        extraRoots: List<ManagedRoot> = emptyList(),
         containers: List<ManagedContainer> = emptyList(),
         onRunFile: ((String, Int) -> Unit)? = null,
         onCreateShortcut: ((String) -> Unit)? = null,
@@ -306,6 +311,7 @@ object DirectoryPickerDialog {
                                     mode = mode,
                                     allowedExtensions = allowedExtensions,
                                     managedRoots = managedRoots,
+                                    extraRoots = extraRoots,
                                     containers = containers,
                                     onRunFile = onRunFile,
                                     onCreateShortcut = onCreateShortcut,
@@ -362,6 +368,7 @@ object DirectoryPickerDialog {
         mode: SelectionMode,
         allowedExtensions: Set<String>,
         managedRoots: List<ManagedRoot> = emptyList(),
+        extraRoots: List<ManagedRoot> = emptyList(),
         containers: List<ManagedContainer> = emptyList(),
         onRunFile: ((String, Int) -> Unit)? = null,
         onCreateShortcut: ((String) -> Unit)? = null,
@@ -714,12 +721,14 @@ object DirectoryPickerDialog {
                                 SecondaryActionChip(
                                     label = "Paste",
                                     icon = Icons.Outlined.ContentPaste,
+                                    accent = true,
                                     onClick = { pasteInto(currentDir) },
                                 )
                             }
                             SecondaryActionChip(
                                 label = "New Folder",
                                 icon = Icons.Outlined.CreateNewFolder,
+                                accent = true,
                                 onClick = { showNewFolder = true },
                             )
                             ManageRootSelector(
@@ -754,6 +763,7 @@ object DirectoryPickerDialog {
                                 rootsExpanded = false
                             },
                             modifier = modifier,
+                            extraRoots = extraRoots,
                         )
                     }
                     val footerActions: @Composable () -> Unit = {
@@ -932,6 +942,7 @@ object DirectoryPickerDialog {
         onExpandedChange: (Boolean) -> Unit,
         onRootSelected: (File) -> Unit,
         modifier: Modifier = Modifier,
+        extraRoots: List<ManagedRoot> = emptyList(),
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
@@ -966,6 +977,34 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
+                        extraRoots.forEach { root ->
+                            val selected = isSameOrDescendant(currentDir, File(root.path))
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = root.label,
+                                            color = if (selected) Accent else TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            text = root.path,
+                                            color = TextSecondary,
+                                            fontSize = 9.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                },
+                                onClick = { onRootSelected(File(root.path)) },
+                                modifier =
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
+                            )
+                        }
                         roots.forEach { root ->
                             val selected = isSameOrDescendant(currentDir, root)
                             DropdownMenuItem(
@@ -1119,14 +1158,19 @@ object DirectoryPickerDialog {
         trailing: androidx.compose.ui.graphics.vector.ImageVector? = null,
         trailingRotationDegrees: Float = 0f,
         modifier: Modifier = Modifier,
+        accent: Boolean = false,
         onClick: () -> Unit,
     ) {
+        val chipBackground = if (accent) Accent.copy(alpha = 0.12f) else WinNativePanel
+        val chipBorder = if (accent) Accent.copy(alpha = 0.4f) else CardBorder
+        val iconTint = if (accent) Accent else TextSecondary
+        val labelColor = if (accent) Accent else TextPrimary
         Row(
             modifier =
                 modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(WinNativePanel)
-                    .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                    .background(chipBackground)
+                    .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -1137,13 +1181,13 @@ object DirectoryPickerDialog {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = iconTint,
                 modifier = Modifier.size(14.dp),
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = label,
-                color = TextPrimary,
+                color = labelColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -1153,7 +1197,7 @@ object DirectoryPickerDialog {
                 Icon(
                     imageVector = trailing,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = iconTint,
                     modifier =
                         Modifier
                             .size(15.dp)

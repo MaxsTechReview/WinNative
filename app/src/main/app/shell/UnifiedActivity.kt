@@ -1831,21 +1831,8 @@ class UnifiedActivity :
                 }
                 val scaffoldContainer = if (immersiveMode && currentTabKeyForImmersive == "library") Color.Transparent else BgDark
                 val openFileManager: () -> Unit = {
-                    val imagefsRoot =
-                        com.winlator.cmod.runtime.display.environment.ImageFs.find(context).getRootDir()
                     val internalPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                    val managedRoots =
-                        listOf(
-                            DirectoryPickerDialog.ManagedRoot("C:", java.io.File(imagefsRoot, "home").absolutePath),
-                            DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
-                            DirectoryPickerDialog.ManagedRoot(
-                                "D:",
-                                android.os.Environment
-                                    .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-                                    .absolutePath,
-                            ),
-                            DirectoryPickerDialog.ManagedRoot("Internal", internalPath),
-                        )
+                    val managedRoots = driveRoots(includeInternal = true)
                     val containerManager = com.winlator.cmod.runtime.container.ContainerManager(context)
                     val containers =
                         containerManager.getContainers().map {
@@ -11311,11 +11298,17 @@ class UnifiedActivity :
                                         .clickable {
                                             DirectoryPickerDialog.showFile(
                                                 activity = this@UnifiedActivity,
-                                                initialPath = selectedExePath ?: gameFolder,
+                                                initialPath =
+                                                    selectedExePath ?: gameFolder
+                                                        ?: android.os.Environment
+                                                            .getExternalStoragePublicDirectory(
+                                                                android.os.Environment.DIRECTORY_DOWNLOADS,
+                                                            ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
                                                 allowedExtensions = setOf("exe"),
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
+                                                extraRoots = driveRoots(includeInternal = true),
                                                 onSelected = ::selectExecutable,
                                             )
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -11399,6 +11392,7 @@ class UnifiedActivity :
                                             title = getString(R.string.common_ui_select_folder),
                                             dimAmount = 0.5f,
                                             preserveBackdropBlur = true,
+                                            extraRoots = driveRoots(includeInternal = true),
                                         ) { path -> gameFolder = path }
                                     }, modifier = Modifier.size(28.dp)) {
                                         Icon(
@@ -11496,6 +11490,30 @@ class UnifiedActivity :
             }
         startActivity(intent)
         return false
+    }
+
+    private fun driveRoots(includeInternal: Boolean): List<DirectoryPickerDialog.ManagedRoot> {
+        val imagefsRoot =
+            com.winlator.cmod.runtime.display.environment.ImageFs.find(this).getRootDir()
+        val roots =
+            mutableListOf(
+                DirectoryPickerDialog.ManagedRoot("C:", java.io.File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    android.os.Environment
+                        .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                        .absolutePath,
+                ),
+            )
+        if (includeInternal) {
+            roots +=
+                DirectoryPickerDialog.ManagedRoot(
+                    "Internal",
+                    android.os.Environment.getExternalStorageDirectory().absolutePath,
+                )
+        }
+        return roots
     }
 
     private fun addCustomGame(
