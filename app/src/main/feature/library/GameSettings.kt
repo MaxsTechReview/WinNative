@@ -107,9 +107,9 @@ import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-private val BgDeep = Color(0xFF18181D)
-private val SidebarBg = Color(0xFF18181D)
-private val ContentBg = Color(0xFF18181D)
+private val BgDeep = Color(0xFF11111C)
+private val SidebarBg = Color(0xFF11111C)
+private val ContentBg = Color(0xFF11111C)
 private val CardSurface = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val InputSurface = Color(0xFF171722)
