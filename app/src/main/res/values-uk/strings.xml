@@ -799,6 +799,8 @@
     <string name="settings_debug_share_logs">Поділитися журналами</string>
     <string name="settings_debug_delete_logs">Видалити журнали</string>
     <string name="settings_debug_share_all_logs_short">Поділитися всіма</string>
+    <string name="settings_debug_download_all_logs_short">Завантажити все</string>
+    <string name="settings_debug_logs_saved">Збережено в %1$s</string>
     <string name="settings_debug_delete_logs_short">Видалити</string>
     <string name="settings_debug_delete_all_logs_short">Видалити всі</string>
     <string name="settings_debug_open_logs_folder_short">Відкрити менеджер журналів</string>

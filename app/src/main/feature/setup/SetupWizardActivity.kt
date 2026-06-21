@@ -80,6 +80,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -515,6 +516,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val advancedProfiles = mutableStateListOf<RemotePackageSpec>()
     private val advancedInstalledSet = mutableStateListOf<String>()
     private val advancedContainerNames = mutableStateListOf<String>()
+
+    private enum class QueueItemStatus { QUEUED, ACTIVE, FAILED }
+
+    private val installQueue = mutableStateListOf<RemotePackageSpec>()
+    private val queueStatus = mutableStateMapOf<String, QueueItemStatus>()
+    private var queueWorkerRunning = false
+    private var queueTotal = 0
+    private var queueCompleted = 0
 
     private var returnToCaller = false
     private var recommendedPackageRefreshInFlight = false
@@ -1032,29 +1041,41 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
     }
 
-    private fun installAllRecommended() {
-        if (transferState.value != null) return
-        val pending =
-            advancedProfiles
-                .filter { isRecommendedSpec(it) && it.verName !in advancedInstalledSet }
-        if (pending.isEmpty()) return
+    private fun enqueueAllRecommended() {
+        advancedProfiles
+            .filter { isRecommendedSpec(it) && it.verName !in advancedInstalledSet }
+            .forEach { enqueueAdvancedComponent(it) }
+    }
 
-        val keepAliveTag = "install_recommended_${System.currentTimeMillis()}"
+    private fun startInstallQueue() {
+        if (queueWorkerRunning) return
+        queueWorkerRunning = true
+        val keepAliveTag = "install_queue_${System.currentTimeMillis()}"
         com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
         lifecycleScope.launch {
             updateWizardError(null)
             try {
-                for ((index, spec) in pending.withIndex()) {
-                    val title = getString(R.string.setup_wizard_recommended_components)
+                while (installQueue.isNotEmpty()) {
+                    val spec = installQueue.removeAt(0)
+                    val key = spec.remoteUrl
+                    if (spec.verName in advancedInstalledSet) {
+                        queueStatus.remove(key)
+                        queueCompleted += 1
+                        continue
+                    }
+                    queueStatus[key] = QueueItemStatus.ACTIVE
+                    val position = queueCompleted + 1
+                    val total = queueTotal
+                    val title = spec.verName
                     val profile =
                         withContext(Dispatchers.IO) {
                             try {
                                 updateTransferState(
                                     TransferState(
                                         title = title,
-                                        detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                        currentIndex = index + 1,
-                                        total = pending.size,
+                                        detail = getString(R.string.downloads_queue_preparing_download),
+                                        currentIndex = position,
+                                        total = total,
                                         progress = 0f,
                                     ),
                                 )
@@ -1062,18 +1083,17 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                     downloadFileToCache(
                                         label = spec.verName,
                                         url = spec.remoteUrl,
-                                        currentIndex = index + 1,
-                                        total = pending.size,
+                                        currentIndex = position,
+                                        total = total,
                                         title = title,
-                                    )
-                                if (downloaded == null) return@withContext null
+                                    ) ?: return@withContext null
 
                                 updateTransferState(
                                     TransferState(
                                         title = title,
                                         detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                        currentIndex = index + 1,
-                                        total = pending.size,
+                                        currentIndex = position,
+                                        total = total,
                                         progress = 1f,
                                     ),
                                 )
@@ -1082,9 +1102,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 updateTransferState(
                                     TransferState(
                                         title = title,
-                                        detail = getString(R.string.setup_wizard_installing_package, spec.verName),
-                                        currentIndex = index + 1,
-                                        total = pending.size,
+                                        detail = getString(R.string.setup_wizard_installing),
+                                        currentIndex = position,
+                                        total = total,
                                         progress = null,
                                     ),
                                 )
@@ -1108,18 +1128,23 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 null
                             }
                         }
+                    queueCompleted += 1
                     if (profile != null) {
+                        queueStatus.remove(key)
                         if (spec.verName !in advancedInstalledSet) {
                             advancedInstalledSet.add(spec.verName)
                         }
                     } else {
-                        break
+                        queueStatus[key] = QueueItemStatus.FAILED
                     }
                 }
-                updateTransferState(null)
                 refreshAdvancedInstalledSet()
                 refreshWizardState()
             } finally {
+                updateTransferState(null)
+                queueWorkerRunning = false
+                queueTotal = 0
+                queueCompleted = 0
                 com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
                     applicationContext,
                     keepAliveTag,
@@ -1128,90 +1153,15 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         }
     }
 
-    private fun installAdvancedComponent(spec: RemotePackageSpec) {
-        if (transferState.value != null) return
-        val keepAliveTag = "install_advanced_${spec.remoteUrl}"
-        com.winlator.cmod.runtime.system.SessionKeepAliveService.startDownload(this, keepAliveTag)
-        lifecycleScope.launch {
-            wizardError.value = null
-            val title = spec.verName
-            val profile =
-                withContext(Dispatchers.IO) {
-                    try {
-                        updateTransferState(
-                            TransferState(
-                                title = title,
-                                detail = getString(R.string.downloads_queue_preparing_download),
-                                currentIndex = 1,
-                                total = 1,
-                            ),
-                        )
-                        val downloaded =
-                            downloadFileToCache(
-                                label = spec.verName,
-                                url = spec.remoteUrl,
-                                currentIndex = 1,
-                                total = 1,
-                                title = title,
-                            )
-                        if (downloaded == null) return@withContext null
-
-                        // Show 100% briefly so the bar visually completes
-                        updateTransferState(
-                            TransferState(
-                                title = title,
-                                detail = getString(R.string.setup_wizard_downloading, spec.verName),
-                                currentIndex = 1,
-                                total = 1,
-                                progress = 1f,
-                            ),
-                        )
-                        kotlinx.coroutines.delay(500)
-
-                        updateTransferState(
-                            TransferState(
-                                title = title,
-                                detail = getString(R.string.setup_wizard_installing),
-                                currentIndex = 1,
-                                total = 1,
-                                progress = null,
-                            ),
-                        )
-
-                        val installed = installDownloadedPackage(downloaded, spec.remoteUrl)
-                        downloaded.delete()
-                        if (installed == null) {
-                            updateWizardError(
-                                lastInstallFailureMessage
-                                    ?: getString(R.string.setup_wizard_install_failed_reason, spec.verName),
-                            )
-                        }
-                        installed
-                    } catch (e: Exception) {
-                        updateWizardError(
-                            getString(
-                                R.string.setup_wizard_install_failed_reason,
-                                e.message ?: getString(R.string.common_ui_unknown_error),
-                            ),
-                        )
-                        null
-                    } finally {
-                        updateTransferState(null)
-                    }
-                }
-            if (profile != null) {
-                // Eagerly mark as installed so UI updates immediately
-                if (spec.verName !in advancedInstalledSet) {
-                    advancedInstalledSet.add(spec.verName)
-                }
-                refreshAdvancedInstalledSet()
-                refreshWizardState()
-            }
-            com.winlator.cmod.runtime.system.SessionKeepAliveService.stopDownload(
-                applicationContext,
-                keepAliveTag,
-            )
-        }
+    private fun enqueueAdvancedComponent(spec: RemotePackageSpec) {
+        if (spec.verName in advancedInstalledSet) return
+        val key = spec.remoteUrl
+        val status = queueStatus[key]
+        if (status == QueueItemStatus.QUEUED || status == QueueItemStatus.ACTIVE) return
+        queueStatus[key] = QueueItemStatus.QUEUED
+        installQueue.add(spec)
+        queueTotal += 1
+        startInstallQueue()
     }
 
     private fun openContainerDefaultSettings(
@@ -1578,33 +1528,32 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     }
                 }
 
-                if (transferState.value == null) {
-                    Spacer(Modifier.height(10.dp))
+                val transferActive = transferState.value != null
+                Spacer(Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        GhostPillButton(
-                            label = stringResource(R.string.common_ui_back),
-                            enabled = page > 0,
-                            onClick = { if (page > 0) pageIndex.intValue -= 1 },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    GhostPillButton(
+                        label = stringResource(R.string.common_ui_back),
+                        enabled = page > 0 && !transferActive,
+                        onClick = { if (page > 0) pageIndex.intValue -= 1 },
+                    )
+
+                    if (page < lastPage) {
+                        AccentPillButton(
+                            label = stringResource(R.string.setup_wizard_next),
+                            enabled = canGoNext && !transferActive,
+                            onClick = { if (canGoNext) pageIndex.intValue += 1 },
                         )
-
-                        if (page < lastPage) {
-                            AccentPillButton(
-                                label = stringResource(R.string.setup_wizard_next),
-                                enabled = canGoNext,
-                                onClick = { if (canGoNext) pageIndex.intValue += 1 },
-                            )
-                        } else {
-                            AccentPillButton(
-                                label = stringResource(R.string.setup_wizard_finish),
-                                enabled = !creatingContainer.value,
-                                onClick = { finishWizard() },
-                            )
-                        }
+                    } else {
+                        AccentPillButton(
+                            label = stringResource(R.string.setup_wizard_finish),
+                            enabled = !creatingContainer.value && !transferActive,
+                            onClick = { finishWizard() },
+                        )
                     }
                 }
             }
@@ -2118,7 +2067,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                 ) {
                                     if (isRecommendedTab) {
                                         item {
-                                            val installAllEnabled = transferState.value == null && !allRecommendedInstalled
+                                            val installAllEnabled = !allRecommendedInstalled
                                             val installAllShape = RoundedCornerShape(8.dp)
                                             Box(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -2161,7 +2110,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                                 enabled = installAllEnabled,
                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                 indication = null,
-                                                            ) { installAllRecommended() }
+                                                            ) { enqueueAllRecommended() }
                                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                                     contentAlignment = Alignment.Center,
                                                 ) {
@@ -2197,9 +2146,10 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                         AdvancedComponentCard(
                                             name = spec.verName,
                                             installed = installed,
-                                            onClick = { installAdvancedComponent(spec) },
-                                            enabled = transferState.value == null && !installed,
+                                            onClick = { enqueueAdvancedComponent(spec) },
+                                            enabled = !installed,
                                             recommended = isRecommendedSpec(spec),
+                                            status = queueStatus[spec.remoteUrl],
                                         )
                                     }
                                 }
@@ -2319,6 +2269,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         onClick: () -> Unit,
         enabled: Boolean = true,
         recommended: Boolean = false,
+        status: QueueItemStatus? = null,
     ) {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
@@ -2376,27 +2327,55 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 )
             }
             Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = onClick,
-                enabled = enabled && !installed,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(28.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor =
-                            if (installed) completedTurquoise.copy(alpha = 0.14f) else turquoise.copy(alpha = 0.14f),
-                        contentColor = if (installed) completedTurquoise else turquoise,
-                        disabledContainerColor = if (installed) completedTurquoise.copy(alpha = 0.14f) else turquoise.copy(alpha = 0.16f),
-                        disabledContentColor = if (installed) completedTurquoise else turquoise,
-                    ),
-            ) {
-                Text(
-                    text = stringResource(if (installed) R.string.common_ui_installed else R.string.common_ui_install),
-                    fontFamily = InterFont,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
-                )
+            when {
+                !installed && status == QueueItemStatus.ACTIVE ->
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = turquoise,
+                        strokeWidth = 2.dp,
+                    )
+
+                !installed && status == QueueItemStatus.QUEUED ->
+                    Text(
+                        text = stringResource(R.string.downloads_queue_phase_queued),
+                        color = turquoise,
+                        fontFamily = InterFont,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 10.sp,
+                    )
+
+                else -> {
+                    val isRetry = !installed && status == QueueItemStatus.FAILED
+                    Button(
+                        onClick = onClick,
+                        enabled = enabled && !installed,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(28.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor =
+                                    if (installed) completedTurquoise.copy(alpha = 0.14f) else turquoise.copy(alpha = 0.14f),
+                                contentColor = if (installed) completedTurquoise else turquoise,
+                                disabledContainerColor = if (installed) completedTurquoise.copy(alpha = 0.14f) else turquoise.copy(alpha = 0.16f),
+                                disabledContentColor = if (installed) completedTurquoise else turquoise,
+                            ),
+                    ) {
+                        Text(
+                            text =
+                                stringResource(
+                                    when {
+                                        installed -> R.string.common_ui_installed
+                                        isRetry -> R.string.session_drawer_retry
+                                        else -> R.string.common_ui_install
+                                    },
+                                ),
+                            fontFamily = InterFont,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
             }
         }
     }
