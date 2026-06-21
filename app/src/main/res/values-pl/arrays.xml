@@ -115,6 +115,7 @@
     </string-array>
     <string-array name="desktop_background_type_entries">
         <item>Obraz</item>
+        <item>Oryginalny</item>
         <item>Jednolity kolor</item>
     </string-array>
     <string-array name="startup_selection_entries">
