@@ -1830,6 +1830,62 @@ class UnifiedActivity :
                     }
                 }
                 val scaffoldContainer = if (immersiveMode && currentTabKeyForImmersive == "library") Color.Transparent else BgDark
+                val openFileManager: () -> Unit = {
+                    val imagefsRoot =
+                        com.winlator.cmod.runtime.display.environment.ImageFs.find(context).getRootDir()
+                    val internalPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+                    val managedRoots =
+                        listOf(
+                            DirectoryPickerDialog.ManagedRoot("C:", java.io.File(imagefsRoot, "home").absolutePath),
+                            DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                            DirectoryPickerDialog.ManagedRoot(
+                                "D:",
+                                android.os.Environment
+                                    .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                                    .absolutePath,
+                            ),
+                            DirectoryPickerDialog.ManagedRoot("Internal", internalPath),
+                        )
+                    val containerManager = com.winlator.cmod.runtime.container.ContainerManager(context)
+                    val containers =
+                        containerManager.getContainers().map {
+                            DirectoryPickerDialog.ManagedContainer(it.id, it.getName())
+                        }
+                    DirectoryPickerDialog.showManager(
+                        activity = this@UnifiedActivity,
+                        initialPath = internalPath,
+                        managedRoots = managedRoots,
+                        containers = containers,
+                        onRunFile = { exePath, containerId ->
+                            val container = containerManager.getContainerById(containerId)
+                            if (container != null) {
+                                val winePath =
+                                    com.winlator.cmod.runtime.wine.WineUtils
+                                        .hostPathToMappedWinePath(container, exePath)
+                                startActivity(
+                                    android.content.Intent(
+                                        this@UnifiedActivity,
+                                        com.winlator.cmod.runtime.display.XServerDisplayActivity::class.java,
+                                    ).apply {
+                                        putExtra("container_id", container.id)
+                                        putExtra("boot_exe", winePath)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    },
+                                )
+                            }
+                        },
+                        onCreateShortcut = { exePath ->
+                            val exeFile = java.io.File(exePath)
+                            addCustomGame(
+                                context,
+                                exeFile.nameWithoutExtension,
+                                exePath,
+                                exeFile.parent ?: exePath,
+                            )
+                            localLibraryRefreshKey++
+                        },
+                    )
+                }
                 Scaffold(
                     containerColor = scaffoldContainer,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1839,7 +1895,7 @@ class UnifiedActivity :
                         }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
                             searchQueryTfv =
                                 it
-                        }, onFilterClicked = { scope.launch { drawerState.open() } }) {
+                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onOpenFileManager = openFileManager) {
                             if (selectedLibrarySource == "GOG") {
                                 globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                             } else {
@@ -2139,6 +2195,7 @@ class UnifiedActivity :
         searchQuery: TextFieldValue,
         onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
+        onOpenFileManager: () -> Unit,
         onGameSettingsClicked: () -> Unit,
     ) {
         var isSearchExpanded by remember { mutableStateOf(false) }
@@ -2383,6 +2440,26 @@ class UnifiedActivity :
                     }
 
                     Spacer(Modifier.width(8.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onOpenFileManager() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
+
+                    Spacer(Modifier.width(12.dp))
 
                     Box(
                         modifier =
