@@ -1011,6 +1011,7 @@ private fun AssetRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
                 .background(IconBoxBg)
+                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1046,6 +1047,7 @@ private fun AssetRow(
                 label = "Download",
                 icon = Icons.Outlined.Download,
                 tint = Accent,
+                compact = true,
                 onClick = onDownload,
             )
         }
@@ -1063,20 +1065,20 @@ private fun InstalledPill() {
                 .clip(RoundedCornerShape(8.dp))
                 .background(SuccessGreen.copy(alpha = 0.14f))
                 .border(1.dp, SuccessGreen.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Check,
             contentDescription = null,
             tint = SuccessGreen,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(11.dp),
         )
         Spacer(Modifier.width(5.dp))
         Text(
             text = "Installed",
             color = SuccessGreen,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -1114,12 +1116,17 @@ private fun SmallPillButton(
     tint: Color,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    compact: Boolean = false,
 ) {
     // When disabled, swap the accent tint for the muted secondary color so the pill
     // visibly greys out, and drop the click target so taps are ignored.
     val effectiveTint = if (enabled) tint else TextSecondary.copy(alpha = 0.55f)
     val borderColor = if (enabled) tint.copy(alpha = 0.3f) else CardBorder
     val background = if (enabled) tint.copy(alpha = 0.14f) else CardDarker
+    val horizontalPadding = if (compact) 8.dp else 10.dp
+    val verticalPadding = if (compact) 4.dp else 6.dp
+    val iconSize = if (compact) 11.dp else 12.dp
+    val labelSize = if (compact) 10.sp else 11.sp
     Row(
         modifier =
             Modifier
@@ -1127,7 +1134,7 @@ private fun SmallPillButton(
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
                 .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -1135,14 +1142,14 @@ private fun SmallPillButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = effectiveTint,
-                modifier = Modifier.size(12.dp),
+                modifier = Modifier.size(iconSize),
             )
             Spacer(Modifier.width(5.dp))
         }
         Text(
             text = label,
             color = effectiveTint,
-            fontSize = 11.sp,
+            fontSize = labelSize,
             fontWeight = FontWeight.SemiBold,
         )
     }

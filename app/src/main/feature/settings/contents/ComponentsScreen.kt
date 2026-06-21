@@ -604,6 +604,7 @@ private fun ComponentItemCard(
                         label = stringResource(R.string.common_ui_download),
                         icon = Icons.Outlined.Download,
                         tint = Accent,
+                        compact = true,
                         onClick = onDownload,
                     )
                 } else {
