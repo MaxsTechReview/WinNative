@@ -1966,16 +1966,19 @@ class UnifiedActivity :
                                                     Brush.radialGradient(
                                                         colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
                                                         center = center,
-                                                        radius = size.minDimension * 0.4f,
+                                                        radius = size.minDimension * 0.64f,
                                                     ),
-                                                radius = size.minDimension * 0.4f,
+                                                radius = size.minDimension * 0.64f,
                                             )
                                         }
                                         .clip(CircleShape)
                                         .background(Color.Transparent, CircleShape)
                                         .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
                                         .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
-                                        .clickable { showAddCustomGame = true },
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = androidx.compose.material3.ripple(color = Accent),
+                                        ) { showAddCustomGame = true },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -2282,10 +2285,16 @@ class UnifiedActivity :
                                 .focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(onClick = {
-                            navigateToSettings(SettingsNavItem.STORES)
-                        }, modifier = Modifier.size(44.dp), enabled = true) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = Accent, modifier = Modifier.size(24.dp))
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
+                        ) {
+                            IconButton(onClick = {
+                                navigateToSettings(SettingsNavItem.STORES)
+                            }, modifier = Modifier.size(44.dp), enabled = true) {
+                                Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = Accent, modifier = Modifier.size(24.dp))
+                            }
                         }
                     }
                     if (isControllerConnected) {
@@ -2324,34 +2333,40 @@ class UnifiedActivity :
                                 ).focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(
-                            onClick = {
-                                if (!isDownloadsTab) {
-                                    if (isSearchExpanded) {
-                                        onSearchQueryChange(TextFieldValue(""))
-                                        isSearchExpanded = false
-                                    } else {
-                                        isSearchExpanded = true
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(44.dp),
-                            enabled = !isDownloadsTab,
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
                         ) {
-                            Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = "Search",
-                                tint =
-                                    if (isDownloadsTab) {
-                                        TextSecondary.copy(alpha = 0.4f)
-                                    } else {
-                                        Accent
-                                    },
-                                modifier =
-                                    Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer { rotationZ = searchIconRotation },
-                            )
+                            IconButton(
+                                onClick = {
+                                    if (!isDownloadsTab) {
+                                        if (isSearchExpanded) {
+                                            onSearchQueryChange(TextFieldValue(""))
+                                            isSearchExpanded = false
+                                        } else {
+                                            isSearchExpanded = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(44.dp),
+                                enabled = !isDownloadsTab,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Search,
+                                    contentDescription = "Search",
+                                    tint =
+                                        if (isDownloadsTab) {
+                                            TextSecondary.copy(alpha = 0.4f)
+                                        } else {
+                                            Accent
+                                        },
+                                    modifier =
+                                        Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer { rotationZ = searchIconRotation },
+                                )
+                            }
                         }
                     }
                 }
@@ -2378,7 +2393,10 @@ class UnifiedActivity :
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab }
-                                .clickable { onFilterClicked() },
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onFilterClicked() },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
