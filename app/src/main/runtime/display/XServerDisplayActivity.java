@@ -6976,7 +6976,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         envVars.put("GALLIUM_DRIVER", "zink");
-        envVars.put("LIBGL_KOPPER_DISABLE", "true");
 
         if (firstTimeBoot) {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
@@ -7085,14 +7084,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         switch (bcnEmulation) {
             case "auto" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 0x5143) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "1");
                 }
                 envVars.put("WRAPPER_EMULATE_BCN", "3");
             }
             case "full" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 0x5143) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "0");
                 }
