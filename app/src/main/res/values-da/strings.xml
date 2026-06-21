@@ -793,6 +793,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_share_logs">Del logfiler</string>
     <string name="settings_debug_delete_logs">Slet logfiler</string>
     <string name="settings_debug_share_all_logs_short">Del alle</string>
+    <string name="settings_debug_download_all_logs_short">Download alle</string>
+    <string name="settings_debug_logs_saved">Gemt i %1$s</string>
     <string name="settings_debug_delete_logs_short">Slet</string>
     <string name="settings_debug_delete_all_logs_short">Slet alle</string>
     <string name="settings_debug_open_logs_folder_short">Åbn loghåndtering</string>

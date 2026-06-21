@@ -793,6 +793,8 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_debug_share_logs">Condividi log</string>
     <string name="settings_debug_delete_logs">Elimina log</string>
     <string name="settings_debug_share_all_logs_short">Condividi tutto</string>
+    <string name="settings_debug_download_all_logs_short">Scarica tutto</string>
+    <string name="settings_debug_logs_saved">Salvato in %1$s</string>
     <string name="settings_debug_delete_logs_short">Elimina</string>
     <string name="settings_debug_delete_all_logs_short">Elimina tutto</string>
     <string name="settings_debug_open_logs_folder_short">Apri gestione log</string>

@@ -1026,6 +1026,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_share_logs">Share Logs</string>
     <string name="settings_debug_delete_logs">Delete Logs</string>
     <string name="settings_debug_share_all_logs_short">Share all</string>
+    <string name="settings_debug_download_all_logs_short">Download all</string>
+    <string name="settings_debug_logs_saved">Saved to %1$s</string>
     <string name="settings_debug_delete_logs_short">Delete</string>
     <string name="settings_debug_delete_all_logs_short">Delete all</string>
     <string name="settings_debug_open_logs_folder_short">Open Logs Manager</string>

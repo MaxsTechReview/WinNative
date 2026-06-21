@@ -793,6 +793,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_debug_share_logs">Partajeaza jurnalele</string>
     <string name="settings_debug_delete_logs">Șterge jurnalele</string>
     <string name="settings_debug_share_all_logs_short">Partajează tot</string>
+    <string name="settings_debug_download_all_logs_short">Descarcă tot</string>
+    <string name="settings_debug_logs_saved">Salvat în %1$s</string>
     <string name="settings_debug_delete_logs_short">Șterge</string>
     <string name="settings_debug_delete_all_logs_short">Șterge tot</string>
     <string name="settings_debug_open_logs_folder_short">Deschide managerul de jurnale</string>
