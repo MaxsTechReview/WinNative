@@ -2686,8 +2686,8 @@ static double fg_sig_delta(VkRenderer* r, uint32_t a, uint32_t b) {
 }
 
 // --- Debug burst dump -----------------------------------------------------------------------------
-#define FG_DUMP_W 270u
-#define FG_DUMP_H 594u
+#define FG_DUMP_W 636u
+#define FG_DUMP_H 1386u
 #define FG_DUMP_N 8u
 #define FG_DUMP_BUFS 10u   // FG_DUMP_N gen + prev + curr
 
