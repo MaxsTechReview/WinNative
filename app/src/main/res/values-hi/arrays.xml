@@ -127,6 +127,7 @@
     </string-array>
     <string-array name="desktop_background_type_entries">
         <item>छवि</item>
+        <item>मूल</item>
         <item>ठोस रंग</item>
     </string-array>
     <string-array name="startup_selection_entries">
