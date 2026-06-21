@@ -1418,5 +1418,26 @@
     <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_custom_value">Власне значення</string>
     <string name="session_gyroscope_orientation_mode">Нахил для прицілювання (орієнтація)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Файли</string>
+    <string name="file_manager_copy">Копіювати</string>
+    <string name="file_manager_cut">Вирізати</string>
+    <string name="file_manager_paste">Вставити</string>
+    <string name="file_manager_paste_here">Вставити сюди</string>
+    <string name="file_manager_new_folder">Нова тека</string>
+    <string name="file_manager_create">Створити</string>
+    <string name="file_manager_delete">Видалити</string>
+    <string name="file_manager_run_boot">Запустити / Завантажити</string>
+    <string name="file_manager_create_shortcut">Створити ярлик</string>
+    <string name="file_manager_run_in_container">Запустити в контейнері</string>
+    <string name="file_manager_no_containers">Немає доступних контейнерів</string>
+    <string name="file_manager_delete_confirm">Видалити \"%1$s\"? Цю дію неможливо скасувати.</string>
+    <string name="file_manager_copying">Копіювання %1$s</string>
+    <string name="file_manager_moving">Переміщення %1$s</string>
+    <string name="file_manager_paste_into_itself">Неможливо вставити теку саму в себе</string>
+    <string name="file_manager_operation_failed">Не вдалося виконати операцію</string>
+    <string name="file_manager_delete_failed">Не вдалося видалити</string>
+    <string name="file_manager_rename_failed">Не вдалося перейменувати</string>
+    <string name="file_manager_create_folder_failed">Не вдалося створити теку</string>
 </resources>
 

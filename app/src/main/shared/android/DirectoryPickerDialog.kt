@@ -221,7 +221,7 @@ object DirectoryPickerDialog {
     fun showManager(
         activity: Activity,
         initialPath: String? = null,
-        title: String = "Files",
+        title: String = activity.getString(R.string.file_manager_title),
         managedRoots: List<ManagedRoot>,
         containers: List<ManagedContainer> = emptyList(),
         onRunFile: ((String, Int) -> Unit)? = null,
@@ -418,10 +418,14 @@ object DirectoryPickerDialog {
             val dest = File(dir, src.name)
             if (dest.absolutePath == src.absolutePath) return
             if (src.isDirectory && isSameOrDescendant(dest, src)) {
-                Toast.makeText(context, "Can't paste a folder into itself", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.file_manager_paste_into_itself), Toast.LENGTH_SHORT).show()
                 return
             }
-            transferLabel = (if (isCut) "Moving " else "Copying ") + src.name
+            transferLabel =
+                context.getString(
+                    if (isCut) R.string.file_manager_moving else R.string.file_manager_copying,
+                    src.name,
+                )
             transferProgress = 0f
             transferJob = scope.launch {
                 try {
@@ -442,7 +446,7 @@ object DirectoryPickerDialog {
                         }
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(context, e.message ?: "Operation failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_operation_failed), Toast.LENGTH_SHORT).show()
                 } finally {
                     transferProgress = null
                     transferJob = null
@@ -455,7 +459,7 @@ object DirectoryPickerDialog {
             try {
                 f.deleteRecursively()
             } catch (e: Exception) {
-                Toast.makeText(context, e.message ?: "Delete failed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_delete_failed), Toast.LENGTH_SHORT).show()
             }
             if (selectedFile?.absolutePath == f.absolutePath) selectedFile = null
             refreshEntries()
@@ -467,7 +471,7 @@ object DirectoryPickerDialog {
             try {
                 f.renameTo(File(f.parentFile, trimmed))
             } catch (e: Exception) {
-                Toast.makeText(context, e.message ?: "Rename failed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_rename_failed), Toast.LENGTH_SHORT).show()
             }
             refreshEntries()
         }
@@ -478,7 +482,7 @@ object DirectoryPickerDialog {
             try {
                 File(currentDir, trimmed).mkdirs()
             } catch (e: Exception) {
-                Toast.makeText(context, e.message ?: "Create folder failed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_create_folder_failed), Toast.LENGTH_SHORT).show()
             }
             refreshEntries()
         }
@@ -487,36 +491,36 @@ object DirectoryPickerDialog {
             val target = entry.target
             val actions = mutableListOf<ItemAction>()
             if (target.isFile && onRunFile != null) {
-                actions += ItemAction(Icons.Outlined.PlayArrow, "Run / Boot") {
+                actions += ItemAction(Icons.Outlined.PlayArrow, context.getString(R.string.file_manager_run_boot)) {
                     runTarget = target
                     menuTarget = null
                 }
             }
             if (target.isFile && onCreateShortcut != null) {
-                actions += ItemAction(Icons.Outlined.AddLink, "Create Shortcut") {
+                actions += ItemAction(Icons.Outlined.AddLink, context.getString(R.string.file_manager_create_shortcut)) {
                     onCreateShortcut.invoke(target.absolutePath)
                     menuTarget = null
                 }
             }
-            actions += ItemAction(Icons.Outlined.ContentCopy, "Copy") {
+            actions += ItemAction(Icons.Outlined.ContentCopy, context.getString(R.string.file_manager_copy)) {
                 clipboard = target to false
                 menuTarget = null
             }
-            actions += ItemAction(Icons.Outlined.ContentCut, "Cut") {
+            actions += ItemAction(Icons.Outlined.ContentCut, context.getString(R.string.file_manager_cut)) {
                 clipboard = target to true
                 menuTarget = null
             }
             if (clipboard != null) {
-                actions += ItemAction(Icons.Outlined.ContentPaste, "Paste here") {
+                actions += ItemAction(Icons.Outlined.ContentPaste, context.getString(R.string.file_manager_paste_here)) {
                     pasteInto(currentDir)
                     menuTarget = null
                 }
             }
-            actions += ItemAction(Icons.Outlined.DriveFileRenameOutline, "Rename") {
+            actions += ItemAction(Icons.Outlined.DriveFileRenameOutline, context.getString(R.string.common_ui_rename)) {
                 renameTarget = target
                 menuTarget = null
             }
-            actions += ItemAction(Icons.Outlined.Delete, "Delete") {
+            actions += ItemAction(Icons.Outlined.Delete, context.getString(R.string.file_manager_delete)) {
                 deleteTarget = target
                 menuTarget = null
             }
@@ -753,14 +757,14 @@ object DirectoryPickerDialog {
                             )
                             if (clipboard != null) {
                                 SecondaryActionChip(
-                                    label = "Paste",
+                                    label = activityString(R.string.file_manager_paste),
                                     icon = Icons.Outlined.ContentPaste,
                                     accent = true,
                                     onClick = { pasteInto(currentDir) },
                                 )
                             }
                             SecondaryActionChip(
-                                label = "New Folder",
+                                label = activityString(R.string.file_manager_new_folder),
                                 icon = Icons.Outlined.CreateNewFolder,
                                 accent = true,
                                 onClick = { showNewFolder = true },
@@ -777,10 +781,7 @@ object DirectoryPickerDialog {
                                 modifier = Modifier.widthIn(min = 150.dp, max = 182.dp),
                             )
                             FooterActionButton(
-                                label = "Close",
-                                textColor = TextPrimary,
-                                backgroundColor = Color.Transparent,
-                                rippleColor = Accent,
+                                label = activityString(R.string.common_ui_close),
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
@@ -808,16 +809,12 @@ object DirectoryPickerDialog {
                         ) {
                             FooterActionButton(
                                 label = activityString(R.string.common_ui_cancel),
-                                textColor = TextPrimary,
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
                             FooterActionButton(
                                 label = activityString(R.string.common_ui_ok),
-                                textColor = Accent,
                                 modifier = Modifier.height(FooterButtonHeight),
-                                backgroundColor = Accent.copy(alpha = 0.12f),
-                                borderColor = Accent.copy(alpha = 0.3f),
                                 onClick = {
                                     val selectedPath =
                                         if (mode == SelectionMode.FILE) {
@@ -851,9 +848,9 @@ object DirectoryPickerDialog {
                 renameTarget?.let { target ->
                     TextInputOverlay(
                         modifier = Modifier.matchParentSize(),
-                        title = "Rename",
+                        title = activityString(R.string.common_ui_rename),
                         initial = target.name,
-                        confirmLabel = "Rename",
+                        confirmLabel = activityString(R.string.common_ui_rename),
                         onConfirm = {
                             renameFile(target, it)
                             renameTarget = null
@@ -864,9 +861,9 @@ object DirectoryPickerDialog {
                 if (showNewFolder) {
                     TextInputOverlay(
                         modifier = Modifier.matchParentSize(),
-                        title = "New Folder",
+                        title = activityString(R.string.file_manager_new_folder),
                         initial = "",
-                        confirmLabel = "Create",
+                        confirmLabel = activityString(R.string.file_manager_create),
                         onConfirm = {
                             createFolder(it)
                             showNewFolder = false
@@ -877,9 +874,9 @@ object DirectoryPickerDialog {
                 deleteTarget?.let { target ->
                     ConfirmOverlay(
                         modifier = Modifier.matchParentSize(),
-                        title = "Delete",
-                        message = "Delete \"${target.name}\"? This cannot be undone.",
-                        confirmLabel = "Delete",
+                        title = activityString(R.string.file_manager_delete),
+                        message = activityString(R.string.file_manager_delete_confirm, target.name),
+                        confirmLabel = activityString(R.string.file_manager_delete),
                         onConfirm = {
                             deleteFile(target)
                             deleteTarget = null
@@ -1254,11 +1251,8 @@ object DirectoryPickerDialog {
     @Composable
     private fun FooterActionButton(
         label: String,
-        textColor: Color,
         modifier: Modifier = Modifier,
-        backgroundColor: Color = WinNativePanel,
-        borderColor: Color = CardBorder,
-        rippleColor: Color? = null,
+        tone: Color = Accent,
         onClick: () -> Unit,
     ) {
         Box(
@@ -1267,18 +1261,17 @@ object DirectoryPickerDialog {
                     .widthIn(min = 74.dp)
                     .height(FooterButtonHeight)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(backgroundColor)
-                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                    .border(1.dp, tone.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = if (rippleColor != null) ripple(color = rippleColor) else null,
+                        indication = ripple(color = tone),
                         onClick = onClick,
                     ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = label,
-                color = textColor,
+                color = tone,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -1457,6 +1450,12 @@ object DirectoryPickerDialog {
     private fun activityString(resId: Int): String = androidx.compose.ui.res.stringResource(id = resId)
 
     @Composable
+    private fun activityString(
+        resId: Int,
+        vararg formatArgs: Any,
+    ): String = androidx.compose.ui.res.stringResource(id = resId, formatArgs = formatArgs)
+
+    @Composable
     private fun activityPlural(
         resId: Int,
         quantity: Int,
@@ -1568,7 +1567,7 @@ object DirectoryPickerDialog {
                         ).padding(16.dp),
             ) {
                 Text(
-                    text = "Run in container",
+                    text = activityString(R.string.file_manager_run_in_container),
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -1576,7 +1575,7 @@ object DirectoryPickerDialog {
                 Spacer(Modifier.height(12.dp))
                 if (containers.isEmpty()) {
                     Text(
-                        text = "No containers available",
+                        text = activityString(R.string.file_manager_no_containers),
                         color = TextSecondary,
                         fontSize = 12.sp,
                     )
@@ -1626,8 +1625,7 @@ object DirectoryPickerDialog {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     FooterActionButton(
-                        label = "Cancel",
-                        textColor = TextPrimary,
+                        label = activityString(R.string.common_ui_cancel),
                         modifier = Modifier.height(FooterButtonHeight),
                         onClick = onDismiss,
                     )
@@ -1689,17 +1687,13 @@ object DirectoryPickerDialog {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     FooterActionButton(
-                        label = "Cancel",
-                        textColor = TextPrimary,
+                        label = activityString(R.string.common_ui_cancel),
                         modifier = Modifier.height(FooterButtonHeight),
                         onClick = onDismiss,
                     )
                     FooterActionButton(
                         label = confirmLabel,
-                        textColor = Accent,
                         modifier = Modifier.height(FooterButtonHeight),
-                        backgroundColor = Accent.copy(alpha = 0.12f),
-                        borderColor = Accent.copy(alpha = 0.3f),
                         onClick = { onConfirm(text) },
                     )
                 }
@@ -1759,17 +1753,14 @@ object DirectoryPickerDialog {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     FooterActionButton(
-                        label = "Cancel",
-                        textColor = TextPrimary,
+                        label = activityString(R.string.common_ui_cancel),
                         modifier = Modifier.height(FooterButtonHeight),
                         onClick = onDismiss,
                     )
                     FooterActionButton(
                         label = confirmLabel,
-                        textColor = danger,
+                        tone = danger,
                         modifier = Modifier.height(FooterButtonHeight),
-                        backgroundColor = danger.copy(alpha = 0.12f),
-                        borderColor = danger.copy(alpha = 0.3f),
                         onClick = onConfirm,
                     )
                 }
@@ -1839,8 +1830,7 @@ object DirectoryPickerDialog {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     FooterActionButton(
-                        label = "Cancel",
-                        textColor = TextPrimary,
+                        label = activityString(R.string.common_ui_cancel),
                         modifier = Modifier.height(FooterButtonHeight),
                         onClick = onCancel,
                     )
