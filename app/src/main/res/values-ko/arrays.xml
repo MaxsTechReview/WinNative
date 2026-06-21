@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="desktop_background_type_entries">
+        <item>이미지</item>
+        <item>원본</item>
+        <item>단색</item>
+    </string-array>
+</resources>

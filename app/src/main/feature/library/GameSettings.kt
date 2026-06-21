@@ -102,14 +102,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
+import com.winlator.cmod.runtime.wine.WineThemeManager
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
-private val BgDeep = Color(0xFF18181D)
-private val SidebarBg = Color(0xFF18181D)
-private val ContentBg = Color(0xFF18181D)
+private val BgDeep = Color(0xFF11111C)
+private val SidebarBg = Color(0xFF11111C)
+private val ContentBg = Color(0xFF11111C)
 private val CardSurface = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val InputSurface = Color(0xFF171722)
@@ -2082,11 +2083,10 @@ private fun WineSection(
                     onSelected = { state.selectedDesktopBackgroundType.intValue = it }
                 )
 
-                val typeEntries = state.desktopBackgroundTypeEntries.value
-                val selectedType = typeEntries.getOrNull(state.selectedDesktopBackgroundType.intValue)
-                    ?.lowercase() ?: ""
-                when (selectedType) {
-                    "color" -> {
+                val bgType = WineThemeManager.BackgroundType.values()
+                    .getOrNull(state.selectedDesktopBackgroundType.intValue)
+                when (bgType) {
+                    WineThemeManager.BackgroundType.COLOR -> {
                         Spacer(Modifier.height(SettingItemGap))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -2114,7 +2114,7 @@ private fun WineSection(
                             )
                         }
                     }
-                    "image" -> {
+                    WineThemeManager.BackgroundType.IMAGE -> {
                         Spacer(Modifier.height(SettingItemGap))
                         Row(
                             modifier = Modifier
@@ -2146,6 +2146,7 @@ private fun WineSection(
                             }
                         }
                     }
+                    else -> {}
                 }
             }
         }

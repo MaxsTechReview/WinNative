@@ -19,6 +19,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +47,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddLink
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -55,8 +65,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -66,6 +79,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +88,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -100,6 +115,13 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.toast.WinToast
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object DirectoryPickerDialog {
     private const val ContentEnterMillis = 220
@@ -120,13 +142,30 @@ object DirectoryPickerDialog {
     private enum class SelectionMode {
         DIRECTORY,
         FILE,
+        MANAGE,
     }
+
+    data class ManagedRoot(
+        val label: String,
+        val path: String,
+    )
+
+    data class ManagedContainer(
+        val id: Int,
+        val name: String,
+    )
 
     private data class Entry(
         val label: String,
         val target: File,
         val isParent: Boolean = false,
         val isSelectableFile: Boolean = false,
+    )
+
+    private data class ItemAction(
+        val icon: androidx.compose.ui.graphics.vector.ImageVector,
+        val label: String,
+        val onClick: () -> Unit,
     )
 
     @JvmStatic
@@ -137,6 +176,7 @@ object DirectoryPickerDialog {
         dimBackground: Boolean = true,
         dimAmount: Float = 0.30f,
         preserveBackdropBlur: Boolean = false,
+        extraRoots: List<ManagedRoot> = emptyList(),
         onSelected: (String) -> Unit,
     ) {
         showPicker(
@@ -148,6 +188,7 @@ object DirectoryPickerDialog {
             dimBackground = dimBackground,
             dimAmount = dimAmount,
             preserveBackdropBlur = preserveBackdropBlur,
+            extraRoots = extraRoots,
             onSelected = onSelected,
         )
     }
@@ -160,6 +201,7 @@ object DirectoryPickerDialog {
         dimBackground: Boolean = true,
         dimAmount: Float = 0.30f,
         preserveBackdropBlur: Boolean = false,
+        extraRoots: List<ManagedRoot> = emptyList(),
         onSelected: (String) -> Unit,
     ) {
         showPicker(
@@ -171,7 +213,37 @@ object DirectoryPickerDialog {
             dimBackground = dimBackground,
             dimAmount = dimAmount,
             preserveBackdropBlur = preserveBackdropBlur,
+            extraRoots = extraRoots,
             onSelected = onSelected,
+        )
+    }
+
+    fun showManager(
+        activity: Activity,
+        initialPath: String? = null,
+        title: String = activity.getString(R.string.file_manager_title),
+        managedRoots: List<ManagedRoot>,
+        containers: List<ManagedContainer> = emptyList(),
+        onRunFile: ((String, Int) -> Unit)? = null,
+        onCreateShortcut: ((String) -> Unit)? = null,
+        dimBackground: Boolean = true,
+        dimAmount: Float = 0.30f,
+        preserveBackdropBlur: Boolean = false,
+    ) {
+        showPicker(
+            activity = activity,
+            initialPath = initialPath ?: managedRoots.firstOrNull()?.path,
+            title = title,
+            mode = SelectionMode.MANAGE,
+            allowedExtensions = emptySet(),
+            dimBackground = dimBackground,
+            dimAmount = dimAmount,
+            preserveBackdropBlur = preserveBackdropBlur,
+            managedRoots = managedRoots,
+            containers = containers,
+            onRunFile = onRunFile,
+            onCreateShortcut = onCreateShortcut,
+            onSelected = {},
         )
     }
 
@@ -184,6 +256,11 @@ object DirectoryPickerDialog {
         dimBackground: Boolean,
         dimAmount: Float,
         preserveBackdropBlur: Boolean,
+        managedRoots: List<ManagedRoot> = emptyList(),
+        extraRoots: List<ManagedRoot> = emptyList(),
+        containers: List<ManagedContainer> = emptyList(),
+        onRunFile: ((String, Int) -> Unit)? = null,
+        onCreateShortcut: ((String) -> Unit)? = null,
         onSelected: (String) -> Unit,
     ) {
         if (!ensureAllFilesAccess(activity)) return
@@ -243,6 +320,11 @@ object DirectoryPickerDialog {
                                     roots = roots,
                                     mode = mode,
                                     allowedExtensions = allowedExtensions,
+                                    managedRoots = managedRoots,
+                                    extraRoots = extraRoots,
+                                    containers = containers,
+                                    onRunFile = onRunFile,
+                                    onCreateShortcut = onCreateShortcut,
                                     onDismiss = ::dismissPicker,
                                     onSelect = { path ->
                                         onSelected(path)
@@ -295,15 +377,154 @@ object DirectoryPickerDialog {
         roots: List<File>,
         mode: SelectionMode,
         allowedExtensions: Set<String>,
+        managedRoots: List<ManagedRoot> = emptyList(),
+        extraRoots: List<ManagedRoot> = emptyList(),
+        containers: List<ManagedContainer> = emptyList(),
+        onRunFile: ((String, Int) -> Unit)? = null,
+        onCreateShortcut: ((String) -> Unit)? = null,
         onDismiss: () -> Unit,
         onSelect: (String) -> Unit,
     ) {
+        val manage = mode == SelectionMode.MANAGE
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
         var currentDir by remember(initialDir.absolutePath) { mutableStateOf(initialDir) }
         var selectedFile by remember(currentDir.absolutePath) { mutableStateOf<File?>(null) }
         var rootsExpanded by remember { mutableStateOf(false) }
+        var refreshTick by remember { mutableStateOf(0) }
+        var clipboard by remember { mutableStateOf<Pair<File, Boolean>?>(null) }
+        var transferProgress by remember { mutableStateOf<Float?>(null) }
+        var transferLabel by remember { mutableStateOf("") }
+        var transferJob by remember { mutableStateOf<Job?>(null) }
+        var menuTarget by remember { mutableStateOf<File?>(null) }
+        var renameTarget by remember { mutableStateOf<File?>(null) }
+        var deleteTarget by remember { mutableStateOf<File?>(null) }
+        var runTarget by remember { mutableStateOf<File?>(null) }
+        var showNewFolder by remember { mutableStateOf(false) }
         val upLabel = activityString(R.string.saves_import_export_up_directory)
-        val entries = remember(currentDir.absolutePath, upLabel, mode, allowedExtensions) {
+        val entries = remember(currentDir.absolutePath, upLabel, mode, allowedExtensions, refreshTick) {
             buildEntries(currentDir, upLabel, mode, allowedExtensions)
+        }
+
+        fun refreshEntries() {
+            refreshTick++
+        }
+
+        fun pasteInto(dir: File) {
+            val cb = clipboard ?: return
+            if (transferProgress != null) return
+            val src = cb.first
+            val isCut = cb.second
+            val dest = File(dir, src.name)
+            if (dest.absolutePath == src.absolutePath) return
+            if (src.isDirectory && isSameOrDescendant(dest, src)) {
+                Toast.makeText(context, context.getString(R.string.file_manager_paste_into_itself), Toast.LENGTH_SHORT).show()
+                return
+            }
+            transferLabel =
+                context.getString(
+                    if (isCut) R.string.file_manager_moving else R.string.file_manager_copying,
+                    src.name,
+                )
+            transferProgress = 0f
+            transferJob = scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        transferRecursively(
+                            src = src,
+                            dest = dest,
+                            isCut = isCut,
+                            onProgress = { transferProgress = it },
+                            isActive = { isActive },
+                        )
+                    }
+                    clipboard = null
+                } catch (e: CancellationException) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        runCatching {
+                            if (dest.exists() && dest.absolutePath != src.absolutePath) dest.deleteRecursively()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_operation_failed), Toast.LENGTH_SHORT).show()
+                } finally {
+                    transferProgress = null
+                    transferJob = null
+                    refreshEntries()
+                }
+            }
+        }
+
+        fun deleteFile(f: File) {
+            try {
+                f.deleteRecursively()
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_delete_failed), Toast.LENGTH_SHORT).show()
+            }
+            if (selectedFile?.absolutePath == f.absolutePath) selectedFile = null
+            refreshEntries()
+        }
+
+        fun renameFile(f: File, newName: String) {
+            val trimmed = newName.trim()
+            if (trimmed.isEmpty()) return
+            try {
+                f.renameTo(File(f.parentFile, trimmed))
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_rename_failed), Toast.LENGTH_SHORT).show()
+            }
+            refreshEntries()
+        }
+
+        fun createFolder(name: String) {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return
+            try {
+                File(currentDir, trimmed).mkdirs()
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: context.getString(R.string.file_manager_create_folder_failed), Toast.LENGTH_SHORT).show()
+            }
+            refreshEntries()
+        }
+
+        fun buildItemActions(entry: Entry): List<ItemAction> {
+            val target = entry.target
+            val actions = mutableListOf<ItemAction>()
+            if (target.isFile && onRunFile != null) {
+                actions += ItemAction(Icons.Outlined.PlayArrow, context.getString(R.string.file_manager_run_boot)) {
+                    runTarget = target
+                    menuTarget = null
+                }
+            }
+            if (target.isFile && onCreateShortcut != null) {
+                actions += ItemAction(Icons.Outlined.AddLink, context.getString(R.string.file_manager_create_shortcut)) {
+                    onCreateShortcut.invoke(target.absolutePath)
+                    menuTarget = null
+                }
+            }
+            actions += ItemAction(Icons.Outlined.ContentCopy, context.getString(R.string.file_manager_copy)) {
+                clipboard = target to false
+                menuTarget = null
+            }
+            actions += ItemAction(Icons.Outlined.ContentCut, context.getString(R.string.file_manager_cut)) {
+                clipboard = target to true
+                menuTarget = null
+            }
+            if (clipboard != null) {
+                actions += ItemAction(Icons.Outlined.ContentPaste, context.getString(R.string.file_manager_paste_here)) {
+                    pasteInto(currentDir)
+                    menuTarget = null
+                }
+            }
+            actions += ItemAction(Icons.Outlined.DriveFileRenameOutline, context.getString(R.string.common_ui_rename)) {
+                renameTarget = target
+                menuTarget = null
+            }
+            actions += ItemAction(Icons.Outlined.Delete, context.getString(R.string.file_manager_delete)) {
+                deleteTarget = target
+                menuTarget = null
+            }
+            return actions
         }
         val folderCount = remember(entries) { entries.count { !it.isParent } }
         val selectableFileCount = remember(entries) { entries.count { it.isSelectableFile } }
@@ -492,6 +713,8 @@ object DirectoryPickerDialog {
                                 items(entries, key = { entry ->
                                     entry.target.absolutePath + entry.isParent + entry.isSelectableFile
                                 }) { entry ->
+                                    val isMenuOpen =
+                                        manage && menuTarget?.absolutePath == entry.target.absolutePath
                                     EntryTile(
                                         entry = entry,
                                         selected = selectedFile?.absolutePath == entry.target.absolutePath,
@@ -502,6 +725,15 @@ object DirectoryPickerDialog {
                                                 currentDir = entry.target
                                             }
                                         },
+                                        onLongClick =
+                                            if (manage && !entry.isParent) {
+                                                { menuTarget = entry.target }
+                                            } else {
+                                                null
+                                            },
+                                        menuExpanded = isMenuOpen,
+                                        onMenuDismiss = { menuTarget = null },
+                                        actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
                                     )
                                 }
                             }
@@ -511,6 +743,51 @@ object DirectoryPickerDialog {
                     Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = CardBorder, thickness = 1.dp)
                     Spacer(Modifier.height(10.dp))
+
+                    if (manage) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FooterInfo(
+                                title = title,
+                                subtitle = selectedFile?.absolutePath ?: currentDir.absolutePath,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (clipboard != null) {
+                                SecondaryActionChip(
+                                    label = activityString(R.string.file_manager_paste),
+                                    icon = Icons.Outlined.ContentPaste,
+                                    accent = true,
+                                    onClick = { pasteInto(currentDir) },
+                                )
+                            }
+                            SecondaryActionChip(
+                                label = activityString(R.string.file_manager_new_folder),
+                                icon = Icons.Outlined.CreateNewFolder,
+                                accent = true,
+                                onClick = { showNewFolder = true },
+                            )
+                            ManageRootSelector(
+                                managedRoots = managedRoots,
+                                currentDir = currentDir,
+                                expanded = rootsExpanded,
+                                onExpandedChange = { rootsExpanded = it },
+                                onRootSelected = {
+                                    currentDir = File(it)
+                                    rootsExpanded = false
+                                },
+                                modifier = Modifier.widthIn(min = 150.dp, max = 182.dp),
+                            )
+                            FooterActionButton(
+                                label = activityString(R.string.common_ui_close),
+                                modifier = Modifier.height(FooterButtonHeight),
+                                onClick = onDismiss,
+                            )
+                        }
+                        return@Column
+                    }
 
                     val rootSelector: @Composable (Modifier) -> Unit = { modifier ->
                         RootSelector(
@@ -523,6 +800,7 @@ object DirectoryPickerDialog {
                                 rootsExpanded = false
                             },
                             modifier = modifier,
+                            extraRoots = extraRoots,
                         )
                     }
                     val footerActions: @Composable () -> Unit = {
@@ -531,16 +809,12 @@ object DirectoryPickerDialog {
                         ) {
                             FooterActionButton(
                                 label = activityString(R.string.common_ui_cancel),
-                                textColor = TextPrimary,
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
                             FooterActionButton(
                                 label = activityString(R.string.common_ui_ok),
-                                textColor = Accent,
                                 modifier = Modifier.height(FooterButtonHeight),
-                                backgroundColor = Accent.copy(alpha = 0.12f),
-                                borderColor = Accent.copy(alpha = 0.3f),
                                 onClick = {
                                     val selectedPath =
                                         if (mode == SelectionMode.FILE) {
@@ -567,6 +841,67 @@ object DirectoryPickerDialog {
                         rootSelector(Modifier.widthIn(min = 158.dp, max = 182.dp))
                         footerActions()
                     }
+                }
+            }
+
+            if (manage) {
+                renameTarget?.let { target ->
+                    TextInputOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        title = activityString(R.string.common_ui_rename),
+                        initial = target.name,
+                        confirmLabel = activityString(R.string.common_ui_rename),
+                        onConfirm = {
+                            renameFile(target, it)
+                            renameTarget = null
+                        },
+                        onDismiss = { renameTarget = null },
+                    )
+                }
+                if (showNewFolder) {
+                    TextInputOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        title = activityString(R.string.file_manager_new_folder),
+                        initial = "",
+                        confirmLabel = activityString(R.string.file_manager_create),
+                        onConfirm = {
+                            createFolder(it)
+                            showNewFolder = false
+                        },
+                        onDismiss = { showNewFolder = false },
+                    )
+                }
+                deleteTarget?.let { target ->
+                    ConfirmOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        title = activityString(R.string.file_manager_delete),
+                        message = activityString(R.string.file_manager_delete_confirm, target.name),
+                        confirmLabel = activityString(R.string.file_manager_delete),
+                        onConfirm = {
+                            deleteFile(target)
+                            deleteTarget = null
+                        },
+                        onDismiss = { deleteTarget = null },
+                    )
+                }
+                runTarget?.let { target ->
+                    ContainerPickerOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        containers = containers,
+                        onPick = { id ->
+                            onRunFile?.invoke(target.absolutePath, id)
+                            runTarget = null
+                        },
+                        onDismiss = { runTarget = null },
+                    )
+                }
+                transferProgress?.let { p ->
+                    TransferProgressOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        label = transferLabel,
+                        progress = p,
+                        onCancel = { transferJob?.cancel() },
+                    )
                 }
             }
         }
@@ -648,6 +983,7 @@ object DirectoryPickerDialog {
         onExpandedChange: (Boolean) -> Unit,
         onRootSelected: (File) -> Unit,
         modifier: Modifier = Modifier,
+        extraRoots: List<ManagedRoot> = emptyList(),
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
@@ -682,6 +1018,34 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
+                        extraRoots.forEach { root ->
+                            val selected = isSameOrDescendant(currentDir, File(root.path))
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = root.label,
+                                            color = if (selected) Accent else TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            text = root.path,
+                                            color = TextSecondary,
+                                            fontSize = 9.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                },
+                                onClick = { onRootSelected(File(root.path)) },
+                                modifier =
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
+                            )
+                        }
                         roots.forEach { root ->
                             val selected = isSameOrDescendant(currentDir, root)
                             DropdownMenuItem(
@@ -708,61 +1072,122 @@ object DirectoryPickerDialog {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     private fun EntryTile(
         entry: Entry,
         selected: Boolean,
         onClick: () -> Unit,
+        onLongClick: (() -> Unit)? = null,
+        menuExpanded: Boolean = false,
+        onMenuDismiss: () -> Unit = {},
+        actions: List<ItemAction> = emptyList(),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        when {
-                            selected -> Accent.copy(alpha = 0.16f)
-                            entry.isParent -> Accent.copy(alpha = 0.1f)
-                            else -> CardDark
-                        },
-                    )
-                    .border(
-                        width = 1.dp,
-                        color =
+        val interaction = remember { MutableInteractionSource() }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
                             when {
-                                selected -> Accent.copy(alpha = 0.45f)
-                                entry.isParent -> Accent.copy(alpha = 0.24f)
-                                else -> CardBorder
+                                selected -> Accent.copy(alpha = 0.16f)
+                                entry.isParent -> Accent.copy(alpha = 0.1f)
+                                else -> CardDark
                             },
-                        shape = RoundedCornerShape(10.dp),
+                        )
+                        .border(
+                            width = 1.dp,
+                            color =
+                                when {
+                                    selected -> Accent.copy(alpha = 0.45f)
+                                    entry.isParent -> Accent.copy(alpha = 0.24f)
+                                    else -> CardBorder
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .let { base ->
+                            if (onLongClick != null) {
+                                base.combinedClickable(
+                                    interactionSource = interaction,
+                                    indication = null,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                )
+                            } else {
+                                base.clickable(
+                                    interactionSource = interaction,
+                                    indication = null,
+                                    onClick = onClick,
+                                )
+                            }
+                        }.padding(horizontal = 8.dp, vertical = 8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector =
+                            when {
+                                entry.isParent -> Icons.Outlined.KeyboardArrowUp
+                                entry.isSelectableFile -> Icons.Outlined.Description
+                                else -> Icons.Outlined.Folder
+                            },
+                        contentDescription = null,
+                        tint = Accent,
+                        modifier = Modifier.size(16.dp),
                     )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onClick,
-                    ).padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector =
-                        when {
-                            entry.isParent -> Icons.Outlined.KeyboardArrowUp
-                            entry.isSelectableFile -> Icons.Outlined.Description
-                            else -> Icons.Outlined.Folder
-                        },
-                    contentDescription = null,
-                    tint = Accent,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = entry.label,
-                    color = TextPrimary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = entry.label,
+                        color = TextPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = onMenuDismiss,
+                shape = RoundedCornerShape(10.dp),
+                containerColor = Color(0xFF24243B),
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
+            ) {
+                @Suppress("DEPRECATION")
+                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        actions.forEach { action ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = action.icon,
+                                            contentDescription = null,
+                                            tint = Accent,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            text = action.label,
+                                            color = TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                    }
+                                },
+                                onClick = action.onClick,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -774,17 +1199,22 @@ object DirectoryPickerDialog {
         trailing: androidx.compose.ui.graphics.vector.ImageVector? = null,
         trailingRotationDegrees: Float = 0f,
         modifier: Modifier = Modifier,
+        accent: Boolean = false,
         onClick: () -> Unit,
     ) {
+        val chipBackground = if (accent) Color.Transparent else WinNativePanel
+        val chipBorder = if (accent) Accent.copy(alpha = 0.4f) else CardBorder
+        val iconTint = if (accent) Accent else TextSecondary
+        val labelColor = if (accent) Accent else TextPrimary
         Row(
             modifier =
                 modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(WinNativePanel)
-                    .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                    .background(chipBackground)
+                    .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = if (accent) ripple(color = Accent) else null,
                         onClick = onClick,
                     ).padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -792,13 +1222,13 @@ object DirectoryPickerDialog {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = iconTint,
                 modifier = Modifier.size(14.dp),
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = label,
-                color = TextPrimary,
+                color = labelColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -808,7 +1238,7 @@ object DirectoryPickerDialog {
                 Icon(
                     imageVector = trailing,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = iconTint,
                     modifier =
                         Modifier
                             .size(15.dp)
@@ -821,10 +1251,8 @@ object DirectoryPickerDialog {
     @Composable
     private fun FooterActionButton(
         label: String,
-        textColor: Color,
         modifier: Modifier = Modifier,
-        backgroundColor: Color = WinNativePanel,
-        borderColor: Color = CardBorder,
+        tone: Color = Accent,
         onClick: () -> Unit,
     ) {
         Box(
@@ -833,18 +1261,17 @@ object DirectoryPickerDialog {
                     .widthIn(min = 74.dp)
                     .height(FooterButtonHeight)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(backgroundColor)
-                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                    .border(1.dp, tone.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = ripple(color = tone),
                         onClick = onClick,
                     ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = label,
-                color = textColor,
+                color = tone,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -879,7 +1306,7 @@ object DirectoryPickerDialog {
                 entries += Entry(label = entryLabel(child), target = child)
             }
 
-        if (mode == SelectionMode.FILE) {
+        if (mode == SelectionMode.FILE || mode == SelectionMode.MANAGE) {
             children
                 .filter { it.isFile && canSelectFile(it, allowedExtensions) }
                 .forEach { file ->
@@ -892,6 +1319,53 @@ object DirectoryPickerDialog {
         }
 
         return entries
+    }
+
+    private fun transferRecursively(
+        src: File,
+        dest: File,
+        isCut: Boolean,
+        onProgress: (Float) -> Unit,
+        isActive: () -> Boolean,
+    ) {
+        if (isCut && runCatching { src.renameTo(dest) }.getOrDefault(false)) {
+            onProgress(1f)
+            return
+        }
+        val total =
+            src.walkTopDown()
+                .filter { it.isFile }
+                .fold(0L) { acc, f -> acc + f.length() }
+                .coerceAtLeast(1L)
+        var copied = 0L
+        var lastPercent = -1
+        val buffer = ByteArray(1 shl 16)
+        src.walkTopDown().forEach { f ->
+            if (!isActive()) throw CancellationException()
+            val target = if (f == src) dest else File(dest, f.relativeTo(src).path)
+            if (f.isDirectory) {
+                target.mkdirs()
+            } else {
+                target.parentFile?.mkdirs()
+                f.inputStream().use { input ->
+                    target.outputStream().use { output ->
+                        while (true) {
+                            if (!isActive()) throw CancellationException()
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            output.write(buffer, 0, read)
+                            copied += read
+                            val percent = ((copied * 100) / total).toInt()
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                onProgress((percent / 100f).coerceIn(0f, 1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (isCut) src.deleteRecursively()
     }
 
     private fun entryLabel(file: File): String = file.name.ifBlank { file.absolutePath }
@@ -976,8 +1450,392 @@ object DirectoryPickerDialog {
     private fun activityString(resId: Int): String = androidx.compose.ui.res.stringResource(id = resId)
 
     @Composable
+    private fun activityString(
+        resId: Int,
+        vararg formatArgs: Any,
+    ): String = androidx.compose.ui.res.stringResource(id = resId, formatArgs = formatArgs)
+
+    @Composable
     private fun activityPlural(
         resId: Int,
         quantity: Int,
     ): String = androidx.compose.ui.res.pluralStringResource(id = resId, count = quantity, quantity)
+
+    @Composable
+    private fun ManageRootSelector(
+        managedRoots: List<ManagedRoot>,
+        currentDir: File,
+        expanded: Boolean,
+        onExpandedChange: (Boolean) -> Unit,
+        onRootSelected: (String) -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        val chevronRotation by animateFloatAsState(
+            targetValue = if (expanded) 180f else 0f,
+            animationSpec = tween(durationMillis = 180),
+            label = "manageRootChevronRotation",
+        )
+        Box(modifier = modifier) {
+            SecondaryActionChip(
+                label = activityString(R.string.common_ui_storage_roots),
+                icon = Icons.Outlined.Storage,
+                trailing = Icons.Outlined.KeyboardArrowDown,
+                trailingRotationDegrees = chevronRotation,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onExpandedChange(true) },
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) },
+                offset = DpOffset(x = 0.dp, y = (-8).dp),
+                shape = RoundedCornerShape(10.dp),
+                containerColor = Color(0xFF24243B),
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier.widthIn(min = 200.dp, max = 420.dp),
+            ) {
+                @Suppress("DEPRECATION")
+                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        managedRoots.forEach { root ->
+                            val selected = isSameOrDescendant(currentDir, File(root.path))
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = root.label,
+                                            color = if (selected) Accent else TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            text = root.path,
+                                            color = TextSecondary,
+                                            fontSize = 9.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                },
+                                onClick = { onRootSelected(root.path) },
+                                modifier =
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ContainerPickerOverlay(
+        modifier: Modifier,
+        containers: List<ManagedContainer>,
+        onPick: (Int) -> Unit,
+        onDismiss: () -> Unit,
+    ) {
+        Box(
+            modifier =
+                modifier
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.72f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ).padding(16.dp),
+            ) {
+                Text(
+                    text = activityString(R.string.file_manager_run_in_container),
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(12.dp))
+                if (containers.isEmpty()) {
+                    Text(
+                        text = activityString(R.string.file_manager_no_containers),
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                    )
+                } else {
+                    Column(
+                        modifier =
+                            Modifier
+                                .heightIn(max = 320.dp)
+                                .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        containers.forEach { c ->
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(WinNativePanel)
+                                        .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { onPick(c.id) },
+                                        ).padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Storage,
+                                    contentDescription = null,
+                                    tint = Accent,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    text = "${c.name} (#${c.id})",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FooterActionButton(
+                        label = activityString(R.string.common_ui_cancel),
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onDismiss,
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun TextInputOverlay(
+        modifier: Modifier,
+        title: String,
+        initial: String,
+        confirmLabel: String,
+        onConfirm: (String) -> Unit,
+        onDismiss: () -> Unit,
+    ) {
+        var text by remember { mutableStateOf(initial) }
+        Box(
+            modifier =
+                modifier
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.86f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ).padding(16.dp),
+            ) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FooterActionButton(
+                        label = activityString(R.string.common_ui_cancel),
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onDismiss,
+                    )
+                    FooterActionButton(
+                        label = confirmLabel,
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = { onConfirm(text) },
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ConfirmOverlay(
+        modifier: Modifier,
+        title: String,
+        message: String,
+        confirmLabel: String,
+        onConfirm: () -> Unit,
+        onDismiss: () -> Unit,
+    ) {
+        val danger = Color(0xFFFF6B6B)
+        Box(
+            modifier =
+                modifier
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.86f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ).padding(16.dp),
+            ) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = message,
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FooterActionButton(
+                        label = activityString(R.string.common_ui_cancel),
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onDismiss,
+                    )
+                    FooterActionButton(
+                        label = confirmLabel,
+                        tone = danger,
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onConfirm,
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun TransferProgressOverlay(
+        modifier: Modifier,
+        label: String,
+        progress: Float,
+        onCancel: () -> Unit,
+    ) {
+        Box(
+            modifier =
+                modifier
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.86f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ).padding(16.dp),
+            ) {
+                Text(
+                    text = label,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(14.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                    color = Accent,
+                    trackColor = WinNativePanel,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FooterActionButton(
+                        label = activityString(R.string.common_ui_cancel),
+                        modifier = Modifier.height(FooterButtonHeight),
+                        onClick = onCancel,
+                    )
+                }
+            }
+        }
+    }
 }
