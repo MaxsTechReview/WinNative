@@ -562,11 +562,11 @@ public class VulkanRenderer
             if (newGame || dirty) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
             return 0;
         }
-        if (dirty && !newGame) {
-            // Cursor/UI-only recomposite — show it sharply.
-            nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs);
-            return 2;
-        }
+        // NOTE: a UI-only recomposite (dirty && !newGame) is handled at the END, only when
+        // the content interval is fully spanned (static). Handling it here unconditionally
+        // collapsed interpolation to zero during motion: X11 damage events fire a recomposite
+        // every vblank while the camera moves, so this branch would present sharp instead of
+        // running the interp cadence (interp 30->0/s during a camera spin). Defer it.
 
         // Real frame just promoted: show it sharp; the gate was restarted at 0 in the promote block.
         if (promoted) {
@@ -587,7 +587,11 @@ public class VulkanRenderer
         fgCadenceM = emits;
         fgVblankSincePromote++;
         int vi = fgVblankSincePromote;                             // vblanks since the real frame (1..slots-1)
-        if (vi >= slots) return 0;                                 // interval fully spanned — hold for next promote
+        if (vi >= slots) {                                         // interval fully spanned (content static)
+            // Now a UI-only recomposite (cursor) warrants a sharp redraw; otherwise hold.
+            if (dirty && !newGame) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
+            return 0;                                              // hold for the next promote
+        }
         // vblank 0 already showed the real frame; place the (emits-1) interps evenly across the rest.
         boolean emit = (int) ((long) vi * emits / slots) != (int) ((long) (vi - 1) * emits / slots);
         if (!emit) return 0;                                       // between gates — hold the current frame
