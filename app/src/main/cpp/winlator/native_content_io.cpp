@@ -4,6 +4,7 @@
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
 #include <curl/curl.h>
+#include <lzma.h>
 #include <zstd.h>
 
 #include <algorithm>
@@ -325,59 +326,50 @@ private:
 class XzReader final : public Reader {
 public:
     explicit XzReader(std::unique_ptr<Reader> source) : source_(std::move(source)) {
-        std::call_once(g_xz_crc_once, [] {
-            xz_crc32_init();
-            xz_crc64_init();
-        });
-        decoder_ = xz_dec_init(XZ_DYNALLOC, kXzDictSizeMax);
-        buffer_.in = input_.data();
-        buffer_.in_pos = 0;
-        buffer_.in_size = 0;
+        ok_ = lzma_stream_decoder(&strm_, UINT64_MAX, LZMA_CONCATENATED) == LZMA_OK;
     }
     ~XzReader() override {
-        if (decoder_) xz_dec_end(decoder_);
+        if (ok_) lzma_end(&strm_);
     }
-    bool ok() const { return source_ != nullptr && decoder_ != nullptr; }
+    bool ok() const { return source_ != nullptr && ok_; }
     ssize_t read(uint8_t* out, size_t length) override {
         if (finished_) return 0;
-        buffer_.out = out;
-        buffer_.out_pos = 0;
-        buffer_.out_size = length;
+        strm_.next_out = out;
+        strm_.avail_out = length;
 
-        while (buffer_.out_pos < buffer_.out_size) {
-            if (buffer_.in_pos == buffer_.in_size && !input_finished_) {
+        while (strm_.avail_out > 0) {
+            if (strm_.avail_in == 0 && !input_finished_) {
                 ssize_t n = source_->read(input_.data(), input_.size());
                 if (n < 0) return -1;
                 if (n == 0) input_finished_ = true;
-                buffer_.in = input_.data();
-                buffer_.in_pos = 0;
-                buffer_.in_size = static_cast<size_t>(std::max<ssize_t>(n, 0));
+                strm_.next_in = input_.data();
+                strm_.avail_in = static_cast<size_t>(std::max<ssize_t>(n, 0));
             }
 
-            size_t in_before = buffer_.in_pos;
-            size_t out_before = buffer_.out_pos;
-            enum xz_ret ret = xz_dec_catrun(decoder_, &buffer_, input_finished_ ? 1 : 0);
-            if (ret == XZ_STREAM_END) {
+            const size_t in_before = strm_.avail_in;
+            const size_t out_before = length - strm_.avail_out;
+            lzma_ret ret = lzma_code(&strm_, input_finished_ ? LZMA_FINISH : LZMA_RUN);
+            if (ret == LZMA_STREAM_END) {
                 finished_ = true;
                 break;
             }
-            if (ret != XZ_OK) {
+            if (ret != LZMA_OK) {
                 NATIVE_LOGW("XZ decode failed: %d", static_cast<int>(ret));
                 return -1;
             }
-            if (buffer_.in_pos == in_before && buffer_.out_pos == out_before) {
+            if (strm_.avail_in == in_before && (length - strm_.avail_out) == out_before) {
                 NATIVE_LOGW("XZ decoder stalled");
                 return -1;
             }
         }
-        return static_cast<ssize_t>(buffer_.out_pos);
+        return static_cast<ssize_t>(length - strm_.avail_out);
     }
 
 private:
     std::unique_ptr<Reader> source_;
-    struct xz_dec* decoder_ = nullptr;
-    xz_buf buffer_{};
-    std::vector<uint8_t> input_ = std::vector<uint8_t>(128 * 1024);
+    lzma_stream strm_ = LZMA_STREAM_INIT;
+    bool ok_ = false;
+    std::vector<uint8_t> input_ = std::vector<uint8_t>(1 << 20);
     bool input_finished_ = false;
     bool finished_ = false;
 };
