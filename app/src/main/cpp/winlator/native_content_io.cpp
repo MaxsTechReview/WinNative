@@ -26,22 +26,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-extern "C" {
-#include "xz.h"
-}
-
 namespace {
 
 constexpr const char* kLogTag = "NativeContentIO";
 constexpr size_t kBufferSize = 256 * 1024;
 constexpr int64_t kProgressBatchBytes = 8 * 1024 * 1024;
 constexpr int64_t kProgressBatchIntervalMs = 100;
-constexpr uint32_t kXzDictSizeMax = 128U << 20;
 
 #define NATIVE_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, kLogTag, __VA_ARGS__)
 #define NATIVE_LOGW(...) __android_log_print(ANDROID_LOG_WARN, kLogTag, __VA_ARGS__)
 
-std::once_flag g_xz_crc_once;
 std::once_flag g_curl_global_once;
 
 static void ensure_curl_global_init() {
