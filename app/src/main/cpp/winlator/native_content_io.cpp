@@ -227,10 +227,10 @@ public:
     }
 
     bool skip(uint64_t amount) {
-        std::vector<uint8_t> buffer(32 * 1024);
+        uint8_t buffer[8192];
         while (amount > 0) {
-            const size_t chunk = static_cast<size_t>(std::min<uint64_t>(amount, buffer.size()));
-            if (!read_exact(buffer.data(), chunk)) return false;
+            const size_t chunk = static_cast<size_t>(std::min<uint64_t>(amount, sizeof(buffer)));
+            if (!read_exact(buffer, chunk)) return false;
             amount -= chunk;
         }
         return true;
