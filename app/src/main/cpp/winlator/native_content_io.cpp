@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #include <fcntl.h>
@@ -290,7 +291,7 @@ public:
             0660);
         if (fd >= 0) file_ = ::fdopen(fd, "wb");
         if (file_) {
-            std::setvbuf(file_, nullptr, _IOFBF, kBufferSize);
+            std::setvbuf(file_, nullptr, _IONBF, 0);
         } else if (fd >= 0) {
             ::close(fd);
         }
@@ -568,6 +569,40 @@ bool extract_tar(
     std::optional<std::string> next_link;
     std::vector<std::string> symlink_entries;
 
+    std::vector<uint8_t> file_buffer(kBufferSize);
+    std::unordered_set<std::string> created_dirs;
+    const auto mkdirs_cached = [&](std::string_view dir) -> bool {
+        if (dir.empty()) return true;
+        if (created_dirs.find(std::string(dir)) != created_dirs.end()) return true;
+        std::string current;
+        current.reserve(dir.size());
+        size_t pos = 0;
+        if (dir[0] == '/') {
+            current.push_back('/');
+            pos = 1;
+        }
+        while (pos <= dir.size()) {
+            size_t next = dir.find('/', pos);
+            std::string_view part =
+                dir.substr(pos, next == std::string_view::npos ? dir.size() - pos : next - pos);
+            if (!part.empty()) {
+                if (!current.empty() && current.back() != '/') current.push_back('/');
+                current.append(part);
+                if (created_dirs.insert(current).second) {
+                    if (::mkdir(current.c_str(), 0771) != 0 && errno != EEXIST) return false;
+                }
+            }
+            if (next == std::string_view::npos) break;
+            pos = next + 1;
+        }
+        return true;
+    };
+    const auto ensure_parent_cached = [&](const std::string& path) -> bool {
+        const size_t slash = path.find_last_of('/');
+        if (slash == std::string::npos || slash == 0) return true;
+        return mkdirs_cached(std::string_view(path).substr(0, slash));
+    };
+
     while (true) {
         if (!reader.read_exact(header.data(), header.size())) return false;
         bool all_zero = true;
@@ -640,7 +675,7 @@ bool extract_tar(
         out_path = std::move(*mapped);
 
         if (type == '5') {
-            if (!mkdirs(out_path)) return false;
+            if (!mkdirs_cached(out_path)) return false;
         } else if (type == '2') {
             // Wine prefixes legitimately use links like c: -> ../drive_c and z: -> /.
             // Allow the link itself, but never extract later archive entries through it.
@@ -650,27 +685,26 @@ bool extract_tar(
                 if (!reader.skip(size + padding)) return false;
                 continue;
             }
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             ::unlink(out_path.c_str());
             if (::symlink(link_name.c_str(), out_path.c_str()) != 0 && errno != EEXIST) {
                 NATIVE_LOGW("symlink failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
             symlink_entries.push_back(trim_trailing_slashes(name));
         } else if (type == '0' || type == '\0') {
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             FileWriter out(out_path, enforce_safe_symlinks);
             if (!out.ok()) return false;
 
-            std::vector<uint8_t> buffer(kBufferSize);
             uint64_t remaining = size;
             bool ok = true;
             while (remaining > 0) {
-                const size_t chunk = static_cast<size_t>(std::min<uint64_t>(remaining, buffer.size()));
-                if (!reader.read_exact(buffer.data(), chunk)) {
+                const size_t chunk = static_cast<size_t>(std::min<uint64_t>(remaining, file_buffer.size()));
+                if (!reader.read_exact(file_buffer.data(), chunk)) {
                     ok = false;
                     break;
                 }
-                if (!out.write(buffer.data(), chunk)) {
+                if (!out.write(file_buffer.data(), chunk)) {
                     ok = false;
                     break;
                 }
@@ -683,7 +717,7 @@ bool extract_tar(
             if (!reader.skip(padding)) return false;
             continue;
         } else if (type == '1') {
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             ::unlink(out_path.c_str());
             std::string clean_link_name = clean_entry_name(link_name);
             if (!is_safe_relative_path(clean_link_name)) {
