@@ -124,19 +124,16 @@ std::string trim_trailing_slashes(std::string path) {
     return path;
 }
 
-bool has_path_prefix(std::string_view path, std::string_view prefix) {
-    if (path == prefix) return true;
-    return path.size() > prefix.size()
-        && path.compare(0, prefix.size(), prefix) == 0
-        && path[prefix.size()] == '/';
-}
-
 bool has_symlink_ancestor(
     const std::string& entry_name,
-    const std::vector<std::string>& symlink_entries) {
-    std::string normalized = trim_trailing_slashes(entry_name);
-    for (const std::string& link : symlink_entries) {
-        if (has_path_prefix(normalized, link)) return true;
+    const std::unordered_set<std::string>& symlink_entries) {
+    if (symlink_entries.empty()) return false;
+    std::string path = trim_trailing_slashes(entry_name);
+    while (true) {
+        if (symlink_entries.count(path)) return true;
+        const size_t slash = path.find_last_of('/');
+        if (slash == std::string::npos || slash == 0) break;
+        path.resize(slash);
     }
     return false;
 }
@@ -572,7 +569,7 @@ bool extract_tar(
     std::vector<uint8_t> header(512);
     std::optional<std::string> next_name;
     std::optional<std::string> next_link;
-    std::vector<std::string> symlink_entries;
+    std::unordered_set<std::string> symlink_entries;
 
     std::vector<uint8_t> file_buffer(kBufferSize);
     std::unordered_set<std::string> created_dirs;
@@ -695,7 +692,7 @@ bool extract_tar(
             if (::symlink(link_name.c_str(), out_path.c_str()) != 0 && errno != EEXIST) {
                 NATIVE_LOGW("symlink failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
-            symlink_entries.push_back(trim_trailing_slashes(name));
+            symlink_entries.insert(trim_trailing_slashes(name));
         } else if (type == '0' || type == '\0') {
             if (!ensure_parent_cached(out_path)) return false;
             FileWriter out(out_path, enforce_safe_symlinks);
