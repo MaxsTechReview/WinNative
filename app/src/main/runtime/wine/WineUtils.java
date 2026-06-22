@@ -760,42 +760,139 @@ public abstract class WineUtils {
       return;
     }
 
-    final String version = "14.50.35719.0";
-    final int major = 14, minor = 50, build = 35719, rebuild = 0;
-
     String[] runtimeArches = isArm64EC ? new String[] {"X64", "ARM64"} : new String[] {"X64", "X86"};
 
+    if (seedVcRedistBatched(systemRegFile, runtimeArches, isArm64EC)) {
+      Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (batched, arches="
+          + java.util.Arrays.toString(runtimeArches) + ")");
+      return;
+    }
+
     try (WineRegistryEditor reg = new WineRegistryEditor(systemRegFile)) {
-      for (String arch : runtimeArches) {
-        String k = "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
-        reg.setDwordValue(k, "Installed", 1);
-        reg.setStringValue(k, "Version", "v" + version);
-        reg.setDwordValue(k, "Major", major);
-        reg.setDwordValue(k, "Minor", minor);
-        reg.setDwordValue(k, "Bld", build);
-        reg.setDwordValue(k, "Rbld", rebuild);
+      seedVcRedistWithEditor(reg, runtimeArches, isArm64EC);
+    }
+    Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (fallback, arches="
+        + java.util.Arrays.toString(runtimeArches) + ")");
+  }
 
-        // Same under Wow6432Node so 32-bit consumers see it too.
-        String k32 = "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
-        reg.setDwordValue(k32, "Installed", 1);
-        reg.setStringValue(k32, "Version", "v" + version);
-        reg.setDwordValue(k32, "Major", major);
-        reg.setDwordValue(k32, "Minor", minor);
-        reg.setDwordValue(k32, "Bld", build);
-        reg.setDwordValue(k32, "Rbld", rebuild);
+  private static final String VC_REDIST_VERSION = "14.50.35719.0";
+
+  private static String[] vcRedistBundleKeys(boolean isArm64EC) {
+    return isArm64EC
+        ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
+        : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
+  }
+
+  private static void seedVcRedistWithEditor(
+      WineRegistryEditor reg, String[] runtimeArches, boolean isArm64EC) {
+    final String version = VC_REDIST_VERSION;
+    final int major = 14, minor = 50, build = 35719, rebuild = 0;
+    for (String arch : runtimeArches) {
+      String k = "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+      reg.setDwordValue(k, "Installed", 1);
+      reg.setStringValue(k, "Version", "v" + version);
+      reg.setDwordValue(k, "Major", major);
+      reg.setDwordValue(k, "Minor", minor);
+      reg.setDwordValue(k, "Bld", build);
+      reg.setDwordValue(k, "Rbld", rebuild);
+
+      String k32 = "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+      reg.setDwordValue(k32, "Installed", 1);
+      reg.setStringValue(k32, "Version", "v" + version);
+      reg.setDwordValue(k32, "Major", major);
+      reg.setDwordValue(k32, "Minor", minor);
+      reg.setDwordValue(k32, "Bld", build);
+      reg.setDwordValue(k32, "Rbld", rebuild);
+    }
+    for (String bundle : vcRedistBundleKeys(isArm64EC)) {
+      String k = "Software\\Classes\\Installer\\Dependencies\\" + bundle;
+      reg.setStringValue(k, "Version", version);
+      reg.setStringValue(k, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+    }
+  }
+
+  private static boolean seedVcRedistBatched(
+      File systemRegFile, String[] runtimeArches, boolean isArm64EC) {
+    File temp = null;
+    try {
+      String block = buildVcRedistRegBlock(runtimeArches, isArm64EC);
+      temp =
+          FileUtils.createTempFile(
+              systemRegFile.getParentFile(), FileUtils.getBasename(systemRegFile.getPath()));
+      if (temp == null || !FileUtils.copy(systemRegFile, temp)) return false;
+      try (java.io.BufferedWriter w =
+          new java.io.BufferedWriter(new java.io.FileWriter(temp, true))) {
+        w.write(block);
       }
+      try (WineRegistryEditor reg = new WineRegistryEditor(temp)) {
+        for (String arch : runtimeArches) {
+          Integer v =
+              reg.getDwordValue(
+                  "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch, "Installed");
+          if (v == null || v != 1) return false;
+        }
+      }
+      return temp.renameTo(systemRegFile);
+    } catch (Exception e) {
+      Log.w("WineUtils", "seedVcRedistBatched failed; falling back to per-value seed", e);
+      return false;
+    } finally {
+      if (temp != null && temp.exists()) temp.delete();
+    }
+  }
 
-      String[] bundleKeys = isArm64EC
-          ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
-          : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
-      for (String bundle : bundleKeys) {
-        String k = "Software\\Classes\\Installer\\Dependencies\\" + bundle;
-        reg.setStringValue(k, "Version", version);
-        reg.setStringValue(k, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+  private static String buildVcRedistRegBlock(String[] runtimeArches, boolean isArm64EC) {
+    final String version = VC_REDIST_VERSION;
+    StringBuilder sb = new StringBuilder();
+    for (String arch : runtimeArches) {
+      String[] bases = {
+        "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\",
+        "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\"
+      };
+      for (String base : bases) {
+        appendRegKeyHeader(sb, base + arch);
+        appendRegDword(sb, "Installed", 1);
+        appendRegString(sb, "Version", "v" + version);
+        appendRegDword(sb, "Major", 14);
+        appendRegDword(sb, "Minor", 50);
+        appendRegDword(sb, "Bld", 35719);
+        appendRegDword(sb, "Rbld", 0);
       }
     }
-    Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (arches="
-        + java.util.Arrays.toString(runtimeArches) + ")");
+    for (String bundle : vcRedistBundleKeys(isArm64EC)) {
+      appendRegKeyHeader(sb, "Software\\Classes\\Installer\\Dependencies\\" + bundle);
+      appendRegString(sb, "Version", version);
+      appendRegString(sb, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+    }
+    return sb.toString();
+  }
+
+  private static void appendRegKeyHeader(StringBuilder sb, String key) {
+    long ticks1601To1970 = 86400L * (369 * 365 + 89) * 10000000;
+    long currentTime = System.currentTimeMillis() + ticks1601To1970;
+    sb.append("\n[")
+        .append(escapeReg(key))
+        .append("] ")
+        .append((currentTime - ticks1601To1970) / 1000)
+        .append(
+            String.format(
+                java.util.Locale.ENGLISH, "\n#time=%x%08x", currentTime >> 32, (int) currentTime))
+        .append("\n");
+  }
+
+  private static void appendRegDword(StringBuilder sb, String name, int value) {
+    sb.append("\n\"")
+        .append(escapeReg(name))
+        .append("\"=dword:")
+        .append(String.format(java.util.Locale.ENGLISH, "%08x", value));
+  }
+
+  private static void appendRegString(StringBuilder sb, String name, String value) {
+    sb.append("\n\"").append(escapeReg(name)).append("\"=\"").append(escapeReg(value)).append("\"");
+  }
+
+  private static String escapeReg(String s) {
+    return s.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   /** Registers core Windows fonts and Wine fonts in the registry. */
