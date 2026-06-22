@@ -313,6 +313,11 @@ public:
         if (!file_) return true;
         FILE* file = file_;
         file_ = nullptr;
+        int fd = ::fileno(file);
+        if (fd >= 0) {
+            std::fflush(file);
+            ::sync_file_range(fd, 0, 0, SYNC_FILE_RANGE_WRITE);
+        }
         return std::fclose(file) == 0;
     }
 
