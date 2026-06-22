@@ -316,8 +316,9 @@ pub fn download_resolved_depots_with_cancel_progress(
 
     let mut cfg = DepotConfigStore::load(&config_dir);
     if fresh {
-        cfg.discard();
+        // Reset only this batch's depots; a global discard would wipe earlier batches' records.
         for depot in depots {
+            cfg.forget_depot(depot.depot_id);
             DepotProgressStore::remove(&config_dir, depot.depot_id, depot.manifest_id);
             remove_clean_pause_marker(&config_dir, depot.depot_id, depot.manifest_id);
         }

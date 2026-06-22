@@ -2444,7 +2444,6 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
@@ -2484,7 +2483,6 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(
                                     if (isSearchExpanded) {
@@ -2569,7 +2567,6 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
@@ -2589,7 +2586,6 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)

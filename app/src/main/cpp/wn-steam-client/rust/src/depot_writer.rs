@@ -288,7 +288,7 @@ pub fn write_depot_sequential(
         if existing_chunk_matches(&path, chunk) {
             bytes_written += chunk.cb_original as u64;
             if let Some(on_progress) = options.on_progress {
-                on_progress(bytes_written, total_bytes, false);
+                on_progress(bytes_written, total_bytes, true);
             }
             continue;
         }
@@ -413,7 +413,7 @@ fn write_depot_parallel(
                             bytes_written.fetch_add(chunk.cb_original as u64, Ordering::Relaxed)
                                 + chunk.cb_original as u64;
                         if let Some(cb) = progress {
-                            cb(total, total_bytes, false);
+                            cb(total, total_bytes, true);
                         }
                         continue;
                     }
