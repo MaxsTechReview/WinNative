@@ -1248,6 +1248,81 @@ fn request_cdn_servers(
         .map(|response| response.servers)
 }
 
+const ERESULT_OK: i32 = 1;
+const MAX_RESOLVE_ATTEMPTS: u32 = 4;
+
+enum DepotKeyOutcome {
+    Granted(Vec<u8>),
+    AccessDenied,
+    Transient,
+}
+
+enum ManifestCodeOutcome {
+    Code(u64),
+    AccessDenied,
+    Transient,
+}
+
+/// One CM proto request returning the header eresult and body; None only when no response arrived.
+fn request_proto_response<F>(
+    runtime: &Arc<CMClientRuntime>,
+    timeout: Duration,
+    build: F,
+) -> Option<(i32, Vec<u8>)>
+where
+    F: FnOnce(&CMClientCore, u64) -> Option<OutboundProtoMessage>,
+{
+    if runtime.core().state() != ClientState::LoggedOn {
+        return None;
+    }
+    let job_id = runtime.next_job_id();
+    let message = build(runtime.core(), job_id)?;
+    let (tx, rx) = mpsc::channel();
+    runtime.track_job(
+        job_id,
+        move |job| {
+            let result = (!job.synthetic_failure).then(|| (job.eresult, job.body));
+            let _ = tx.send(result);
+        },
+        Some(timeout),
+    );
+    if !runtime.core().enqueue_wire(message.wire) {
+        return None;
+    }
+    runtime.flush_outbound();
+    rx.recv_timeout(timeout).ok().flatten()
+}
+
+/// One authed service-method request returning the header eresult and body; None only when no response arrived.
+fn request_authed_service_response<F>(
+    runtime: &Arc<CMClientRuntime>,
+    timeout: Duration,
+    build: F,
+) -> Option<(i32, Vec<u8>)>
+where
+    F: FnOnce(&CMClientCore, u64) -> Option<OutboundServiceCall>,
+{
+    if runtime.core().state() != ClientState::LoggedOn {
+        return None;
+    }
+    let job_id = runtime.next_job_id();
+    let call = build(runtime.core(), job_id)?;
+    let (tx, rx) = mpsc::channel();
+    runtime.track_job(
+        job_id,
+        move |job| {
+            let result = (!job.synthetic_failure).then(|| (job.eresult, job.body));
+            let _ = tx.send(result);
+        },
+        Some(timeout),
+    );
+    if !runtime.core().enqueue_wire(call.wire) {
+        return None;
+    }
+    runtime.flush_outbound();
+    rx.recv_timeout(timeout).ok().flatten()
+}
+
 fn request_manifest_request_code(
     runtime: &Arc<CMClientRuntime>,
     app_id: u32,
@@ -1255,12 +1330,27 @@ fn request_manifest_request_code(
     manifest_id: u64,
     branch: &str,
     timeout: Duration,
-) -> Option<u64> {
-    let body = request_authed_service_body(runtime, timeout, |core, job_id| {
+) -> ManifestCodeOutcome {
+    let Some((eresult, body)) = request_authed_service_response(runtime, timeout, |core, job_id| {
         core.build_manifest_request_code_call(app_id, depot_id, manifest_id, branch, job_id)
-    })?;
-    crate::pb::ccontentserverdirectory::CContentServerDirectoryGetManifestRequestCodeResponse::deserialize(&body)
-        .map(|response| response.manifest_request_code)
+    }) else {
+        return ManifestCodeOutcome::Transient;
+    };
+    if eresult == ERESULT_OK {
+        if let Some(response) =
+            crate::pb::ccontentserverdirectory::CContentServerDirectoryGetManifestRequestCodeResponse::deserialize(&body)
+        {
+            return ManifestCodeOutcome::Code(response.manifest_request_code);
+        }
+        return ManifestCodeOutcome::Transient;
+    }
+    // A response arrived but the code was refused (branch/depot not available to this
+    // account); skip the depot rather than abort the whole download.
+    android_log(
+        "WnSteamDownload",
+        &format!("manifest code refused depot={depot_id} eresult={eresult}"),
+    );
+    ManifestCodeOutcome::AccessDenied
 }
 
 fn request_depot_key(
@@ -1268,14 +1358,117 @@ fn request_depot_key(
     app_id: u32,
     depot_id: u32,
     timeout: Duration,
-) -> Option<Vec<u8>> {
-    let body = request_proto_body(runtime, timeout, |core, job_id| {
+) -> DepotKeyOutcome {
+    let Some((header_eresult, body)) = request_proto_response(runtime, timeout, |core, job_id| {
         core.build_get_depot_decryption_key(depot_id, app_id, job_id)
-    })?;
-    let response =
-        crate::pb::cmsg_client_get_depot_decryption_key::CMsgClientGetDepotDecryptionKeyResponse::deserialize(&body)?;
-    (response.eresult == 1 && response.depot_encryption_key.len() == 32)
-        .then_some(response.depot_encryption_key)
+    }) else {
+        return DepotKeyOutcome::Transient;
+    };
+    if let Some(response) =
+        crate::pb::cmsg_client_get_depot_decryption_key::CMsgClientGetDepotDecryptionKeyResponse::deserialize(&body)
+    {
+        if response.eresult == ERESULT_OK as u32 && response.depot_encryption_key.len() == 32 {
+            return DepotKeyOutcome::Granted(response.depot_encryption_key);
+        }
+        android_log(
+            "WnSteamDownload",
+            &format!(
+                "depot key refused depot={depot_id} header_eresult={header_eresult} body_eresult={}",
+                response.eresult
+            ),
+        );
+    } else {
+        android_log(
+            "WnSteamDownload",
+            &format!("depot key refused depot={depot_id} header_eresult={header_eresult} (unparsed)"),
+        );
+    }
+    // A response arrived but no usable key: Steam will not grant this depot to this
+    // account. Skip it (DepotDownloader does the same) rather than abort the download.
+    DepotKeyOutcome::AccessDenied
+}
+
+enum KeyResolution {
+    Granted(Vec<u8>),
+    AccessDenied,
+    Cancelled,
+    Unavailable,
+}
+
+fn resolve_depot_key_with_retry(
+    runtime: &Arc<CMClientRuntime>,
+    app_id: u32,
+    depot_id: u32,
+    timeout: Duration,
+    cancel: &AtomicBool,
+) -> KeyResolution {
+    for attempt in 0..MAX_RESOLVE_ATTEMPTS {
+        if cancel.load(Ordering::Relaxed) {
+            return KeyResolution::Cancelled;
+        }
+        if attempt > 0 {
+            thread::sleep(Duration::from_millis(
+                crate::depot_downloader::retry_backoff_millis(attempt),
+            ));
+        }
+        match request_depot_key(runtime, app_id, depot_id, timeout) {
+            DepotKeyOutcome::Granted(key) => return KeyResolution::Granted(key),
+            DepotKeyOutcome::AccessDenied => return KeyResolution::AccessDenied,
+            DepotKeyOutcome::Transient => continue,
+        }
+    }
+    KeyResolution::Unavailable
+}
+
+enum CodeResolution {
+    Code(u64),
+    AccessDenied,
+    Cancelled,
+    Unavailable,
+}
+
+fn resolve_manifest_code_with_retry(
+    runtime: &Arc<CMClientRuntime>,
+    app_id: u32,
+    depot_id: u32,
+    manifest_id: u64,
+    branch: &str,
+    timeout: Duration,
+    cancel: &AtomicBool,
+) -> CodeResolution {
+    for attempt in 0..MAX_RESOLVE_ATTEMPTS {
+        if cancel.load(Ordering::Relaxed) {
+            return CodeResolution::Cancelled;
+        }
+        if attempt > 0 {
+            thread::sleep(Duration::from_millis(
+                crate::depot_downloader::retry_backoff_millis(attempt),
+            ));
+        }
+        match request_manifest_request_code(runtime, app_id, depot_id, manifest_id, branch, timeout)
+        {
+            ManifestCodeOutcome::Code(code) => return CodeResolution::Code(code),
+            ManifestCodeOutcome::AccessDenied => return CodeResolution::AccessDenied,
+            ManifestCodeOutcome::Transient => continue,
+        }
+    }
+    CodeResolution::Unavailable
+}
+
+/// Records depots Steam denied a key for so the Kotlin completeness gate can exclude them.
+fn write_denied_depots_marker(config_dir: &std::path::Path, denied: &[u32]) {
+    let path = config_dir.join("denied.depots");
+    if denied.is_empty() {
+        let _ = std::fs::remove_file(&path);
+        return;
+    }
+    let _ = std::fs::create_dir_all(config_dir);
+    let body = denied
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let _ = std::fs::write(&path, body);
 }
 
 fn request_item_def_digest(
@@ -2944,7 +3137,10 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             );
             return;
         };
+        let config_dir = std::path::Path::new(&install_dir).join(".DepotDownloader");
+        let installed_cfg = crate::depot_config::DepotConfigStore::load(&config_dir);
         let mut resolved = Vec::with_capacity(specs.len());
+        let mut denied: Vec<u32> = Vec::new();
         for spec in specs {
             if download_cancel.load(Ordering::Relaxed) {
                 dispatch_download_complete(
@@ -2953,40 +3149,78 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                 );
                 return;
             }
-            let Some(depot_key) = request_depot_key(&runtime, app_id, spec.depot_id, timeout)
-            else {
-                dispatch_download_complete(
-                    listener.clone(),
-                    crate::depot_downloader::DepotDownloadResult::fail(format!(
-                        "download: depot key unavailable for depot {}",
-                        spec.depot_id
-                    )),
-                );
-                return;
-            };
-            if download_cancel.load(Ordering::Relaxed) {
-                dispatch_download_complete(
-                    listener,
-                    crate::depot_downloader::DepotDownloadResult::fail("cancelled"),
-                );
-                return;
+            // Already-installed depots need no key/code; the downloader's resume-skip handles them.
+            if !fresh && installed_cfg.is_installed(spec.depot_id, spec.manifest_id) {
+                resolved.push(crate::depot_downloader::ResolvedDepotSpec {
+                    depot_id: spec.depot_id,
+                    manifest_id: spec.manifest_id,
+                    depot_key: Vec::new(),
+                    manifest_request_code: 0,
+                });
+                continue;
             }
-            let Some(manifest_request_code) = request_manifest_request_code(
+            let depot_key = match resolve_depot_key_with_retry(
+                &runtime,
+                app_id,
+                spec.depot_id,
+                timeout,
+                download_cancel.as_ref(),
+            ) {
+                KeyResolution::Granted(key) => key,
+                // Access-denied means this account is not entitled; skip that depot, keep the rest.
+                KeyResolution::AccessDenied => {
+                    denied.push(spec.depot_id);
+                    continue;
+                }
+                KeyResolution::Cancelled => {
+                    dispatch_download_complete(
+                        listener,
+                        crate::depot_downloader::DepotDownloadResult::fail("cancelled"),
+                    );
+                    return;
+                }
+                KeyResolution::Unavailable => {
+                    dispatch_download_complete(
+                        listener.clone(),
+                        crate::depot_downloader::DepotDownloadResult::fail(format!(
+                            "download: depot key unavailable for depot {}",
+                            spec.depot_id
+                        )),
+                    );
+                    return;
+                }
+            };
+            let manifest_request_code = match resolve_manifest_code_with_retry(
                 &runtime,
                 app_id,
                 spec.depot_id,
                 spec.manifest_id,
                 &branch,
                 timeout,
-            ) else {
-                dispatch_download_complete(
-                    listener.clone(),
-                    crate::depot_downloader::DepotDownloadResult::fail(format!(
-                        "download: manifest request code unavailable for depot {}",
-                        spec.depot_id
-                    )),
-                );
-                return;
+                download_cancel.as_ref(),
+            ) {
+                CodeResolution::Code(code) => code,
+                CodeResolution::AccessDenied => {
+                    denied.push(spec.depot_id);
+                    continue;
+                }
+                CodeResolution::Cancelled => {
+                    dispatch_download_complete(
+                        listener,
+                        crate::depot_downloader::DepotDownloadResult::fail("cancelled"),
+                    );
+                    return;
+                }
+                CodeResolution::Unavailable => {
+                    dispatch_download_complete(
+                        listener.clone(),
+                        crate::depot_downloader::DepotDownloadResult::fail(format!(
+                            "download: manifest request code unavailable for depot {}",
+                            spec.depot_id
+                        )),
+                    );
+                    return;
+                }
             };
             resolved.push(crate::depot_downloader::ResolvedDepotSpec {
                 depot_id: spec.depot_id,
@@ -2994,6 +3228,18 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                 depot_key,
                 manifest_request_code,
             });
+        }
+        write_denied_depots_marker(&config_dir, &denied);
+        if resolved.is_empty() {
+            dispatch_download_complete(
+                listener,
+                crate::depot_downloader::DepotDownloadResult::fail(if denied.is_empty() {
+                    "download: no depots".to_string()
+                } else {
+                    "download: no entitled depots (all depot keys denied)".to_string()
+                }),
+            );
+            return;
         }
         let progress_listener = listener.clone();
         let progress = |progress: &crate::depot_downloader::DepotDownloadProgress| {
@@ -3274,10 +3520,12 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     let Some(servers) = request_cdn_servers(&runtime, timeout) else {
         return -1;
     };
-    let Some(depot_key) = request_depot_key(&runtime, app_id, app_id, timeout) else {
+    let DepotKeyOutcome::Granted(depot_key) =
+        request_depot_key(&runtime, app_id, app_id, timeout)
+    else {
         return -1;
     };
-    let Some(manifest_request_code) =
+    let ManifestCodeOutcome::Code(manifest_request_code) =
         request_manifest_request_code(&runtime, app_id, app_id, manifest_id, "public", timeout)
     else {
         return -1;
