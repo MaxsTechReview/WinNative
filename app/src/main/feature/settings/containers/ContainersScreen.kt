@@ -69,7 +69,7 @@ import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import java.util.Locale
 
-private val ContainersBg = Color(0xFF18181D)
+private val ContainersBg = Color(0xFF11111C)
 private val ContainersCard = Color(0xFF1C1C2A)
 private val ContainersSubcard = Color(0xFF161622)
 private val ContainersOutline = Color(0xFF2A2A3A)

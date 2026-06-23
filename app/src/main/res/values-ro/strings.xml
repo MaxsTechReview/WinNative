@@ -1410,5 +1410,26 @@ Cale instalata:
     <string name="session_task_bring_to_front">Adu în față</string>
     <string name="session_task_custom_value">Valoare personalizată</string>
     <string name="session_gyroscope_orientation_mode">Înclină pentru a ținti (orientare)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Fisiere</string>
+    <string name="file_manager_copy">Copiaza</string>
+    <string name="file_manager_cut">Decupeaza</string>
+    <string name="file_manager_paste">Lipeste</string>
+    <string name="file_manager_paste_here">Lipeste aici</string>
+    <string name="file_manager_new_folder">Folder nou</string>
+    <string name="file_manager_create">Creeaza</string>
+    <string name="file_manager_delete">Sterge</string>
+    <string name="file_manager_run_boot">Ruleaza / Porneste</string>
+    <string name="file_manager_create_shortcut">Creeaza comanda rapida</string>
+    <string name="file_manager_run_in_container">Ruleaza in container</string>
+    <string name="file_manager_no_containers">Niciun container disponibil</string>
+    <string name="file_manager_delete_confirm">Stergi \"%1$s\"? Aceasta actiune nu poate fi anulata.</string>
+    <string name="file_manager_copying">Se copiaza %1$s</string>
+    <string name="file_manager_moving">Se muta %1$s</string>
+    <string name="file_manager_paste_into_itself">Nu poti lipi un folder in el insusi</string>
+    <string name="file_manager_operation_failed">Operatiunea a esuat</string>
+    <string name="file_manager_delete_failed">Stergerea a esuat</string>
+    <string name="file_manager_rename_failed">Redenumirea a esuat</string>
+    <string name="file_manager_create_folder_failed">Crearea folderului a esuat</string>
 </resources>
 

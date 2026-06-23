@@ -34,7 +34,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
   }
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 40;
+    public static final int DEFAULT_LATENCY_MILLIS = 144;
     public static final int DEFAULT_FRAGMENT_MILLIS = 10;
     public static final int DEFAULT_SAMPLE_RATE = 48000;
     public static final int DEFAULT_ALTERNATE_SAMPLE_RATE = 44100;

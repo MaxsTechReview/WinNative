@@ -19,5 +19,6 @@ data class DepotInfo(
     val encryptedManifests: Map<String, ManifestInfo> = emptyMap(),
     val language: String = "",
     val realm: String = "",
+    val lowViolence: Boolean = false,
     val optionalDlcId: Int = INVALID_APP_ID,
 )

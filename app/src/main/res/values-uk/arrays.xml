@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="desktop_background_type_entries">
+        <item>Зображення</item>
+        <item>Оригінал</item>
+        <item>Суцільний колір</item>
+    </string-array>
+</resources>

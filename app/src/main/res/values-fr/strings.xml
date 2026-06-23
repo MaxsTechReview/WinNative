@@ -1412,5 +1412,26 @@ Chemin installé :
     <string name="session_task_bring_to_front">Mettre au premier plan</string>
     <string name="session_task_custom_value">Valeur personnalisée</string>
     <string name="session_gyroscope_orientation_mode">Incliner pour viser (orientation)</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Fichiers</string>
+    <string name="file_manager_copy">Copier</string>
+    <string name="file_manager_cut">Couper</string>
+    <string name="file_manager_paste">Coller</string>
+    <string name="file_manager_paste_here">Coller ici</string>
+    <string name="file_manager_new_folder">Nouveau dossier</string>
+    <string name="file_manager_create">Créer</string>
+    <string name="file_manager_delete">Supprimer</string>
+    <string name="file_manager_run_boot">Lancer / Démarrer</string>
+    <string name="file_manager_create_shortcut">Créer un raccourci</string>
+    <string name="file_manager_run_in_container">Exécuter dans le conteneur</string>
+    <string name="file_manager_no_containers">Aucun conteneur disponible</string>
+    <string name="file_manager_delete_confirm">Supprimer \"%1$s\" ? Cette action est irréversible.</string>
+    <string name="file_manager_copying">Copie de %1$s</string>
+    <string name="file_manager_moving">Déplacement de %1$s</string>
+    <string name="file_manager_paste_into_itself">Impossible de coller un dossier dans lui-même</string>
+    <string name="file_manager_operation_failed">Échec de l\'opération</string>
+    <string name="file_manager_delete_failed">Échec de la suppression</string>
+    <string name="file_manager_rename_failed">Échec du renommage</string>
+    <string name="file_manager_create_folder_failed">Échec de la création du dossier</string>
 </resources>
 

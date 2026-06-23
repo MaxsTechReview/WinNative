@@ -1411,4 +1411,25 @@ Installed path:
     <string name="workshop_loading_items">Loading Workshop items</string>
     <string name="workshop_search_items">Search Workshop items</string>
     <string name="common_ui_failed">Failed</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Files</string>
+    <string name="file_manager_copy">Copy</string>
+    <string name="file_manager_cut">Cut</string>
+    <string name="file_manager_paste">Paste</string>
+    <string name="file_manager_paste_here">Paste here</string>
+    <string name="file_manager_new_folder">New Folder</string>
+    <string name="file_manager_create">Create</string>
+    <string name="file_manager_delete">Delete</string>
+    <string name="file_manager_run_boot">Run / Boot</string>
+    <string name="file_manager_create_shortcut">Create Shortcut</string>
+    <string name="file_manager_run_in_container">Run in container</string>
+    <string name="file_manager_no_containers">No containers available</string>
+    <string name="file_manager_delete_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="file_manager_copying">Copying %1$s</string>
+    <string name="file_manager_moving">Moving %1$s</string>
+    <string name="file_manager_paste_into_itself">Can\'t paste a folder into itself</string>
+    <string name="file_manager_operation_failed">Operation failed</string>
+    <string name="file_manager_delete_failed">Delete failed</string>
+    <string name="file_manager_rename_failed">Rename failed</string>
+    <string name="file_manager_create_folder_failed">Create folder failed</string>
 </resources>

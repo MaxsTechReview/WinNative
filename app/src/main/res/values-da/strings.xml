@@ -1412,4 +1412,26 @@ Installeret sti:
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>
     <string name="session_gyroscope_orientation_mode">Vip for at sigte (orientering)</string>
+
+    <!-- File manager -->
+    <string name="file_manager_title">Filer</string>
+    <string name="file_manager_copy">Kopier</string>
+    <string name="file_manager_cut">Klip</string>
+    <string name="file_manager_paste">Indsæt</string>
+    <string name="file_manager_paste_here">Indsæt her</string>
+    <string name="file_manager_new_folder">Ny mappe</string>
+    <string name="file_manager_create">Opret</string>
+    <string name="file_manager_delete">Slet</string>
+    <string name="file_manager_run_boot">Kør / Boot</string>
+    <string name="file_manager_create_shortcut">Opret genvej</string>
+    <string name="file_manager_run_in_container">Kør i container</string>
+    <string name="file_manager_no_containers">Ingen containere tilgængelige</string>
+    <string name="file_manager_delete_confirm">Slet \"%1$s\"? Dette kan ikke fortrydes.</string>
+    <string name="file_manager_copying">Kopierer %1$s</string>
+    <string name="file_manager_moving">Flytter %1$s</string>
+    <string name="file_manager_paste_into_itself">Kan ikke indsætte en mappe i sig selv</string>
+    <string name="file_manager_operation_failed">Handlingen mislykkedes</string>
+    <string name="file_manager_delete_failed">Sletning mislykkedes</string>
+    <string name="file_manager_rename_failed">Omdøbning mislykkedes</string>
+    <string name="file_manager_create_folder_failed">Oprettelse af mappe mislykkedes</string>
 </resources>
