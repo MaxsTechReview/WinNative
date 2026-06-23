@@ -212,7 +212,6 @@ import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import androidx.compose.foundation.focusGroup
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
-import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
@@ -11542,7 +11541,7 @@ class UnifiedActivity :
                                     onValueChange = { gameName = it },
                                     label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                     singleLine = true,
-                                    modifier = Modifier.fillMaxWidth().controllerTextFieldEscape(),
+                                    modifier = Modifier.fillMaxWidth(),
                                     textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                     colors =
                                         OutlinedTextFieldDefaults.colors(

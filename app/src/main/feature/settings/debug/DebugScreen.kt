@@ -1191,19 +1191,13 @@ private fun LogFileRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(IconBoxBg)
                 .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onOpen() })
+                .pointerInput(entry.absolutePath) {
+                    detectTapGestures(onTap = { onOpen() })
+                }.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onOpen() })
-                    .pointerInput(entry.absolutePath) {
-                        detectTapGestures(onTap = { onOpen() })
-                    }.padding(horizontal = 4.dp, vertical = 2.dp),
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = entry.name,
                 color = TextPrimary,

@@ -158,8 +158,6 @@ fun Modifier.controllerSliderEscape(): Modifier =
         }
     }
 
-fun Modifier.controllerTextFieldEscape(): Modifier = controllerSliderEscape()
-
 fun Modifier.controllerMenuInput(
     onDismiss: () -> Unit,
     onSecondary: (() -> Unit)? = null,
