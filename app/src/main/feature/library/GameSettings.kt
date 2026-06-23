@@ -109,6 +109,7 @@ import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
+import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
@@ -2620,6 +2621,7 @@ private fun EnvVarRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(EnvVarControlHeight)
+                        .controllerTextFieldEscape()
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2969,7 +2971,8 @@ private fun EnvValueTextField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(EnvVarControlHeight),
+            .height(EnvVarControlHeight)
+            .controllerTextFieldEscape(),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
@@ -3823,6 +3826,7 @@ private fun SettingTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
+                .controllerTextFieldEscape()
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
