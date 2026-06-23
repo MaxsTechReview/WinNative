@@ -642,14 +642,6 @@ public abstract class WineUtils {
     File rootDir = ImageFs.find(context).getRootDir();
     File systemRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/system.reg");
     File userRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/user.reg");
-    File userCacheDir = new File(rootDir, "/home/xuser/.cache");
-    if (!userCacheDir.isDirectory()) {
-      userCacheDir.mkdirs();
-    }
-    File userConfigDir = new File(rootDir, "/home/xuser/.config");
-    if (!userConfigDir.isDirectory()) {
-      userConfigDir.mkdirs();
-    }
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
       registryEditor.setStringValue("Software\\Classes\\.reg", null, "REGfile");
@@ -665,17 +657,6 @@ public abstract class WineUtils {
           "Software\\Classes\\lnkfile\\DefaultIcon", null, "shell32.dll,-30");
       registryEditor.setStringValue(
           "Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
-
-      // Set up system fonts if not already done
-      File corefontsAddedFile = new File(userConfigDir, "corefonts.added");
-      if (!corefontsAddedFile.isFile()) {
-        try {
-          setupSystemFonts(registryEditor);
-          FileUtils.writeString(corefontsAddedFile, String.valueOf(System.currentTimeMillis()));
-        } catch (Throwable th) {
-          Log.e("WineUtils", "Failed to setup system fonts", th);
-        }
-      }
     }
 
     final String[] direct3dLibs = {
@@ -760,99 +741,139 @@ public abstract class WineUtils {
       return;
     }
 
-    final String version = "14.50.35719.0";
-    final int major = 14, minor = 50, build = 35719, rebuild = 0;
-
     String[] runtimeArches = isArm64EC ? new String[] {"X64", "ARM64"} : new String[] {"X64", "X86"};
 
-    try (WineRegistryEditor reg = new WineRegistryEditor(systemRegFile)) {
-      for (String arch : runtimeArches) {
-        String k = "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
-        reg.setDwordValue(k, "Installed", 1);
-        reg.setStringValue(k, "Version", "v" + version);
-        reg.setDwordValue(k, "Major", major);
-        reg.setDwordValue(k, "Minor", minor);
-        reg.setDwordValue(k, "Bld", build);
-        reg.setDwordValue(k, "Rbld", rebuild);
-
-        // Same under Wow6432Node so 32-bit consumers see it too.
-        String k32 = "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
-        reg.setDwordValue(k32, "Installed", 1);
-        reg.setStringValue(k32, "Version", "v" + version);
-        reg.setDwordValue(k32, "Major", major);
-        reg.setDwordValue(k32, "Minor", minor);
-        reg.setDwordValue(k32, "Bld", build);
-        reg.setDwordValue(k32, "Rbld", rebuild);
-      }
-
-      String[] bundleKeys = isArm64EC
-          ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
-          : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
-      for (String bundle : bundleKeys) {
-        String k = "Software\\Classes\\Installer\\Dependencies\\" + bundle;
-        reg.setStringValue(k, "Version", version);
-        reg.setStringValue(k, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
-      }
+    if (seedVcRedistBatched(systemRegFile, runtimeArches, isArm64EC)) {
+      Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (batched, arches="
+          + java.util.Arrays.toString(runtimeArches) + ")");
+      return;
     }
-    Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (arches="
+
+    try (WineRegistryEditor reg = new WineRegistryEditor(systemRegFile)) {
+      seedVcRedistWithEditor(reg, runtimeArches, isArm64EC);
+    }
+    Log.i("WineUtils", "seedVcRedistRegistryIfDllsPresent: wrote VC++ 14.50 markers (fallback, arches="
         + java.util.Arrays.toString(runtimeArches) + ")");
   }
 
-  /** Registers core Windows fonts and Wine fonts in the registry. */
-  private static void setupSystemFonts(WineRegistryEditor registryEditor) {
-    Log.d("WineUtils", "Setting up system fonts");
-    String[][] corefonts = {
-      {"Andale Mono (TrueType)", "andalemo.ttf"},
-      {"Arial (TrueType)", "arial.ttf"},
-      {"Arial Black (TrueType)", "ariblk.ttf"},
-      {"Arial Bold (TrueType)", "arialbd.ttf"},
-      {"Arial Bold Italic (TrueType)", "arialbi.ttf"},
-      {"Arial Italic (TrueType)", "ariali.ttf"},
-      {"Comic Sans MS (TrueType)", "comic.ttf"},
-      {"Comic Sans MS Bold (TrueType)", "comicbd.ttf"},
-      {"Courier New (TrueType)", "cour.ttf"},
-      {"Courier New Bold (TrueType)", "courbd.ttf"},
-      {"Courier New Bold Italic (TrueType)", "courbi.ttf"},
-      {"Courier New Italic (TrueType)", "couri.ttf"},
-      {"Georgia (TrueType)", "georgia.ttf"},
-      {"Georgia Bold (TrueType)", "georgiab.ttf"},
-      {"Georgia Bold Italic (TrueType)", "georgiaz.ttf"},
-      {"Georgia Italic (TrueType)", "georgiai.ttf"},
-      {"Impact (TrueType)", "impact.ttf"},
-      {"Times New Roman (TrueType)", "times.ttf"},
-      {"Times New Roman Bold (TrueType)", "timesbd.ttf"},
-      {"Times New Roman Bold Italic (TrueType)", "timesbi.ttf"},
-      {"Times New Roman Italic (TrueType)", "timesi.ttf"},
-      {"Trebuchet MS (TrueType)", "trebuc.ttf"},
-      {"Trebuchet MS Bold (TrueType)", "trebucbd.ttf"},
-      {"Trebuchet MS Bold Italic (TrueType)", "trebucbi.ttf"},
-      {"Trebuchet MS Italic (TrueType)", "trebucit.ttf"},
-      {"Verdana (TrueType)", "verdana.ttf"},
-      {"Verdana Bold (TrueType)", "verdanab.ttf"},
-      {"Verdana Bold Italic (TrueType)", "verdanaz.ttf"},
-      {"Verdana Italic (TrueType)", "verdanai.ttf"},
-      {"Webdings (TrueType)", "webdings.ttf"}
-    };
-    for (String[] font : corefonts) {
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows\\CurrentVersion\\Fonts", font[0], font[1]);
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", font[0], font[1]);
-    }
+  private static final String VC_REDIST_VERSION = "14.50.35719.0";
 
-    String[][] wineFonts = {
-      {"Marlett (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\marlett.ttf"},
-      {"Symbol (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\symbol.ttf"},
-      {"Tahoma (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\tahoma.ttf"},
-      {"Tahoma Bold (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\tahomabd.ttf"},
-      {"Wingdings (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\wingding.ttf"}
-    };
-    for (String[] font : wineFonts) {
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows\\CurrentVersion\\Fonts", font[0], font[1]);
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", font[0], font[1]);
+  private static String[] vcRedistBundleKeys(boolean isArm64EC) {
+    return isArm64EC
+        ? new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.arm64,arm64,14.50,bundle"}
+        : new String[] {"VC,redist.x64,amd64,14.50,bundle", "VC,redist.x86,x86,14.50,bundle"};
+  }
+
+  private static void seedVcRedistWithEditor(
+      WineRegistryEditor reg, String[] runtimeArches, boolean isArm64EC) {
+    final String version = VC_REDIST_VERSION;
+    final int major = 14, minor = 50, build = 35719, rebuild = 0;
+    for (String arch : runtimeArches) {
+      String k = "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+      reg.setDwordValue(k, "Installed", 1);
+      reg.setStringValue(k, "Version", "v" + version);
+      reg.setDwordValue(k, "Major", major);
+      reg.setDwordValue(k, "Minor", minor);
+      reg.setDwordValue(k, "Bld", build);
+      reg.setDwordValue(k, "Rbld", rebuild);
+
+      String k32 = "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch;
+      reg.setDwordValue(k32, "Installed", 1);
+      reg.setStringValue(k32, "Version", "v" + version);
+      reg.setDwordValue(k32, "Major", major);
+      reg.setDwordValue(k32, "Minor", minor);
+      reg.setDwordValue(k32, "Bld", build);
+      reg.setDwordValue(k32, "Rbld", rebuild);
     }
+    for (String bundle : vcRedistBundleKeys(isArm64EC)) {
+      String k = "Software\\Classes\\Installer\\Dependencies\\" + bundle;
+      reg.setStringValue(k, "Version", version);
+      reg.setStringValue(k, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+    }
+  }
+
+  private static boolean seedVcRedistBatched(
+      File systemRegFile, String[] runtimeArches, boolean isArm64EC) {
+    File temp = null;
+    try {
+      String block = buildVcRedistRegBlock(runtimeArches, isArm64EC);
+      temp =
+          FileUtils.createTempFile(
+              systemRegFile.getParentFile(), FileUtils.getBasename(systemRegFile.getPath()));
+      if (temp == null || !FileUtils.copy(systemRegFile, temp)) return false;
+      try (java.io.BufferedWriter w =
+          new java.io.BufferedWriter(new java.io.FileWriter(temp, true))) {
+        w.write(block);
+      }
+      try (WineRegistryEditor reg = new WineRegistryEditor(temp)) {
+        for (String arch : runtimeArches) {
+          Integer v =
+              reg.getDwordValue(
+                  "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + arch, "Installed");
+          if (v == null || v != 1) return false;
+        }
+      }
+      return temp.renameTo(systemRegFile);
+    } catch (Exception e) {
+      Log.w("WineUtils", "seedVcRedistBatched failed; falling back to per-value seed", e);
+      return false;
+    } finally {
+      if (temp != null && temp.exists()) temp.delete();
+    }
+  }
+
+  private static String buildVcRedistRegBlock(String[] runtimeArches, boolean isArm64EC) {
+    final String version = VC_REDIST_VERSION;
+    StringBuilder sb = new StringBuilder();
+    for (String arch : runtimeArches) {
+      String[] bases = {
+        "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\",
+        "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\"
+      };
+      for (String base : bases) {
+        appendRegKeyHeader(sb, base + arch);
+        appendRegDword(sb, "Installed", 1);
+        appendRegString(sb, "Version", "v" + version);
+        appendRegDword(sb, "Major", 14);
+        appendRegDword(sb, "Minor", 50);
+        appendRegDword(sb, "Bld", 35719);
+        appendRegDword(sb, "Rbld", 0);
+      }
+    }
+    for (String bundle : vcRedistBundleKeys(isArm64EC)) {
+      appendRegKeyHeader(sb, "Software\\Classes\\Installer\\Dependencies\\" + bundle);
+      appendRegString(sb, "Version", version);
+      appendRegString(sb, "DisplayName", "Microsoft Visual C++ 2015-2022 Redistributable");
+    }
+    return sb.toString();
+  }
+
+  private static void appendRegKeyHeader(StringBuilder sb, String key) {
+    long ticks1601To1970 = 86400L * (369 * 365 + 89) * 10000000;
+    long currentTime = System.currentTimeMillis() + ticks1601To1970;
+    sb.append("\n[")
+        .append(escapeReg(key))
+        .append("] ")
+        .append((currentTime - ticks1601To1970) / 1000)
+        .append(
+            String.format(
+                java.util.Locale.ENGLISH, "\n#time=%x%08x", currentTime >> 32, (int) currentTime))
+        .append("\n");
+  }
+
+  private static void appendRegDword(StringBuilder sb, String name, int value) {
+    sb.append("\n\"")
+        .append(escapeReg(name))
+        .append("\"=dword:")
+        .append(String.format(java.util.Locale.ENGLISH, "%08x", value));
+  }
+
+  private static void appendRegString(StringBuilder sb, String name, String value) {
+    sb.append("\n\"").append(escapeReg(name)).append("\"=\"").append(escapeReg(value)).append("\"");
+  }
+
+  private static String escapeReg(String s) {
+    return s.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   public static void overrideWinComponentDlls(

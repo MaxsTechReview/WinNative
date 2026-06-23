@@ -22,6 +22,22 @@ set(ZSTD_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
 set(ZSTD_LEGACY_SUPPORT  OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(zstd)
 
+# liblzma (xz): fast XZ decoder for .txz/.xz layer extraction.
+FetchContent_Declare(
+    xz
+    GIT_REPOSITORY https://github.com/tukaani-project/xz.git
+    GIT_TAG        v5.4.6
+    GIT_SHALLOW    TRUE
+)
+FetchContent_GetProperties(xz)
+if(NOT xz_POPULATED)
+    FetchContent_Populate(xz)
+    set(_winlator_saved_bsl "${BUILD_SHARED_LIBS}")
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(${xz_SOURCE_DIR} ${xz_BINARY_DIR} EXCLUDE_FROM_ALL)
+    set(BUILD_SHARED_LIBS "${_winlator_saved_bsl}")
+endif()
+
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
 add_subdirectory(wn-steam-client)
@@ -130,31 +146,16 @@ add_library(winlator SHARED
         winlator/vk/vk_dispatch.c
         winlator/vk/vk_image.c
         winlator/vk/vk_renderer.c
-        xz/xz_embedded/xz_crc32.c
-        xz/xz_embedded/xz_crc64.c
-        xz/xz_embedded/xz_dec_bcj.c
-        xz/xz_embedded/xz_dec_lzma2.c
-        xz/xz_embedded/xz_dec_stream.c
 )
 
 add_dependencies(winlator winlator_shaders)
 
 target_compile_options(winlator PRIVATE -Wall -Wextra)
 target_compile_definitions(winlator PRIVATE
-        XZ_USE_CRC64
-        XZ_DEC_CONCATENATED
-        XZ_DEC_X86
-        XZ_DEC_ARM
-        XZ_DEC_ARMTHUMB
-        XZ_DEC_ARM64
-        XZ_DEC_RISCV
-        XZ_DEC_POWERPC
-        XZ_DEC_IA64
-        XZ_DEC_SPARC
         VK_USE_PLATFORM_ANDROID_KHR
 )
 target_include_directories(winlator PRIVATE
-        xz/xz_embedded
+        ${xz_SOURCE_DIR}/src/liblzma/api
         winlator/vk
         ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -168,6 +169,7 @@ target_link_libraries(winlator
         vulkan
         adrenotools
         libzstd_static
+        liblzma
         curl::curl
 )
 
