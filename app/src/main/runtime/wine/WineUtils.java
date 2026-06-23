@@ -642,14 +642,6 @@ public abstract class WineUtils {
     File rootDir = ImageFs.find(context).getRootDir();
     File systemRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/system.reg");
     File userRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/user.reg");
-    File userCacheDir = new File(rootDir, "/home/xuser/.cache");
-    if (!userCacheDir.isDirectory()) {
-      userCacheDir.mkdirs();
-    }
-    File userConfigDir = new File(rootDir, "/home/xuser/.config");
-    if (!userConfigDir.isDirectory()) {
-      userConfigDir.mkdirs();
-    }
 
     try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
       registryEditor.setStringValue("Software\\Classes\\.reg", null, "REGfile");
@@ -665,17 +657,6 @@ public abstract class WineUtils {
           "Software\\Classes\\lnkfile\\DefaultIcon", null, "shell32.dll,-30");
       registryEditor.setStringValue(
           "Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
-
-      // Set up system fonts if not already done
-      File corefontsAddedFile = new File(userConfigDir, "corefonts.added");
-      if (!corefontsAddedFile.isFile()) {
-        try {
-          setupSystemFonts(registryEditor);
-          FileUtils.writeString(corefontsAddedFile, String.valueOf(System.currentTimeMillis()));
-        } catch (Throwable th) {
-          Log.e("WineUtils", "Failed to setup system fonts", th);
-        }
-      }
     }
 
     final String[] direct3dLibs = {
@@ -893,63 +874,6 @@ public abstract class WineUtils {
 
   private static String escapeReg(String s) {
     return s.replace("\\", "\\\\").replace("\"", "\\\"");
-  }
-
-  /** Registers core Windows fonts and Wine fonts in the registry. */
-  private static void setupSystemFonts(WineRegistryEditor registryEditor) {
-    Log.d("WineUtils", "Setting up system fonts");
-    String[][] corefonts = {
-      {"Andale Mono (TrueType)", "andalemo.ttf"},
-      {"Arial (TrueType)", "arial.ttf"},
-      {"Arial Black (TrueType)", "ariblk.ttf"},
-      {"Arial Bold (TrueType)", "arialbd.ttf"},
-      {"Arial Bold Italic (TrueType)", "arialbi.ttf"},
-      {"Arial Italic (TrueType)", "ariali.ttf"},
-      {"Comic Sans MS (TrueType)", "comic.ttf"},
-      {"Comic Sans MS Bold (TrueType)", "comicbd.ttf"},
-      {"Courier New (TrueType)", "cour.ttf"},
-      {"Courier New Bold (TrueType)", "courbd.ttf"},
-      {"Courier New Bold Italic (TrueType)", "courbi.ttf"},
-      {"Courier New Italic (TrueType)", "couri.ttf"},
-      {"Georgia (TrueType)", "georgia.ttf"},
-      {"Georgia Bold (TrueType)", "georgiab.ttf"},
-      {"Georgia Bold Italic (TrueType)", "georgiaz.ttf"},
-      {"Georgia Italic (TrueType)", "georgiai.ttf"},
-      {"Impact (TrueType)", "impact.ttf"},
-      {"Times New Roman (TrueType)", "times.ttf"},
-      {"Times New Roman Bold (TrueType)", "timesbd.ttf"},
-      {"Times New Roman Bold Italic (TrueType)", "timesbi.ttf"},
-      {"Times New Roman Italic (TrueType)", "timesi.ttf"},
-      {"Trebuchet MS (TrueType)", "trebuc.ttf"},
-      {"Trebuchet MS Bold (TrueType)", "trebucbd.ttf"},
-      {"Trebuchet MS Bold Italic (TrueType)", "trebucbi.ttf"},
-      {"Trebuchet MS Italic (TrueType)", "trebucit.ttf"},
-      {"Verdana (TrueType)", "verdana.ttf"},
-      {"Verdana Bold (TrueType)", "verdanab.ttf"},
-      {"Verdana Bold Italic (TrueType)", "verdanaz.ttf"},
-      {"Verdana Italic (TrueType)", "verdanai.ttf"},
-      {"Webdings (TrueType)", "webdings.ttf"}
-    };
-    for (String[] font : corefonts) {
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows\\CurrentVersion\\Fonts", font[0], font[1]);
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", font[0], font[1]);
-    }
-
-    String[][] wineFonts = {
-      {"Marlett (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\marlett.ttf"},
-      {"Symbol (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\symbol.ttf"},
-      {"Tahoma (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\tahoma.ttf"},
-      {"Tahoma Bold (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\tahomabd.ttf"},
-      {"Wingdings (TrueType)", "Z:\\opt\\wine\\share\\wine\\fonts\\wingding.ttf"}
-    };
-    for (String[] font : wineFonts) {
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows\\CurrentVersion\\Fonts", font[0], font[1]);
-      registryEditor.setStringValue(
-          "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", font[0], font[1]);
-    }
   }
 
   public static void overrideWinComponentDlls(
