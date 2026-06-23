@@ -111,7 +111,7 @@ import com.winlator.cmod.runtime.input.ui.ZoomAction
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
-private val InputBg = Color(0xFF18181D)
+private val InputBg = Color(0xFF11111C)
 private val InputCard = Color(0xFF1C1C2A)
 private val InputSubcard = Color(0xFF161622)
 private val InputField = Color(0xFF14141E)

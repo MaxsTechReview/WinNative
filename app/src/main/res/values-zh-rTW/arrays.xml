@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="desktop_background_type_entries">
+        <item>圖片</item>
+        <item>原始</item>
+        <item>純色</item>
+    </string-array>
+</resources>
