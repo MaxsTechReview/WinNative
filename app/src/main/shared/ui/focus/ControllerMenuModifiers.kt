@@ -3,6 +3,9 @@ package com.winlator.cmod.shared.ui.focus
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.focusable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
@@ -49,8 +53,116 @@ fun Modifier.controllerFocusBorder(
             }
     }
 
+fun Modifier.controllerFocusGlow(
+    cornerRadius: Dp = 8.dp,
+    color: Color = AccentBorder,
+): Modifier =
+    composed {
+        var focused by remember { mutableStateOf(false) }
+        val intensity by animateFloatAsState(
+            targetValue = if (focused) 1f else 0f,
+            animationSpec = tween(160),
+            label = "controllerFocusGlow",
+        )
+        this
+            .onFocusChanged { focused = it.isFocused }
+            .drawWithContent {
+                val cr = cornerRadius.toPx()
+                if (intensity > 0f) {
+                    drawRoundRect(
+                        color = color.copy(alpha = 0.28f * intensity),
+                        cornerRadius = CornerRadius(cr, cr),
+                    )
+                }
+                drawContent()
+                if (intensity > 0f) {
+                    drawRoundRect(
+                        color = color.copy(alpha = 0.12f * intensity),
+                        cornerRadius = CornerRadius(cr, cr),
+                    )
+                }
+            }
+    }
+
+fun Modifier.controllerFocusItem(
+    cornerRadius: Dp = 8.dp,
+    color: Color = AccentBorder,
+    onActivate: (() -> Unit)? = null,
+): Modifier =
+    composed {
+        var focused by remember { mutableStateOf(false) }
+        val intensity by animateFloatAsState(
+            targetValue = if (focused) 1f else 0f,
+            animationSpec = tween(160),
+            label = "controllerFocusItem",
+        )
+        this
+            .onFocusChanged { focused = it.isFocused }
+            .then(
+                if (onActivate != null) {
+                    Modifier.onKeyEvent { e ->
+                        if (e.nativeKeyEvent.action != android.view.KeyEvent.ACTION_UP) {
+                            false
+                        } else {
+                            when (e.nativeKeyEvent.keyCode) {
+                                android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                                android.view.KeyEvent.KEYCODE_ENTER,
+                                android.view.KeyEvent.KEYCODE_NUMPAD_ENTER,
+                                android.view.KeyEvent.KEYCODE_BUTTON_A,
+                                -> {
+                                    onActivate()
+                                    true
+                                }
+
+                                else -> false
+                            }
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            ).focusable()
+            .drawWithContent {
+                val cr = cornerRadius.toPx()
+                if (intensity > 0f) {
+                    drawRoundRect(
+                        color = color.copy(alpha = 0.28f * intensity),
+                        cornerRadius = CornerRadius(cr, cr),
+                    )
+                }
+                drawContent()
+                if (intensity > 0f) {
+                    drawRoundRect(
+                        color = color.copy(alpha = 0.12f * intensity),
+                        cornerRadius = CornerRadius(cr, cr),
+                    )
+                }
+            }
+    }
+
+fun Modifier.controllerSliderEscape(): Modifier =
+    composed {
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+        this.onPreviewKeyEvent { e ->
+            if (e.nativeKeyEvent.action != android.view.KeyEvent.ACTION_DOWN) {
+                false
+            } else {
+                when (e.nativeKeyEvent.keyCode) {
+                    android.view.KeyEvent.KEYCODE_DPAD_UP ->
+                        focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Up)
+                    android.view.KeyEvent.KEYCODE_DPAD_DOWN ->
+                        focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+                    else -> false
+                }
+            }
+        }
+    }
+
+fun Modifier.controllerTextFieldEscape(): Modifier = controllerSliderEscape()
+
 fun Modifier.controllerMenuInput(
     onDismiss: () -> Unit,
+    onSecondary: (() -> Unit)? = null,
     repeatMs: Long = 200L,
 ): Modifier =
     composed {
@@ -102,11 +214,27 @@ fun Modifier.controllerMenuInput(
                 }
 
                 android.view.KeyEvent.KEYCODE_BUTTON_B -> {
-                    if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) onDismiss()
+                    if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
+                        val imeVisible =
+                            androidx.core.view.ViewCompat
+                                .getRootWindowInsets(view)
+                                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+                        if (imeVisible) {
+                            androidx.core.view.ViewCompat
+                                .getWindowInsetsController(view)
+                                ?.hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+                        } else {
+                            onDismiss()
+                        }
+                    }
                     true
                 }
 
-                android.view.KeyEvent.KEYCODE_BUTTON_X,
+                android.view.KeyEvent.KEYCODE_BUTTON_X -> {
+                    if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) onSecondary?.invoke()
+                    true
+                }
+
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
                 android.view.KeyEvent.KEYCODE_BUTTON_START,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,

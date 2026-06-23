@@ -209,8 +209,10 @@ import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
-import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import androidx.compose.foundation.focusGroup
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
@@ -536,6 +538,10 @@ class UnifiedActivity :
     val leftStickScrollState = kotlinx.coroutines.flow.MutableStateFlow(0f)
     val keyEventFlow = kotlinx.coroutines.flow.MutableSharedFlow<android.view.KeyEvent>(extraBufferCapacity = 10)
 
+    val openHeroForFocusedSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    val openSearchSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     val libraryFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var libraryItemCount: Int = 0
     private var currentLibraryLayoutMode: LibraryLayoutMode = LibraryLayoutMode.GRID_4
@@ -695,8 +701,19 @@ class UnifiedActivity :
         val keyCode = event.keyCode
         val action = event.action
 
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_B &&
+            action == android.view.KeyEvent.ACTION_DOWN &&
+            hideImeIfVisible()
+        ) {
+            return true
+        }
+
         if (menuNavActive) {
             return dispatchMenuNavKey(event, keyCode, action)
+        }
+
+        if (drawerOpen) {
+            return dispatchDrawerNavKey(event, keyCode, action)
         }
 
         // Prevent global controller buttons from falling through to launch actions.
@@ -709,6 +726,9 @@ class UnifiedActivity :
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,
                 android.view.KeyEvent.KEYCODE_BUTTON_R1,
+                android.view.KeyEvent.KEYCODE_BUTTON_SELECT,
+                android.view.KeyEvent.KEYCODE_BUTTON_THUMBL,
+                android.view.KeyEvent.KEYCODE_BUTTON_THUMBR,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER,
                 -> true
 
@@ -826,7 +846,7 @@ class UnifiedActivity :
                     val right = isHatRight || isJoystickRight
                     val up = isHatUp || isJoystickUp
                     val down = isHatDown || isJoystickDown
-                    if (menuNavActive) {
+                    if (menuNavActive || drawerOpen) {
                         val dpadCode =
                             when {
                                 left -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
@@ -859,18 +879,27 @@ class UnifiedActivity :
     @Volatile
     private var inSettingsRoute: Boolean = false
 
+    @Volatile
+    private var drawerOpen: Boolean = false
+
     private val menuNavActive: Boolean
         get() = inSettingsRoute
-
-    private val focusOverlay by lazy {
-        com.winlator.cmod.shared.ui.focus.ControllerFocusOverlay(this)
-    }
 
     var storeItemClickCallback: ((Int) -> Unit)? = null
 
     private fun injectKeyEvent(keyCode: Int) {
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keyCode))
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keyCode))
+    }
+
+    private fun hideImeIfVisible(): Boolean {
+        val decor = window.decorView
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(decor) ?: return false
+        if (!insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) return false
+        val target = currentFocus ?: decor
+        androidx.core.view.WindowInsetsControllerCompat(window, target)
+            .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        return true
     }
 
     private fun dispatchMenuNavKey(
@@ -900,6 +929,40 @@ class UnifiedActivity :
             android.view.KeyEvent.KEYCODE_BUTTON_START,
             android.view.KeyEvent.KEYCODE_BUTTON_L1,
             android.view.KeyEvent.KEYCODE_BUTTON_R1,
+            -> return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun dispatchDrawerNavKey(
+        event: android.view.KeyEvent,
+        keyCode: Int,
+        action: Int,
+    ): Boolean {
+        when (keyCode) {
+            android.view.KeyEvent.KEYCODE_BUTTON_A -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN || action == android.view.KeyEvent.ACTION_UP) {
+                    window.decorView.rootView.dispatchKeyEvent(
+                        android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
+                    )
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_B,
+            android.view.KeyEvent.KEYCODE_BUTTON_SELECT,
+            -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN) keyEventFlow.tryEmit(event)
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_X,
+            android.view.KeyEvent.KEYCODE_BUTTON_Y,
+            android.view.KeyEvent.KEYCODE_BUTTON_START,
+            android.view.KeyEvent.KEYCODE_BUTTON_L1,
+            android.view.KeyEvent.KEYCODE_BUTTON_R1,
+            android.view.KeyEvent.KEYCODE_BUTTON_THUMBL,
+            android.view.KeyEvent.KEYCODE_BUTTON_THUMBR,
             -> return true
         }
         return super.dispatchKeyEvent(event)
@@ -1209,17 +1272,12 @@ class UnifiedActivity :
             rootNavController = navController
 
             DisposableEffect(navController) {
-                focusOverlay.attach()
                 val listener =
                     androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
                         inSettingsRoute = destination.route?.startsWith("settings") == true
-                        focusOverlay.setEnabled(inSettingsRoute)
                     }
                 navController.addOnDestinationChangedListener(listener)
-                onDispose {
-                    navController.removeOnDestinationChangedListener(listener)
-                    focusOverlay.detach()
-                }
+                onDispose { navController.removeOnDestinationChangedListener(listener) }
             }
 
             LaunchedEffect(Unit) {
@@ -1563,6 +1621,7 @@ class UnifiedActivity :
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        LaunchedEffect(drawerState.isOpen) { drawerOpen = drawerState.isOpen }
         val isLoggedIn by SteamService.isLoggedInFlow.collectAsState()
         val isEpicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
         val isGogLoggedIn by GOGAuthManager.isLoggedInFlow.collectAsState()
@@ -1717,9 +1776,27 @@ class UnifiedActivity :
                         navigateToSettings(SettingsNavItem.STORES)
                     }
 
-                    android.view.KeyEvent.KEYCODE_BUTTON_X -> {
+                    android.view.KeyEvent.KEYCODE_BUTTON_SELECT -> {
                         if (key != "downloads") {
                             if (drawerState.isOpen) drawerState.close() else drawerState.open()
+                        }
+                    }
+
+                    android.view.KeyEvent.KEYCODE_BUTTON_X -> {
+                        if (key == "library" && (selectedSteamAppId != 0 || selectedGogGameId.isNotEmpty())) {
+                            activity?.openHeroForFocusedSignal?.tryEmit(Unit)
+                        }
+                    }
+
+                    android.view.KeyEvent.KEYCODE_BUTTON_THUMBL -> {
+                        if (key == "library") {
+                            activity?.openSearchSignal?.tryEmit(Unit)
+                        }
+                    }
+
+                    android.view.KeyEvent.KEYCODE_BUTTON_THUMBR -> {
+                        if (key == "library") {
+                            showAddCustomGame = true
                         }
                     }
 
@@ -1803,6 +1880,7 @@ class UnifiedActivity :
             drawerContent = {
                 DrawerContent(
                     persona = persona,
+                    isOpen = drawerState.isOpen,
                     context = context,
                     scope = scope,
                     storeVisible = storeVisible,
@@ -2281,6 +2359,13 @@ class UnifiedActivity :
             }
         }
 
+        val controllerSearchActivity = LocalContext.current as? UnifiedActivity
+        LaunchedEffect(Unit) {
+            controllerSearchActivity?.openSearchSignal?.collect {
+                if (!isDownloadsTab) isSearchExpanded = true
+            }
+        }
+
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier =
@@ -2492,9 +2577,10 @@ class UnifiedActivity :
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val isStore = tabs.getOrNull(selectedIdx)?.label?.contains("Store", ignoreCase = true) == true
-                    if (isControllerConnected && !isStore) {
-                        ControllerBadge(if (isPS) "\u25B3" else "Y")
+                    val currentKey = tabs.getOrNull(selectedIdx)?.key
+                    val isStore = currentKey == "steam" || currentKey == "epic" || currentKey == "gog"
+                    if (isControllerConnected) {
+                        ControllerBadge(if (isStore) "R1" else if (isPS) "\u25B3" else "Y")
                         Spacer(Modifier.width(8.dp))
                     }
 
@@ -2537,7 +2623,7 @@ class UnifiedActivity :
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
-                        ControllerBadge(if (isPS) "\u25A1" else "X")
+                        ControllerBadge("Select")
                     }
                 }
             }
@@ -3171,6 +3257,20 @@ class UnifiedActivity :
             selectedGogGameId = gogGame?.id.orEmpty()
         }
 
+        val heroApps = rememberUpdatedState(displayedApps)
+        val heroFocus = rememberUpdatedState(focusIndex)
+        val heroGogMap = rememberUpdatedState(visibleGogByPseudoId)
+        LaunchedEffect(Unit) {
+            activity?.openHeroForFocusedSignal?.collect {
+                val list = heroApps.value
+                val app = list.getOrNull(heroFocus.value) ?: list.firstOrNull()
+                if (app != null) {
+                    detailGogGame = heroGogMap.value[app.id]
+                    detailApp = app
+                }
+            }
+        }
+
         // Publish the focused game's hero artwork to drive the immersive background.
         // Prefers a custom Game Card upload (LibraryArtworkSlot.GAME_CARD), then the
         // store-supplied hero, then the regular grid capsule as a last resort.
@@ -3590,7 +3690,7 @@ class UnifiedActivity :
                                 modifier = Modifier
                                     .padding(end = 4.dp)
                                     .size(34.dp)
-                                    .controllerFocusBorder(),
+                                    .controllerFocusGlow(),
                             ) {
                                 Icon(
                                     Icons.Outlined.Close,
@@ -3657,7 +3757,7 @@ class UnifiedActivity :
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-                    }.controllerFocusBorder(cornerRadius = 0.dp)
+                    }.controllerFocusGlow(cornerRadius = 0.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -3747,7 +3847,7 @@ class UnifiedActivity :
                         isUninstalling = true
                         onConfirm()
                     },
-                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -3761,7 +3861,7 @@ class UnifiedActivity :
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = onCancel,
-                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
                 ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
@@ -3800,7 +3900,7 @@ class UnifiedActivity :
                         isRemoving = true
                         onConfirm()
                     },
-                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -3814,7 +3914,7 @@ class UnifiedActivity :
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = onCancel,
-                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
                 ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
@@ -10726,6 +10826,7 @@ class UnifiedActivity :
     @Composable
     private fun DrawerContent(
         persona: com.winlator.cmod.feature.stores.steam.data.SteamFriend?,
+        isOpen: Boolean,
         context: android.content.Context,
         scope: kotlinx.coroutines.CoroutineScope,
         storeVisible: SnapshotStateMap<String, Boolean>,
@@ -10743,6 +10844,8 @@ class UnifiedActivity :
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
         var statusExpanded by remember { mutableStateOf(false) }
+        val firstItemFocus = remember { FocusRequester() }
+        LaunchedEffect(isOpen) { if (isOpen) runCatching { firstItemFocus.requestFocus() } }
 
         ModalDrawerSheet(
             drawerShape = RectangleShape,
@@ -10756,6 +10859,7 @@ class UnifiedActivity :
                     .fillMaxHeight()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
+                    .focusGroup()
                     .padding(20.dp),
             ) {
                 // ── Avatar Card ──
@@ -10766,6 +10870,8 @@ class UnifiedActivity :
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .focusRequester(firstItemFocus)
+                            .controllerFocusGlow(cornerRadius = 16.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -10890,6 +10996,7 @@ class UnifiedActivity :
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(rowBg)
                                                 .border(1.dp, Accent.copy(alpha = 0.4f * borderAlpha), RoundedCornerShape(8.dp))
+                                                .controllerFocusGlow(cornerRadius = 8.dp)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
                                                     indication = null,
@@ -11073,6 +11180,7 @@ class UnifiedActivity :
                     .clip(RoundedCornerShape(12.dp))
                     .background(DangerRed.copy(alpha = 0.16f))
                     .border(1.dp, DangerRed.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .controllerFocusGlow(cornerRadius = 12.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11133,6 +11241,7 @@ class UnifiedActivity :
                     .clip(RoundedCornerShape(12.dp))
                     .background(Accent.copy(alpha = 0.14f))
                     .border(1.dp, Accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .controllerFocusGlow(cornerRadius = 12.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11208,6 +11317,7 @@ class UnifiedActivity :
                     }.clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
                     .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11267,6 +11377,7 @@ class UnifiedActivity :
                     }.clip(RoundedCornerShape(10.dp))
                     .background(bgColor)
                     .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                    .controllerFocusGlow(cornerRadius = 10.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11296,6 +11407,7 @@ class UnifiedActivity :
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                modifier = Modifier.focusProperties { canFocus = false },
                 colors =
                     SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
@@ -11317,6 +11429,7 @@ class UnifiedActivity :
         var gameName by remember { mutableStateOf("") }
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
+        val firstFocus = remember { FocusRequester() }
 
         fun selectExecutable(path: String) {
             if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
@@ -11348,12 +11461,14 @@ class UnifiedActivity :
         ) {
             CompositionLocalProvider(
                 LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
+                androidx.compose.material3.LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified,
             ) {
                 Surface(
                     modifier =
                         Modifier
                             .widthIn(max = 360.dp)
-                            .fillMaxWidth(0.9f),
+                            .fillMaxWidth(0.9f)
+                            .controllerMenuInput(onDismiss = onDismiss),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xFF141B24),
                 ) {
@@ -11367,6 +11482,8 @@ class UnifiedActivity :
                         )
 
                         Spacer(Modifier.height(10.dp))
+
+                        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
 
                         // Scrollable content area
                         Column(
@@ -11382,6 +11499,8 @@ class UnifiedActivity :
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color.White.copy(alpha = 0.05f))
+                                        .focusRequester(firstFocus)
+                                        .controllerFocusGlow(cornerRadius = 12.dp)
                                         .clickable {
                                             DirectoryPickerDialog.showFile(
                                                 activity = this@UnifiedActivity,
@@ -11423,7 +11542,7 @@ class UnifiedActivity :
                                     onValueChange = { gameName = it },
                                     label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                     singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().controllerTextFieldEscape(),
                                     textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                     colors =
                                         OutlinedTextFieldDefaults.colors(
@@ -11481,7 +11600,7 @@ class UnifiedActivity :
                                             preserveBackdropBlur = true,
                                             extraRoots = driveRoots(includeInternal = true),
                                         ) { path -> gameFolder = path }
-                                    }, modifier = Modifier.size(28.dp)) {
+                                    }, modifier = Modifier.size(28.dp).controllerFocusGlow(cornerRadius = 8.dp)) {
                                         Icon(
                                             Icons.Outlined.Edit,
                                             contentDescription = stringResource(R.string.common_ui_change),
@@ -11506,7 +11625,7 @@ class UnifiedActivity :
                                 border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f)),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp),
+                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp).controllerFocusGlow(cornerRadius = 10.dp),
                             ) {
                                 Text(stringResource(R.string.common_ui_cancel), fontSize = 12.sp)
                             }
@@ -11545,7 +11664,7 @@ class UnifiedActivity :
                                     ),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp),
+                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp).controllerFocusGlow(cornerRadius = 10.dp),
                             ) {
                                 if (isAdding) {
                                     CircularProgressIndicator(color = Accent, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)

@@ -89,6 +89,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 
 private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
@@ -527,6 +528,7 @@ private fun HeroButton(
                 .clip(RoundedCornerShape(9.dp))
                 .background(Accent.copy(alpha = 0.12f))
                 .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(9.dp))
+                .controllerFocusGlow(cornerRadius = 9.dp)
                 .noRippleClickable(onClick = onClick)
                 .height(30.dp)
                 .padding(horizontal = 8.dp),
@@ -705,6 +707,7 @@ private fun RepoCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .controllerFocusGlow(cornerRadius = 12.dp)
                         .noRippleClickable(enabled = !isLoading, onClick = onTap)
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -905,6 +908,7 @@ private fun ReleaseCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .controllerFocusGlow(cornerRadius = 10.dp)
                         .noRippleClickable(onClick = onTap)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1097,6 +1101,7 @@ private fun IconTapButton(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -1133,7 +1138,7 @@ private fun SmallPillButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
+                .then(if (enabled) Modifier.controllerFocusGlow(cornerRadius = 8.dp).noRippleClickable(onClick = onClick) else Modifier)
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1167,6 +1172,7 @@ private fun DialogActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,

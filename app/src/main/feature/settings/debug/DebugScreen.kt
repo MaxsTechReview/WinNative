@@ -83,6 +83,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -104,6 +105,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.controllerFocusItem
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -385,6 +387,7 @@ private fun SettingsToggleCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onCheckedChange(!checked) })
                     .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -412,7 +415,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -544,6 +547,7 @@ private fun ChannelChip(
                 Modifier
                     .size(18.dp)
                     .clip(RoundedCornerShape(5.dp))
+                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onRemove() })
                     .pointerInput(onRemove) {
                         detectTapGestures(onTap = { onRemove() })
                     },
@@ -578,6 +582,7 @@ private fun SmallActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -752,6 +757,7 @@ private fun SelectableChannelChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(bg)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onToggle() })
                 .pointerInput(label) {
                     detectTapGestures(onTap = { onToggle() })
                 },
@@ -790,6 +796,7 @@ private fun RowScope.LogActionButton(
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
                 .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -982,6 +989,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1026,6 +1034,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Success.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1070,6 +1079,7 @@ private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Warning.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1112,6 +1122,7 @@ private fun LogsHeaderIcon(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
@@ -1180,12 +1191,19 @@ private fun LogFileRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(IconBoxBg)
                 .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
-                .pointerInput(entry.absolutePath) {
-                    detectTapGestures(onTap = { onOpen() })
-                }.padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onOpen() })
+                    .pointerInput(entry.absolutePath) {
+                        detectTapGestures(onTap = { onOpen() })
+                    }.padding(horizontal = 4.dp, vertical = 2.dp),
+        ) {
             Text(
                 text = entry.name,
                 color = TextPrimary,
@@ -1247,6 +1265,7 @@ private fun LogRowIconButton(
                 .clip(shape)
                 .background(fillBrush, shape)
                 .border(1.dp, tint.copy(alpha = if (filled) 0.65f else 0.30f), shape)
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },

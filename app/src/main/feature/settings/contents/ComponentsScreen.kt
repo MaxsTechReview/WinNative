@@ -78,6 +78,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 
 // Palette (unified with Drivers / Stores / Other / Debug)
 private val BgDark = Color(0xFF11111C)
@@ -352,6 +353,7 @@ private fun ToggleChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onToggle)
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -481,6 +483,7 @@ private fun TypeTabChip(
                 .clip(RoundedCornerShape(16.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                .controllerFocusGlow(cornerRadius = 12.dp)
                 .noRippleClickable(onClick = onClick)
                 .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
@@ -636,6 +639,7 @@ private fun IconTapButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -710,6 +714,7 @@ private fun SmallPillButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick)
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,

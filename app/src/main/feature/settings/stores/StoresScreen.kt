@@ -68,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -79,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.controllerFocusItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette
@@ -502,6 +504,7 @@ private fun ActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = onClick)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -546,6 +549,7 @@ private fun SettingsToggleCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .controllerFocusItem(onActivate = { onCheckedChange(!checked) })
                     .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -573,7 +577,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -651,6 +655,7 @@ private fun SettingsDropdownCard(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF222232))
                             .border(1.dp, selectedColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                            .controllerFocusItem(cornerRadius = 8.dp, onActivate = { expanded = true })
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onPress = {
@@ -787,6 +792,7 @@ private fun BrowseButton(onClick: () -> Unit) {
                 .scale(scale)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Accent.copy(alpha = 0.12f))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = onClick)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {

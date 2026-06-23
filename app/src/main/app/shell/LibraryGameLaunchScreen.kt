@@ -102,6 +102,7 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -1095,11 +1096,13 @@ private fun LaunchPlayButton(
             .border(1.dp, glassRimBrush, playShape)
     val finalModifier =
         if (enabled) {
-            baseModifier.clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
+            baseModifier
+                .controllerFocusGlow(cornerRadius = 14.dp)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
         } else {
             baseModifier
         }

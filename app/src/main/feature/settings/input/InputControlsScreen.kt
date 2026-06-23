@@ -83,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -108,6 +109,9 @@ import com.winlator.cmod.runtime.input.ui.InputControlsView
 import com.winlator.cmod.runtime.input.ui.PanAction
 import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import com.winlator.cmod.runtime.input.ui.ZoomAction
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.controllerFocusItem
+import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
@@ -442,11 +446,13 @@ private fun CardShell(
 ) {
     val clickableModifier =
         if (onClick != null) {
-            Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
+            Modifier
+                .controllerFocusGlow(cornerRadius = InputCardCorner)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
         } else {
             Modifier
         }
@@ -503,6 +509,7 @@ private fun IconActionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -523,9 +530,10 @@ private fun IconActionButton(
 private fun AppSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Switch(
-        modifier = Modifier.scale(0.78f),
+        modifier = modifier.scale(0.78f).focusProperties { canFocus = false },
         checked = checked,
         onCheckedChange = onCheckedChange,
         colors =
@@ -569,7 +577,8 @@ private fun Chip(
                     1.dp,
                     if (selected) InputAccent.copy(alpha = 0.35f) else InputOutline,
                     RoundedCornerShape(InputFieldCorner),
-                ).clickable(
+                ).controllerFocusGlow(cornerRadius = InputFieldCorner)
+                .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
@@ -597,6 +606,7 @@ private fun SelectionPill(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -851,11 +861,13 @@ private fun InputDialogButton(
     val disabledBorder = InputOutline.copy(alpha = 0.9f)
     val clickModifier =
         if (enabled) {
-            Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
+            Modifier
+                .controllerFocusGlow(cornerRadius = 10.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
         } else {
             Modifier
         }
@@ -1054,7 +1066,8 @@ private fun InputChoiceDialog(
                                 1.dp,
                                 if (selected) InputAccent.copy(alpha = 0.24f) else InputOutline,
                                 RoundedCornerShape(12.dp),
-                            ).clickable(
+                            ).controllerFocusGlow(cornerRadius = 12.dp)
+                            .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = { onSelected(index) },
@@ -1159,18 +1172,20 @@ private fun InputMultiChoiceDialog(
                     if (disabled) {
                         Modifier
                     } else {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-                                currentSelection =
-                                    if (selected) {
-                                        currentSelection - index
-                                    } else {
-                                        currentSelection + index
-                                    }
-                            },
-                        )
+                        Modifier
+                            .controllerFocusGlow(cornerRadius = 12.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    currentSelection =
+                                        if (selected) {
+                                            currentSelection - index
+                                        } else {
+                                            currentSelection + index
+                                        }
+                                },
+                            )
                     }
                 Row(
                     modifier =
@@ -1361,6 +1376,7 @@ private fun ProfileSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
+                .controllerFocusGlow(cornerRadius = InputCardCorner)
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -1486,6 +1502,7 @@ private fun ProfileEditButton(
             modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -1509,6 +1526,7 @@ private fun ProfileOverflowButton(onClick: () -> Unit) {
             Modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -1557,7 +1575,14 @@ private fun AutoHideTouchCard(
 ) {
     CardShell {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .controllerFocusItem(
+                        onActivate = {
+                            actions.onAutoHideTouchOnControllerChanged(!state.autoHideTouchOnController)
+                        },
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconBox(Icons.Outlined.SportsEsports, InputTextSecondary)
@@ -1621,7 +1646,7 @@ private fun OverlayOpacityCard(
                 },
                 valueRange = 10f..100f,
                 steps = 17,
-                modifier = Modifier.height(InputSliderHeight),
+                modifier = Modifier.height(InputSliderHeight).controllerSliderEscape(),
                 colors = sliderColors(),
                 track = { InputSliderTrack(it) },
             )
@@ -1698,6 +1723,7 @@ private fun Subcard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .controllerFocusGlow(cornerRadius = InputCardCorner)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -1771,7 +1797,7 @@ private fun SliderField(
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
-            modifier = Modifier.height(InputSliderHeight),
+            modifier = Modifier.height(InputSliderHeight).controllerSliderEscape(),
             colors = sliderColors(),
             track = { InputSliderTrack(it) },
         )
@@ -1785,7 +1811,10 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .controllerFocusItem(onActivate = { onCheckedChange(!checked) }),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -1811,6 +1840,7 @@ private fun CenteredPillButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -2064,6 +2094,7 @@ private fun GestureSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
+                .controllerFocusGlow(cornerRadius = InputCardCorner)
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -2628,6 +2659,7 @@ private fun BindingSelectionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
+                .controllerFocusGlow(cornerRadius = InputFieldCorner)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

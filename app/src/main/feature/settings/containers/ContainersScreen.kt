@@ -67,6 +67,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import java.util.Locale
 
 private val ContainersBg = Color(0xFF11111C)
@@ -284,6 +285,7 @@ private fun AddContainerCard(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
+                .controllerFocusGlow(cornerRadius = 12.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -770,6 +772,7 @@ private fun SmallVectorIconButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -801,6 +804,7 @@ private fun ActionButton(
                 .clip(RoundedCornerShape(9.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(9.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

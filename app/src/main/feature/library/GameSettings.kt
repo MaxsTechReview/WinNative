@@ -103,6 +103,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.wine.WineThemeManager
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
+import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
@@ -171,19 +178,36 @@ private fun Modifier.smartDropdownAnchor(
 ): Modifier {
     if (!enabled) return this
     val density = LocalDensity.current
-    return pointerInput(enabled, density, onOpen) {
-        detectTapGestures { tapOffset ->
-            offset.value =
-                with(density) {
-                    val tapX = tapOffset.x.toDp()
-                    DpOffset(
-                        if (tapX > SmartDropdownPressStartInset) tapX - SmartDropdownPressStartInset else 0.dp,
-                        0.dp,
-                    )
-                }
-            onOpen()
+    val interactionSource = remember { MutableInteractionSource() }
+    return this
+        .onKeyEvent { e ->
+            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN &&
+                (
+                    e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                        e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                        e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
+                )
+            ) {
+                offset.value = DpOffset.Zero
+                onOpen()
+                true
+            } else {
+                false
+            }
+        }.focusable(interactionSource = interactionSource)
+        .pointerInput(enabled, density, onOpen) {
+            detectTapGestures { tapOffset ->
+                offset.value =
+                    with(density) {
+                        val tapX = tapOffset.x.toDp()
+                        DpOffset(
+                            if (tapX > SmartDropdownPressStartInset) tapX - SmartDropdownPressStartInset else 0.dp,
+                            0.dp,
+                        )
+                    }
+                onOpen()
+            }
         }
-    }
 }
 
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
@@ -668,6 +692,7 @@ private fun Sidebar(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                     .background(CardSurface)
+                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .clickable { onCancel() },
                 contentAlignment = Alignment.Center
             ) {
@@ -711,6 +736,7 @@ private fun SaveButton(
             .background(
                 if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
             )
+            .controllerFocusGlow(cornerRadius = 8.dp)
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -737,6 +763,7 @@ private fun SidebarItem(
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(8.dp))
             .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
+            .controllerFocusBorder(cornerRadius = 8.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -790,6 +817,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(9.dp))
                     .background(tint.copy(alpha = 0.08f))
                     .border(1.dp, tint.copy(alpha = 0.2f), RoundedCornerShape(9.dp))
+                    .controllerFocusGlow(cornerRadius = 9.dp)
                     .clickable { onClick() }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
@@ -887,6 +915,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(SettingFieldCorner))
                     .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                     .background(InputSurface)
+                    .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                     .clickable { callbacks.onSelectExe() }
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
             ) {
@@ -934,6 +963,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(10.dp))
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                    .controllerFocusGlow(cornerRadius = 10.dp)
                     .clickable { callbacks.onAddToHomeScreen() }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -978,6 +1008,7 @@ private fun GeneralSection(
                         .clip(RoundedCornerShape(10.dp))
                         .background(AccentBlue.copy(alpha = 0.08f))
                         .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .controllerFocusGlow(cornerRadius = 10.dp)
                         .clickable { callbacks.onOpenArtworkSource() }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
@@ -1268,6 +1299,7 @@ private fun GraphicsDriverConfigCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.gfxConfigExpanded.value = !expanded }
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
@@ -1480,6 +1512,7 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
+                .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                 .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
@@ -1583,6 +1616,7 @@ private fun ExtensionsPickerDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
+                            .controllerFocusGlow(cornerRadius = 8.dp)
                             .clickable { onToggle(ext, !isEnabled) }
                             .padding(horizontal = 8.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -1614,6 +1648,7 @@ private fun ExtensionsPickerDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .clickable { onDismiss() }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
@@ -1656,6 +1691,7 @@ private fun DXVKConfigCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.dxvkConfigExpanded.value = !expanded }
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
@@ -1781,6 +1817,7 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.wined3dConfigExpanded.value = !expanded }
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
@@ -2029,6 +2066,7 @@ private fun WineSection(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                        .controllerFocusGlow(cornerRadius = 8.dp)
                         .smartDropdownAnchor(offset = localeMenuOffset) { showLocalePicker = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -2122,6 +2160,7 @@ private fun WineSection(
                                 .clip(RoundedCornerShape(SettingFieldCorner))
                                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                                 .background(InputSurface)
+                                .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                                 .clickable { callbacks.onPickWallpaper() }
                                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                             verticalAlignment = Alignment.CenterVertically
@@ -2319,6 +2358,7 @@ private fun VariablesSection(
                     .clip(RoundedCornerShape(8.dp))
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .clickable {
                         state.envVars.value = state.envVars.value + EnvVarItem("", "")
                     }
@@ -2395,6 +2435,7 @@ private fun DrivesSection(
                             .clip(RoundedCornerShape(8.dp))
                             .background(InputSurface)
                             .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                            .controllerFocusGlow(cornerRadius = 8.dp)
                             .clickable { callbacks.onPickDrivePath(index) }
                             .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
                     ) {
@@ -2412,6 +2453,7 @@ private fun DrivesSection(
                             .size(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(DangerRed.copy(alpha = 0.1f))
+                            .controllerFocusGlow(cornerRadius = 6.dp)
                             .clickable { callbacks.onRemoveDrive(index) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -2433,6 +2475,7 @@ private fun DrivesSection(
                 .clip(RoundedCornerShape(8.dp))
                 .background(AccentBlue.copy(alpha = 0.08f))
                 .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable { callbacks.onAddDrive() }
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
@@ -2475,6 +2518,7 @@ private fun DriveLetterSelector(
                     .clip(RoundedCornerShape(6.dp))
                     .background(AccentBlue.copy(alpha = 0.1f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                    .controllerFocusGlow(cornerRadius = 6.dp)
                     .smartDropdownAnchor(enabled = showDropdown, offset = menuOffset) { expanded = true }
                     .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2577,6 +2621,7 @@ private fun EnvVarRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(EnvVarControlHeight)
+                        .controllerTextFieldEscape()
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2602,6 +2647,7 @@ private fun EnvVarRow(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .controllerFocusGlow(cornerRadius = 8.dp)
                         .smartDropdownAnchor(offset = nameMenuOffset) { nameMenuExpanded = true }
                         .padding(horizontal = SettingFieldHorizontalPadding),
                     contentAlignment = Alignment.CenterStart
@@ -2699,6 +2745,7 @@ private fun EnvVarRow(
                     .size(26.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(DangerRed.copy(alpha = 0.1f))
+                    .controllerFocusGlow(cornerRadius = 6.dp)
                     .clickable { onRemove() },
                 contentAlignment = Alignment.Center
             ) {
@@ -2780,6 +2827,7 @@ private fun EnvValueDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
@@ -2843,6 +2891,7 @@ private fun EnvValueMultiDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
@@ -2922,7 +2971,8 @@ private fun EnvValueTextField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(EnvVarControlHeight),
+            .height(EnvVarControlHeight)
+            .controllerTextFieldEscape(),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
@@ -3108,6 +3158,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                        .controllerFocusGlow(cornerRadius = 6.dp)
                         .smartDropdownAnchor(offset = xInputHelpOffset) { showXInputHelp = !showXInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
@@ -3165,6 +3216,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                        .controllerFocusGlow(cornerRadius = 6.dp)
                         .smartDropdownAnchor(offset = dInputHelpOffset) { showDInputHelp = !showDInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
@@ -3447,6 +3499,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true },
             contentAlignment = Alignment.Center
         ) {
@@ -3519,6 +3572,7 @@ private fun CpuChip(
             .clip(RoundedCornerShape(8.dp))
             .background(bgColor)
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .controllerFocusGlow(cornerRadius = 8.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
@@ -3688,6 +3742,7 @@ private fun SettingDropdown(
                     .clip(RoundedCornerShape(SettingFieldCorner))
                     .background(InputSurface)
                     .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
+                    .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                     .smartDropdownAnchor(enabled = enabled, offset = menuOffset) { expanded = true }
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically
@@ -3712,7 +3767,11 @@ private fun SettingDropdown(
                 offset = menuOffset.value,
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
+                modifier = Modifier.controllerMenuInput(onDismiss = { expanded = false }),
             ) {
+                val itemFocus = remember { FocusRequester() }
+                val focusTarget = selectedIndex.coerceIn(0, entries.lastIndex.coerceAtLeast(0))
+                LaunchedEffect(expanded) { if (expanded) runCatching { itemFocus.requestFocus() } }
                 entries.forEachIndexed { index, entry ->
                     DropdownMenuItem(
                         text = {
@@ -3727,11 +3786,9 @@ private fun SettingDropdown(
                             onSelected(index)
                             expanded = false
                         },
-                        modifier = if (index == selectedIndex) {
-                            Modifier.background(AccentBlue.copy(alpha = 0.06f))
-                        } else {
-                            Modifier
-                        }
+                        modifier = (if (index == selectedIndex) Modifier.background(AccentBlue.copy(alpha = 0.06f)) else Modifier)
+                            .then(if (index == focusTarget) Modifier.focusRequester(itemFocus) else Modifier)
+                            .controllerFocusGlow(cornerRadius = 6.dp)
                     )
                 }
             }
@@ -3769,6 +3826,7 @@ private fun SettingTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
+                .controllerTextFieldEscape()
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
@@ -3790,6 +3848,7 @@ private fun SettingCheckbox(
             .fillMaxWidth()
             .alpha(alpha)
             .clip(RoundedCornerShape(8.dp))
+            .controllerFocusGlow(cornerRadius = 8.dp)
             .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
             .padding(vertical = SettingTightGap),
         verticalAlignment = Alignment.CenterVertically
@@ -3852,6 +3911,7 @@ private fun SettingSwitch(
             .fillMaxWidth()
             .alpha(alpha)
             .clip(RoundedCornerShape(8.dp))
+            .controllerFocusGlow(cornerRadius = 8.dp)
             .then(
                 if (enabled) {
                     Modifier.clickable(
@@ -3928,7 +3988,8 @@ private fun SettingSlider(
             enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(SettingSliderHeight),
+                .height(SettingSliderHeight)
+                .controllerSliderEscape(),
             colors = settingSliderColors(),
             track = { SettingSliderTrack(it) },
             thumb = {
@@ -3985,6 +4046,7 @@ private fun SavesActionCard(
             .clip(RoundedCornerShape(SettingGroupCorner))
             .background(InputSurface)
             .border(1.dp, InputBorder, RoundedCornerShape(SettingGroupCorner))
+            .controllerFocusGlow(cornerRadius = SettingGroupCorner)
             .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {

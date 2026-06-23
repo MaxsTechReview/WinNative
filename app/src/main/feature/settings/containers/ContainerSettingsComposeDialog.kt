@@ -9,9 +9,11 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDialog
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -159,7 +161,11 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(state = state, callbacks = createCallbacks())
+                        Box(
+                            modifier = Modifier.controllerMenuInput(onDismiss = { dialog.dismiss() }),
+                        ) {
+                            GameSettingsContent(state = state, callbacks = createCallbacks())
+                        }
                     }
                 }
             }

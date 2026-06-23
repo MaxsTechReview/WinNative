@@ -79,6 +79,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.controllerFocusItem
+import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
+import androidx.compose.ui.focus.focusProperties
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette (mirrors DebugScreen / StoresScreen)
@@ -390,6 +393,7 @@ private fun SettingsToggleCard(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onCheckedChange(!checked) })
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
@@ -425,7 +429,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -568,6 +572,7 @@ private fun SettingsDropdownCard(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF222232))
                             .border(1.dp, accentColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                            .controllerFocusItem(cornerRadius = 8.dp, onActivate = { if (options.isNotEmpty()) expanded = true })
                             .pointerInput(options) {
                                 detectTapGestures(
                                     onPress = {
@@ -715,6 +720,7 @@ private fun SoundFontCard(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0xFF222232))
                                 .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { if (files.isNotEmpty()) expanded = true })
                                 .pointerInput(files) {
                                     detectTapGestures(
                                         onPress = {
@@ -929,7 +935,8 @@ private fun CursorSpeedCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(SettingsSliderHeight),
+                        .height(SettingsSliderHeight)
+                        .controllerSliderEscape(),
             )
         }
     }
@@ -1081,6 +1088,7 @@ private fun SmallActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .controllerFocusItem(cornerRadius = 8.dp, onActivate = onClick)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {

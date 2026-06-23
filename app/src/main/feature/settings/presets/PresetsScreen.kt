@@ -95,6 +95,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 private val BgDark = Color(0xFF11111C)
@@ -418,6 +419,7 @@ private fun PresetActionButton(
                 .clip(RoundedCornerShape(7.dp))
                 .background(Accent.copy(alpha = 0.12f))
                 .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(7.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -541,6 +543,7 @@ private fun EngineTab(
                 .clip(RoundedCornerShape(6.dp))
                 .background(bg)
                 .border(1.dp, borderColor, RoundedCornerShape(6.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center,
@@ -648,6 +651,7 @@ private fun PresetSelectorRowContent(
                         .clip(RoundedCornerShape(8.dp))
                         .background(CardDarker)
                         .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                        .controllerFocusGlow(cornerRadius = 8.dp)
                         .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
                         .padding(horizontal = 11.dp, vertical = 7.dp),
             ) {
@@ -897,6 +901,7 @@ private fun EnvVarCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .controllerFocusGlow(cornerRadius = 8.dp)
                         .noRippleClickable { expanded = !expanded }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1026,6 +1031,7 @@ private fun EnvVarToggleControl(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable {
                     if (editable) onValueChanged(if (checked) "0" else "1")
                 }
@@ -1075,6 +1081,7 @@ private fun EnvVarDropdownControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
                 .padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
@@ -1138,6 +1145,7 @@ private fun EnvVarTextControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -1195,6 +1203,7 @@ private fun IconTapButton(
                 .width(34.dp)
                 .height(38.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

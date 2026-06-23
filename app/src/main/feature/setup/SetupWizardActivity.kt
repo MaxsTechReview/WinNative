@@ -127,7 +127,7 @@ import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.ui.widget.chasingBorder
-import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -663,7 +663,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         surface = Color(0xFF1E252E),
                     ),
             ) {
-                SetupWizardScreen()
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified,
+                ) {
+                    SetupWizardScreen()
+                }
             }
         }
     }
@@ -1852,7 +1856,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.controllerFocusBorder(cornerRadius = 12.dp),
+            modifier = Modifier.controllerFocusGlow(cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, if (enabled) Color(0xFF434D5C) else Color(0xFF222D3D)),
             colors =
@@ -1879,7 +1883,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.controllerFocusBorder(cornerRadius = 12.dp),
+            modifier = Modifier.controllerFocusGlow(cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.5.dp, borderColor),
             colors =
@@ -2167,7 +2171,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                                         shape = installAllShape,
                                                                     )
                                                                 },
-                                                            ).controllerFocusBorder(cornerRadius = 8.dp)
+                                                            ).controllerFocusGlow(cornerRadius = 8.dp)
                                                             .clickable(
                                                                 enabled = installAllEnabled,
                                                                 interactionSource = remember { MutableInteractionSource() },
@@ -2242,7 +2246,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     Modifier
                         .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
                         .background(bgColor, RoundedCornerShape(8.dp))
-                        .controllerFocusBorder(cornerRadius = 8.dp)
+                        .controllerFocusGlow(cornerRadius = 8.dp)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -2413,7 +2417,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         onClick = onClick,
                         enabled = enabled && !installed,
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(28.dp).controllerFocusBorder(cornerRadius = 8.dp),
+                        modifier = Modifier.height(28.dp).controllerFocusGlow(cornerRadius = 8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         colors =
                             ButtonDefaults.buttonColors(
@@ -2620,7 +2624,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     },
                     enabled = !creating && transferState.value == null,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusGlow(cornerRadius = 8.dp),
                     contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -2657,7 +2661,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         openContainerDefaultSettings(id, type)
                     },
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusBorder(cornerRadius = 8.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusGlow(cornerRadius = 8.dp),
                     contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -2771,7 +2775,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     Modifier
                         .fillMaxWidth()
                         .height(32.dp)
-                        .controllerFocusBorder(cornerRadius = 8.dp),
+                        .controllerFocusGlow(cornerRadius = 8.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 colors =
                     ButtonDefaults.buttonColors(

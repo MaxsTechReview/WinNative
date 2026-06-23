@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,6 +71,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.controllerFocusItem
 import com.winlator.cmod.shared.ui.toast.WinToast
 import kotlinx.coroutines.launch
 
@@ -276,6 +279,7 @@ private fun AutoSignInToggleCard(
                 .clip(RoundedCornerShape(14.dp))
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable { onCheckedChange(!checked) }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -315,6 +319,7 @@ private fun AutoSignInToggleCard(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            modifier = Modifier.focusProperties { canFocus = false },
             colors =
                 SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
@@ -854,7 +859,8 @@ private fun ActionButton(
                     1.dp,
                     if (enabled) textColor.copy(alpha = 0.30f) else TextSecondary.copy(alpha = 0.2f),
                     RoundedCornerShape(8.dp),
-                ).pointerInput(onClick, enabled) {
+                ).controllerFocusItem(cornerRadius = 8.dp, onActivate = { if (enabled) onClick() })
+                .pointerInput(onClick, enabled) {
                     detectTapGestures(
                         onPress = {
                             if (!enabled) return@detectTapGestures
