@@ -41,10 +41,13 @@ import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -128,6 +131,11 @@ fun SettingsNavSidebar(
     val navStartInset = navBarPadding.calculateStartPadding(layoutDirection)
     val navBottomInset = navBarPadding.calculateBottomPadding()
 
+    val initialFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { initialFocusRequester.requestFocus() }
+    }
+
     Row(
         modifier =
             Modifier
@@ -176,6 +184,7 @@ fun SettingsNavSidebar(
                             item = item,
                             isSelected = item == selectedItem,
                             borderPaused = bordersPaused,
+                            focusRequester = if (item == selectedItem) initialFocusRequester else null,
                             onClick = { onItemSelected(item) },
                         )
                     }
@@ -258,6 +267,7 @@ private fun NavItemRow(
     item: SettingsNavItem,
     isSelected: Boolean,
     borderPaused: Boolean = false,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -311,7 +321,13 @@ private fun NavItemRow(
                         Modifier
                     },
                 ).hoverable(interactionSource)
-                .clickable(
+                .then(
+                    if (focusRequester != null) {
+                        Modifier.focusRequester(focusRequester)
+                    } else {
+                        Modifier
+                    },
+                ).clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,

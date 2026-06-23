@@ -127,6 +127,7 @@ import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -558,6 +559,64 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 permissions[Manifest.permission.WRITE_EXTERNAL_STORAGE] == true ||
                 permissions[Manifest.permission.READ_EXTERNAL_STORAGE] == true
         }
+
+    private var lastMenuMove = 0L
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_BUTTON_A -> {
+                if (event.action == android.view.KeyEvent.ACTION_DOWN || event.action == android.view.KeyEvent.ACTION_UP) {
+                    window.decorView.rootView.dispatchKeyEvent(
+                        android.view.KeyEvent(event.action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
+                    )
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_B -> {
+                if (event.action == android.view.KeyEvent.ACTION_DOWN && pageIndex.intValue > 0) {
+                    pageIndex.intValue -= 1
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_X,
+            android.view.KeyEvent.KEYCODE_BUTTON_Y,
+            android.view.KeyEvent.KEYCODE_BUTTON_START,
+            android.view.KeyEvent.KEYCODE_BUTTON_L1,
+            android.view.KeyEvent.KEYCODE_BUTTON_R1,
+            -> return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
+            event.action == android.view.MotionEvent.ACTION_MOVE
+        ) {
+            val x = event.getAxisValue(android.view.MotionEvent.AXIS_X)
+            val y = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
+            val hx = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X)
+            val hy = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y)
+            val code =
+                when {
+                    x < -0.5f || hx < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                    x > 0.5f || hx > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                    y < -0.5f || hy < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_UP
+                    y > 0.5f || hy > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                    else -> 0
+                }
+            if (code != 0) {
+                if (event.eventTime - lastMenuMove >= 200L) {
+                    lastMenuMove = event.eventTime
+                    window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+                    window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+                }
+                return true
+            }
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1793,6 +1852,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
+            modifier = Modifier.controllerFocusBorder(cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, if (enabled) Color(0xFF434D5C) else Color(0xFF222D3D)),
             colors =
@@ -1819,6 +1879,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
+            modifier = Modifier.controllerFocusBorder(cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.5.dp, borderColor),
             colors =
@@ -2106,7 +2167,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                                         shape = installAllShape,
                                                                     )
                                                                 },
-                                                            ).clickable(
+                                                            ).controllerFocusBorder(cornerRadius = 8.dp)
+                                                            .clickable(
                                                                 enabled = installAllEnabled,
                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                 indication = null,
@@ -2180,6 +2242,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     Modifier
                         .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
                         .background(bgColor, RoundedCornerShape(8.dp))
+                        .controllerFocusBorder(cornerRadius = 8.dp)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -2350,7 +2413,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         onClick = onClick,
                         enabled = enabled && !installed,
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(28.dp),
+                        modifier = Modifier.height(28.dp).controllerFocusBorder(cornerRadius = 8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         colors =
                             ButtonDefaults.buttonColors(
@@ -2557,7 +2620,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     },
                     enabled = !creating && transferState.value == null,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusBorder(cornerRadius = 8.dp),
                     contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -2594,7 +2657,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         openContainerDefaultSettings(id, type)
                     },
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(if (compact) 24.dp else 28.dp),
+                    modifier = Modifier.height(if (compact) 24.dp else 28.dp).controllerFocusBorder(cornerRadius = 8.dp),
                     contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -2707,7 +2770,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(32.dp),
+                        .height(32.dp)
+                        .controllerFocusBorder(cornerRadius = 8.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 colors =
                     ButtonDefaults.buttonColors(

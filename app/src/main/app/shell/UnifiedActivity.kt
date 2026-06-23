@@ -209,6 +209,8 @@ import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.ui.CarouselView
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
@@ -693,6 +695,10 @@ class UnifiedActivity :
         val keyCode = event.keyCode
         val action = event.action
 
+        if (menuNavActive) {
+            return dispatchMenuNavKey(event, keyCode, action)
+        }
+
         // Prevent global controller buttons from falling through to launch actions.
         val isHandledGlobally =
             when (keyCode) {
@@ -820,9 +826,21 @@ class UnifiedActivity :
                     val right = isHatRight || isJoystickRight
                     val up = isHatUp || isJoystickUp
                     val down = isHatDown || isJoystickDown
-                    when (currentTabKey) {
-                        "library" -> moveLibraryFocus(left, right, up, down)
-                        else -> moveStoreFocus(left, right, up, down)
+                    if (menuNavActive) {
+                        val dpadCode =
+                            when {
+                                left -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                                right -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                                up -> android.view.KeyEvent.KEYCODE_DPAD_UP
+                                down -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                                else -> 0
+                            }
+                        if (dpadCode != 0) injectKeyEvent(dpadCode)
+                    } else {
+                        when (currentTabKey) {
+                            "library" -> moveLibraryFocus(left, right, up, down)
+                            else -> moveStoreFocus(left, right, up, down)
+                        }
                     }
                     lastMoveTime = now
                     joystickActive = true
@@ -838,11 +856,53 @@ class UnifiedActivity :
 
     private var currentTabKey: String = "library"
 
+    @Volatile
+    private var inSettingsRoute: Boolean = false
+
+    private val menuNavActive: Boolean
+        get() = inSettingsRoute
+
+    private val focusOverlay by lazy {
+        com.winlator.cmod.shared.ui.focus.ControllerFocusOverlay(this)
+    }
+
     var storeItemClickCallback: ((Int) -> Unit)? = null
 
     private fun injectKeyEvent(keyCode: Int) {
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keyCode))
         window.decorView.rootView.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keyCode))
+    }
+
+    private fun dispatchMenuNavKey(
+        event: android.view.KeyEvent,
+        keyCode: Int,
+        action: Int,
+    ): Boolean {
+        when (keyCode) {
+            android.view.KeyEvent.KEYCODE_BUTTON_A -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN || action == android.view.KeyEvent.ACTION_UP) {
+                    window.decorView.rootView.dispatchKeyEvent(
+                        android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
+                    )
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_B -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN) {
+                    onBackPressedDispatcher.onBackPressed()
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_X,
+            android.view.KeyEvent.KEYCODE_BUTTON_Y,
+            android.view.KeyEvent.KEYCODE_BUTTON_START,
+            android.view.KeyEvent.KEYCODE_BUTTON_L1,
+            android.view.KeyEvent.KEYCODE_BUTTON_R1,
+            -> return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun reapplyPreferredRefreshRate() {
@@ -1147,6 +1207,20 @@ class UnifiedActivity :
         setContent {
             val navController = rememberNavController()
             rootNavController = navController
+
+            DisposableEffect(navController) {
+                focusOverlay.attach()
+                val listener =
+                    androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
+                        inSettingsRoute = destination.route?.startsWith("settings") == true
+                        focusOverlay.setEnabled(inSettingsRoute)
+                    }
+                navController.addOnDestinationChangedListener(listener)
+                onDispose {
+                    navController.removeOnDestinationChangedListener(listener)
+                    focusOverlay.detach()
+                }
+            }
 
             LaunchedEffect(Unit) {
                 val pending = pendingNavigation
@@ -3457,6 +3531,7 @@ class UnifiedActivity :
         wide: Boolean = false,
         content: @Composable ColumnScope.() -> Unit,
     ) {
+        val contentFocus = remember { FocusRequester() }
         Dialog(
             onDismissRequest = onDismissRequest,
             properties =
@@ -3469,7 +3544,8 @@ class UnifiedActivity :
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.navigationBars),
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .controllerMenuInput(onDismiss = onDismissRequest),
                 contentAlignment = Alignment.Center,
             ) {
                 val widthModifier =
@@ -3487,8 +3563,13 @@ class UnifiedActivity :
                     tonalElevation = 8.dp,
                 ) {
                     Column(
-                        modifier = Modifier.padding(vertical = 6.dp),
+                        modifier =
+                            Modifier
+                                .padding(vertical = 6.dp)
+                                .focusRequester(contentFocus)
+                                .focusable(),
                     ) {
+                        LaunchedEffect(Unit) { runCatching { contentFocus.requestFocus() } }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -3508,7 +3589,8 @@ class UnifiedActivity :
                                 onClick = onDismissRequest,
                                 modifier = Modifier
                                     .padding(end = 4.dp)
-                                    .size(34.dp),
+                                    .size(34.dp)
+                                    .controllerFocusBorder(),
                             ) {
                                 Icon(
                                     Icons.Outlined.Close,
@@ -3575,7 +3657,8 @@ class UnifiedActivity :
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-                    }.clickable(
+                    }.controllerFocusBorder(cornerRadius = 0.dp)
+                    .clickable(
                         interactionSource = interactionSource,
                         indication = null,
                         onClick = action.onClick,
@@ -3664,6 +3747,7 @@ class UnifiedActivity :
                         isUninstalling = true
                         onConfirm()
                     },
+                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -3675,7 +3759,10 @@ class UnifiedActivity :
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = onCancel) {
+                TextButton(
+                    onClick = onCancel,
+                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -3713,6 +3800,7 @@ class UnifiedActivity :
                         isRemoving = true
                         onConfirm()
                     },
+                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -3724,7 +3812,10 @@ class UnifiedActivity :
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = onCancel) {
+                TextButton(
+                    onClick = onCancel,
+                    modifier = Modifier.controllerFocusBorder(cornerRadius = 8.dp),
+                ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }

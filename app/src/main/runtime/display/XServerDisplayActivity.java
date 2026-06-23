@@ -7276,9 +7276,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                handleNavigationBackPressed();
+            }
+            return true;
+        }
+
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
-                (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||
-                 event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
+                (event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
                  event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT)) {
             return true;
         }
