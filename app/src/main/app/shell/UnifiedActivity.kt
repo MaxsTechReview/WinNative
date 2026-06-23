@@ -2579,8 +2579,8 @@ class UnifiedActivity :
                 ) {
                     val currentKey = tabs.getOrNull(selectedIdx)?.key
                     val isStore = currentKey == "steam" || currentKey == "epic" || currentKey == "gog"
-                    if (isControllerConnected) {
-                        ControllerBadge(if (isStore) "R1" else if (isPS) "\u25B3" else "Y")
+                    if (isControllerConnected && (isStore || isPS)) {
+                        ControllerBadge(if (isStore) "R1" else "\u25B3")
                         Spacer(Modifier.width(8.dp))
                     }
 
