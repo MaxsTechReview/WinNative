@@ -384,7 +384,7 @@ public class VulkanRenderer
                 if (nativeHandle != 0) {
                     double th = fgTargetHz();
                     nativeSetVsyncTiming(nativeHandle, th > 0.0 ? (long) (1.0e9 / th) : fgDisplayPeriodNs,
-                            fgDisplayPeriodNs, frameTimeNanos);
+                            fgDisplayPeriodNs, fgContentPeriodNs, frameTimeNanos);
                     fgApplyFrameRateHint(th, frameTimeNanos);
                 }
             } else if (d >= 100_000_000L) {
@@ -472,6 +472,8 @@ public class VulkanRenderer
     private long fgPromoteSeen = 0;
     private long fgLastPromoteNs = 0, fgPrevPromoteNs = 0;  // times of the last two distinct content frames
     private long fgContentPeriodNs = 0;      // EMA of the interval between distinct content frames
+    private int fgFillHolds = 1;             // debug.winnative.fgfill: complete motion to curr on late holds (0=off)
+    private int fgFillCtr = 0;
     private int  fgPromoteSlotIdx = 0;       // display ticks since the last promote
     private int  fgVblankSincePromote = 0;   // vblanks since the last real frame — drives the steady output gate
     private volatile int fgCadenceM = 2;     // divisor-snapped multiplier actually used by the cadence
@@ -508,6 +510,7 @@ public class VulkanRenderer
 
     private int fgEmitOne() {
         if (fgResyncPending) { fgResyncPending = false; doFgResync(); }
+        if ((fgFillCtr++ & 63) == 0) fgFillHolds = nativeGetFillHolds();
         boolean newGame = fgNewScene.getAndSet(false);
         boolean dirty   = fgSceneDirty.getAndSet(false);
         fgEmitWasHold = newGame || dirty;
@@ -570,6 +573,11 @@ public class VulkanRenderer
         if (vi >= slots) {                                         // interval fully spanned (content static)
             // Now a UI-only recomposite (cursor) warrants a sharp redraw; otherwise hold.
             if (dirty && !newGame) { nativePresentLast(nativeHandle, 0f, fgPrevPromoteNs, fgLastPromoteNs); return 2; }
+            if (fgFillHolds > 0 && vi < slots + fgFillHolds) {     // next real frame late: carry the motion
+                double phase = (double) vi / (double) slots;        // >=1.0 -> reach curr then extrapolate forward
+                nativeRenderInterp(nativeHandle, (float) phase, fgPrevPromoteNs, fgLastPromoteNs);
+                return 1;
+            }
             return 0;                                              // hold for the next promote
         }
         boolean emit = (int) ((long) vi * emits / slots) != (int) ((long) (vi - 1) * emits / slots);
@@ -1346,7 +1354,8 @@ public class VulkanRenderer
     private static native void nativeSetFrameGenExtrapolate(long handle, boolean extrapolate);
     private static native void nativeSetFrameGenFramesInFlight(long handle, int framesInFlight);
     private static native int nativeGetActivePresentMode(long handle);
-    private static native void nativeSetVsyncTiming(long handle, long periodNs, long displayPeriodNs, long vsyncNs);
+    private static native int nativeGetFillHolds();
+    private static native void nativeSetVsyncTiming(long handle, long periodNs, long displayPeriodNs, long contentPeriodNs, long vsyncNs);
     private static native void nativeFgPumpStart(Object renderer);
     private static native void nativeFgPumpStop();
 }

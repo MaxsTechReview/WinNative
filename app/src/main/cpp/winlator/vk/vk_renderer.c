@@ -48,6 +48,7 @@
 #include "shaders/cnn_correlation_warpfollow_comp.spv.h"
 #include "shaders/cnn_flowreg_comp.spv.h"
 #include "shaders/cnn_generate_comp.spv.h"
+#include "shaders/fg_synthshift_comp.spv.h"
 #include "wnfg_spv/wnfg_04_spv.h"
 #include "wnfg_spv/wnfg_13_spv.h"
 #include "wnfg_spv/wnfg_25_spv.h"
@@ -2414,6 +2415,7 @@ static void fg_destroy_resources(VkRenderer* r) {
         if (o->blit_set)    vkr_free_descriptor_set(r, o->blit_set);
         if (o->framebuffer) vkDestroyFramebuffer(r->device, o->framebuffer, NULL);
         if (o->view)        vkDestroyImageView(r->device, o->view, NULL);
+        if (o->storeView)   vkDestroyImageView(r->device, o->storeView, NULL);
         if (o->image)       vkDestroyImage(r->device, o->image, NULL);
         if (o->memory)      vkFreeMemory(r->device, o->memory, NULL);
         memset(o, 0, sizeof(*o));
@@ -2461,7 +2463,9 @@ static bool fg_create_color_target(VkRenderer* r, VkFgImage* o, uint32_t w, uint
     ic.mipLevels = 1; ic.arrayLayers = 1;
     ic.samples = VK_SAMPLE_COUNT_1_BIT;
     ic.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ic.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ic.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;          // rgba8 storage alias (synth-shift harness)
+    ic.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+             | VK_IMAGE_USAGE_STORAGE_BIT;
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     if (vkCreateImage(r->device, &ic, NULL, &o->image) != VK_SUCCESS) return false;
@@ -2479,6 +2483,9 @@ static bool fg_create_color_target(VkRenderer* r, VkFgImage* o, uint32_t w, uint
     vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     vi.subresourceRange.levelCount = 1; vi.subresourceRange.layerCount = 1;
     if (vkCreateImageView(r->device, &vi, NULL, &o->view) != VK_SUCCESS) return false;
+
+    vi.format = VK_FORMAT_R8G8B8A8_UNORM;                  // rgba8 storage alias for the synth-shift harness
+    if (vkCreateImageView(r->device, &vi, NULL, &o->storeView) != VK_SUCCESS) return false;
 
     VkFramebufferCreateInfo fb = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     fb.renderPass = r->pipelines.offscreen_pass;
@@ -2910,6 +2917,8 @@ fail:
 static bool fg_ensure_resources(VkRenderer* r) {
     if (r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0) return false;
     if (!r->pipelines_built) return false;
+    { char fss[16] = {0}; __system_property_get("debug.winnative.fgflowscale", fss);
+      if (fss[0]) { float v = (float)atof(fss); if (v >= 0.2f && v <= 1.0f) r->fg_flow_scale = v; } }
     if (r->fg_built
         && r->fg_dims.width == r->swapchain_extent.width
         && r->fg_dims.height == r->swapchain_extent.height
@@ -2944,11 +2953,20 @@ static uint64_t g_fg_dropped = 0;
 static uint64_t fg_compute_deadline(VkRenderer* r, float phase) {
     uint64_t now = now_monotonic_ns();
     uint64_t ca = r->fg_curr_arrival_ns, pa = r->fg_prev_arrival_ns;
+    // disp = the vblank period Java derives slots from, so the snap matches the slot cadence
+    uint64_t disp = r->fg_display_period_ns ? r->fg_display_period_ns : r->refresh_duration_ns;
     uint64_t period = r->fg_present_period_ns ? r->fg_present_period_ns : r->refresh_duration_ns;
     uint64_t deadline;
     if (ca != 0 && pa != 0 && ca > pa) {
-        uint64_t cp = ca - pa;                              // content period from the two real arrivals
         if (phase < 0.0f) phase = 0.0f;
+        // snap the content period to whole vblanks (same EMA as slots) -> presents on the even grid
+        uint64_t cp = ca - pa;
+        uint64_t ema = r->fg_content_period_ns ? r->fg_content_period_ns : cp;
+        if (disp != 0) {
+            uint64_t k = (uint64_t)(((double)ema / (double)disp) + 0.5);   // == fgEmitOne slots
+            if (k < 1u) k = 1u;
+            cp = k * disp;
+        }
         deadline = ca + (uint64_t)((double)phase * (double)cp);
     } else if (period != 0) {
         deadline = r->fg_present_deadline_ns + period;      // pre-lock fallback: even period grid
@@ -3449,6 +3467,21 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, hist_dst,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+        { char syn[16] = {0}; __system_property_get("debug.winnative.fgsynth", syn);   // controlled-motion harness
+          int synN = syn[0] ? atoi(syn) : 0;
+          if (synN != 0 && prev->storeView && curr->storeView) {
+              char patS[8] = {0}; __system_property_get("debug.winnative.fgpat", patS);
+              int pat = patS[0] ? atoi(patS) : 0;
+              if (pat) {
+                  fg_synth_shift(r, f->cmd, curr, prev, 0.0f, 1);          // prev = noise pattern
+                  fg_synth_shift(r, f->cmd, prev, curr, (float)synN, 1);   // curr = pattern shifted right by N
+              } else {
+                  fg_synth_shift(r, f->cmd, prev, curr, (float)synN, 0);   // curr = real prev shifted by N
+              }
+              r->fg_cnn.featValid[curr_idx] = false;
+              r->fg_cnn.featValid[prev_idx] = false;
+              r->fg_motion_valid = false; r->fg_motion_fwd_valid = false;  // recompute flow on the shifted input
+          } }
         if (r->fg_use_cnn && r->fg_cnn_capable && r->fg_cnn.ready) {
             if (!r->fg_motion_valid) {
                 cnn_flow_pass(r, f->cmd, parity, prev, curr, false, &r->fg_motion[parity]);
@@ -3490,18 +3523,25 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
         fg_dump_poll(r);
         float fg_dump_prevph = r->fg_dump_last_phase;
         r->fg_dump_last_phase = job->phase;
+        int synDump = 0; { char s2[16] = {0}; __system_property_get("debug.winnative.fgsynth", s2); synDump = s2[0] ? atoi(s2) : 0; }
+        int rawm = synDump ? 1 : 0;   // full-res 1:1 crop under the harness (no downscale confound)
         if (r->fg_dump_supported && r->fg_dump_armed && r->fg_dump_count < FG_DUMP_N
             && !(r->fg_dump_count == 0 && job->phase > fg_dump_prevph + 0.01f)) {
             if (r->fg_dump_count == 0) s_fgseq_last_curr = 0xFFFFFFFFu;
             if (curr_idx != s_fgseq_last_curr && r->fg_dump_count < FG_DUMP_N) {
-                fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, 0);
+                fg_record_dump(r, f->cmd, r->fg_history[prev_idx].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, rawm);
                 VK_LOGI("fgseq[%u] REAL (prev=%u curr=%u)", r->fg_dump_count, prev_idx, curr_idx);
                 r->fg_dump_count++;
                 s_fgseq_last_curr = curr_idx;
             }
             if (r->fg_dump_count < FG_DUMP_N) {
-                fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, 0);
+                fg_record_dump(r, f->cmd, r->fg_cnn.gen[genslot].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_dims.width, r->fg_dims.height, r->fg_dump_count, rawm);
                 VK_LOGI("fgseq[%u] GENERATED (phase=%.3f prev=%u curr=%u)", r->fg_dump_count, job->phase, prev_idx, curr_idx);
+                r->fg_dump_count++;
+            }
+            if (synDump && r->fg_dump_count < FG_DUMP_N) {   // harness: raw F16 flow field to test recovery of the known shift
+                fg_record_dump(r, f->cmd, r->fg_motion[parity].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_motion[parity].width, r->fg_motion[parity].height, r->fg_dump_count, 1);
+                VK_LOGI("fgseq[%u] FLOW (flowres=%ux%u)", r->fg_dump_count, r->fg_motion[parity].width, r->fg_motion[parity].height);
                 r->fg_dump_count++;
             }
         }
@@ -4254,13 +4294,21 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetFrameGenFramesInFlight)(JNIEnv* env, jcla
     r->fg_target_fif = fif;
 }
 
-JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong displayPeriodNs, jlong vsyncNs) {
+JNIEXPORT void JNICALL JNI_FN(nativeSetVsyncTiming)(JNIEnv* env, jclass clazz, jlong handle, jlong periodNs, jlong displayPeriodNs, jlong contentPeriodNs, jlong vsyncNs) {
     (void)env; (void)clazz;
     VkRenderer* r = (VkRenderer*)(intptr_t)handle;
     if (!r) return;
     r->fg_present_period_ns = periodNs > 0 ? (uint64_t)periodNs : 0;
     r->fg_display_period_ns = displayPeriodNs > 0 ? (uint64_t)displayPeriodNs : 0;
+    r->fg_content_period_ns = contentPeriodNs > 0 ? (uint64_t)contentPeriodNs : 0;
     r->fg_vsync_anchor_ns = vsyncNs > 0 ? (uint64_t)vsyncNs : 0;
+}
+
+JNIEXPORT jint JNICALL JNI_FN(nativeGetFillHolds)(JNIEnv* env, jclass clazz) {
+    (void)env; (void)clazz;
+    char v[PROP_VALUE_MAX] = {0};
+    __system_property_get("debug.winnative.fgfill", v);
+    return v[0] ? (jint)atoi(v) : 1;   // default: complete the motion to curr on a late-frame hold
 }
 
 // Scene byte buffer layout (must mirror VulkanRenderer.java offsets). Native-endian, packed.

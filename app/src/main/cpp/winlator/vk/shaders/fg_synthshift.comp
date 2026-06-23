@@ -1,0 +1,26 @@
+#version 450
+// Controlled-motion harness: pattern==0 rigid shift of uSrc; pattern!=0 alias-free value-noise.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(set = 0, binding = 0) uniform sampler2D uSrc;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2D uDst;
+layout(push_constant) uniform PC { ivec2 size; float shiftX; float pattern; } pc;
+
+float hash(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453); }
+float vnoise(vec2 x) {
+    vec2 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i), b = hash(i + vec2(1, 0)), c = hash(i + vec2(0, 1)), d = hash(i + vec2(1, 1));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(p, pc.size))) return;
+    if (pc.pattern > 0.5) {
+        vec2 q = (vec2(p) - vec2(pc.shiftX, 0.0)) * 0.06;   // ~16px features: medium-freq, trackable
+        float n0 = vnoise(q) * 0.6 + vnoise(q * 2.7) * 0.3 + vnoise(q * 6.1) * 0.1;
+        imageStore(uDst, p, vec4(n0, vnoise(q + 31.7), vnoise(q + 91.3), 1.0));
+    } else {
+        vec2 uv = (vec2(p) + 0.5 - vec2(pc.shiftX, 0.0)) / vec2(pc.size);
+        imageStore(uDst, p, texture(uSrc, clamp(uv, vec2(0.0), vec2(1.0))));
+    }
+}

@@ -28,13 +28,34 @@ void main() {
     vec2 numer   = vec2(p) + 0.5;
     vec2 uvc     = numer / texSize;
 
-    float m0 = abs(pc.mvScale);
+    float m0 = pc.mvScale;   // signed: midpoint gather = -0.5*flow
     float t = pc.t;
     float a = 2.0 * t;
     float b = 2.0 * (1.0 - t);
 
-    vec2 flB = texture(flowB, uvc).xy * m0;
-    vec2 flF = texture(flowF, uvc).xy * m0;
+    int smR = (pc.flags >> 4) & 7;                 // bilateral flow-denoise radius (flags bits 4-6)
+    vec2 flB, flF;
+    if (smR > 0) {
+        vec3 cc = texture(backColor, uvc).rgb;     // guide on prev color: smooth within objects, keep edges
+        vec2 sB = vec2(0.0), sF = vec2(0.0); float ws = 0.0;
+        for (int dy = -smR; dy <= smR; dy++)
+        for (int dx = -smR; dx <= smR; dx++) {
+            vec2 off = vec2(float(dx), float(dy)) / texSize;
+            vec3 cn = texture(backColor, uvc + off).rgb;
+            float dc = dot(cn - cc, cn - cc);
+            float w = exp(-dc * 30.0) * exp(-float(dx*dx + dy*dy) * 0.25);
+            sB += texture(flowB, uvc + off).xy * w;
+            sF += texture(flowF, uvc + off).xy * w;
+            ws += w;
+        }
+        flB = sB / max(ws, 1e-4) * m0;
+        flF = sF / max(ws, 1e-4) * m0;
+    } else {
+        flB = texture(flowB, uvc).xy * m0;
+        flF = texture(flowF, uvc).xy * m0;
+    }
+    if ((pc.flags & 1) != 0) flF = -flF;
+    if ((pc.flags & 2) != 0) flF *= 0.5;
 
     vec2 c0 = (numer + flB * a) / texSize;
     vec2 c1 = (numer - flB * b) / texSize;
@@ -46,7 +67,7 @@ void main() {
     vec3 k2 = texture(backColor, c2).rgb;
     vec3 k3 = texture(fwdColor,  c3).rgb;
 
-    if (pc.mvScale < 0.0) { imageStore(uDst, p, vec4(abs(k2 - k3), 1.0)); return; }
+    if ((pc.flags & 8) != 0) { imageStore(uDst, p, vec4(abs(k2 - k3), 1.0)); return; }  // debug viz (moved off the sign)
 
     vec4 L = vec4(texture(logits, c0).x, texture(logits, c1).y,
                   texture(logits, c2).z, texture(logits, c3).w);

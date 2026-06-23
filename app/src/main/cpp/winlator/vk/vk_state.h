@@ -201,6 +201,7 @@ typedef struct VkPipelineSet {
     VkDescriptorSetLayout gh_d5_dsl, gh_d6_dsl, gh_d7_dsl, gh_d8_dsl, gh_d9_dsl, gh_d10_dsl;
     VkPipelineLayout      gh_d5_pl,  gh_d6_pl,  gh_d7_pl,  gh_d8_pl,  gh_d9_pl,  gh_d10_pl;
     VkPipeline            gh_d5_pipe, gh_d6_pipe, gh_d7_pipe, gh_d8_pipe, gh_d9_pipe, gh_d10_pipe;
+    VkDescriptorSetLayout fg_synth_dsl; VkPipelineLayout fg_synth_pl; VkPipeline fg_synth_pipe;
 
     VkDescriptorSetLayout gh_occ_dsl, gh_gen_dsl;     // wnfg_13 occlusion, wnfg_04 generate
     VkPipelineLayout      gh_occ_pl,  gh_gen_pl;
@@ -241,6 +242,7 @@ typedef struct VkSgsr1State {
 typedef struct VkFgImage {
     VkImage         image;
     VkImageView     view;
+    VkImageView     storeView;       // rgba8 mutable view for the synth-shift harness (history only)
     VkDeviceMemory  memory;
     VkFramebuffer   framebuffer;     // history targets only; VK_NULL_HANDLE for the motion field
     VkDescriptorSet blit_set;        // history only
@@ -546,6 +548,7 @@ typedef struct VkRenderer {
     uint64_t         fg_present_deadline_ns; // unsnapped deadline accumulator
     uint64_t         fg_present_target_ns;   // present target for the next present
     uint64_t         fg_display_period_ns;   // live panel vsync period fed from Java
+    uint64_t         fg_content_period_ns;   // EMA content interval fed from Java (matches slots)
     uint64_t         fg_vsync_anchor_ns;     // latest Choreographer vsync timestamp
     uint64_t         fg_prev_arrival_ns;     // real-frame arrival times
     uint64_t         fg_curr_arrival_ns;

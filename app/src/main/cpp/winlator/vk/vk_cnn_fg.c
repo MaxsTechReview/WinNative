@@ -92,16 +92,16 @@ static void destroy_cnn_pipelines(VkRenderer* r) {
     VkPipeline pipes[] = { P->cnn_pyramid_pipe, P->cnn_conv_pipe, P->cnn_cost9_pipe,
                            P->cnn_flowreg_pipe, P->cnn_warpfollow_pipe, P->cnn_generate_pipe,
                            P->gh_d5_pipe, P->gh_d6_pipe, P->gh_d7_pipe, P->gh_d8_pipe, P->gh_d9_pipe, P->gh_d10_pipe,
-                           P->gh_occ_pipe, P->gh_gen_pipe };
+                           P->gh_occ_pipe, P->gh_gen_pipe, P->fg_synth_pipe };
     VkPipelineLayout pls[] = { P->cnn_pyramid_pl, P->cnn_conv_pl, P->cnn_cost9_pl,
                                P->cnn_flowreg_pl, P->cnn_warpfollow_pl, P->cnn_generate_pl,
                                P->gh_d5_pl, P->gh_d6_pl, P->gh_d7_pl, P->gh_d8_pl, P->gh_d9_pl, P->gh_d10_pl,
-                               P->gh_occ_pl, P->gh_gen_pl };
+                               P->gh_occ_pl, P->gh_gen_pl, P->fg_synth_pl };
     VkDescriptorSetLayout dsls[] = { P->cnn_pyramid_dsl, P->cnn_conv_dsl, P->cnn_cost9_dsl,
                                      P->cnn_flowreg_dsl, P->cnn_warpfollow_dsl, P->cnn_generate_dsl,
                                      P->gh_d5_dsl, P->gh_d6_dsl, P->gh_d7_dsl, P->gh_d8_dsl, P->gh_d9_dsl, P->gh_d10_dsl,
-                                     P->gh_occ_dsl, P->gh_gen_dsl };
-    for (int i = 0; i < 14; i++) {
+                                     P->gh_occ_dsl, P->gh_gen_dsl, P->fg_synth_dsl };
+    for (int i = 0; i < 15; i++) {
         if (pipes[i]) vkDestroyPipeline(r->device, pipes[i], NULL);
         if (pls[i])   vkDestroyPipelineLayout(r->device, pls[i], NULL);
         if (dsls[i])  vkDestroyDescriptorSetLayout(r->device, dsls[i], NULL);
@@ -117,6 +117,7 @@ static void destroy_cnn_pipelines(VkRenderer* r) {
     P->gh_d5_dsl = P->gh_d6_dsl = P->gh_d7_dsl = P->gh_d8_dsl = P->gh_d9_dsl = P->gh_d10_dsl = VK_NULL_HANDLE;
     P->gh_occ_pipe = P->gh_gen_pipe = VK_NULL_HANDLE;
     P->gh_occ_pl = P->gh_gen_pl = VK_NULL_HANDLE;
+    P->fg_synth_pipe = VK_NULL_HANDLE; P->fg_synth_pl = VK_NULL_HANDLE; P->fg_synth_dsl = VK_NULL_HANDLE;
     P->gh_occ_dsl = P->gh_gen_dsl = VK_NULL_HANDLE;
 }
 
@@ -157,6 +158,11 @@ static bool create_cnn_pipelines(VkRenderer* r) {
                        P->cnn_warpfollow_dsl, &P->cnn_warpfollow_pl, &P->cnn_warpfollow_pipe)) goto cnn_fail;
     if (!cnn_make_pipe(r, cnn_generate_comp, cnn_generate_comp_size,
                        P->cnn_generate_dsl, &P->cnn_generate_pl, &P->cnn_generate_pipe)) goto cnn_fail;
+    { const CnnBind synth[] = { {0,S},{1,I} };
+      P->fg_synth_dsl = cnn_make_dsl(r, synth, 2);
+      if (!P->fg_synth_dsl) goto cnn_fail;
+      if (!cnn_make_pipe(r, fg_synthshift_comp, fg_synthshift_comp_size,
+                         P->fg_synth_dsl, &P->fg_synth_pl, &P->fg_synth_pipe)) goto cnn_fail; }
 
     if (!cnn_make_gh_pipe(r, wnfg_25_spv, wnfg_25_spv_size, 1, 6, 1,
                           &P->gh_d5_dsl, &P->gh_d5_pl, &P->gh_d5_pipe)) goto cnn_fail;
@@ -635,6 +641,32 @@ static void cnn_concat4(VkCommandBuffer cmd, VkCnnImg* lo2, VkCnnImg* hi2, VkCnn
         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
+// Controlled-motion harness: write a shifted/pattern field into dst via rgba8 storeViews.
+static void fg_synth_shift(VkRenderer* r, VkCommandBuffer cmd, VkFgImage* prev, VkFgImage* curr, float shiftX, int pattern) {
+    VkPipelineSet* P = &r->pipelines;
+    if (!P->fg_synth_pipe || !prev->storeView || !curr->storeView) return;
+    VkDescriptorSet ds = cnn_alloc(r, P->fg_synth_dsl); if (!ds) return;
+    vkr_image_barrier(cmd, curr->image,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+    VkDescriptorImageInfo s0 = { r->fg_sampler, prev->storeView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+    VkDescriptorImageInfo i1 = { VK_NULL_HANDLE, curr->storeView, VK_IMAGE_LAYOUT_GENERAL };
+    VkWriteDescriptorSet w[2] = {
+        cnn_wimg(ds, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &s0),
+        cnn_wimg(ds, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &i1) };
+    vkUpdateDescriptorSets(r->device, 2, w, 0, NULL);
+    struct { int32_t sx, sy; float shiftX, pat; } pc = { (int32_t)curr->width, (int32_t)curr->height, shiftX, (float)pattern };
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->fg_synth_pipe);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->fg_synth_pl, 0, 1, &ds, 0, NULL);
+    vkCmdPushConstants(cmd, P->fg_synth_pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc), &pc);
+    vkCmdDispatch(cmd, (curr->width + 15u) / 16u, (curr->height + 15u) / 16u, 1u);
+    vkr_image_barrier(cmd, curr->image,
+        VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+}
+
 static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
                           VkFgImage* prevFrame, VkFgImage* currFrame, bool forward,
                           VkFgImage* outFlow) {
@@ -769,7 +801,11 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
 
     float t = phase < 0.0f ? 0.0f : (phase > 1.0f ? 1.0f : phase);
     char m0s[16] = {0}; __system_property_get("debug.winnative.fgm0", m0s);
-    float m0 = m0s[0] ? (float)atof(m0s) : 0.25f;
+    float m0 = m0s[0] ? (float)atof(m0s) : -0.25f;   // SIGNED: midpoint gather needs flB=-0.5*flow; +0.25 was wrong-sign (ghosting)
+    char f2s[16] = {0}; __system_property_get("debug.winnative.fgflow2", f2s);
+    int flow2 = f2s[0] ? atoi(f2s) : 0;                 // 1 = feed distinct backward flow to s35
+    char flgs[16] = {0}; __system_property_get("debug.winnative.fgflags", flgs);
+    int genflags = flgs[0] ? atoi(flgs) : 16;           // default R=1 bilateral flow denoise (bits4-6); bit0 negate flF; bit1 scale flF 0.5
 
     cnn_to_write(cmd, C->gen[slot].image, 1);
     {
@@ -777,7 +813,8 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
         VkDescriptorImageInfo s32 = {r->fg_sampler, prevView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s33 = {r->fg_sampler, currView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s34 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkDescriptorImageInfo s35 = {r->fg_sampler, r->fg_motion[parity].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkImageView flow2v = (flow2 && r->fg_motion_fwd_valid) ? r->fg_motion_fwd[parity].view : r->fg_motion[parity].view;
+        VkDescriptorImageInfo s35 = {r->fg_sampler, flow2v, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo s36 = {r->fg_sampler, C->logits[0].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkDescriptorImageInfo oi  = {VK_NULL_HANDLE, C->gen[slot].view, VK_IMAGE_LAYOUT_GENERAL};
         VkWriteDescriptorSet w[6] = {
@@ -789,7 +826,7 @@ static void cnn_generate_frame(VkRenderer* r, VkCommandBuffer cmd, uint32_t pari
             cnn_wimg(ds, 48, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &oi),
         };
         vkUpdateDescriptorSets(r->device, 6, w, 0, NULL);
-        CnnPC pc = {0}; pc.sx = (int32_t)gw; pc.sy = (int32_t)gh; pc.t = t; pc.mvScale = m0;
+        CnnPC pc = {0}; pc.sx = (int32_t)gw; pc.sy = (int32_t)gh; pc.t = t; pc.mvScale = m0; pc.flags = genflags;
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pipe);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, P->cnn_generate_pl, 0, 1, &ds, 0, NULL);
         vkCmdPushConstants(cmd, P->cnn_generate_pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, 32, &pc);
