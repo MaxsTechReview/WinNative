@@ -1180,8 +1180,13 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
-                modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
+                modifier =
+                    Modifier
+                        .widthIn(min = 180.dp, max = 240.dp)
+                        .controllerMenuInput(onDismiss = onMenuDismiss),
             ) {
+                val menuFirstFocus = remember { FocusRequester() }
+                LaunchedEffect(menuExpanded) { if (menuExpanded) runCatching { menuFirstFocus.requestFocus() } }
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(LocalRippleConfiguration provides null) {
                     Column(
@@ -1190,7 +1195,7 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 260.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        actions.forEach { action ->
+                        actions.forEachIndexed { index, action ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1210,6 +1215,10 @@ object DirectoryPickerDialog {
                                     }
                                 },
                                 onClick = action.onClick,
+                                modifier =
+                                    Modifier
+                                        .then(if (index == 0) Modifier.focusRequester(menuFirstFocus) else Modifier)
+                                        .controllerFocusGlow(cornerRadius = 6.dp),
                             )
                         }
                     }
