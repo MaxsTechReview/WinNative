@@ -15,21 +15,7 @@ import java.io.File
 
 object WinComponentSetup {
     private const val TAG = "WinComponentSetup"
-    private const val DIRECT3D_COMPONENT = "direct3d"
 
-    /*
-     * Applies optional Windows component archives to the Wine prefix. Keep the
-     * Wine and ARM64EC paths explicit here because mixing their DLL layouts can
-     * leave system32 with the wrong architecture.
-     *
-     * Wine/x86_64 path:
-     *   Native WinComponents are extracted directly into drive_c/windows.
-     *
-     * ARM64EC path:
-     *   system32 is ARM64/ARM64EC, so most native WinComponent archives are
-     *   skipped and Wine's own arch-correct DLLs are restored. Direct3D helper
-     *   DLLs are the explicit exception because x64 D3D apps load them.
-     */
     @JvmStatic
     fun applyWinComponents(
         context: Context,
@@ -54,36 +40,19 @@ object WinComponentSetup {
             val oldWinComponentsIter =
                 KeyValueSet(previousWincomponents.ifEmpty { Container.FALLBACK_WINCOMPONENTS }).iterator()
 
-            val isArm64EC = wineInfo.isArm64EC
-
             for (wincomponent in KeyValueSet(wincomponents)) {
                 val identifier = wincomponent[0]
                 val useNative = wincomponent[1] == "1"
                 val oldValue = oldWinComponentsIter.next()[1]
                 if (wincomponent[1] == oldValue && !firstTimeBoot) continue
 
-                val shouldExtractArchive =
-                    shouldExtractNativeWinComponentArchive(identifier, useNative, isArm64EC)
-
-                if (shouldExtractArchive) {
-                    // Wine/x86_64 extracts all selected archives. ARM64EC only extracts
-                    // archives that are known to be safe for x64 app-side loading.
+                if (useNative) {
                     extractNativeWinComponent(context, identifier, windowsDir, onExtractFileListener)
                 } else {
-                    // ARM64EC lands here for skipped native archives, and disabled
-                    // components land here on both Wine paths. Restore Wine's own DLLs.
                     dlls.addAll(wineDllsForComponentRestore(wincomponentsJson, identifier))
                 }
 
-                Log.d(
-                    TAG,
-                    "Setting wincomponent $identifier to $useNative" +
-                        if (useNative && isArm64EC && !shouldExtractArchive) {
-                            " (arm64ec: tzst skipped, restoring arch-correct DLLs)"
-                        } else {
-                            ""
-                        },
-                )
+                Log.d(TAG, "Setting wincomponent $identifier to $useNative")
                 WineUtils.overrideWinComponentDlls(context, container, identifier, useNative)
                 WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative, context)
             }
@@ -112,12 +81,6 @@ object WinComponentSetup {
             restoreOneWineDll(File(wineSyswow64Dlls, dll), File(windowsDir, "syswow64/$dll"))
         }
     }
-
-    private fun shouldExtractNativeWinComponentArchive(
-        identifier: String,
-        useNative: Boolean,
-        isArm64EC: Boolean,
-    ): Boolean = useNative && (!isArm64EC || identifier == DIRECT3D_COMPONENT)
 
     private fun extractNativeWinComponent(
         context: Context,
