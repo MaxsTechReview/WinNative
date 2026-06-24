@@ -40,7 +40,8 @@ static int find_shmemory_index(int shmid) {
 static void sysvshm_connect() {
     if (sysvshm_server_fd >= 0) return;
     char* path = getenv("ANDROID_SYSVSHM_SERVER");
-    
+    if (path == NULL) return;
+
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) return;
     
@@ -183,7 +184,7 @@ int shmget(key_t key, size_t size, int flags) {
 void* shmat(int shmid, const void* shmaddr, int shmflg) {
     pthread_mutex_lock(&mutex);
 
-    void* addr;
+    void* addr = (void *)-1;
     int index = find_shmemory_index(shmid);
     if (index != -1) {
         if (shmemories[index].addr == NULL) {

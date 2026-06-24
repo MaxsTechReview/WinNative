@@ -82,7 +82,7 @@ import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette (mirrors DebugScreen / StoresScreen)
-private val BgDark = Color(0xFF18181D)
+private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)

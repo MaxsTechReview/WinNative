@@ -1,7 +1,6 @@
 package com.winlator.cmod.feature.settings
 import android.app.Activity
 import android.app.Dialog
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
@@ -9,9 +8,6 @@ import android.view.Window
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDialog
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
@@ -111,28 +107,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
     private var pendingDriveIndex: Int = -1
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private val wallpaperPickerLauncher: ActivityResultLauncher<Array<String>>? =
-        (activity as? ComponentActivity)?.activityResultRegistry?.register(
-            "container_wallpaper_picker",
-            ActivityResultContracts.OpenDocument()
-        ) { uri: Uri? ->
-            if (uri == null) return@register
-            try {
-                val destFile = WineThemeManager.getUserWallpaperFile(context)
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    destFile.outputStream().use { output -> input.copyTo(output) }
-                }
-                state.desktopWallpaperSelected.value = true
-            } catch (e: Throwable) {
-                Log.e(TAG, "Error copying wallpaper", e)
-                WinToast.show(
-                    context,
-                    context.getString(R.string.settings_containers_error_saving_wallpaper),
-                    dialog.window?.decorView,
-                )
-            }
-        }
-
     init {
         state.wined3dCsmtEntries.value =
             listOf(context.getString(R.string.common_ui_enabled), context.getString(R.string.common_ui_disabled))
@@ -161,7 +135,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             // the setup wizard launcher that blocks on UnifiedActivity finishing).
             setOnDismissListener {
                 AppUtils.hideKeyboard(activity)
-                wallpaperPickerLauncher?.unregister()
                 scope.cancel()
                 onFinished?.run()
             }
@@ -300,7 +273,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             }
 
             override fun onPickWallpaper() {
-                wallpaperPickerLauncher?.launch(arrayOf("image/*"))
+                openWallpaperFilePicker()
             }
 
             override fun onExportSaves() {
@@ -350,6 +323,31 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         drivesWorking[index] = drivesWorking[index].copy(letter = normalizedLetter)
         syncDrivesState()
+    }
+
+    private fun openWallpaperFilePicker() {
+        DirectoryPickerDialog.showFile(
+            activity,
+            title = context.getString(R.string.settings_general_select_wallpaper),
+            allowedExtensions = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif", "heic", "heif"),
+            dimAmount = 0.5f,
+            preserveBackdropBlur = true,
+        ) { pickedPath ->
+            try {
+                val destFile = WineThemeManager.getUserWallpaperFile(context)
+                File(pickedPath).inputStream().use { input ->
+                    destFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                state.desktopWallpaperSelected.value = true
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error copying wallpaper", e)
+                WinToast.show(
+                    context,
+                    context.getString(R.string.settings_containers_error_saving_wallpaper),
+                    dialog.window?.decorView,
+                )
+            }
+        }
     }
 
     private fun openDriveDirectoryPicker() {
@@ -1414,9 +1412,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val themeIdx = state.selectedDesktopTheme.intValue
         val theme = if (themeIdx in themeEntries.indices) themeEntries[themeIdx].uppercase() else "LIGHT"
 
-        val typeEntries = state.desktopBackgroundTypeEntries.value
         val typeIdx = state.selectedDesktopBackgroundType.intValue
-        val type = if (typeIdx in typeEntries.indices) typeEntries[typeIdx].uppercase() else "COLOR"
+        val type = WineThemeManager.BackgroundType.values().getOrNull(typeIdx)?.name ?: "IMAGE"
 
         val color = state.desktopBackgroundColor.value
         val base = "$theme,$type,$color"

@@ -92,6 +92,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -1829,6 +1830,49 @@ class UnifiedActivity :
                     }
                 }
                 val scaffoldContainer = if (immersiveMode && currentTabKeyForImmersive == "library") Color.Transparent else BgDark
+                val openFileManager: () -> Unit = {
+                    val internalPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+                    val managedRoots = driveRoots(includeInternal = true)
+                    val containerManager = com.winlator.cmod.runtime.container.ContainerManager(context)
+                    val containers =
+                        containerManager.getContainers().map {
+                            DirectoryPickerDialog.ManagedContainer(it.id, it.getName())
+                        }
+                    DirectoryPickerDialog.showManager(
+                        activity = this@UnifiedActivity,
+                        initialPath = internalPath,
+                        managedRoots = managedRoots,
+                        containers = containers,
+                        onRunFile = { exePath, containerId ->
+                            val container = containerManager.getContainerById(containerId)
+                            if (container != null) {
+                                val winePath =
+                                    com.winlator.cmod.runtime.wine.WineUtils
+                                        .hostPathToMappedWinePath(container, exePath)
+                                startActivity(
+                                    android.content.Intent(
+                                        this@UnifiedActivity,
+                                        com.winlator.cmod.runtime.display.XServerDisplayActivity::class.java,
+                                    ).apply {
+                                        putExtra("container_id", container.id)
+                                        putExtra("boot_exe", winePath)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    },
+                                )
+                            }
+                        },
+                        onCreateShortcut = { exePath ->
+                            val exeFile = java.io.File(exePath)
+                            addCustomGame(
+                                context,
+                                exeFile.nameWithoutExtension,
+                                exePath,
+                                exeFile.parent ?: exePath,
+                            )
+                            localLibraryRefreshKey++
+                        },
+                    )
+                }
                 Scaffold(
                     containerColor = scaffoldContainer,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1838,7 +1882,7 @@ class UnifiedActivity :
                         }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
                             searchQueryTfv =
                                 it
-                        }, onFilterClicked = { scope.launch { drawerState.open() } }) {
+                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onOpenFileManager = openFileManager) {
                             if (selectedLibrarySource == "GOG") {
                                 globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                             } else {
@@ -1959,18 +2003,31 @@ class UnifiedActivity :
                                         )
                                         .padding(end = addGameFabMargin, bottom = addGameFabMargin)
                                         .size(addGameFabSize)
-                                        .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
+                                        .drawBehind {
+                                            drawCircle(
+                                                brush =
+                                                    Brush.radialGradient(
+                                                        colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
+                                                        center = center,
+                                                        radius = size.minDimension * 0.64f,
+                                                    ),
+                                                radius = size.minDimension * 0.64f,
+                                            )
+                                        }
                                         .clip(CircleShape)
-                                        .background(SurfaceDark.copy(alpha = 0.96f), CircleShape)
+                                        .background(Color.Transparent, CircleShape)
                                         .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
                                         .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
-                                        .clickable { showAddCustomGame = true },
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = androidx.compose.material3.ripple(color = Accent),
+                                        ) { showAddCustomGame = true },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     Icons.Outlined.Add,
                                     contentDescription = "Add Custom Game",
-                                    tint = Color.White,
+                                    tint = Accent,
                                     modifier = Modifier.size(addGameFabIconSize),
                                 )
                             }
@@ -2125,6 +2182,7 @@ class UnifiedActivity :
         searchQuery: TextFieldValue,
         onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
+        onOpenFileManager: () -> Unit,
         onGameSettingsClicked: () -> Unit,
     ) {
         var isSearchExpanded by remember { mutableStateOf(false) }
@@ -2264,16 +2322,22 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(onClick = {
-                            navigateToSettings(SettingsNavItem.STORES)
-                        }, modifier = Modifier.size(44.dp), enabled = true) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
+                        ) {
+                            IconButton(onClick = {
+                                navigateToSettings(SettingsNavItem.STORES)
+                            }, modifier = Modifier.size(44.dp), enabled = true) {
+                                Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = Accent, modifier = Modifier.size(24.dp))
+                            }
                         }
                     }
                     if (isControllerConnected) {
@@ -2297,49 +2361,54 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(
-                                    if (isDownloadsTab) {
-                                        SurfaceDark.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
+                                    if (isSearchExpanded) {
                                         Accent.copy(alpha = 0.15f)
                                     } else {
-                                        SurfaceDark
+                                        Color.Transparent
                                     },
+                                ).border(
+                                    1.dp,
+                                    Accent.copy(alpha = if (isDownloadsTab) 0.25f else 0.5f),
+                                    CircleShape,
                                 ).focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(
-                            onClick = {
-                                if (!isDownloadsTab) {
-                                    if (isSearchExpanded) {
-                                        onSearchQueryChange(TextFieldValue(""))
-                                        isSearchExpanded = false
-                                    } else {
-                                        isSearchExpanded = true
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(44.dp),
-                            enabled = !isDownloadsTab,
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
                         ) {
-                            Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = "Search",
-                                tint =
-                                    if (isDownloadsTab) {
-                                        TextSecondary.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
-                                        Accent
-                                    } else {
-                                        TextPrimary
-                                    },
-                                modifier =
-                                    Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer { rotationZ = searchIconRotation },
-                            )
+                            IconButton(
+                                onClick = {
+                                    if (!isDownloadsTab) {
+                                        if (isSearchExpanded) {
+                                            onSearchQueryChange(TextFieldValue(""))
+                                            isSearchExpanded = false
+                                        } else {
+                                            isSearchExpanded = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(44.dp),
+                                enabled = !isDownloadsTab,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Search,
+                                    contentDescription = "Search",
+                                    tint =
+                                        if (isDownloadsTab) {
+                                            TextSecondary.copy(alpha = 0.4f)
+                                        } else {
+                                            Accent
+                                        },
+                                    modifier =
+                                        Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer { rotationZ = searchIconRotation },
+                                )
+                            }
                         }
                     }
                 }
@@ -2361,14 +2430,36 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab }
-                                .clickable { onFilterClicked() },
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onOpenFileManager() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onFilterClicked() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
@@ -7941,7 +8032,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    accentColor = TextSecondary,
+                    accentColor = Accent,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
                     },
@@ -10497,7 +10588,7 @@ class UnifiedActivity :
                 Icon(
                     Icons.Outlined.Person,
                     contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.5f),
+                    tint = Accent,
                     modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))
@@ -11203,11 +11294,17 @@ class UnifiedActivity :
                                         .clickable {
                                             DirectoryPickerDialog.showFile(
                                                 activity = this@UnifiedActivity,
-                                                initialPath = selectedExePath ?: gameFolder,
+                                                initialPath =
+                                                    selectedExePath ?: gameFolder
+                                                        ?: android.os.Environment
+                                                            .getExternalStoragePublicDirectory(
+                                                                android.os.Environment.DIRECTORY_DOWNLOADS,
+                                                            ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
                                                 allowedExtensions = setOf("exe"),
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
+                                                extraRoots = driveRoots(includeInternal = true),
                                                 onSelected = ::selectExecutable,
                                             )
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -11291,6 +11388,7 @@ class UnifiedActivity :
                                             title = getString(R.string.common_ui_select_folder),
                                             dimAmount = 0.5f,
                                             preserveBackdropBlur = true,
+                                            extraRoots = driveRoots(includeInternal = true),
                                         ) { path -> gameFolder = path }
                                     }, modifier = Modifier.size(28.dp)) {
                                         Icon(
@@ -11388,6 +11486,30 @@ class UnifiedActivity :
             }
         startActivity(intent)
         return false
+    }
+
+    private fun driveRoots(includeInternal: Boolean): List<DirectoryPickerDialog.ManagedRoot> {
+        val imagefsRoot =
+            com.winlator.cmod.runtime.display.environment.ImageFs.find(this).getRootDir()
+        val roots =
+            mutableListOf(
+                DirectoryPickerDialog.ManagedRoot("C:", java.io.File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    android.os.Environment
+                        .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                        .absolutePath,
+                ),
+            )
+        if (includeInternal) {
+            roots +=
+                DirectoryPickerDialog.ManagedRoot(
+                    "Internal",
+                    android.os.Environment.getExternalStorageDirectory().absolutePath,
+                )
+        }
+        return roots
     }
 
     private fun addCustomGame(

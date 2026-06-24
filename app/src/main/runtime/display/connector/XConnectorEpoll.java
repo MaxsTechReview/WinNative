@@ -102,12 +102,17 @@ public class XConnectorEpoll implements Runnable {
               });
       client.pollThread.start();
     } else connectionHandler.handleNewConnection(client);
-    connectedClients.put(fd, client);
+    synchronized (connectedClients) {
+      connectedClients.put(fd, client);
+    }
   }
 
   @Keep
   private void handleExistingConnection(int fd) {
-    Client client = connectedClients.get(fd);
+    Client client;
+    synchronized (connectedClients) {
+      client = connectedClients.get(fd);
+    }
     if (client == null) return;
 
     XInputStream inputStream = client.getInputStream();
@@ -126,7 +131,9 @@ public class XConnectorEpoll implements Runnable {
   }
 
   public Client getClient(int fd) {
-    return connectedClients.get(fd);
+    synchronized (connectedClients) {
+      return connectedClients.get(fd);
+    }
   }
 
   public void killConnection(Client client) {
@@ -151,12 +158,18 @@ public class XConnectorEpoll implements Runnable {
     client.releaseIOStreams();
     client.clientSocket.closeAncillaryFds();
     closeFd(client.clientSocket.fd);
-    connectedClients.remove(client.clientSocket.fd);
+    synchronized (connectedClients) {
+      connectedClients.remove(client.clientSocket.fd);
+    }
   }
 
   private void shutdown() {
-    while (connectedClients.size() > 0) {
-      Client client = connectedClients.valueAt(connectedClients.size() - 1);
+    while (true) {
+      Client client;
+      synchronized (connectedClients) {
+        if (connectedClients.size() == 0) break;
+        client = connectedClients.valueAt(connectedClients.size() - 1);
+      }
       killConnection(client);
     }
 

@@ -36,19 +36,19 @@ public class ALSAClient {
   private int previousUnderrunCount = 0;
   private float[] bassLowpassState = new float[2];
   private float bassLowpassAlpha = 0.0f;
-  private static short framesPerBuffer = 256;
+  private static volatile short framesPerBuffer = 256;
   private static volatile boolean outputSuspended = false;
   private final Options options;
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 16;
+    public static final int DEFAULT_LATENCY_MILLIS = 40;
     public static final float DEFAULT_VOLUME = 1.0f;
     public static final float MAX_VOLUME = 16.0f;
     public static final float DEFAULT_BASS_BOOST = 0.0f;
     public static final float MAX_BASS_BOOST = 2.0f;
 
     public int latencyMillis = DEFAULT_LATENCY_MILLIS;
-    public int performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
+    public int performanceMode = AudioTrack.PERFORMANCE_MODE_NONE;
     public float volume = DEFAULT_VOLUME;
     public float bassBoost = DEFAULT_BASS_BOOST;
 
@@ -77,12 +77,12 @@ public class ALSAClient {
       String performanceMode =
           firstNonEmpty(
               envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"), envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
-      if (performanceMode.equalsIgnoreCase("none") || performanceMode.equals("0")) {
-        options.performanceMode = AudioTrack.PERFORMANCE_MODE_NONE;
+      if (performanceMode.equalsIgnoreCase("low_latency") || performanceMode.equals("1")) {
+        options.performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
       } else if (performanceMode.equalsIgnoreCase("power_saving") || performanceMode.equals("2")) {
         options.performanceMode = AudioTrack.PERFORMANCE_MODE_POWER_SAVING;
       } else {
-        options.performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
+        options.performanceMode = AudioTrack.PERFORMANCE_MODE_NONE;
       }
 
       return options;
@@ -209,7 +209,7 @@ public class ALSAClient {
   public synchronized void drain() {
     if (audioTrack != null) {
       try {
-        audioTrack.flush();
+        audioTrack.stop();
       } catch (Exception ignored) {
       }
     }

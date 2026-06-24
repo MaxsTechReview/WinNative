@@ -34,7 +34,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Info
@@ -70,7 +69,7 @@ import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
 import java.util.Locale
 
-private val ContainersBg = Color(0xFF18181D)
+private val ContainersBg = Color(0xFF11111C)
 private val ContainersCard = Color(0xFF1C1C2A)
 private val ContainersSubcard = Color(0xFF161622)
 private val ContainersOutline = Color(0xFF2A2A3A)
@@ -89,6 +88,10 @@ sealed interface ContainersDialogUiState {
     data object None : ContainersDialogUiState
 
     data class ConfirmDuplicate(
+        val container: Container,
+    ) : ContainersDialogUiState
+
+    data class ComponentInstaller(
         val container: Container,
     ) : ContainersDialogUiState
 
@@ -122,6 +125,7 @@ fun ContainersScreen(
     onRunContainer: (Container) -> Unit,
     onEditContainer: (Container) -> Unit,
     onDuplicateContainer: (Container) -> Unit,
+    onInstallComponents: (Container) -> Unit,
     onRemoveContainer: (Container) -> Unit,
     onShowInfo: (Container) -> Unit,
     onDismissDialog: () -> Unit,
@@ -150,7 +154,7 @@ fun ContainersScreen(
         Spacer(Modifier.height(6.dp))
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Adaptive(160.dp),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -168,6 +172,7 @@ fun ContainersScreen(
                     onRun = { onRunContainer(container) },
                     onEdit = { onEditContainer(container) },
                     onDuplicate = { onDuplicateContainer(container) },
+                    onInstallComponents = { onInstallComponents(container) },
                     onRemove = { onRemoveContainer(container) },
                     onShowInfo = { onShowInfo(container) },
                 )
@@ -237,6 +242,13 @@ fun ContainersScreen(
                 state = dialog.data,
                 onDismiss = onDismissDialog,
                 onClearCache = { onClearCacheDialog(dialog.data.container) },
+            )
+        }
+
+        is ContainersDialogUiState.ComponentInstaller -> {
+            ComponentInstallerSheet(
+                container = dialog.container,
+                onDismiss = onDismissDialog,
             )
         }
 
@@ -312,6 +324,7 @@ private fun ContainerCard(
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
+    onInstallComponents: () -> Unit,
     onRemove: () -> Unit,
     onShowInfo: () -> Unit,
 ) {
@@ -344,10 +357,10 @@ private fun ContainerCard(
             )
             Spacer(Modifier.weight(1f))
             SmallVectorIconButton(
-                image = Icons.Outlined.ContentCopy,
-                contentDescription = stringResource(R.string.common_ui_duplicate),
-                tint = ContainersTextSecondary,
-                onClick = onDuplicate,
+                image = ComponentContainerIcon,
+                contentDescription = "Install components",
+                tint = ContainersAccent,
+                onClick = onInstallComponents,
             )
             Spacer(Modifier.width(8.dp))
             Box {
@@ -362,6 +375,13 @@ private fun ContainerCard(
                     onDismissRequest = { menuExpanded = false },
                     containerColor = ContainersCard,
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.common_ui_duplicate), color = ContainersTextPrimary) },
+                        onClick = {
+                            menuExpanded = false
+                            onDuplicate()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.container_config_storage_info), color = ContainersTextPrimary) },
                         onClick = {
@@ -415,7 +435,7 @@ private fun ContainerCard(
                 modifier = Modifier.weight(1f),
                 image = Icons.Outlined.Edit,
                 contentDescription = stringResource(R.string.common_ui_edit),
-                tint = ContainersTextSecondary,
+                tint = ContainersAccent,
                 onClick = onEdit,
             )
         }

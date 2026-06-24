@@ -4484,12 +4484,17 @@ JNIEXPORT void JNICALL JNI_FN(nativeSetPresentMode)(JNIEnv* env, jclass clazz, j
         default: vk_mode = VK_PRESENT_MODE_FIFO_KHR; break;
     }
     if (r->target_present_mode == vk_mode) return;
-    r->target_present_mode = vk_mode;
 
-    if (!r->surface) return;
+    if (!r->surface) {
+        pthread_mutex_lock(&r->render_mutex);
+        r->target_present_mode = vk_mode;
+        pthread_mutex_unlock(&r->render_mutex);
+        return;
+    }
     bool restart_worker = r->fg_gen_started;
     fg_worker_stop(r);
     lifecycle_begin(r);
+    r->target_present_mode = vk_mode;
     if (r->device) vkDeviceWaitIdle(r->device);
     uint32_t fw = r->surface_extent.width;
     uint32_t fh = r->surface_extent.height;

@@ -32,7 +32,7 @@ enum GCFunction {
 };
 
 static int packColor(int8_t r, int8_t g, int8_t b) {
-  return ((r & 0xff00) << 8) | (g & 0xff00) | (b >> 8);
+  return ((uint32_t)(uint8_t)r << 16) | ((uint32_t)(uint8_t)g << 8) | (uint8_t)b;
 }
 
 static void unpackColor(int color, uint8_t *rgba) {

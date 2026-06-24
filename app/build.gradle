@@ -234,6 +234,7 @@ dependencies {
     implementation libs.okhttp
     implementation libs.okhttpDnsOverHttps
     implementation libs.serializationJson
+    implementation 'org.yaml:snakeyaml:2.2'
 
     implementation libs.jwtDecode
     implementation libs.securityCrypto

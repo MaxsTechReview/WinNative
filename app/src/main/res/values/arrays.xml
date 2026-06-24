@@ -20,6 +20,7 @@
     </string-array>
     <string-array name="graphics_driver_entries">
         <item>Wrapper</item>
+        <item>Wrapper-Leegao</item>
     </string-array>
     <string-array name="wrapper_graphics_driver_version_entries">
         <item>System</item>
@@ -127,6 +128,7 @@
     </string-array>
     <string-array name="desktop_background_type_entries">
         <item>Image</item>
+        <item>Original</item>
         <item>Solid Color</item>
     </string-array>
     <string-array name="startup_selection_entries">

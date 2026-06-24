@@ -4,6 +4,7 @@
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
 #include <curl/curl.h>
+#include <lzma.h>
 #include <zstd.h>
 
 #include <algorithm>
@@ -18,15 +19,12 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-extern "C" {
-#include "xz.h"
-}
 
 namespace {
 
@@ -34,12 +32,15 @@ constexpr const char* kLogTag = "NativeContentIO";
 constexpr size_t kBufferSize = 256 * 1024;
 constexpr int64_t kProgressBatchBytes = 8 * 1024 * 1024;
 constexpr int64_t kProgressBatchIntervalMs = 100;
-constexpr uint32_t kXzDictSizeMax = 128U << 20;
 
 #define NATIVE_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, kLogTag, __VA_ARGS__)
 #define NATIVE_LOGW(...) __android_log_print(ANDROID_LOG_WARN, kLogTag, __VA_ARGS__)
 
-std::once_flag g_xz_crc_once;
+std::once_flag g_curl_global_once;
+
+static void ensure_curl_global_init() {
+    std::call_once(g_curl_global_once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
+}
 
 std::string jstr(JNIEnv* env, jstring value) {
     if (!value) return {};
@@ -118,19 +119,16 @@ std::string trim_trailing_slashes(std::string path) {
     return path;
 }
 
-bool has_path_prefix(std::string_view path, std::string_view prefix) {
-    if (path == prefix) return true;
-    return path.size() > prefix.size()
-        && path.compare(0, prefix.size(), prefix) == 0
-        && path[prefix.size()] == '/';
-}
-
 bool has_symlink_ancestor(
     const std::string& entry_name,
-    const std::vector<std::string>& symlink_entries) {
-    std::string normalized = trim_trailing_slashes(entry_name);
-    for (const std::string& link : symlink_entries) {
-        if (has_path_prefix(normalized, link)) return true;
+    const std::unordered_set<std::string>& symlink_entries) {
+    if (symlink_entries.empty()) return false;
+    std::string path = trim_trailing_slashes(entry_name);
+    while (true) {
+        if (symlink_entries.count(path)) return true;
+        const size_t slash = path.find_last_of('/');
+        if (slash == std::string::npos || slash == 0) break;
+        path.resize(slash);
     }
     return false;
 }
@@ -224,10 +222,10 @@ public:
     }
 
     bool skip(uint64_t amount) {
-        std::vector<uint8_t> buffer(32 * 1024);
+        uint8_t buffer[8192];
         while (amount > 0) {
-            const size_t chunk = static_cast<size_t>(std::min<uint64_t>(amount, buffer.size()));
-            if (!read_exact(buffer.data(), chunk)) return false;
+            const size_t chunk = static_cast<size_t>(std::min<uint64_t>(amount, sizeof(buffer)));
+            if (!read_exact(buffer, chunk)) return false;
             amount -= chunk;
         }
         return true;
@@ -285,7 +283,7 @@ public:
             0660);
         if (fd >= 0) file_ = ::fdopen(fd, "wb");
         if (file_) {
-            std::setvbuf(file_, nullptr, _IOFBF, kBufferSize);
+            std::setvbuf(file_, nullptr, _IONBF, 0);
         } else if (fd >= 0) {
             ::close(fd);
         }
@@ -307,6 +305,11 @@ public:
         if (!file_) return true;
         FILE* file = file_;
         file_ = nullptr;
+        int fd = ::fileno(file);
+        if (fd >= 0) {
+            std::fflush(file);
+            ::sync_file_range(fd, 0, 0, SYNC_FILE_RANGE_WRITE);
+        }
         return std::fclose(file) == 0;
     }
 
@@ -317,59 +320,50 @@ private:
 class XzReader final : public Reader {
 public:
     explicit XzReader(std::unique_ptr<Reader> source) : source_(std::move(source)) {
-        std::call_once(g_xz_crc_once, [] {
-            xz_crc32_init();
-            xz_crc64_init();
-        });
-        decoder_ = xz_dec_init(XZ_DYNALLOC, kXzDictSizeMax);
-        buffer_.in = input_.data();
-        buffer_.in_pos = 0;
-        buffer_.in_size = 0;
+        ok_ = lzma_stream_decoder(&strm_, UINT64_MAX, LZMA_CONCATENATED) == LZMA_OK;
     }
     ~XzReader() override {
-        if (decoder_) xz_dec_end(decoder_);
+        if (ok_) lzma_end(&strm_);
     }
-    bool ok() const { return source_ != nullptr && decoder_ != nullptr; }
+    bool ok() const { return source_ != nullptr && ok_; }
     ssize_t read(uint8_t* out, size_t length) override {
         if (finished_) return 0;
-        buffer_.out = out;
-        buffer_.out_pos = 0;
-        buffer_.out_size = length;
+        strm_.next_out = out;
+        strm_.avail_out = length;
 
-        while (buffer_.out_pos < buffer_.out_size) {
-            if (buffer_.in_pos == buffer_.in_size && !input_finished_) {
+        while (strm_.avail_out > 0) {
+            if (strm_.avail_in == 0 && !input_finished_) {
                 ssize_t n = source_->read(input_.data(), input_.size());
                 if (n < 0) return -1;
                 if (n == 0) input_finished_ = true;
-                buffer_.in = input_.data();
-                buffer_.in_pos = 0;
-                buffer_.in_size = static_cast<size_t>(std::max<ssize_t>(n, 0));
+                strm_.next_in = input_.data();
+                strm_.avail_in = static_cast<size_t>(std::max<ssize_t>(n, 0));
             }
 
-            size_t in_before = buffer_.in_pos;
-            size_t out_before = buffer_.out_pos;
-            enum xz_ret ret = xz_dec_catrun(decoder_, &buffer_, input_finished_ ? 1 : 0);
-            if (ret == XZ_STREAM_END) {
+            const size_t in_before = strm_.avail_in;
+            const size_t out_before = length - strm_.avail_out;
+            lzma_ret ret = lzma_code(&strm_, input_finished_ ? LZMA_FINISH : LZMA_RUN);
+            if (ret == LZMA_STREAM_END) {
                 finished_ = true;
                 break;
             }
-            if (ret != XZ_OK) {
+            if (ret != LZMA_OK) {
                 NATIVE_LOGW("XZ decode failed: %d", static_cast<int>(ret));
                 return -1;
             }
-            if (buffer_.in_pos == in_before && buffer_.out_pos == out_before) {
+            if (strm_.avail_in == in_before && (length - strm_.avail_out) == out_before) {
                 NATIVE_LOGW("XZ decoder stalled");
                 return -1;
             }
         }
-        return static_cast<ssize_t>(buffer_.out_pos);
+        return static_cast<ssize_t>(length - strm_.avail_out);
     }
 
 private:
     std::unique_ptr<Reader> source_;
-    struct xz_dec* decoder_ = nullptr;
-    xz_buf buffer_{};
-    std::vector<uint8_t> input_ = std::vector<uint8_t>(128 * 1024);
+    lzma_stream strm_ = LZMA_STREAM_INIT;
+    bool ok_ = false;
+    std::vector<uint8_t> input_ = std::vector<uint8_t>(1 << 20);
     bool input_finished_ = false;
     bool finished_ = false;
 };
@@ -561,7 +555,41 @@ bool extract_tar(
     std::vector<uint8_t> header(512);
     std::optional<std::string> next_name;
     std::optional<std::string> next_link;
-    std::vector<std::string> symlink_entries;
+    std::unordered_set<std::string> symlink_entries;
+
+    std::vector<uint8_t> file_buffer(kBufferSize);
+    std::unordered_set<std::string> created_dirs;
+    const auto mkdirs_cached = [&](std::string_view dir) -> bool {
+        if (dir.empty()) return true;
+        if (created_dirs.find(std::string(dir)) != created_dirs.end()) return true;
+        std::string current;
+        current.reserve(dir.size());
+        size_t pos = 0;
+        if (dir[0] == '/') {
+            current.push_back('/');
+            pos = 1;
+        }
+        while (pos <= dir.size()) {
+            size_t next = dir.find('/', pos);
+            std::string_view part =
+                dir.substr(pos, next == std::string_view::npos ? dir.size() - pos : next - pos);
+            if (!part.empty()) {
+                if (!current.empty() && current.back() != '/') current.push_back('/');
+                current.append(part);
+                if (created_dirs.insert(current).second) {
+                    if (::mkdir(current.c_str(), 0771) != 0 && errno != EEXIST) return false;
+                }
+            }
+            if (next == std::string_view::npos) break;
+            pos = next + 1;
+        }
+        return true;
+    };
+    const auto ensure_parent_cached = [&](const std::string& path) -> bool {
+        const size_t slash = path.find_last_of('/');
+        if (slash == std::string::npos || slash == 0) return true;
+        return mkdirs_cached(std::string_view(path).substr(0, slash));
+    };
 
     while (true) {
         if (!reader.read_exact(header.data(), header.size())) return false;
@@ -635,7 +663,7 @@ bool extract_tar(
         out_path = std::move(*mapped);
 
         if (type == '5') {
-            if (!mkdirs(out_path)) return false;
+            if (!mkdirs_cached(out_path)) return false;
         } else if (type == '2') {
             // Wine prefixes legitimately use links like c: -> ../drive_c and z: -> /.
             // Allow the link itself, but never extract later archive entries through it.
@@ -645,27 +673,26 @@ bool extract_tar(
                 if (!reader.skip(size + padding)) return false;
                 continue;
             }
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             ::unlink(out_path.c_str());
             if (::symlink(link_name.c_str(), out_path.c_str()) != 0 && errno != EEXIST) {
                 NATIVE_LOGW("symlink failed for %s: %s", out_path.c_str(), std::strerror(errno));
             }
-            symlink_entries.push_back(trim_trailing_slashes(name));
+            symlink_entries.insert(trim_trailing_slashes(name));
         } else if (type == '0' || type == '\0') {
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             FileWriter out(out_path, enforce_safe_symlinks);
             if (!out.ok()) return false;
 
-            std::vector<uint8_t> buffer(kBufferSize);
             uint64_t remaining = size;
             bool ok = true;
             while (remaining > 0) {
-                const size_t chunk = static_cast<size_t>(std::min<uint64_t>(remaining, buffer.size()));
-                if (!reader.read_exact(buffer.data(), chunk)) {
+                const size_t chunk = static_cast<size_t>(std::min<uint64_t>(remaining, file_buffer.size()));
+                if (!reader.read_exact(file_buffer.data(), chunk)) {
                     ok = false;
                     break;
                 }
-                if (!out.write(buffer.data(), chunk)) {
+                if (!out.write(file_buffer.data(), chunk)) {
                     ok = false;
                     break;
                 }
@@ -678,10 +705,15 @@ bool extract_tar(
             if (!reader.skip(padding)) return false;
             continue;
         } else if (type == '1') {
-            if (!ensure_parent_dir(out_path)) return false;
+            if (!ensure_parent_cached(out_path)) return false;
             ::unlink(out_path.c_str());
             std::string clean_link_name = clean_entry_name(link_name);
             if (!is_safe_relative_path(clean_link_name)) {
+                if (!reader.skip(size + padding)) return false;
+                continue;
+            }
+            if (has_symlink_ancestor(clean_link_name, symlink_entries)) {
+                NATIVE_LOGW("skipping hard link through symlink ancestor: %s", clean_link_name.c_str());
                 if (!reader.skip(size + padding)) return false;
                 continue;
             }
@@ -808,7 +840,7 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeDownloadFile(
     std::string ca_bundle = jstr(env, jca_bundle);
     if (address.empty() || destination.empty() || !ensure_parent_dir(destination)) return JNI_FALSE;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+    ensure_curl_global_init();
     std::string partial = destination + ".part";
     FILE* file = std::fopen(partial.c_str(), "wb");
     if (!file) return JNI_FALSE;
@@ -877,7 +909,7 @@ Java_com_winlator_cmod_shared_io_NativeContentIO_nativeFetchContentLength(
     std::string ca_bundle = jstr(env, jca_bundle);
     if (address.empty()) return -1;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+    ensure_curl_global_init();
     CURL* curl = curl_easy_init();
     if (!curl) return -1;
     configure_curl_common(curl, address, ca_bundle);

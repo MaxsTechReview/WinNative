@@ -34,7 +34,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
   }
 
   public static class Options {
-    public static final int DEFAULT_LATENCY_MILLIS = 40;
+    public static final int DEFAULT_LATENCY_MILLIS = 144;
     public static final int DEFAULT_FRAGMENT_MILLIS = 10;
     public static final int DEFAULT_SAMPLE_RATE = 48000;
     public static final int DEFAULT_ALTERNATE_SAMPLE_RATE = 44100;
@@ -338,10 +338,16 @@ public class PulseAudioComponent extends EnvironmentComponent {
 
     try {
       byte[] data = Files.readAllBytes(module.toPath());
+      if (data.length < 4
+          || data[0] != 0x7F
+          || data[1] != 'E'
+          || data[2] != 'L'
+          || data[3] != 'F') return;
       boolean changed = false;
       for (byte[] searchPattern : searchPatterns) {
-        int offset = findPattern(data, searchPattern);
+        int offset = findPattern(data, searchPattern, 0);
         if (offset < 0) continue;
+        if (findPattern(data, searchPattern, offset + 1) >= 0) continue;
         byte[] replacement = searchPattern[2] == (byte) 0x80 ? arm64Replacement : armhfReplacement;
         for (int j = 0; j < replacement.length; j++) {
           data[offset + j] = replacement[j];
@@ -354,8 +360,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
   }
 
-  private static int findPattern(byte[] data, byte[] pattern) {
-    for (int i = 0; i <= data.length - pattern.length; i++) {
+  private static int findPattern(byte[] data, byte[] pattern, int fromIndex) {
+    for (int i = Math.max(0, fromIndex); i <= data.length - pattern.length; i++) {
       boolean found = true;
       for (int j = 0; j < pattern.length; j++) {
         if (data[i + j] != pattern[j]) {
