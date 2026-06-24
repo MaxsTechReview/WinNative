@@ -312,6 +312,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
+    private long lastDrawerStickMove = 0L;
 
     private boolean hasExternalMouse() {
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
@@ -4656,7 +4657,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         public void onDrawerOpened() {
                             releasePointerCapture();
                             renderDrawerMenu();
-                            if (displayHostComposeView != null) displayHostComposeView.requestFocus();
+                            if (drawerStateHolder != null) drawerStateHolder.resetMenuNav();
                             AppUtils.hideSystemUI(XServerDisplayActivity.this);
                         }
 
@@ -7197,6 +7198,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (drawerStateHolder != null && (drawerStateHolder.isDrawerOpen() || drawerStateHolder.isPaneOpen())
+                && isControllerMotionEvent(event)) {
+            float ax = event.getAxisValue(MotionEvent.AXIS_X);
+            float hx = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+            int dir = 0;
+            if (ax < -0.5f || hx < -0.5f) dir = -1;
+            else if (ax > 0.5f || hx > 0.5f) dir = 1;
+            if (dir == 0) {
+                lastDrawerStickMove = 0L;
+            } else if (android.os.SystemClock.uptimeMillis() - lastDrawerStickMove >= 200
+                    && !drawerStateHolder.isPaneOpen()) {
+                lastDrawerStickMove = android.os.SystemClock.uptimeMillis();
+                if (dir < 0) drawerStateHolder.menuNavLeft();
+                else drawerStateHolder.menuNavRight();
+            }
+            return true;
+        }
         if (isInputSuspended() && (drawerStateHolder == null ||
                 (!drawerStateHolder.isDrawerOpen() && !drawerStateHolder.isPaneOpen()))) {
 
@@ -7241,6 +7259,25 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (drawerStateHolder != null && (drawerStateHolder.isDrawerOpen() || drawerStateHolder.isPaneOpen())
+                && ExternalController.isGameController(event.getDevice())) {
+            int kc = event.getKeyCode();
+            boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+            if (kc == KeyEvent.KEYCODE_BUTTON_B || kc == KeyEvent.KEYCODE_BUTTON_MODE) {
+                if (down) handleNavigationBackPressed();
+                return true;
+            }
+            if (down && !drawerStateHolder.isPaneOpen()) {
+                if (kc == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    drawerStateHolder.menuNavLeft();
+                } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    drawerStateHolder.menuNavRight();
+                } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
+                    drawerStateHolder.menuActivate();
+                }
+            }
+            return true;
+        }
         if (isInputSuspended()) return super.dispatchKeyEvent(event);
         if (ExternalController.isGameController(event.getDevice())) {
             cancelMousePointerTimeout();

@@ -162,6 +162,7 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
 // Drawer-local colors.
@@ -172,6 +173,7 @@ private const val DrawerGradientLift = 0.014f
 
 private val DrawerAccent = Color(0xFF2196F3)
 private val DrawerActiveAccent = Color(0xFF29B6F6)
+private val DrawerFocusFill = Color(0xFF0E2438)
 private val DrawerTextPrimary = WinNativeTextPrimary.copy(alpha = 0.88f)
 private val DrawerTextSecondary = WinNativeTextSecondary.copy(alpha = 0.82f)
 private val DrawerOutline = WinNativeOutline
@@ -389,6 +391,12 @@ class XServerDrawerStateHolder(
     }
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
+    var menuNavIndex by mutableStateOf(0)
+        private set
+    var menuNavCount by mutableStateOf(1)
+        private set
+    var menuActivateSignal by mutableStateOf(0)
+        private set
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
 
     val isDrawerOpen: Boolean
@@ -396,6 +404,19 @@ class XServerDrawerStateHolder(
 
     fun openDrawer() {
         drawerOpen = true
+    }
+
+    fun menuNavLeft() { if (menuNavIndex > 0) menuNavIndex-- }
+
+    fun menuNavRight() { if (menuNavIndex < menuNavCount - 1) menuNavIndex++ }
+
+    fun menuActivate() { menuActivateSignal++ }
+
+    fun resetMenuNav() { menuNavIndex = 0 }
+
+    fun updateMenuNavCount(n: Int) {
+        menuNavCount = n
+        if (menuNavIndex >= n) menuNavIndex = (n - 1).coerceAtLeast(0)
     }
 
     fun closeDrawer() {
@@ -926,6 +947,9 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
     revealCards: Boolean = true,
+    menuNavIndex: Int = 0,
+    menuActivateSignal: Int = 0,
+    onSetMenuNavCount: (Int) -> Unit = {},
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
     // just translates it off-screen), so opening no longer pays a full
@@ -969,6 +993,9 @@ internal fun XServerDrawerContent(
                                     onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
                                 },
                                 onMenuClick = { onOpenPaneChange(null) },
+                                navIndex = menuNavIndex,
+                                activateSignal = menuActivateSignal,
+                                onSetNavCount = onSetMenuNavCount,
                             )
 
                             ThinDivider()
@@ -1063,10 +1090,21 @@ private fun TopRail(
     openPane: DrawerPane?,
     onTabClick: (RailPaneSpec) -> Unit,
     onMenuClick: () -> Unit,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetNavCount: (Int) -> Unit = {},
 ) {
     val paneScale = LocalPaneScale.current
     val density = LocalDensity.current
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
+
+    val tabCount = activeSpecs.size + 1
+    LaunchedEffect(tabCount) { onSetNavCount(tabCount) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal > 0) {
+            if (navIndex <= 0) onMenuClick() else activeSpecs.getOrNull(navIndex - 1)?.let { onTabClick(it) }
+        }
+    }
 
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
 
@@ -1143,8 +1181,9 @@ private fun TopRail(
                 onClick = onMenuClick,
                 tileKey = "menu",
                 onBoundsChanged = { tileBounds["menu"] = it },
+                highlighted = navIndex == 0,
             )
-            activeSpecs.forEach { spec ->
+            activeSpecs.forEachIndexed { index, spec ->
                 val item = state.items.first { it.itemId == spec.itemId }
                 val key = item.itemId.toString()
                 TopRailTile(
@@ -1155,6 +1194,7 @@ private fun TopRail(
                     onClick = { onTabClick(spec) },
                     tileKey = key,
                     onBoundsChanged = { tileBounds[key] = it },
+                    highlighted = navIndex == index + 1,
                 )
             }
         }
@@ -1170,6 +1210,7 @@ private fun TopRailTile(
     onClick: () -> Unit,
     tileKey: String,
     onBoundsChanged: (RailTileBounds) -> Unit,
+    highlighted: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -1193,6 +1234,7 @@ private fun TopRailTile(
     val bgColor by animateColorAsState(
         targetValue =
             when {
+                highlighted -> DrawerFocusFill
                 pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
@@ -1231,6 +1273,17 @@ private fun TopRailTile(
                 }
                 .clip(shape)
                 .background(bgColor)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
