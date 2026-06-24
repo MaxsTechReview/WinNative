@@ -75,6 +75,8 @@ interface XServerDisplayHostCallbacks {
     fun onDrawerGestureClaimed()
 
     fun onDialogVisibilityChanged(visible: Boolean)
+
+    fun isControllerConnected(): Boolean
 }
 
 fun setupXServerDisplayHost(
@@ -180,7 +182,8 @@ private fun XServerDisplayHost(
                                     down.position.x <= edgeWidthPx
                                 }
                             if (!canStartFromHere) {
-                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx) {
+                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx
+                                    && !callbacks.isControllerConnected()) {
                                     stateHolder.closeDrawer()
                                 }
                                 return@awaitEachGesture
@@ -330,6 +333,7 @@ private fun XServerDisplayHost(
                     onSetTabCount = { stateHolder.setMenuTabCount(it) },
                     onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
                     onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
+                    onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
                 )
             }
         }

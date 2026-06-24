@@ -433,6 +433,12 @@ class XServerDrawerStateHolder(
 
     fun menuNavRight() { if (menuNavIndex < regionSize(menuNavRegion) - 1) menuNavIndex++ }
 
+    fun setMenuNav(region: Int, index: Int) {
+        menuNavRegion = region
+        menuNavIndex = index.coerceAtLeast(0)
+        clampNav()
+    }
+
     fun menuNavUp() {
         when (menuNavRegion) {
             1 ->
@@ -1033,6 +1039,7 @@ internal fun XServerDrawerContent(
     onSetTabCount: (Int) -> Unit = {},
     onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
     onSetBottomCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
     // just translates it off-screen), so opening no longer pays a full
@@ -1080,6 +1087,7 @@ internal fun XServerDrawerContent(
                                 navIndex = menuNavIndex,
                                 activateSignal = menuActivateSignal,
                                 onSetNavCount = onSetTabCount,
+                                onCursor = onCursor,
                             )
 
                             ThinDivider()
@@ -1145,6 +1153,7 @@ internal fun XServerDrawerContent(
                                         navIndex = menuNavIndex,
                                         activateSignal = menuActivateSignal,
                                         onSetCardLayout = onSetCardLayout,
+                                        onCursor = onCursor,
                                     )
                             }
                         }
@@ -1165,6 +1174,7 @@ internal fun XServerDrawerContent(
                                 navIndex = menuNavIndex,
                                 activateSignal = menuActivateSignal,
                                 onSetCount = onSetBottomCount,
+                                onCursor = onCursor,
                             )
                         }
                     }
@@ -1186,6 +1196,7 @@ private fun TopRail(
     navIndex: Int = 0,
     activateSignal: Int = 0,
     onSetNavCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val paneScale = LocalPaneScale.current
     val density = LocalDensity.current
@@ -1202,9 +1213,13 @@ private fun TopRail(
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
 
     val selectedKey =
-        when (openPane) {
-            null -> "menu"
-            else -> activeSpecs.firstOrNull { it.pane == openPane }?.itemId?.toString() ?: "menu"
+        if (region == 0) {
+            if (navIndex <= 0) "menu" else activeSpecs.getOrNull(navIndex - 1)?.itemId?.toString() ?: "menu"
+        } else {
+            when (openPane) {
+                null -> "menu"
+                else -> activeSpecs.firstOrNull { it.pane == openPane }?.itemId?.toString() ?: "menu"
+            }
         }
     val selectedBounds = tileBounds[selectedKey]
 
@@ -1271,7 +1286,7 @@ private fun TopRail(
                 label = stringResource(R.string.session_drawer_main_menu_title),
                 active = false,
                 selected = openPane == null,
-                onClick = onMenuClick,
+                onClick = { onCursor(0, 0); onMenuClick() },
                 tileKey = "menu",
                 onBoundsChanged = { tileBounds["menu"] = it },
                 highlighted = region == 0 && navIndex == 0,
@@ -1284,7 +1299,7 @@ private fun TopRail(
                     label = stringResource(spec.labelRes),
                     active = item.active,
                     selected = openPane == spec.pane,
-                    onClick = { onTabClick(spec) },
+                    onClick = { onCursor(0, index + 1); onTabClick(spec) },
                     tileKey = key,
                     onBoundsChanged = { tileBounds[key] = it },
                     highlighted = region == 0 && navIndex == index + 1,
@@ -1423,6 +1438,7 @@ private fun ActionCardGrid(
     navIndex: Int = 0,
     activateSignal: Int = 0,
     onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -1475,7 +1491,7 @@ private fun ActionCardGrid(
                             Modifier
                                 .weight(1f)
                                 .height(rowHeight),
-                        onClick = { cardClick(item) },
+                        onClick = { onCursor(1, index); cardClick(item) },
                     )
                 }
                 val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
@@ -1636,6 +1652,7 @@ private fun BottomActions(
     navIndex: Int = 0,
     activateSignal: Int = 0,
     onSetCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val paneScale = LocalPaneScale.current
     val pause = state.items.firstOrNull { it.itemId == R.id.main_menu_pause }
@@ -1668,7 +1685,7 @@ private fun BottomActions(
                 isExit = false,
                 highlighted = region == 2 && navIndex == pauseIndex,
                 modifier = Modifier.weight(1f),
-                onClick = { listener.onActionSelected(pause.itemId) },
+                onClick = { onCursor(2, pauseIndex); listener.onActionSelected(pause.itemId) },
             )
         }
         if (exit != null) {
@@ -1678,7 +1695,7 @@ private fun BottomActions(
                 isExit = true,
                 highlighted = region == 2 && navIndex == exitIndex,
                 modifier = Modifier.weight(1f),
-                onClick = { listener.onActionSelected(exit.itemId) },
+                onClick = { onCursor(2, exitIndex); listener.onActionSelected(exit.itemId) },
             )
         }
     }

@@ -4687,6 +4687,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 displayHostComposeView.requestFocus();
                             }
                         }
+
+                        @Override
+                        public boolean isControllerConnected() {
+                            for (int id : android.view.InputDevice.getDeviceIds()) {
+                                android.view.InputDevice dev = android.view.InputDevice.getDevice(id);
+                                if (dev != null && ExternalController.isGameController(dev)) return true;
+                            }
+                            return false;
+                        }
                     }
             );
             return;
