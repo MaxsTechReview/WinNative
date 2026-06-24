@@ -563,6 +563,17 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
     private var lastMenuMove = 0L
 
+    private fun advanceWizardPage() {
+        if (transferState.value != null) return
+        val page = pageIndex.intValue
+        if (page < 2) {
+            val canGoNext = if (page == 0) storageGranted.value && imageFsDone.value else true
+            if (canGoNext) pageIndex.intValue += 1
+        } else if (!creatingContainer.value) {
+            finishWizard()
+        }
+    }
+
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_BUTTON_A -> {
@@ -581,9 +592,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 return true
             }
 
+            android.view.KeyEvent.KEYCODE_BUTTON_START -> {
+                if (event.action == android.view.KeyEvent.ACTION_DOWN) advanceWizardPage()
+                return true
+            }
+
             android.view.KeyEvent.KEYCODE_BUTTON_X,
             android.view.KeyEvent.KEYCODE_BUTTON_Y,
-            android.view.KeyEvent.KEYCODE_BUTTON_START,
             android.view.KeyEvent.KEYCODE_BUTTON_L1,
             android.view.KeyEvent.KEYCODE_BUTTON_R1,
             -> return true

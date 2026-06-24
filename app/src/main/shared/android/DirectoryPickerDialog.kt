@@ -645,6 +645,15 @@ object DirectoryPickerDialog {
                             } else {
                                 null
                             },
+                            onStart = {
+                                if (manage) {
+                                    onDismiss()
+                                } else {
+                                    val selectedPath =
+                                        if (mode == SelectionMode.FILE) selectedFile?.absolutePath else currentDir.absolutePath
+                                    if (selectedPath != null) onSelect(selectedPath)
+                                }
+                            },
                         ),
                 shape = RoundedCornerShape(16.dp),
                 color = CardDark,

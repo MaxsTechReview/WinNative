@@ -163,6 +163,7 @@ fun Modifier.controllerTextFieldEscape(): Modifier = controllerSliderEscape()
 fun Modifier.controllerMenuInput(
     onDismiss: () -> Unit,
     onSecondary: (() -> Unit)? = null,
+    onStart: (() -> Unit)? = null,
     repeatMs: Long = 200L,
 ): Modifier =
     composed {
@@ -235,8 +236,12 @@ fun Modifier.controllerMenuInput(
                     true
                 }
 
+                android.view.KeyEvent.KEYCODE_BUTTON_START -> {
+                    if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) onStart?.invoke()
+                    true
+                }
+
                 android.view.KeyEvent.KEYCODE_BUTTON_Y,
-                android.view.KeyEvent.KEYCODE_BUTTON_START,
                 android.view.KeyEvent.KEYCODE_BUTTON_L1,
                 android.view.KeyEvent.KEYCODE_BUTTON_R1,
                 -> true

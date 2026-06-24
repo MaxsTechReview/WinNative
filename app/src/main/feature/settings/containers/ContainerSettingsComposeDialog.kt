@@ -161,10 +161,14 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
+                        val callbacks = createCallbacks()
                         Box(
-                            modifier = Modifier.controllerMenuInput(onDismiss = { dialog.dismiss() }),
+                            modifier = Modifier.controllerMenuInput(
+                                onDismiss = { dialog.dismiss() },
+                                onStart = { if (state.isLoaded.value) callbacks.onConfirm() },
+                            ),
                         ) {
-                            GameSettingsContent(state = state, callbacks = createCallbacks())
+                            GameSettingsContent(state = state, callbacks = callbacks)
                         }
                     }
                 }

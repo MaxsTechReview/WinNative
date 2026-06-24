@@ -11430,6 +11430,22 @@ class UnifiedActivity :
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
         val firstFocus = remember { FocusRequester() }
+        val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
+        val doAdd: () -> Unit = {
+            isAdding = true
+            scope.launch(Dispatchers.IO) {
+                addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
+                withContext(Dispatchers.Main) {
+                    isAdding = false
+                    com.winlator.cmod.shared.ui.toast.WinToast.show(
+                        context,
+                        "$gameName added!",
+                        android.widget.Toast.LENGTH_SHORT,
+                    )
+                    onDismiss()
+                }
+            }
+        }
 
         fun selectExecutable(path: String) {
             if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
@@ -11468,7 +11484,7 @@ class UnifiedActivity :
                         Modifier
                             .widthIn(max = 360.dp)
                             .fillMaxWidth(0.9f)
-                            .controllerMenuInput(onDismiss = onDismiss),
+                            .controllerMenuInput(onDismiss = onDismiss, onStart = { if (addEnabled) doAdd() }),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xFF141B24),
                 ) {
@@ -11630,31 +11646,8 @@ class UnifiedActivity :
                                 Text(stringResource(R.string.common_ui_cancel), fontSize = 12.sp)
                             }
                             Spacer(Modifier.width(8.dp))
-                            val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
                             OutlinedButton(
-                                onClick = {
-                                    if (selectedExePath == null || gameName.isBlank() || gameFolder == null) {
-                                        com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                            context,
-                                            context.getString(R.string.library_games_select_exe_provide_name),
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        )
-                                        return@OutlinedButton
-                                    }
-                                    isAdding = true
-                                    scope.launch(Dispatchers.IO) {
-                                        addCustomGame(context, gameName.trim(), selectedExePath!!, gameFolder!!)
-                                        withContext(Dispatchers.Main) {
-                                            isAdding = false
-                                            com.winlator.cmod.shared.ui.toast.WinToast.show(
-                                                context,
-                                                "$gameName added!",
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            )
-                                            onDismiss()
-                                        }
-                                    }
-                                },
+                                onClick = doAdd,
                                 enabled = addEnabled,
                                 shape = RoundedCornerShape(10.dp),
                                 border =

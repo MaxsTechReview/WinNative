@@ -35,6 +35,9 @@ import com.winlator.cmod.feature.library.EnvVarItem
 import androidx.compose.runtime.getValue
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
@@ -181,10 +184,15 @@ class ShortcutSettingsComposeDialog private constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(
-                            state = state,
-                            callbacks = createCallbacks()
-                        )
+                        val callbacks = createCallbacks()
+                        Box(
+                            modifier = Modifier.controllerMenuInput(
+                                onDismiss = { dialog.dismiss() },
+                                onStart = { if (state.isLoaded.value) callbacks.onConfirm() },
+                            ),
+                        ) {
+                            GameSettingsContent(state = state, callbacks = callbacks)
+                        }
                     }
                 }
             }
