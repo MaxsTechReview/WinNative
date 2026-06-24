@@ -2,15 +2,19 @@ package com.winlator.cmod.feature.settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,6 +53,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -131,9 +141,10 @@ fun SettingsNavSidebar(
     val navStartInset = navBarPadding.calculateStartPadding(layoutDirection)
     val navBottomInset = navBarPadding.calculateBottomPadding()
 
-    val initialFocusRequester = remember { FocusRequester() }
+    val navItemsOrder = SettingsNavItem.entries
+    val navListFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
-        runCatching { initialFocusRequester.requestFocus() }
+        runCatching { navListFocus.requestFocus() }
     }
 
     Row(
@@ -157,7 +168,26 @@ fun SettingsNavSidebar(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .padding(start = 8.dp, end = 8.dp, top = 2.dp),
+                        .padding(start = 8.dp, end = 8.dp, top = 2.dp)
+                        .focusRequester(navListFocus)
+                        .onPreviewKeyEvent { e ->
+                            if (e.type != KeyEventType.KeyDown) {
+                                false
+                            } else {
+                                val idx = navItemsOrder.indexOf(selectedItem)
+                                when (e.key) {
+                                    Key.DirectionDown -> {
+                                        if (idx < navItemsOrder.lastIndex) onItemSelected(navItemsOrder[idx + 1])
+                                        true
+                                    }
+                                    Key.DirectionUp -> {
+                                        if (idx > 0) onItemSelected(navItemsOrder[idx - 1])
+                                        true
+                                    }
+                                    else -> false
+                                }
+                            }
+                        }.focusable(),
                 contentPadding = PaddingValues(bottom = 24.dp + navBottomInset),
             ) {
                 NavSection.entries.forEachIndexed { index, section ->
@@ -184,7 +214,6 @@ fun SettingsNavSidebar(
                             item = item,
                             isSelected = item == selectedItem,
                             borderPaused = bordersPaused,
-                            focusRequester = if (item == selectedItem) initialFocusRequester else null,
                             onClick = { onItemSelected(item) },
                         )
                     }
@@ -262,17 +291,20 @@ private fun SectionHeader(label: String) {
 
 // ─── Navigation item row ────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NavItemRow(
     item: SettingsNavItem,
     isSelected: Boolean,
     borderPaused: Boolean = false,
-    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val isFocused by interactionSource.collectIsFocusedAsState()
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(isSelected) {
+        if (isSelected) runCatching { bringIntoView.bringIntoView() }
+    }
 
     val iconTint by animateColorAsState(
         targetValue = if (isSelected) AccentSelected else IconMuted,
@@ -288,7 +320,7 @@ private fun NavItemRow(
         targetValue =
             when {
                 isSelected -> 1f
-                isHovered || isFocused -> 0.5f
+                isHovered -> 0.5f
                 else -> 0f
             },
         animationSpec = tween(200),
@@ -300,6 +332,7 @@ private fun NavItemRow(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .bringIntoViewRequester(bringIntoView)
                 .padding(vertical = 2.dp)
                 .background(
                     color = SelectedBg.copy(alpha = bgAlpha),
@@ -315,23 +348,15 @@ private fun NavItemRow(
                         Modifier
                     },
                 ).then(
-                    if (!isSelected && (isHovered || isFocused)) {
+                    if (!isSelected && isHovered) {
                         Modifier.staticBorder()
                     } else {
                         Modifier
                     },
                 ).hoverable(interactionSource)
-                .then(
-                    if (focusRequester != null) {
-                        Modifier.focusRequester(focusRequester)
-                    } else {
-                        Modifier
-                    },
-                ).clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                ).padding(horizontal = 12.dp, vertical = 10.dp),
+                .pointerInput(Unit) {
+                    detectTapGestures { onClick() }
+                }.padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Icon(
             imageVector = item.icon,
