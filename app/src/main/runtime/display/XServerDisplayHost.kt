@@ -334,6 +334,12 @@ private fun XServerDisplayHost(
                     onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
                     onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
                     onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
+                    paneNavIndex = stateHolder.paneNavIndex,
+                    paneActivateSignal = stateHolder.paneActivateSignal,
+                    paneAdjustSignal = stateHolder.paneAdjustSignal,
+                    paneAdjustDir = stateHolder.paneAdjustDir,
+                    onSetPaneNavCount = { stateHolder.updatePaneNavCount(it) },
+                    controllerActive = stateHolder.controllerConnected,
                 )
             }
         }

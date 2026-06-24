@@ -362,6 +362,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public boolean isInputSuspended() {
         return isPaused;
     }
+
+    private boolean isAnyControllerConnected() {
+        for (int id : android.view.InputDevice.getDeviceIds()) {
+            android.view.InputDevice dev = android.view.InputDevice.getDevice(id);
+            if (dev != null && ExternalController.isGameController(dev)) return true;
+        }
+        return false;
+    }
     private boolean isNativeRenderingEnabled = true;
 
     private float hudTransparency = 1.0f;
@@ -4657,7 +4665,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         public void onDrawerOpened() {
                             releasePointerCapture();
                             renderDrawerMenu();
-                            if (drawerStateHolder != null) drawerStateHolder.resetMenuNav();
+                            if (drawerStateHolder != null) {
+                                drawerStateHolder.resetMenuNav();
+                                drawerStateHolder.updateControllerConnected(isAnyControllerConnected());
+                            }
                             AppUtils.hideSystemUI(XServerDisplayActivity.this);
                         }
 
@@ -4690,11 +4701,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                         @Override
                         public boolean isControllerConnected() {
-                            for (int id : android.view.InputDevice.getDeviceIds()) {
-                                android.view.InputDevice dev = android.view.InputDevice.getDevice(id);
-                                if (dev != null && ExternalController.isGameController(dev)) return true;
-                            }
-                            return false;
+                            return isAnyControllerConnected();
                         }
                     }
             );
@@ -7220,13 +7227,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             else if (ay > 0.5f || hy > 0.5f) dir = 4;
             if (dir == 0) {
                 lastDrawerStickMove = 0L;
-            } else if (android.os.SystemClock.uptimeMillis() - lastDrawerStickMove >= 200
-                    && !drawerStateHolder.isPaneOpen()) {
+            } else if (android.os.SystemClock.uptimeMillis() - lastDrawerStickMove >= 200) {
                 lastDrawerStickMove = android.os.SystemClock.uptimeMillis();
-                if (dir == 1) drawerStateHolder.menuNavLeft();
-                else if (dir == 2) drawerStateHolder.menuNavRight();
-                else if (dir == 3) drawerStateHolder.menuNavUp();
-                else drawerStateHolder.menuNavDown();
+                if (!drawerStateHolder.isPaneOpen()) {
+                    if (dir == 1) drawerStateHolder.menuNavLeft();
+                    else if (dir == 2) drawerStateHolder.menuNavRight();
+                    else if (dir == 3) drawerStateHolder.menuNavUp();
+                    else drawerStateHolder.menuNavDown();
+                } else {
+                    if (dir == 1) drawerStateHolder.paneAdjust(-1);
+                    else if (dir == 2) drawerStateHolder.paneAdjust(1);
+                    else if (dir == 3) drawerStateHolder.paneNavUp();
+                    else drawerStateHolder.paneNavDown();
+                }
             }
             return true;
         }
@@ -7276,23 +7289,38 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (drawerStateHolder != null && (drawerStateHolder.isDrawerOpen() || drawerStateHolder.isPaneOpen())
                 && ExternalController.isGameController(event.getDevice())) {
+            drawerStateHolder.updateControllerConnected(true);
             int kc = event.getKeyCode();
             boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
             if (kc == KeyEvent.KEYCODE_BUTTON_B || kc == KeyEvent.KEYCODE_BUTTON_MODE) {
                 if (down) handleNavigationBackPressed();
                 return true;
             }
-            if (down && !drawerStateHolder.isPaneOpen()) {
-                if (kc == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    drawerStateHolder.menuNavLeft();
-                } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                    drawerStateHolder.menuNavRight();
-                } else if (kc == KeyEvent.KEYCODE_DPAD_UP) {
-                    drawerStateHolder.menuNavUp();
-                } else if (kc == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    drawerStateHolder.menuNavDown();
-                } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
-                    drawerStateHolder.menuActivate();
+            if (down) {
+                if (!drawerStateHolder.isPaneOpen()) {
+                    if (kc == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        drawerStateHolder.menuNavLeft();
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        drawerStateHolder.menuNavRight();
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_UP) {
+                        drawerStateHolder.menuNavUp();
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        drawerStateHolder.menuNavDown();
+                    } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
+                        drawerStateHolder.menuActivate();
+                    }
+                } else {
+                    if (kc == KeyEvent.KEYCODE_DPAD_UP) {
+                        drawerStateHolder.paneNavUp();
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        drawerStateHolder.paneNavDown();
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        drawerStateHolder.paneAdjust(-1);
+                    } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        drawerStateHolder.paneAdjust(1);
+                    } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
+                        drawerStateHolder.paneActivate();
+                    }
                 }
             }
             return true;

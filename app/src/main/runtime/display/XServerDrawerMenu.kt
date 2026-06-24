@@ -125,6 +125,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -197,6 +204,92 @@ private val GlassExitTint = Color(0xFFE07B6B)
 
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
+
+@Stable
+private class PaneNavRegistry {
+    private val positions = mutableStateMapOf<Int, Float>()
+    private var slotCounter = 0
+    var activeIndex by mutableStateOf(0)
+    var activateSignal by mutableStateOf(0)
+    var adjustSignal by mutableStateOf(0)
+    var adjustDir by mutableStateOf(0)
+    var controllerActive by mutableStateOf(false)
+    var ordered by mutableStateOf<List<Int>>(emptyList())
+        private set
+
+    fun nextSlot(): Int = slotCounter++
+
+    fun report(slot: Int, y: Float) {
+        if (positions[slot] != y) {
+            positions[slot] = y
+            ordered = positions.entries.sortedBy { it.value }.map { it.key }
+        }
+    }
+
+    fun unregister(slot: Int) {
+        if (positions.remove(slot) != null) {
+            ordered = positions.entries.sortedBy { it.value }.map { it.key }
+        }
+    }
+
+    fun orderOf(slot: Int): Int = ordered.indexOf(slot)
+}
+
+private val LocalPaneNav = staticCompositionLocalOf<PaneNavRegistry?> { null }
+
+private fun Modifier.paneHighlight(highlighted: Boolean, cornerRadius: Dp): Modifier =
+    drawWithContent {
+        val cr = cornerRadius.toPx()
+        if (highlighted) {
+            drawRoundRect(color = DrawerAccent.copy(alpha = 0.20f), cornerRadius = CornerRadius(cr, cr))
+        }
+        drawContent()
+        if (highlighted) {
+            drawRoundRect(
+                color = DrawerAccent,
+                cornerRadius = CornerRadius(cr, cr),
+                style = Stroke(width = 1.5.dp.toPx()),
+            )
+        }
+    }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Modifier.paneNavItem(
+    cornerRadius: Dp = 10.dp,
+    onActivate: () -> Unit = {},
+    onAdjust: (Int) -> Unit = {},
+): Modifier {
+    val nav = LocalPaneNav.current ?: return this
+    val slot = remember { nav.nextSlot() }
+    DisposableEffect(slot) { onDispose { nav.unregister(slot) } }
+    val order = nav.orderOf(slot)
+    val highlighted = nav.controllerActive && order >= 0 && order == nav.activeIndex
+
+    val bring = remember { BringIntoViewRequester() }
+    LaunchedEffect(highlighted) { if (highlighted) runCatching { bring.bringIntoView() } }
+
+    var lastActivate by remember { mutableStateOf(nav.activateSignal) }
+    LaunchedEffect(nav.activateSignal) {
+        if (nav.activateSignal != lastActivate) {
+            lastActivate = nav.activateSignal
+            if (highlighted) onActivate()
+        }
+    }
+    var lastAdjust by remember { mutableStateOf(nav.adjustSignal) }
+    LaunchedEffect(nav.adjustSignal) {
+        if (nav.adjustSignal != lastAdjust) {
+            lastAdjust = nav.adjustSignal
+            if (highlighted) onAdjust(nav.adjustDir)
+        }
+    }
+
+    return this
+        .onGloballyPositioned { nav.report(slot, it.positionInWindow().y) }
+        .bringIntoViewRequester(bring)
+        .paneHighlight(highlighted, cornerRadius)
+}
+
 private const val PaneScaleMin = 0.78f
 private const val ControlsPaneScaleMin = 0.62f
 private const val PaneScaleReferenceHeightDp = 520f
@@ -401,6 +494,17 @@ class XServerDrawerStateHolder(
     private var cardCount = 0
     private var cardColumns = 3
     private var bottomCount = 0
+    var paneNavIndex by mutableStateOf(0)
+        private set
+    var paneActivateSignal by mutableStateOf(0)
+        private set
+    var paneAdjustSignal by mutableStateOf(0)
+        private set
+    var paneAdjustDir by mutableStateOf(0)
+        private set
+    private var paneNavCount = 0
+    var controllerConnected by mutableStateOf(false)
+        private set
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
 
     val isDrawerOpen: Boolean
@@ -505,6 +609,26 @@ class XServerDrawerStateHolder(
         clampNav()
     }
 
+    fun paneNavUp() { if (paneNavIndex > 0) paneNavIndex-- }
+
+    fun paneNavDown() { if (paneNavIndex < paneNavCount - 1) paneNavIndex++ }
+
+    fun paneActivate() { paneActivateSignal++ }
+
+    fun paneAdjust(dir: Int) {
+        paneAdjustDir = dir
+        paneAdjustSignal++
+    }
+
+    fun updatePaneNavCount(n: Int) {
+        paneNavCount = n
+        if (paneNavIndex >= n) paneNavIndex = (n - 1).coerceAtLeast(0)
+    }
+
+    fun resetPaneNav() { paneNavIndex = 0 }
+
+    fun updateControllerConnected(connected: Boolean) { controllerConnected = connected }
+
     fun closeDrawer() {
         drawerOpen = false
         openPane = null
@@ -531,6 +655,7 @@ class XServerDrawerStateHolder(
         val wasVisible = openPane != null
         val nowVisible = newPane != null
         openPane = newPane
+        if (newPane != null) resetPaneNav()
         if (wasVisible != nowVisible) paneVisibilityListener?.invoke(nowVisible)
     }
 
@@ -1040,6 +1165,12 @@ internal fun XServerDrawerContent(
     onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
     onSetBottomCount: (Int) -> Unit = {},
     onCursor: (Int, Int) -> Unit = { _, _ -> },
+    paneNavIndex: Int = 0,
+    paneActivateSignal: Int = 0,
+    paneAdjustSignal: Int = 0,
+    paneAdjustDir: Int = 0,
+    onSetPaneNavCount: (Int) -> Unit = {},
+    controllerActive: Boolean = false,
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
     // just translates it off-screen), so opening no longer pays a full
@@ -1048,6 +1179,16 @@ internal fun XServerDrawerContent(
     // stable while switching between panes.
     val cardsRevealed = remember { mutableStateOf(false) }
     LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
+
+    val paneNav = remember(openPane) { PaneNavRegistry() }
+    paneNav.activeIndex = paneNavIndex
+    paneNav.activateSignal = paneActivateSignal
+    paneNav.adjustSignal = paneAdjustSignal
+    paneNav.adjustDir = paneAdjustDir
+    paneNav.controllerActive = controllerActive
+    LaunchedEffect(openPane, paneNav.ordered.size) {
+        if (openPane != null) onSetPaneNavCount(paneNav.ordered.size)
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -1088,6 +1229,7 @@ internal fun XServerDrawerContent(
                                 activateSignal = menuActivateSignal,
                                 onSetNavCount = onSetTabCount,
                                 onCursor = onCursor,
+                                controllerActive = controllerActive,
                             )
 
                             ThinDivider()
@@ -1123,6 +1265,7 @@ internal fun XServerDrawerContent(
                             },
                             label = "drawerBody",
                         ) { pane ->
+                            CompositionLocalProvider(LocalPaneNav provides paneNav) {
                             when (pane) {
                                 DrawerPane.INPUT_CONTROLS -> InputControlsPaneContent(state = state, listener = listener)
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
@@ -1154,7 +1297,9 @@ internal fun XServerDrawerContent(
                                         activateSignal = menuActivateSignal,
                                         onSetCardLayout = onSetCardLayout,
                                         onCursor = onCursor,
+                                        controllerActive = controllerActive,
                                     )
+                            }
                             }
                         }
                     }
@@ -1175,6 +1320,7 @@ internal fun XServerDrawerContent(
                                 activateSignal = menuActivateSignal,
                                 onSetCount = onSetBottomCount,
                                 onCursor = onCursor,
+                                controllerActive = controllerActive,
                             )
                         }
                     }
@@ -1197,6 +1343,7 @@ private fun TopRail(
     activateSignal: Int = 0,
     onSetNavCount: (Int) -> Unit = {},
     onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val density = LocalDensity.current
@@ -1217,7 +1364,7 @@ private fun TopRail(
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
 
     val selectedKey =
-        if (region == 0) {
+        if (controllerActive && region == 0) {
             if (navIndex <= 0) "menu" else activeSpecs.getOrNull(navIndex - 1)?.itemId?.toString() ?: "menu"
         } else {
             when (openPane) {
@@ -1293,7 +1440,7 @@ private fun TopRail(
                 onClick = { onCursor(0, 0); onMenuClick() },
                 tileKey = "menu",
                 onBoundsChanged = { tileBounds["menu"] = it },
-                highlighted = region == 0 && navIndex == 0,
+                highlighted = controllerActive && region == 0 && navIndex == 0,
             )
             activeSpecs.forEachIndexed { index, spec ->
                 val item = state.items.first { it.itemId == spec.itemId }
@@ -1306,7 +1453,7 @@ private fun TopRail(
                     onClick = { onCursor(0, index + 1); onTabClick(spec) },
                     tileKey = key,
                     onBoundsChanged = { tileBounds[key] = it },
-                    highlighted = region == 0 && navIndex == index + 1,
+                    highlighted = controllerActive && region == 0 && navIndex == index + 1,
                 )
             }
         }
@@ -1443,6 +1590,7 @@ private fun ActionCardGrid(
     activateSignal: Int = 0,
     onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
     onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -1494,7 +1642,7 @@ private fun ActionCardGrid(
                         label = label,
                         revealIndex = index,
                         revealed = cardsRevealed,
-                        highlighted = region == 1 && navIndex == index,
+                        highlighted = controllerActive && region == 1 && navIndex == index,
                         modifier =
                             Modifier
                                 .weight(1f)
@@ -1661,6 +1809,7 @@ private fun BottomActions(
     activateSignal: Int = 0,
     onSetCount: (Int) -> Unit = {},
     onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val pause = state.items.firstOrNull { it.itemId == R.id.main_menu_pause }
@@ -1695,7 +1844,7 @@ private fun BottomActions(
                 item = pause,
                 label = pause.title,
                 isExit = false,
-                highlighted = region == 2 && navIndex == pauseIndex,
+                highlighted = controllerActive && region == 2 && navIndex == pauseIndex,
                 modifier = Modifier.weight(1f),
                 onClick = { onCursor(2, pauseIndex); listener.onActionSelected(pause.itemId) },
             )
@@ -1705,7 +1854,7 @@ private fun BottomActions(
                 item = exit,
                 label = stringResource(R.string.common_ui_exit),
                 isExit = true,
-                highlighted = region == 2 && navIndex == exitIndex,
+                highlighted = controllerActive && region == 2 && navIndex == exitIndex,
                 modifier = Modifier.weight(1f),
                 onClick = { onCursor(2, exitIndex); listener.onActionSelected(exit.itemId) },
             )
@@ -2022,6 +2171,7 @@ private fun TouchPaneContent(
                         Modifier
                             .size((30f * paneScale).dp)
                             .clip(RoundedCornerShape((8f * paneScale).dp))
+                            .paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onClose)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -2036,45 +2186,71 @@ private fun TouchPaneContent(
                         modifier = Modifier.size((20f * paneScale).dp),
                     )
                 }
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_mouse_input),
-                    checked = state.mouseEnabled,
-                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_disable_mouse) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_relative_mouse_movement),
-                    checked = state.relativeMouseEnabled,
-                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_trackpad),
-                    checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_touchscreen),
-                    checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_map_right_stick),
-                    checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_rts_gestures),
-                    checked = state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onRtsGesturesToggled(it) },
-                )
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onActionSelected(R.id.main_menu_disable_mouse) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_mouse_input),
+                        checked = state.mouseEnabled,
+                        onCheckedChange = { listener.onActionSelected(R.id.main_menu_disable_mouse) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_relative_mouse_movement),
+                        checked = state.relativeMouseEnabled,
+                        onCheckedChange = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(0) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_trackpad),
+                        checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(1) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_touchscreen),
+                        checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(2) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_map_right_stick),
+                        checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onRtsGesturesToggled(!state.rtsGesturesEnabled) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_rts_gestures),
+                        checked = state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onRtsGesturesToggled(it) },
+                    )
+                }
                 if (state.rtsGesturesEnabled) {
-                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                        PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
-                        InputControlsProfileSelector(
-                            profileNames = state.gestureProfileNames,
-                            selectedIndex = state.gestureSelectedProfileIndex,
-                            onProfileSelected = listener::onGestureProfileSelected,
-                            onEditClick = listener::onRtsGesturesEditClick,
+                    Box(
+                        Modifier.fillMaxWidth().paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onRtsGesturesEditClick() },
+                            onAdjust = { dir ->
+                                val n = state.gestureProfileNames.size
+                                if (n > 0) {
+                                    val next = ((state.gestureSelectedProfileIndex + dir) % n + n) % n
+                                    listener.onGestureProfileSelected(next)
+                                }
+                            },
                         )
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                            PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
+                            InputControlsProfileSelector(
+                                profileNames = state.gestureProfileNames,
+                                selectedIndex = state.gestureSelectedProfileIndex,
+                                onProfileSelected = listener::onGestureProfileSelected,
+                                onEditClick = listener::onRtsGesturesEditClick,
+                            )
+                        }
                     }
                 }
             }
