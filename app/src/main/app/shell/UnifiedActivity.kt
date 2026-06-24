@@ -2577,13 +2577,6 @@ class UnifiedActivity :
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val currentKey = tabs.getOrNull(selectedIdx)?.key
-                    val isStore = currentKey == "steam" || currentKey == "epic" || currentKey == "gog"
-                    if (isControllerConnected && (isStore || isPS)) {
-                        ControllerBadge(if (isStore) "R1" else "\u25B3")
-                        Spacer(Modifier.width(8.dp))
-                    }
-
                     Spacer(Modifier.width(8.dp))
 
                     Box(
@@ -3667,7 +3660,7 @@ class UnifiedActivity :
                             Modifier
                                 .padding(vertical = 6.dp)
                                 .focusRequester(contentFocus)
-                                .focusable(),
+                                .focusGroup(),
                     ) {
                         LaunchedEffect(Unit) { runCatching { contentFocus.requestFocus() } }
                         Row(
