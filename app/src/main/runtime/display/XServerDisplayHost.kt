@@ -324,9 +324,12 @@ private fun XServerDisplayHost(
                     listener = listener,
                     onDismiss = { stateHolder.closeDrawer() },
                     revealCards = drawerEngaged,
+                    menuNavRegion = stateHolder.menuNavRegion,
                     menuNavIndex = stateHolder.menuNavIndex,
                     menuActivateSignal = stateHolder.menuActivateSignal,
-                    onSetMenuNavCount = { stateHolder.updateMenuNavCount(it) },
+                    onSetTabCount = { stateHolder.setMenuTabCount(it) },
+                    onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
+                    onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
                 )
             }
         }

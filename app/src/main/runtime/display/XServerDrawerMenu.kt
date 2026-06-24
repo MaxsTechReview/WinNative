@@ -391,12 +391,16 @@ class XServerDrawerStateHolder(
     }
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
-    var menuNavIndex by mutableStateOf(0)
+    var menuNavRegion by mutableStateOf(0)
         private set
-    var menuNavCount by mutableStateOf(1)
+    var menuNavIndex by mutableStateOf(0)
         private set
     var menuActivateSignal by mutableStateOf(0)
         private set
+    private var tabCount = 1
+    private var cardCount = 0
+    private var cardColumns = 3
+    private var bottomCount = 0
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
 
     val isDrawerOpen: Boolean
@@ -406,17 +410,93 @@ class XServerDrawerStateHolder(
         drawerOpen = true
     }
 
-    fun menuNavLeft() { if (menuNavIndex > 0) menuNavIndex-- }
+    private fun regionSize(r: Int) = when (r) {
+        0 -> tabCount
+        1 -> cardCount
+        2 -> bottomCount
+        else -> 0
+    }
 
-    fun menuNavRight() { if (menuNavIndex < menuNavCount - 1) menuNavIndex++ }
+    private fun clampNav() {
+        val max = (regionSize(menuNavRegion) - 1).coerceAtLeast(0)
+        if (menuNavIndex > max) menuNavIndex = max
+    }
 
     fun menuActivate() { menuActivateSignal++ }
 
-    fun resetMenuNav() { menuNavIndex = 0 }
+    fun resetMenuNav() {
+        menuNavRegion = 0
+        menuNavIndex = 0
+    }
 
-    fun updateMenuNavCount(n: Int) {
-        menuNavCount = n
-        if (menuNavIndex >= n) menuNavIndex = (n - 1).coerceAtLeast(0)
+    fun menuNavLeft() { if (menuNavIndex > 0) menuNavIndex-- }
+
+    fun menuNavRight() { if (menuNavIndex < regionSize(menuNavRegion) - 1) menuNavIndex++ }
+
+    fun menuNavUp() {
+        when (menuNavRegion) {
+            1 ->
+                if (menuNavIndex < cardColumns) {
+                    if (tabCount > 0) {
+                        menuNavRegion = 0
+                        menuNavIndex = menuNavIndex.coerceAtMost(tabCount - 1)
+                    }
+                } else {
+                    menuNavIndex -= cardColumns
+                }
+            2 ->
+                when {
+                    cardCount > 0 -> {
+                        menuNavRegion = 1
+                        menuNavIndex = cardCount - 1
+                    }
+                    tabCount > 0 -> {
+                        menuNavRegion = 0
+                        menuNavIndex = menuNavIndex.coerceAtMost(tabCount - 1)
+                    }
+                }
+        }
+    }
+
+    fun menuNavDown() {
+        when (menuNavRegion) {
+            0 ->
+                when {
+                    cardCount > 0 -> {
+                        menuNavRegion = 1
+                        menuNavIndex = menuNavIndex.coerceAtMost(cardCount - 1)
+                    }
+                    bottomCount > 0 -> {
+                        menuNavRegion = 2
+                        menuNavIndex = 0
+                    }
+                }
+            1 -> {
+                val below = menuNavIndex + cardColumns
+                if (below < cardCount) {
+                    menuNavIndex = below
+                } else if (bottomCount > 0) {
+                    menuNavRegion = 2
+                    menuNavIndex = 0
+                }
+            }
+        }
+    }
+
+    fun setMenuTabCount(n: Int) {
+        tabCount = n.coerceAtLeast(0)
+        clampNav()
+    }
+
+    fun setMenuCardLayout(count: Int, columns: Int) {
+        cardCount = count.coerceAtLeast(0)
+        cardColumns = columns.coerceAtLeast(1)
+        clampNav()
+    }
+
+    fun setMenuBottomCount(n: Int) {
+        bottomCount = n.coerceAtLeast(0)
+        clampNav()
     }
 
     fun closeDrawer() {
@@ -947,9 +1027,12 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
     revealCards: Boolean = true,
+    menuNavRegion: Int = 0,
     menuNavIndex: Int = 0,
     menuActivateSignal: Int = 0,
-    onSetMenuNavCount: (Int) -> Unit = {},
+    onSetTabCount: (Int) -> Unit = {},
+    onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
+    onSetBottomCount: (Int) -> Unit = {},
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
     // just translates it off-screen), so opening no longer pays a full
@@ -993,9 +1076,10 @@ internal fun XServerDrawerContent(
                                     onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
                                 },
                                 onMenuClick = { onOpenPaneChange(null) },
+                                region = menuNavRegion,
                                 navIndex = menuNavIndex,
                                 activateSignal = menuActivateSignal,
-                                onSetNavCount = onSetMenuNavCount,
+                                onSetNavCount = onSetTabCount,
                             )
 
                             ThinDivider()
@@ -1057,6 +1141,10 @@ internal fun XServerDrawerContent(
                                         onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
                                         onOpenLogs = { onOpenPaneChange(DrawerPane.LOGS) },
                                         onOpenTouch = { onOpenPaneChange(DrawerPane.TOUCH) },
+                                        region = menuNavRegion,
+                                        navIndex = menuNavIndex,
+                                        activateSignal = menuActivateSignal,
+                                        onSetCardLayout = onSetCardLayout,
                                     )
                             }
                         }
@@ -1073,6 +1161,10 @@ internal fun XServerDrawerContent(
                             BottomActions(
                                 state = state,
                                 listener = listener,
+                                region = menuNavRegion,
+                                navIndex = menuNavIndex,
+                                activateSignal = menuActivateSignal,
+                                onSetCount = onSetBottomCount,
                             )
                         }
                     }
@@ -1090,6 +1182,7 @@ private fun TopRail(
     openPane: DrawerPane?,
     onTabClick: (RailPaneSpec) -> Unit,
     onMenuClick: () -> Unit,
+    region: Int = 0,
     navIndex: Int = 0,
     activateSignal: Int = 0,
     onSetNavCount: (Int) -> Unit = {},
@@ -1101,7 +1194,7 @@ private fun TopRail(
     val tabCount = activeSpecs.size + 1
     LaunchedEffect(tabCount) { onSetNavCount(tabCount) }
     LaunchedEffect(activateSignal) {
-        if (activateSignal > 0) {
+        if (activateSignal > 0 && region == 0) {
             if (navIndex <= 0) onMenuClick() else activeSpecs.getOrNull(navIndex - 1)?.let { onTabClick(it) }
         }
     }
@@ -1181,7 +1274,7 @@ private fun TopRail(
                 onClick = onMenuClick,
                 tileKey = "menu",
                 onBoundsChanged = { tileBounds["menu"] = it },
-                highlighted = navIndex == 0,
+                highlighted = region == 0 && navIndex == 0,
             )
             activeSpecs.forEachIndexed { index, spec ->
                 val item = state.items.first { it.itemId == spec.itemId }
@@ -1194,7 +1287,7 @@ private fun TopRail(
                     onClick = { onTabClick(spec) },
                     tileKey = key,
                     onBoundsChanged = { tileBounds[key] = it },
-                    highlighted = navIndex == index + 1,
+                    highlighted = region == 0 && navIndex == index + 1,
                 )
             }
         }
@@ -1326,12 +1419,30 @@ private fun ActionCardGrid(
     onOpenTaskManager: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenTouch: () -> Unit,
+    region: Int = 0,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
         state.items.filter {
             it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in PINNED_BOTTOM_ITEM_IDS
         }
+
+    fun cardClick(item: XServerDrawerItem) {
+        when (item.itemId) {
+            R.id.main_menu_task_manager -> onOpenTaskManager()
+            R.id.main_menu_logs -> onOpenLogs()
+            R.id.main_menu_touch -> onOpenTouch()
+            else -> listener.onActionSelected(item.itemId)
+        }
+    }
+
+    LaunchedEffect(cards.size) { onSetCardLayout(cards.size, ActionCardColumns) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal > 0 && region == 1) cards.getOrNull(navIndex)?.let { cardClick(it) }
+    }
 
     val verticalPadding = (10f * paneScale).dp
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -1359,19 +1470,12 @@ private fun ActionCardGrid(
                         label = label,
                         revealIndex = index,
                         revealed = cardsRevealed,
+                        highlighted = region == 1 && navIndex == index,
                         modifier =
                             Modifier
                                 .weight(1f)
                                 .height(rowHeight),
-                        onClick = {
-                            when (item.itemId) {
-                                R.id.main_menu_task_manager -> onOpenTaskManager()
-                                R.id.main_menu_logs -> onOpenLogs()
-                                R.id.main_menu_touch -> onOpenTouch()
-                                R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
-                                else -> listener.onActionSelected(item.itemId)
-                            }
-                        },
+                        onClick = { cardClick(item) },
                     )
                 }
                 val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
@@ -1389,6 +1493,7 @@ private fun ActionCard(
     label: String,
     revealIndex: Int,
     revealed: Boolean,
+    highlighted: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1432,6 +1537,7 @@ private fun ActionCard(
         targetValue =
             when {
                 !enabled -> Color(0x05FFFFFF)
+                highlighted -> DrawerFocusFill
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
@@ -1481,6 +1587,17 @@ private fun ActionCard(
                 .clip(shape)
                 .background(cardBrush)
                 .border(1.dp, borderColor, shape)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     enabled = enabled,
                     interactionSource = interactionSource,
@@ -1515,10 +1632,26 @@ private fun ActionCard(
 private fun BottomActions(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
+    region: Int = 0,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetCount: (Int) -> Unit = {},
 ) {
     val paneScale = LocalPaneScale.current
     val pause = state.items.firstOrNull { it.itemId == R.id.main_menu_pause }
     val exit = state.items.firstOrNull { it.itemId == R.id.main_menu_exit }
+    val pauseIndex = if (pause != null) 0 else -1
+    val exitIndex = if (exit != null) (if (pause != null) 1 else 0) else -1
+    val count = (if (pause != null) 1 else 0) + (if (exit != null) 1 else 0)
+    LaunchedEffect(count) { onSetCount(count) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal > 0 && region == 2) {
+            when (navIndex) {
+                pauseIndex -> pause?.let { listener.onActionSelected(it.itemId) }
+                exitIndex -> exit?.let { listener.onActionSelected(it.itemId) }
+            }
+        }
+    }
     if (pause == null && exit == null) return
     Row(
         modifier =
@@ -1533,6 +1666,7 @@ private fun BottomActions(
                 item = pause,
                 label = pause.title,
                 isExit = false,
+                highlighted = region == 2 && navIndex == pauseIndex,
                 modifier = Modifier.weight(1f),
                 onClick = { listener.onActionSelected(pause.itemId) },
             )
@@ -1542,6 +1676,7 @@ private fun BottomActions(
                 item = exit,
                 label = stringResource(R.string.common_ui_exit),
                 isExit = true,
+                highlighted = region == 2 && navIndex == exitIndex,
                 modifier = Modifier.weight(1f),
                 onClick = { listener.onActionSelected(exit.itemId) },
             )
@@ -1554,6 +1689,7 @@ private fun BottomActionButton(
     item: XServerDrawerItem,
     label: String,
     isExit: Boolean,
+    highlighted: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1564,6 +1700,7 @@ private fun BottomActionButton(
     val bgColor by animateColorAsState(
         targetValue =
             when {
+                highlighted -> DrawerFocusFill
                 isExit && pressed -> TileExitPressed
                 isExit -> TileExitResting
                 pressed -> PaneSurfacePressed
@@ -1593,6 +1730,17 @@ private fun BottomActionButton(
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, borderColor, shape)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,

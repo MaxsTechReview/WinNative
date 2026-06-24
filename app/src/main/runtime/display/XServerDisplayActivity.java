@@ -7201,17 +7201,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (drawerStateHolder != null && (drawerStateHolder.isDrawerOpen() || drawerStateHolder.isPaneOpen())
                 && isControllerMotionEvent(event)) {
             float ax = event.getAxisValue(MotionEvent.AXIS_X);
+            float ay = event.getAxisValue(MotionEvent.AXIS_Y);
             float hx = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+            float hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
             int dir = 0;
-            if (ax < -0.5f || hx < -0.5f) dir = -1;
-            else if (ax > 0.5f || hx > 0.5f) dir = 1;
+            if (ax < -0.5f || hx < -0.5f) dir = 1;
+            else if (ax > 0.5f || hx > 0.5f) dir = 2;
+            else if (ay < -0.5f || hy < -0.5f) dir = 3;
+            else if (ay > 0.5f || hy > 0.5f) dir = 4;
             if (dir == 0) {
                 lastDrawerStickMove = 0L;
             } else if (android.os.SystemClock.uptimeMillis() - lastDrawerStickMove >= 200
                     && !drawerStateHolder.isPaneOpen()) {
                 lastDrawerStickMove = android.os.SystemClock.uptimeMillis();
-                if (dir < 0) drawerStateHolder.menuNavLeft();
-                else drawerStateHolder.menuNavRight();
+                if (dir == 1) drawerStateHolder.menuNavLeft();
+                else if (dir == 2) drawerStateHolder.menuNavRight();
+                else if (dir == 3) drawerStateHolder.menuNavUp();
+                else drawerStateHolder.menuNavDown();
             }
             return true;
         }
@@ -7272,6 +7278,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     drawerStateHolder.menuNavLeft();
                 } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
                     drawerStateHolder.menuNavRight();
+                } else if (kc == KeyEvent.KEYCODE_DPAD_UP) {
+                    drawerStateHolder.menuNavUp();
+                } else if (kc == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    drawerStateHolder.menuNavDown();
                 } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
                     drawerStateHolder.menuActivate();
                 }
