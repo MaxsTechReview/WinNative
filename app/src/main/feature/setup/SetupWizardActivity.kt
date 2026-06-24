@@ -127,6 +127,7 @@ import com.winlator.cmod.runtime.wine.WineInfo
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.android.FixedFontScaleFragmentActivity
 import com.winlator.cmod.shared.ui.widget.chasingBorder
+import androidx.compose.ui.focus.onFocusChanged
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
@@ -2691,6 +2692,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         enabled: Boolean = true,
         progress: Float? = null,
     ) {
+        var buttonFocused by remember { mutableStateOf(false) }
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
         val glassShape = RoundedCornerShape(12.dp)
@@ -2775,12 +2777,33 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     Modifier
                         .fillMaxWidth()
                         .height(32.dp)
-                        .controllerFocusGlow(cornerRadius = 8.dp),
+                        .onFocusChanged { buttonFocused = it.isFocused }
+                        .then(
+                            if (buttonFocused) {
+                                Modifier.chasingBorder(
+                                    cornerRadius = 8.dp,
+                                    borderWidth = 1.5.dp,
+                                    animationDurationMs = 8200,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        ),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = if (completed) completedTurquoise.copy(alpha = 0.16f) else turquoise,
-                        contentColor = if (completed) completedTurquoise else Color(0xFF111822),
+                        containerColor =
+                            when {
+                                completed -> completedTurquoise.copy(alpha = 0.16f)
+                                buttonFocused -> Color(0xFF0E2A38)
+                                else -> turquoise
+                            },
+                        contentColor =
+                            when {
+                                completed -> completedTurquoise
+                                buttonFocused -> Color(0xFFE6EDF3)
+                                else -> Color(0xFF111822)
+                            },
                         disabledContainerColor =
                             when {
                                 completed -> completedTurquoise.copy(alpha = 0.16f)
