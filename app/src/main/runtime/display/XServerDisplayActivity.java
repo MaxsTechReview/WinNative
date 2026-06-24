@@ -6983,13 +6983,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst", rootDir);
-            if (wineInfo != null && wineInfo.isArm64EC() && !GPUInformation.getRenderer(null, null).contains("Mali")) {
-                try {
-                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/zink_dlls.tzst", new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows"));
-                } catch (Exception e) {
-                    Log.w("XServerDisplayActivity", "zink_dlls.tzst not found or extraction failed", e);
-                }
-            }
         }
 
         boolean wantLeegao = "wrapper-leegao".equals(graphicsDriver);
