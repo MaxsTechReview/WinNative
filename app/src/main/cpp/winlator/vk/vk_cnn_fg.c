@@ -280,7 +280,8 @@ static void fg_destroy_cnn_resources(VkRenderer* r) {
         }
     C->featValid[0] = C->featValid[1] = C->featValid[2] = false;
     for (int L = 0; L < CNN_LEVELS; L++) {
-        cnn_free_img(r, &C->feat8_pair[L]); cnn_free_img(r, &C->dpair[L]);
+        cnn_free_img(r, &C->feat8_pair[L]); cnn_free_img(r, &C->gPair8[L]);
+        cnn_free_img(r, &C->gExpIn[L]); cnn_free_img(r, &C->hG23b[L]); cnn_free_img(r, &C->dpair[L]);
         cnn_free_img(r, &C->hG0[L]);  cnn_free_img(r, &C->hG1[L]);
         cnn_free_img(r, &C->hG23[L]); cnn_free_img(r, &C->hG4[L]);
         cnn_free_img(r, &C->hD0[L]);  cnn_free_img(r, &C->hD1[L]);
@@ -334,7 +335,7 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
     #define CNN_W(ID) if (!cnn_make_ssbo(r, ID, wnfg_##ID##_weights, (size_t)wnfg_##ID##_weights_size)) return false
     CNN_W(05); CNN_W(06); CNN_W(07); CNN_W(14); CNN_W(20); CNN_W(21); CNN_W(22);
     CNN_W(24); CNN_W(25); CNN_W(26); CNN_W(27); CNN_W(28); CNN_W(29);
-    CNN_W(36); CNN_W(37); CNN_W(42); CNN_W(51);
+    CNN_W(36); CNN_W(37); CNN_W(42); CNN_W(45); CNN_W(51);
     #undef CNN_W
 
     {
@@ -373,6 +374,9 @@ static bool fg_create_cnn_resources(VkRenderer* r, uint32_t w, uint32_t h) {
         }
     for (int L = 0; L < CNN_LEVELS; L++) {
         if (!cnn_make_img(r, &C->feat8_pair[L], fw[L], fh[L], RGBA8, 4, true)) return false;
+        if (!cnn_make_img(r, &C->gPair8[L], fw[L], fh[L], RGBA8, 2, true)) return false;
+        if (!cnn_make_img(r, &C->gExpIn[L], fw[L], fh[L], RGBA8, 3, true)) return false;
+        if (!cnn_make_img(r, &C->hG23b[L],  fw[L], fh[L], RGBA8, 4, true)) return false;
         if (!cnn_make_img(r, &C->hG0[L],  fw[L], fh[L], RGBA8, 2, true)) return false;
         if (!cnn_make_img(r, &C->hG1[L],  fw[L], fh[L], RGBA8, 2, true)) return false;
         if (!cnn_make_img(r, &C->hG23[L], fw[L], fh[L], RGBA8, 4, true)) return false;
@@ -641,6 +645,51 @@ static void cnn_concat4(VkCommandBuffer cmd, VkCnnImg* lo2, VkCnnImg* hi2, VkCnn
         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 }
 
+// dst2.layer0 = a.layer0, dst2.layer1 = b.layer0 (prev/curr 4ch each -> 8ch wnfg_36 input).
+static void cnn_concat2(VkCommandBuffer cmd, VkCnnImg* a, VkCnnImg* b, VkCnnImg* dst2) {
+    cnn_to_write(cmd, dst2->image, 2);
+    cnn_barrier_ml(cmd, a->image, 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    cnn_barrier_ml(cmd, b->image, 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    cnn_barrier_ml(cmd, dst2->image, 2, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
+    VkImageCopy cp[2]; memset(cp, 0, sizeof(cp));
+    cp[0].srcSubresource=(VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT,0,0,1};
+    cp[0].dstSubresource=(VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT,0,0,1};
+    cp[0].extent=(VkExtent3D){dst2->w, dst2->h, 1};
+    cp[1]=cp[0]; cp[1].dstSubresource.baseArrayLayer=1;   // dst layer1 <- b layer0
+    vkCmdCopyImage(cmd, a->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst2->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cp[0]);
+    vkCmdCopyImage(cmd, b->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst2->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cp[1]);
+    cnn_barrier_ml(cmd, a->image, 2, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
+    cnn_barrier_ml(cmd, b->image, 2, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
+    cnn_barrier_ml(cmd, dst2->image, 2, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+}
+
+// dst3(3 layers) = src2.layer0 ++ src2.layer1 ++ 0  (wnfg_45 input; aux b34 group zeroed for now).
+static void cnn_pad3z(VkCommandBuffer cmd, VkCnnImg* src2, VkCnnImg* dst3) {
+    cnn_to_write(cmd, dst3->image, 3);
+    cnn_barrier_ml(cmd, src2->image, 2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    cnn_barrier_ml(cmd, dst3->image, 3, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
+    VkImageCopy cp; memset(&cp, 0, sizeof(cp));
+    cp.srcSubresource=(VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT,0,0,2};
+    cp.dstSubresource=(VkImageSubresourceLayers){VK_IMAGE_ASPECT_COLOR_BIT,0,0,2};
+    cp.extent=(VkExtent3D){dst3->w, dst3->h, 1};
+    vkCmdCopyImage(cmd, src2->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst3->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cp);
+    VkClearColorValue z; memset(&z, 0, sizeof(z));
+    VkImageSubresourceRange rng = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 2, 1};   // layer 2 only
+    vkCmdClearColorImage(cmd, dst3->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &z, 1, &rng);
+    cnn_barrier_ml(cmd, src2->image, 2, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT);
+    cnn_barrier_ml(cmd, dst3->image, 3, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+}
+
 // Controlled-motion harness: write a shifted/pattern field into dst via rgba8 storeViews.
 static void fg_synth_shift(VkRenderer* r, VkCommandBuffer cmd, VkFgImage* prev, VkFgImage* curr, float shiftX, int pattern) {
     VkPipelineSet* P = &r->pipelines;
@@ -695,23 +744,29 @@ static void cnn_flow_pass(VkRenderer* r, VkCommandBuffer cmd, uint32_t parity,
         VkImageView seedView = (L == CNN_FLOW_LEVELS - 1) ? C->seedBlack.view
                              : ((L+1 <= 2) ? C->flowRef[L+1].view : C->flowMid[L+1].view);
 
-        cnn_concat4(cmd, &fp->feat8[L], &fc->feat8[L], &C->feat8_pair[L]);
+        cnn_concat2(cmd, &fp->feat8[L], &fc->feat8[L], &C->gPair8[L]);   // prev.L0 ++ curr.L0 = 8ch (wnfg_36 wants cinT=2)
 
         cnn_to_write(cmd, C->hG0[L].image, 2);
-        cnn_conv_dispatch(r, cmd, C->feat8_pair[L].view, fc->luma[L].view, C->hG0[L].view, 36, 4, 2, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->gPair8[L].view, fc->luma[L].view, C->hG0[L].view, 36, 2, 2, 0, w, h);
         cnn_to_read(cmd, C->hG0[L].image, 2);
         cnn_to_write(cmd, C->hG1[L].image, 2);
         cnn_conv_dispatch(r, cmd, C->hG0[L].view, fc->luma[L].view, C->hG1[L].view, 37, 2, 2, 0, w, h);
         cnn_to_read(cmd, C->hG1[L].image, 2);
+        // wnfg_45 expansion: hG1 (8ch, +zero aux) -> hG23 (16ch)
+        cnn_pad3z(cmd, &C->hG1[L], &C->gExpIn[L]);
         cnn_to_write(cmd, C->hG23[L].image, 4);
-        cnn_conv_dispatch(r, cmd, C->hG1[L].view, fc->luma[L].view, C->hG23[L].view, 42, 4, 4, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->gExpIn[L].view, fc->luma[L].view, C->hG23[L].view, 45, 3, 4, 0, w, h);
         cnn_to_read(cmd, C->hG23[L].image, 4);
+        // wnfg_42: hG23 (16ch) -> hG23b (16ch)
+        cnn_to_write(cmd, C->hG23b[L].image, 4);
+        cnn_conv_dispatch(r, cmd, C->hG23[L].view, fc->luma[L].view, C->hG23b[L].view, 42, 4, 4, 0, w, h);
+        cnn_to_read(cmd, C->hG23b[L].image, 4);
         cnn_to_write(cmd, C->hG4[L].image, 2);
-        cnn_conv_dispatch(r, cmd, C->hG23[L].view, seedView, C->hG4[L].view, 21, 3, 2, 0, w, h);
+        cnn_conv_dispatch(r, cmd, C->hG23b[L].view, seedView, C->hG4[L].view, 21, 3, 2, 0, w, h);
         cnn_to_read(cmd, C->hG4[L].image, 2);
 
         cnn_to_write(cmd, C->hD0[L].image, 3);
-        { VkImageView in5[5]={C->hG4[L].layerView[0],C->hG4[L].layerView[1],C->hG23[L].layerView[2],C->hG23[L].layerView[3],seedView};
+        { VkImageView in5[5]={fp->feat8[L].layerView[0],fp->feat8[L].layerView[1],fc->feat8[L].layerView[0],fc->feat8[L].layerView[1],seedView};  // REF=prev, SEARCH=curr (separated frames so the correlation tracks motion)
           VkImageView out3[3]={C->hD0[L].layerView[0],C->hD0[L].layerView[1],C->hD0[L].layerView[2]};
           cnn_cost9_dispatch(r, cmd, in5, out3, 14, w, h); }
         cnn_to_read(cmd, C->hD0[L].image, 3);

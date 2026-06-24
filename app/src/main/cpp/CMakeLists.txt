@@ -118,7 +118,7 @@ endforeach()
 
 set(WEIGHTS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/winlator/vk/weights_v2")
 set(BIN2C_BYTES_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/winlator/vk/bin2c_bytes.cmake")
-set(WEIGHTS_LIST 05 06 07 14 20 21 22 24 25 26 27 28 29 36 37 42 51)
+set(WEIGHTS_LIST 05 06 07 14 20 21 22 24 25 26 27 28 29 36 37 42 45 51)
 foreach(id ${WEIGHTS_LIST})
     set(winput "${WEIGHTS_SRC_DIR}/wnfg_${id}.weights.fp16")
     set(whdr   "${SHADER_OUT_DIR}/wnfg_${id}_weights.h")

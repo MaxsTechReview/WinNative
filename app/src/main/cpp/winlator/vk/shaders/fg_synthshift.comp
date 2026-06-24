@@ -16,9 +16,10 @@ void main() {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
     if (any(greaterThanEqual(p, pc.size))) return;
     if (pc.pattern > 0.5) {
-        vec2 q = (vec2(p) - vec2(pc.shiftX, 0.0)) * 0.06;   // ~16px features: medium-freq, trackable
-        float n0 = vnoise(q) * 0.6 + vnoise(q * 2.7) * 0.3 + vnoise(q * 6.1) * 0.1;
-        imageStore(uDst, p, vec4(n0, vnoise(q + 31.7), vnoise(q + 91.3), 1.0));
+        vec2 q = (vec2(p) - vec2(pc.shiftX, 0.0)) * 0.018;  // ~55px features: larger than test shifts, alias-free
+        float n0 = vnoise(q) * 0.6 + vnoise(q * 1.9) * 0.4;
+        float n1 = vnoise(q + 31.7) * 0.6 + vnoise(q * 1.9 + 31.7) * 0.4;
+        imageStore(uDst, p, vec4(n0, n1, vnoise(q + 91.3), 1.0));
     } else {
         vec2 uv = (vec2(p) + 0.5 - vec2(pc.shiftX, 0.0)) / vec2(pc.size);
         imageStore(uDst, p, texture(uSrc, clamp(uv, vec2(0.0), vec2(1.0))));

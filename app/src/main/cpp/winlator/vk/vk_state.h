@@ -273,6 +273,9 @@ typedef struct VkFgCnn {
     VkCnnFeatSet     feat[3];
     bool             featValid[3];
     VkCnnImg feat8_pair[CNN_LEVELS];
+    VkCnnImg gPair8[CNN_LEVELS];   // wnfg_36 input: prev.feat8 L0 ++ curr.feat8 L0 (8ch, cinT=2)
+    VkCnnImg gExpIn[CNN_LEVELS];   // wnfg_45 input: hG1.L0 ++ hG1.L1 ++ 0 (3-layer, cinT=3)
+    VkCnnImg hG23b[CNN_LEVELS];    // wnfg_42 output (16ch) when wnfg_45 expansion is present
     VkCnnImg hG0[CNN_LEVELS], hG1[CNN_LEVELS], hG23[CNN_LEVELS], hG4[CNN_LEVELS];
     VkCnnImg hD0[CNN_LEVELS], hD1[CNN_LEVELS], hD2[CNN_LEVELS], hD3[CNN_LEVELS];
     VkCnnImg hD5[CNN_LEVELS], hD6[CNN_LEVELS], hD7[CNN_LEVELS], hD8[CNN_LEVELS];

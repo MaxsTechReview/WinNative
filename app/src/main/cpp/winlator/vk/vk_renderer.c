@@ -73,6 +73,7 @@
 #include "shaders/wnfg_36_weights.h"
 #include "shaders/wnfg_37_weights.h"
 #include "shaders/wnfg_42_weights.h"
+#include "shaders/wnfg_45_weights.h"
 #include "shaders/wnfg_51_weights.h"
 
 static uint64_t now_monotonic_ns(void) {
@@ -2514,7 +2515,7 @@ static bool fg_create_motion(VkRenderer* r, VkFgImage* o, uint32_t w, uint32_t h
     ic.mipLevels = 1; ic.arrayLayers = 1;
     ic.samples = VK_SAMPLE_COUNT_1_BIT;
     ic.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ic.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ic.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;  // TRANSFER_SRC so the flow can be dumped
     ic.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ic.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     if (vkCreateImage(r->device, &ic, NULL, &o->image) != VK_SUCCESS) return false;
@@ -2722,8 +2723,8 @@ static void fg_record_dump(VkRenderer* r, VkCommandBuffer cmd, VkImage srcImg, V
     if (!r->fg_dump_supported || bufIdx >= FG_DUMP_BUFS) return;
     vkr_image_barrier(cmd, srcImg,
         srcLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
     if (rawF16) {
         uint32_t cw = srcW < 512u ? srcW : 512u, chh = srcH < 512u ? srcH : 512u;
         VkBufferImageCopy rcp = {0};
@@ -3539,7 +3540,7 @@ static FgPending fg_worker_generate(VkRenderer* r, const FgJob* job) {
                 VK_LOGI("fgseq[%u] GENERATED (phase=%.3f prev=%u curr=%u)", r->fg_dump_count, job->phase, prev_idx, curr_idx);
                 r->fg_dump_count++;
             }
-            if (synDump && r->fg_dump_count < FG_DUMP_N) {   // harness: raw F16 flow field to test recovery of the known shift
+            if (synDump && r->fg_dump_count < FG_DUMP_N) {   // harness: raw F16 flow field
                 fg_record_dump(r, f->cmd, r->fg_motion[parity].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, r->fg_motion[parity].width, r->fg_motion[parity].height, r->fg_dump_count, 1);
                 VK_LOGI("fgseq[%u] FLOW (flowres=%ux%u)", r->fg_dump_count, r->fg_motion[parity].width, r->fg_motion[parity].height);
                 r->fg_dump_count++;
