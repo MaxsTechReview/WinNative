@@ -1204,9 +1204,13 @@ private fun TopRail(
 
     val tabCount = activeSpecs.size + 1
     LaunchedEffect(tabCount) { onSetNavCount(tabCount) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
     LaunchedEffect(activateSignal) {
-        if (activateSignal > 0 && region == 0) {
-            if (navIndex <= 0) onMenuClick() else activeSpecs.getOrNull(navIndex - 1)?.let { onTabClick(it) }
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 0) {
+                if (navIndex <= 0) onMenuClick() else activeSpecs.getOrNull(navIndex - 1)?.let { onTabClick(it) }
+            }
         }
     }
 
@@ -1456,8 +1460,12 @@ private fun ActionCardGrid(
     }
 
     LaunchedEffect(cards.size) { onSetCardLayout(cards.size, ActionCardColumns) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
     LaunchedEffect(activateSignal) {
-        if (activateSignal > 0 && region == 1) cards.getOrNull(navIndex)?.let { cardClick(it) }
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 1) cards.getOrNull(navIndex)?.let { cardClick(it) }
+        }
     }
 
     val verticalPadding = (10f * paneScale).dp
@@ -1661,11 +1669,15 @@ private fun BottomActions(
     val exitIndex = if (exit != null) (if (pause != null) 1 else 0) else -1
     val count = (if (pause != null) 1 else 0) + (if (exit != null) 1 else 0)
     LaunchedEffect(count) { onSetCount(count) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
     LaunchedEffect(activateSignal) {
-        if (activateSignal > 0 && region == 2) {
-            when (navIndex) {
-                pauseIndex -> pause?.let { listener.onActionSelected(it.itemId) }
-                exitIndex -> exit?.let { listener.onActionSelected(it.itemId) }
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 2) {
+                when (navIndex) {
+                    pauseIndex -> pause?.let { listener.onActionSelected(it.itemId) }
+                    exitIndex -> exit?.let { listener.onActionSelected(it.itemId) }
+                }
             }
         }
     }
