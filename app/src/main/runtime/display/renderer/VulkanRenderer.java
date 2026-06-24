@@ -416,10 +416,16 @@ public class VulkanRenderer
                 if (textureSrc != drawable) {
                     float invW = 1.0f / Math.max(1, textureSrc.width);
                     float invH = 1.0f / Math.max(1, textureSrc.height);
+                    int spanW = drawable.hasPresentedSourceSize()
+                            ? Short.toUnsignedInt(drawable.getPresentedSourceWidth())
+                            : drawable.width;
+                    int spanH = drawable.hasPresentedSourceSize()
+                            ? Short.toUnsignedInt(drawable.getPresentedSourceHeight())
+                            : drawable.height;
                     buf.putFloat(uvOff,      -scanoutX * invW);
                     buf.putFloat(uvOff + 4,  -scanoutY * invH);
-                    buf.putFloat(uvOff + 8,  (drawable.width - scanoutX) * invW);
-                    buf.putFloat(uvOff + 12, (drawable.height - scanoutY) * invH);
+                    buf.putFloat(uvOff + 8,  (spanW - scanoutX) * invW);
+                    buf.putFloat(uvOff + 12, (spanH - scanoutY) * invH);
                 } else {
                     buf.putFloat(uvOff,      0.0f);
                     buf.putFloat(uvOff + 4,  0.0f);
