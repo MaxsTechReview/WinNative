@@ -2191,11 +2191,19 @@ private fun HUDPaneContent(
                     onCheckedChange = listener::onFrametimeNumericChanged,
                 )
 
-                FPSLimiterCard(
-                    currentLimit = state.fpsLimit,
-                    maxRefreshRate = state.maxRefreshRate,
-                    onLimitChanged = listener::onFPSLimitChanged,
-                )
+                Box(
+                    Modifier.fillMaxWidth().paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else state.maxRefreshRate) },
+                        onAdjust = { dir -> if (state.fpsLimit > 0) listener.onFPSLimitChanged((state.fpsLimit + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
+                    ),
+                ) {
+                    FPSLimiterCard(
+                        currentLimit = state.fpsLimit,
+                        maxRefreshRate = state.maxRefreshRate,
+                        onLimitChanged = listener::onFPSLimitChanged,
+                    )
+                }
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
@@ -2205,6 +2213,10 @@ private fun HUDPaneContent(
                                 label = elementNames[index],
                                 checked = state.hudElements[index],
                                 onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
+                                modifier = Modifier.paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
+                                ),
                             )
                         }
                     }
@@ -2369,7 +2381,10 @@ private fun GyroscopePaneContent(
                                 label = label,
                                 checked = state.gyroscopeModeIndex == index,
                                 onClick = { listener.onGyroscopeModeSelected(index) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onGyroscopeModeSelected(index) },
+                                ),
                             )
                         }
                     }
@@ -2383,10 +2398,12 @@ private fun GyroscopePaneContent(
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))
-                    GyroscopeActivatorDropdown(
-                        currentLabel = state.gyroscopeActivatorLabel,
-                        onSelected = listener::onGyroscopeActivatorSelected,
-                    )
+                    Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (14f * paneScale).dp)) {
+                        GyroscopeActivatorDropdown(
+                            currentLabel = state.gyroscopeActivatorLabel,
+                            onSelected = listener::onGyroscopeActivatorSelected,
+                        )
+                    }
                 }
 
                 NavBooleanRow(
@@ -2461,23 +2478,30 @@ private fun GyroscopePaneContent(
                             label = stringResource(R.string.session_gyroscope_invert_x),
                             checked = state.invertGyroX,
                             onClick = { listener.onInvertGyroXChanged(!state.invertGyroX) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(cornerRadius = (16f * paneScale).dp, onActivate = { listener.onInvertGyroXChanged(!state.invertGyroX) }),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_gyroscope_invert_y),
                             checked = state.invertGyroY,
                             onClick = { listener.onInvertGyroYChanged(!state.invertGyroY) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(cornerRadius = (16f * paneScale).dp, onActivate = { listener.onInvertGyroYChanged(!state.invertGyroY) }),
                         )
                     }
 
-                    WinNativeDialogButton(
-                        label = stringResource(R.string.session_gyroscope_reset_stick),
-                        textColor = DrawerAccent,
-                        backgroundColor = DrawerAccent.copy(alpha = 0.12f),
-                        borderColor = DrawerAccent.copy(alpha = 0.3f),
-                        onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
-                    )
+                    Box(
+                        Modifier.fillMaxWidth().paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
+                        ),
+                    ) {
+                        WinNativeDialogButton(
+                            label = stringResource(R.string.session_gyroscope_reset_stick),
+                            textColor = DrawerAccent,
+                            backgroundColor = DrawerAccent.copy(alpha = 0.12f),
+                            borderColor = DrawerAccent.copy(alpha = 0.3f),
+                            onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
+                        )
+                    }
                 }
             }
             }
@@ -2510,33 +2534,70 @@ private fun InputControlsPaneContent(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.input_controls_editor_select_profile))
-                    InputControlsProfileSelector(
-                        profileNames = state.inputControlsProfileNames,
-                        selectedIndex = state.inputControlsSelectedProfileIndex,
-                        onProfileSelected = listener::onInputControlsProfileSelected,
-                        onEditClick = listener::onInputControlsEditClick,
-                    )
+                    Box(
+                        Modifier.fillMaxWidth().paneNavItem(
+                            cornerRadius = (14f * paneScale).dp,
+                            onActivate = { listener.onInputControlsEditClick() },
+                            onAdjust = { dir ->
+                                val names = state.inputControlsProfileNames
+                                if (names.isNotEmpty()) {
+                                    listener.onInputControlsProfileSelected(((state.inputControlsSelectedProfileIndex + dir) % names.size + names.size) % names.size)
+                                }
+                            },
+                        ),
+                    ) {
+                        InputControlsProfileSelector(
+                            profileNames = state.inputControlsProfileNames,
+                            selectedIndex = state.inputControlsSelectedProfileIndex,
+                            onProfileSelected = listener::onInputControlsProfileSelected,
+                            onEditClick = listener::onInputControlsEditClick,
+                        )
+                    }
                 }
 
                 if (state.inputControlsStyleNames.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                         PaneSectionLabel(stringResource(R.string.input_controls_select_style))
-                        InputControlsSimpleDropdown(
-                            options = state.inputControlsStyleNames,
-                            selectedIndex = state.inputControlsSelectedStyleIndex,
-                            onSelected = listener::onInputControlsStyleSelected,
-                        )
+                        Box(
+                            Modifier.fillMaxWidth().paneNavItem(
+                                cornerRadius = (14f * paneScale).dp,
+                                onAdjust = { dir ->
+                                    val opts = state.inputControlsStyleNames
+                                    if (opts.isNotEmpty()) {
+                                        listener.onInputControlsStyleSelected(((state.inputControlsSelectedStyleIndex + dir) % opts.size + opts.size) % opts.size)
+                                    }
+                                },
+                            ),
+                        ) {
+                            InputControlsSimpleDropdown(
+                                options = state.inputControlsStyleNames,
+                                selectedIndex = state.inputControlsSelectedStyleIndex,
+                                onSelected = listener::onInputControlsStyleSelected,
+                            )
+                        }
                     }
                 }
 
                 if (state.inputControlsLabelThemeNames.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                         PaneSectionLabel(stringResource(R.string.input_controls_select_label_theme))
-                        InputControlsSimpleDropdown(
-                            options = state.inputControlsLabelThemeNames,
-                            selectedIndex = state.inputControlsSelectedLabelThemeIndex,
-                            onSelected = listener::onInputControlsLabelThemeSelected,
-                        )
+                        Box(
+                            Modifier.fillMaxWidth().paneNavItem(
+                                cornerRadius = (14f * paneScale).dp,
+                                onAdjust = { dir ->
+                                    val opts = state.inputControlsLabelThemeNames
+                                    if (opts.isNotEmpty()) {
+                                        listener.onInputControlsLabelThemeSelected(((state.inputControlsSelectedLabelThemeIndex + dir) % opts.size + opts.size) % opts.size)
+                                    }
+                                },
+                            ),
+                        ) {
+                            InputControlsSimpleDropdown(
+                                options = state.inputControlsLabelThemeNames,
+                                selectedIndex = state.inputControlsSelectedLabelThemeIndex,
+                                onSelected = listener::onInputControlsLabelThemeSelected,
+                            )
+                        }
                     }
                 }
 
@@ -2619,13 +2680,19 @@ private fun InputControlsPaneContent(
                                 label = "Known",
                                 checked = state.inputControlsGcmRumbleMode == "known",
                                 onClick = { listener.onInputControlsGcmRumbleModeChanged("known") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onInputControlsGcmRumbleModeChanged("known") },
+                                ),
                             )
                             HUDToggleChip(
                                 label = "All (experimental)",
                                 checked = state.inputControlsGcmRumbleMode == "all",
                                 onClick = { listener.onInputControlsGcmRumbleModeChanged("all") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onInputControlsGcmRumbleModeChanged("all") },
+                                ),
                             )
                         }
                         Text(
@@ -2943,6 +3010,7 @@ private fun ExpandableSection(
                     .clip(headerShape)
                     .background(headerBg)
                     .border(1.dp, headerBorder, headerShape)
+                    .paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = onToggle)
                     .clickable(
                         interactionSource = headerInteractionSource,
                         indication = null,
@@ -3049,6 +3117,10 @@ private fun ScreenEffectsPaneContent(
                                 label = label,
                                 checked = state.colorProfile == id,
                                 onClick = { listener.onColorProfileSelected(id) },
+                                modifier = Modifier.paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onColorProfileSelected(id) },
+                                ),
                             )
                         }
                     }
@@ -3175,10 +3247,17 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onTintChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerResetRow(
-                        label = stringResource(R.string.session_drawer_reset_effects),
-                        onClick = listener::onResetEffects,
-                    )
+                    Box(
+                        Modifier.fillMaxWidth().paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onResetEffects() },
+                        ),
+                    ) {
+                        DrawerResetRow(
+                            label = stringResource(R.string.session_drawer_reset_effects),
+                            onClick = listener::onResetEffects,
+                        )
+                    }
                 }
 
                 ThinDivider()
@@ -3191,19 +3270,28 @@ private fun ScreenEffectsPaneContent(
                             label = stringResource(R.string.session_drawer_color_blind_protan),
                             checked = state.colorBlind == 1,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 1) 0 else 1) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 1) 0 else 1) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_color_blind_deutan),
                             checked = state.colorBlind == 2,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 2) 0 else 2) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 2) 0 else 2) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_color_blind_tritan),
                             checked = state.colorBlind == 3,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 3) 0 else 3) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 3) 0 else 3) },
+                            ),
                         )
                     }
                 }
@@ -3494,6 +3582,7 @@ private fun LogsPaneActionTile(
             Modifier
                 .size((38f * paneScale).dp)
                 .clip(CircleShape)
+                .paneNavItem(cornerRadius = (19f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -3668,6 +3757,7 @@ private fun TaskManagerCloseButton(onClick: () -> Unit) {
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, RestingCardBorder, shape)
+                .paneNavItem(cornerRadius = (10f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -3834,6 +3924,7 @@ private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, RestingCardBorder, shape)
+                .paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -4511,6 +4602,11 @@ private fun TaskManagerProcessCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .paneNavItem(
+                            cornerRadius = (8f * paneScale).dp,
+                            onActivate = onToggleAffinity,
+                            onAdjust = { dir -> if (dir > 0) onBringToFront() },
+                        )
                         .combinedClickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -4544,7 +4640,11 @@ private fun TaskManagerProcessCard(
                     modifier = Modifier.width((78f * paneScale).dp),
                 )
                 Spacer(modifier = Modifier.width((10f * paneScale).dp))
-                TaskManagerEndButton(onClick = onEndProcess)
+                Box(
+                    Modifier.paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onEndProcess),
+                ) {
+                    TaskManagerEndButton(onClick = onEndProcess)
+                }
             }
 
             TaskManagerActionPopup(
