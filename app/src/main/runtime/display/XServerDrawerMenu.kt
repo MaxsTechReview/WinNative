@@ -105,6 +105,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -205,34 +206,108 @@ private val GlassExitTint = Color(0xFFE07B6B)
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
 
+private const val PANE_DIR_LEFT = 1
+private const val PANE_DIR_RIGHT = 2
+private const val PANE_DIR_UP = 3
+private const val PANE_DIR_DOWN = 4
+private const val PANE_DIR_ACTIVATE = 5
+private const val PANE_DIR_SECONDARY = 6
+private const val PANE_ROW_Y_THRESHOLD = 24f
+
+private class PaneNavEntry(
+    var x: Float,
+    var y: Float,
+    var onActivate: () -> Unit,
+    var onAdjust: (Int) -> Unit,
+    var onSecondary: () -> Unit,
+)
+
 @Stable
 private class PaneNavRegistry {
-    private val positions = mutableStateMapOf<Int, Float>()
+    private val items = mutableStateMapOf<Int, PaneNavEntry>()
     private var slotCounter = 0
-    var activeIndex by mutableStateOf(0)
-    var activateSignal by mutableStateOf(0)
-    var adjustSignal by mutableStateOf(0)
-    var adjustDir by mutableStateOf(0)
+    private var lastSignal = -1
     var controllerActive by mutableStateOf(false)
-    var ordered by mutableStateOf<List<Int>>(emptyList())
+    var activeRow by mutableStateOf(0)
+        private set
+    var activeCol by mutableStateOf(0)
         private set
 
     fun nextSlot(): Int = slotCounter++
 
-    fun report(slot: Int, y: Float) {
-        if (positions[slot] != y) {
-            positions[slot] = y
-            ordered = positions.entries.sortedBy { it.value }.map { it.key }
+    fun reportCallbacks(slot: Int, onActivate: () -> Unit, onAdjust: (Int) -> Unit, onSecondary: () -> Unit) {
+        val e = items[slot]
+        if (e == null) {
+            items[slot] = PaneNavEntry(0f, 0f, onActivate, onAdjust, onSecondary)
+        } else {
+            e.onActivate = onActivate
+            e.onAdjust = onAdjust
+            e.onSecondary = onSecondary
         }
     }
 
-    fun unregister(slot: Int) {
-        if (positions.remove(slot) != null) {
-            ordered = positions.entries.sortedBy { it.value }.map { it.key }
+    fun reportPosition(slot: Int, x: Float, y: Float) {
+        val e = items[slot] ?: return
+        if (e.x != x || e.y != y) {
+            items[slot] = PaneNavEntry(x, y, e.onActivate, e.onAdjust, e.onSecondary)
         }
     }
 
-    fun orderOf(slot: Int): Int = ordered.indexOf(slot)
+    fun unregister(slot: Int) { items.remove(slot) }
+
+    val rows: List<List<Int>>
+        get() {
+            val sorted = items.entries.sortedWith(compareBy({ it.value.y }, { it.value.x }))
+            val result = mutableListOf<MutableList<Int>>()
+            var prevY = Float.NaN
+            for (entry in sorted) {
+                val y = entry.value.y
+                if (result.isEmpty() || kotlin.math.abs(y - prevY) > PANE_ROW_Y_THRESHOLD) {
+                    result.add(mutableListOf(entry.key))
+                } else {
+                    result.last().add(entry.key)
+                }
+                prevY = y
+            }
+            return result
+        }
+
+    fun isActive(slot: Int): Boolean {
+        if (!controllerActive) return false
+        val r = rows
+        if (r.isEmpty()) return false
+        val row = r[activeRow.coerceIn(0, r.size - 1)]
+        return row[activeCol.coerceIn(0, row.size - 1)] == slot
+    }
+
+    fun processNav(signal: Int, dir: Int) {
+        if (lastSignal == -1) {
+            lastSignal = signal
+            return
+        }
+        if (signal == lastSignal) return
+        lastSignal = signal
+        handleNav(dir)
+    }
+
+    private fun handleNav(dir: Int) {
+        val r = rows
+        if (r.isEmpty()) return
+        var row = activeRow.coerceIn(0, r.size - 1)
+        var col = activeCol.coerceIn(0, r[row].size - 1)
+        when (dir) {
+            PANE_DIR_UP -> if (row > 0) { row--; col = col.coerceAtMost(r[row].size - 1) }
+            PANE_DIR_DOWN -> if (row < r.size - 1) { row++; col = col.coerceAtMost(r[row].size - 1) }
+            PANE_DIR_LEFT ->
+                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(-1) else if (col > 0) col--
+            PANE_DIR_RIGHT ->
+                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(1) else if (col < r[row].size - 1) col++
+            PANE_DIR_ACTIVATE -> items[r[row][col]]?.onActivate?.invoke()
+            PANE_DIR_SECONDARY -> items[r[row][col]]?.onSecondary?.invoke()
+        }
+        activeRow = row
+        activeCol = col
+    }
 }
 
 private val LocalPaneNav = staticCompositionLocalOf<PaneNavRegistry?> { null }
@@ -259,33 +334,22 @@ private fun Modifier.paneNavItem(
     cornerRadius: Dp = 10.dp,
     onActivate: () -> Unit = {},
     onAdjust: (Int) -> Unit = {},
+    onSecondary: () -> Unit = {},
 ): Modifier {
     val nav = LocalPaneNav.current ?: return this
     val slot = remember { nav.nextSlot() }
     DisposableEffect(slot) { onDispose { nav.unregister(slot) } }
-    val order = nav.orderOf(slot)
-    val highlighted = nav.controllerActive && order >= 0 && order == nav.activeIndex
+    SideEffect { nav.reportCallbacks(slot, onActivate, onAdjust, onSecondary) }
+    val highlighted = nav.isActive(slot)
 
     val bring = remember { BringIntoViewRequester() }
     LaunchedEffect(highlighted) { if (highlighted) runCatching { bring.bringIntoView() } }
 
-    var lastActivate by remember { mutableStateOf(nav.activateSignal) }
-    LaunchedEffect(nav.activateSignal) {
-        if (nav.activateSignal != lastActivate) {
-            lastActivate = nav.activateSignal
-            if (highlighted) onActivate()
-        }
-    }
-    var lastAdjust by remember { mutableStateOf(nav.adjustSignal) }
-    LaunchedEffect(nav.adjustSignal) {
-        if (nav.adjustSignal != lastAdjust) {
-            lastAdjust = nav.adjustSignal
-            if (highlighted) onAdjust(nav.adjustDir)
-        }
-    }
-
     return this
-        .onGloballyPositioned { nav.report(slot, it.positionInWindow().y) }
+        .onGloballyPositioned {
+            val p = it.positionInWindow()
+            nav.reportPosition(slot, p.x, p.y)
+        }
         .bringIntoViewRequester(bring)
         .paneHighlight(highlighted, cornerRadius)
 }
@@ -566,15 +630,10 @@ class XServerDrawerStateHolder(
     private var cardCount = 0
     private var cardColumns = 3
     private var bottomCount = 0
-    var paneNavIndex by mutableStateOf(0)
+    var paneNavSignal by mutableStateOf(0)
         private set
-    var paneActivateSignal by mutableStateOf(0)
+    var paneNavDir by mutableStateOf(0)
         private set
-    var paneAdjustSignal by mutableStateOf(0)
-        private set
-    var paneAdjustDir by mutableStateOf(0)
-        private set
-    private var paneNavCount = 0
     var controllerConnected by mutableStateOf(false)
         private set
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
@@ -681,23 +740,24 @@ class XServerDrawerStateHolder(
         clampNav()
     }
 
-    fun paneNavUp() { if (paneNavIndex > 0) paneNavIndex-- }
-
-    fun paneNavDown() { if (paneNavIndex < paneNavCount - 1) paneNavIndex++ }
-
-    fun paneActivate() { paneActivateSignal++ }
-
-    fun paneAdjust(dir: Int) {
-        paneAdjustDir = dir
-        paneAdjustSignal++
+    private fun paneNav(dir: Int) {
+        paneNavDir = dir
+        paneNavSignal++
     }
 
-    fun updatePaneNavCount(n: Int) {
-        paneNavCount = n
-        if (paneNavIndex >= n) paneNavIndex = (n - 1).coerceAtLeast(0)
-    }
+    fun paneNavLeft() = paneNav(PANE_DIR_LEFT)
 
-    fun resetPaneNav() { paneNavIndex = 0 }
+    fun paneNavRight() = paneNav(PANE_DIR_RIGHT)
+
+    fun paneNavUp() = paneNav(PANE_DIR_UP)
+
+    fun paneNavDown() = paneNav(PANE_DIR_DOWN)
+
+    fun paneActivate() = paneNav(PANE_DIR_ACTIVATE)
+
+    fun paneSecondary() = paneNav(PANE_DIR_SECONDARY)
+
+    fun resetPaneNav() {}
 
     fun updateControllerConnected(connected: Boolean) { controllerConnected = connected }
 
@@ -1237,11 +1297,8 @@ internal fun XServerDrawerContent(
     onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
     onSetBottomCount: (Int) -> Unit = {},
     onCursor: (Int, Int) -> Unit = { _, _ -> },
-    paneNavIndex: Int = 0,
-    paneActivateSignal: Int = 0,
-    paneAdjustSignal: Int = 0,
-    paneAdjustDir: Int = 0,
-    onSetPaneNavCount: (Int) -> Unit = {},
+    paneNavSignal: Int = 0,
+    paneNavDir: Int = 0,
     controllerActive: Boolean = false,
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
@@ -1253,13 +1310,9 @@ internal fun XServerDrawerContent(
     LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
 
     val paneNav = remember(openPane) { PaneNavRegistry() }
-    paneNav.activeIndex = paneNavIndex
-    paneNav.activateSignal = paneActivateSignal
-    paneNav.adjustSignal = paneAdjustSignal
-    paneNav.adjustDir = paneAdjustDir
     paneNav.controllerActive = controllerActive
-    LaunchedEffect(openPane, paneNav.ordered.size) {
-        if (openPane != null) onSetPaneNavCount(paneNav.ordered.size)
+    LaunchedEffect(paneNav, paneNavSignal) {
+        paneNav.processNav(paneNavSignal, paneNavDir)
     }
 
     Surface(
@@ -4045,6 +4098,7 @@ private fun TaskManagerAffinityChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(bgColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -4605,7 +4659,7 @@ private fun TaskManagerProcessCard(
                         .paneNavItem(
                             cornerRadius = (8f * paneScale).dp,
                             onActivate = onToggleAffinity,
-                            onAdjust = { dir -> if (dir > 0) onBringToFront() },
+                            onSecondary = onBringToFront,
                         )
                         .combinedClickable(
                             interactionSource = interactionSource,

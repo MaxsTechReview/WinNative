@@ -7235,8 +7235,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     else if (dir == 3) drawerStateHolder.menuNavUp();
                     else drawerStateHolder.menuNavDown();
                 } else {
-                    if (dir == 1) drawerStateHolder.paneAdjust(-1);
-                    else if (dir == 2) drawerStateHolder.paneAdjust(1);
+                    if (dir == 1) drawerStateHolder.paneNavLeft();
+                    else if (dir == 2) drawerStateHolder.paneNavRight();
                     else if (dir == 3) drawerStateHolder.paneNavUp();
                     else drawerStateHolder.paneNavDown();
                 }
@@ -7315,11 +7315,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     } else if (kc == KeyEvent.KEYCODE_DPAD_DOWN) {
                         drawerStateHolder.paneNavDown();
                     } else if (kc == KeyEvent.KEYCODE_DPAD_LEFT) {
-                        drawerStateHolder.paneAdjust(-1);
+                        drawerStateHolder.paneNavLeft();
                     } else if (kc == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                        drawerStateHolder.paneAdjust(1);
+                        drawerStateHolder.paneNavRight();
                     } else if (kc == KeyEvent.KEYCODE_BUTTON_A || kc == KeyEvent.KEYCODE_DPAD_CENTER) {
                         drawerStateHolder.paneActivate();
+                    } else if (kc == KeyEvent.KEYCODE_BUTTON_X) {
+                        drawerStateHolder.paneSecondary();
                     }
                 }
             }
