@@ -3550,10 +3550,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
-        if (container != null) {
-            resetWnLauncherLog(new File(container.getRootDir(), ".wine/drive_c/wn-launcher.log"));
-        }
-
         if (!bionicSteam) return;
 
         try {

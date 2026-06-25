@@ -50,9 +50,11 @@ object LogManager {
 
     @JvmStatic
     fun prepareForNewSession(context: Context) {
+        stopAppLogging()
         val logsDir = getLogsDir(context)
         logsDir.listFiles()?.filter { it.name.endsWith(".old.log") }?.forEach { it.delete() }
         logsDir.listFiles()?.filter { it.name.endsWith(".log") }?.forEach { it.delete() }
+        startAppLogging(context)
     }
 
     // ── Wine/Box64 Logcat Capture ────────────────────────────────────
