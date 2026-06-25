@@ -402,6 +402,7 @@ private fun NavSliderRow(
     onValueChange: (Float) -> Unit,
     onValueClick: (() -> Unit)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
+    adjustStep: Float? = null,
 ) {
     val paneScale = LocalPaneScale.current
     Box(
@@ -409,9 +410,16 @@ private fun NavSliderRow(
             cornerRadius = (12f * paneScale).dp,
             onActivate = { onValueClick?.invoke() },
             onAdjust = { dir ->
-                val divisions = if (steps > 0) steps + 1 else 20
-                val step = (valueRange.endInclusive - valueRange.start) / divisions
-                onValueChange((value + dir * step).coerceIn(valueRange.start, valueRange.endInclusive))
+                val next =
+                    if (adjustStep != null) {
+                        val q = (value / adjustStep).toDouble()
+                        val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
+                        (units * adjustStep).toFloat()
+                    } else {
+                        val divisions = if (steps > 0) steps + 1 else 20
+                        value + dir * (valueRange.endInclusive - valueRange.start) / divisions
+                    }
+                onValueChange(next.coerceIn(valueRange.start, valueRange.endInclusive))
                 onValueChangeFinished?.invoke()
             },
         ),
@@ -2227,12 +2235,13 @@ private fun HUDPaneContent(
 
                 NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_scale),
-                    valueText = "${(state.hudScale * 100).toInt()}%",
+                    valueText = "${Math.round(state.hudScale * 100)}%",
                     value = state.hudScale,
                     valueRange = 0.3f..2.0f,
-                    steps = 16,
+                    steps = 33,
                     onValueClick = { activeEditor = HUDMetricEditor.SCALE },
-                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
+                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.05f, 0.3f, 2.0f)) },
+                    adjustStep = 0.05f,
                 )
 
                 NavBooleanRow(
@@ -2650,6 +2659,7 @@ private fun InputControlsPaneContent(
                     valueRange = 10f..300f,
                     steps = 0,
                     onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
+                    adjustStep = 5f,
                 )
 
                 val rsMapMode = state.screenTouchMode == 2
@@ -2661,6 +2671,7 @@ private fun InputControlsPaneContent(
                     valueRange = (if (rsMapMode) 25f else 10f)..200f,
                     steps = 0,
                     onValueChange = { listener.onRightStickSensitivityChanged(it / 100f) },
+                    adjustStep = 5f,
                 )
 
                 LaunchedEffect(gcmEnabled) {
