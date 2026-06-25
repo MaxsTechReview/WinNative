@@ -122,6 +122,8 @@ private fun XServerDisplayHost(
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
+    val drawerContentComposed = stateHolder.isDrawerOpen ||
+        (drawerWidthPx > 0f && drawerOffsetPx > drawerClosedOffset + 1f)
     val dialogVisible = false
 
     DisposableEffect(stateHolder) {
@@ -314,30 +316,30 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                // Keep the drawer content composed at all times. When closed the sheet
-                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
-                // but the composition stays warm — opening becomes a cheap slide instead
-                // of rebuilding the whole tree on the first animation frame.
-                XServerDrawerContent(
-                    state = stateHolder.state,
-                    taskManagerState = stateHolder.taskManagerState,
-                    logsState = stateHolder.logsState,
-                    openPane = stateHolder.openPane,
-                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                    listener = listener,
-                    onDismiss = { stateHolder.closeDrawer() },
-                    revealCards = drawerEngaged,
-                    menuNavRegion = stateHolder.menuNavRegion,
-                    menuNavIndex = stateHolder.menuNavIndex,
-                    menuActivateSignal = stateHolder.menuActivateSignal,
-                    onSetTabCount = { stateHolder.setMenuTabCount(it) },
-                    onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
-                    onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
-                    onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
-                    paneNavSignal = stateHolder.paneNavSignal,
-                    paneNavDir = stateHolder.paneNavDir,
-                    controllerActive = stateHolder.controllerConnected,
-                )
+                // Compose the heavy drawer tree only while open or sliding; a settled-closed
+                // drawer is disposed so it can't contend with the game surface on the shared view.
+                if (drawerContentComposed) {
+                    XServerDrawerContent(
+                        state = stateHolder.state,
+                        taskManagerState = stateHolder.taskManagerState,
+                        logsState = stateHolder.logsState,
+                        openPane = stateHolder.openPane,
+                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                        listener = listener,
+                        onDismiss = { stateHolder.closeDrawer() },
+                        revealCards = drawerEngaged,
+                        menuNavRegion = stateHolder.menuNavRegion,
+                        menuNavIndex = stateHolder.menuNavIndex,
+                        menuActivateSignal = stateHolder.menuActivateSignal,
+                        onSetTabCount = { stateHolder.setMenuTabCount(it) },
+                        onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
+                        onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
+                        onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
+                        paneNavSignal = stateHolder.paneNavSignal,
+                        paneNavDir = stateHolder.paneNavDir,
+                        controllerActive = stateHolder.controllerConnected,
+                    )
+                }
             }
         }
     }
