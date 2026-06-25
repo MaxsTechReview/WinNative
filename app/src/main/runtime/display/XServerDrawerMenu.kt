@@ -290,6 +290,78 @@ private fun Modifier.paneNavItem(
         .paneHighlight(highlighted, cornerRadius)
 }
 
+@Composable
+private fun NavBooleanRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onCheckedChange(!checked) },
+        ),
+    ) {
+        DrawerBooleanRow(title = title, checked = checked, onCheckedChange = onCheckedChange, subtitle = subtitle)
+    }
+}
+
+@Composable
+private fun NavEnableRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onCheckedChange(!checked) },
+        ),
+    ) {
+        PaneEnableRow(title = title, checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun NavSliderRow(
+    label: String,
+    valueText: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    onValueClick: (() -> Unit)? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onValueClick?.invoke() },
+            onAdjust = { dir ->
+                val divisions = if (steps > 0) steps + 1 else 20
+                val step = (valueRange.endInclusive - valueRange.start) / divisions
+                onValueChange((value + dir * step).coerceIn(valueRange.start, valueRange.endInclusive))
+                onValueChangeFinished?.invoke()
+            },
+        ),
+    ) {
+        DrawerSliderRow(
+            label = label,
+            valueText = valueText,
+            value = value,
+            valueRange = valueRange,
+            steps = steps,
+            onValueChange = onValueChange,
+            onValueClick = onValueClick,
+            onValueChangeFinished = onValueChangeFinished,
+        )
+    }
+}
+
 private const val PaneScaleMin = 0.78f
 private const val ControlsPaneScaleMin = 0.62f
 private const val PaneScaleReferenceHeightDp = 520f
@@ -2068,14 +2140,14 @@ private fun HUDPaneContent(
                         .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
-            PaneEnableRow(
+            NavEnableRow(
                 title = stringResource(R.string.session_drawer_fps_monitor),
                 checked = active,
                 onCheckedChange = { listener.onActionSelected(R.id.main_menu_fps_monitor) },
             )
 
             if (active) {
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_alpha),
                     valueText = "${(state.hudTransparency * 100).toInt()}%",
                     value = state.hudTransparency,
@@ -2086,7 +2158,7 @@ private fun HUDPaneContent(
                 )
 
                 if (state.hudBackgroundAlphaEnabled) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_hud_background),
                         valueText = "${(state.hudBackgroundTransparency * 100).toInt()}%",
                         value = state.hudBackgroundTransparency,
@@ -2097,7 +2169,7 @@ private fun HUDPaneContent(
                     )
                 }
 
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_scale),
                     valueText = "${(state.hudScale * 100).toInt()}%",
                     value = state.hudScale,
@@ -2107,13 +2179,13 @@ private fun HUDPaneContent(
                     onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_hud_background_alpha),
                     checked = state.hudBackgroundAlphaEnabled,
                     onCheckedChange = listener::onHUDBackgroundAlphaDecoupledChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_hud_frametime_numeric),
                     checked = state.frametimeNumericEnabled,
                     onCheckedChange = listener::onFrametimeNumericChanged,
@@ -2138,7 +2210,7 @@ private fun HUDPaneContent(
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_dual_series_battery),
                     checked = state.dualSeriesBatteryEnabled,
                     onCheckedChange = listener::onDualSeriesBatteryChanged,
@@ -2276,7 +2348,7 @@ private fun GyroscopePaneContent(
                         .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
-            PaneEnableRow(
+            NavEnableRow(
                 title = stringResource(R.string.session_gyroscope_title),
                 checked = state.gyroscopeEnabled,
                 onCheckedChange = listener::onGyroscopeEnabledChanged,
@@ -2303,7 +2375,7 @@ private fun GyroscopePaneContent(
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_orientation_mode),
                     checked = state.gyroOrientationEnabled,
                     onCheckedChange = listener::onGyroOrientationModeChanged,
@@ -2317,20 +2389,20 @@ private fun GyroscopePaneContent(
                     )
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_enable_right_stick),
                     checked = state.rightStickGyroEnabled,
                     onCheckedChange = listener::onRightStickGyroChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
                     checked = state.gyroMouseEnabled,
                     onCheckedChange = listener::onGyroMouseEnabledChanged,
                 )
 
                 if (state.gyroMouseEnabled) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_mouse_scale),
                         valueText = "${state.gyroMouseScale.toInt()}%",
                         value = state.gyroMouseScale,
@@ -2345,7 +2417,7 @@ private fun GyroscopePaneContent(
                     expanded = calibrateExpanded,
                     onToggle = { calibrateExpanded = !calibrateExpanded },
                 ) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
                         valueText = "${(state.gyroXSensitivity * 100).roundToInt()}%",
                         value = state.gyroXSensitivity,
@@ -2354,7 +2426,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
                         valueText = "${(state.gyroYSensitivity * 100).roundToInt()}%",
                         value = state.gyroYSensitivity,
@@ -2363,7 +2435,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_smoothing),
                         valueText = "${(state.gyroSmoothing * 100).toInt()}%",
                         value = state.gyroSmoothing,
@@ -2372,7 +2444,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroSmoothingChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_deadzone),
                         valueText = "${(state.gyroDeadzone * 100).toInt()}%",
                         value = state.gyroDeadzone,
@@ -2468,14 +2540,14 @@ private fun InputControlsPaneContent(
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_show_touchscreen_controls),
                     checked = state.inputControlsShowOverlay,
                     onCheckedChange = listener::onInputControlsShowOverlayChanged,
                 )
 
                 if (state.inputControlsShowOverlay) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.input_controls_editor_overlay_opacity),
                         valueText = "${(state.inputControlsOverlayOpacity * 100).toInt()}%",
                         value = state.inputControlsOverlayOpacity,
@@ -2485,26 +2557,26 @@ private fun InputControlsPaneContent(
                     )
                     Spacer(Modifier.height(4.dp))
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.input_controls_tap_to_click),
                         checked = state.inputControlsTapToClick,
                         onCheckedChange = listener::onInputControlsTapToClickChanged,
                     )
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.settings_general_touchscreen_haptics),
                     checked = state.inputControlsTouchscreenHaptics,
                     onCheckedChange = listener::onInputControlsTouchscreenHapticsChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gamepad_enable_vibration),
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
                 )
 
-                DrawerSliderRow(
+                NavSliderRow(
                     label = "Mouse sensitivity scale",
                     valueText = "${Math.round(state.cursorSpeed * 100)}%",
                     value = state.cursorSpeed * 100f,
@@ -2515,7 +2587,7 @@ private fun InputControlsPaneContent(
 
                 val rsMapMode = state.screenTouchMode == 2
                 val rsValue = if (rsMapMode) state.screenTouchRsSensitivity else state.rightStickSensitivity
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_right_stick_sensitivity),
                     valueText = "${Math.round(rsValue * 100)}%",
                     value = rsValue * 100f,
@@ -2528,7 +2600,7 @@ private fun InputControlsPaneContent(
                     if (gcmEnabled) scrollState.animateScrollTo(Int.MAX_VALUE)
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = "GameSir Controller Rumble",
                     subtitle = "For Android-mode GameSir controllers only",
                     checked = gcmEnabled,
@@ -2923,7 +2995,7 @@ private fun ScreenEffectsPaneContent(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.shortcuts_graphics_sgsr_full_title))
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_upscaler_fsr),
                         checked = state.sgsrEnabled,
                         onCheckedChange = listener::onSGSREnabledChanged,
@@ -2943,7 +3015,7 @@ private fun ScreenEffectsPaneContent(
                             ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                            DrawerSliderRow(
+                            NavSliderRow(
                                 label = stringResource(R.string.session_drawer_sgsr_edge_sharpness),
                                 valueText = "${state.sgsrSharpness}%",
                                 value = state.sgsrSharpness.toFloat(),
@@ -2981,14 +3053,14 @@ private fun ScreenEffectsPaneContent(
                         }
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_vivid),
                         checked = state.vividEnabled,
                         onCheckedChange = listener::onVividEnabledChanged,
                     )
 
                     if (state.vividEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_vivid_strength),
                             valueText = "${state.vividStrength}%",
                             value = state.vividStrength.toFloat(),
@@ -2998,14 +3070,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_sharpen),
                         checked = state.sharpenEnabled,
                         onCheckedChange = listener::onSharpenEnabledChanged,
                     )
 
                     if (state.sharpenEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_strength),
                             valueText = "${state.sharpenStrength}%",
                             value = state.sharpenStrength.toFloat(),
@@ -3015,14 +3087,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scanlines),
                         checked = state.scanlinesEnabled,
                         onCheckedChange = listener::onScanlinesEnabledChanged,
                     )
 
                     if (state.scanlinesEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_intensity),
                             valueText = "${state.scanlinesIntensity}%",
                             value = state.scanlinesIntensity.toFloat(),
@@ -3032,14 +3104,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_pixelate),
                         checked = state.pixelateEnabled,
                         onCheckedChange = listener::onPixelateEnabledChanged,
                     )
 
                     if (state.pixelateEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_block_size),
                             valueText = "${state.pixelateBlock}px",
                             value = state.pixelateBlock.toFloat(),
@@ -3049,7 +3121,7 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_brightness),
                         valueText = "${state.brightness}",
                         value = state.brightness.toFloat(),
@@ -3058,7 +3130,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onBrightnessChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_contrast),
                         valueText = "${state.contrast}",
                         value = state.contrast.toFloat(),
@@ -3067,7 +3139,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onContrastChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_gamma),
                         valueText = String.format("%.2fx", state.gammaPercent / 100f),
                         value = state.gammaPercent.toFloat(),
@@ -3076,7 +3148,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onGammaChanged(it.roundToInt().coerceIn(50, 250)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_saturation),
                         valueText = "${state.saturation}%",
                         value = state.saturation.toFloat(),
@@ -3085,7 +3157,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onSaturationChanged(it.roundToInt().coerceIn(0, 200)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_temperature),
                         valueText = "${state.temperature}",
                         value = state.temperature.toFloat(),
@@ -3094,7 +3166,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onTemperatureChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_tint),
                         valueText = "${state.tint}",
                         value = state.tint.toFloat(),
@@ -3141,19 +3213,19 @@ private fun ScreenEffectsPaneContent(
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_scale))
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_nearest),
                         checked = state.scaleFilter == 1,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 1 else 0) },
                     )
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_linear),
                         checked = state.scaleFilter == 2,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 2 else 0) },
                     )
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_bicubic),
                         checked = state.scaleFilter == 3,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 3 else 0) },
