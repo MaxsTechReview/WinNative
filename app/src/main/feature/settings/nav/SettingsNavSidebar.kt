@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,6 +12,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
@@ -50,14 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -141,10 +134,30 @@ fun SettingsNavSidebar(
     val navStartInset = navBarPadding.calculateStartPadding(layoutDirection)
     val navBottomInset = navBarPadding.calculateBottomPadding()
 
-    val navItemsOrder = SettingsNavItem.entries
-    val navListFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        runCatching { navListFocus.requestFocus() }
+    val listState = rememberLazyListState()
+    val selectedLazyIndex =
+        remember(selectedItem) {
+            var idx = 0
+            var found = 0
+            NavSection.entries.forEachIndexed { sIdx, section ->
+                if (sIdx > 0) idx++
+                idx++
+                val secItems = sectionedNavItems[section].orEmpty()
+                val pos = secItems.indexOf(selectedItem)
+                if (pos >= 0) found = idx + pos
+                idx += secItems.size
+            }
+            found
+        }
+    LaunchedEffect(selectedLazyIndex) {
+        val info = listState.layoutInfo
+        if (info.visibleItemsInfo.isEmpty()) return@LaunchedEffect
+        val visible = info.visibleItemsInfo.firstOrNull { it.index == selectedLazyIndex }
+        val fullyVisible =
+            visible != null &&
+                visible.offset >= info.viewportStartOffset &&
+                visible.offset + visible.size <= info.viewportEndOffset
+        if (!fullyVisible) runCatching { listState.animateScrollToItem(selectedLazyIndex) }
     }
 
     Row(
@@ -165,29 +178,11 @@ fun SettingsNavSidebar(
 
             // Scrollable nav items
             LazyColumn(
+                state = listState,
                 modifier =
                     Modifier
                         .weight(1f)
-                        .padding(start = 8.dp, end = 8.dp, top = 2.dp)
-                        .focusRequester(navListFocus)
-                        .onPreviewKeyEvent { e ->
-                            if (e.type != KeyEventType.KeyDown) {
-                                false
-                            } else {
-                                val idx = navItemsOrder.indexOf(selectedItem)
-                                when (e.key) {
-                                    Key.DirectionDown -> {
-                                        if (idx < navItemsOrder.lastIndex) onItemSelected(navItemsOrder[idx + 1])
-                                        true
-                                    }
-                                    Key.DirectionUp -> {
-                                        if (idx > 0) onItemSelected(navItemsOrder[idx - 1])
-                                        true
-                                    }
-                                    else -> false
-                                }
-                            }
-                        }.focusable(),
+                        .padding(start = 8.dp, end = 8.dp, top = 2.dp),
                 contentPadding = PaddingValues(bottom = 24.dp + navBottomInset),
             ) {
                 NavSection.entries.forEachIndexed { index, section ->
@@ -214,10 +209,7 @@ fun SettingsNavSidebar(
                             item = item,
                             isSelected = item == selectedItem,
                             borderPaused = bordersPaused,
-                            onClick = {
-                                runCatching { navListFocus.requestFocus() }
-                                onItemSelected(item)
-                            },
+                            onClick = { onItemSelected(item) },
                         )
                     }
                 }

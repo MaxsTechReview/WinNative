@@ -149,7 +149,9 @@ import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.app.service.download.DownloadCoordinator
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.settings.InputControlsFragment
+import com.winlator.cmod.feature.settings.SettingsFocusZone
 import com.winlator.cmod.feature.settings.SettingsHost
+import com.winlator.cmod.feature.settings.SettingsNavBridge
 import com.winlator.cmod.feature.settings.SettingsNavItem
 import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.shortcuts.LibraryShortcutUtils
@@ -570,6 +572,9 @@ class UnifiedActivity :
     private var dpadHeld = false
     private var joystickActive = false
 
+    private val settingsNavBridge = SettingsNavBridge()
+    private var settingsStickEngaged = 0
+
     companion object {
         private const val MOVE_INTERVAL_MS = 250L
         private var instance: UnifiedActivity? = null
@@ -813,6 +818,34 @@ class UnifiedActivity :
         if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
             event.action == android.view.MotionEvent.ACTION_MOVE
         ) {
+            if (menuNavActive) {
+                val sx = event.getAxisValue(android.view.MotionEvent.AXIS_X)
+                val sy = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
+                val shx = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X)
+                val shy = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y)
+                val code =
+                    when {
+                        sx < -0.5f || shx < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                        sx > 0.5f || shx > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                        sy < -0.5f || shy < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_UP
+                        sy > 0.5f || shy > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                        else -> 0
+                    }
+                if (code != 0) {
+                    if (settingsStickEngaged == 0) {
+                        settingsStickEngaged = code
+                        handleSettingsStick(code)
+                    }
+                    return true
+                }
+                if (kotlin.math.abs(sx) < 0.35f && kotlin.math.abs(sy) < 0.35f &&
+                    kotlin.math.abs(shx) < 0.35f && kotlin.math.abs(shy) < 0.35f
+                ) {
+                    settingsStickEngaged = 0
+                }
+                return true
+            }
+
             val rz = event.getAxisValue(android.view.MotionEvent.AXIS_RZ)
             rightStickScrollState.value = rz
 
@@ -908,7 +941,31 @@ class UnifiedActivity :
         action: Int,
     ): Boolean {
         when (keyCode) {
-            android.view.KeyEvent.KEYCODE_BUTTON_A -> {
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+            -> {
+                if (settingsNavBridge.zone == SettingsFocusZone.SIDEBAR) {
+                    if (action == android.view.KeyEvent.ACTION_DOWN) applySettingsSidebarNav(keyCode)
+                    return true
+                }
+                if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+                    if (action == android.view.KeyEvent.ACTION_DOWN) {
+                        settingsNavBridge.zone = SettingsFocusZone.SIDEBAR
+                    }
+                    return true
+                }
+                return super.dispatchKeyEvent(event)
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_A,
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            -> {
+                if (settingsNavBridge.zone == SettingsFocusZone.SIDEBAR) {
+                    if (action == android.view.KeyEvent.ACTION_DOWN) enterSettingsContent()
+                    return true
+                }
                 if (action == android.view.KeyEvent.ACTION_DOWN || action == android.view.KeyEvent.ACTION_UP) {
                     window.decorView.rootView.dispatchKeyEvent(
                         android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
@@ -932,6 +989,52 @@ class UnifiedActivity :
             -> return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun applySettingsSidebarNav(keyCode: Int) {
+        when (keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> moveSettingsItem(-1)
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> moveSettingsItem(1)
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> enterSettingsContent()
+        }
+    }
+
+    private fun moveSettingsItem(delta: Int) {
+        val items = SettingsNavItem.entries
+        val index = items.indexOf(settingsNavBridge.selectedItem)
+        val next = index + delta
+        if (next in items.indices) settingsNavBridge.onSelectItem?.invoke(items[next])
+    }
+
+    private fun enterSettingsContent() {
+        settingsNavBridge.zone = SettingsFocusZone.CONTENT
+        window.decorView.post {
+            findVisibleFragmentContainer(window.decorView)?.requestFocus()
+        }
+    }
+
+    private fun findVisibleFragmentContainer(view: android.view.View): android.view.View? {
+        if (view is androidx.fragment.app.FragmentContainerView && view.isShown && view.childCount > 0) {
+            return view
+        }
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findVisibleFragmentContainer(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun handleSettingsStick(code: Int) {
+        if (settingsNavBridge.zone == SettingsFocusZone.SIDEBAR) {
+            applySettingsSidebarNav(code)
+            return
+        }
+        if (code == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+            settingsNavBridge.zone = SettingsFocusZone.SIDEBAR
+        } else {
+            injectKeyEvent(code)
+        }
     }
 
     private fun dispatchDrawerNavKey(
@@ -1427,6 +1530,7 @@ class UnifiedActivity :
                         }
 
                         SettingsHost(
+                            bridge = settingsNavBridge,
                             startItem = startItem,
                             selectedProfileId = profileId,
                             bordersPaused = chasingBordersPaused.value,
