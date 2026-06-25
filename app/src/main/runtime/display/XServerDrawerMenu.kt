@@ -2251,7 +2251,10 @@ private fun HUDPaneContent(
                     Modifier.fillMaxWidth().paneNavItem(
                         cornerRadius = (12f * paneScale).dp,
                         onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else state.maxRefreshRate) },
-                        onAdjust = { dir -> if (state.fpsLimit > 0) listener.onFPSLimitChanged((state.fpsLimit + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
+                        onAdjust = { dir ->
+                            val base = if (state.fpsLimit > 0) state.fpsLimit else state.maxRefreshRate
+                            listener.onFPSLimitChanged((base + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
+                        },
                     ),
                 ) {
                     FPSLimiterCard(
@@ -4807,49 +4810,13 @@ private fun GyroscopeActivatorDropdown(
             )
         }
 
-        DropdownMenu(
+        InputControlsOptionsPopup(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier =
-                Modifier
-                    .background(PaneSurfaceColor)
-                    .heightIn(max = 280.dp),
-        ) {
-            names.forEachIndexed { index, name ->
-                val isSelected = name == currentLabel
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = name,
-                            color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    },
-                    trailingIcon =
-                        if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    tint = DrawerAccent,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    onClick = {
-                        onSelected(keycodes[index])
-                        expanded = false
-                    },
-                    colors =
-                        MenuDefaults.itemColors(
-                            textColor = DrawerTextPrimary,
-                        ),
-                )
-            }
-        }
+            options = names.toList(),
+            selectedIndex = names.indexOfFirst { it == currentLabel }.coerceAtLeast(0),
+            onSelected = { index -> onSelected(keycodes[index]) },
+            onDismiss = { expanded = false },
+        )
     }
 }
 

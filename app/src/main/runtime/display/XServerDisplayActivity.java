@@ -312,7 +312,34 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
-    private long lastDrawerStickMove = 0L;
+    private int drawerStickDir = 0;
+    private final android.os.Handler drawerStickHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable drawerStickRepeat = new Runnable() {
+        @Override
+        public void run() {
+            if (drawerStickDir == 0 || drawerStateHolder == null
+                    || !(drawerStateHolder.isDrawerOpen() || drawerStateHolder.isPaneOpen())) {
+                return;
+            }
+            fireDrawerStickDir(drawerStickDir);
+            drawerStickHandler.postDelayed(this, 110);
+        }
+    };
+
+    private void fireDrawerStickDir(int dir) {
+        if (drawerStateHolder == null) return;
+        if (!drawerStateHolder.isPaneOpen()) {
+            if (dir == 1) drawerStateHolder.menuNavLeft();
+            else if (dir == 2) drawerStateHolder.menuNavRight();
+            else if (dir == 3) drawerStateHolder.menuNavUp();
+            else drawerStateHolder.menuNavDown();
+        } else {
+            if (dir == 1) drawerStateHolder.paneNavLeft();
+            else if (dir == 2) drawerStateHolder.paneNavRight();
+            else if (dir == 3) drawerStateHolder.paneNavUp();
+            else drawerStateHolder.paneNavDown();
+        }
+    }
 
     private boolean hasExternalMouse() {
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
@@ -4674,6 +4701,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                         @Override
                         public void onDrawerClosed() {
+                            drawerStickHandler.removeCallbacks(drawerStickRepeat);
+                            drawerStickDir = 0;
                             if (hudCardExpanded) {
                                 hudCardExpanded = false;
                                 renderDrawerMenu();
@@ -7225,20 +7254,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             else if (ax > 0.5f || hx > 0.5f) dir = 2;
             else if (ay < -0.5f || hy < -0.5f) dir = 3;
             else if (ay > 0.5f || hy > 0.5f) dir = 4;
-            if (dir == 0) {
-                lastDrawerStickMove = 0L;
-            } else if (android.os.SystemClock.uptimeMillis() - lastDrawerStickMove >= 200) {
-                lastDrawerStickMove = android.os.SystemClock.uptimeMillis();
-                if (!drawerStateHolder.isPaneOpen()) {
-                    if (dir == 1) drawerStateHolder.menuNavLeft();
-                    else if (dir == 2) drawerStateHolder.menuNavRight();
-                    else if (dir == 3) drawerStateHolder.menuNavUp();
-                    else drawerStateHolder.menuNavDown();
-                } else {
-                    if (dir == 1) drawerStateHolder.paneNavLeft();
-                    else if (dir == 2) drawerStateHolder.paneNavRight();
-                    else if (dir == 3) drawerStateHolder.paneNavUp();
-                    else drawerStateHolder.paneNavDown();
+            if (dir != drawerStickDir) {
+                drawerStickDir = dir;
+                drawerStickHandler.removeCallbacks(drawerStickRepeat);
+                if (dir != 0) {
+                    fireDrawerStickDir(dir);
+                    drawerStickHandler.postDelayed(drawerStickRepeat, 350);
                 }
             }
             return true;
