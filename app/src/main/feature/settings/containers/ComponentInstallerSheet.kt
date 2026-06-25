@@ -45,6 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.content.component.ComponentInstaller
@@ -164,6 +168,8 @@ fun ComponentInstallerSheet(
     val scope = rememberCoroutineScope()
     val installStates = remember { mutableStateMapOf<String, InstallUi>() }
     var ui by remember { mutableStateOf<CatalogUiState>(CatalogUiState.Loading) }
+    val closeFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { closeFocus.requestFocus() } }
 
     LaunchedEffect(Unit) {
         ui =
@@ -223,9 +229,10 @@ fun ComponentInstallerSheet(
                         .height(popupHeight)
                         .clip(RoundedCornerShape(18.dp))
                         .background(SheetRoot)
-                        .border(1.dp, SheetOutline, RoundedCornerShape(18.dp)),
+                        .border(1.dp, SheetOutline, RoundedCornerShape(18.dp))
+                        .controllerMenuInput(onDismiss = onDismiss),
             ) {
-                SheetHeader(containerName = container.name, onClose = onDismiss)
+                SheetHeader(containerName = container.name, onClose = onDismiss, closeFocus = closeFocus)
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (val state = ui) {
                         CatalogUiState.Loading -> SheetCentered { Spinner() }
@@ -281,6 +288,7 @@ fun ComponentInstallerSheet(
 private fun SheetHeader(
     containerName: String,
     onClose: () -> Unit,
+    closeFocus: FocusRequester,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 10.dp)) {
         Row(
@@ -309,6 +317,8 @@ private fun SheetHeader(
                         .clip(RoundedCornerShape(8.dp))
                         .background(SheetSubcard)
                         .border(1.dp, SheetOutline, RoundedCornerShape(8.dp))
+                        .focusRequester(closeFocus)
+                        .controllerFocusBorder(cornerRadius = 8.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -481,6 +491,7 @@ private fun InstallButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(SheetAccent.copy(alpha = 0.14f))
                 .border(1.dp, SheetAccent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .controllerFocusBorder(cornerRadius = 8.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
