@@ -68,6 +68,7 @@ class DebugFragment : Fragment() {
                         DebugScreen(
                             state = debugState,
                             wineChannelOptions = wineChannelOptions,
+                            wineClassOptions = SettingsConfig.WINE_DEBUG_CLASSES,
                             onAppDebugChanged = { checked ->
                                 preferences.edit { putBoolean("enable_app_debug", checked) }
                                 com.winlator.cmod.runtime.system.ApplicationLogGate
@@ -91,6 +92,10 @@ class DebugFragment : Fragment() {
                             },
                             onWineChannelsChanged = { channels ->
                                 preferences.edit { putString("wine_debug_channels", channels.joinToString(",")) }
+                                refresh()
+                            },
+                            onWineClassesChanged = { classes ->
+                                preferences.edit { putString("wine_debug_classes", classes.joinToString(",")) }
                                 refresh()
                             },
                             onResetWineChannels = {
@@ -191,11 +196,19 @@ class DebugFragment : Fragment() {
                     SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS,
                 )?.split(",")
                 ?.filter { it.isNotBlank() } ?: emptyList()
+        val classes =
+            preferences
+                .getString(
+                    "wine_debug_classes",
+                    SettingsConfig.DEFAULT_WINE_DEBUG_CLASSES,
+                )?.split(",")
+                ?.filter { it.isNotBlank() } ?: emptyList()
         debugState =
             DebugState(
                 appDebug = preferences.getBoolean("enable_app_debug", false),
                 wineDebug = preferences.getBoolean("enable_wine_debug", false),
                 wineChannels = channels,
+                wineClasses = classes,
                 box64Logs = preferences.getBoolean("enable_box64_logs", false),
                 fexcoreLogs = preferences.getBoolean("enable_fexcore_logs", false),
                 steamLogs = com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs,

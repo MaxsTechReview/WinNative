@@ -110,6 +110,8 @@ object LogManager {
 
         try {
             stopAppLogging()
+            logFile.delete()
+            runBlockingLogcatCommand(arrayOf("logcat", "-c"))
             val pid = android.os.Process.myPid()
             appLogProcess =
                 Runtime.getRuntime().exec(

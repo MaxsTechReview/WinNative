@@ -76,6 +76,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -127,6 +128,7 @@ data class DebugState(
     val appDebug: Boolean = false,
     val wineDebug: Boolean = false,
     val wineChannels: List<String> = emptyList(),
+    val wineClasses: List<String> = emptyList(),
     val box64Logs: Boolean = false,
     val fexcoreLogs: Boolean = false,
     val steamLogs: Boolean = false,
@@ -150,9 +152,11 @@ data class LogFileEntry(
 fun DebugScreen(
     state: DebugState,
     wineChannelOptions: List<String>,
+    wineClassOptions: List<String>,
     onAppDebugChanged: (Boolean) -> Unit,
     onWineDebugChanged: (Boolean) -> Unit,
     onWineChannelsChanged: (List<String>) -> Unit,
+    onWineClassesChanged: (List<String>) -> Unit,
     onResetWineChannels: () -> Unit,
     onRemoveWineChannel: (String) -> Unit,
     onBox64LogsChanged: (Boolean) -> Unit,
@@ -257,6 +261,23 @@ fun DebugScreen(
                 onEdit = { showChannelsDialog = true },
                 onReset = onResetWineChannels,
                 onRemoveChannel = onRemoveWineChannel,
+            )
+        }
+
+        item(key = "wine_classes_card") {
+            WineClassesCard(
+                options = wineClassOptions,
+                selected = state.wineClasses,
+                enabled = state.wineDebug,
+                onToggle = { cls ->
+                    val updated =
+                        if (cls in state.wineClasses) {
+                            state.wineClasses - cls
+                        } else {
+                            state.wineClasses + cls
+                        }
+                    onWineClassesChanged(wineClassOptions.filter { it in updated })
+                },
             )
         }
 
@@ -515,6 +536,114 @@ private fun WineChannelsCard(
                 }
             }
         }
+    }
+}
+
+// Wine debug message-class card (err / warn / fixme / trace)
+@Composable
+private fun WineClassesCard(
+    options: List<String>,
+    selected: List<String>,
+    enabled: Boolean,
+    onToggle: (String) -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.48f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(IconBoxBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Tune,
+                        contentDescription = null,
+                        tint = Accent,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+                Spacer(Modifier.width(13.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_debug_wine_classes_title),
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_debug_wine_classes_summary),
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                options.forEach { cls ->
+                    ClassChip(
+                        label = cls,
+                        isSelected = cls in selected,
+                        enabled = enabled,
+                        onToggle = { onToggle(cls) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.ClassChip(
+    label: String,
+    isSelected: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    // pointerInput keys never change, so capture the latest callback to avoid acting
+    // on a stale selection snapshot.
+    val action = rememberUpdatedState { if (enabled) onToggle() }
+    val bg = if (isSelected) Accent.copy(alpha = 0.18f) else IconBoxBg
+    val borderColor = if (isSelected) Accent.copy(alpha = 0.55f) else CardBorder
+    val textColor = if (isSelected) Accent else TextPrimary
+    Box(
+        modifier =
+            Modifier
+                .weight(1f)
+                .height(34.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(bg)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { action.value() })
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
     }
 }
 

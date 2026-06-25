@@ -3496,6 +3496,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    // Builds a WINEDEBUG value enabling only the chosen message classes on the
+    // chosen channels. "-all" first zeroes every class so unchosen ones (notably
+    // trace) stay off, then each "class+channel" turns one class on.
+    private static String buildWineDebug(String classesCsv, String channelsCsv) {
+        java.util.List<String> classes = splitCsv(classesCsv);
+        java.util.List<String> channels = splitCsv(channelsCsv);
+        if (classes.isEmpty() || channels.isEmpty()) return "-all";
+        StringBuilder sb = new StringBuilder("-all");
+        for (String channel : channels) {
+            for (String cls : classes) {
+                sb.append(',').append(cls).append('+').append(channel);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static java.util.List<String> splitCsv(String value) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (value == null) return out;
+        for (String part : value.split(",")) {
+            String token = part.trim();
+            if (!token.isEmpty()) out.add(token);
+        }
+        return out;
+    }
+
     private void scrubPlanWBridgeFilesForNextSession() {
         if (container == null) return;
         try {
@@ -5978,16 +6004,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsConfig.DEFAULT_WINE_DEBUG_CHANNELS);
-        String wineDebugValue;
-        if (enableWineDebug && !wineDebugChannels.isEmpty()) {
-            wineDebugValue = "+" + wineDebugChannels.replace(",", ",+");
-        } else {
-            wineDebugValue = "-all";
-        }
+        String wineDebugClasses = preferences.getString("wine_debug_classes", SettingsConfig.DEFAULT_WINE_DEBUG_CLASSES);
+        String wineDebugValue = enableWineDebug ? buildWineDebug(wineDebugClasses, wineDebugChannels) : "-all";
         envVars.put("WINEDEBUG", wineDebugValue);
         Log.i("XServerDisplayActivity",
                 "WINEDEBUG resolved: enable=" + enableWineDebug
-                        + " channels='" + wineDebugChannels + "' value='" + wineDebugValue + "'");
+                        + " classes='" + wineDebugClasses + "' channels='" + wineDebugChannels
+                        + "' value='" + wineDebugValue + "'");
 
         String rootPath = imageFs.getRootDir().getPath();
         FileUtils.clear(imageFs.getTmpDir());
@@ -6177,7 +6200,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 envVars.put("ValvePlatformMutex", "c:\\Program Files (x86)\\Steam/");
                 String currentWineDebug = envVars.get("WINEDEBUG");
                 if (currentWineDebug == null || currentWineDebug.equals("-all")) {
-                    envVars.put("WINEDEBUG", "+module,+loaddll");
+                    String steamClasses = preferences.getString(
+                            "wine_debug_classes", SettingsConfig.DEFAULT_WINE_DEBUG_CLASSES);
+                    envVars.put("WINEDEBUG", buildWineDebug(steamClasses, "module,loaddll"));
                 }
                 Log.i("XServerDisplayActivity",
                         "Bionic Steam: published bridge env (Steam3Master=127.0.0.1:57343, appId="
