@@ -23,6 +23,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusable
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -2366,28 +2369,14 @@ private fun TouchPaneContent(
                     )
                 }
                 if (state.rtsGesturesEnabled) {
-                    Box(
-                        Modifier.fillMaxWidth().paneNavItem(
-                            cornerRadius = (12f * paneScale).dp,
-                            onActivate = { listener.onRtsGesturesEditClick() },
-                            onAdjust = { dir ->
-                                val n = state.gestureProfileNames.size
-                                if (n > 0) {
-                                    val next = ((state.gestureSelectedProfileIndex + dir) % n + n) % n
-                                    listener.onGestureProfileSelected(next)
-                                }
-                            },
+                    Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
+                        PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
+                        InputControlsProfileSelector(
+                            profileNames = state.gestureProfileNames,
+                            selectedIndex = state.gestureSelectedProfileIndex,
+                            onProfileSelected = listener::onGestureProfileSelected,
+                            onEditClick = listener::onRtsGesturesEditClick,
                         )
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                            PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
-                            InputControlsProfileSelector(
-                                profileNames = state.gestureProfileNames,
-                                selectedIndex = state.gestureSelectedProfileIndex,
-                                onProfileSelected = listener::onGestureProfileSelected,
-                                onEditClick = listener::onRtsGesturesEditClick,
-                            )
-                        }
                     }
                 }
             }
@@ -2451,12 +2440,10 @@ private fun GyroscopePaneContent(
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_gyroscope_activator_button))
-                    Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (14f * paneScale).dp)) {
-                        GyroscopeActivatorDropdown(
-                            currentLabel = state.gyroscopeActivatorLabel,
-                            onSelected = listener::onGyroscopeActivatorSelected,
-                        )
-                    }
+                    GyroscopeActivatorDropdown(
+                        currentLabel = state.gyroscopeActivatorLabel,
+                        onSelected = listener::onGyroscopeActivatorSelected,
+                    )
                 }
 
                 NavBooleanRow(
@@ -2542,8 +2529,8 @@ private fun GyroscopePaneContent(
                     }
 
                     Box(
-                        Modifier.fillMaxWidth().paneNavItem(
-                            cornerRadius = (12f * paneScale).dp,
+                        Modifier.paneNavItem(
+                            cornerRadius = 10.dp,
                             onActivate = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
                         ),
                     ) {
@@ -2587,70 +2574,33 @@ private fun InputControlsPaneContent(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.input_controls_editor_select_profile))
-                    Box(
-                        Modifier.fillMaxWidth().paneNavItem(
-                            cornerRadius = (14f * paneScale).dp,
-                            onActivate = { listener.onInputControlsEditClick() },
-                            onAdjust = { dir ->
-                                val names = state.inputControlsProfileNames
-                                if (names.isNotEmpty()) {
-                                    listener.onInputControlsProfileSelected(((state.inputControlsSelectedProfileIndex + dir) % names.size + names.size) % names.size)
-                                }
-                            },
-                        ),
-                    ) {
-                        InputControlsProfileSelector(
-                            profileNames = state.inputControlsProfileNames,
-                            selectedIndex = state.inputControlsSelectedProfileIndex,
-                            onProfileSelected = listener::onInputControlsProfileSelected,
-                            onEditClick = listener::onInputControlsEditClick,
-                        )
-                    }
+                    InputControlsProfileSelector(
+                        profileNames = state.inputControlsProfileNames,
+                        selectedIndex = state.inputControlsSelectedProfileIndex,
+                        onProfileSelected = listener::onInputControlsProfileSelected,
+                        onEditClick = listener::onInputControlsEditClick,
+                    )
                 }
 
                 if (state.inputControlsStyleNames.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                         PaneSectionLabel(stringResource(R.string.input_controls_select_style))
-                        Box(
-                            Modifier.fillMaxWidth().paneNavItem(
-                                cornerRadius = (14f * paneScale).dp,
-                                onAdjust = { dir ->
-                                    val opts = state.inputControlsStyleNames
-                                    if (opts.isNotEmpty()) {
-                                        listener.onInputControlsStyleSelected(((state.inputControlsSelectedStyleIndex + dir) % opts.size + opts.size) % opts.size)
-                                    }
-                                },
-                            ),
-                        ) {
-                            InputControlsSimpleDropdown(
-                                options = state.inputControlsStyleNames,
-                                selectedIndex = state.inputControlsSelectedStyleIndex,
-                                onSelected = listener::onInputControlsStyleSelected,
-                            )
-                        }
+                        InputControlsSimpleDropdown(
+                            options = state.inputControlsStyleNames,
+                            selectedIndex = state.inputControlsSelectedStyleIndex,
+                            onSelected = listener::onInputControlsStyleSelected,
+                        )
                     }
                 }
 
                 if (state.inputControlsLabelThemeNames.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                         PaneSectionLabel(stringResource(R.string.input_controls_select_label_theme))
-                        Box(
-                            Modifier.fillMaxWidth().paneNavItem(
-                                cornerRadius = (14f * paneScale).dp,
-                                onAdjust = { dir ->
-                                    val opts = state.inputControlsLabelThemeNames
-                                    if (opts.isNotEmpty()) {
-                                        listener.onInputControlsLabelThemeSelected(((state.inputControlsSelectedLabelThemeIndex + dir) % opts.size + opts.size) % opts.size)
-                                    }
-                                },
-                            ),
-                        ) {
-                            InputControlsSimpleDropdown(
-                                options = state.inputControlsLabelThemeNames,
-                                selectedIndex = state.inputControlsSelectedLabelThemeIndex,
-                                onSelected = listener::onInputControlsLabelThemeSelected,
-                            )
-                        }
+                        InputControlsSimpleDropdown(
+                            options = state.inputControlsLabelThemeNames,
+                            selectedIndex = state.inputControlsSelectedLabelThemeIndex,
+                            onSelected = listener::onInputControlsLabelThemeSelected,
+                        )
                     }
                 }
 
@@ -2796,6 +2746,15 @@ private fun InputControlsSimpleDropdown(
                     .clip(shape)
                     .background(bgColor)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(
+                        cornerRadius = cornerRadius,
+                        onActivate = { expanded = true },
+                        onAdjust = { dir ->
+                            if (options.isNotEmpty()) {
+                                onSelected(((selectedIndex + dir) % options.size + options.size) % options.size)
+                            }
+                        },
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -2865,6 +2824,7 @@ private fun InputControlsProfileSelector(
                         .clip(shape)
                         .background(bgColor)
                         .border(1.dp, RestingCardBorder, shape)
+                        .paneNavItem(cornerRadius = cornerRadius, onActivate = { expanded = true })
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -2905,6 +2865,7 @@ private fun InputControlsProfileSelector(
                     .clip(shape)
                     .background(PaneInnerResting)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(cornerRadius = cornerRadius, onActivate = onEditClick)
                     .clickable(onClick = onEditClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -2937,6 +2898,9 @@ private fun InputControlsOptionsPopup(
     LaunchedEffect(selectedOffsetPx) {
         selectedOffsetPx?.let { scrollState.scrollTo(it) }
     }
+    val optionFocus = remember { FocusRequester() }
+    val focusIndex = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
+    LaunchedEffect(Unit) { runCatching { optionFocus.requestFocus() } }
     Popup(
         popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
         onDismissRequest = onDismiss,
@@ -2945,6 +2909,7 @@ private fun InputControlsOptionsPopup(
         Column(
             modifier =
                 Modifier
+                    .controllerMenuInput(onDismiss = onDismiss)
                     .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
                     .clip(shape)
                     .background(PaneSurfaceColor)
@@ -2959,6 +2924,7 @@ private fun InputControlsOptionsPopup(
                 InputControlsOptionItem(
                     label = name,
                     selected = isSelected,
+                    focusRequester = if (index == focusIndex) optionFocus else null,
                     onClick = {
                         onSelected(index)
                         onDismiss()
@@ -2983,6 +2949,7 @@ private fun InputControlsOptionItem(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -2997,9 +2964,11 @@ private fun InputControlsOptionItem(
         modifier =
             modifier
                 .fillMaxWidth()
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, if (selected) ActiveCardBorder else RestingCardBorder, shape)
+                .controllerFocusBorder(cornerRadius = (8f * paneScale).dp)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
                 .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -4815,6 +4784,7 @@ private fun GyroscopeActivatorDropdown(
                     .clip(shape)
                     .background(bgColor)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(cornerRadius = cornerRadius, onActivate = { expanded = true })
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -5103,6 +5073,37 @@ private fun Float.snapToStep(
 ): Float = (min + (((this - min) / step).roundToInt() * step)).coerceIn(min, max)
 
 @Composable
+private fun DialogFocusButton(
+    label: String,
+    textColor: Color,
+    backgroundColor: Color,
+    borderColor: Color,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .widthIn(min = 84.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(backgroundColor)
+                .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                .controllerFocusBorder(cornerRadius = 10.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 18.dp, vertical = 11.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
 private fun HUDMetricInputDialog(
     editor: HUDMetricEditor,
     initialPercent: Int,
@@ -5117,6 +5118,7 @@ private fun HUDMetricInputDialog(
         onConfirm(parsed.coerceIn(editor.minPercent, editor.maxPercent))
     }
 
+    val focusRequester = remember { FocusRequester() }
     WinNativeDialogShell(
         onDismiss = onDismiss,
         title =
@@ -5127,6 +5129,18 @@ private fun HUDMetricInputDialog(
             },
         maxWidth = 380.dp,
     ) {
+      LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+      Column(
+          modifier =
+              Modifier
+                  .controllerMenuInput(
+                      onDismiss = onDismiss,
+                      onStart = {
+                          keyboardController?.hide()
+                          submit()
+                      },
+                  ),
+      ) {
         Text(
             text = stringResource(R.string.session_drawer_hud_input_hint, editor.minPercent, editor.maxPercent),
             color = DrawerTextSecondary,
@@ -5185,22 +5199,26 @@ private fun HUDMetricInputDialog(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
         ) {
-            WinNativeDialogButton(
+            DialogFocusButton(
                 label = stringResource(R.string.common_ui_cancel),
                 textColor = DrawerTextPrimary,
+                backgroundColor = PaneInnerResting,
+                borderColor = RestingCardBorder,
                 onClick = onDismiss,
             )
-            WinNativeDialogButton(
+            DialogFocusButton(
                 label = stringResource(R.string.common_ui_apply),
                 textColor = DrawerAccent,
                 backgroundColor = DrawerAccent.copy(alpha = 0.12f),
                 borderColor = DrawerAccent.copy(alpha = 0.3f),
+                focusRequester = focusRequester,
                 onClick = {
                     keyboardController?.hide()
                     submit()
                 },
             )
         }
+      }
     }
 }
 
