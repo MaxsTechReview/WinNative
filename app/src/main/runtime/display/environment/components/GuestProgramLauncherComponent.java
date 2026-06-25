@@ -1157,6 +1157,12 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             + "MESA_VK_WSI_DEBUG="
             + envVars.get("MESA_VK_WSI_DEBUG"));
 
+    String winhandlerCmd =
+        wineInfo.isArm64EC()
+            ? winePath + "/wine winhandler.exe"
+            : imageFs.getBinDir() + "/box64 wine winhandler.exe";
+    ProcessHelper.exec(winhandlerCmd, envVars.toStringArray(), rootDir, null);
+
     return ProcessHelper.exec(
         command,
         envVars.toStringArray(),
