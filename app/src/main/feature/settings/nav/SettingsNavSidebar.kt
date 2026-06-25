@@ -214,7 +214,10 @@ fun SettingsNavSidebar(
                             item = item,
                             isSelected = item == selectedItem,
                             borderPaused = bordersPaused,
-                            onClick = { onItemSelected(item) },
+                            onClick = {
+                                runCatching { navListFocus.requestFocus() }
+                                onItemSelected(item)
+                            },
                         )
                     }
                 }
