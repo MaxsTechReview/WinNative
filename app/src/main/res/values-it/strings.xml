@@ -784,6 +784,8 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Registra gli eventi di autenticazione e sessione Steam per il debug.</string>
     <string name="settings_debug_wine_channels_title">Canali debug Wine</string>
     <string name="settings_debug_wine_channels_summary">Scegli quali canali Wine includere quando il logging di debug Wine è abilitato.</string>
+    <string name="settings_debug_wine_classes_title">Livelli di log di Wine</string>
+    <string name="settings_debug_wine_classes_summary">Scegli quali tipi di messaggi registrare. Trace è estremamente prolisso.</string>
     <string name="settings_debug_input_logs">Log input</string>
     <string name="settings_debug_input_logs_description">Registra gli eventi di input gamepad, touch e tastiera</string>
     <string name="settings_debug_download_logs">Log download</string>

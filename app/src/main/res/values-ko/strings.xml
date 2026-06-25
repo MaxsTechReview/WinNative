@@ -784,6 +784,8 @@
     <string name="settings_debug_steam_logs_subtitle">디버깅을 위해 Steam 인증 및 세션 이벤트를 기록합니다.</string>
     <string name="settings_debug_wine_channels_title">Wine 디버그 채널</string>
     <string name="settings_debug_wine_channels_summary">Wine 디버그 로깅이 활성화되었을 때 포함할 Wine 채널을 선택합니다.</string>
+    <string name="settings_debug_wine_classes_title">Wine 로그 레벨</string>
+    <string name="settings_debug_wine_classes_summary">기록할 메시지 유형을 선택하세요. Trace는 매우 상세합니다.</string>
     <string name="settings_debug_input_logs">입력 로그</string>
     <string name="settings_debug_input_logs_description">게임패드, 터치 및 키보드 입력 이벤트를 기록</string>
     <string name="settings_debug_download_logs">다운로드 로그</string>

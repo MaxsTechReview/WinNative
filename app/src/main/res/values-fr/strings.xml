@@ -784,6 +784,8 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Journaliser les événements d\'authentification et de session Steam pour le débogage.</string>
     <string name="settings_debug_wine_channels_title">Canaux de débogage Wine</string>
     <string name="settings_debug_wine_channels_summary">Choisir les canaux Wine inclus lorsque la journalisation de débogage Wine est activée.</string>
+    <string name="settings_debug_wine_classes_title">Niveaux de journalisation Wine</string>
+    <string name="settings_debug_wine_classes_summary">Choisissez les types de messages journalisés. Trace est extrêmement verbeux.</string>
     <string name="settings_debug_input_logs">Journaux de saisie</string>
     <string name="settings_debug_input_logs_description">Journaliser les événements de saisie manette, tactile et clavier</string>
     <string name="settings_debug_download_logs">Journaux de téléchargement</string>

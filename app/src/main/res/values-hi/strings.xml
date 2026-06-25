@@ -891,6 +891,8 @@
     <string name="settings_debug_steam_logs_subtitle">डिबगिंग के लिए Steam प्रमाणीकरण और सत्र ईवेंट लॉग करें।</string>
     <string name="settings_debug_wine_channels_title">Wine डीबग चैनल</string>
     <string name="settings_debug_wine_channels_summary">चुनें कि Wine डिबग लॉगिंग सक्षम होने पर कौन से Wine चैनल शामिल हैं।</string>
+    <string name="settings_debug_wine_classes_title">Wine लॉग स्तर</string>
+    <string name="settings_debug_wine_classes_summary">चुनें कि कौन-से संदेश प्रकार लॉग किए जाएँ। Trace अत्यधिक विस्तृत होता है।</string>
     <string name="settings_debug_input_logs">इनपुट लॉग</string>
     <string name="settings_debug_input_logs_description">गेमपैड, टच और कीबोर्ड इनपुट इवेंट लॉग करें</string>
     <string name="settings_debug_download_logs">डाउनलोड लॉग</string>

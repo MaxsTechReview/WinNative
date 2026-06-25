@@ -784,6 +784,8 @@
     <string name="settings_debug_steam_logs_subtitle">記錄 Steam 認證和工作階段事件以供除錯。</string>
     <string name="settings_debug_wine_channels_title">Wine 除錯頻道</string>
     <string name="settings_debug_wine_channels_summary">選擇啟用 Wine 除錯記錄時要包含的 Wine 頻道。</string>
+    <string name="settings_debug_wine_classes_title">Wine 記錄層級</string>
+    <string name="settings_debug_wine_classes_summary">選擇要記錄的訊息類型。Trace 極為詳細。</string>
     <string name="settings_debug_input_logs">輸入日誌</string>
     <string name="settings_debug_input_logs_description">記錄手把、觸控和鍵盤輸入事件</string>
     <string name="settings_debug_download_logs">下載日誌</string>

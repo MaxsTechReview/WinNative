@@ -784,6 +784,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Log Steam-godkendelses- og sessionshændelser til fejlfinding.</string>
     <string name="settings_debug_wine_channels_title">Wine Debug-kanaler</string>
     <string name="settings_debug_wine_channels_summary">Vælg hvilke Wine-kanaler der medtages når Wine-fejllogning er aktiveret.</string>
+    <string name="settings_debug_wine_classes_title">Wine-logniveauer</string>
+    <string name="settings_debug_wine_classes_summary">Vælg hvilke beskedtyper der logges. Trace er ekstremt omfattende.</string>
     <string name="settings_debug_input_logs">Input-logfiler</string>
     <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
     <string name="settings_debug_download_logs">Download-logfiler</string>

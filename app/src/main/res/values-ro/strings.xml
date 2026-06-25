@@ -784,6 +784,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Inregistreaza evenimentele de autentificare si sesiune Steam pentru depanare.</string>
     <string name="settings_debug_wine_channels_title">Canale de depanare Wine</string>
     <string name="settings_debug_wine_channels_summary">Alege ce canale Wine sunt incluse cand jurnalizarea de depanare Wine este activata.</string>
+    <string name="settings_debug_wine_classes_title">Niveluri de jurnal Wine</string>
+    <string name="settings_debug_wine_classes_summary">Alege ce tipuri de mesaje sunt înregistrate. Trace este extrem de detaliat.</string>
     <string name="settings_debug_input_logs">Jurnale de intrare</string>
     <string name="settings_debug_input_logs_description">Inregistreaza evenimentele de intrare gamepad, tactile si tastatura</string>
     <string name="settings_debug_download_logs">Jurnale descarcari</string>

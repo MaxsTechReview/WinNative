@@ -790,6 +790,8 @@
     <string name="settings_debug_steam_logs_subtitle">Журналювати події автентифікації та сесій Steam для налагодження.</string>
     <string name="settings_debug_wine_channels_title">Канали налагодження Wine</string>
     <string name="settings_debug_wine_channels_summary">Виберіть, які канали Wine включати при увімкненому журналюванні Wine.</string>
+    <string name="settings_debug_wine_classes_title">Рівні журналу Wine</string>
+    <string name="settings_debug_wine_classes_summary">Виберіть, які типи повідомлень записувати. Trace дуже докладний.</string>
     <string name="settings_debug_input_logs">Журнали введення</string>
     <string name="settings_debug_input_logs_description">Журналювати події геймпада, дотиків та клавіатури</string>
     <string name="settings_debug_download_logs">Журнали завантажень</string>

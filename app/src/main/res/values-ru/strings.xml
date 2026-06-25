@@ -852,6 +852,8 @@
     <string name="settings_debug_steam_logs_subtitle">Записывать события аутентификации Steam и сеанса для отладки.</string>
     <string name="settings_debug_wine_channels_title">Каналы отладки Wine</string>
     <string name="settings_debug_wine_channels_summary">Выберите, какие каналы Wine будут включены, если включено ведение журнала отладки Wine.</string>
+    <string name="settings_debug_wine_classes_title">Уровни журнала Wine</string>
+    <string name="settings_debug_wine_classes_summary">Выберите, какие типы сообщений записывать. Trace очень подробный.</string>
     <string name="settings_debug_input_logs">Входные журналы</string>
     <string name="settings_debug_input_logs_description">Записывать события ввода с геймпада, сенсорного экрана и клавиатуры.</string>
     <string name="settings_debug_download_logs">Журналы загрузок</string>

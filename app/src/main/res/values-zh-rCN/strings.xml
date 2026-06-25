@@ -784,6 +784,8 @@
     <string name="settings_debug_steam_logs_subtitle">记录 Steam 认证和会话事件以便调试。</string>
     <string name="settings_debug_wine_channels_title">Wine 调试通道</string>
     <string name="settings_debug_wine_channels_summary">选择启用 Wine 调试日志时包含哪些 Wine 通道。</string>
+    <string name="settings_debug_wine_classes_title">Wine 日志级别</string>
+    <string name="settings_debug_wine_classes_summary">选择要记录的消息类型。Trace 非常详细。</string>
     <string name="settings_debug_input_logs">输入日志</string>
     <string name="settings_debug_input_logs_description">记录手柄、触摸和键盘输入事件</string>
     <string name="settings_debug_download_logs">下载日志</string>

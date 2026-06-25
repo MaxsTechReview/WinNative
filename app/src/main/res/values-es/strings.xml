@@ -784,6 +784,8 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Registrar eventos de autenticación y sesión de Steam para depuración.</string>
     <string name="settings_debug_wine_channels_title">Canales de depuración de Wine</string>
     <string name="settings_debug_wine_channels_summary">Elegir qué canales de Wine se incluyen cuando el registro de depuración de Wine está activado.</string>
+    <string name="settings_debug_wine_classes_title">Niveles de registro de Wine</string>
+    <string name="settings_debug_wine_classes_summary">Elige qué tipos de mensajes se registran. Trace es extremadamente detallado.</string>
     <string name="settings_debug_input_logs">Registros de entrada</string>
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada de mando, táctil y teclado</string>
     <string name="settings_debug_download_logs">Registros de descarga</string>

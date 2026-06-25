@@ -784,6 +784,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_steam_logs_subtitle">Steam-Authentifizierungs- und Sitzungsereignisse zum Debuggen protokollieren.</string>
     <string name="settings_debug_wine_channels_title">Wine-Debug-Kanäle</string>
     <string name="settings_debug_wine_channels_summary">Wähle, welche Wine-Kanäle einbezogen werden, wenn die Wine-Debug-Protokollierung aktiviert ist.</string>
+    <string name="settings_debug_wine_classes_title">Wine-Protokollebenen</string>
+    <string name="settings_debug_wine_classes_summary">Wählen Sie aus, welche Meldungstypen protokolliert werden. Trace ist extrem ausführlich.</string>
     <string name="settings_debug_input_logs">Eingabe-Protokolle</string>
     <string name="settings_debug_input_logs_description">Gamepad-, Touch- und Tastatur-Eingabeereignisse protokollieren</string>
     <string name="settings_debug_download_logs">Download-Protokolle</string>
