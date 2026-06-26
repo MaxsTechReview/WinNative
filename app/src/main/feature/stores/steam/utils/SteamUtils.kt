@@ -933,7 +933,7 @@ object SteamUtils {
                 // Map the base game depot(s) to the install script
                 allKnownDepots.forEach { (depotId, depotInfo) ->
                     if (depotInfo.dlcAppId == SteamService.INVALID_APP_ID &&
-                        depotInfo.depotFromApp == SteamService.INVALID_APP_ID && depotInfo.installScript != "" && depotInfo.installScript!=null
+                        depotInfo.depotFromApp == SteamService.INVALID_APP_ID
                     ) {
                         installScripts[depotId] = appInfo.installScript
                     }
