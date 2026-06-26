@@ -459,23 +459,6 @@ internal fun StoreGameDetailScreen(
                                 )
                             }
 
-                            if (showDownloadCta && !isLoading && !isInstallEnabled && installSize > 0L) {
-                                val deficit = (installSize - availableBytes).coerceAtLeast(0L)
-                                if (deficit > 0L) {
-                                    Text(
-                                        stringResource(
-                                            R.string.library_games_not_enough_space,
-                                            StorageUtils.formatBinarySize(deficit),
-                                        ),
-                                        color = StoreDanger,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(actionIconSpacing),
                                 verticalAlignment = Alignment.Top,

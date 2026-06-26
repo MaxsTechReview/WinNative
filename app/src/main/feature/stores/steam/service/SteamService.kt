@@ -1767,6 +1767,7 @@ class SteamService : Service() {
             for (dlcApp in indirectDlcApps) {
                 val entitledDlcDepotIds = getEntitledDepotIds(dlcApp.packageId)
                 for ((depotId, depot) in dlcApp.depots) {
+
                     if (isDepotEntitled(depotId, depot, entitledDlcDepotIds) &&
                         filterForDownloadableDepots(depot, has64Bit, preferredLanguage, null)
                     ) {
@@ -1783,6 +1784,7 @@ class SteamService : Service() {
                                 lowViolence = depot.lowViolence,
                                 manifests = depot.manifests,
                                 encryptedManifests = depot.encryptedManifests,
+                                installScript = dlcApp.installScript
                             )
                     }
                 }
@@ -4415,6 +4417,7 @@ class SteamService : Service() {
                         .distinct(),
                 )
             }
+            mainAppDlcIds.addAll(calculatedDlcAppIds)
 
             runBlocking(Dispatchers.IO) {
                 if (mainAppDepots.isNotEmpty()) {

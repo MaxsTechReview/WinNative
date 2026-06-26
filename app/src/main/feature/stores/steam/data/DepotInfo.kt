@@ -21,4 +21,5 @@ data class DepotInfo(
     val realm: String = "",
     val lowViolence: Boolean = false,
     val optionalDlcId: Int = INVALID_APP_ID,
+    val installScript : String=""
 )

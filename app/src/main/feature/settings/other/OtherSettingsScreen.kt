@@ -98,6 +98,8 @@ data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
+    val containerLanguageLabels: List<String> = emptyList(),
+    val containerLanguageIndex: Int = 0,
     val soundFontFiles: List<String> = emptyList(),
     val soundFontIndex: Int = 0,
     val winlatorPath: String = "",
@@ -139,6 +141,7 @@ fun OtherSettingsScreen(
     onCheckForUpdatesChanged: (Boolean) -> Unit,
     onCheckForUpdatesNow: () -> Unit,
     onLanguageSelected: (Int) -> Unit,
+    onContainerLanguageSelected: (Int) -> Unit,
     onSoundFontSelected: (Int) -> Unit,
     onInstallSoundFont: () -> Unit,
     onRemoveSoundFont: () -> Unit,
@@ -211,6 +214,17 @@ fun OtherSettingsScreen(
                 options = state.languageLabels,
                 selectedIndex = state.languageIndex,
                 onOptionSelected = onLanguageSelected,
+            )
+        }
+
+        item(key = "game_language_card") {
+            SettingsDropdownCard(
+                title = stringResource(R.string.settings_other_game_language_title),
+                subtitle = stringResource(R.string.settings_other_game_language_summary),
+                icon = Icons.Outlined.Language,
+                options = state.containerLanguageLabels,
+                selectedIndex = state.containerLanguageIndex,
+                onOptionSelected = onContainerLanguageSelected,
             )
         }
 

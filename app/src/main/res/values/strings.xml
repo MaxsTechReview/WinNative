@@ -1051,6 +1051,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_language_title">Language</string>
     <string name="settings_other_language_summary">Choose the display language</string>
     <string name="settings_other_language_system_default">System default</string>
+    <string name="settings_other_game_language_title">Game Language</string>
+    <string name="settings_other_game_language_summary">Preferred language for Steam/Epic/GOG downloads</string>
 
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_setup_wizard_title">Setup Wizard</string>
