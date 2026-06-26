@@ -296,8 +296,7 @@ public class Container {
     }
 
     public String getLanguage() {
-        String lang = getExtra("containerLanguage", null);
-        return lang != null && !lang.isEmpty() ? lang : null;
+        return getExtra("containerLanguage", "english");
     }
 
     public String getExtra(String key) {
