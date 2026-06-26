@@ -22,8 +22,7 @@ object LogManager {
     fun isAnyLoggingEnabled(context: Context): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         return prefs.getBoolean("enable_wine_debug", false) ||
-            prefs.getBoolean("enable_box64_logs", false) ||
-            prefs.getBoolean("enable_fexcore_logs", false) ||
+            prefs.getBoolean("enable_emulator_logs", false) ||
             prefs.getBoolean("enable_steam_logs", false) ||
             prefs.getBoolean("enable_input_logs", false) ||
             prefs.getBoolean("enable_download_logs", false) ||

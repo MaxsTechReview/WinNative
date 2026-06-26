@@ -786,6 +786,8 @@
     <string name="settings_debug_box_logs_subtitle">Записувати вивід налагодження Box86 та Box64 у файл</string>
     <string name="settings_debug_fex_logs_title">Увімкнути журнали FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Записувати вивід налагодження FEXCore у файл</string>
+    <string name="settings_debug_emulator_logs_title">Журнали емуляції Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Записує у файл емулятор, який використовує ваш контейнер.</string>
     <string name="settings_debug_steam_logs_title">Увімкнути журнали Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Журналювати події автентифікації та сесій Steam для налагодження.</string>
     <string name="settings_debug_wine_channels_title">Канали налагодження Wine</string>

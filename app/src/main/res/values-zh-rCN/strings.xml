@@ -780,6 +780,8 @@
     <string name="settings_debug_box_logs_subtitle">将 Box86 和 Box64 调试输出写入文件</string>
     <string name="settings_debug_fex_logs_title">启用 FEXCore 日志</string>
     <string name="settings_debug_fex_logs_subtitle">将 FEXCore 调试输出写入文件</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX 模拟日志</string>
+    <string name="settings_debug_emulator_logs_subtitle">将容器使用的模拟器记录到文件。</string>
     <string name="settings_debug_steam_logs_title">启用 Steam 日志</string>
     <string name="settings_debug_steam_logs_subtitle">记录 Steam 认证和会话事件以便调试。</string>
     <string name="settings_debug_wine_channels_title">Wine 调试通道</string>

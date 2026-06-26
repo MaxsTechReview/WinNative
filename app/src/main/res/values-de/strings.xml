@@ -780,6 +780,8 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_box_logs_subtitle">Box86- &amp; Box64-Debug-Ausgabe in Datei schreiben</string>
     <string name="settings_debug_fex_logs_title">FEXCore-Protokolle aktivieren</string>
     <string name="settings_debug_fex_logs_subtitle">FEXCore-Debug-Ausgabe in Datei schreiben</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-Emulationsprotokolle</string>
+    <string name="settings_debug_emulator_logs_subtitle">Protokolliert den Emulator, den dein Container verwendet, in eine Datei.</string>
     <string name="settings_debug_steam_logs_title">Steam-Protokolle aktivieren</string>
     <string name="settings_debug_steam_logs_subtitle">Steam-Authentifizierungs- und Sitzungsereignisse zum Debuggen protokollieren.</string>
     <string name="settings_debug_wine_channels_title">Wine-Debug-Kanäle</string>

@@ -1013,8 +1013,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         });
 
         enableLogsMenu = preferences.getBoolean("enable_wine_debug", false)
-                || preferences.getBoolean("enable_box64_logs", false)
-                || preferences.getBoolean("enable_fexcore_logs", false);
+                || preferences.getBoolean("enable_emulator_logs", false);
         // Native rendering (DRI3) is always on; the toggle was removed. Hardcoded so stale "use_dri3=false" prefs can't disable it.
         isNativeRenderingEnabled = true;
         displayHostComposeView.setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_ARROW));
@@ -2701,14 +2700,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void attachLogStreamSink() {
-        boolean box64LogsEnabled = preferences.getBoolean("enable_box64_logs", false);
-        boolean fexLogsEnabled = preferences.getBoolean("enable_fexcore_logs", false);
         boolean wineDebugEnabled = preferences.getBoolean("enable_wine_debug", false);
+        boolean emulatorLogsEnabled = preferences.getBoolean("enable_emulator_logs", false);
         boolean arm64ec = wineInfo != null && wineInfo.isArm64EC();
         String emulator = container != null ? container.getEmulator() : null;
         boolean usesWowbox64 = emulator != null && emulator.equalsIgnoreCase("wowbox64");
         boolean fexActive = arm64ec && !usesWowbox64;
         boolean box64Active = !fexActive;
+        boolean box64LogsEnabled = emulatorLogsEnabled && box64Active;
+        boolean fexLogsEnabled = emulatorLogsEnabled && fexActive;
 
         sessionLogWriter = com.winlator.cmod.runtime.system.SessionLogWriter.create(
                 this,

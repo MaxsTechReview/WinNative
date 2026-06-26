@@ -780,6 +780,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_box_logs_subtitle">Skriv Box86 &amp; Box64-fejloutput til fil</string>
     <string name="settings_debug_fex_logs_title">Aktiver FEXCore-logfiler</string>
     <string name="settings_debug_fex_logs_subtitle">Skriv FEXCore-fejloutput til fil</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-emuleringslogfiler</string>
+    <string name="settings_debug_emulator_logs_subtitle">Logfører den emulator din container bruger, til fil.</string>
     <string name="settings_debug_steam_logs_title">Aktiver Steam-logfiler</string>
     <string name="settings_debug_steam_logs_subtitle">Log Steam-godkendelses- og sessionshændelser til fejlfinding.</string>
     <string name="settings_debug_wine_channels_title">Wine Debug-kanaler</string>

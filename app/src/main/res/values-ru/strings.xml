@@ -848,6 +848,8 @@
     <string name="settings_debug_box_logs_subtitle">Записывать отладочный вывод Box86 и Box64 в файл.</string>
     <string name="settings_debug_fex_logs_title">Включить журналы FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Записывать отладочный вывод FEXCore в файл</string>
+    <string name="settings_debug_emulator_logs_title">Журналы эмуляции Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Записывает в файл эмулятор, который использует ваш контейнер.</string>
     <string name="settings_debug_steam_logs_title">Включить журналы Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Записывать события аутентификации Steam и сеанса для отладки.</string>
     <string name="settings_debug_wine_channels_title">Каналы отладки Wine</string>

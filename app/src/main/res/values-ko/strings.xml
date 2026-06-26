@@ -780,6 +780,8 @@
     <string name="settings_debug_box_logs_subtitle">Box86 및 Box64 디버그 출력을 파일에 기록</string>
     <string name="settings_debug_fex_logs_title">FEXCore 로그 활성화</string>
     <string name="settings_debug_fex_logs_subtitle">FEXCore 디버그 출력을 파일에 기록</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX 에뮬레이션 로그</string>
+    <string name="settings_debug_emulator_logs_subtitle">컨테이너가 사용하는 에뮬레이터를 파일로 기록합니다.</string>
     <string name="settings_debug_steam_logs_title">Steam 로그 활성화</string>
     <string name="settings_debug_steam_logs_subtitle">디버깅을 위해 Steam 인증 및 세션 이벤트를 기록합니다.</string>
     <string name="settings_debug_wine_channels_title">Wine 디버그 채널</string>

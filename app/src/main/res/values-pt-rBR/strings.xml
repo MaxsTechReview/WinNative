@@ -780,6 +780,8 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Gravar saida de depuracao do Box86 &amp; Box64 em arquivo</string>
     <string name="settings_debug_fex_logs_title">Ativar Logs do FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Gravar saida de depuracao do FEXCore em arquivo</string>
+    <string name="settings_debug_emulator_logs_title">Logs de emulação Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Registra em arquivo o emulador que seu contêiner usa.</string>
     <string name="settings_debug_steam_logs_title">Ativar Logs do Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Registrar eventos de autenticacao e sessao do Steam para depuracao.</string>
     <string name="settings_debug_wine_channels_title">Canais de Depuracao do Wine</string>

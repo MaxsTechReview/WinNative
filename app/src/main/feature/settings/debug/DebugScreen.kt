@@ -129,8 +129,7 @@ data class DebugState(
     val wineDebug: Boolean = false,
     val wineChannels: List<String> = emptyList(),
     val wineClasses: List<String> = emptyList(),
-    val box64Logs: Boolean = false,
-    val fexcoreLogs: Boolean = false,
+    val emulatorLogs: Boolean = false,
     val steamLogs: Boolean = false,
     val inputLogs: Boolean = false,
     val downloadLogs: Boolean = false,
@@ -159,8 +158,7 @@ fun DebugScreen(
     onWineClassesChanged: (List<String>) -> Unit,
     onResetWineChannels: () -> Unit,
     onRemoveWineChannel: (String) -> Unit,
-    onBox64LogsChanged: (Boolean) -> Unit,
-    onFexcoreLogsChanged: (Boolean) -> Unit,
+    onEmulatorLogsChanged: (Boolean) -> Unit,
     onSteamLogsChanged: (Boolean) -> Unit,
     onInputLogsChanged: (Boolean) -> Unit,
     onDownloadLogsChanged: (Boolean) -> Unit,
@@ -281,23 +279,13 @@ fun DebugScreen(
             )
         }
 
-        item(key = "box64_logs_card") {
+        item(key = "emulator_logs_card") {
             SettingsToggleCard(
-                title = stringResource(R.string.settings_debug_box_logs_title),
-                subtitle = stringResource(R.string.settings_debug_box_logs_subtitle),
+                title = stringResource(R.string.settings_debug_emulator_logs_title),
+                subtitle = stringResource(R.string.settings_debug_emulator_logs_subtitle),
                 icon = Icons.Outlined.Memory,
-                checked = state.box64Logs,
-                onCheckedChange = onBox64LogsChanged,
-            )
-        }
-
-        item(key = "fexcore_logs_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.settings_debug_fex_logs_title),
-                subtitle = stringResource(R.string.settings_debug_fex_logs_subtitle),
-                icon = Icons.Outlined.Memory,
-                checked = state.fexcoreLogs,
-                onCheckedChange = onFexcoreLogsChanged,
+                checked = state.emulatorLogs,
+                onCheckedChange = onEmulatorLogsChanged,
             )
         }
 

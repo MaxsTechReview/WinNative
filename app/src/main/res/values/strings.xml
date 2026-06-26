@@ -1013,6 +1013,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_debug_box_logs_subtitle">Write Box86 &amp; Box64 debug output to file</string>
     <string name="settings_debug_fex_logs_title">Enable FEXCore Logs</string>
     <string name="settings_debug_fex_logs_subtitle">Write FEXCore debug output to file</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX Emulation logs</string>
+    <string name="settings_debug_emulator_logs_subtitle">Logs whichever emulator your container uses, to file.</string>
     <string name="settings_debug_steam_logs_title">Enable Steam Logs</string>
     <string name="settings_debug_steam_logs_subtitle">Log Steam authentication and session events for debugging.</string>
     <string name="settings_debug_wine_channels_title">Wine Debug Channels</string>

@@ -780,6 +780,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Scrie iesirea de depanare Box86 si Box64 in fisier</string>
     <string name="settings_debug_fex_logs_title">Activeaza jurnalele FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Scrie iesirea de depanare FEXCore in fisier</string>
+    <string name="settings_debug_emulator_logs_title">Jurnale de emulare Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Înregistrează în fișier emulatorul folosit de containerul tău.</string>
     <string name="settings_debug_steam_logs_title">Activeaza jurnalele Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Inregistreaza evenimentele de autentificare si sesiune Steam pentru depanare.</string>
     <string name="settings_debug_wine_channels_title">Canale de depanare Wine</string>

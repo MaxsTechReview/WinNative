@@ -780,6 +780,8 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Scrivi l\'output di debug Box86 e Box64 su file</string>
     <string name="settings_debug_fex_logs_title">Abilita log FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Scrivi l\'output di debug FEXCore su file</string>
+    <string name="settings_debug_emulator_logs_title">Log di emulazione Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Registra su file l\'emulatore usato dal tuo container.</string>
     <string name="settings_debug_steam_logs_title">Abilita log Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Registra gli eventi di autenticazione e sessione Steam per il debug.</string>
     <string name="settings_debug_wine_channels_title">Canali debug Wine</string>

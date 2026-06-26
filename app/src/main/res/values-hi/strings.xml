@@ -887,6 +887,8 @@
     <string name="settings_debug_box_logs_subtitle">फ़ाइल में Box86 और Box64 डिबग आउटपुट लिखें</string>
     <string name="settings_debug_fex_logs_title">FEXCore लॉग सक्षम करें</string>
     <string name="settings_debug_fex_logs_subtitle">फ़ाइल में FEXCore डिबग आउटपुट लिखें</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX एमुलेशन लॉग</string>
+    <string name="settings_debug_emulator_logs_subtitle">आपका कंटेनर जो एमुलेटर उपयोग करता है उसे फ़ाइल में लॉग करता है।</string>
     <string name="settings_debug_steam_logs_title">Steam लॉग सक्षम करें</string>
     <string name="settings_debug_steam_logs_subtitle">डिबगिंग के लिए Steam प्रमाणीकरण और सत्र ईवेंट लॉग करें।</string>
     <string name="settings_debug_wine_channels_title">Wine डीबग चैनल</string>

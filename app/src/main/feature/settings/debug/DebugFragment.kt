@@ -111,14 +111,8 @@ class DebugFragment : Fragment() {
                                 preferences.edit { putString("wine_debug_channels", remaining.joinToString(",")) }
                                 refresh()
                             },
-                            onBox64LogsChanged = { checked ->
-                                preferences.edit { putBoolean("enable_box64_logs", checked) }
-                                com.winlator.cmod.runtime.system.LogManager
-                                    .updateLoggingState(ctx)
-                                refresh()
-                            },
-                            onFexcoreLogsChanged = { checked ->
-                                preferences.edit { putBoolean("enable_fexcore_logs", checked) }
+                            onEmulatorLogsChanged = { checked ->
+                                preferences.edit { putBoolean("enable_emulator_logs", checked) }
                                 com.winlator.cmod.runtime.system.LogManager
                                     .updateLoggingState(ctx)
                                 refresh()
@@ -209,8 +203,7 @@ class DebugFragment : Fragment() {
                 wineDebug = preferences.getBoolean("enable_wine_debug", false),
                 wineChannels = channels,
                 wineClasses = classes,
-                box64Logs = preferences.getBoolean("enable_box64_logs", false),
-                fexcoreLogs = preferences.getBoolean("enable_fexcore_logs", false),
+                emulatorLogs = preferences.getBoolean("enable_emulator_logs", false),
                 steamLogs = com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs,
                 inputLogs = preferences.getBoolean("enable_input_logs", false),
                 downloadLogs = preferences.getBoolean("enable_download_logs", false),

@@ -780,6 +780,8 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Écrire la sortie de débogage Box86 &amp; Box64 dans un fichier</string>
     <string name="settings_debug_fex_logs_title">Activer les journaux FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Écrire la sortie de débogage FEXCore dans un fichier</string>
+    <string name="settings_debug_emulator_logs_title">Journaux d\'émulation Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Journalise dans un fichier l\'émulateur utilisé par votre conteneur.</string>
     <string name="settings_debug_steam_logs_title">Activer les journaux Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Journaliser les événements d\'authentification et de session Steam pour le débogage.</string>
     <string name="settings_debug_wine_channels_title">Canaux de débogage Wine</string>

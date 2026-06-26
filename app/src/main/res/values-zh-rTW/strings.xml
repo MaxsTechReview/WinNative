@@ -780,6 +780,8 @@
     <string name="settings_debug_box_logs_subtitle">將 Box86 &amp; Box64 除錯輸出寫入檔案</string>
     <string name="settings_debug_fex_logs_title">啟用 FEXCore 日誌</string>
     <string name="settings_debug_fex_logs_subtitle">將 FEXCore 除錯輸出寫入檔案</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX 模擬記錄</string>
+    <string name="settings_debug_emulator_logs_subtitle">將容器使用的模擬器記錄到檔案。</string>
     <string name="settings_debug_steam_logs_title">啟用 Steam 日誌</string>
     <string name="settings_debug_steam_logs_subtitle">記錄 Steam 認證和工作階段事件以供除錯。</string>
     <string name="settings_debug_wine_channels_title">Wine 除錯頻道</string>
