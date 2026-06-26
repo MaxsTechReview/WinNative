@@ -1783,8 +1783,7 @@ class SteamService : Service() {
                                 language = depot.language,
                                 lowViolence = depot.lowViolence,
                                 manifests = depot.manifests,
-                                encryptedManifests = depot.encryptedManifests,
-                                installScript = dlcApp.installScript
+                                encryptedManifests = depot.encryptedManifests
                             )
                     }
                 }
