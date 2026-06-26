@@ -409,6 +409,10 @@ public abstract class ProcessHelper {
     Thread thread =
         new Thread(
             () -> {
+              try {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+              } catch (Throwable ignored) {
+              }
               try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                 ByteArrayOutputStream line = new ByteArrayOutputStream(256);
                 byte[] buf = new byte[8192];

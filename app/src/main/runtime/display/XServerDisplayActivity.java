@@ -2720,10 +2720,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 fexActive);
 
         Callback<String> sink = new Callback<String>() {
+            private long cachedSecond = -1;
+            private String cachedPrefix = "";
+
             @Override
             public synchronized void call(String line) {
-                String stamped = "[" + DateFormat.format("HH:mm:ss", System.currentTimeMillis())
-                        + "]  " + line.replace("\n", "");
+                long second = System.currentTimeMillis() / 1000L;
+                if (second != cachedSecond) {
+                    cachedSecond = second;
+                    cachedPrefix = "[" + DateFormat.format("HH:mm:ss", second * 1000L) + "]  ";
+                }
+                String stamped = cachedPrefix + line.replace("\n", "");
                 XServerDrawerStateHolder holder = drawerStateHolder;
                 if (holder != null) holder.appendLogLine(stamped);
                 com.winlator.cmod.runtime.system.SessionLogWriter writer = sessionLogWriter;
