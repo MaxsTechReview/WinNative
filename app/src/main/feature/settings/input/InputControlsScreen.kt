@@ -12,6 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -38,8 +38,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -74,6 +72,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +82,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -110,8 +111,12 @@ import com.winlator.cmod.runtime.input.ui.PanAction
 import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import com.winlator.cmod.runtime.input.ui.ZoomAction
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
-import com.winlator.cmod.shared.ui.focus.controllerFocusItem
-import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import kotlin.math.roundToInt
 
@@ -122,6 +127,7 @@ private val InputField = Color(0xFF14141E)
 private val InputOutline = Color(0xFF2A2A3A)
 private val InputIconBox = Color(0xFF242434)
 private val InputAccent = Color(0xFF1A9FFF)
+private val InputNavHighlight = Color(0xFF4FC3F7)
 private val InputTextPrimary = Color(0xFFF0F4FF)
 private val InputTextSecondary = Color(0xFF7A8FA8)
 private val InputDanger = Color(0xFFFF7A88)
@@ -285,12 +291,14 @@ data class InputControlsScreenActions(
 fun InputControlsScreen(
     state: InputControlsScreenState,
     actions: InputControlsScreenActions,
+    bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
     Box(
         modifier =
@@ -298,80 +306,72 @@ fun InputControlsScreen(
                 .fillMaxSize()
                 .background(InputBg),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                PaddingValues(
-                    start = 12.dp + navBarStartPadding,
-                    top = 12.dp,
-                    end = 12.dp + navBarEndPadding,
-                    bottom = 16.dp + navBarBottomPadding,
-                ),
-            verticalArrangement = Arrangement.spacedBy(InputCompactGap),
-        ) {
-            item("auto-hide-label") { SectionLabel(stringResource(R.string.input_controls_auto_hide_section)) }
-            item("auto-hide-card") { AutoHideTouchCard(state, actions) }
-            item("profile-card") { ProfileCard(state, actions) }
-            item("actions-label") { SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section)) }
-            item("import-card") {
+        CompositionLocalProvider(LocalPaneNav provides contentNav) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            start = 12.dp + navBarStartPadding,
+                            top = 12.dp,
+                            end = 12.dp + navBarEndPadding,
+                        ),
+                verticalArrangement = Arrangement.spacedBy(InputCompactGap),
+            ) {
+                SectionLabel(stringResource(R.string.input_controls_auto_hide_section))
+                AutoHideTouchCard(state, actions)
+                ProfileCard(state, actions)
+                SectionLabel(stringResource(R.string.input_controls_editor_input_profiles_section))
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
                     title = stringResource(R.string.input_controls_editor_import_profile),
                     onClick = actions.onImportProfile,
                 )
-            }
-            item("download-card") {
                 ActionCard(
                     icon = Icons.Outlined.Download,
                     title = stringResource(R.string.common_ui_download),
                     onClick = actions.onDownloadProfile,
                 )
-            }
-            item("export-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.input_controls_editor_export_profile),
                     onClick = actions.onExportProfile,
                 )
-            }
-            item("overlay-label") { SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity)) }
-            item("overlay-card") { OverlayOpacityCard(state, actions) }
-            item("trigger-label") { SectionLabel(stringResource(R.string.session_gamepad_trigger_type)) }
-            item("trigger-card") { TriggerTypeCard(state, actions) }
-            item("gyro-label") { SectionLabel(stringResource(R.string.session_gyroscope_title)) }
-            item("gyro-card") { GyroscopeCard(state, actions) }
-            item("gesture-profiles-label") { SectionLabel(stringResource(R.string.session_gesture_profile_section)) }
-            item("gesture-profile-card") { GestureProfileCard(state, actions) }
-            if (state.gestureEditorExpanded) {
-                item("gesture-editor-card") {
+                SectionLabel(stringResource(R.string.input_controls_editor_overlay_opacity))
+                OverlayOpacityCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gamepad_trigger_type))
+                TriggerTypeCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gyroscope_title))
+                GyroscopeCard(state, actions)
+                SectionLabel(stringResource(R.string.session_gesture_profile_section))
+                GestureProfileCard(state, actions)
+                if (state.gestureEditorExpanded) {
                     CardShell {
                         GestureEditorBody(state.selectedGestureConfig) { actions.onGestureConfigChanged(it) }
                     }
                 }
-            }
-            item("gesture-import-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileDownload,
                     title = stringResource(R.string.gesture_profile_import),
                     onClick = actions.onImportGestureProfile,
                 )
-            }
-            item("gesture-export-card") {
                 ActionCard(
                     icon = Icons.Outlined.FileUpload,
                     title = stringResource(R.string.gesture_profile_export),
                     onClick = actions.onExportGestureProfile,
                 )
-            }
-            item("controllers-label") { SectionLabel(stringResource(R.string.session_gamepad_external_controllers)) }
-            if (state.controllerCards.isEmpty()) {
-                item("controllers-empty") {
+                SectionLabel(stringResource(R.string.session_gamepad_external_controllers))
+                if (state.controllerCards.isEmpty()) {
                     EmptyStateCard(stringResource(R.string.common_ui_no_items_to_display))
+                } else {
+                    state.controllerCards.forEach { controller ->
+                        key(controller.controllerId) {
+                            ControllerCard(controller, actions)
+                        }
+                    }
                 }
-            } else {
-                items(state.controllerCards, key = { it.controllerId }) { controller ->
-                    ControllerCard(controller, actions)
-                }
+                Spacer(Modifier.height(16.dp + navBarBottomPadding))
             }
         }
 
@@ -446,13 +446,12 @@ private fun CardShell(
 ) {
     val clickableModifier =
         if (onClick != null) {
-            Modifier
-                .controllerFocusGlow(cornerRadius = InputCardCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
+            Modifier.paneNavItem(
+                cornerRadius = InputCardCorner,
+                onActivate = onClick,
+                highlightColor = InputNavHighlight,
+                tapToSelect = true,
+            )
         } else {
             Modifier
         }
@@ -509,11 +508,11 @@ private fun IconActionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -522,6 +521,26 @@ private fun IconActionButton(
             contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+private fun DecorativeChevronBox() {
+    Box(
+        modifier =
+            Modifier
+                .size(InputActionSize)
+                .clip(RoundedCornerShape(InputFieldCorner))
+                .background(InputSubcard)
+                .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = InputTextSecondary,
+            modifier = Modifier.size(16.dp),
         )
     }
 }
@@ -577,11 +596,11 @@ private fun Chip(
                     1.dp,
                     if (selected) InputAccent.copy(alpha = 0.35f) else InputOutline,
                     RoundedCornerShape(InputFieldCorner),
-                ).controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                ).paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -606,11 +625,11 @@ private fun SelectionPill(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -660,6 +679,8 @@ private fun InputDialogShell(
     maxWidth: Dp = 440.dp,
     content: @Composable () -> Unit,
 ) {
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -686,6 +707,9 @@ private fun InputDialogShell(
                         .clip(RoundedCornerShape(16.dp))
                         .background(InputCard)
                         .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                        .controllerMenuInput(onDismiss = onDismiss)
+                        .focusRequester(firstFocus)
+                        .focusable()
                         .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(
@@ -766,6 +790,8 @@ private fun InputFixedFooterDialogShell(
     footer: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -798,6 +824,9 @@ private fun InputFixedFooterDialogShell(
                         .clip(RoundedCornerShape(16.dp))
                         .background(InputCard)
                         .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                        .controllerMenuInput(onDismiss = onDismiss)
+                        .focusRequester(firstFocus)
+                        .focusable()
                         .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -1376,7 +1405,11 @@ private fun ProfileSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
-                .controllerFocusGlow(cornerRadius = InputCardCorner)
+                .paneNavItem(
+                    cornerRadius = InputCardCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                )
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -1502,11 +1535,11 @@ private fun ProfileEditButton(
             modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -1526,11 +1559,11 @@ private fun ProfileOverflowButton(onClick: () -> Unit) {
             Modifier
                 .size(InputProfileActionSize)
                 .clip(RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -1578,10 +1611,12 @@ private fun AutoHideTouchCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .controllerFocusItem(
+                    .paneNavItem(
+                        cornerRadius = InputCardCorner,
                         onActivate = {
                             actions.onAutoHideTouchOnControllerChanged(!state.autoHideTouchOnController)
                         },
+                        highlightColor = InputNavHighlight,
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1646,7 +1681,16 @@ private fun OverlayOpacityCard(
                 },
                 valueRange = 10f..100f,
                 steps = 17,
-                modifier = Modifier.height(InputSliderHeight).controllerSliderEscape(),
+                modifier =
+                    Modifier
+                        .height(InputSliderHeight)
+                        .paneNavItem(
+                            cornerRadius = InputFieldCorner,
+                            onAdjust = { dir ->
+                                actions.onOverlayOpacityChanged((state.overlayOpacity + dir * 5).coerceIn(10, 100))
+                            },
+                            highlightColor = InputNavHighlight,
+                        ),
                 colors = sliderColors(),
                 track = { InputSliderTrack(it) },
             )
@@ -1688,11 +1732,7 @@ private fun ActionCard(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
-            IconActionButton(
-                image = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = title,
-                onClick = onClick,
-            )
+            DecorativeChevronBox()
         }
     }
 }
@@ -1723,11 +1763,11 @@ private fun Subcard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .controllerFocusGlow(cornerRadius = InputCardCorner)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onToggleExpanded,
+                    .paneNavItem(
+                        cornerRadius = InputCardCorner,
+                        onActivate = onToggleExpanded,
+                        highlightColor = InputNavHighlight,
+                        tapToSelect = true,
                     )
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1786,7 +1826,21 @@ private fun SliderField(
     steps: Int,
     onValueChange: (Float) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val stepSize = if (steps > 0) (valueRange.endInclusive - valueRange.start) / (steps + 1) else 1f
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onAdjust = { dir ->
+                        onValueChange(
+                            (value + dir * stepSize).coerceIn(valueRange.start, valueRange.endInclusive),
+                        )
+                    },
+                    highlightColor = InputNavHighlight,
+                ),
+    ) {
         Text(
             text = label,
             color = InputTextSecondary,
@@ -1797,7 +1851,7 @@ private fun SliderField(
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
-            modifier = Modifier.height(InputSliderHeight).controllerSliderEscape(),
+            modifier = Modifier.height(InputSliderHeight),
             colors = sliderColors(),
             track = { InputSliderTrack(it) },
         )
@@ -1814,7 +1868,11 @@ private fun SwitchRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .controllerFocusItem(onActivate = { onCheckedChange(!checked) }),
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = { onCheckedChange(!checked) },
+                    highlightColor = InputNavHighlight,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -1840,11 +1898,11 @@ private fun CenteredPillButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputSubcard)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -2094,7 +2152,11 @@ private fun GestureSelectorRow(
                     ),
                     RoundedCornerShape(InputCardCorner),
                 )
-                .controllerFocusGlow(cornerRadius = InputCardCorner)
+                .paneNavItem(
+                    cornerRadius = InputCardCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                )
                 .clickable(
                     interactionSource = selectionInteraction,
                     indication = null,
@@ -2245,7 +2307,14 @@ private fun GyroscopeCard(
     CardShell {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .paneNavItem(
+                            cornerRadius = InputFieldCorner,
+                            onActivate = { actions.onGyroscopeEnabledChanged(!state.gyroscopeEnabled) },
+                            highlightColor = InputNavHighlight,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconBox(Icons.Outlined.ScreenRotationAlt, InputTextSecondary)
@@ -2288,7 +2357,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onGyroOrientationModeChanged(!state.gyroOrientationEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2322,7 +2398,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onRightStickGyroChanged(!state.rightStickGyroEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2346,7 +2429,14 @@ private fun GyroscopeCard(
 
                 Spacer(Modifier.height(InputItemGap))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .paneNavItem(
+                                cornerRadius = InputFieldCorner,
+                                onActivate = { actions.onGyroMouseEnabledChanged(!state.gyroMouseEnabled) },
+                                highlightColor = InputNavHighlight,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -2659,11 +2749,11 @@ private fun BindingSelectionButton(
                 .clip(RoundedCornerShape(InputFieldCorner))
                 .background(InputField)
                 .border(1.dp, InputOutline, RoundedCornerShape(InputFieldCorner))
-                .controllerFocusGlow(cornerRadius = InputFieldCorner)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = InputFieldCorner,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 ).padding(horizontal = 7.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

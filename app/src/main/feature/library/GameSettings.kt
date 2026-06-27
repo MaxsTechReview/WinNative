@@ -69,8 +69,11 @@ import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +88,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -111,6 +116,15 @@ import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
 import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
+import com.winlator.cmod.shared.ui.nav.paneHighlight
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
@@ -134,6 +148,103 @@ private val ChipBorder = Color(0xFF2A2A3A)
 private val DangerRed = Color(0xFFFF6B6B)
 private val WarningAmber = Color(0xFFFFB74D)
 private val SelectableDriveLetters = ('D'..'Y').filter { it != 'E' }.map { "$it" }
+
+private val NavHighlight = Color(0xFF4FC3F7)
+
+/**
+ * State-driven controller navigation for [GameSettingsContent] when hosted in a
+ * dialog window the activity key dispatch can't reach. Two zones: the sidebar
+ * (section tabs + Cancel/Save) is an explicit index; the active section's content
+ * is driven through a [PaneNavRegistry] supplied via [LocalPaneNav]. The hosting
+ * dialog forwards D-pad events to [dpad]; taps route through the tap* helpers so
+ * touch and controller stay in sync.
+ */
+@Stable
+class GameSettingsNav {
+    var active by mutableStateOf(false)
+    var inContent by mutableStateOf(false)
+    var sidebarIndex by mutableStateOf(0)
+    var sidebarCount by mutableStateOf(0)
+    var actionCol by mutableStateOf(0)
+    var contentSignal by mutableStateOf(0)
+        private set
+    var contentDir by mutableStateOf(0)
+        private set
+    var contentResetSignal by mutableStateOf(0)
+        private set
+    var onSelectSection: ((Int) -> Unit)? = null
+    var onSave: (() -> Unit)? = null
+    var onCancel: (() -> Unit)? = null
+
+    val onActionRow: Boolean get() = sidebarIndex >= sidebarCount
+
+    private fun pushContent(dir: Int) {
+        contentDir = dir
+        contentSignal++
+    }
+
+    fun dpad(dir: Int) {
+        if (!active) {
+            active = true
+            return
+        }
+        if (inContent) {
+            pushContent(dir)
+            return
+        }
+        when (dir) {
+            PANE_DIR_UP -> moveSidebar(-1)
+            PANE_DIR_DOWN -> moveSidebar(1)
+            PANE_DIR_LEFT -> if (onActionRow && actionCol == 1) actionCol = 0
+            PANE_DIR_RIGHT ->
+                if (onActionRow) {
+                    if (actionCol == 0) actionCol = 1
+                } else {
+                    enterContent()
+                }
+            PANE_DIR_ACTIVATE ->
+                if (onActionRow) {
+                    if (actionCol == 0) onCancel?.invoke() else onSave?.invoke()
+                } else {
+                    enterContent()
+                }
+        }
+    }
+
+    private fun moveSidebar(delta: Int) {
+        val next = (sidebarIndex + delta).coerceIn(0, sidebarCount)
+        sidebarIndex = next
+        if (next < sidebarCount) onSelectSection?.invoke(next)
+    }
+
+    fun enterContent() {
+        inContent = true
+        contentResetSignal++
+    }
+
+    fun exitToSidebar() {
+        inContent = false
+    }
+
+    fun tapSection(index: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = index
+        onSelectSection?.invoke(index)
+    }
+
+    fun tapAction(col: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = sidebarCount
+        actionCol = col
+    }
+
+    fun tapContent() {
+        active = false
+        inContent = true
+    }
+}
 
 private val SettingGroupCorner = 12.dp
 private val SettingGroupPadding = 12.dp
@@ -208,6 +319,12 @@ private fun Modifier.smartDropdownAnchor(
                 onOpen()
             }
         }
+        .paneNavItem(
+            cornerRadius = SettingFieldCorner,
+            onActivate = { offset.value = DpOffset.Zero; onOpen() },
+            highlightColor = NavHighlight,
+            tapToSelect = true,
+        )
 }
 
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
@@ -514,7 +631,8 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
+    nav: GameSettingsNav? = null
 ) {
     val isSteam by state.isSteamGame
     val isContainer by state.isContainerEditMode
@@ -522,6 +640,20 @@ fun GameSettingsContent(
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
+
+    val contentNav = remember { PaneNavRegistry() }
+    if (nav != null) {
+        contentNav.controllerActive = nav.active && nav.inContent
+        contentNav.onEdgeLeft = { nav.exitToSidebar() }
+        SideEffect {
+            nav.sidebarCount = sections.size
+            nav.onSelectSection = { state.currentSection.intValue = it }
+            nav.onSave = { if (saveEnabled) callbacks.onConfirm() }
+            nav.onCancel = { callbacks.onDismiss() }
+        }
+        LaunchedEffect(nav.contentSignal) { contentNav.processNav(nav.contentSignal, nav.contentDir) }
+        LaunchedEffect(nav.contentResetSignal) { contentNav.reset() }
+    }
 
     Box(
         modifier = Modifier
@@ -538,6 +670,7 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                nav = nav,
                 modifier = Modifier
                     .width(220.dp)
                     .fillMaxHeight()
@@ -555,8 +688,28 @@ fun GameSettingsContent(
                     .weight(1f)
                     .fillMaxHeight()
                     .background(ContentBg)
+                    .then(
+                        if (nav != null) {
+                            Modifier.pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                        if (ev.type == PointerEventType.Press) nav.tapContent()
+                                    }
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
-                SectionContent(currentSectionId, state, callbacks)
+                if (nav != null) {
+                    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+                        SectionContent(currentSectionId, state, callbacks)
+                    }
+                } else {
+                    SectionContent(currentSectionId, state, callbacks)
+                }
             }
         }
     }
@@ -617,8 +770,11 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    nav: GameSettingsNav? = null,
     modifier: Modifier = Modifier
 ) {
+    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
+    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
     Column(
         modifier = modifier
             .background(SidebarBg)
@@ -663,7 +819,10 @@ private fun Sidebar(
                     icon = section.icon,
                     label = stringResource(section.labelResId),
                     isSelected = currentIndex == index,
-                    onClick = { onSectionSelected(index) }
+                    navHighlighted = nav != null && nav.active && !nav.inContent && !nav.onActionRow && nav.sidebarIndex == index,
+                    onClick = {
+                        if (nav != null) nav.tapSection(index) else onSectionSelected(index)
+                    }
                 )
             }
         }
@@ -693,7 +852,8 @@ private fun Sidebar(
                     .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                     .background(CardSurface)
                     .controllerFocusGlow(cornerRadius = 8.dp)
-                    .clickable { onCancel() },
+                    .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                    .clickable { nav?.tapAction(0); onCancel() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -705,10 +865,11 @@ private fun Sidebar(
             }
             SaveButton(
                 enabled = saveEnabled,
-                onClick = onSave,
+                onClick = { nav?.tapAction(1); onSave() },
                 height = 30.dp,
                 corner = 8.dp,
                 fontSize = SettingLabelSize,
+                navHighlighted = saveHighlighted,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -722,6 +883,7 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
+    navHighlighted: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -737,6 +899,7 @@ private fun SaveButton(
                 if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
             )
             .controllerFocusGlow(cornerRadius = 8.dp)
+            .paneHighlight(navHighlighted, cornerRadius = corner, highlightColor = NavHighlight)
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -755,6 +918,7 @@ private fun SidebarItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
+    navHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
     Box(
@@ -764,6 +928,7 @@ private fun SidebarItem(
             .clip(RoundedCornerShape(8.dp))
             .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
             .controllerFocusBorder(cornerRadius = 8.dp)
+            .paneHighlight(navHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -1301,6 +1466,12 @@ private fun GraphicsDriverConfigCard(
                 .fillMaxWidth()
                 .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.gfxConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.gfxConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1514,6 +1685,18 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                 .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                 .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
+                .then(
+                    if (extensions.isNotEmpty()) {
+                        Modifier.paneNavItem(
+                            cornerRadius = SettingFieldCorner,
+                            onActivate = { showDialog = true },
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1693,6 +1876,12 @@ private fun DXVKConfigCard(
                 .fillMaxWidth()
                 .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.dxvkConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.dxvkConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1819,6 +2008,12 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
                 .fillMaxWidth()
                 .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.wined3dConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.wined3dConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -2162,6 +2357,12 @@ private fun WineSection(
                                 .background(InputSurface)
                                 .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                                 .clickable { callbacks.onPickWallpaper() }
+                                .paneNavItem(
+                                    cornerRadius = SettingFieldCorner,
+                                    onActivate = { callbacks.onPickWallpaper() },
+                                    highlightColor = NavHighlight,
+                                    tapToSelect = true,
+                                )
                                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -2362,6 +2563,14 @@ private fun VariablesSection(
                     .clickable {
                         state.envVars.value = state.envVars.value + EnvVarItem("", "")
                     }
+                    .paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = {
+                            state.envVars.value = state.envVars.value + EnvVarItem("", "")
+                        },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2437,6 +2646,12 @@ private fun DrivesSection(
                             .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
                             .controllerFocusGlow(cornerRadius = 8.dp)
                             .clickable { callbacks.onPickDrivePath(index) }
+                            .paneNavItem(
+                                cornerRadius = 8.dp,
+                                onActivate = { callbacks.onPickDrivePath(index) },
+                                highlightColor = NavHighlight,
+                                tapToSelect = true,
+                            )
                             .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
                     ) {
                         Text(
@@ -2454,7 +2669,13 @@ private fun DrivesSection(
                             .clip(RoundedCornerShape(6.dp))
                             .background(DangerRed.copy(alpha = 0.1f))
                             .controllerFocusGlow(cornerRadius = 6.dp)
-                            .clickable { callbacks.onRemoveDrive(index) },
+                            .clickable { callbacks.onRemoveDrive(index) }
+                            .paneNavItem(
+                                cornerRadius = 6.dp,
+                                onActivate = { callbacks.onRemoveDrive(index) },
+                                highlightColor = NavHighlight,
+                                tapToSelect = true,
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -2477,6 +2698,12 @@ private fun DrivesSection(
                 .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                 .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable { callbacks.onAddDrive() }
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { callbacks.onAddDrive() },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2746,7 +2973,13 @@ private fun EnvVarRow(
                     .clip(RoundedCornerShape(6.dp))
                     .background(DangerRed.copy(alpha = 0.1f))
                     .controllerFocusGlow(cornerRadius = 6.dp)
-                    .clickable { onRemove() },
+                    .clickable { onRemove() }
+                    .paneNavItem(
+                        cornerRadius = 6.dp,
+                        onActivate = { onRemove() },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -2958,6 +3191,7 @@ private fun EnvValueTextField(
     numeric: Boolean = false,
     decimal: Boolean = false
 ) {
+    val envFieldFocus = remember { FocusRequester() }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -2972,6 +3206,12 @@ private fun EnvValueTextField(
         modifier = Modifier
             .fillMaxWidth()
             .height(EnvVarControlHeight)
+            .focusRequester(envFieldFocus)
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = { runCatching { envFieldFocus.requestFocus() } },
+                highlightColor = NavHighlight,
+            )
             .controllerTextFieldEscape(),
         decorationBox = { innerTextField ->
             Box(
@@ -3574,6 +3814,12 @@ private fun CpuChip(
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
             .controllerFocusGlow(cornerRadius = 8.dp)
             .clickable(onClick = onClick)
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
             .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -3804,6 +4050,7 @@ private fun SettingTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true
 ) {
+    val fieldFocus = remember { FocusRequester() }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             label,
@@ -3826,6 +4073,12 @@ private fun SettingTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(fieldFocus)
+                .paneNavItem(
+                    cornerRadius = SettingFieldCorner,
+                    onActivate = { if (enabled) runCatching { fieldFocus.requestFocus() } },
+                    highlightColor = NavHighlight,
+                )
                 .controllerTextFieldEscape()
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
@@ -3850,6 +4103,18 @@ private fun SettingCheckbox(
             .clip(RoundedCornerShape(8.dp))
             .controllerFocusGlow(cornerRadius = 8.dp)
             .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .then(
+                if (enabled) {
+                    Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .padding(vertical = SettingTightGap),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3922,6 +4187,18 @@ private fun SettingSwitch(
                     Modifier
                 }
             )
+            .then(
+                if (enabled) {
+                    Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .padding(vertical = SettingTightGap),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3989,7 +4266,12 @@ private fun SettingSlider(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(SettingSliderHeight)
-                .controllerSliderEscape(),
+                .controllerSliderEscape()
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onAdjust = { d -> onValueChange((value + d).coerceIn(range.first, range.last)) },
+                    highlightColor = NavHighlight,
+                ),
             colors = settingSliderColors(),
             track = { SettingSliderTrack(it) },
             thumb = {
@@ -4048,6 +4330,12 @@ private fun SavesActionCard(
             .border(1.dp, InputBorder, RoundedCornerShape(SettingGroupCorner))
             .controllerFocusGlow(cornerRadius = SettingGroupCorner)
             .clickable { onClick() }
+            .paneNavItem(
+                cornerRadius = SettingGroupCorner,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

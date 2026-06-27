@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
 class GoogleFragment : Fragment() {
@@ -19,7 +20,9 @@ class GoogleFragment : Fragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 WinNativeTheme {
-                    GoogleScreen()
+                    GoogleScreen(
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
+                    )
                 }
             }
         }

@@ -9,11 +9,22 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDialog
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -30,6 +41,7 @@ import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
+import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
@@ -162,13 +174,46 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
                         val callbacks = createCallbacks()
+                        val nav = remember { GameSettingsNav() }
+                        val firstFocus = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
                         Box(
-                            modifier = Modifier.controllerMenuInput(
-                                onDismiss = { dialog.dismiss() },
-                                onStart = { if (state.isLoaded.value) callbacks.onConfirm() },
-                            ),
+                            modifier = Modifier
+                                .controllerMenuInput(
+                                    onDismiss = { dialog.dismiss() },
+                                    onStart = { if (state.isLoaded.value) callbacks.onConfirm() },
+                                )
+                                .onPreviewKeyEvent { e ->
+                                    when (e.nativeKeyEvent.keyCode) {
+                                        android.view.KeyEvent.KEYCODE_DPAD_UP -> {
+                                            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) nav.dpad(PANE_DIR_UP)
+                                            true
+                                        }
+                                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) nav.dpad(PANE_DIR_DOWN)
+                                            true
+                                        }
+                                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) nav.dpad(PANE_DIR_LEFT)
+                                            true
+                                        }
+                                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) nav.dpad(PANE_DIR_RIGHT)
+                                            true
+                                        }
+                                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                                        android.view.KeyEvent.KEYCODE_ENTER,
+                                        android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) nav.dpad(PANE_DIR_ACTIVATE)
+                                            true
+                                        }
+                                        else -> false
+                                    }
+                                }
+                                .focusRequester(firstFocus)
+                                .focusable(),
                         ) {
-                            GameSettingsContent(state = state, callbacks = callbacks)
+                            GameSettingsContent(state = state, callbacks = callbacks, nav = nav)
                         }
                     }
                 }

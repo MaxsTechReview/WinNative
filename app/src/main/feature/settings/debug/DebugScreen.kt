@@ -1,5 +1,5 @@
 /* Settings > Debug screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content. */
+ * Uses a scrolling Column for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -72,8 +71,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -106,6 +107,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.focus.controllerFocusItem
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -119,6 +123,7 @@ private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
 private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val Warning = Color(0xFFFF4444)
 private val Success = Color(0xFF7CC142)
 private val TextPrimary = Color(0xFFF0F4FF)
@@ -172,6 +177,7 @@ fun DebugScreen(
     onShareLogFile: (LogFileEntry) -> Unit,
     onDownloadLogFile: (LogFileEntry) -> String?,
     onDeleteLogFile: (LogFileEntry) -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
     var showLogsBrowser by remember { mutableStateOf(false) }
@@ -209,25 +215,25 @@ fun DebugScreen(
         )
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "application_section") {
-            SectionLabel(stringResource(R.string.common_ui_application))
-        }
+    val contentNav = rememberSettingsContentNav(bridge)
 
-        item(key = "app_debug_card") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                        bottom = 4.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SectionLabel(stringResource(R.string.common_ui_application))
+
             SettingsToggleCard(
                 title = stringResource(R.string.common_ui_application),
                 subtitle = stringResource(R.string.settings_debug_log_to_file_desc),
@@ -236,13 +242,9 @@ fun DebugScreen(
                 checked = state.appDebug,
                 onCheckedChange = onAppDebugChanged,
             )
-        }
 
-        item(key = "emulation_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_emulation), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "wine_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_wine_logs_title),
                 subtitle = stringResource(R.string.settings_debug_wine_logs_subtitle),
@@ -250,9 +252,7 @@ fun DebugScreen(
                 checked = state.wineDebug,
                 onCheckedChange = onWineDebugChanged,
             )
-        }
 
-        item(key = "wine_channels_card") {
             WineChannelsCard(
                 channels = state.wineChannels,
                 enabled = state.wineDebug,
@@ -260,9 +260,7 @@ fun DebugScreen(
                 onReset = onResetWineChannels,
                 onRemoveChannel = onRemoveWineChannel,
             )
-        }
 
-        item(key = "box64_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_box_logs_title),
                 subtitle = stringResource(R.string.settings_debug_box_logs_subtitle),
@@ -270,9 +268,7 @@ fun DebugScreen(
                 checked = state.box64Logs,
                 onCheckedChange = onBox64LogsChanged,
             )
-        }
 
-        item(key = "fexcore_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_fex_logs_title),
                 subtitle = stringResource(R.string.settings_debug_fex_logs_subtitle),
@@ -280,14 +276,10 @@ fun DebugScreen(
                 checked = state.fexcoreLogs,
                 onCheckedChange = onFexcoreLogsChanged,
             )
-        }
 
-        item(key = "subsystems_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_subsystems), modifier = Modifier.padding(top = 8.dp))
-        }
 
 /*
-        item(key = "vulkan_validation_layers_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_vulkan_validation_layers_title),
                 subtitle = stringResource(R.string.settings_debug_vulkan_validation_layers_subtitle),
@@ -296,10 +288,8 @@ fun DebugScreen(
                 checked = state.vulkanValidationLayers,
                 onCheckedChange = onVulkanValidationLayersChanged,
             )
-        }
 */
 
-        item(key = "steam_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_steam_logs_title),
                 subtitle = stringResource(R.string.settings_debug_steam_logs_subtitle),
@@ -307,9 +297,7 @@ fun DebugScreen(
                 checked = state.steamLogs,
                 onCheckedChange = onSteamLogsChanged,
             )
-        }
 
-        item(key = "input_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_input_logs),
                 subtitle = stringResource(R.string.settings_debug_input_logs_description),
@@ -317,9 +305,7 @@ fun DebugScreen(
                 checked = state.inputLogs,
                 onCheckedChange = onInputLogsChanged,
             )
-        }
 
-        item(key = "download_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_download_logs),
                 subtitle = stringResource(R.string.settings_debug_download_logs_description),
@@ -327,9 +313,7 @@ fun DebugScreen(
                 checked = state.downloadLogs,
                 onCheckedChange = onDownloadLogsChanged,
             )
-        }
 
-        item(key = "log_actions_row") {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -341,9 +325,7 @@ fun DebugScreen(
                     onClick = { showLogsBrowser = true },
                 )
             }
-        }
 
-        item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -387,8 +369,12 @@ private fun SettingsToggleCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onCheckedChange(!checked) })
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                    .paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ).padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -450,7 +436,9 @@ private fun WineChannelsCard(
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box(
                     modifier =
                         Modifier
@@ -481,17 +469,35 @@ private fun WineChannelsCard(
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                SmallActionButton(
-                    label = stringResource(R.string.common_ui_select),
-                    textColor = Accent,
-                    onClick = { if (enabled) onEdit() },
-                )
+                Box(
+                    modifier =
+                        Modifier.paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { if (enabled) onEdit() },
+                            highlightColor = NavHighlight,
+                        ),
+                ) {
+                    SmallActionButton(
+                        label = stringResource(R.string.common_ui_select),
+                        textColor = Accent,
+                        onClick = { if (enabled) onEdit() },
+                    )
+                }
                 Spacer(Modifier.width(6.dp))
-                SmallActionButton(
-                    label = stringResource(R.string.common_ui_reset),
-                    textColor = TextSecondary,
-                    onClick = { if (enabled) onReset() },
-                )
+                Box(
+                    modifier =
+                        Modifier.paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { if (enabled) onReset() },
+                            highlightColor = NavHighlight,
+                        ),
+                ) {
+                    SmallActionButton(
+                        label = stringResource(R.string.common_ui_reset),
+                        textColor = TextSecondary,
+                        onClick = { if (enabled) onReset() },
+                    )
+                }
             }
             Spacer(Modifier.height(10.dp))
             Row(
@@ -510,10 +516,12 @@ private fun WineChannelsCard(
                     )
                 } else {
                     channels.forEach { channel ->
-                        ChannelChip(
-                            label = channel,
-                            onRemove = { if (enabled) onRemoveChannel(channel) },
-                        )
+                        key(channel) {
+                            ChannelChip(
+                                label = channel,
+                                onRemove = { if (enabled) onRemoveChannel(channel) },
+                            )
+                        }
                     }
                 }
             }
@@ -547,10 +555,12 @@ private fun ChannelChip(
                 Modifier
                     .size(18.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onRemove() })
-                    .pointerInput(onRemove) {
-                        detectTapGestures(onTap = { onRemove() })
-                    },
+                    .paneNavItem(
+                        cornerRadius = 5.dp,
+                        onActivate = { onRemove() },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -796,7 +806,7 @@ private fun RowScope.LogActionButton(
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
                 .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 12.dp, onActivate = { onClick() }, highlightColor = NavHighlight)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {

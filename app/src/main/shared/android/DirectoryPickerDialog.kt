@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -590,6 +591,9 @@ object DirectoryPickerDialog {
             contentVisible = true
         }
 
+        val firstFocus = remember { FocusRequester() }
+        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -654,7 +658,9 @@ object DirectoryPickerDialog {
                                     if (selectedPath != null) onSelect(selectedPath)
                                 }
                             },
-                        ),
+                        )
+                        .focusRequester(firstFocus)
+                        .focusable(),
                 shape = RoundedCornerShape(16.dp),
                 color = CardDark,
                 border = BorderStroke(1.dp, CardBorder),

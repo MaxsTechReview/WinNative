@@ -1,5 +1,5 @@
 /* Settings > Components screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content. */
+ * Uses a scrolling Column for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -15,16 +15,11 @@ import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -43,6 +38,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
@@ -56,7 +52,9 @@ import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,7 +76,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
-import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 // Palette (unified with Drivers / Stores / Other / Debug)
 private val BgDark = Color(0xFF11111C)
@@ -93,20 +93,7 @@ private val DangerRed = Color(0xFFFF7A88)
 private val WarningAmber = Color(0xFFFFB454)
 private val TextPrimary = Color(0xFFD6DAE0)
 private val TextSecondary = Color(0xFF7A8FA8)
-
-@Composable
-private fun Modifier.noRippleClickable(
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-): Modifier {
-    val interactionSource = remember { MutableInteractionSource() }
-    return clickable(
-        interactionSource = interactionSource,
-        indication = null,
-        enabled = enabled,
-        onClick = onClick,
-    )
-}
+private val NavHighlight = Color(0xFF4FC3F7)
 
 // State
 
@@ -144,6 +131,7 @@ data class ComponentsState(
 
 @Composable
 fun ComponentsScreen(
+    bridge: SettingsNavBridge? = null,
     state: ComponentsState,
     onTypeSelected: (ContentProfile.ContentType) -> Unit,
     onInstallFromFile: () -> Unit,
@@ -158,6 +146,7 @@ fun ComponentsScreen(
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
     itemPendingRemoval?.let { item ->
         Dialog(onDismissRequest = { itemPendingRemoval = null }) {
@@ -195,21 +184,21 @@ fun ComponentsScreen(
         }
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "hero_header") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                        bottom = 4.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             HeroHeader(
                 installedCount = state.installed.size,
                 availableCount = state.available.size,
@@ -219,55 +208,43 @@ fun ComponentsScreen(
                 onInstallFromFile = onInstallFromFile,
                 onToggleAutoCreateContainer = onToggleAutoCreateContainer,
             )
-        }
 
-        if (state.installed.isEmpty() && state.available.isEmpty()) {
-            item(key = "empty_${state.currentType.name}") {
+            if (state.installed.isEmpty() && state.available.isEmpty()) {
                 EmptyState()
             }
-        }
 
-        if (state.installed.isNotEmpty()) {
-            item(key = "installed_section_${state.currentType.name}") {
+            if (state.installed.isNotEmpty()) {
                 SectionLabel(
                     text = stringResource(R.string.common_ui_installed),
                     modifier = Modifier.padding(top = 8.dp),
                 )
+                state.installed.forEach { item ->
+                    key("installed_${state.currentType.name}_${item.key}") {
+                        ComponentItemCard(
+                            item = item,
+                            onDownload = { onDownloadItem(item) },
+                            onRemove = { itemPendingRemoval = item },
+                        )
+                    }
+                }
             }
-            items(
-                items = state.installed,
-                key = { item -> "installed_${state.currentType.name}_${item.key}" },
-                contentType = { "installedComponentCard" },
-            ) { item ->
-                ComponentItemCard(
-                    item = item,
-                    onDownload = { onDownloadItem(item) },
-                    onRemove = { itemPendingRemoval = item },
-                )
-            }
-        }
 
-        if (state.available.isNotEmpty()) {
-            item(key = "available_section_${state.currentType.name}") {
+            if (state.available.isNotEmpty()) {
                 SectionLabel(
                     text = stringResource(R.string.common_ui_available),
                     modifier = Modifier.padding(top = 6.dp),
                 )
+                state.available.forEach { item ->
+                    key("available_${state.currentType.name}_${item.key}") {
+                        ComponentItemCard(
+                            item = item,
+                            onDownload = { onDownloadItem(item) },
+                            onRemove = { itemPendingRemoval = item },
+                        )
+                    }
+                }
             }
-            items(
-                items = state.available,
-                key = { item -> "available_${state.currentType.name}_${item.key}" },
-                contentType = { "availableComponentCard" },
-            ) { item ->
-                ComponentItemCard(
-                    item = item,
-                    onDownload = { onDownloadItem(item) },
-                    onRemove = { itemPendingRemoval = item },
-                )
-            }
-        }
 
-        item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -353,8 +330,12 @@ private fun ToggleChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .noRippleClickable(onClick = onToggle)
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onToggle,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -483,8 +464,12 @@ private fun TypeTabChip(
                 .clip(RoundedCornerShape(16.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                .controllerFocusGlow(cornerRadius = 12.dp)
-                .noRippleClickable(onClick = onClick)
+                .paneNavItem(
+                    cornerRadius = 16.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -639,8 +624,12 @@ private fun IconTapButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .noRippleClickable(onClick = onClick),
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -714,8 +703,12 @@ private fun SmallPillButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .noRippleClickable(onClick = onClick)
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {

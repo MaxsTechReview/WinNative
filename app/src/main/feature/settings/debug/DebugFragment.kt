@@ -25,6 +25,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
 import com.winlator.cmod.shared.io.StorageUtils
@@ -171,6 +172,7 @@ class DebugFragment : Fragment() {
                             onShareLogFile = { entry -> shareLogFile(entry) },
                             onDownloadLogFile = { entry -> downloadLogFile(entry) },
                             onDeleteLogFile = { entry -> deleteLogFile(entry) },
+                            bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                         )
                     }
                 }

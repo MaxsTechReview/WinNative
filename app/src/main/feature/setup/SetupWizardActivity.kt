@@ -62,6 +62,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -195,6 +196,18 @@ private fun Modifier.navHighlight(highlighted: Boolean, cornerRadius: Dp): Modif
 private const val REGION_TABS = 0
 private const val REGION_CONTENT = 1
 private const val REGION_NAV = 2
+
+private suspend fun LazyListState.scrollToSelected(index: Int) {
+    if (index < 0) return
+    val info = layoutInfo
+    if (info.visibleItemsInfo.isEmpty()) return
+    val visible = info.visibleItemsInfo.firstOrNull { it.index == index }
+    val fullyVisible =
+        visible != null &&
+            visible.offset >= info.viewportStartOffset &&
+            visible.offset + visible.size <= info.viewportEndOffset
+    if (!fullyVisible) runCatching { animateScrollToItem(index) }
+}
 
 class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     companion object {
@@ -598,12 +611,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private var stickEngaged = 0
 
     private fun advanceWizardPage() {
-        if (transferState.value != null) return
         val page = pageIndex.intValue
         if (page < 2) {
             val canGoNext = if (page == 0) storageGranted.value && imageFsDone.value else true
             if (canGoNext) pageIndex.intValue += 1
-        } else if (!creatingContainer.value) {
+        } else if (!creatingContainer.value && transferState.value == null) {
             finishWizard()
         }
     }
@@ -742,7 +754,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         when (navRegion.intValue) {
             REGION_TABS ->
                 when {
-                    contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = navIndex.intValue.coerceAtMost(contentCount - 1) }
+                    contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = lastContentIndex.coerceAtMost(contentCount - 1) }
                     navCount > 0 -> { navRegion.intValue = REGION_NAV; navIndex.intValue = 0 }
                 }
             REGION_CONTENT -> {
@@ -1536,7 +1548,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             if (activate == 0) return@LaunchedEffect
             if (region == REGION_NAV) {
                 when (navIdx) {
-                    0 -> if (page > 0 && transferState.value == null) pageIndex.intValue -= 1
+                    0 -> if (page > 0) pageIndex.intValue -= 1
                     1 -> advanceWizardPage()
                 }
             }
@@ -1860,7 +1872,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 ) {
                     GhostPillButton(
                         label = stringResource(R.string.common_ui_back),
-                        enabled = page > 0 && !transferActive,
+                        enabled = page > 0,
                         highlighted = controller && region == REGION_NAV && navIdx == 0,
                         onClick = { setNav(REGION_NAV, 0); if (page > 0) pageIndex.intValue -= 1 },
                     )
@@ -1868,7 +1880,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     if (page < lastPage) {
                         AccentPillButton(
                             label = stringResource(R.string.setup_wizard_next),
-                            enabled = canGoNext && !transferActive,
+                            enabled = canGoNext,
                             highlighted = controller && region == REGION_NAV && navIdx == 1,
                             onClick = { setNav(REGION_NAV, 1); if (canGoNext) pageIndex.intValue += 1 },
                         )
@@ -2320,6 +2332,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             onTabIndexChange = { i -> tabs.getOrNull(i)?.let { selectedTab = it.key } }
         }
         LaunchedEffect(selectedTab) {
+            lastContentIndex = 0
+            if (navRegion.intValue == REGION_CONTENT) navIndex.intValue = 0
             val i = tabs.indexOfFirst { it.key == selectedTab }
             if (i >= 0 && navRegion.intValue == REGION_TABS && navIndex.intValue != i) {
                 navIndex.intValue = i
@@ -2439,7 +2453,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                     setContentLayout(tabProfiles.size + installAllSlots, 1)
                                 }
                                 LaunchedEffect(region, navIdx) {
-                                    if (region == REGION_CONTENT) runCatching { listState.animateScrollToItem(navIdx) }
+                                    if (region == REGION_CONTENT) runCatching { listState.scrollToSelected(navIdx) }
                                 }
                                 val lastActivate = remember { mutableStateOf(activate) }
                                 LaunchedEffect(activate) {
@@ -2640,18 +2654,22 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 // Left rail
-                Column(
+                val tabListState = rememberLazyListState()
+                LaunchedEffect(region, navIdx) {
+                    if (region == REGION_TABS) runCatching { tabListState.scrollToSelected(navIdx) }
+                }
+                LazyColumn(
+                    state = tabListState,
                     modifier =
                         Modifier
                             .weight(0.38f)
                             .fillMaxHeight()
                             .background(glassSurface, glassShape)
                             .border(1.dp, glassBorder, glassShape)
-                            .verticalScroll(rememberScrollState())
                             .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    tabs.forEachIndexed { i, tab -> TabItem(tab, i, fillWidth = true, fontSize = 13.sp) }
+                    itemsIndexed(tabs) { i, tab -> TabItem(tab, i, fillWidth = true, fontSize = 13.sp) }
                 }
 
                 ContentPanel(

@@ -26,6 +26,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.sync.google.GoogleFragment
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_SECONDARY
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
 
 object SettingsRoutes {
     fun fromNavItem(item: SettingsNavItem): String = "settings/${item.name.lowercase()}"
@@ -37,6 +43,29 @@ class SettingsNavBridge {
     var selectedItem by mutableStateOf(SettingsNavItem.CONTAINERS)
     var zone by mutableStateOf(SettingsFocusZone.SIDEBAR)
     var onSelectItem: ((SettingsNavItem) -> Unit)? = null
+
+    var contentControllerActive by mutableStateOf(false)
+    var contentNavSignal by mutableStateOf(0)
+        private set
+    var contentNavDir by mutableStateOf(0)
+        private set
+
+    private fun contentNav(dir: Int) {
+        contentNavDir = dir
+        contentNavSignal++
+    }
+
+    fun contentNavLeft() = contentNav(PANE_DIR_LEFT)
+
+    fun contentNavRight() = contentNav(PANE_DIR_RIGHT)
+
+    fun contentNavUp() = contentNav(PANE_DIR_UP)
+
+    fun contentNavDown() = contentNav(PANE_DIR_DOWN)
+
+    fun contentActivate() = contentNav(PANE_DIR_ACTIVATE)
+
+    fun contentSecondary() = contentNav(PANE_DIR_SECONDARY)
 }
 
 private val SettingsBg = Color(0xFF11111C)
@@ -106,6 +135,7 @@ fun SettingsHost(
                                     val ev = awaitPointerEvent(PointerEventPass.Initial)
                                     if (ev.type == PointerEventType.Press) {
                                         bridge.zone = SettingsFocusZone.CONTENT
+                                        bridge.contentControllerActive = false
                                     }
                                 }
                             }

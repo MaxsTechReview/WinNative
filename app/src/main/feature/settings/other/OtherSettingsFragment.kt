@@ -26,6 +26,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
 import com.winlator.cmod.app.config.SettingsConfig
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.shortcuts.FrontendExporter
 import com.winlator.cmod.feature.setup.SetupWizardActivity
@@ -83,6 +84,7 @@ class OtherSettingsFragment : Fragment() {
                         ),
                 ) {
                     OtherSettingsScreen(
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                         state = uiState,
                         onCheckForUpdatesChanged = { checked ->
                             preferences.edit { putBoolean("check_for_updates", checked) }

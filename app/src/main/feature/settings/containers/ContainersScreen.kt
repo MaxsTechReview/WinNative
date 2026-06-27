@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,9 +24,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,7 +64,10 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
-import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.runtime.CompositionLocalProvider
 import java.util.Locale
 
 private val ContainersBg = Color(0xFF11111C)
@@ -76,6 +76,7 @@ private val ContainersSubcard = Color(0xFF161622)
 private val ContainersOutline = Color(0xFF2A2A3A)
 private val ContainersIconBox = Color(0xFF242434)
 private val ContainersAccent = Color(0xFF1A9FFF)
+private val ContainersNavHighlight = Color(0xFF4FC3F7)
 private val ContainersTextPrimary = Color(0xFFF0F4FF)
 private val ContainersTextSecondary = Color(0xFF7A8FA8)
 private val ContainersDanger = Color(0xFFFF7A88)
@@ -133,50 +134,76 @@ fun ContainersScreen(
     onConfirmDuplicateDialog: (Container) -> Unit,
     onConfirmRemoveDialog: (Container) -> Unit,
     onClearCacheDialog: (Container) -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(ContainersBg)
-                .padding(
-                    start = 16.dp + navBarStartPadding,
-                    top = 16.dp,
-                    end = 16.dp + navBarEndPadding,
-                ),
-    ) {
-        SectionLabel(text = stringResource(R.string.common_ui_containers))
-        Spacer(Modifier.height(6.dp))
-
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(160.dp),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(ContainersBg)
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        top = 16.dp,
+                        end = 16.dp + navBarEndPadding,
+                    ),
         ) {
-            item(key = "add") {
-                AddContainerCard(onClick = onAddContainer)
-            }
-            items(
-                items = state.containers,
-                key = { container -> container.id },
-            ) { container ->
-                ContainerCard(
-                    container = container,
-                    onRun = { onRunContainer(container) },
-                    onEdit = { onEditContainer(container) },
-                    onDuplicate = { onDuplicateContainer(container) },
-                    onInstallComponents = { onInstallComponents(container) },
-                    onRemove = { onRemoveContainer(container) },
-                    onShowInfo = { onShowInfo(container) },
-                )
+            SectionLabel(text = stringResource(R.string.common_ui_containers))
+            Spacer(Modifier.height(6.dp))
+
+            val cardSpacing = 8.dp
+            val minCardWidth = 160.dp
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val columns =
+                    maxOf(1, ((maxWidth + cardSpacing) / (minCardWidth + cardSpacing)).toInt())
+                val totalCells = state.containers.size + 1
+                val rowCount = (totalCells + columns - 1) / columns
+
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(cardSpacing),
+                ) {
+                    for (rowIndex in 0 until rowCount) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(cardSpacing),
+                        ) {
+                            for (colIndex in 0 until columns) {
+                                val cellIndex = rowIndex * columns + colIndex
+                                Box(modifier = Modifier.weight(1f)) {
+                                    when {
+                                        cellIndex == 0 -> AddContainerCard(onClick = onAddContainer)
+                                        cellIndex <= state.containers.size -> {
+                                            val container = state.containers[cellIndex - 1]
+                                            key(container.id) {
+                                                ContainerCard(
+                                                    container = container,
+                                                    onRun = { onRunContainer(container) },
+                                                    onEdit = { onEditContainer(container) },
+                                                    onDuplicate = { onDuplicateContainer(container) },
+                                                    onInstallComponents = { onInstallComponents(container) },
+                                                    onRemove = { onRemoveContainer(container) },
+                                                    onShowInfo = { onShowInfo(container) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp + navBarBottomPadding))
+                }
             }
         }
     }
@@ -285,38 +312,49 @@ private fun AddContainerCard(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
-                .controllerFocusGlow(cornerRadius = 12.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
                 ).padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(56.dp)
+                    .fillMaxWidth()
+                    .weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.containers_list_new),
+                color = ContainersTextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(ContainersIconBox),
+                    .background(ContainersIconBox)
+                    .paneNavItem(
+                        cornerRadius = 20.dp,
+                        onActivate = onClick,
+                        highlightColor = ContainersNavHighlight,
+                        tapToSelect = true,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.Add,
                 contentDescription = null,
                 tint = ContainersAccent,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.containers_list_new),
-            color = ContainersTextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        )
     }
 }
 
@@ -772,11 +810,11 @@ private fun SmallVectorIconButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(8.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = ContainersNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -804,11 +842,11 @@ private fun ActionButton(
                 .clip(RoundedCornerShape(9.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(9.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = 9.dp,
+                    onActivate = onClick,
+                    highlightColor = ContainersNavHighlight,
+                    tapToSelect = true,
                 ),
         contentAlignment = Alignment.Center,
     ) {

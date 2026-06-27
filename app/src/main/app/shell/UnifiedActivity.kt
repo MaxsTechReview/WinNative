@@ -572,7 +572,7 @@ class UnifiedActivity :
     private var dpadHeld = false
     private var joystickActive = false
 
-    private val settingsNavBridge = SettingsNavBridge()
+    internal val settingsNavBridge = SettingsNavBridge()
     private var settingsStickEngaged = 0
 
     companion object {
@@ -789,6 +789,8 @@ class UnifiedActivity :
 
     override fun onResume() {
         super.onResume()
+        settingsStickEngaged = 0
+        joystickActive = false
         chasingBordersPaused.value = false
         if (hasCompletedInitialResume) {
             libraryPlaytimeRefreshSignal++
@@ -797,6 +799,12 @@ class UnifiedActivity :
         }
 
         UpdateChecker.startBackgroundLoop(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        settingsStickEngaged = 0
+        joystickActive = false
     }
 
     override fun onDestroy() {
@@ -950,13 +958,8 @@ class UnifiedActivity :
                     if (action == android.view.KeyEvent.ACTION_DOWN) applySettingsSidebarNav(keyCode)
                     return true
                 }
-                if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
-                    if (action == android.view.KeyEvent.ACTION_DOWN) {
-                        settingsNavBridge.zone = SettingsFocusZone.SIDEBAR
-                    }
-                    return true
-                }
-                return super.dispatchKeyEvent(event)
+                if (action == android.view.KeyEvent.ACTION_DOWN) navigateSettingsContent(keyCode)
+                return true
             }
 
             android.view.KeyEvent.KEYCODE_BUTTON_A,
@@ -966,11 +969,7 @@ class UnifiedActivity :
                     if (action == android.view.KeyEvent.ACTION_DOWN) enterSettingsContent()
                     return true
                 }
-                if (action == android.view.KeyEvent.ACTION_DOWN || action == android.view.KeyEvent.ACTION_UP) {
-                    window.decorView.rootView.dispatchKeyEvent(
-                        android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
-                    )
-                }
+                if (action == android.view.KeyEvent.ACTION_DOWN) settingsNavBridge.contentActivate()
                 return true
             }
 
@@ -981,8 +980,16 @@ class UnifiedActivity :
                 return true
             }
 
+            android.view.KeyEvent.KEYCODE_BUTTON_Y -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN &&
+                    settingsNavBridge.zone == SettingsFocusZone.CONTENT
+                ) {
+                    settingsNavBridge.contentSecondary()
+                }
+                return true
+            }
+
             android.view.KeyEvent.KEYCODE_BUTTON_X,
-            android.view.KeyEvent.KEYCODE_BUTTON_Y,
             android.view.KeyEvent.KEYCODE_BUTTON_START,
             android.view.KeyEvent.KEYCODE_BUTTON_L1,
             android.view.KeyEvent.KEYCODE_BUTTON_R1,
@@ -1008,8 +1015,16 @@ class UnifiedActivity :
 
     private fun enterSettingsContent() {
         settingsNavBridge.zone = SettingsFocusZone.CONTENT
-        window.decorView.post {
-            findVisibleFragmentContainer(window.decorView)?.requestFocus()
+        settingsNavBridge.contentControllerActive = true
+    }
+
+    private fun navigateSettingsContent(code: Int) {
+        settingsNavBridge.contentControllerActive = true
+        when (code) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> settingsNavBridge.contentNavLeft()
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> settingsNavBridge.contentNavRight()
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> settingsNavBridge.contentNavUp()
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> settingsNavBridge.contentNavDown()
         }
     }
 
@@ -1030,11 +1045,7 @@ class UnifiedActivity :
             applySettingsSidebarNav(code)
             return
         }
-        if (code == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
-            settingsNavBridge.zone = SettingsFocusZone.SIDEBAR
-        } else {
-            injectKeyEvent(code)
-        }
+        navigateSettingsContent(code)
     }
 
     private fun dispatchDrawerNavKey(
@@ -11527,6 +11538,7 @@ class UnifiedActivity :
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
         val firstFocus = remember { FocusRequester() }
+        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
         val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
         val doAdd: () -> Unit = {
             isAdding = true
@@ -11581,7 +11593,9 @@ class UnifiedActivity :
                         Modifier
                             .widthIn(max = 360.dp)
                             .fillMaxWidth(0.9f)
-                            .controllerMenuInput(onDismiss = onDismiss, onStart = { if (addEnabled) doAdd() }),
+                            .controllerMenuInput(onDismiss = onDismiss, onStart = { if (addEnabled) doAdd() })
+                            .focusRequester(firstFocus)
+                            .focusable(),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xFF141B24),
                 ) {
@@ -11595,8 +11609,6 @@ class UnifiedActivity :
                         )
 
                         Spacer(Modifier.height(10.dp))
-
-                        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
 
                         // Scrollable content area
                         Column(
@@ -11612,7 +11624,6 @@ class UnifiedActivity :
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color.White.copy(alpha = 0.05f))
-                                        .focusRequester(firstFocus)
                                         .controllerFocusGlow(cornerRadius = 12.dp)
                                         .clickable {
                                             DirectoryPickerDialog.showFile(
