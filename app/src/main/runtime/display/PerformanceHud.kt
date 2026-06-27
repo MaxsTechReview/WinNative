@@ -96,7 +96,7 @@ fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
     // value shows N/A rather than dropping the gauge (which would make the row jump around).
     val gauges = ArrayList<GaugeSpec>(8)
     if (s.enabled.getOrElse(0) { false }) {
-        gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent))
+        gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, fpsColor(s.fps)))
     }
     if (s.enabled.getOrElse(2) { false }) {
         gauges.add(GaugeSpec("GPU", pctText(s.gpuLoad), pctFraction(s.gpuLoad), loadColor(maxOf(s.gpuLoad, 0))))
@@ -108,7 +108,7 @@ fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
         gauges.add(GaugeSpec("RAM", pctText(s.ramPercent), pctFraction(s.ramPercent), loadColor(maxOf(s.ramPercent, 0))))
     }
     if (s.enabled.getOrElse(6) { false }) {
-        gauges.add(GaugeSpec("ms", String.format("%.1f", s.frametimeMs), 1f - (s.frametimeMs / 33.3f), HudGood))
+        gauges.add(GaugeSpec("ms", String.format("%.1f", s.frametimeMs), 1f - (s.frametimeMs / 33.3f), fpsColor(s.fps)))
     }
     if (s.enabled.getOrElse(5) { false }) {
         // Battery + temperature is a single HUD element: watts is the gauge value, temp the sublabel.
@@ -164,6 +164,9 @@ private fun loadColor(pct: Int): Color =
 
 private fun tempColor(c: Int): Color =
     if (c >= 45) HudBad else if (c >= 40) HudWarn else HudGood
+
+private fun fpsColor(fps: Float): Color =
+    if (fps >= 30f) HudGood else if (fps >= 20f) HudWarn else HudBad
 
 @Composable
 private fun HudGauge(
