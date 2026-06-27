@@ -6650,7 +6650,7 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = true
+        val isInstallEnabled = installed || totalInstallSize == 0L || availableBytes >= totalInstallSize
         val installActionEnabled = isInstallEnabled && !hasBlockingEpicDownload
         val installPathDisplay = if (installed) app.installPath else (customPath ?: EpicConstants.defaultEpicGamesPath(context))
 
@@ -7273,7 +7273,7 @@ class UnifiedActivity :
             } catch (_: Exception) {
                 0L
             }
-        val isInstallEnabled = true
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installActionEnabled = isInstallEnabled && !hasBlockingGogDownload
         val customPathLabel =
             when {
@@ -8973,7 +8973,7 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = true
+        val isInstallEnabled = installed == true || totalInstallSize == 0L || availableBytes >= totalInstallSize
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
 
         val dlcItems =

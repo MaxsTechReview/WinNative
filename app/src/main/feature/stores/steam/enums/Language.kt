@@ -30,21 +30,21 @@ enum class Language(val displayName: String) {
     ;
 
     companion object {
-        /** All display names in enum order, excluding [unknown]. */
+        /** All display names in enum order, excluding [unknown] and the non-standard [sc_schinese] duplicate. */
         fun displayLabels(): List<String> =
-            entries.filter { it != unknown }.map { it.displayName }
+            entries.filter { it != unknown && it != sc_schinese }.map { it.displayName }
 
         /** Index of the entry whose [name] matches [containerLang], or the index of [english] as fallback. */
         fun indexForContainerLang(containerLang: String?): Int {
             val code = containerLang?.lowercase() ?: return 0
-            val filtered = entries.filter { it != unknown }
+            val filtered = entries.filter { it != unknown && it != sc_schinese }
             val match = filtered.indexOfFirst { it.name == code }
             return if (match >= 0) match else 0
         }
 
         /** Container language enum name for a given display-name [index] (0-based into the filtered list). */
         fun containerLangForIndex(index: Int): String {
-            val filtered = entries.filter { it != unknown }
+            val filtered = entries.filter { it != unknown && it != sc_schinese }
             return filtered.getOrNull(index)?.name ?: english.name
         }
 

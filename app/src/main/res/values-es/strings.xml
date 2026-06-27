@@ -817,6 +817,8 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
 
     <string name="settings_other_language_title">Idioma</string>
     <string name="settings_other_language_summary">Elige el idioma de visualización</string>
+    <string name="settings_other_game_language_title">Idioma del juego</string>
+    <string name="settings_other_game_language_summary">Idioma preferido para las descargas de Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Predeterminado del sistema</string>
 
     <string name="settings_other_section_integration">Integración</string>

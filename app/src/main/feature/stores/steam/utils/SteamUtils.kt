@@ -822,12 +822,17 @@ object SteamUtils {
             allKnownDepots[depotId] = depot
         }
 
-        var installedDlcDepotsIds =  SteamService.getInstalledDlcDepotsOf(steamAppId);
+        val installedDlcDepotsIds = SteamService.getInstalledDlcDepotsOf(steamAppId)
         installedDlcDepotsIds?.forEach { appId ->
-            runBlocking { getOwnedAppDlc(appId).forEach { (depotId, depot) ->
-                allKnownDepots[depotId] = depot
-            } }
-
+            try {
+                runBlocking {
+                    getOwnedAppDlc(appId).forEach { (depotId, depot) ->
+                        allKnownDepots[depotId] = depot
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to resolve owned DLC depots for appId=$appId")
+            }
         }
 
 
@@ -842,14 +847,13 @@ object SteamUtils {
                         depotInfo.dlcAppId != SteamService.INVALID_APP_ID &&
                             depotInfo.dlcAppId in installedDlcAppIds
                     )
-                        || installedDlcDepotsIds?.contains(depotId) == true
             if (!shouldInclude) return@forEach
 
             resolveManifestForBranch(depotInfo, branch)?.takeIf { it.gid != 0L }?.let { manifest ->
                 installedDepots[depotId] = manifest
             }
- }
-    return installedDepots
+        }
+        return installedDepots
     }
 
     @JvmStatic
@@ -979,12 +983,11 @@ object SteamUtils {
                             appendLine("\t\t\t\"manifest\"\t\t\"${manifest.gid}\"")
                             appendLine("\t\t\t\"size\"\t\t\"${manifest.size}\"")
                             val dlcAppId = allKnownDepots[depotId]?.dlcAppId
-                            if ((dlcAppId != null && dlcAppId != SteamService.INVALID_APP_ID)) {
+                            if (dlcAppId != null && dlcAppId != SteamService.INVALID_APP_ID) {
                                 appendLine("\t\t\t\"dlcappid\"\t\t\"$dlcAppId\"")
-                            }else if ( depotId in installedDlcAppIds){
+                            } else if (depotId in installedDlcAppIds) {
                                 appendLine("\t\t\t\"dlcappid\"\t\t\"$depotId\"")
-
-                        }
+                            }
                             appendLine("\t\t}")
                         }
                         appendLine("\t}")
@@ -1176,7 +1179,7 @@ object SteamUtils {
 
     private fun escapeString(input: String?): String {
         if (input == null) return ""
-        return input.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        return input.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
     }
 
     private fun calculateDirectorySize(directory: File): Long {

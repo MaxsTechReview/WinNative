@@ -20,5 +20,5 @@ data class DepotInfo(
     val language: String = "",
     val realm: String = "",
     val lowViolence: Boolean = false,
-    val optionalDlcId: Int = INVALID_APP_ID
+    val optionalDlcId: Int = INVALID_APP_ID,
 )

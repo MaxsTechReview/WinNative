@@ -884,6 +884,8 @@
     <string name="settings_debug_remove_channel_desc">Удалить %1$s</string>
     <string name="settings_other_language_title">Язык</string>
     <string name="settings_other_language_summary">Выберите язык интерфейса</string>
+    <string name="settings_other_game_language_title">Язык игры</string>
+    <string name="settings_other_game_language_summary">Предпочитаемый язык для загрузок Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Системный язык</string>
     <string name="settings_other_section_integration">Интеграция</string>
     <string name="settings_other_setup_wizard_title">Мастер установки</string>

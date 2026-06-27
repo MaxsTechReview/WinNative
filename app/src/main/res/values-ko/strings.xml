@@ -817,6 +817,8 @@
 
     <string name="settings_other_language_title">언어</string>
     <string name="settings_other_language_summary">표시 언어 선택</string>
+    <string name="settings_other_game_language_title">게임 언어</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 다운로드에 사용할 기본 언어</string>
     <string name="settings_other_language_system_default">시스템 기본값</string>
 
     <string name="settings_other_section_integration">통합</string>

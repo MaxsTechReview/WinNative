@@ -231,6 +231,24 @@ static void stage_steam_config(void) {
     }
 }
 
+// Escape a free-text value for a VDF/ACF quoted field: double backslashes, then
+// escape quotes and newlines. Mirrors the Kotlin escapeString() so the C++ and
+// Kotlin manifest paths produce identical, well-formed output.
+static std::string vdf_escape(const char* s) {
+    std::string out;
+    if (!s) return out;
+    for (const char* p = s; *p; ++p) {
+        switch (*p) {
+            case '\\': out += "\\\\"; break;
+            case '"':  out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            default:   out += *p; break;
+        }
+    }
+    return out;
+}
+
 static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     if (appId == 0 || !gameExe) return;
     const char* marker = "\\steamapps\\common\\";
@@ -279,6 +297,9 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
         log_line("[wn-launcher] app manifest: fopen(%s) failed", acf);
         return;
     }
+    std::string nameEsc = vdf_escape(appName);
+    std::string installdirEsc = vdf_escape(installdir);
+    std::string languageEsc = vdf_escape(language);
     fprintf(f,
             "\"AppState\"\n"
             "{\n"
@@ -304,7 +325,7 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
             "\t\"AutoUpdateBehavior\"\t\t\"0\"\n"
             "\t\"AllowOtherDownloadsWhileRunning\"\t\t\"0\"\n"
             "\t\"ScheduledAutoUpdate\"\t\t\"0\"\n",
-            appId, appName, installdir,
+            appId, nameEsc.c_str(), installdirEsc.c_str(),
             (unsigned long long)time(NULL),
             sizeOnDisk, buildId,
             (owner && *owner) ? owner : "0",
@@ -314,10 +335,9 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     // Format: depotId:manifestGid:size[:dlcAppId],...
     if (depotsEnv && *depotsEnv) {
         fprintf(f, "\t\"InstalledDepots\"\n\t{\n");
-        char buf[8192];
-        strncpy(buf, depotsEnv, sizeof(buf) - 1);
-        buf[sizeof(buf) - 1] = '\0';
-        char* token = strtok(buf, ",");
+        std::vector<char> buf(strlen(depotsEnv) + 1);
+        memcpy(buf.data(), depotsEnv, buf.size());
+        char* token = strtok(buf.data(), ",");
         while (token) {
             // Parse depotId:manifestGid:size[:dlcAppId]
             char* colon1 = strchr(token, ':');
@@ -358,15 +378,15 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     // Format: depotId:scriptFilename,...
     if (installScriptsEnv && *installScriptsEnv) {
         fprintf(f, "\t\"InstallScripts\"\n\t{\n");
-        char isbuf[4096];
-        strncpy(isbuf, installScriptsEnv, sizeof(isbuf) - 1);
-        isbuf[sizeof(isbuf) - 1] = '\0';
-        char* istoken = strtok(isbuf, ",");
+        std::vector<char> isbuf(strlen(installScriptsEnv) + 1);
+        memcpy(isbuf.data(), installScriptsEnv, isbuf.size());
+        char* istoken = strtok(isbuf.data(), ",");
         while (istoken) {
             char* iscolon = strchr(istoken, ':');
             if (!iscolon) { istoken = strtok(NULL, ","); continue; }
             *iscolon = '\0';
-            fprintf(f, "\t\t\"%s\"\t\t\"%s\"\n", istoken, iscolon + 1);
+            std::string scriptEsc = vdf_escape(iscolon + 1);
+            fprintf(f, "\t\t\"%s\"\t\t\"%s\"\n", istoken, scriptEsc.c_str());
             istoken = strtok(NULL, ",");
         }
         fprintf(f, "\t}\n");
@@ -375,10 +395,9 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
     // Format: sourceDepotId:targetAppId,...
     if (sharedEnv && *sharedEnv) {
         fprintf(f, "\t\"SharedDepots\"\n\t{\n");
-        char sbuf[4096];
-        strncpy(sbuf, sharedEnv, sizeof(sbuf) - 1);
-        sbuf[sizeof(sbuf) - 1] = '\0';
-        char* stoken = strtok(sbuf, ",");
+        std::vector<char> sbuf(strlen(sharedEnv) + 1);
+        memcpy(sbuf.data(), sharedEnv, sbuf.size());
+        char* stoken = strtok(sbuf.data(), ",");
         while (stoken) {
             char* scolon = strchr(stoken, ':');
             if (!scolon) { stoken = strtok(NULL, ","); continue; }
@@ -398,7 +417,7 @@ static void stage_app_manifest(uint32_t appId, const char* gameExe) {
             "\t\t\"language\"\t\t\"%s\"\n"
             "\t}\n"
             "}\n",
-            language, language);
+            languageEsc.c_str(), languageEsc.c_str());
     fclose(f);
     log_line("[wn-launcher] app manifest staged: %s (installdir=\"%s\", "
              "depots=%s shared=%s scripts=%s)",

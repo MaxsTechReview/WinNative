@@ -923,6 +923,8 @@
     <string name="settings_debug_remove_channel_desc">%1$s हटाएं</string>
     <string name="settings_other_language_title">भाषा</string>
     <string name="settings_other_language_summary">प्रदर्शन भाषा चुनें</string>
+    <string name="settings_other_game_language_title">गेम भाषा</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG डाउनलोड के लिए पसंदीदा भाषा</string>
     <string name="settings_other_language_system_default">सिस्टम डिफ़ॉल्ट</string>
     <string name="settings_other_section_integration">इंटीग्रेशन</string>
     <string name="settings_other_setup_wizard_title">सेटअप विज़ार्ड</string>

@@ -823,6 +823,8 @@
 
     <string name="settings_other_language_title">Мова</string>
     <string name="settings_other_language_summary">Виберіть мову інтерфейсу</string>
+    <string name="settings_other_game_language_title">Мова гри</string>
+    <string name="settings_other_game_language_summary">Бажана мова для завантажень Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">За замовчуванням системи</string>
 
     <string name="settings_other_section_integration">Інтеграція</string>

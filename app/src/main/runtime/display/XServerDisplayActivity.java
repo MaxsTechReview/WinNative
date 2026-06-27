@@ -6303,14 +6303,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                 }
                                 envVars.put("WN_STEAM_BUILD_ID", String.valueOf(buildId));
 
-                                // Compute sizeOnDisk from game directory
+                                // Compute sizeOnDisk recursively from game directory (match Kotlin
+                                // calculateDirectorySize); null-guard listFiles() so a transient I/O
+                                // error never NPEs and silently drops all depot data.
                                 String gameInstallPath = resolveSteamGameInstallPath(bsAppId);
                                 long sizeOnDisk = 0L;
                                 if (gameInstallPath != null) {
-                                    java.io.File gameDir = new java.io.File(gameInstallPath);
-                                    if (gameDir.isDirectory()) {
-                                        for (java.io.File f : gameDir.listFiles()) {
-                                            if (f.isFile()) sizeOnDisk += f.length();
+                                    java.util.ArrayDeque<java.io.File> stack = new java.util.ArrayDeque<>();
+                                    stack.push(new java.io.File(gameInstallPath));
+                                    while (!stack.isEmpty()) {
+                                        java.io.File cur = stack.pop();
+                                        if (cur.isDirectory()) {
+                                            java.io.File[] children = cur.listFiles();
+                                            if (children != null) {
+                                                for (java.io.File c : children) stack.push(c);
+                                            }
+                                        } else if (cur.isFile()) {
+                                            sizeOnDisk += cur.length();
                                         }
                                     }
                                 }
@@ -6347,6 +6356,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                                             .getOwnedAppDlc(dlcAppId, continuation)
                                                     );
                                             if (ownedDlc != null) allKnownDepots.putAll(ownedDlc);
+                                        } catch (InterruptedException ie) {
+                                            Thread.currentThread().interrupt();
                                         } catch (Exception ignored) {}
                                     }
                                 }
@@ -6359,19 +6370,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     int depotId = entry.getKey();
                                     com.winlator.cmod.feature.stores.steam.data.DepotInfo di = entry.getValue();
 
-                                    // Shared depots go into SharedDepots only, not InstalledDepots
-                                    if (di.getSharedInstall() && di.getDepotFromApp() != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
-                                        if (sharedSb.length() > 0) sharedSb.append(",");
-                                        sharedSb.append(depotId).append(":").append(di.getDepotFromApp());
+                                    // Shared depots are excluded from InstalledDepots entirely (match Kotlin
+                                    // collectInstalledDepotManifests); emit to SharedDepots only when the source app is known.
+                                    if (di.getSharedInstall()) {
+                                        if (di.getDepotFromApp() != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
+                                            if (sharedSb.length() > 0) sharedSb.append(",");
+                                            sharedSb.append(depotId).append(":").append(di.getDepotFromApp());
+                                        }
                                         continue;
                                     }
 
                                     // Match Kotlin collectInstalledDepotManifests: include if depot is installed,
-                                    // OR its DLC is installed, OR depotId is directly in installed DLC list
+                                    // or its DLC is installed
                                     boolean shouldInclude = installedDepotIds.contains(depotId)
                                         || (di.getDlcAppId() != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID
-                                            && installedDlcAppIds.contains(di.getDlcAppId()))
-                                        || installedDlcAppIds.contains(depotId);
+                                            && installedDlcAppIds.contains(di.getDlcAppId()));
                                     if (!shouldInclude) continue;
 
                                     com.winlator.cmod.feature.stores.steam.data.ManifestInfo manifest = null;

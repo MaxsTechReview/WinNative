@@ -190,7 +190,7 @@ internal fun StoreGameDetailScreen(
         val showDlcCard = dlcs.isNotEmpty()
         val showActionColumn =
             showDownloadCta || showUpdateCta ||
-                    (showCloudSync || showUninstall)
+                (showCloudSync || showUninstall)
 
         if (heroImageUrl != null) {
             val heroRequest =
@@ -297,9 +297,9 @@ internal fun StoreGameDetailScreen(
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 isUpdateCheckEnabled =
                     !isLoading &&
-                            !isCheckingForUpdate &&
-                            !isUpdateCheckCoolingDown &&
-                            isUpdateActionEnabled,
+                        !isCheckingForUpdate &&
+                        !isUpdateCheckCoolingDown &&
+                        isUpdateActionEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
@@ -436,8 +436,8 @@ internal fun StoreGameDetailScreen(
                                     label = stringResource(R.string.store_game_download_update),
                                     enabled =
                                         !isLoading &&
-                                                isUpdateActionEnabled &&
-                                                !isCheckingForUpdate,
+                                            isUpdateActionEnabled &&
+                                            !isCheckingForUpdate,
                                     loading = false,
                                     onClick = onDownloadUpdate,
                                 )
@@ -887,22 +887,22 @@ private fun StoreSourceActionPopup(
             visibleState = transitionState,
             enter =
                 fadeIn(animationSpec = tween(durationMillis = 90)) +
-                        scaleIn(
-                            animationSpec =
-                                spring(
-                                    dampingRatio = 0.78f,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                            initialScale = 0.88f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                        ),
+                    scaleIn(
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.78f,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        initialScale = 0.88f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
             exit =
                 fadeOut(animationSpec = tween(durationMillis = 80)) +
-                        scaleOut(
-                            animationSpec = tween(durationMillis = 110),
-                            targetScale = 0.92f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                        ),
+                    scaleOut(
+                        animationSpec = tween(durationMillis = 110),
+                        targetScale = 0.92f,
+                        transformOrigin = TransformOrigin(1f, 0f),
+                    ),
         ) {
             Surface(
                 color = StoreBlack.copy(alpha = 0.78f),
@@ -1187,14 +1187,14 @@ private fun StoreScreenCutoutMode() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.clearFlags(
             WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
-                    WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
         )
         // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor to take effect.
         // Compose Dialog windows use Theme.DeviceDefault.Dialog which doesn't set it by default,
         // so the system would otherwise draw its own opaque navbar over our transparent request.
         window.addFlags(
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
         )
         window.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -1220,7 +1220,7 @@ private fun StoreScreenCutoutMode() {
             }
             window.clearFlags(
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
             )
             WindowCompat.setDecorFitsSystemWindows(window, true)
             window.setLayout(originalWidth, originalHeight)

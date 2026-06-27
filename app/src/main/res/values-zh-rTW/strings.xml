@@ -817,6 +817,8 @@
 
     <string name="settings_other_language_title">語言</string>
     <string name="settings_other_language_summary">選擇顯示語言</string>
+    <string name="settings_other_game_language_title">遊戲語言</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 下載的偏好語言</string>
     <string name="settings_other_language_system_default">系統預設</string>
 
     <string name="settings_other_section_integration">整合</string>

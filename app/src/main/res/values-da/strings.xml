@@ -817,6 +817,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
 
     <string name="settings_other_language_title">Sprog</string>
     <string name="settings_other_language_summary">Vælg visningssprog</string>
+    <string name="settings_other_game_language_title">Spilsprog</string>
+    <string name="settings_other_game_language_summary">Foretrukket sprog til Steam/Epic/GOG-downloads</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
 
     <string name="settings_other_section_integration">Integration</string>

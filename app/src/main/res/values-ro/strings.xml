@@ -817,6 +817,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
 
     <string name="settings_other_language_title">Limbă</string>
     <string name="settings_other_language_summary">Alege limba de afișare</string>
+    <string name="settings_other_game_language_title">Limba jocului</string>
+    <string name="settings_other_game_language_summary">Limba preferată pentru descărcările Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Implicit sistem</string>
 
     <string name="settings_other_section_integration">Integrare</string>
