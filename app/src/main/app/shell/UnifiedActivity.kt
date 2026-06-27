@@ -2649,13 +2649,14 @@ class UnifiedActivity :
                                 Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(SurfaceDark)
+                                    .background(Color.Transparent)
+                                    .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                     .clickable { showGlassesPanel = true },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(Eyeglasses2Icon, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
                     }
 
                     Box(

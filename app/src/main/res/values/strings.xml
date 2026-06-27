@@ -1506,6 +1506,8 @@ Installed path:
     <string name="steam_chat_setting_heads_desc">Floating bubbles to read and reply to messages</string>
     <string name="steam_chat_setting_ingame">Enable Chat in Game</string>
     <string name="steam_chat_setting_ingame_desc">Receive and send messages while playing</string>
+    <string name="steam_chat_setting_stay_running">Run in Background</string>
+    <string name="steam_chat_setting_stay_running_desc">Keep chat running after you exit WinNative</string>
     <string name="steam_chat_settings_overlay_needed">Allow display over other apps to use chat heads</string>
     <string name="steam_chat_heads_title">Messages</string>
     <string name="steam_chat_heads_recent_title">Recent</string>

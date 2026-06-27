@@ -8261,6 +8261,7 @@ class SteamService : Service() {
             DownloadCoordinator.hasActiveDownload() -> "a download is active"
             PluviaApp.isGameSessionActive() -> "a game session is running"
             syncInProgressApps.values.any { it.get() } -> "a cloud save sync is in progress"
+            PrefManager.chatStayRunningOnExit -> "background chat is enabled"
             else -> null
         }
 

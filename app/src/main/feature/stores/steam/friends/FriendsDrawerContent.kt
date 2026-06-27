@@ -243,6 +243,7 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     var heads by remember { mutableStateOf(PrefManager.chatHeadsEnabled) }
     var autoHide by remember { mutableStateOf(PrefManager.chatHeadsAutoHide) }
     var inGame by remember { mutableStateOf(PrefManager.chatInGameEnabled) }
+    var stayRunning by remember { mutableStateOf(PrefManager.chatStayRunningOnExit) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(18.dp),
@@ -298,6 +299,11 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                     stringResource(R.string.steam_chat_setting_ingame_desc),
                     inGame,
                 ) { v -> inGame = v; PrefManager.chatInGameEnabled = v }
+                ChatSettingToggle(
+                    stringResource(R.string.steam_chat_setting_stay_running),
+                    stringResource(R.string.steam_chat_setting_stay_running_desc),
+                    stayRunning,
+                ) { v -> stayRunning = v; PrefManager.chatStayRunningOnExit = v }
             }
         }
     }

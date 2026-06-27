@@ -348,6 +348,12 @@ object PrefManager {
             setBoolean("chat_heads_auto_hide", value)
         }
 
+    var chatStayRunningOnExit: Boolean
+        get() = getBoolean("chat_stay_running_on_exit", false)
+        set(value) {
+            setBoolean("chat_stay_running_on_exit", value)
+        }
+
     fun clearAuthTokens() {
         requirePrefs().edit().apply {
             remove("user_name")
