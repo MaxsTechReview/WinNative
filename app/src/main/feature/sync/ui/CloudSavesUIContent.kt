@@ -87,7 +87,9 @@ import com.winlator.cmod.feature.steamcloudsync.SteamCloudHistoryProvider
 import com.winlator.cmod.feature.steamcloudsync.SteamCloudSyncHelper
 import com.winlator.cmod.feature.steamcloudsync.SteamSaveSnapshotManager
 import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.feature.sync.google.WinePathUtils
+import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.container.Shortcut
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.theme.WinNativeAccent
@@ -156,7 +158,17 @@ internal fun CloudSavesContent(
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: shortcut?.container?.id?.takeIf { it > 0 }
+    // Resolve the game's REAL container the way the launcher does (resolveShortcutLaunchContainer):
+    // the `container_id` override wins over shortcut.container, which is only the container whose
+    // folder physically holds the .desktop file and is stale once a game is reassigned. Passing
+    // shortcut.container directly made cloud ops activate the wrong wineprefix → "No save files
+    // found to back up" for any game whose run-container differs from its shortcut-file container.
+    val targetContainer =
+        remember(shortcut, targetContainerId) {
+            targetContainerId?.let { ContainerManager(context).getContainerById(it) } ?: shortcut?.container
+        }
     var gogZipBusy by remember { mutableStateOf(false) }
+    var googleBackupBusy by remember { mutableStateOf(false) }
     val gogZipLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -209,6 +221,12 @@ internal fun CloudSavesContent(
                                     emptyList()
                                 }
                             }
+                        // Surface the local rolling snapshots (pre-download safety net, exit/use-local
+                        // backups, the cloud-save pre-capture taken before "Use Local", and manual
+                        // imports). These STEAM_LOCAL entries are the only ones that support true
+                        // per-entry rollback (restoreFromEntry), so without listing them the user
+                        // could never recover those saves.
+                        val localSnapshots = SteamSaveSnapshotManager.listHistory(context, appId)
                         // Surface Google-mirrored "keep a copy" saves in the same list (silent no-op when not signed in).
                         val google =
                             GameSaveBackupManager.listGoogleHistory(
@@ -216,24 +234,32 @@ internal fun CloudSavesContent(
                                 GameSaveBackupManager.GameSource.STEAM,
                                 gameId,
                             )
-                        (cloud + google).sortedByDescending { it.timestampMs }
+                        (cloud + localSnapshots + google).sortedByDescending { it.timestampMs }
                     } else {
                         emptyList()
                     }
                 }
                 GameSaveBackupManager.GameSource.EPIC -> {
                     val appId = gameId.toIntOrNull()
-                    if (appId != null) {
-                        EpicCloudHistoryProvider
-                            .listCloudSaveGroups(context, appId)
-                    } else {
-                        emptyList()
-                    }
+                    val epic =
+                        if (appId != null) {
+                            EpicCloudHistoryProvider.listCloudSaveGroups(context, appId)
+                        } else {
+                            emptyList()
+                        }
+                    // Surface "Backup To Google" copies alongside the provider history.
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (epic + google).sortedByDescending { it.timestampMs }
                 }
                 GameSaveBackupManager.GameSource.GOG -> {
-                    GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val gog = GOGCloudHistoryProvider.listCloudSaveGroups(context, gameId, targetContainerId)
+                    val google = GameSaveBackupManager.listGoogleHistory(activity, gameSource, gameId)
+                    (gog + google).sortedByDescending { it.timestampMs }
                 }
-                GameSaveBackupManager.GameSource.CUSTOM -> emptyList()
+                GameSaveBackupManager.GameSource.CUSTOM ->
+                    GameSaveBackupManager
+                        .listGoogleHistory(activity, gameSource, gameId)
+                        .sortedByDescending { it.timestampMs }
             }
         historyLoading = false
     }
@@ -515,6 +541,45 @@ internal fun CloudSavesContent(
 
         }
 
+        // "Backup To Google" — manual backup of the current local save to Google Play Games,
+        // available for every store. Reused both inside the Steam action grid (to the right of
+        // "Import Files") and as a standalone button for other stores. Passes the game's container
+        // so the save resolves against the correct wineprefix — without it the wrong/default
+        // container is used and no saves are found.
+        val backupToGoogleAction: @Composable (Modifier) -> Unit = { mod ->
+            ActionWithHelper(
+                icon = Icons.Outlined.CloudUpload,
+                label = stringResource(R.string.cloud_saves_google_backup_label),
+                tint = CloudSuccess,
+                modifier = mod,
+                enabled = !isWorking && !googleBackupBusy && gameId.isNotEmpty(),
+                onClick = {
+                    if (googleBackupBusy) return@ActionWithHelper
+                    scope.launch {
+                        googleBackupBusy = true
+                        try {
+                            val result =
+                                withContext(Dispatchers.IO) {
+                                    GameSaveBackupManager.backupSaveToGoogle(
+                                        activity = activity,
+                                        gameSource = gameSource,
+                                        gameId = gameId,
+                                        gameName = gameName,
+                                        origin = GameSaveBackupManager.BackupOrigin.MANUAL,
+                                        authMode = GoogleAuthMode.INTERACTIVE,
+                                        containerHint = targetContainer,
+                                    )
+                                }
+                            notify(result.message, Toast.LENGTH_LONG)
+                        } finally {
+                            googleBackupBusy = false
+                            historyRefreshKey++
+                        }
+                    }
+                },
+            )
+        }
+
         if (steamManagedCloud) {
             val steamAppIdInt = gameId.toIntOrNull()
             var steamBusy by remember { mutableStateOf(false) }
@@ -529,7 +594,7 @@ internal fun CloudSavesContent(
                         try {
                             val result =
                                 SteamSaveSnapshotManager
-                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, sc.container)
+                                    .importSnapshotFromFiles(activity, steamAppIdInt, uris, targetContainer)
                             notify(
                                 result.message,
                                 Toast.LENGTH_LONG,
@@ -541,7 +606,7 @@ internal fun CloudSavesContent(
                     }
                 }
 
-            if (steamBusy) {
+            if (steamBusy || googleBackupBusy) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Accent,
@@ -555,7 +620,6 @@ internal fun CloudSavesContent(
             val steamPushSuccess = stringResource(R.string.cloud_saves_steam_push_success)
             val steamPushFailed = stringResource(R.string.cloud_saves_steam_push_failed)
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compact = maxWidth < 520.dp
                 val syncAction: @Composable (Modifier) -> Unit = { mod ->
                     ActionWithHelper(
                         icon = Icons.Outlined.CloudSync,
@@ -572,7 +636,7 @@ internal fun CloudSavesContent(
                                     val ok =
                                         withContext(Dispatchers.IO) {
                                             SteamCloudSyncHelper
-                                                .forceDownloadById(activity, appId, shortcut?.container)
+                                                .forceDownloadById(activity, appId, targetContainer)
                                         }
                                     notify(
                                         if (ok) steamSyncSuccess else steamSyncFailed,
@@ -635,31 +699,42 @@ internal fun CloudSavesContent(
                         },
                     )
                 }
-                if (compact) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            syncAction(Modifier.weight(1f))
-                            pushAction(Modifier.weight(1f))
-                        }
-                        importAction(Modifier.fillMaxWidth())
-                    }
-                } else {
+                // 2x2 grid: Sync / Push on top, Import / Backup To Google below — each cell the
+                // same width so "Import Files" and "Backup To Google" line up under "Sync from
+                // Steam Cloud" and "Push to Steam Cloud".
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         syncAction(Modifier.weight(1f))
                         pushAction(Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         importAction(Modifier.weight(1f))
+                        backupToGoogleAction(Modifier.weight(1f))
                     }
                 }
             }
+        }
+
+        // For non-Steam stores, "Backup To Google" is its own full-width button (for Steam it
+        // lives in the action grid above, to the right of "Import Files").
+        if (!steamManagedCloud) {
+            if (googleBackupBusy) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Accent,
+                    trackColor = CardBorder,
+                )
+            }
+            backupToGoogleAction(Modifier.fillMaxWidth())
         }
 
         SaveHistorySection(
@@ -729,7 +804,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -743,7 +818,7 @@ internal fun CloudSavesContent(
                                             activity,
                                             appId,
                                             target.fileId,
-                                            shortcut?.container,
+                                            targetContainer,
                                         )
                                 } else {
                                     GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_invalid_app_id))
@@ -773,7 +848,7 @@ internal fun CloudSavesContent(
                                     target,
                                     gameSource,
                                     gameId,
-                                    containerHint = shortcut?.container,
+                                    containerHint = targetContainer,
                                 )
                             }
                             else -> GameSaveBackupManager.BackupResult(false, context.getString(R.string.cloud_saves_history_restore_failed))
@@ -1105,7 +1180,15 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    val canRestore = entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD
+    // STEAM_CLOUD "groups" are a time-clustered view of the CURRENT cloud file list — Steam keeps
+    // no server-side version history, so every group would restore the same current cloud state.
+    // Surfacing a per-group "Restore" implied a rollback that does not exist; the real per-entry
+    // rollback is the STEAM_LOCAL snapshots, and "Sync from Steam Cloud" pulls the current cloud.
+    // So STEAM_CLOUD entries are read-only history (like GOG_CLOUD).
+    val canRestore =
+        entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
+            entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+    val isReadOnlyCloudGroup = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
     Row(
         modifier =
             Modifier
@@ -1192,6 +1275,15 @@ private fun SaveHistoryRow(
                     label = stringResource(R.string.cloud_saves_history_restore),
                     tint = CloudSuccess,
                     onClick = onRestore,
+                )
+                Spacer(Modifier.width(6.dp))
+            } else if (isReadOnlyCloudGroup) {
+                Text(
+                    text = stringResource(R.string.cloud_saves_history_cloud_readonly),
+                    color = TextSecondary,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp,
                 )
                 Spacer(Modifier.width(6.dp))
             }

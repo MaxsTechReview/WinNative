@@ -5051,6 +5051,25 @@ class SteamService : Service() {
             }
 
         /**
+         * Download a single cloud file's bytes by its cloud "prefixed path"
+         * (pathPrefix/filename, as produced by [SteamAutoCloud.resolvePersistedCloudFiles]).
+         *
+         * Pure read: performs the CDN GET via the C++ WN-Steam-Client and does NOT write any
+         * local file, the change-number DB, or the tracked-files DB. Returns null if not
+         * logged on or the download fails. Used by the cloud-save pre-capture path so the
+         * current cloud save can be backed up without mutating local state.
+         */
+        suspend fun downloadCloudFileBytes(
+            appId: Int,
+            prefixedPath: String,
+        ): ByteArray? =
+            withContext(Dispatchers.IO) {
+                withWnSession { session ->
+                    withContext(Dispatchers.IO) { session.downloadCloudFile(appId, prefixedPath) }
+                }
+            }
+
+        /**
          * Single-round-trip launch-time conflict probe.
          *
          * A real conflict requires BOTH an app-change-number mismatch AND per-file
