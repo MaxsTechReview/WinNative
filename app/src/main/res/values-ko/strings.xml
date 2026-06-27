@@ -1522,5 +1522,22 @@
     <string name="file_manager_delete_failed">삭제에 실패했습니다</string>
     <string name="file_manager_rename_failed">이름 변경에 실패했습니다</string>
     <string name="file_manager_create_folder_failed">폴더 만들기에 실패했습니다</string>
+    <string name="cloud_saves_google_backup_helper">Google Play Games에 복사본 저장</string>
+    <string name="cloud_saves_google_backup_label">Google에 백업</string>
+    <string name="cloud_saves_google_backup_no_save">백업할 저장 파일이 없습니다.</string>
+    <string name="cloud_saves_history_cloud_readonly">읽기 전용</string>
+    <string name="session_drawer_rail_label_record">녹화</string>
+    <string name="session_record_failed">녹화를 시작할 수 없습니다</string>
+    <string name="session_record_fps">프레임 레이트</string>
+    <string name="session_record_include_ui">UI 녹화</string>
+    <string name="session_record_include_ui_subtitle">HUD 및 화면 컨트롤 포함</string>
+    <string name="session_record_now">지금 녹화</string>
+    <string name="session_record_quality">품질</string>
+    <string name="session_record_resolution">해상도</string>
+    <string name="session_record_saved">녹화가 WinNative/Recordings에 저장되었습니다</string>
+    <string name="session_record_settings_title">녹화 설정</string>
+    <string name="session_record_started">녹화 시작됨</string>
+    <string name="steam_chat_setting_stay_running">백그라운드에서 실행</string>
+    <string name="steam_chat_setting_stay_running_desc">WinNative를 종료한 후에도 채팅 유지</string>
 </resources>
 

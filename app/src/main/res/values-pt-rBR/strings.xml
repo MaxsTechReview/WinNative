@@ -1521,5 +1521,22 @@ Caminho instalado:
     <string name="file_manager_delete_failed">Falha ao excluir</string>
     <string name="file_manager_rename_failed">Falha ao renomear</string>
     <string name="file_manager_create_folder_failed">Falha ao criar pasta</string>
+    <string name="cloud_saves_google_backup_helper">Salvar uma cópia no Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Backup no Google</string>
+    <string name="cloud_saves_google_backup_no_save">Nenhum arquivo de salvamento encontrado para backup.</string>
+    <string name="cloud_saves_history_cloud_readonly">Somente leitura</string>
+    <string name="session_drawer_rail_label_record">Gravar</string>
+    <string name="session_record_failed">Não foi possível iniciar a gravação</string>
+    <string name="session_record_fps">Taxa de Quadros</string>
+    <string name="session_record_include_ui">Gravar interface</string>
+    <string name="session_record_include_ui_subtitle">Incluir HUD e controles na tela</string>
+    <string name="session_record_now">Gravar agora</string>
+    <string name="session_record_quality">Qualidade</string>
+    <string name="session_record_resolution">Resolução</string>
+    <string name="session_record_saved">Gravação salva em WinNative/Recordings</string>
+    <string name="session_record_settings_title">Configurações de gravação</string>
+    <string name="session_record_started">Gravação iniciada</string>
+    <string name="steam_chat_setting_stay_running">Executar em segundo plano</string>
+    <string name="steam_chat_setting_stay_running_desc">Manter o chat ativo após sair do WinNative</string>
 </resources>
 

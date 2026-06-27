@@ -1522,4 +1522,21 @@ Installierter Pfad:
     <string name="file_manager_delete_failed">Löschen fehlgeschlagen</string>
     <string name="file_manager_rename_failed">Umbenennen fehlgeschlagen</string>
     <string name="file_manager_create_folder_failed">Ordner erstellen fehlgeschlagen</string>
+    <string name="cloud_saves_google_backup_helper">Eine Kopie bei Google Play Games speichern</string>
+    <string name="cloud_saves_google_backup_label">Bei Google sichern</string>
+    <string name="cloud_saves_google_backup_no_save">Keine Speicherdateien zum Sichern gefunden.</string>
+    <string name="cloud_saves_history_cloud_readonly">Schreibgeschützt</string>
+    <string name="session_drawer_rail_label_record">Aufnehmen</string>
+    <string name="session_record_failed">Aufnahme konnte nicht gestartet werden</string>
+    <string name="session_record_fps">Bildrate</string>
+    <string name="session_record_include_ui">Oberfläche aufnehmen</string>
+    <string name="session_record_include_ui_subtitle">HUD und Bildschirmsteuerung einbeziehen</string>
+    <string name="session_record_now">Jetzt aufnehmen</string>
+    <string name="session_record_quality">Qualität</string>
+    <string name="session_record_resolution">Auflösung</string>
+    <string name="session_record_saved">Aufnahme gespeichert in WinNative/Recordings</string>
+    <string name="session_record_settings_title">Aufnahmeeinstellungen</string>
+    <string name="session_record_started">Aufnahme gestartet</string>
+    <string name="steam_chat_setting_stay_running">Im Hintergrund ausführen</string>
+    <string name="steam_chat_setting_stay_running_desc">Chat nach dem Beenden von WinNative weiterlaufen lassen</string>
 </resources>

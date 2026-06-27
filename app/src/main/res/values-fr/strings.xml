@@ -1521,5 +1521,22 @@ Chemin installé :
     <string name="file_manager_delete_failed">Échec de la suppression</string>
     <string name="file_manager_rename_failed">Échec du renommage</string>
     <string name="file_manager_create_folder_failed">Échec de la création du dossier</string>
+    <string name="cloud_saves_google_backup_helper">Enregistrer une copie sur Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Sauvegarder sur Google</string>
+    <string name="cloud_saves_google_backup_no_save">Aucun fichier de sauvegarde à sauvegarder.</string>
+    <string name="cloud_saves_history_cloud_readonly">Lecture seule</string>
+    <string name="session_drawer_rail_label_record">Enregistrer</string>
+    <string name="session_record_failed">Impossible de démarrer l\'enregistrement</string>
+    <string name="session_record_fps">Fréquence d\'images</string>
+    <string name="session_record_include_ui">Enregistrer l\'interface</string>
+    <string name="session_record_include_ui_subtitle">Inclure le HUD et les commandes à l\'écran</string>
+    <string name="session_record_now">Enregistrer maintenant</string>
+    <string name="session_record_quality">Qualité</string>
+    <string name="session_record_resolution">Résolution</string>
+    <string name="session_record_saved">Enregistrement sauvegardé dans WinNative/Recordings</string>
+    <string name="session_record_settings_title">Paramètres d\'enregistrement</string>
+    <string name="session_record_started">Enregistrement démarré</string>
+    <string name="steam_chat_setting_stay_running">Exécuter en arrière-plan</string>
+    <string name="steam_chat_setting_stay_running_desc">Garder le chat actif après avoir quitté WinNative</string>
 </resources>
 

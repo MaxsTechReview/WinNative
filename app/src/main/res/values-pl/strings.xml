@@ -1527,5 +1527,22 @@ Zainstalowana ścieżka:
     <string name="file_manager_delete_failed">Usuwanie nie powiodło się</string>
     <string name="file_manager_rename_failed">Zmiana nazwy nie powiodła się</string>
     <string name="file_manager_create_folder_failed">Tworzenie folderu nie powiodło się</string>
+    <string name="cloud_saves_google_backup_helper">Zapisz kopię w Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Kopia zapasowa w Google</string>
+    <string name="cloud_saves_google_backup_no_save">Nie znaleziono plików zapisu do utworzenia kopii.</string>
+    <string name="cloud_saves_history_cloud_readonly">Tylko do odczytu</string>
+    <string name="session_drawer_rail_label_record">Nagrywaj</string>
+    <string name="session_record_failed">Nie można rozpocząć nagrywania</string>
+    <string name="session_record_fps">Częstotliwość klatek</string>
+    <string name="session_record_include_ui">Nagrywaj interfejs</string>
+    <string name="session_record_include_ui_subtitle">Uwzględnij HUD i elementy sterujące na ekranie</string>
+    <string name="session_record_now">Nagrywaj teraz</string>
+    <string name="session_record_quality">Jakość</string>
+    <string name="session_record_resolution">Rozdzielczość</string>
+    <string name="session_record_saved">Nagranie zapisano w WinNative/Recordings</string>
+    <string name="session_record_settings_title">Ustawienia nagrywania</string>
+    <string name="session_record_started">Rozpoczęto nagrywanie</string>
+    <string name="steam_chat_setting_stay_running">Uruchom w tle</string>
+    <string name="steam_chat_setting_stay_running_desc">Pozostaw czat aktywny po zamknięciu WinNative</string>
 </resources>
 

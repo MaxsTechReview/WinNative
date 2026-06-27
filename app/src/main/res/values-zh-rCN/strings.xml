@@ -1521,5 +1521,22 @@
     <string name="file_manager_delete_failed">删除失败</string>
     <string name="file_manager_rename_failed">重命名失败</string>
     <string name="file_manager_create_folder_failed">创建文件夹失败</string>
+    <string name="cloud_saves_google_backup_helper">将副本保存到 Google Play 游戏</string>
+    <string name="cloud_saves_google_backup_label">备份到 Google</string>
+    <string name="cloud_saves_google_backup_no_save">未找到可备份的存档文件。</string>
+    <string name="cloud_saves_history_cloud_readonly">只读</string>
+    <string name="session_drawer_rail_label_record">录制</string>
+    <string name="session_record_failed">无法开始录制</string>
+    <string name="session_record_fps">帧率</string>
+    <string name="session_record_include_ui">录制界面</string>
+    <string name="session_record_include_ui_subtitle">包含 HUD 和屏幕控件</string>
+    <string name="session_record_now">立即录制</string>
+    <string name="session_record_quality">质量</string>
+    <string name="session_record_resolution">分辨率</string>
+    <string name="session_record_saved">录制已保存到 WinNative/Recordings</string>
+    <string name="session_record_settings_title">录制设置</string>
+    <string name="session_record_started">已开始录制</string>
+    <string name="steam_chat_setting_stay_running">在后台运行</string>
+    <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
 </resources>
 

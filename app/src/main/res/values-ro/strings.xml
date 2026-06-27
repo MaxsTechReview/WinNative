@@ -1520,5 +1520,22 @@ Cale instalata:
     <string name="file_manager_delete_failed">Stergerea a esuat</string>
     <string name="file_manager_rename_failed">Redenumirea a esuat</string>
     <string name="file_manager_create_folder_failed">Crearea folderului a esuat</string>
+    <string name="cloud_saves_google_backup_helper">Salvează o copie în Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Backup pe Google</string>
+    <string name="cloud_saves_google_backup_no_save">Nu s-au găsit fișiere salvate pentru backup.</string>
+    <string name="cloud_saves_history_cloud_readonly">Doar citire</string>
+    <string name="session_drawer_rail_label_record">Înregistrează</string>
+    <string name="session_record_failed">Nu s-a putut porni înregistrarea</string>
+    <string name="session_record_fps">Rata cadrelor</string>
+    <string name="session_record_include_ui">Înregistrează interfața</string>
+    <string name="session_record_include_ui_subtitle">Include HUD și comenzile de pe ecran</string>
+    <string name="session_record_now">Înregistrează acum</string>
+    <string name="session_record_quality">Calitate</string>
+    <string name="session_record_resolution">Rezoluție</string>
+    <string name="session_record_saved">Înregistrare salvată în WinNative/Recordings</string>
+    <string name="session_record_settings_title">Setări de înregistrare</string>
+    <string name="session_record_started">Înregistrare pornită</string>
+    <string name="steam_chat_setting_stay_running">Rulează în fundal</string>
+    <string name="steam_chat_setting_stay_running_desc">Menține chatul activ după ce ieși din WinNative</string>
 </resources>
 

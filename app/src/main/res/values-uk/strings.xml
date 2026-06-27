@@ -1527,5 +1527,22 @@
     <string name="file_manager_delete_failed">Не вдалося видалити</string>
     <string name="file_manager_rename_failed">Не вдалося перейменувати</string>
     <string name="file_manager_create_folder_failed">Не вдалося створити теку</string>
+    <string name="cloud_saves_google_backup_helper">Зберегти копію в Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Резервна копія в Google</string>
+    <string name="cloud_saves_google_backup_no_save">Не знайдено файлів збереження для резервного копіювання.</string>
+    <string name="cloud_saves_history_cloud_readonly">Лише читання</string>
+    <string name="session_drawer_rail_label_record">Запис</string>
+    <string name="session_record_failed">Не вдалося почати запис</string>
+    <string name="session_record_fps">Частота кадрів</string>
+    <string name="session_record_include_ui">Записувати інтерфейс</string>
+    <string name="session_record_include_ui_subtitle">Включити HUD та екранні елементи керування</string>
+    <string name="session_record_now">Записати зараз</string>
+    <string name="session_record_quality">Якість</string>
+    <string name="session_record_resolution">Роздільна здатність</string>
+    <string name="session_record_saved">Запис збережено в WinNative/Recordings</string>
+    <string name="session_record_settings_title">Налаштування запису</string>
+    <string name="session_record_started">Запис розпочато</string>
+    <string name="steam_chat_setting_stay_running">Працювати у фоні</string>
+    <string name="steam_chat_setting_stay_running_desc">Залишати чат активним після виходу з WinNative</string>
 </resources>
 

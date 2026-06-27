@@ -1521,5 +1521,22 @@ Percorso installato:
     <string name="file_manager_delete_failed">Eliminazione non riuscita</string>
     <string name="file_manager_rename_failed">Rinomina non riuscita</string>
     <string name="file_manager_create_folder_failed">Creazione cartella non riuscita</string>
+    <string name="cloud_saves_google_backup_helper">Salva una copia su Google Play Games</string>
+    <string name="cloud_saves_google_backup_label">Backup su Google</string>
+    <string name="cloud_saves_google_backup_no_save">Nessun file di salvataggio da sottoporre a backup.</string>
+    <string name="cloud_saves_history_cloud_readonly">Sola lettura</string>
+    <string name="session_drawer_rail_label_record">Registra</string>
+    <string name="session_record_failed">Impossibile avviare la registrazione</string>
+    <string name="session_record_fps">Frequenza fotogrammi</string>
+    <string name="session_record_include_ui">Registra interfaccia</string>
+    <string name="session_record_include_ui_subtitle">Includi HUD e controlli su schermo</string>
+    <string name="session_record_now">Registra ora</string>
+    <string name="session_record_quality">Qualità</string>
+    <string name="session_record_resolution">Risoluzione</string>
+    <string name="session_record_saved">Registrazione salvata in WinNative/Recordings</string>
+    <string name="session_record_settings_title">Impostazioni registrazione</string>
+    <string name="session_record_started">Registrazione avviata</string>
+    <string name="steam_chat_setting_stay_running">Esegui in background</string>
+    <string name="steam_chat_setting_stay_running_desc">Mantieni la chat attiva dopo aver chiuso WinNative</string>
 </resources>
 
