@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService
@@ -90,6 +91,7 @@ private fun statusLabel(state: EPersonaState): String = when (state) {
 fun FriendsDrawerContent(
     self: SteamFriend,
     friends: List<SteamFriendEntry>,
+    installedGameIds: Set<Int>,
     onSetState: (EPersonaState) -> Unit,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
@@ -126,19 +128,19 @@ fun FriendsDrawerContent(
                 if (inGame.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_in_game, inGame.size)) }
                     items(inGame, key = { it.steamId }) {
-                        InGameFriendCard(it, onOpenChat, onJoinGame)
+                        InGameFriendCard(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
                     }
                 }
                 if (online.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_online, online.size)) }
                     items(online, key = { it.steamId }) {
-                        FriendRow(it, onOpenChat, onJoinGame)
+                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
                     }
                 }
                 if (offline.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_offline, offline.size)) }
                     items(offline, key = { it.steamId }) {
-                        FriendRow(it, onOpenChat, onJoinGame)
+                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
                     }
                 }
                 if (friends.isEmpty()) {
@@ -244,11 +246,15 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     var autoHide by remember { mutableStateOf(PrefManager.chatHeadsAutoHide) }
     var inGame by remember { mutableStateOf(PrefManager.chatInGameEnabled) }
     var stayRunning by remember { mutableStateOf(PrefManager.chatStayRunningOnExit) }
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = SurfaceDark,
             border = BorderStroke(1.dp, CardBorder),
+            modifier = Modifier.fillMaxWidth(0.94f),
         ) {
             Column(Modifier.padding(18.dp).fillMaxWidth()) {
                 Text(
@@ -258,52 +264,58 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(Modifier.height(10.dp))
-                ChatSettingToggle(
-                    stringResource(R.string.steam_chat_setting_notifications),
-                    stringResource(R.string.steam_chat_setting_notifications_desc),
-                    notifications,
-                ) { v -> notifications = v; PrefManager.chatNotificationsEnabled = v }
-                ChatSettingToggle(
-                    stringResource(R.string.steam_chat_setting_heads),
-                    stringResource(R.string.steam_chat_setting_heads_desc),
-                    heads,
-                ) { v ->
-                    if (v) {
-                        if (android.provider.Settings.canDrawOverlays(context)) {
-                            heads = true
-                            PrefManager.chatHeadsEnabled = true
-                            ChatOverlayService.start(context)
-                        } else {
-                            runCatching {
-                                context.startActivity(
-                                    android.content.Intent(
-                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        android.net.Uri.parse("package:" + context.packageName),
-                                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        ChatSettingToggle(
+                            stringResource(R.string.steam_chat_setting_notifications),
+                            stringResource(R.string.steam_chat_setting_notifications_desc),
+                            notifications,
+                        ) { v -> notifications = v; PrefManager.chatNotificationsEnabled = v }
+                        ChatSettingToggle(
+                            stringResource(R.string.steam_chat_setting_heads),
+                            stringResource(R.string.steam_chat_setting_heads_desc),
+                            heads,
+                        ) { v ->
+                            if (v) {
+                                if (android.provider.Settings.canDrawOverlays(context)) {
+                                    heads = true
+                                    PrefManager.chatHeadsEnabled = true
+                                    ChatOverlayService.start(context)
+                                } else {
+                                    runCatching {
+                                        context.startActivity(
+                                            android.content.Intent(
+                                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                android.net.Uri.parse("package:" + context.packageName),
+                                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                        )
+                                    }
+                                }
+                            } else {
+                                heads = false
+                                PrefManager.chatHeadsEnabled = false
+                                ChatOverlayService.stop(context)
                             }
                         }
-                    } else {
-                        heads = false
-                        PrefManager.chatHeadsEnabled = false
-                        ChatOverlayService.stop(context)
+                        ChatSettingToggle(
+                            stringResource(R.string.steam_chat_setting_autohide),
+                            stringResource(R.string.steam_chat_setting_autohide_desc),
+                            autoHide,
+                        ) { v -> autoHide = v; PrefManager.chatHeadsAutoHide = v }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        ChatSettingToggle(
+                            stringResource(R.string.steam_chat_setting_ingame),
+                            stringResource(R.string.steam_chat_setting_ingame_desc),
+                            inGame,
+                        ) { v -> inGame = v; PrefManager.chatInGameEnabled = v }
+                        ChatSettingToggle(
+                            stringResource(R.string.steam_chat_setting_stay_running),
+                            stringResource(R.string.steam_chat_setting_stay_running_desc),
+                            stayRunning,
+                        ) { v -> stayRunning = v; PrefManager.chatStayRunningOnExit = v }
                     }
                 }
-                ChatSettingToggle(
-                    stringResource(R.string.steam_chat_setting_autohide),
-                    stringResource(R.string.steam_chat_setting_autohide_desc),
-                    autoHide,
-                ) { v -> autoHide = v; PrefManager.chatHeadsAutoHide = v }
-                ChatSettingToggle(
-                    stringResource(R.string.steam_chat_setting_ingame),
-                    stringResource(R.string.steam_chat_setting_ingame_desc),
-                    inGame,
-                ) { v -> inGame = v; PrefManager.chatInGameEnabled = v }
-                ChatSettingToggle(
-                    stringResource(R.string.steam_chat_setting_stay_running),
-                    stringResource(R.string.steam_chat_setting_stay_running_desc),
-                    stayRunning,
-                ) { v -> stayRunning = v; PrefManager.chatStayRunningOnExit = v }
             }
         }
     }
@@ -352,6 +364,7 @@ private fun StatusOption(label: String, dot: Color, onClick: () -> Unit) {
 @Composable
 private fun InGameFriendCard(
     friend: SteamFriendEntry,
+    gameInstalled: Boolean,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
 ) {
@@ -406,7 +419,7 @@ private fun InGameFriendCard(
                     )
                 }
             }
-            if (friend.isJoinable) {
+            if (friend.isPlayingGame && gameInstalled) {
                 Spacer(Modifier.width(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -431,6 +444,7 @@ private fun InGameFriendCard(
 @Composable
 private fun FriendRow(
     friend: SteamFriendEntry,
+    gameInstalled: Boolean,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
 ) {
@@ -470,7 +484,7 @@ private fun FriendRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (friend.isPlayingGame) {
+            if (friend.isPlayingGame && gameInstalled) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Accent.copy(alpha = 0.18f),

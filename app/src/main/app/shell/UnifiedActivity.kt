@@ -1503,6 +1503,12 @@ class UnifiedActivity :
             ?: remember { mutableStateOf(emptyList<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry>()) }
         var chatFriend by remember { mutableStateOf<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry?>(null) }
         val friendsDrawerOpen = rightDrawerState.isOpen
+        var installedFriendGameIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+        LaunchedEffect(friends) {
+            val ids = friends.map { it.gameAppId }.filter { it > 0 }.distinct()
+            installedFriendGameIds =
+                withContext(Dispatchers.IO) { ids.filter { SteamService.isAppInstalled(it) }.toSet() }
+        }
         LaunchedEffect(isLoggedIn) {
             if (isLoggedIn) {
                 while (true) {
@@ -1763,6 +1769,7 @@ class UnifiedActivity :
                     com.winlator.cmod.feature.stores.steam.friends.FriendsDrawerContent(
                         self = persona ?: com.winlator.cmod.feature.stores.steam.data.SteamFriend(),
                         friends = friends,
+                        installedGameIds = installedFriendGameIds,
                         onSetState = { st -> scope.launch { SteamService.setPersonaState(st) } },
                         onOpenChat = { f -> chatFriend = f; scope.launch { rightDrawerState.close() } },
                         onJoinGame = { f ->
