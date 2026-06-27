@@ -33,6 +33,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -83,15 +87,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -112,7 +117,6 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.input.key.onKeyEvent
 import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
-import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
 import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -151,14 +155,6 @@ private val SelectableDriveLetters = ('D'..'Y').filter { it != 'E' }.map { "$it"
 
 private val NavHighlight = Color(0xFF4FC3F7)
 
-/**
- * State-driven controller navigation for [GameSettingsContent] when hosted in a
- * dialog window the activity key dispatch can't reach. Two zones: the sidebar
- * (section tabs + Cancel/Save) is an explicit index; the active section's content
- * is driven through a [PaneNavRegistry] supplied via [LocalPaneNav]. The hosting
- * dialog forwards D-pad events to [dpad]; taps route through the tap* helpers so
- * touch and controller stay in sync.
- */
 @Stable
 class GameSettingsNav {
     var active by mutableStateOf(false)
@@ -641,18 +637,13 @@ fun GameSettingsContent(
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
 
-    val contentNav = remember { PaneNavRegistry() }
     if (nav != null) {
-        contentNav.controllerActive = nav.active && nav.inContent
-        contentNav.onEdgeLeft = { nav.exitToSidebar() }
         SideEffect {
             nav.sidebarCount = sections.size
             nav.onSelectSection = { state.currentSection.intValue = it }
             nav.onSave = { if (saveEnabled) callbacks.onConfirm() }
             nav.onCancel = { callbacks.onDismiss() }
         }
-        LaunchedEffect(nav.contentSignal) { contentNav.processNav(nav.contentSignal, nav.contentDir) }
-        LaunchedEffect(nav.contentResetSignal) { contentNav.reset() }
     }
 
     Box(
@@ -703,13 +694,7 @@ fun GameSettingsContent(
                         }
                     )
             ) {
-                if (nav != null) {
-                    CompositionLocalProvider(LocalPaneNav provides contentNav) {
-                        SectionContent(currentSectionId, state, callbacks)
-                    }
-                } else {
-                    SectionContent(currentSectionId, state, callbacks)
-                }
+                SectionContent(currentSectionId, state, callbacks, nav)
             }
         }
     }
@@ -719,7 +704,8 @@ fun GameSettingsContent(
 private fun SectionContent(
     sectionId: Int,
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
+    nav: GameSettingsNav? = null
 ) {
     AnimatedContent(
         targetState = sectionId,
@@ -737,25 +723,76 @@ private fun SectionContent(
         label = "SectionTransition"
     ) { id ->
         val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
-        ) {
-            when (id) {
-                SEC_GENERAL -> GeneralSection(state, callbacks)
-                SEC_STEAM -> SteamSection(state)
-                SEC_DISPLAY -> DisplaySection(state, callbacks)
-                SEC_WINE -> WineSection(state, callbacks)
-                SEC_COMPONENTS -> ComponentsSection(state, callbacks)
-                SEC_VARIABLES -> VariablesSection(state, callbacks)
-                SEC_INPUT -> InputSection(state)
-                SEC_ADVANCED -> AdvancedSection(state, callbacks)
-                SEC_DRIVES -> DrivesSection(state, callbacks)
-                SEC_SAVES -> SavesSection(state, callbacks)
+        val contentNav = remember(nav) {
+            nav?.let { PaneNavRegistry(initialSignal = it.contentSignal) }
+        }
+        val isCurrent = id == sectionId
+        if (nav != null && contentNav != null) {
+            contentNav.controllerActive = nav.active && nav.inContent && isCurrent
+            contentNav.onEdgeLeft = { nav.exitToSidebar() }
+            LaunchedEffect(nav.contentSignal) {
+                if (isCurrent) contentNav.processNav(nav.contentSignal, nav.contentDir)
             }
-            Spacer(Modifier.height(SettingSectionGap))
+            LaunchedEffect(nav.contentResetSignal) {
+                if (isCurrent) contentNav.reset()
+            }
+        }
+        val density = LocalDensity.current
+        var viewportTop by remember { mutableStateOf(0f) }
+        var viewportHeight by remember { mutableIntStateOf(0) }
+        if (contentNav != null) {
+            LaunchedEffect(contentNav.activeRow, contentNav.activeCol, viewportHeight) {
+                if (!contentNav.controllerActive) return@LaunchedEffect
+                if (viewportHeight == 0) return@LaunchedEffect
+                val bounds = contentNav.activeItemBounds() ?: return@LaunchedEffect
+                if (bounds.second <= bounds.first) return@LaunchedEffect
+                val margin = with(density) { 16.dp.toPx() }
+                val vpTop = viewportTop
+                val vpBottom = viewportTop + viewportHeight
+                val delta = when {
+                    bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                    bounds.first - margin < vpTop -> bounds.first - margin - vpTop
+                    else -> 0f
+                }
+                if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+            }
+        }
+        val sectionBody: @Composable () -> Unit = {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (contentNav != null) {
+                            Modifier.onGloballyPositioned {
+                                viewportTop = it.positionInWindow().y
+                                viewportHeight = it.size.height
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
+            ) {
+                when (id) {
+                    SEC_GENERAL -> GeneralSection(state, callbacks)
+                    SEC_STEAM -> SteamSection(state)
+                    SEC_DISPLAY -> DisplaySection(state, callbacks)
+                    SEC_WINE -> WineSection(state, callbacks)
+                    SEC_COMPONENTS -> ComponentsSection(state, callbacks)
+                    SEC_VARIABLES -> VariablesSection(state, callbacks)
+                    SEC_INPUT -> InputSection(state)
+                    SEC_ADVANCED -> AdvancedSection(state, callbacks)
+                    SEC_DRIVES -> DrivesSection(state, callbacks)
+                    SEC_SAVES -> SavesSection(state, callbacks)
+                }
+                Spacer(Modifier.height(SettingSectionGap))
+            }
+        }
+        if (contentNav != null) {
+            CompositionLocalProvider(LocalPaneNav provides contentNav) { sectionBody() }
+        } else {
+            sectionBody()
         }
     }
 }
@@ -851,7 +888,6 @@ private fun Sidebar(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                     .background(CardSurface)
-                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
                     .clickable { nav?.tapAction(0); onCancel() },
                 contentAlignment = Alignment.Center
@@ -898,7 +934,6 @@ private fun SaveButton(
             .background(
                 if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
             )
-            .controllerFocusGlow(cornerRadius = 8.dp)
             .paneHighlight(navHighlighted, cornerRadius = corner, highlightColor = NavHighlight)
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 14.dp),
@@ -913,6 +948,7 @@ private fun SaveButton(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SidebarItem(
     icon: ImageVector,
@@ -921,13 +957,17 @@ private fun SidebarItem(
     navHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(navHighlighted) {
+        if (navHighlighted) runCatching { bringIntoView.bringIntoView() }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoView)
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(8.dp))
             .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
-            .controllerFocusBorder(cornerRadius = 8.dp)
             .paneHighlight(navHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -1464,7 +1504,6 @@ private fun GraphicsDriverConfigCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.gfxConfigExpanded.value = !expanded }
                 .paneNavItem(
                     cornerRadius = SettingGroupCorner,
@@ -1683,7 +1722,6 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
-                .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                 .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
                 .then(
                     if (extensions.isNotEmpty()) {
@@ -1874,7 +1912,6 @@ private fun DXVKConfigCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.dxvkConfigExpanded.value = !expanded }
                 .paneNavItem(
                     cornerRadius = SettingGroupCorner,
@@ -2006,7 +2043,6 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .controllerFocusGlow(cornerRadius = SettingGroupCorner)
                 .clickable { state.wined3dConfigExpanded.value = !expanded }
                 .paneNavItem(
                     cornerRadius = SettingGroupCorner,
@@ -2355,7 +2391,6 @@ private fun WineSection(
                                 .clip(RoundedCornerShape(SettingFieldCorner))
                                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                                 .background(InputSurface)
-                                .controllerFocusGlow(cornerRadius = SettingFieldCorner)
                                 .clickable { callbacks.onPickWallpaper() }
                                 .paneNavItem(
                                     cornerRadius = SettingFieldCorner,
@@ -2559,7 +2594,6 @@ private fun VariablesSection(
                     .clip(RoundedCornerShape(8.dp))
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .controllerFocusGlow(cornerRadius = 8.dp)
                     .clickable {
                         state.envVars.value = state.envVars.value + EnvVarItem("", "")
                     }
@@ -3191,7 +3225,14 @@ private fun EnvValueTextField(
     numeric: Boolean = false,
     decimal: Boolean = false
 ) {
-    val envFieldFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var isEditing by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            keyboard?.show()
+            isEditing = false
+        }
+    }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -3206,10 +3247,9 @@ private fun EnvValueTextField(
         modifier = Modifier
             .fillMaxWidth()
             .height(EnvVarControlHeight)
-            .focusRequester(envFieldFocus)
             .paneNavItem(
                 cornerRadius = 8.dp,
-                onActivate = { runCatching { envFieldFocus.requestFocus() } },
+                onActivate = { isEditing = true },
                 highlightColor = NavHighlight,
             )
             .controllerTextFieldEscape(),
@@ -4013,11 +4053,7 @@ private fun SettingDropdown(
                 offset = menuOffset.value,
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
-                modifier = Modifier.controllerMenuInput(onDismiss = { expanded = false }),
             ) {
-                val itemFocus = remember { FocusRequester() }
-                val focusTarget = selectedIndex.coerceIn(0, entries.lastIndex.coerceAtLeast(0))
-                LaunchedEffect(expanded) { if (expanded) runCatching { itemFocus.requestFocus() } }
                 entries.forEachIndexed { index, entry ->
                     DropdownMenuItem(
                         text = {
@@ -4033,7 +4069,6 @@ private fun SettingDropdown(
                             expanded = false
                         },
                         modifier = (if (index == selectedIndex) Modifier.background(AccentBlue.copy(alpha = 0.06f)) else Modifier)
-                            .then(if (index == focusTarget) Modifier.focusRequester(itemFocus) else Modifier)
                             .controllerFocusGlow(cornerRadius = 6.dp)
                     )
                 }
@@ -4050,7 +4085,14 @@ private fun SettingTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true
 ) {
-    val fieldFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var isEditing by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            keyboard?.show()
+            isEditing = false
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             label,
@@ -4073,10 +4115,9 @@ private fun SettingTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(fieldFocus)
                 .paneNavItem(
                     cornerRadius = SettingFieldCorner,
-                    onActivate = { if (enabled) runCatching { fieldFocus.requestFocus() } },
+                    onActivate = { if (enabled) isEditing = true },
                     highlightColor = NavHighlight,
                 )
                 .controllerTextFieldEscape()

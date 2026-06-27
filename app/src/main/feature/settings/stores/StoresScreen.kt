@@ -1,5 +1,3 @@
-/* Settings > Stores screen — Jetpack Compose / Material3.
- * Uses a non-lazy scrolling Column for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -492,7 +490,6 @@ private fun ActionButton(
                     cornerRadius = 8.dp,
                     onActivate = onClick,
                     highlightColor = NavHighlight,
-                    tapToSelect = true,
                 )
                 .pointerInput(onClick) {
                     detectTapGestures(
@@ -501,6 +498,7 @@ private fun ActionButton(
                             tryAwaitRelease()
                             isPressed = false
                         },
+                        onTap = { onClick() },
                     )
                 }.padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
@@ -657,7 +655,6 @@ private fun SettingsDropdownCard(
                                     if (next != curr) onOptionSelected(options[next].first)
                                 },
                                 highlightColor = NavHighlight,
-                                tapToSelect = true,
                             )
                             .pointerInput(Unit) {
                                 detectTapGestures(
@@ -666,6 +663,7 @@ private fun SettingsDropdownCard(
                                         tryAwaitRelease()
                                         isPressed = false
                                     },
+                                    onTap = { expanded = true },
                                 )
                             }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -798,7 +796,6 @@ private fun BrowseButton(onClick: () -> Unit) {
                     cornerRadius = 8.dp,
                     onActivate = onClick,
                     highlightColor = NavHighlight,
-                    tapToSelect = true,
                 )
                 .pointerInput(onClick) {
                     detectTapGestures(
@@ -807,6 +804,7 @@ private fun BrowseButton(onClick: () -> Unit) {
                             tryAwaitRelease()
                             isPressed = false
                         },
+                        onTap = { onClick() },
                     )
                 }.padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,

@@ -2,8 +2,6 @@ package com.winlator.cmod.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,8 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -27,8 +27,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,17 +40,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
-import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.runtime.content.Downloader
 import com.winlator.cmod.runtime.content.component.ComponentInstaller
@@ -168,8 +173,7 @@ fun ComponentInstallerSheet(
     val scope = rememberCoroutineScope()
     val installStates = remember { mutableStateMapOf<String, InstallUi>() }
     var ui by remember { mutableStateOf<CatalogUiState>(CatalogUiState.Loading) }
-    val closeFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { closeFocus.requestFocus() } }
+    val registry = remember { PaneNavRegistry() }
 
     LaunchedEffect(Unit) {
         ui =
@@ -212,6 +216,8 @@ fun ComponentInstallerSheet(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        DialogPaneNav(registry, onDismiss = onDismiss, onStart = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -229,10 +235,9 @@ fun ComponentInstallerSheet(
                         .height(popupHeight)
                         .clip(RoundedCornerShape(18.dp))
                         .background(SheetRoot)
-                        .border(1.dp, SheetOutline, RoundedCornerShape(18.dp))
-                        .controllerMenuInput(onDismiss = onDismiss),
+                        .border(1.dp, SheetOutline, RoundedCornerShape(18.dp)),
             ) {
-                SheetHeader(containerName = container.name, onClose = onDismiss, closeFocus = closeFocus)
+                SheetHeader(containerName = container.name, onClose = onDismiss)
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (val state = ui) {
                         CatalogUiState.Loading -> SheetCentered { Spinner() }
@@ -281,6 +286,7 @@ fun ComponentInstallerSheet(
                 }
             }
         }
+        }
     }
 }
 
@@ -288,7 +294,6 @@ fun ComponentInstallerSheet(
 private fun SheetHeader(
     containerName: String,
     onClose: () -> Unit,
-    closeFocus: FocusRequester,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 10.dp)) {
         Row(
@@ -317,12 +322,11 @@ private fun SheetHeader(
                         .clip(RoundedCornerShape(8.dp))
                         .background(SheetSubcard)
                         .border(1.dp, SheetOutline, RoundedCornerShape(8.dp))
-                        .focusRequester(closeFocus)
-                        .controllerFocusBorder(cornerRadius = 8.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onClose,
+                        .paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = onClose,
+                            tapToSelect = true,
+                            isEntry = true,
                         ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -346,8 +350,41 @@ private fun ComponentList(
     onInstall: (CatalogComponent) -> Unit,
 ) {
     val grouped = items.groupBy { it.category }
+    val nav = LocalPaneNav.current
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    if (nav != null) {
+        LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
+            if (!nav.controllerActive) return@LaunchedEffect
+            val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
+            val margin = with(density) { 16.dp.toPx() }
+            val vpTop = viewportTop
+            val vpBottom = viewportTop + viewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < vpTop -> bounds.first - margin - vpTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { listState.animateScrollBy(delta) }
+        }
+    }
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .then(
+                    if (nav != null) {
+                        Modifier.onGloballyPositioned {
+                            viewportTop = it.positionInWindow().y
+                            viewportHeight = it.size.height
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -491,11 +528,10 @@ private fun InstallButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(SheetAccent.copy(alpha = 0.14f))
                 .border(1.dp, SheetAccent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                .controllerFocusBorder(cornerRadius = 8.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    tapToSelect = true,
                 ).padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {

@@ -1,5 +1,3 @@
-/* Settings > Presets screen — Jetpack Compose / Material3.
- * Non-lazy scrolling content so every control registers with the pane nav registry. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope

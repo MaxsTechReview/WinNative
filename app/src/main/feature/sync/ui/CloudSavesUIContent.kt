@@ -97,6 +97,7 @@ import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.toast.WinToast
 import kotlinx.coroutines.Dispatchers
@@ -367,6 +368,7 @@ internal fun CloudSavesContent(
                         tint = CloudWarning,
                         modifier = mod,
                         enabled = !isWorking,
+                        isEntry = true,
                         onClick = {
                             val sc = shortcut
                             val container = sc?.container
@@ -418,6 +420,7 @@ internal fun CloudSavesContent(
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !isWorking && !gogZipBusy,
+                        isEntry = true,
                         onClick = { if (!isWorking && !gogZipBusy) onSyncFromCloud() },
                     )
                 }
@@ -563,6 +566,7 @@ internal fun CloudSavesContent(
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !steamBusy && steamAppIdInt != null,
+                        isEntry = true,
                         onClick = {
                             val appId = steamAppIdInt ?: return@ActionWithHelper
                             if (steamBusy) return@ActionWithHelper
@@ -675,7 +679,7 @@ internal fun CloudSavesContent(
 
         if (showBottomBack) {
             Spacer(Modifier.height(4.dp))
-            TextButton(onClick = onBack) {
+            TextButton(onClick = onBack, modifier = Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onBack)) {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = null,
@@ -1015,7 +1019,10 @@ private fun SaveHistorySection(
             letterSpacing = 1.1.sp,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
+        IconButton(
+            onClick = onRefresh,
+            modifier = Modifier.size(28.dp).paneNavItem(cornerRadius = 6.dp, onActivate = onRefresh),
+        ) {
             Icon(
                 Icons.Outlined.Refresh,
                 contentDescription = stringResource(R.string.cloud_saves_history_refresh),
@@ -1216,6 +1223,7 @@ private fun HistoryActionChip(
         modifier =
             Modifier
                 .height(28.dp)
+                .paneNavItem(cornerRadius = 6.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(6.dp))
                 .background(tint.copy(alpha = 0.14f))
                 .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
@@ -1251,6 +1259,7 @@ private fun HistoryIconButton(
         modifier =
             Modifier
                 .size(28.dp)
+                .paneNavItem(cornerRadius = 6.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(6.dp))
                 .border(1.dp, CloudBorder, RoundedCornerShape(6.dp))
                 .clickable(onClick = onClick),
@@ -1408,6 +1417,11 @@ private fun TogglePaneCell(
     Column(
         modifier =
             modifier
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (enabled) onCheckedChange(!checked) },
+                    onAdjust = { d -> if (enabled) onCheckedChange(d > 0) },
+                )
                 .clip(RoundedCornerShape(8.dp))
                 .background(CloudPanel)
                 .border(1.dp, CloudBorder, RoundedCornerShape(8.dp))
@@ -1462,6 +1476,7 @@ private fun ActionWithHelper(
     tint: Color = CloudAccent,
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
+    isEntry: Boolean = false,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1475,6 +1490,11 @@ private fun ActionWithHelper(
         modifier =
             modifier
                 .height(56.dp)
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (enabled) onClick() },
+                    isEntry = isEntry,
+                )
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale

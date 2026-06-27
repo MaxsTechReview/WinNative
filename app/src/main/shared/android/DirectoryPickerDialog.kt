@@ -20,7 +20,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -114,11 +113,11 @@ import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.toast.WinToast
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
-import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavHandlers
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -321,6 +320,7 @@ object DirectoryPickerDialog {
                                 }
 
                                 DirectoryPickerDialogContent(
+                                    window = dialog.window,
                                     title = title,
                                     initialDir = initialDir,
                                     roots = roots,
@@ -378,6 +378,7 @@ object DirectoryPickerDialog {
 
     @Composable
     private fun DirectoryPickerDialogContent(
+        window: Window?,
         title: String,
         initialDir: File,
         roots: List<File>,
@@ -403,7 +404,6 @@ object DirectoryPickerDialog {
         var transferLabel by remember { mutableStateOf("") }
         var transferJob by remember { mutableStateOf<Job?>(null) }
         var menuTarget by remember { mutableStateOf<File?>(null) }
-        var focusedTarget by remember(currentDir.absolutePath) { mutableStateOf<File?>(null) }
         var renameTarget by remember { mutableStateOf<File?>(null) }
         var deleteTarget by remember { mutableStateOf<File?>(null) }
         var runTarget by remember { mutableStateOf<File?>(null) }
@@ -591,8 +591,51 @@ object DirectoryPickerDialog {
             contentVisible = true
         }
 
-        val firstFocus = remember { FocusRequester() }
-        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+        val contentRegistry = remember { PaneNavRegistry() }
+        LaunchedEffect(currentDir.absolutePath) { contentRegistry.reset() }
+        val handlers =
+            remember(window) {
+                paneNavHandlers(
+                    onDismiss = {
+                        when {
+                            renameTarget != null -> renameTarget = null
+                            showNewFolder -> showNewFolder = false
+                            deleteTarget != null -> deleteTarget = null
+                            runTarget != null -> runTarget = null
+                            transferProgress != null -> transferJob?.cancel()
+                            menuTarget != null -> menuTarget = null
+                            rootsExpanded -> rootsExpanded = false
+                            else -> onDismiss()
+                        }
+                    },
+                    onStart = {
+                        val overlayOpen =
+                            rootsExpanded || menuTarget != null || renameTarget != null ||
+                                showNewFolder || deleteTarget != null || runTarget != null ||
+                                transferProgress != null
+                        if (!overlayOpen) {
+                            if (manage) {
+                                onDismiss()
+                            } else {
+                                val selectedPath =
+                                    if (mode == SelectionMode.FILE) selectedFile?.absolutePath else currentDir.absolutePath
+                                if (selectedPath != null) onSelect(selectedPath)
+                            }
+                        }
+                    },
+                    registry = {
+                        val overlayOpen =
+                            rootsExpanded || menuTarget != null || renameTarget != null ||
+                                showNewFolder || deleteTarget != null || runTarget != null ||
+                                transferProgress != null
+                        if (overlayOpen) null else contentRegistry
+                    },
+                )
+            }
+        DisposableEffect(window, handlers) {
+            val restore = window?.bindPaneNav(handlers)
+            onDispose { restore?.invoke() }
+        }
 
         BoxWithConstraints(
             modifier =
@@ -637,30 +680,12 @@ object DirectoryPickerDialog {
             val entryCountMaxWidth = (maxWidth * 0.42f).coerceIn(128.dp, 220.dp)
             val folderGridMinSize = (maxWidth * 0.22f).coerceIn(140.dp, 150.dp)
 
+            CompositionLocalProvider(LocalPaneNav provides contentRegistry) {
             Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 360.dp)
-                        .controllerMenuInput(
-                            onDismiss = onDismiss,
-                            onSecondary = if (manage) {
-                                { focusedTarget?.let { menuTarget = it } }
-                            } else {
-                                null
-                            },
-                            onStart = {
-                                if (manage) {
-                                    onDismiss()
-                                } else {
-                                    val selectedPath =
-                                        if (mode == SelectionMode.FILE) selectedFile?.absolutePath else currentDir.absolutePath
-                                    if (selectedPath != null) onSelect(selectedPath)
-                                }
-                            },
-                        )
-                        .focusRequester(firstFocus)
-                        .focusable(),
+                        .heightIn(min = 360.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = CardDark,
                 border = BorderStroke(1.dp, CardBorder),
@@ -747,6 +772,7 @@ object DirectoryPickerDialog {
                                     EntryTile(
                                         entry = entry,
                                         selected = selectedFile?.absolutePath == entry.target.absolutePath,
+                                        isEntry = entry === entries.first(),
                                         onClick = {
                                             if (entry.isSelectableFile) {
                                                 selectedFile = entry.target
@@ -760,10 +786,15 @@ object DirectoryPickerDialog {
                                             } else {
                                                 null
                                             },
+                                        onSecondary =
+                                            if (manage && !entry.isParent) {
+                                                { menuTarget = entry.target }
+                                            } else {
+                                                {}
+                                            },
                                         menuExpanded = isMenuOpen,
                                         onMenuDismiss = { menuTarget = null },
                                         actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
-                                        onFocused = { focusedTarget = entry.target },
                                     )
                                 }
                             }
@@ -872,6 +903,7 @@ object DirectoryPickerDialog {
                         footerActions()
                     }
                 }
+            }
             }
 
             if (manage) {
@@ -1038,13 +1070,8 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
-                modifier =
-                    Modifier
-                        .widthIn(min = 220.dp, max = 420.dp)
-                        .controllerMenuInput(onDismiss = { onExpandedChange(false) }),
+                modifier = Modifier.widthIn(min = 220.dp, max = 420.dp),
             ) {
-                val firstFocus = remember { FocusRequester() }
-                LaunchedEffect(expanded) { if (expanded) runCatching { firstFocus.requestFocus() } }
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(LocalRippleConfiguration provides null) {
                     Column(
@@ -1053,7 +1080,7 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        extraRoots.forEachIndexed { index, root ->
+                        extraRoots.forEach { root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1076,13 +1103,12 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(File(root.path)) },
                                 modifier =
-                                    Modifier
-                                        .background(if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent)
-                                        .then(if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                                        .controllerFocusGlow(cornerRadius = 6.dp),
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
                             )
                         }
-                        roots.forEachIndexed { index, root ->
+                        roots.forEach { root ->
                             val selected = isSameOrDescendant(currentDir, root)
                             DropdownMenuItem(
                                 text = {
@@ -1097,11 +1123,9 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root) },
                                 modifier =
-                                    Modifier
-                                        .background(if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent)
-                                        .then(
-                                            if (extraRoots.isEmpty() && index == 0) Modifier.focusRequester(firstFocus) else Modifier,
-                                        ).controllerFocusGlow(cornerRadius = 6.dp),
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
                             )
                         }
                     }
@@ -1116,11 +1140,12 @@ object DirectoryPickerDialog {
         entry: Entry,
         selected: Boolean,
         onClick: () -> Unit,
+        isEntry: Boolean = false,
         onLongClick: (() -> Unit)? = null,
+        onSecondary: () -> Unit = {},
         menuExpanded: Boolean = false,
         onMenuDismiss: () -> Unit = {},
         actions: List<ItemAction> = emptyList(),
-        onFocused: () -> Unit = {},
     ) {
         val interaction = remember { MutableInteractionSource() }
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -1146,8 +1171,6 @@ object DirectoryPickerDialog {
                                 },
                             shape = RoundedCornerShape(10.dp),
                         )
-                        .onFocusChanged { if (it.isFocused) onFocused() }
-                        .controllerFocusGlow(cornerRadius = 10.dp)
                         .let { base ->
                             if (onLongClick != null) {
                                 base.combinedClickable(
@@ -1163,7 +1186,13 @@ object DirectoryPickerDialog {
                                     onClick = onClick,
                                 )
                             }
-                        }.padding(horizontal = 8.dp, vertical = 8.dp),
+                        }
+                        .paneNavItem(
+                            cornerRadius = 10.dp,
+                            onActivate = onClick,
+                            onSecondary = onSecondary,
+                            isEntry = isEntry,
+                        ).padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -1195,13 +1224,8 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
-                modifier =
-                    Modifier
-                        .widthIn(min = 180.dp, max = 240.dp)
-                        .controllerMenuInput(onDismiss = onMenuDismiss),
+                modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
             ) {
-                val menuFirstFocus = remember { FocusRequester() }
-                LaunchedEffect(menuExpanded) { if (menuExpanded) runCatching { menuFirstFocus.requestFocus() } }
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(LocalRippleConfiguration provides null) {
                     Column(
@@ -1210,7 +1234,7 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 260.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        actions.forEachIndexed { index, action ->
+                        actions.forEach { action ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1230,10 +1254,6 @@ object DirectoryPickerDialog {
                                     }
                                 },
                                 onClick = action.onClick,
-                                modifier =
-                                    Modifier
-                                        .then(if (index == 0) Modifier.focusRequester(menuFirstFocus) else Modifier)
-                                        .controllerFocusGlow(cornerRadius = 6.dp),
                             )
                         }
                     }
@@ -1260,9 +1280,9 @@ object DirectoryPickerDialog {
             modifier =
                 modifier
                     .clip(RoundedCornerShape(10.dp))
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
                     .background(chipBackground)
                     .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
-                    .controllerFocusGlow(cornerRadius = 10.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = if (accent) ripple(color = Accent) else null,
@@ -1312,6 +1332,7 @@ object DirectoryPickerDialog {
                     .widthIn(min = 74.dp)
                     .height(FooterButtonHeight)
                     .clip(RoundedCornerShape(10.dp))
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
                     .border(1.dp, tone.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -1542,13 +1563,8 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
-                modifier =
-                    Modifier
-                        .widthIn(min = 200.dp, max = 420.dp)
-                        .controllerMenuInput(onDismiss = { onExpandedChange(false) }),
+                modifier = Modifier.widthIn(min = 200.dp, max = 420.dp),
             ) {
-                val firstFocus = remember { FocusRequester() }
-                LaunchedEffect(expanded) { if (expanded) runCatching { firstFocus.requestFocus() } }
                 @Suppress("DEPRECATION")
                 CompositionLocalProvider(LocalRippleConfiguration provides null) {
                     Column(
@@ -1557,7 +1573,7 @@ object DirectoryPickerDialog {
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        managedRoots.forEachIndexed { index, root ->
+                        managedRoots.forEach { root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1580,10 +1596,9 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root.path) },
                                 modifier =
-                                    Modifier
-                                        .background(if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent)
-                                        .then(if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                                        .controllerFocusGlow(cornerRadius = 6.dp),
+                                    Modifier.background(
+                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                    ),
                             )
                         }
                     }

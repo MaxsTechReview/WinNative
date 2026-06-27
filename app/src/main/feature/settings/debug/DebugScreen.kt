@@ -1,5 +1,3 @@
-/* Settings > Debug screen — Jetpack Compose / Material3.
- * Uses a scrolling Column for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope

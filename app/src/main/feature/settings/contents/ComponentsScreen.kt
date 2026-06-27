@@ -1,5 +1,3 @@
-/* Settings > Components screen — Jetpack Compose / Material3.
- * Uses a scrolling Column for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -77,7 +75,9 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.content.ContentProfile
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 // Palette (unified with Drivers / Stores / Other / Debug)
@@ -149,20 +149,24 @@ fun ComponentsScreen(
     val contentNav = rememberSettingsContentNav(bridge)
 
     itemPendingRemoval?.let { item ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = { itemPendingRemoval = null }) {
-            PopupDialog(
-                title = stringResource(R.string.settings_content_remove_title),
-                message = stringResource(R.string.settings_content_confirm_remove),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Delete,
-                accentColor = DangerRed,
-                onCancel = { itemPendingRemoval = null },
-                onConfirm = {
-                    onRemoveItem(item)
-                    itemPendingRemoval = null
-                },
-            )
+            DialogPaneNav(nav, onDismiss = { itemPendingRemoval = null })
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_content_remove_title),
+                    message = stringResource(R.string.settings_content_confirm_remove),
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = DangerRed,
+                    onCancel = { itemPendingRemoval = null },
+                    onConfirm = {
+                        onRemoveItem(item)
+                        itemPendingRemoval = null
+                    },
+                )
+            }
         }
     }
 
@@ -171,16 +175,20 @@ fun ComponentsScreen(
     }
 
     state.conflict?.let { conflict ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = onDismissConflict) {
-            PopupDialog(
-                title = stringResource(R.string.settings_content_already_installed_title),
-                message = stringResource(R.string.settings_content_already_installed_message, conflict.path),
-                confirmLabel = stringResource(R.string.common_ui_ok),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Warning,
-                accentColor = WarningAmber,
-                onConfirm = onDismissConflict,
-            )
+            DialogPaneNav(nav, onDismiss = onDismissConflict)
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_content_already_installed_title),
+                    message = stringResource(R.string.settings_content_already_installed_message, conflict.path),
+                    confirmLabel = stringResource(R.string.common_ui_ok),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Warning,
+                    accentColor = WarningAmber,
+                    onConfirm = onDismissConflict,
+                )
+            }
         }
     }
 

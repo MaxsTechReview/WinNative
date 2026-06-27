@@ -10,7 +10,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +63,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -92,9 +90,10 @@ import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
-import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val BgDark = Color(0xFF11111C)
@@ -225,38 +224,46 @@ fun DriversScreen(
     }
 
     driverPendingRemoval?.let { driver ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = { driverPendingRemoval = null }) {
-            PopupDialog(
-                title = stringResource(R.string.settings_drivers_remove_title),
-                message = stringResource(R.string.settings_drivers_confirm_remove),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Delete,
-                accentColor = DangerRed,
-                onCancel = { driverPendingRemoval = null },
-                onConfirm = {
-                    onRemoveDriver(driver)
-                    driverPendingRemoval = null
-                },
-            )
+            DialogPaneNav(nav, onDismiss = { driverPendingRemoval = null })
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_drivers_remove_title),
+                    message = stringResource(R.string.settings_drivers_confirm_remove),
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = DangerRed,
+                    onCancel = { driverPendingRemoval = null },
+                    onConfirm = {
+                        onRemoveDriver(driver)
+                        driverPendingRemoval = null
+                    },
+                )
+            }
         }
     }
 
     repoPendingRemoval?.let { (index, repo) ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = { repoPendingRemoval = null }) {
-            PopupDialog(
-                title = stringResource(R.string.settings_drivers_remove_repo_title),
-                message = stringResource(R.string.settings_drivers_remove_repo_message, repo.name),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Delete,
-                accentColor = DangerRed,
-                onCancel = { repoPendingRemoval = null },
-                onConfirm = {
-                    onRepoDeleted(index)
-                    repoPendingRemoval = null
-                },
-            )
+            DialogPaneNav(nav, onDismiss = { repoPendingRemoval = null })
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_drivers_remove_repo_title),
+                    message = stringResource(R.string.settings_drivers_remove_repo_message, repo.name),
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = DangerRed,
+                    onCancel = { repoPendingRemoval = null },
+                    onConfirm = {
+                        onRepoDeleted(index)
+                        repoPendingRemoval = null
+                    },
+                )
+            }
         }
     }
 
@@ -1188,14 +1195,27 @@ private fun DialogActionButton(
     textColor: Color,
     onClick: () -> Unit,
 ) {
+    val nav = LocalPaneNav.current
+    val clickModifier =
+        if (nav != null) {
+            Modifier.paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
+        } else {
+            Modifier
+                .controllerFocusGlow(cornerRadius = 8.dp)
+                .noRippleClickable(onClick = onClick)
+        }
     Box(
         modifier =
             Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusGlow(cornerRadius = 8.dp)
-                .noRippleClickable(onClick = onClick)
+                .then(clickModifier)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1305,8 +1325,7 @@ private fun RepoEditDialog(
 ) {
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }
     var url by remember { mutableStateOf(existing?.apiUrl.orEmpty()) }
-    val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+    val registry = remember { PaneNavRegistry() }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1316,75 +1335,76 @@ private fun RepoEditDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = 440.dp)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(CardDark)
-                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                        .controllerMenuInput(onDismiss = onDismiss)
-                        .focusRequester(firstFocus)
-                        .focusable()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
+                Box(
                     modifier =
                         Modifier
-                            .wrapContentHeight()
-                            .verticalScroll(rememberScrollState()),
+                            .widthIn(max = 440.dp)
+                            .fillMaxWidth()
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(CardDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        text = if (existing == null) "Add Repository" else "Edit Repository",
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    LabeledField(
-                        label = "Name",
-                        value = name,
-                        onValueChange = { name = it },
-                        placeholder = "Display name",
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    LabeledField(
-                        label = "GitHub URL",
-                        value = url,
-                        onValueChange = { url = it },
-                        placeholder = "https://github.com/owner/repo/releases",
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Done,
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    Column(
+                        modifier =
+                            Modifier
+                                .wrapContentHeight()
+                                .verticalScroll(rememberScrollState()),
                     ) {
-                        DialogActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
-                        DialogActionButton(
-                            label = if (existing == null) "Add" else "Save",
-                            textColor = Accent,
-                            onClick = {
-                                val trimmedName = name.trim()
-                                val trimmedUrl = url.trim()
-                                if (trimmedName.isNotEmpty() && trimmedUrl.isNotEmpty()) {
-                                    onConfirm(trimmedName, trimmedUrl)
-                                }
-                            },
+                        Text(
+                            text = if (existing == null) "Add Repository" else "Edit Repository",
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                        Spacer(Modifier.height(8.dp))
+
+                        LabeledField(
+                            label = "Name",
+                            value = name,
+                            onValueChange = { name = it },
+                            placeholder = "Display name",
+                            isEntry = true,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        LabeledField(
+                            label = "GitHub URL",
+                            value = url,
+                            onValueChange = { url = it },
+                            placeholder = "https://github.com/owner/repo/releases",
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Done,
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        ) {
+                            DialogActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
+                            DialogActionButton(
+                                label = if (existing == null) "Add" else "Save",
+                                textColor = Accent,
+                                onClick = {
+                                    val trimmedName = name.trim()
+                                    val trimmedUrl = url.trim()
+                                    if (trimmedName.isNotEmpty() && trimmedUrl.isNotEmpty()) {
+                                        onConfirm(trimmedName, trimmedUrl)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -1427,6 +1447,7 @@ private fun LabeledField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Next,
+    isEntry: Boolean = false,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -1443,6 +1464,7 @@ private fun LabeledField(
         val isFocused by interactionSource.collectIsFocusedAsState()
         val borderColor = if (isFocused) Accent else CardBorder
         val borderWidth = if (isFocused) 1.5.dp else 1.dp
+        val fieldFocus = remember { FocusRequester() }
         // Fixed min height + CenterStart alignment so the field keeps a consistent
         // tappable bar instead of collapsing to the font's intrinsic line height
         // (which made typed text look squashed against the top of the box).
@@ -1454,6 +1476,12 @@ private fun LabeledField(
                     .clip(RoundedCornerShape(9.dp))
                     .background(CardDarker)
                     .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
+                    .paneNavItem(
+                        cornerRadius = 9.dp,
+                        onActivate = { runCatching { fieldFocus.requestFocus() } },
+                        highlightColor = NavHighlight,
+                        isEntry = isEntry,
+                    )
                     .padding(horizontal = 11.dp, vertical = 8.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -1467,7 +1495,7 @@ private fun LabeledField(
                         .SolidColor(Accent),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
                 interactionSource = interactionSource,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
                 decorationBox = { innerTextField ->
                     if (value.isEmpty()) {
                         Text(

@@ -12,7 +12,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -38,6 +37,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -88,6 +88,9 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -111,9 +114,10 @@ import com.winlator.cmod.runtime.input.ui.PanAction
 import com.winlator.cmod.runtime.input.ui.TouchGestureConfig
 import com.winlator.cmod.runtime.input.ui.ZoomAction
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
-import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
@@ -679,8 +683,7 @@ private fun InputDialogShell(
     maxWidth: Dp = 440.dp,
     content: @Composable () -> Unit,
 ) {
-    val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -689,53 +692,53 @@ private fun InputDialogShell(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = maxWidth)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(InputCard)
-                        .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
-                        .controllerMenuInput(onDismiss = onDismiss)
-                        .focusRequester(firstFocus)
-                        .focusable()
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
+                Box(
                     modifier =
                         Modifier
+                            .widthIn(max = maxWidth)
                             .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(InputCard)
+                            .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
                 ) {
-                    if (title != null) {
-                        Text(
-                            text = title,
-                            color = InputTextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(InputOutline),
-                        )
-                        Spacer(Modifier.height(14.dp))
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                color = InputTextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(InputOutline),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+                        content()
                     }
-                    content()
                 }
             }
         }
@@ -790,8 +793,7 @@ private fun InputFixedFooterDialogShell(
     footer: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -800,44 +802,85 @@ private fun InputFixedFooterDialogShell(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            val responsiveBodyMaxHeight =
-                minOf(
-                    maxBodyHeight,
-                    (maxHeight - 176.dp).coerceAtLeast(140.dp),
-                )
-
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = maxWidth)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(InputCard)
-                        .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
-                        .controllerMenuInput(onDismiss = onDismiss)
-                        .focusRequester(firstFocus)
-                        .focusable()
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .imePadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (title != null) {
-                        Text(
-                            text = title,
-                            color = InputTextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.height(12.dp))
+                val responsiveBodyMaxHeight =
+                    minOf(
+                        maxBodyHeight,
+                        (maxHeight - 176.dp).coerceAtLeast(140.dp),
+                    )
+
+                Box(
+                    modifier =
+                        Modifier
+                            .widthIn(max = maxWidth)
+                            .fillMaxWidth()
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(InputCard)
+                            .border(1.dp, InputOutline, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                color = InputTextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(InputOutline),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+
+                        val scrollState = rememberScrollState()
+                        val density = LocalDensity.current
+                        var viewportTop by remember { mutableStateOf(0f) }
+                        var viewportHeight by remember { mutableStateOf(0) }
+                        LaunchedEffect(registry.activeRow, registry.activeCol, viewportHeight) {
+                            if (!registry.controllerActive) return@LaunchedEffect
+                            val bounds = registry.activeItemBounds() ?: return@LaunchedEffect
+                            val margin = with(density) { 16.dp.toPx() }
+                            val vpBottom = viewportTop + viewportHeight
+                            val delta =
+                                when {
+                                    bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                                    bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+                                    else -> 0f
+                                }
+                            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+                        }
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = responsiveBodyMaxHeight)
+                                    .onGloballyPositioned {
+                                        viewportTop = it.positionInWindow().y
+                                        viewportHeight = it.size.height
+                                    }
+                                    .verticalScroll(scrollState),
+                        ) {
+                            content()
+                        }
+
+                        Spacer(Modifier.height(14.dp))
                         Box(
                             modifier =
                                 Modifier
@@ -846,28 +889,8 @@ private fun InputFixedFooterDialogShell(
                                     .background(InputOutline),
                         )
                         Spacer(Modifier.height(14.dp))
+                        footer()
                     }
-
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = responsiveBodyMaxHeight)
-                                .verticalScroll(rememberScrollState()),
-                    ) {
-                        content()
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(InputOutline),
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    footer()
                 }
             }
         }
@@ -888,17 +911,25 @@ private fun InputDialogButton(
     val resolvedBorder = borderColor ?: if (primary) InputAccent.copy(alpha = 0.5f) else InputOutline
     val disabledBackground = InputSubcard.copy(alpha = 0.96f)
     val disabledBorder = InputOutline.copy(alpha = 0.9f)
+    val nav = LocalPaneNav.current
     val clickModifier =
-        if (enabled) {
-            Modifier
-                .controllerFocusGlow(cornerRadius = 10.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+        when {
+            !enabled -> Modifier
+            nav != null ->
+                Modifier.paneNavItem(
+                    cornerRadius = 10.dp,
+                    onActivate = onClick,
+                    highlightColor = InputNavHighlight,
+                    tapToSelect = true,
                 )
-        } else {
-            Modifier
+            else ->
+                Modifier
+                    .controllerFocusGlow(cornerRadius = 10.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    )
         }
 
     Box(
@@ -984,6 +1015,7 @@ private fun InputPromptDialog(
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    val fieldFocus = remember { FocusRequester() }
 
     InputDialogShell(
         onDismiss = onDismiss,
@@ -1001,6 +1033,11 @@ private fun InputPromptDialog(
                         if (focused) 1.5.dp else 1.dp,
                         if (focused) InputAccent else InputOutline,
                         RoundedCornerShape(12.dp),
+                    ).paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = { runCatching { fieldFocus.requestFocus() } },
+                        highlightColor = InputNavHighlight,
+                        isEntry = true,
                     ).padding(horizontal = 14.dp, vertical = 12.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -1019,7 +1056,7 @@ private fun InputPromptDialog(
                             onConfirm(text.trim())
                         },
                     ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -1079,6 +1116,7 @@ private fun InputChoiceDialog(
             }
         },
     ) {
+        val focusTarget = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1095,11 +1133,12 @@ private fun InputChoiceDialog(
                                 1.dp,
                                 if (selected) InputAccent.copy(alpha = 0.24f) else InputOutline,
                                 RoundedCornerShape(12.dp),
-                            ).controllerFocusGlow(cornerRadius = 12.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onSelected(index) },
+                            ).paneNavItem(
+                                cornerRadius = 12.dp,
+                                onActivate = { onSelected(index) },
+                                highlightColor = InputNavHighlight,
+                                tapToSelect = true,
+                                isEntry = index == focusTarget,
                             ).padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1190,6 +1229,7 @@ private fun InputMultiChoiceDialog(
             }
         },
     ) {
+        val focusTarget = options.indices.firstOrNull { it !in disabledIndices } ?: -1
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1201,20 +1241,20 @@ private fun InputMultiChoiceDialog(
                     if (disabled) {
                         Modifier
                     } else {
-                        Modifier
-                            .controllerFocusGlow(cornerRadius = 12.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-                                    currentSelection =
-                                        if (selected) {
-                                            currentSelection - index
-                                        } else {
-                                            currentSelection + index
-                                        }
-                                },
-                            )
+                        Modifier.paneNavItem(
+                            cornerRadius = 12.dp,
+                            onActivate = {
+                                currentSelection =
+                                    if (selected) {
+                                        currentSelection - index
+                                    } else {
+                                        currentSelection + index
+                                    }
+                            },
+                            highlightColor = InputNavHighlight,
+                            tapToSelect = true,
+                            isEntry = index == focusTarget,
+                        )
                     }
                 Row(
                     modifier =

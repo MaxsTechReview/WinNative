@@ -1,7 +1,5 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-/* Settings > Other screen — Jetpack Compose / Material3.
- * Uses a scrolling Column so every control composes and registers for controller nav. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -73,7 +71,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.focus.focusProperties
@@ -895,17 +895,21 @@ private fun ReinstallImagefsConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val nav = remember { PaneNavRegistry() }
     Dialog(onDismissRequest = onDismiss) {
-        PopupDialog(
-            title = stringResource(R.string.settings_general_reinstall_imagefs),
-            message = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
-            icon = Icons.Outlined.Autorenew,
-            confirmLabel = stringResource(R.string.common_ui_reinstall),
-            onConfirm = onConfirm,
-            onCancel = onDismiss,
-            accentColor = Accent,
-            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-        )
+        DialogPaneNav(nav, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides nav) {
+            PopupDialog(
+                title = stringResource(R.string.settings_general_reinstall_imagefs),
+                message = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
+                icon = Icons.Outlined.Autorenew,
+                confirmLabel = stringResource(R.string.common_ui_reinstall),
+                onConfirm = onConfirm,
+                onCancel = onDismiss,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            )
+        }
     }
 }
 

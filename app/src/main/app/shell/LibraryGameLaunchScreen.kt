@@ -102,7 +102,12 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
+import androidx.compose.runtime.CompositionLocalProvider
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -629,49 +634,53 @@ internal fun LaunchDangerConfirmDialog(
 ) {
     if (!visible) return
 
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(LaunchBlack.copy(alpha = 0.46f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismissRequest,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismissRequest)
+            Box(
                 modifier =
                     Modifier
-                        .width(286.dp)
+                        .fillMaxSize()
+                        .background(LaunchBlack.copy(alpha = 0.46f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { },
+                            onClick = onDismissRequest,
                         ),
-                shape = RoundedCornerShape(12.dp),
-                color = LaunchCard,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                shadowElevation = 14.dp,
-                tonalElevation = 0.dp,
+                contentAlignment = Alignment.Center,
             ) {
-                LaunchDangerConfirmContent(
-                    title = title,
-                    message = message,
-                    confirmLabel = confirmLabel,
-                    onDismissRequest = onDismissRequest,
-                    onConfirm = onConfirm,
-                    icon = icon,
-                    titleTextAlign = titleTextAlign,
-                    messageTextAlign = messageTextAlign,
-                    accentColor = accentColor,
-                    cancelColor = cancelColor,
-                )
+                Surface(
+                    modifier =
+                        Modifier
+                            .width(286.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { },
+                            ),
+                    shape = RoundedCornerShape(12.dp),
+                    color = LaunchCard,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    shadowElevation = 14.dp,
+                    tonalElevation = 0.dp,
+                ) {
+                    LaunchDangerConfirmContent(
+                        title = title,
+                        message = message,
+                        confirmLabel = confirmLabel,
+                        onDismissRequest = onDismissRequest,
+                        onConfirm = onConfirm,
+                        icon = icon,
+                        titleTextAlign = titleTextAlign,
+                        messageTextAlign = messageTextAlign,
+                        accentColor = accentColor,
+                        cancelColor = cancelColor,
+                    )
+                }
             }
         }
     }
@@ -763,11 +772,13 @@ private fun LaunchDangerConfirmContent(
                 label = stringResource(R.string.common_ui_cancel),
                 textColor = cancelColor,
                 onClick = onDismissRequest,
+                modifier = Modifier.paneNavItem(onActivate = onDismissRequest),
             )
             LaunchMenuTextAction(
                 label = confirmLabel,
                 textColor = accentColor,
                 onClick = onConfirm,
+                modifier = Modifier.paneNavItem(onActivate = onConfirm, isEntry = true),
             )
         }
     }
@@ -778,11 +789,13 @@ private fun LaunchMenuTextAction(
     label: String,
     textColor: Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier =
-            Modifier
+            modifier
                 .clip(RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,

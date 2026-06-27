@@ -109,6 +109,8 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -215,6 +217,16 @@ import androidx.compose.foundation.focusGroup
 import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_SECONDARY
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.FourByTwoGridView
 import com.winlator.cmod.shared.ui.JoystickGridScroll
 import com.winlator.cmod.shared.ui.JoystickListScroll
@@ -287,6 +299,31 @@ enum class LibraryLayoutMode {
     GRID_4,
     CAROUSEL,
     LIST,
+}
+
+internal class DownloadsNavBridge {
+    var controllerActive by mutableStateOf(false)
+    var navSignal by mutableStateOf(0)
+        private set
+    var navDir by mutableStateOf(0)
+        private set
+
+    private fun nav(dir: Int) {
+        navDir = dir
+        navSignal++
+    }
+
+    fun left() = nav(PANE_DIR_LEFT)
+
+    fun right() = nav(PANE_DIR_RIGHT)
+
+    fun up() = nav(PANE_DIR_UP)
+
+    fun down() = nav(PANE_DIR_DOWN)
+
+    fun activate() = nav(PANE_DIR_ACTIVATE)
+
+    fun secondary() = nav(PANE_DIR_SECONDARY)
 }
 
 @AndroidEntryPoint
@@ -573,6 +610,7 @@ class UnifiedActivity :
     private var joystickActive = false
 
     internal val settingsNavBridge = SettingsNavBridge()
+    internal val downloadsNavBridge = DownloadsNavBridge()
     private var settingsStickEngaged = 0
 
     companion object {
@@ -674,6 +712,21 @@ class UnifiedActivity :
         storeFocusIndex.value = newIdx
     }
 
+    private fun routeDownloadsNav(
+        left: Boolean,
+        right: Boolean,
+        up: Boolean,
+        down: Boolean,
+    ) {
+        downloadsNavBridge.controllerActive = true
+        when {
+            left -> downloadsNavBridge.left()
+            right -> downloadsNavBridge.right()
+            up -> downloadsNavBridge.up()
+            down -> downloadsNavBridge.down()
+        }
+    }
+
     private fun gogPseudoId(gameId: String): Int {
         val normalized = gameId.hashCode() and 0x1FFFFFFF
         return 1_500_000_000 + normalized
@@ -759,6 +812,7 @@ class UnifiedActivity :
                     val down = keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
                     when (currentTabKey) {
                         "library" -> moveLibraryFocus(left, right, up, down)
+                        "downloads" -> routeDownloadsNav(left, right, up, down)
                         else -> moveStoreFocus(left, right, up, down)
                     }
                     lastMoveTime = now
@@ -766,6 +820,24 @@ class UnifiedActivity :
                 }
             }
             return true
+        }
+
+        if (currentTabKey == "downloads" && action == android.view.KeyEvent.ACTION_DOWN) {
+            when (keyCode) {
+                android.view.KeyEvent.KEYCODE_BUTTON_A,
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                -> {
+                    downloadsNavBridge.controllerActive = true
+                    downloadsNavBridge.activate()
+                    return true
+                }
+
+                android.view.KeyEvent.KEYCODE_BUTTON_Y -> {
+                    downloadsNavBridge.controllerActive = true
+                    downloadsNavBridge.secondary()
+                    return true
+                }
+            }
         }
 
         if (action == android.view.KeyEvent.ACTION_DOWN) {
@@ -900,6 +972,7 @@ class UnifiedActivity :
                     } else {
                         when (currentTabKey) {
                             "library" -> moveLibraryFocus(left, right, up, down)
+                            "downloads" -> routeDownloadsNav(left, right, up, down)
                             else -> moveStoreFocus(left, right, up, down)
                         }
                     }
@@ -2182,6 +2255,7 @@ class UnifiedActivity :
                         currentTabKey = tabs.getOrNull(selectedIdx)?.key ?: "library"
                         storeFocusIndex.value = 0
                         storeItemClickCallback = null
+                        downloadsNavBridge.controllerActive = false
                     }
 
                     val key = tabs.getOrNull(selectedIdx)?.key ?: "library"
@@ -3646,7 +3720,10 @@ class UnifiedActivity :
     ) {
         val dismissInteractionSource = remember { MutableInteractionSource() }
         val panelInteractionSource = remember { MutableInteractionSource() }
+        val registry = remember { PaneNavRegistry() }
 
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+        DialogPaneNav(registry, onDismiss = onDismissRequest)
         Box(
             modifier =
                 Modifier
@@ -3707,7 +3784,10 @@ class UnifiedActivity :
                             )
                             IconButton(
                                 onClick = onDismissRequest,
-                                modifier = Modifier.size(34.dp),
+                                modifier =
+                                    Modifier
+                                        .size(34.dp)
+                                        .paneNavItem(cornerRadius = 8.dp, onActivate = onDismissRequest),
                             ) {
                                 Icon(
                                     Icons.Outlined.Close,
@@ -3729,6 +3809,7 @@ class UnifiedActivity :
                     }
                 }
             }
+        }
         }
     }
 
@@ -4040,15 +4121,45 @@ class UnifiedActivity :
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PopupTextAction(
+            PaneFooterAction(
                 label = stringResource(R.string.common_ui_cancel),
                 textColor = DangerRed,
                 onClick = onCancel,
             )
-            PopupTextAction(
+            PaneFooterAction(
                 label = stringResource(R.string.common_ui_continue),
                 textColor = StatusOnline,
                 onClick = onContinue,
+                isEntry = true,
+            )
+        }
+    }
+
+    @Composable
+    private fun PaneFooterAction(
+        label: String,
+        textColor: Color,
+        onClick: () -> Unit,
+        isEntry: Boolean = false,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = onClick,
+                        tapToSelect = true,
+                        isEntry = isEntry,
+                    ).padding(horizontal = 10.dp, vertical = 7.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                color = textColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
             )
         }
     }
@@ -4068,7 +4179,10 @@ class UnifiedActivity :
                 HeroBootChoice.Cube32 -> test32
                 HeroBootChoice.Cube64 -> test64
             }
+        val registry = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = onDismissRequest) {
+          CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismissRequest, onStart = { onConfirm(choice) })
             PopupDialog(
                 title = title,
                 icon = Icons.Outlined.DesktopWindows,
@@ -4100,6 +4214,7 @@ class UnifiedActivity :
                     HeroLaunchConfirmFooter(onCancel = onDismissRequest, onContinue = { onConfirm(choice) })
                 },
             )
+          }
         }
     }
 
@@ -4116,7 +4231,7 @@ class UnifiedActivity :
                 .clip(RoundedCornerShape(8.dp))
                 .background(glassBlue.copy(alpha = if (selected) 0.26f else 0.05f))
                 .border(1.dp, glassBlue.copy(alpha = if (selected) 0.65f else 0.12f), RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, tapToSelect = true)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -4135,19 +4250,59 @@ class UnifiedActivity :
         onConfirm: () -> Unit,
         onDismissRequest: () -> Unit,
     ) {
+        val registry = remember { PaneNavRegistry() }
+        var isRemoving by remember { mutableStateOf(false) }
         Dialog(onDismissRequest = onDismissRequest) {
+          CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismissRequest)
             PopupDialog(
                 title = stringResource(R.string.common_ui_shortcut),
                 message = stringResource(R.string.shortcuts_list_remove_game_shortcut_message, gameName),
                 icon = Icons.Outlined.Home,
                 accentColor = DangerRed,
                 confirmButtonColor = DangerRed,
-                confirmLabel = stringResource(R.string.common_ui_remove),
                 progressLabel = stringResource(R.string.common_ui_working),
-                onConfirm = onConfirm,
-                onCancel = onDismissRequest,
                 modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                footer = {
+                    if (isRemoving) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(color = DangerRed, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                            Text(
+                                stringResource(R.string.common_ui_working),
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PaneFooterAction(
+                                label = stringResource(R.string.common_ui_cancel),
+                                textColor = TextSecondary,
+                                onClick = onDismissRequest,
+                            )
+                            PaneFooterAction(
+                                label = stringResource(R.string.common_ui_remove),
+                                textColor = DangerRed,
+                                onClick = {
+                                    isRemoving = true
+                                    onConfirm()
+                                },
+                                isEntry = true,
+                            )
+                        }
+                    }
+                },
             )
+          }
         }
     }
 
@@ -8128,6 +8283,14 @@ class UnifiedActivity :
         val scope = rememberCoroutineScope()
         var cancelWarningRequest by remember { mutableStateOf<DownloadCancelRequest?>(null) }
 
+        val downloadsActivity = LocalContext.current as? UnifiedActivity
+        val bridge = downloadsActivity?.downloadsNavBridge
+        val navRegistry = remember(bridge) { PaneNavRegistry(initialSignal = bridge?.navSignal ?: -1) }
+        navRegistry.controllerActive = bridge?.controllerActive ?: false
+        LaunchedEffect(navRegistry, bridge?.navSignal) {
+            navRegistry.processNav(bridge?.navSignal ?: 0, bridge?.navDir ?: 0)
+        }
+
         val syncDownloads =
             remember(selectedId, onSelectDownload) {
                 {
@@ -8188,11 +8351,22 @@ class UnifiedActivity :
             }
         }
 
+        CompositionLocalProvider(LocalPaneNav provides navRegistry) {
         Column(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                .tabScreenPadding(top = DownloadsHeaderTopPadding),
+                .tabScreenPadding(top = DownloadsHeaderTopPadding)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val ev = awaitPointerEvent(PointerEventPass.Initial)
+                            if (ev.type == PointerEventType.Press) {
+                                bridge?.controllerActive = false
+                            }
+                        }
+                    }
+                },
         ) {
             @Suppress("UNUSED_EXPRESSION")
             tick
@@ -8422,6 +8596,7 @@ class UnifiedActivity :
                 }
             }
         }
+        }
     }
 
     @Composable
@@ -8437,7 +8612,11 @@ class UnifiedActivity :
         Button(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.height(40.dp).widthIn(min = 96.dp),
+            modifier =
+                modifier
+                    .height(40.dp)
+                    .widthIn(min = 96.dp)
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { if (enabled) onClick() }),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = DownloadButtonBlack,
@@ -8877,7 +9056,6 @@ class UnifiedActivity :
         var epicGame by remember(appId) { mutableStateOf<EpicGame?>(null) }
         var gogGame by remember(gogId) { mutableStateOf<GOGGame?>(null) }
         val context = LocalContext.current
-        var isFocused by remember { mutableStateOf(false) }
         val clickInteractionSource = remember { MutableInteractionSource() }
         val animatedProgress by animateFloatAsState(
             targetValue = if (status == DownloadPhase.COMPLETE) 1f else progress.coerceIn(0f, 1f),
@@ -8939,14 +9117,21 @@ class UnifiedActivity :
                 Modifier
                     .fillMaxWidth()
                     .chasingBorder(
-                        isFocused = isFocused || isSelected,
+                        isFocused = isSelected,
                         paused = chasingBordersPaused.value || !animationsActive,
                         cornerRadius = 12.dp,
                         borderWidth = 2.dp,
                         animationDurationMs = 8000,
                     )
-                    .onFocusChanged { isFocused = it.isFocused }
-                    .focusable()
+                    .paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = onClick,
+                        onSecondary = {
+                            if (status != DownloadPhase.COMPLETE && status != DownloadPhase.CANCELLED) {
+                                showDeleteDialog = true
+                            }
+                        },
+                    )
                     .clickable(
                         interactionSource = clickInteractionSource,
                         indication = null,
@@ -11537,8 +11722,7 @@ class UnifiedActivity :
         var gameName by remember { mutableStateOf("") }
         var gameFolder by remember { mutableStateOf<String?>(null) }
         var isAdding by remember { mutableStateOf(false) }
-        val firstFocus = remember { FocusRequester() }
-        LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+        val registry = remember { PaneNavRegistry() }
         val addEnabled = selectedExePath != null && gameName.isNotBlank() && gameFolder != null && !isAdding
         val doAdd: () -> Unit = {
             isAdding = true
@@ -11587,15 +11771,14 @@ class UnifiedActivity :
             CompositionLocalProvider(
                 LocalDensity provides Density(defaultDensity.density, fontScale = 1f),
                 androidx.compose.material3.LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified,
+                LocalPaneNav provides registry,
             ) {
+                DialogPaneNav(registry, onDismiss = onDismiss, onStart = { if (addEnabled) doAdd() })
                 Surface(
                     modifier =
                         Modifier
                             .widthIn(max = 360.dp)
-                            .fillMaxWidth(0.9f)
-                            .controllerMenuInput(onDismiss = onDismiss, onStart = { if (addEnabled) doAdd() })
-                            .focusRequester(firstFocus)
-                            .focusable(),
+                            .fillMaxWidth(0.9f),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xFF141B24),
                 ) {
@@ -11624,24 +11807,28 @@ class UnifiedActivity :
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color.White.copy(alpha = 0.05f))
-                                        .controllerFocusGlow(cornerRadius = 12.dp)
-                                        .clickable {
-                                            DirectoryPickerDialog.showFile(
-                                                activity = this@UnifiedActivity,
-                                                initialPath =
-                                                    selectedExePath ?: gameFolder
-                                                        ?: android.os.Environment
-                                                            .getExternalStoragePublicDirectory(
-                                                                android.os.Environment.DIRECTORY_DOWNLOADS,
-                                                            ).absolutePath,
-                                                title = getString(R.string.common_ui_select_exe),
-                                                allowedExtensions = setOf("exe"),
-                                                dimAmount = 0.5f,
-                                                preserveBackdropBlur = true,
-                                                extraRoots = driveRoots(includeInternal = true),
-                                                onSelected = ::selectExecutable,
-                                            )
-                                        }.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        .paneNavItem(
+                                            cornerRadius = 12.dp,
+                                            tapToSelect = true,
+                                            isEntry = true,
+                                            onActivate = {
+                                                DirectoryPickerDialog.showFile(
+                                                    activity = this@UnifiedActivity,
+                                                    initialPath =
+                                                        selectedExePath ?: gameFolder
+                                                            ?: android.os.Environment
+                                                                .getExternalStoragePublicDirectory(
+                                                                    android.os.Environment.DIRECTORY_DOWNLOADS,
+                                                                ).absolutePath,
+                                                    title = getString(R.string.common_ui_select_exe),
+                                                    allowedExtensions = setOf("exe"),
+                                                    dimAmount = 0.5f,
+                                                    preserveBackdropBlur = true,
+                                                    extraRoots = driveRoots(includeInternal = true),
+                                                    onSelected = ::selectExecutable,
+                                                )
+                                            },
+                                        ).padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
@@ -11666,7 +11853,7 @@ class UnifiedActivity :
                                     onValueChange = { gameName = it },
                                     label = { Text(stringResource(R.string.library_games_game_name), fontSize = 11.sp) },
                                     singleLine = true,
-                                    modifier = Modifier.fillMaxWidth().controllerTextFieldEscape(),
+                                    modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 10.dp).controllerTextFieldEscape(),
                                     textStyle = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                     colors =
                                         OutlinedTextFieldDefaults.colors(
@@ -11714,17 +11901,26 @@ class UnifiedActivity :
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                     }
-                                    IconButton(onClick = {
-                                        if (!ensureAllFilesAccessForImports(context)) return@IconButton
-                                        DirectoryPickerDialog.show(
-                                            activity = this@UnifiedActivity,
-                                            initialPath = gameFolder,
-                                            title = getString(R.string.common_ui_select_folder),
-                                            dimAmount = 0.5f,
-                                            preserveBackdropBlur = true,
-                                            extraRoots = driveRoots(includeInternal = true),
-                                        ) { path -> gameFolder = path }
-                                    }, modifier = Modifier.size(28.dp).controllerFocusGlow(cornerRadius = 8.dp)) {
+                                    val openFolderPicker = {
+                                        if (ensureAllFilesAccessForImports(context)) {
+                                            DirectoryPickerDialog.show(
+                                                activity = this@UnifiedActivity,
+                                                initialPath = gameFolder,
+                                                title = getString(R.string.common_ui_select_folder),
+                                                dimAmount = 0.5f,
+                                                preserveBackdropBlur = true,
+                                                extraRoots = driveRoots(includeInternal = true),
+                                            ) { path -> gameFolder = path }
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = openFolderPicker,
+                                        modifier =
+                                            Modifier.size(28.dp).paneNavItem(
+                                                cornerRadius = 8.dp,
+                                                onActivate = openFolderPicker,
+                                            ),
+                                    ) {
                                         Icon(
                                             Icons.Outlined.Edit,
                                             contentDescription = stringResource(R.string.common_ui_change),
@@ -11749,7 +11945,9 @@ class UnifiedActivity :
                                 border = androidx.compose.foundation.BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f)),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp).controllerFocusGlow(cornerRadius = 10.dp),
+                                modifier =
+                                    Modifier.height(34.dp).widthIn(min = 72.dp)
+                                        .paneNavItem(cornerRadius = 10.dp, onActivate = onDismiss),
                             ) {
                                 Text(stringResource(R.string.common_ui_cancel), fontSize = 12.sp)
                             }
@@ -11765,7 +11963,9 @@ class UnifiedActivity :
                                     ),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                                modifier = Modifier.height(34.dp).widthIn(min = 72.dp).controllerFocusGlow(cornerRadius = 10.dp),
+                                modifier =
+                                    Modifier.height(34.dp).widthIn(min = 72.dp)
+                                        .paneNavItem(cornerRadius = 10.dp, onActivate = { if (addEnabled) doAdd() }),
                             ) {
                                 if (isAdding) {
                                     CircularProgressIndicator(color = Accent, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)

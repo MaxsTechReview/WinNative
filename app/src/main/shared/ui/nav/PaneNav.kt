@@ -39,9 +39,12 @@ private val PaneDefaultHighlight = Color(0xFF2196F3)
 private class PaneNavEntry(
     var x: Float,
     var y: Float,
+    var h: Float,
     var onActivate: () -> Unit,
     var onAdjust: ((Int) -> Unit)?,
     var onSecondary: () -> Unit,
+    var gx: Int? = null,
+    var gy: Int? = null,
 )
 
 @Stable
@@ -56,12 +59,25 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var activeCol by mutableStateOf(0)
         private set
 
+    var entrySlot: Int? = null
+        private set
+    private var pendingEntry = true
+
+    var explicitGrid by mutableStateOf(false)
+        private set
+    private var activeSlot by mutableStateOf<Int?>(null)
+
     fun nextSlot(): Int = slotCounter++
+
+    fun markEntry(slot: Int) {
+        entrySlot = slot
+        if (pendingEntry) selectSlot(slot)
+    }
 
     fun reportCallbacks(slot: Int, onActivate: () -> Unit, onAdjust: ((Int) -> Unit)?, onSecondary: () -> Unit) {
         val e = items[slot]
         if (e == null) {
-            items[slot] = PaneNavEntry(0f, 0f, onActivate, onAdjust, onSecondary)
+            items[slot] = PaneNavEntry(0f, 0f, 0f, onActivate, onAdjust, onSecondary)
         } else {
             e.onActivate = onActivate
             e.onAdjust = onAdjust
@@ -69,34 +85,56 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         }
     }
 
-    fun reportPosition(slot: Int, x: Float, y: Float) {
+    fun reportPosition(slot: Int, x: Float, y: Float, h: Float) {
         val e = items[slot] ?: return
-        if (e.x != x || e.y != y) {
-            items[slot] = PaneNavEntry(x, y, e.onActivate, e.onAdjust, e.onSecondary)
+        if (e.x != x || e.y != y || e.h != h) {
+            items[slot] = PaneNavEntry(x, y, h, e.onActivate, e.onAdjust, e.onSecondary, e.gx, e.gy)
+            if (pendingEntry) entrySlot?.let { selectSlot(it) }
         }
+    }
+
+    fun reportGrid(slot: Int, gx: Int, gy: Int) {
+        explicitGrid = true
+        val e = items[slot]
+        if (e == null) {
+            items[slot] = PaneNavEntry(0f, 0f, 0f, {}, null, {}, gx, gy)
+        } else if (e.gx != gx || e.gy != gy) {
+            items[slot] = PaneNavEntry(e.x, e.y, e.h, e.onActivate, e.onAdjust, e.onSecondary, gx, gy)
+        }
+        if (pendingEntry) entrySlot?.let { selectSlot(it) }
+    }
+
+    fun activeItemBounds(): Pair<Float, Float>? {
+        val r = rows
+        if (r.isEmpty()) return null
+        val row = r[activeRow.coerceIn(0, r.size - 1)]
+        val slot = row[activeCol.coerceIn(0, row.size - 1)]
+        val e = items[slot] ?: return null
+        return e.y to (e.y + e.h)
     }
 
     fun unregister(slot: Int) { items.remove(slot) }
 
     val rows: List<List<Int>>
         get() {
-            val sorted = items.entries.sortedWith(compareBy({ it.value.y }, { it.value.x }))
+            val sorted = items.entries.sortedWith(compareBy({ it.value.y + it.value.h / 2f }, { it.value.x }))
             val result = mutableListOf<MutableList<Int>>()
-            var prevY = Float.NaN
+            var prevCenterY = Float.NaN
             for (entry in sorted) {
-                val y = entry.value.y
-                if (result.isEmpty() || kotlin.math.abs(y - prevY) > PANE_ROW_Y_THRESHOLD) {
+                val centerY = entry.value.y + entry.value.h / 2f
+                if (result.isEmpty() || kotlin.math.abs(centerY - prevCenterY) > PANE_ROW_Y_THRESHOLD) {
                     result.add(mutableListOf(entry.key))
                 } else {
                     result.last().add(entry.key)
                 }
-                prevY = y
+                prevCenterY = centerY
             }
             return result
         }
 
     fun isActive(slot: Int): Boolean {
         if (!controllerActive) return false
+        if (explicitGrid) return (activeSlot ?: entrySlot) == slot
         val r = rows
         if (r.isEmpty()) return false
         val row = r[activeRow.coerceIn(0, r.size - 1)]
@@ -104,6 +142,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     }
 
     fun selectSlot(slot: Int) {
+        if (explicitGrid) {
+            activeSlot = slot
+            return
+        }
         val r = rows
         for (ri in r.indices) {
             val ci = r[ri].indexOf(slot)
@@ -118,6 +160,21 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     fun reset() {
         activeRow = 0
         activeCol = 0
+        pendingEntry = true
+        entrySlot?.let { selectSlot(it) }
+    }
+
+    fun navDir(dir: Int) {
+        val wasActive = controllerActive
+        controllerActive = true
+        if (!wasActive) {
+            pendingEntry = false
+            entrySlot?.let { selectSlot(it) }
+            if (dir == PANE_DIR_ACTIVATE || dir == PANE_DIR_SECONDARY) handleNav(dir)
+            return
+        }
+        pendingEntry = false
+        handleNav(dir)
     }
 
     fun processNav(signal: Int, dir: Int) {
@@ -131,6 +188,11 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     }
 
     private fun handleNav(dir: Int) {
+        pendingEntry = false
+        if (explicitGrid) {
+            explicitHandleNav(dir)
+            return
+        }
         val r = rows
         if (r.isEmpty()) return
         var row = activeRow.coerceIn(0, r.size - 1)
@@ -154,6 +216,53 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         }
         activeRow = row
         activeCol = col
+    }
+
+    private fun explicitHandleNav(dir: Int) {
+        val curSlot = activeSlot ?: entrySlot ?: return
+        val cur = items[curSlot] ?: return
+        if (dir == PANE_DIR_ACTIVATE) {
+            cur.onActivate()
+            return
+        }
+        if (dir == PANE_DIR_SECONDARY) {
+            cur.onSecondary()
+            return
+        }
+        val cx = cur.gx ?: return
+        val cy = cur.gy ?: return
+        var best: Int? = null
+        var bestScore = Int.MAX_VALUE
+        for ((slot, e) in items) {
+            if (slot == curSlot) continue
+            val ex = e.gx ?: continue
+            val ey = e.gy ?: continue
+            val inDir =
+                when (dir) {
+                    PANE_DIR_LEFT -> ex < cx
+                    PANE_DIR_RIGHT -> ex > cx
+                    PANE_DIR_UP -> ey < cy
+                    PANE_DIR_DOWN -> ey > cy
+                    else -> false
+                }
+            if (!inDir) continue
+            val score =
+                when (dir) {
+                    PANE_DIR_LEFT -> kotlin.math.abs(ey - cy) * 1000 + (cx - ex)
+                    PANE_DIR_RIGHT -> kotlin.math.abs(ey - cy) * 1000 + (ex - cx)
+                    PANE_DIR_UP -> kotlin.math.abs(ex - cx) * 1000 + (cy - ey)
+                    else -> kotlin.math.abs(ex - cx) * 1000 + (ey - cy)
+                }
+            if (score < bestScore) {
+                bestScore = score
+                best = slot
+            }
+        }
+        if (best != null) {
+            activeSlot = best
+        } else if (dir == PANE_DIR_LEFT) {
+            onEdgeLeft?.invoke()
+        }
     }
 }
 
@@ -188,11 +297,18 @@ internal fun Modifier.paneNavItem(
     onSecondary: () -> Unit = {},
     highlightColor: Color = PaneDefaultHighlight,
     tapToSelect: Boolean = false,
+    isEntry: Boolean = false,
+    navRow: Int? = null,
+    navCol: Int? = null,
 ): Modifier {
     val nav = LocalPaneNav.current ?: return this
     val slot = remember { nav.nextSlot() }
     DisposableEffect(slot) { onDispose { nav.unregister(slot) } }
-    SideEffect { nav.reportCallbacks(slot, onActivate, onAdjust, onSecondary) }
+    SideEffect {
+        nav.reportCallbacks(slot, onActivate, onAdjust, onSecondary)
+        if (navRow != null && navCol != null) nav.reportGrid(slot, navCol, navRow)
+        if (isEntry) nav.markEntry(slot)
+    }
     val highlighted = nav.isActive(slot)
 
     val bring = remember { BringIntoViewRequester() }
@@ -202,7 +318,7 @@ internal fun Modifier.paneNavItem(
     return this
         .onGloballyPositioned {
             val p = it.positionInWindow()
-            nav.reportPosition(slot, p.x, p.y)
+            nav.reportPosition(slot, p.x, p.y, it.size.height.toFloat())
         }
         .bringIntoViewRequester(bring)
         .then(
