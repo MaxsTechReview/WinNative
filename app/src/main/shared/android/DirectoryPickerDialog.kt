@@ -92,6 +92,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -592,7 +593,11 @@ object DirectoryPickerDialog {
         }
 
         val contentRegistry = remember { PaneNavRegistry() }
+        val menuRegistry = remember { PaneNavRegistry() }
+        val rootsRegistry = remember { PaneNavRegistry() }
         LaunchedEffect(currentDir.absolutePath) { contentRegistry.reset() }
+        LaunchedEffect(menuTarget) { if (menuTarget != null) menuRegistry.reset() }
+        LaunchedEffect(rootsExpanded) { if (rootsExpanded) rootsRegistry.reset() }
         val handlers =
             remember(window) {
                 paneNavHandlers(
@@ -624,11 +629,13 @@ object DirectoryPickerDialog {
                         }
                     },
                     registry = {
-                        val overlayOpen =
-                            rootsExpanded || menuTarget != null || renameTarget != null ||
-                                showNewFolder || deleteTarget != null || runTarget != null ||
-                                transferProgress != null
-                        if (overlayOpen) null else contentRegistry
+                        when {
+                            menuTarget != null -> menuRegistry
+                            rootsExpanded -> rootsRegistry
+                            renameTarget != null || showNewFolder || deleteTarget != null ||
+                                runTarget != null || transferProgress != null -> null
+                            else -> contentRegistry
+                        }
                     },
                 )
             }
@@ -795,6 +802,7 @@ object DirectoryPickerDialog {
                                         menuExpanded = isMenuOpen,
                                         onMenuDismiss = { menuTarget = null },
                                         actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
+                                        menuRegistry = menuRegistry,
                                     )
                                 }
                             }
@@ -839,6 +847,7 @@ object DirectoryPickerDialog {
                                     currentDir = File(it)
                                     rootsExpanded = false
                                 },
+                                navRegistry = rootsRegistry,
                                 modifier = Modifier.widthIn(min = 150.dp, max = 182.dp),
                             )
                             FooterActionButton(
@@ -860,6 +869,7 @@ object DirectoryPickerDialog {
                                 currentDir = it
                                 rootsExpanded = false
                             },
+                            navRegistry = rootsRegistry,
                             modifier = modifier,
                             extraRoots = extraRoots,
                         )
@@ -1046,6 +1056,7 @@ object DirectoryPickerDialog {
         onRootSelected: (File) -> Unit,
         modifier: Modifier = Modifier,
         extraRoots: List<ManagedRoot> = emptyList(),
+        navRegistry: PaneNavRegistry? = null,
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
@@ -1070,17 +1081,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 220.dp, max = 420.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides navRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        extraRoots.forEach { root ->
+                        extraRoots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1103,12 +1115,17 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(File(root.path)) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(File(root.path)) },
+                                            isEntry = index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
-                        roots.forEach { root ->
+                        roots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, root)
                             DropdownMenuItem(
                                 text = {
@@ -1123,9 +1140,14 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(root) },
+                                            isEntry = extraRoots.isEmpty() && index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
                     }
@@ -1146,6 +1168,7 @@ object DirectoryPickerDialog {
         menuExpanded: Boolean = false,
         onMenuDismiss: () -> Unit = {},
         actions: List<ItemAction> = emptyList(),
+        menuRegistry: PaneNavRegistry? = null,
     ) {
         val interaction = remember { MutableInteractionSource() }
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -1224,17 +1247,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides menuRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 260.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        actions.forEach { action ->
+                        actions.forEachIndexed { index, action ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1254,6 +1278,12 @@ object DirectoryPickerDialog {
                                     }
                                 },
                                 onClick = action.onClick,
+                                modifier =
+                                    Modifier.paneNavItem(
+                                        cornerRadius = 6.dp,
+                                        onActivate = action.onClick,
+                                        isEntry = index == 0,
+                                    ),
                             )
                         }
                     }
@@ -1540,6 +1570,7 @@ object DirectoryPickerDialog {
         expanded: Boolean,
         onExpandedChange: (Boolean) -> Unit,
         onRootSelected: (String) -> Unit,
+        navRegistry: PaneNavRegistry? = null,
         modifier: Modifier = Modifier,
     ) {
         val chevronRotation by animateFloatAsState(
@@ -1563,17 +1594,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 200.dp, max = 420.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides navRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        managedRoots.forEach { root ->
+                        managedRoots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1596,9 +1628,14 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root.path) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(root.path) },
+                                            isEntry = index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
                     }

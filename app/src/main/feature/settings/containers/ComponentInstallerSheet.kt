@@ -2,6 +2,7 @@ package com.winlator.cmod.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -405,6 +406,7 @@ private fun ComponentList(
                     item = component,
                     status = installStates[component.name],
                     onInstall = onInstall,
+                    isEntry = category == grouped.keys.first() && idx == 0,
                 )
             }
         }
@@ -416,6 +418,7 @@ private fun ComponentRow(
     item: CatalogComponent,
     status: InstallUi?,
     onInstall: (CatalogComponent) -> Unit,
+    isEntry: Boolean = false,
 ) {
     Row(
         modifier =
@@ -424,6 +427,11 @@ private fun ComponentRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(SheetCard)
                 .border(1.dp, SheetOutline, RoundedCornerShape(10.dp))
+                .paneNavItem(
+                    cornerRadius = 10.dp,
+                    onActivate = { if (status == null || status is InstallUi.Failed) onInstall(item) },
+                    isEntry = isEntry,
+                )
                 .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -528,11 +536,8 @@ private fun InstallButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(SheetAccent.copy(alpha = 0.14f))
                 .border(1.dp, SheetAccent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                .paneNavItem(
-                    cornerRadius = 8.dp,
-                    onActivate = onClick,
-                    tapToSelect = true,
-                ).padding(horizontal = 14.dp),
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

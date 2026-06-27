@@ -2254,7 +2254,6 @@ class UnifiedActivity :
                     LaunchedEffect(selectedIdx, tabs) {
                         currentTabKey = tabs.getOrNull(selectedIdx)?.key ?: "library"
                         storeFocusIndex.value = 0
-                        storeItemClickCallback = null
                         downloadsNavBridge.controllerActive = false
                     }
 
