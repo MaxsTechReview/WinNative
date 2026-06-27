@@ -2628,6 +2628,25 @@ class UnifiedActivity :
                             }
                         }
                     }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onFilterClicked() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
                 }
 
                 Row(
@@ -2666,21 +2685,6 @@ class UnifiedActivity :
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .clickable { onFriendsClicked() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
-                    }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent)
-                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab }
                                 .clickable(
                                     interactionSource = null,
@@ -2700,14 +2704,10 @@ class UnifiedActivity :
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = androidx.compose.material3.ripple(color = Accent),
-                                ) { onFilterClicked() },
+                                .clickable { onFriendsClicked() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
