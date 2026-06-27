@@ -1346,6 +1346,7 @@ Installierter Pfad:
     <string name="steam_friends_self_you">Du</string>
     <string name="steam_friends_in_game">Im Spiel</string>
     <string name="steam_friends_join">Beitreten</string>
+    <string name="steam_friends_play">Spielen</string>
     <string name="steam_chat_image_failed">(Bild konnte nicht gesendet werden)</string>
     <string name="steam_chat_empty">Noch keine Nachrichten. Sag Hallo!</string>
     <string name="steam_chat_uploading_image">Bild wird hochgeladen…</string>

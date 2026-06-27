@@ -1252,6 +1252,7 @@
     <string name="steam_friends_self_you">Вы</string>
     <string name="steam_friends_in_game">В игре</string>
     <string name="steam_friends_join">Войти</string>
+    <string name="steam_friends_play">Играть</string>
     <string name="steam_chat_image_failed">(не удалось отправить изображение)</string>
     <string name="steam_chat_empty">Сообщений пока нет. Поздоровайтесь!</string>
     <string name="steam_chat_uploading_image">Отправка изображения…</string>

@@ -1283,6 +1283,7 @@
     <string name="steam_friends_self_you">आप</string>
     <string name="steam_friends_in_game">खेल में</string>
     <string name="steam_friends_join">शामिल हों</string>
+    <string name="steam_friends_play">खेलें</string>
     <string name="steam_chat_image_failed">(छवि भेजने में विफल)</string>
     <string name="steam_chat_empty">अभी तक कोई संदेश नहीं। नमस्ते कहें!</string>
     <string name="steam_chat_uploading_image">छवि अपलोड हो रही है…</string>

@@ -1346,6 +1346,7 @@ Cale instalata:
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">În joc</string>
     <string name="steam_friends_join">Alătură-te</string>
+    <string name="steam_friends_play">Joacă</string>
     <string name="steam_chat_image_failed">(imaginea nu a putut fi trimisă)</string>
     <string name="steam_chat_empty">Niciun mesaj încă. Salută!</string>
     <string name="steam_chat_uploading_image">Se încarcă imaginea…</string>

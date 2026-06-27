@@ -1479,6 +1479,7 @@ Installed path:
     <string name="steam_friends_self_you">You</string>
     <string name="steam_friends_in_game">In game</string>
     <string name="steam_friends_join">Join</string>
+    <string name="steam_friends_play">Play</string>
     <string name="steam_chat_image_failed">(image failed to send)</string>
     <string name="steam_chat_empty">No messages yet. Say hi!</string>
     <string name="steam_chat_uploading_image">Uploading image…</string>

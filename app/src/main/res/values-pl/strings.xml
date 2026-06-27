@@ -1352,6 +1352,7 @@ Zainstalowana ścieżka:
     <string name="steam_friends_self_you">Ty</string>
     <string name="steam_friends_in_game">W grze</string>
     <string name="steam_friends_join">Dołącz</string>
+    <string name="steam_friends_play">Graj</string>
     <string name="steam_chat_image_failed">(nie udało się wysłać obrazu)</string>
     <string name="steam_chat_empty">Brak wiadomości. Przywitaj się!</string>
     <string name="steam_chat_uploading_image">Wysyłanie obrazu…</string>

@@ -1346,6 +1346,7 @@ Chemin installé :
     <string name="steam_friends_self_you">Vous</string>
     <string name="steam_friends_in_game">En jeu</string>
     <string name="steam_friends_join">Rejoindre</string>
+    <string name="steam_friends_play">Jouer</string>
     <string name="steam_chat_image_failed">(échec de l\'envoi de l\'image)</string>
     <string name="steam_chat_empty">Aucun message. Dites bonjour !</string>
     <string name="steam_chat_uploading_image">Envoi de l\'image…</string>

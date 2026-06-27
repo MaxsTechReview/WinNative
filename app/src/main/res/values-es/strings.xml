@@ -1346,6 +1346,7 @@ Ruta instalada:
     <string name="steam_friends_self_you">Tú</string>
     <string name="steam_friends_in_game">En juego</string>
     <string name="steam_friends_join">Unirse</string>
+    <string name="steam_friends_play">Jugar</string>
     <string name="steam_chat_image_failed">(no se pudo enviar la imagen)</string>
     <string name="steam_chat_empty">Aún no hay mensajes. ¡Saluda!</string>
     <string name="steam_chat_uploading_image">Subiendo imagen…</string>

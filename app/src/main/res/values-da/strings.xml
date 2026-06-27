@@ -1346,6 +1346,7 @@ Installeret sti:
     <string name="steam_friends_self_you">Dig</string>
     <string name="steam_friends_in_game">I spil</string>
     <string name="steam_friends_join">Deltag</string>
+    <string name="steam_friends_play">Spil</string>
     <string name="steam_chat_image_failed">(billedet kunne ikke sendes)</string>
     <string name="steam_chat_empty">Ingen beskeder endnu. Sig hej!</string>
     <string name="steam_chat_uploading_image">Uploader billede…</string>

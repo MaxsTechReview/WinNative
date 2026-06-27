@@ -1347,6 +1347,7 @@
     <string name="steam_friends_self_you">나</string>
     <string name="steam_friends_in_game">게임 중</string>
     <string name="steam_friends_join">참가</string>
+    <string name="steam_friends_play">플레이</string>
     <string name="steam_chat_image_failed">(이미지 전송 실패)</string>
     <string name="steam_chat_empty">아직 메시지가 없습니다. 인사해 보세요!</string>
     <string name="steam_chat_uploading_image">이미지 업로드 중…</string>

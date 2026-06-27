@@ -1352,6 +1352,7 @@
     <string name="steam_friends_self_you">Ви</string>
     <string name="steam_friends_in_game">У грі</string>
     <string name="steam_friends_join">Приєднатися</string>
+    <string name="steam_friends_play">Грати</string>
     <string name="steam_chat_image_failed">(не вдалося надіслати зображення)</string>
     <string name="steam_chat_empty">Повідомлень ще немає. Привітайтеся!</string>
     <string name="steam_chat_uploading_image">Завантаження зображення…</string>

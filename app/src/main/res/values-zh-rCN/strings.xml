@@ -1346,6 +1346,7 @@
     <string name="steam_friends_self_you">你</string>
     <string name="steam_friends_in_game">游戏中</string>
     <string name="steam_friends_join">加入</string>
+    <string name="steam_friends_play">开始游戏</string>
     <string name="steam_chat_image_failed">（图片发送失败）</string>
     <string name="steam_chat_empty">还没有消息。打个招呼吧！</string>
     <string name="steam_chat_uploading_image">正在上传图片…</string>

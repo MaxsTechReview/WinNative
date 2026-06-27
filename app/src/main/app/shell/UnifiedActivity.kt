@@ -1793,6 +1793,15 @@ class UnifiedActivity :
                                 }
                             }
                         },
+                        onPlayGame = { f ->
+                            scope.launch { rightDrawerState.close() }
+                            scope.launch {
+                                val app = withContext(Dispatchers.IO) { SteamService.getAppInfoOf(f.gameAppId) }
+                                if (app != null) {
+                                    launchSteamGame(context, ContainerManager(context), app, null)
+                                }
+                            }
+                        },
                     )
                 }
             },

@@ -1346,6 +1346,7 @@ Percorso installato:
     <string name="steam_friends_self_you">Tu</string>
     <string name="steam_friends_in_game">In gioco</string>
     <string name="steam_friends_join">Unisciti</string>
+    <string name="steam_friends_play">Gioca</string>
     <string name="steam_chat_image_failed">(invio immagine non riuscito)</string>
     <string name="steam_chat_empty">Ancora nessun messaggio. Saluta!</string>
     <string name="steam_chat_uploading_image">Caricamento immagine…</string>

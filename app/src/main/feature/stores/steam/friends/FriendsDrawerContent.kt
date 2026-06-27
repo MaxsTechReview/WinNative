@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -95,6 +97,7 @@ fun FriendsDrawerContent(
     onSetState: (EPersonaState) -> Unit,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
+    onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
     val inGame = friends.filter { it.isPlayingGame }.sortedBy { it.name.lowercase() }
     val online = friends.filter { it.isOnline && !it.isPlayingGame }.sortedBy { it.name.lowercase() }
@@ -128,19 +131,19 @@ fun FriendsDrawerContent(
                 if (inGame.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_in_game, inGame.size)) }
                     items(inGame, key = { it.steamId }) {
-                        InGameFriendCard(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
+                        InGameFriendCard(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
                     }
                 }
                 if (online.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_online, online.size)) }
                     items(online, key = { it.steamId }) {
-                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
+                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
                     }
                 }
                 if (offline.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.steam_friends_section_offline, offline.size)) }
                     items(offline, key = { it.steamId }) {
-                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame)
+                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
                     }
                 }
                 if (friends.isEmpty()) {
@@ -362,11 +365,50 @@ private fun StatusOption(label: String, dot: Color, onClick: () -> Unit) {
 }
 
 @Composable
+private fun FriendActionButton(label: String, icon: ImageVector, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = Accent.copy(alpha = 0.18f),
+        border = BorderStroke(1.dp, Accent.copy(alpha = 0.6f)),
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = label, tint = Accent, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(label, color = Accent, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun FriendActionButtons(
+    friend: SteamFriendEntry,
+    gameInstalled: Boolean,
+    onJoinGame: (SteamFriendEntry) -> Unit,
+    onPlayGame: (SteamFriendEntry) -> Unit,
+) {
+    when {
+        friend.isJoinable -> {
+            Spacer(Modifier.width(8.dp))
+            FriendActionButton(stringResource(R.string.steam_friends_join), Icons.Outlined.PlayArrow) { onJoinGame(friend) }
+        }
+        friend.isPlayingGame && gameInstalled -> {
+            Spacer(Modifier.width(8.dp))
+            FriendActionButton(stringResource(R.string.steam_friends_play), Icons.Outlined.SportsEsports) { onPlayGame(friend) }
+        }
+    }
+}
+
+@Composable
 private fun InGameFriendCard(
     friend: SteamFriendEntry,
     gameInstalled: Boolean,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
+    onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(10.dp),
@@ -419,24 +461,7 @@ private fun InGameFriendCard(
                     )
                 }
             }
-            if (friend.isPlayingGame && gameInstalled) {
-                Spacer(Modifier.width(8.dp))
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Accent.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, Accent.copy(alpha = 0.6f)),
-                    modifier = Modifier.clickable { onJoinGame(friend) },
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Outlined.PlayArrow, contentDescription = stringResource(R.string.steam_friends_join), tint = Accent, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.steam_friends_join), color = Accent, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
+            FriendActionButtons(friend, gameInstalled, onJoinGame, onPlayGame)
         }
     }
 }
@@ -447,6 +472,7 @@ private fun FriendRow(
     gameInstalled: Boolean,
     onOpenChat: (SteamFriendEntry) -> Unit,
     onJoinGame: (SteamFriendEntry) -> Unit,
+    onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
     val scale by animateFloatAsState(1f, label = "row")
     Surface(
@@ -484,23 +510,7 @@ private fun FriendRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (friend.isPlayingGame && gameInstalled) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Accent.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, Accent.copy(alpha = 0.6f)),
-                    modifier = Modifier.clickable { onJoinGame(friend) },
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Outlined.PlayArrow, contentDescription = stringResource(R.string.steam_friends_join), tint = Accent, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.steam_friends_join), color = Accent, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
+            FriendActionButtons(friend, gameInstalled, onJoinGame, onPlayGame)
         }
     }
 }
