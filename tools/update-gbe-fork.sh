@@ -22,6 +22,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ASSET="$ROOT/app/src/main/assets/experimental-drm.tzst"
 VERSION_FILE="$ROOT/tools/gbe_fork.version"
 
+# MN-4: pin the legacy DRM stub. tools/StubDRM64.dll is a checked-in binary (NOT part of the
+# gbe_fork download), so a gbe_fork bump can't swap it — but a bad merge, tampering, or
+# corruption could. Validating its hash here turns any silent change into a loud build failure
+# instead of shipping a different DLL that may reintroduce the SteamStub regression the legacy
+# stub avoids. Update STUBDRM64_SHA256 deliberately if you ever replace the stub.
+STUBDRM64_DLL="$ROOT/tools/StubDRM64.dll"
+STUBDRM64_SHA256="b3c69278e405c84cf4f1b264bae028707cddb6009da9df2f4979b1b3d2d30852"
+
 for bin in curl 7z tar zstd python3; do
     command -v "$bin" >/dev/null 2>&1 || { echo "ERROR: '$bin' not found in PATH" >&2; exit 1; }
 done
@@ -58,7 +66,20 @@ cp "$SRC/GameOverlayRenderer64.dll"  "$DST/"
 # instead of gbe_fork's modern steamclient_extra. The modern patcher is
 # "experimental" and regressed SteamStub games (verified on Monster Hunter
 # Stories — "Application load error 3:0000065432"); the legacy stub works.
-cp "$ROOT/tools/StubDRM64.dll" "$DST/extra_dlls/"
+# MN-4: verify the pinned hash before bundling — fail loudly on any unexpected change.
+if command -v sha256sum >/dev/null 2>&1; then
+    actual_stub_sha="$(sha256sum "$STUBDRM64_DLL" | awk '{print $1}')"
+else
+    actual_stub_sha="$(shasum -a 256 "$STUBDRM64_DLL" | awk '{print $1}')"
+fi
+if [ "$actual_stub_sha" != "$STUBDRM64_SHA256" ]; then
+    echo "ERROR: tools/StubDRM64.dll sha256 mismatch — refusing to bundle an unexpected DRM stub." >&2
+    echo "  expected: $STUBDRM64_SHA256" >&2
+    echo "  actual:   $actual_stub_sha" >&2
+    echo "If you intentionally changed the stub, update STUBDRM64_SHA256 in this script." >&2
+    exit 1
+fi
+cp "$STUBDRM64_DLL" "$DST/extra_dlls/"
 
 # Deterministic tar (sorted, zeroed owner) + zstd, matching the asset format.
 ( cd "$WORK/stage" && tar --numeric-owner --owner=0 --group=0 --sort=name -cf "$WORK/drm.tar" home )

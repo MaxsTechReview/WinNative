@@ -92,7 +92,7 @@ fun WnKeyValue.generateSteamApp(): SteamApp =
 
                     val manifests = currentDepot["manifests"].children.generateManifest()
 
-                    val encryptedManifests = currentDepot["encryptedManifests"].children.generateManifest()
+                    val encryptedManifests = currentDepot["encryptedmanifests"].children.generateManifest()
 
                     depotId to
                         DepotInfo(
@@ -109,6 +109,7 @@ fun WnKeyValue.generateSteamApp(): SteamApp =
                             encryptedManifests = encryptedManifests,
                             language = currentDepot["config"]["language"].value.orEmpty(),
                             realm = currentDepot["config"]["realm"].value.orEmpty(),
+                            lowViolence = currentDepot["config"]["lowviolence"].asBoolean(),
                             optionalDlcId = currentDepot["config"]["optionaldlc"].asInteger(INVALID_APP_ID),
                         )
                 },

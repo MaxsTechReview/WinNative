@@ -22,6 +22,8 @@
 
 #define VK_FRAMES_IN_FLIGHT 2
 #define VK_MAX_SWAPCHAIN_IMAGES 8
+// Encoder input-surface swapchains can expose many more images than a display swapchain.
+#define VK_MAX_RECORD_IMAGES 32
 #define VK_MAX_EFFECTS 8
 #define VK_MAX_RENDERABLE_WINDOWS 64
 // Number of in-flight upload slots. Each slot owns a persistently-mapped staging buffer,
@@ -219,6 +221,35 @@ typedef struct VkSgsr1State {
     uint32_t    height;
 } VkSgsr1State;
 
+// Recording mirror: a second swapchain on a MediaCodec input surface; each frame is blitted from
+// the display swapchain into it and co-presented. Gated on rec.active.
+typedef struct VkRecordSwap {
+    bool             active;
+    bool             disabled;
+    ANativeWindow*   anw;
+    VkSurfaceKHR     surface;
+    VkSwapchainKHR   swapchain;
+    VkFormat         format;
+    VkExtent2D       extent;
+    uint32_t         image_count;
+    VkImage          images[VK_MAX_RECORD_IMAGES];
+    VkSemaphore      acquire[VK_FRAMES_IN_FLIGHT];
+    VkSemaphore      present_ready[VK_MAX_RECORD_IMAGES];
+    uint64_t         captured;
+    uint64_t         skipped;
+    uint64_t         min_interval_ns;
+    uint64_t         last_capture_ns;
+
+    // Record UI: alpha-blend an overlay texture over each captured frame.
+    bool             ui_enabled;
+    VkRenderPass     ui_pass;
+    VkPipeline       ui_pipeline;
+    VkImageView      views[VK_MAX_RECORD_IMAGES];
+    VkFramebuffer    framebuffers[VK_MAX_RECORD_IMAGES];
+    bool             fb_built;
+    struct VkTexture* ui_texture;
+} VkRecordSwap;
+
 // ============================================================
 // Staging pool for async texture uploads
 // ============================================================
@@ -366,6 +397,10 @@ typedef struct VkRenderer {
     VkOffscreen      offscreen[2];
     bool             offscreen_built;
     VkSgsr1State     sgsr1;
+
+    // record_blit_src adds TRANSFER_SRC usage to the display swapchain (toggled by start/stop recording).
+    bool             record_blit_src;
+    VkRecordSwap     rec;
 
     // Quad vertex buffer (window/cursor)
     VkBuffer         quad_vbo;

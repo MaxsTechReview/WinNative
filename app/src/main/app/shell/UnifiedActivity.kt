@@ -92,6 +92,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -1090,6 +1091,7 @@ class UnifiedActivity :
         if (maybeForwardFrontendLaunch()) return
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(inputControlsFragmentTracker, true)
+        com.winlator.cmod.runtime.display.GlassesManager.init(this)
         bootstrapStartupState()
         maybeAutoSignInGoogleOnLaunch()
 
@@ -1899,6 +1901,49 @@ class UnifiedActivity :
                     }
                 }
                 val scaffoldContainer = if (immersiveMode && currentTabKeyForImmersive == "library") Color.Transparent else BgDark
+                val openFileManager: () -> Unit = {
+                    val internalPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+                    val managedRoots = driveRoots(includeInternal = true)
+                    val containerManager = com.winlator.cmod.runtime.container.ContainerManager(context)
+                    val containers =
+                        containerManager.getContainers().map {
+                            DirectoryPickerDialog.ManagedContainer(it.id, it.getName())
+                        }
+                    DirectoryPickerDialog.showManager(
+                        activity = this@UnifiedActivity,
+                        initialPath = internalPath,
+                        managedRoots = managedRoots,
+                        containers = containers,
+                        onRunFile = { exePath, containerId ->
+                            val container = containerManager.getContainerById(containerId)
+                            if (container != null) {
+                                val winePath =
+                                    com.winlator.cmod.runtime.wine.WineUtils
+                                        .hostPathToMappedWinePath(container, exePath)
+                                startActivity(
+                                    android.content.Intent(
+                                        this@UnifiedActivity,
+                                        com.winlator.cmod.runtime.display.XServerDisplayActivity::class.java,
+                                    ).apply {
+                                        putExtra("container_id", container.id)
+                                        putExtra("boot_exe", winePath)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    },
+                                )
+                            }
+                        },
+                        onCreateShortcut = { exePath ->
+                            val exeFile = java.io.File(exePath)
+                            addCustomGame(
+                                context,
+                                exeFile.nameWithoutExtension,
+                                exePath,
+                                exeFile.parent ?: exePath,
+                            )
+                            localLibraryRefreshKey++
+                        },
+                    )
+                }
                 Scaffold(
                     containerColor = scaffoldContainer,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1908,7 +1953,7 @@ class UnifiedActivity :
                         }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
                             searchQueryTfv =
                                 it
-                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onFriendsClicked = { scope.launch { rightDrawerState.open() } }) {
+                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onFriendsClicked = { scope.launch { rightDrawerState.open() } }, onOpenFileManager = openFileManager) {
                             if (selectedLibrarySource == "GOG") {
                                 globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                             } else {
@@ -2044,18 +2089,31 @@ class UnifiedActivity :
                                         )
                                         .padding(end = addGameFabMargin, bottom = addGameFabMargin)
                                         .size(addGameFabSize)
-                                        .shadow(10.dp, CircleShape, spotColor = Accent.copy(alpha = 0.4f))
+                                        .drawBehind {
+                                            drawCircle(
+                                                brush =
+                                                    Brush.radialGradient(
+                                                        colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
+                                                        center = center,
+                                                        radius = size.minDimension * 0.64f,
+                                                    ),
+                                                radius = size.minDimension * 0.64f,
+                                            )
+                                        }
                                         .clip(CircleShape)
-                                        .background(SurfaceDark.copy(alpha = 0.96f), CircleShape)
+                                        .background(Color.Transparent, CircleShape)
                                         .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
                                         .focusProperties { canFocus = false } // No specific button for this, handle via long press or touch
-                                        .clickable { showAddCustomGame = true },
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = androidx.compose.material3.ripple(color = Accent),
+                                        ) { showAddCustomGame = true },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     Icons.Outlined.Add,
                                     contentDescription = "Add Custom Game",
-                                    tint = Color.White,
+                                    tint = Accent,
                                     modifier = Modifier.size(addGameFabIconSize),
                                 )
                             }
@@ -2206,6 +2264,125 @@ class UnifiedActivity :
     }
 
     @Composable
+    private fun GlassesSettingsSheet(onDismiss: () -> Unit) {
+        val gm = com.winlator.cmod.runtime.display.GlassesManager
+        val settings by gm.settings.collectAsState()
+        val brightnessMax = gm.brightnessMax()
+        val volumeMax = gm.volumeMax()
+        val brightness = if (settings.brightness < 0) brightnessMax else settings.brightness
+        val volume = if (settings.volume < 0) volumeMax else settings.volume
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = SurfaceDark,
+                modifier = Modifier.fillMaxWidth(0.82f),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Eyeglasses2Icon, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(gm.modelName(), color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                GlassesLabel(stringResource(R.string.glasses_panel_refresh))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(60, 90, 120).forEach { hz ->
+                                        val selected = settings.refreshHz == hz
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(11.dp))
+                                                .background(if (selected) Accent else TextSecondary.copy(alpha = 0.12f))
+                                                .clickable { gm.setRefreshHz(hz) }
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text("$hz", color = if (selected) SurfaceDark else TextPrimary,
+                                                fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                GlassesToggleTile(stringResource(R.string.glasses_panel_sunblock),
+                                    settings.sunblock, Modifier.weight(1f)) { gm.setSunblock(it) }
+                                GlassesToggleTile(stringResource(R.string.session_drawer_output_3d),
+                                    settings.threeD, Modifier.weight(1f)) { gm.set3D(it) }
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_brightness),
+                                brightness, brightnessMax) { gm.setBrightness(it) }
+                            GlassesPercentSlider(stringResource(R.string.session_drawer_output_volume),
+                                volume, volumeMax) { gm.setVolume(it) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun GlassesLabel(text: String) {
+        Text(text, color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+
+    @Composable
+    private fun GlassesPercentSlider(label: String, level: Int, max: Int, onChange: (Int) -> Unit) {
+        val pct = if (max > 0) Math.round(level * 100f / max) else 0
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                GlassesLabel(label)
+                Text("$pct%", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+            androidx.compose.material3.Slider(
+                value = level.toFloat(),
+                onValueChange = { onChange(it.roundToInt()) },
+                valueRange = 0f..max.toFloat(),
+                steps = (max - 1).coerceAtLeast(0),
+                colors = androidx.compose.material3.SliderDefaults.colors(
+                    thumbColor = Accent,
+                    activeTrackColor = Accent,
+                    inactiveTrackColor = TextSecondary.copy(alpha = 0.2f),
+                ),
+            )
+        }
+    }
+
+    @Composable
+    private fun GlassesToggleTile(label: String, checked: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+        Column(
+            modifier = modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(if (checked) Accent.copy(alpha = 0.16f) else TextSecondary.copy(alpha = 0.08f))
+                .clickable { onChange(!checked) }
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            androidx.compose.material3.Switch(
+                checked = checked,
+                onCheckedChange = onChange,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Accent,
+                ),
+            )
+        }
+    }
+
+    @Composable
     private fun TopBar(
         tabs: List<TabDef>,
         selectedIdx: Int,
@@ -2220,12 +2397,15 @@ class UnifiedActivity :
         onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
         onFriendsClicked: () -> Unit = {},
+        onOpenFileManager: () -> Unit,
         onGameSettingsClicked: () -> Unit,
     ) {
         var isSearchExpanded by remember { mutableStateOf(false) }
         val searchFocusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
         val isDownloadsTab = tabs.getOrNull(selectedIdx)?.key == "downloads"
+        val glassesConnected by com.winlator.cmod.runtime.display.GlassesManager.connected.collectAsState()
+        var showGlassesPanel by remember { mutableStateOf(false) }
 
         LaunchedEffect(selectedIdx) {
             if (isSearchExpanded) {
@@ -2359,16 +2539,22 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(onClick = {
-                            navigateToSettings(SettingsNavItem.STORES)
-                        }, modifier = Modifier.size(44.dp), enabled = true) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
+                        ) {
+                            IconButton(onClick = {
+                                navigateToSettings(SettingsNavItem.STORES)
+                            }, modifier = Modifier.size(44.dp), enabled = true) {
+                                Icon(Icons.Outlined.Settings, contentDescription = "Menu", tint = Accent, modifier = Modifier.size(24.dp))
+                            }
                         }
                     }
                     if (isControllerConnected) {
@@ -2392,49 +2578,54 @@ class UnifiedActivity :
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
                                 .background(
-                                    if (isDownloadsTab) {
-                                        SurfaceDark.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
+                                    if (isSearchExpanded) {
                                         Accent.copy(alpha = 0.15f)
                                     } else {
-                                        SurfaceDark
+                                        Color.Transparent
                                     },
+                                ).border(
+                                    1.dp,
+                                    Accent.copy(alpha = if (isDownloadsTab) 0.25f else 0.5f),
+                                    CircleShape,
                                 ).focusProperties { canFocus = !isLibraryTab },
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(
-                            onClick = {
-                                if (!isDownloadsTab) {
-                                    if (isSearchExpanded) {
-                                        onSearchQueryChange(TextFieldValue(""))
-                                        isSearchExpanded = false
-                                    } else {
-                                        isSearchExpanded = true
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(44.dp),
-                            enabled = !isDownloadsTab,
+                        @Suppress("DEPRECATION")
+                        CompositionLocalProvider(
+                            androidx.compose.material3.LocalRippleConfiguration provides
+                                androidx.compose.material3.RippleConfiguration(color = Accent),
                         ) {
-                            Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = "Search",
-                                tint =
-                                    if (isDownloadsTab) {
-                                        TextSecondary.copy(alpha = 0.4f)
-                                    } else if (isSearchExpanded) {
-                                        Accent
-                                    } else {
-                                        TextPrimary
-                                    },
-                                modifier =
-                                    Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer { rotationZ = searchIconRotation },
-                            )
+                            IconButton(
+                                onClick = {
+                                    if (!isDownloadsTab) {
+                                        if (isSearchExpanded) {
+                                            onSearchQueryChange(TextFieldValue(""))
+                                            isSearchExpanded = false
+                                        } else {
+                                            isSearchExpanded = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(44.dp),
+                                enabled = !isDownloadsTab,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Search,
+                                    contentDescription = "Search",
+                                    tint =
+                                        if (isDownloadsTab) {
+                                            TextSecondary.copy(alpha = 0.4f)
+                                        } else {
+                                            Accent
+                                        },
+                                    modifier =
+                                        Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer { rotationZ = searchIconRotation },
+                                )
+                            }
                         }
                     }
                 }
@@ -2452,32 +2643,70 @@ class UnifiedActivity :
 
                     Spacer(Modifier.width(8.dp))
 
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
-                                .clip(CircleShape)
-                                .background(SurfaceDark)
-                                .clickable { onFriendsClicked() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                    if (glassesConnected) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceDark)
+                                    .clickable { showGlassesPanel = true },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Eyeglasses2Icon, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
                     }
-                    Spacer(Modifier.width(8.dp))
 
                     Box(
                         modifier =
                             Modifier
                                 .size(44.dp)
-                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.5f))
                                 .clip(CircleShape)
-                                .background(SurfaceDark)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable { onFilterClicked() },
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .clickable { onFriendsClicked() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onOpenFileManager() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onFilterClicked() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
@@ -2485,6 +2714,8 @@ class UnifiedActivity :
                     }
                 }
             }
+
+            if (showGlassesPanel) GlassesSettingsSheet(onDismiss = { showGlassesPanel = false })
 
             AnimatedVisibility(
                 visible = isSearchExpanded && !isDownloadsTab,
@@ -8070,7 +8301,7 @@ class UnifiedActivity :
 
                 DownloadsQueueButton(
                     label = stringResource(R.string.downloads_queue_clear),
-                    accentColor = TextSecondary,
+                    accentColor = Accent,
                     onClick = {
                         DownloadService.clearCompletedDownloads()
                     },
@@ -10629,7 +10860,7 @@ class UnifiedActivity :
                 Icon(
                     Icons.Outlined.Person,
                     contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.5f),
+                    tint = Accent,
                     modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))
@@ -11163,11 +11394,17 @@ class UnifiedActivity :
                                         .clickable {
                                             DirectoryPickerDialog.showFile(
                                                 activity = this@UnifiedActivity,
-                                                initialPath = selectedExePath ?: gameFolder,
+                                                initialPath =
+                                                    selectedExePath ?: gameFolder
+                                                        ?: android.os.Environment
+                                                            .getExternalStoragePublicDirectory(
+                                                                android.os.Environment.DIRECTORY_DOWNLOADS,
+                                                            ).absolutePath,
                                                 title = getString(R.string.common_ui_select_exe),
                                                 allowedExtensions = setOf("exe"),
                                                 dimAmount = 0.5f,
                                                 preserveBackdropBlur = true,
+                                                extraRoots = driveRoots(includeInternal = true),
                                                 onSelected = ::selectExecutable,
                                             )
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -11251,6 +11488,7 @@ class UnifiedActivity :
                                             title = getString(R.string.common_ui_select_folder),
                                             dimAmount = 0.5f,
                                             preserveBackdropBlur = true,
+                                            extraRoots = driveRoots(includeInternal = true),
                                         ) { path -> gameFolder = path }
                                     }, modifier = Modifier.size(28.dp)) {
                                         Icon(
@@ -11348,6 +11586,30 @@ class UnifiedActivity :
             }
         startActivity(intent)
         return false
+    }
+
+    private fun driveRoots(includeInternal: Boolean): List<DirectoryPickerDialog.ManagedRoot> {
+        val imagefsRoot =
+            com.winlator.cmod.runtime.display.environment.ImageFs.find(this).getRootDir()
+        val roots =
+            mutableListOf(
+                DirectoryPickerDialog.ManagedRoot("C:", java.io.File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    android.os.Environment
+                        .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                        .absolutePath,
+                ),
+            )
+        if (includeInternal) {
+            roots +=
+                DirectoryPickerDialog.ManagedRoot(
+                    "Internal",
+                    android.os.Environment.getExternalStorageDirectory().absolutePath,
+                )
+        }
+        return roots
     }
 
     private fun addCustomGame(

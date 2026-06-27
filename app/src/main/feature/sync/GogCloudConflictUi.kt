@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,21 +26,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeTheme
 
 private val GogCloudConflictWindow = Color(0xFF171A21)
@@ -62,8 +71,8 @@ object GogCloudConflictDialog {
     fun show(
         activity: Activity,
         timestamps: GogCloudConflictTimestamps,
-        onUseCloud: () -> Unit,
-        onUseLocal: () -> Unit,
+        onUseCloud: (keepBackup: Boolean) -> Unit,
+        onUseLocal: (keepBackup: Boolean) -> Unit,
     ) {
         val dialog =
             Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
@@ -103,13 +112,13 @@ object GogCloudConflictDialog {
                     ) {
                         GogCloudConflictDialogContent(
                             timestamps = timestamps,
-                            onUseCloud = {
+                            onUseCloud = { keep ->
                                 dialog.dismiss()
-                                onUseCloud()
+                                onUseCloud(keep)
                             },
-                            onUseLocal = {
+                            onUseLocal = { keep ->
                                 dialog.dismiss()
-                                onUseLocal()
+                                onUseLocal(keep)
                             },
                         )
                     }
@@ -133,10 +142,11 @@ object GogCloudConflictDialog {
 @Composable
 internal fun GogCloudConflictDialogContent(
     timestamps: GogCloudConflictTimestamps,
-    onUseCloud: () -> Unit,
-    onUseLocal: () -> Unit,
+    onUseCloud: (keepBackup: Boolean) -> Unit,
+    onUseLocal: (keepBackup: Boolean) -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    var keepBackup by remember { mutableStateOf(true) }
 
     Surface(
         modifier =
@@ -204,6 +214,10 @@ internal fun GogCloudConflictDialogContent(
                         GogVersionLine("GOG cloud saves", timestamps.cloudTimestampLabel)
                     }
 
+                    GogKeepBackupCheckbox(
+                        checked = keepBackup,
+                        onCheckedChange = { keepBackup = it },
+                    )
                 }
 
                 if (compactActions) {
@@ -216,10 +230,10 @@ internal fun GogCloudConflictDialogContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         GogOutlinedButton("Use Local Saves", Modifier.fillMaxWidth()) {
-                            onUseLocal()
+                            onUseLocal(keepBackup)
                         }
                         GogPrimaryButton("Use GOG Cloud", Modifier.fillMaxWidth()) {
-                            onUseCloud()
+                            onUseCloud(keepBackup)
                         }
                     }
                 } else {
@@ -233,13 +247,63 @@ internal fun GogCloudConflictDialogContent(
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
                         GogOutlinedButton("Use Local Saves", Modifier.widthIn(min = 132.dp)) {
-                            onUseLocal()
+                            onUseLocal(keepBackup)
                         }
                         GogPrimaryButton("Use GOG Cloud", Modifier.widthIn(min = 132.dp)) {
-                            onUseCloud()
+                            onUseCloud(keepBackup)
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GogKeepBackupCheckbox(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(2.dp),
+        color = GogPanelAlt,
+        border = BorderStroke(1.dp, GogBorder),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors =
+                    CheckboxDefaults.colors(
+                        checkedColor = GogCloudConflictBlue,
+                        uncheckedColor = GogMuted,
+                        checkmarkColor = GogCloudConflictWindow,
+                    ),
+            )
+            Spacer(Modifier.widthIn(min = 2.dp))
+            Column(modifier = Modifier.padding(start = 4.dp)) {
+                Text(
+                    text = stringResource(R.string.cloud_saves_keep_replaced_backup),
+                    color = GogCloudConflictText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = stringResource(R.string.cloud_saves_keep_replaced_backup_summary),
+                    color = GogMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                )
             }
         }
     }

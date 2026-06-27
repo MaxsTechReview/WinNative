@@ -249,14 +249,8 @@ public abstract class ImageFsInstaller {
               progressTracker.start();
               clearRootDir(rootDir);
 
-              Future<Boolean> imageFsExtraction =
-                  TarCompressorUtils.extractAsync(
-                      IMAGEFS_ARCHIVE_TYPE,
-                      activity,
-                      IMAGEFS_ARCHIVE,
-                      rootDir,
-                      progressTracker.asExtractListener());
-              boolean success = waitForExtraction(imageFsExtraction);
+              boolean success =
+                  extractImageFs(activity, rootDir, progressTracker.asExtractListener());
 
               if (success) {
                 ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -416,6 +410,46 @@ public abstract class ImageFsInstaller {
       Log.e("ImageFsInstaller", "Async extraction failed", e);
       return false;
     }
+  }
+
+  private static boolean extractImageFs(
+      android.app.Activity activity, File rootDir, OnExtractFileListener listener) {
+    String[] shards = listImageFsShards(activity);
+    if (shards.length == 0) {
+      return waitForExtraction(
+          TarCompressorUtils.extractAsync(
+              IMAGEFS_ARCHIVE_TYPE, activity, IMAGEFS_ARCHIVE, rootDir, listener));
+    }
+    int threads = Math.max(2, Math.min(shards.length, Runtime.getRuntime().availableProcessors()));
+    ExecutorService pool = Executors.newFixedThreadPool(threads);
+    try {
+      List<Future<Boolean>> futures = new ArrayList<>();
+      for (String shard : shards) {
+        futures.add(
+            pool.submit(
+                () ->
+                    TarCompressorUtils.extract(
+                        IMAGEFS_ARCHIVE_TYPE, activity, shard, rootDir, listener)));
+      }
+      return waitForExtractions(futures);
+    } finally {
+      pool.shutdown();
+    }
+  }
+
+  private static String[] listImageFsShards(Context context) {
+    List<String> shards = new ArrayList<>();
+    try {
+      String[] names = context.getAssets().list("");
+      if (names != null) {
+        for (String name : names) {
+          if (name.startsWith("imagefs.part") && name.endsWith(".tzst")) shards.add(name);
+        }
+      }
+    } catch (Exception e) {
+      Log.e("ImageFsInstaller", "Failed to list imagefs shards", e);
+    }
+    return shards.toArray(new String[0]);
   }
 
   /**

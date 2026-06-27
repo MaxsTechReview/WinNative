@@ -385,6 +385,40 @@ object SteamAutoCloud {
         }.getOrNull()
     }
 
+    /** A persisted cloud file mapped to where it lives locally, plus the name used to download it. */
+    data class CloudFileTarget(
+        val downloadName: String,
+        val localPath: Path,
+    )
+
+    /**
+     * Resolve every *persisted* cloud file for [appInfo] to a [CloudFileTarget] using the SAME
+     * canonical mapping the live downloader uses. Pure computation — no I/O, no DB writes, no
+     * file writes, no session/container side effects.
+     *
+     * [prefixToPath] maps a PathType root name to an absolute directory; passing the normal
+     * Steam prefix resolver yields the exact local path the downloader would write to. Used by
+     * the cloud-save backup path to enumerate the current cloud state so it can be captured
+     * WITHOUT touching the live save directory.
+     */
+    fun resolvePersistedCloudFiles(
+        appInfo: SteamApp,
+        fileList: CloudFileChangeList,
+        prefixToPath: (String) -> String,
+    ): List<CloudFileTarget> {
+        val routing = buildCloudPathRouting(appInfo, prefixToPath)
+        return fileList.files
+            .filter { it.isPersisted }
+            .mapNotNull { file ->
+                val local = resolveCloudFileLocalPath(file, fileList, prefixToPath, routing) ?: return@mapNotNull null
+                val prefix = fileList.pathPrefixes.getOrNull(file.pathPrefixIndex) ?: ""
+                CloudFileTarget(
+                    downloadName = Paths.get(prefix, file.filename).toString(),
+                    localPath = local,
+                )
+            }
+    }
+
     private fun uploadNameFor(
         file: UserFileInfo,
         hasUfsPatterns: Boolean,
@@ -895,7 +929,15 @@ object SteamAutoCloud {
                                     try {
                                         fs.fd.sync()
                                     } catch (e: Exception) {
-                                        Timber.w(e, "fsync failed for %s; continuing", tmpPath)
+                                        // MD-3: a failed fsync means the bytes may not be durably on
+                                        // disk (e.g. disk full / I/O error). Do NOT commit a
+                                        // possibly-non-durable file — that would also advance the
+                                        // change number while the save isn't really persisted. Abort
+                                        // this file's write so it's not counted; the sync then reports
+                                        // a download failure and retries on the next launch, and the
+                                        // existing local file is preserved by the catch below.
+                                        Timber.w(e, "fsync failed for %s; treating as a download failure", tmpPath)
+                                        throw e
                                     }
                                 }
                                 try {
@@ -1014,12 +1056,33 @@ object SteamAutoCloud {
                             var allOk = true
                             var uploaded = 0
                             var bytes = 0L
+                            val skippedFiles = mutableListOf<String>()
                             filesToUpload.forEach { (cloudName, file) ->
+                                val absPath = file.getAbsPath(prefixToPath)
+                                // MD-4: refuse to load an oversize save into memory. The scan-time
+                                // filter should already exclude these, but guard here too so one big
+                                // file can't OOM the whole upload.
+                                val fileSize = runCatching { Files.size(absPath) }.getOrDefault(-1L)
+                                if (fileSize > MAX_CLOUD_FILE_SIZE_BYTES) {
+                                    Timber.e(
+                                        "wn cloud upload: %s is too large to upload (%d > %d bytes); skipping",
+                                        file.prefixPath,
+                                        fileSize,
+                                        MAX_CLOUD_FILE_SIZE_BYTES,
+                                    )
+                                    skippedFiles += file.filename
+                                    allOk = false
+                                    return@forEach
+                                }
                                 val data =
                                     try {
-                                        Files.readAllBytes(file.getAbsPath(prefixToPath))
-                                    } catch (e: Exception) {
-                                        Timber.w(e, "wn cloud upload: cannot read ${file.prefixPath}")
+                                        Files.readAllBytes(absPath)
+                                    } catch (e: Throwable) {
+                                        // MD-4: catch Throwable so an OutOfMemoryError (an Error, not
+                                        // an Exception) reading one large file degrades to a skipped
+                                        // file instead of aborting the whole sync uncaught.
+                                        Timber.e(e, "wn cloud upload: cannot read ${file.prefixPath}; skipping")
+                                        skippedFiles += file.filename
                                         allOk = false
                                         return@forEach
                                     }
@@ -1041,6 +1104,13 @@ object SteamAutoCloud {
                                 } else {
                                     allOk = false
                                 }
+                            }
+                            if (skippedFiles.isNotEmpty()) {
+                                Timber.e(
+                                    "wn cloud upload: %d file(s) skipped and NOT uploaded: %s",
+                                    skippedFiles.size,
+                                    skippedFiles.joinToString(", "),
+                                )
                             }
                             val completed =
                                 session.completeCloudUploadBatch(
@@ -1156,54 +1226,63 @@ object SteamAutoCloud {
 
                             val downloadsAllSucceeded = filesDownloaded >= expectedDownloads
 
-                            microsecDeleteFiles =
-                                measureTime {
-                                    if (!downloadsAllSucceeded) {
-                                        Timber.w(
-                                            "Skipping ${filesDeletedByCloud.size} local delete(s): only " +
-                                                "$filesDownloaded/$expectedDownloads cloud files downloaded successfully. " +
-                                                "Local saves will be preserved until the next sync.",
-                                        )
-                                        filesDeleted = 0
-                                    } else {
-                                        var totalFilesDeleted = 0
-                                        filesDeletedByCloud.forEach {
-                                            // Never delete a local file the cloud still has under some variant name.
-                                            val abs =
-                                                runCatching { it.getAbsPath(prefixToPath).toAbsolutePath().normalize() }
-                                                    .getOrNull()
-                                            if (abs != null && abs in cloudTargetPaths) return@forEach
-                                            val deleted = Files.deleteIfExists(it.getAbsPath(prefixToPath))
-                                            if (deleted) totalFilesDeleted++
-                                        }
-                                        filesDeleted = totalFilesDeleted
-                                    }
-                                }.inWholeMicroseconds
-
                             if (!downloadsAllSucceeded) {
+                                Timber.w(
+                                    "Skipping ${filesDeletedByCloud.size} local delete(s): only " +
+                                        "$filesDownloaded/$expectedDownloads cloud files downloaded successfully. " +
+                                        "Local saves will be preserved until the next sync.",
+                                )
+                                filesDeleted = 0
+                                microsecDeleteFiles = 0
                                 syncResult = SyncResult.DownloadFail
                                 return@async PostSyncInfo(syncResult)
                             }
 
-                            val updatedLocalFiles: Map<String, List<UserFileInfo>>
+                            // C-2: verify the downloaded files against the cloud hashes BEFORE
+                            // applying any cloud-side deletions. Previously the deletions ran
+                            // first, so a download that failed verification (corrupt/truncated)
+                            // left the cloud-removed local files permanently gone with no
+                            // rollback. hasHashConflicts re-reads the on-disk files for the
+                            // PERSISTED cloud set only, so running it before the deletions (which
+                            // only touch cloud-DELETED files) yields the identical result.
                             val hasLocalChanges: Boolean
                             microsecValidateState =
                                 measureTime {
-                                    updatedLocalFiles = getLocalUserFilesAsPrefixMap()
-                                    hasLocalChanges = hasHashConflicts(updatedLocalFiles, appFileListChange)
-                                    filesManaged = updatedLocalFiles.size
+                                    hasLocalChanges =
+                                        hasHashConflicts(emptyMap<String, List<UserFileInfo>>(), appFileListChange)
                                 }.inWholeMicroseconds
 
                             if (hasLocalChanges) {
                                 Timber.e(
                                     "Local hashes still differ from cloud after download " +
-                                        "(downloaded=$filesDownloaded, expected=$expectedDownloads); aborting",
+                                        "(downloaded=$filesDownloaded, expected=$expectedDownloads); " +
+                                        "aborting before applying deletions",
                                 )
-
+                                // Deletions deliberately NOT applied — leave local intact so a
+                                // corrupt/incomplete download cannot also strand cloud-removed files.
                                 syncResult = SyncResult.DownloadFail
-
                                 return@async PostSyncInfo(syncResult)
                             }
+
+                            // Downloads verified — only now is it safe to apply the cloud-side
+                            // deletions to the local save directory.
+                            microsecDeleteFiles =
+                                measureTime {
+                                    var totalFilesDeleted = 0
+                                    filesDeletedByCloud.forEach {
+                                        // Never delete a local file the cloud still has under some variant name.
+                                        val abs =
+                                            runCatching { it.getAbsPath(prefixToPath).toAbsolutePath().normalize() }
+                                                .getOrNull()
+                                        if (abs != null && abs in cloudTargetPaths) return@forEach
+                                        val deleted = Files.deleteIfExists(it.getAbsPath(prefixToPath))
+                                        if (deleted) totalFilesDeleted++
+                                    }
+                                    filesDeleted = totalFilesDeleted
+                                }.inWholeMicroseconds
+
+                            val updatedLocalFiles = getLocalUserFilesAsPrefixMap()
+                            filesManaged = updatedLocalFiles.size
 
                             writeSteamRemoteCacheVdf(appInfo, appFileListChange, prefixToPath, cloudRouting)
 
@@ -1294,10 +1373,45 @@ object SteamAutoCloud {
                             )
                             when (preferredSave) {
                                 SaveLocation.Local -> {
-                                    microsecAcExit =
-                                        measureTime {
-                                            uploadUserFiles(parentScope).await()
-                                        }.inWholeMicroseconds
+                                    // MD-6: an empty file list with a non-zero change number is
+                                    // suspicious — the cloud SHOULD hold files at changeNumber > 0.
+                                    // Before honoring an explicit local push (which would overwrite
+                                    // whatever the cloud really has, e.g. another device's progress),
+                                    // re-fetch the list once to tell a genuinely-empty cloud apart
+                                    // from a transient API/desync artifact. If the retry returns
+                                    // files, the empty list was a glitch — treat it as a conflict so
+                                    // the user resolves it (and the conflict path's backup applies)
+                                    // rather than blindly clobbering the cloud.
+                                    val retryHasFiles =
+                                        runCatching {
+                                            val json =
+                                                SteamService.withWnSession {
+                                                    withContext(Dispatchers.IO) { it.getCloudFileList(appInfo.id) }
+                                                }
+                                            json != null &&
+                                                parseCloudFileChangeList(json)
+                                                    .files
+                                                    .any { it.persistState == PERSIST_STATE_PERSISTED }
+                                        }.getOrDefault(false)
+                                    if (retryHasFiles) {
+                                        Timber.w(
+                                            "Empty cloud list was transient (retry returned files); treating as " +
+                                                "conflict instead of a blind upload (changeNumber=$cloudAppChangeNumber)",
+                                        )
+                                        syncResult = SyncResult.Conflict
+                                        remoteTimestamp = 0L
+                                        localTimestamp =
+                                            allLocalUserFiles.map { it.timestamp }.maxOrNull() ?: 0L
+                                    } else {
+                                        Timber.w(
+                                            "Cloud list still empty on retry (changeNumber=$cloudAppChangeNumber); " +
+                                                "honoring explicit local push",
+                                        )
+                                        microsecAcExit =
+                                            measureTime {
+                                                uploadUserFiles(parentScope).await()
+                                            }.inWholeMicroseconds
+                                    }
                                 }
                                 else -> {
                                     syncResult = SyncResult.Conflict

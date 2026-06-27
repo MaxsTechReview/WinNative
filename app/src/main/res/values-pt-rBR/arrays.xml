@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="desktop_background_type_entries">
+        <item>Imagem</item>
+        <item>Original</item>
+        <item>Cor sólida</item>
+    </string-array>
+</resources>

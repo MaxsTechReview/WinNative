@@ -83,8 +83,10 @@ public class VulkanRenderer
     private float magnifierPanY = 0f;
     private boolean magnifierPanInitialized = false;
     private static final float MAGNIFIER_DEADZONE_FRACTION = 0.6f;
-    public int surfaceWidth;
-    public int surfaceHeight;
+    // volatile: written from the main thread (onXServerScreenChanged / fill-mode / display-swap
+    // recompute) and read from the render thread (buildAndSubmitFrame self-heal).
+    public volatile int surfaceWidth;
+    public volatile int surfaceHeight;
     private boolean cpuSaverMode = false;
     private static final long CURSOR_ACTIVE_NS = 100_000_000L;
     private volatile long cursorActiveUntilNs = 0L;
@@ -193,27 +195,30 @@ public class VulkanRenderer
     }
 
     public void attachSurface(Surface surface) {
-        if (nativeHandle == 0) {
-            nativeHandle = nativeCreate(shouldEnableValidationLayers(),
-                    graphicsDriverName, xServerView.getContext().getApplicationContext());
+        // Serialize with detachSurface()/destroy() so a re-attach can't overlap a native teardown.
+        synchronized (this) {
             if (nativeHandle == 0) {
-                Log.e(TAG, "nativeCreate failed");
-                return;
+                nativeHandle = nativeCreate(shouldEnableValidationLayers(),
+                        graphicsDriverName, xServerView.getContext().getApplicationContext());
+                if (nativeHandle == 0) {
+                    Log.e(TAG, "nativeCreate failed");
+                    return;
+                }
+                Texture.setRendererHandle(nativeHandle);
+                // Apply the cached present-mode request now that the native renderer exists.
+                // No-op if the requested mode equals the native default (FIFO).
+                if (requestedPresentMode != PRESENT_MODE_FIFO) {
+                    nativeSetPresentMode(nativeHandle, requestedPresentMode);
+                }
+                if (requestedScaleFilter != SCALE_FILTER_OFF) {
+                    nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
+                }
+                destroyed.set(false);
+                xServer.windowManager.addOnWindowModificationListener(this);
+                xServer.pointer.addOnPointerMotionListener(this);
             }
-            Texture.setRendererHandle(nativeHandle);
-            // Apply the cached present-mode request now that the native renderer exists.
-            // No-op if the requested mode equals the native default (FIFO).
-            if (requestedPresentMode != PRESENT_MODE_FIFO) {
-                nativeSetPresentMode(nativeHandle, requestedPresentMode);
-            }
-            if (requestedScaleFilter != SCALE_FILTER_OFF) {
-                nativeSetScaleFilter(nativeHandle, requestedScaleFilter);
-            }
-            destroyed.set(false);
-            xServer.windowManager.addOnWindowModificationListener(this);
-            xServer.pointer.addOnPointerMotionListener(this);
+            nativeSurfaceCreated(nativeHandle, surface);
         }
-        nativeSurfaceCreated(nativeHandle, surface);
     }
 
     private boolean shouldEnableValidationLayers() {
@@ -233,7 +238,52 @@ public class VulkanRenderer
     }
 
     public void detachSurface() {
-        if (nativeHandle != 0) nativeSurfaceDestroyed(nativeHandle);
+        // Same monitor as destroy()/attachSurface; re-check the handle under the lock.
+        synchronized (this) {
+            if (nativeHandle != 0) nativeSurfaceDestroyed(nativeHandle);
+        }
+    }
+
+    /** Start mirroring the composited output into {@code encoderSurface}; false if the native setup failed. */
+    public boolean startRecording(Surface encoderSurface, int fps, boolean recordUI) {
+        synchronized (this) {
+            if (nativeHandle == 0 || encoderSurface == null) return false;
+            return nativeStartRecording(nativeHandle, encoderSurface, fps, recordUI);
+        }
+    }
+
+    /** Upload the latest overlay snapshot (direct ByteBuffer of BGRA pixels) for the Record-UI composite. */
+    public void updateRecordUITexture(java.nio.ByteBuffer bgra, int width, int height) {
+        long handle = nativeHandle;
+        if (handle != 0 && bgra != null && bgra.isDirect()) {
+            nativeUpdateRecordUITexture(handle, bgra, width, height);
+        }
+    }
+
+    public void stopRecording() {
+        synchronized (this) {
+            if (nativeHandle != 0) nativeStopRecording(nativeHandle);
+        }
+    }
+
+    /** Width of the actual composited image (may differ from the SurfaceView size under rotation). */
+    public int getRecordWidth() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordWidth(nativeHandle) : 0;
+        }
+    }
+
+    public int getRecordHeight() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordHeight(nativeHandle) : 0;
+        }
+    }
+
+    /** Clockwise degrees to rotate captured frames to appear upright (undoes the display rotation). */
+    public int getRecordOrientationHint() {
+        synchronized (this) {
+            return nativeHandle != 0 ? nativeGetRecordOrientationHint(nativeHandle) : 0;
+        }
     }
 
     @Override
@@ -264,6 +314,20 @@ public class VulkanRenderer
     // ----- Scene assembly ----------------------------------------------------
 
     private void buildAndSubmitFrame() {
+        // Self-heal: if the actual surface size differs from our cache (after a display reparent),
+        // recompute the viewport against the real size.
+        if (xServerView != null) {
+            int actualW = xServerView.getSurfaceWidth();
+            int actualH = xServerView.getSurfaceHeight();
+            if (actualW > 0 && actualH > 0 && (actualW != surfaceWidth || actualH != surfaceHeight)) {
+                surfaceWidth = actualW;
+                surfaceHeight = actualH;
+                viewTransformation.update(actualW, actualH,
+                        xServer.screenInfo.width, xServer.screenInfo.height);
+                viewportNeedsUpdate = true;
+            }
+        }
+
         // Compute scene transform / viewport / scissor (mirrors GLRenderer.drawFrame logic).
         textureUploadBatch.reset();
         boolean useScissor = false;
@@ -307,13 +371,21 @@ public class VulkanRenderer
         buf.putInt(OFF_VIEWPORT + 8,  viewW);
         buf.putInt(OFF_VIEWPORT + 12, viewH);
 
-        // Scissor (only in non-magnifier non-fullscreen mode)
+        // Scissor (only in non-magnifier non-fullscreen mode). Clamp to the framebuffer so a
+        // ZOOM/crop fill mode (whose viewport intentionally overflows the surface) never asks
+        // Vulkan for an out-of-bounds scissor. For FIT/STRETCH this is a no-op.
         if (useScissor) {
+            int sX = Math.max(0, viewTransformation.viewOffsetX);
+            int sY = Math.max(0, viewTransformation.viewOffsetY);
+            int sRight = Math.min(surfaceWidth, viewTransformation.viewOffsetX + viewTransformation.viewWidth);
+            int sBottom = Math.min(surfaceHeight, viewTransformation.viewOffsetY + viewTransformation.viewHeight);
+            int sW = Math.max(0, sRight - sX);
+            int sH = Math.max(0, sBottom - sY);
             buf.putInt(OFF_SCISSOR_ENABLED, 1);
-            buf.putInt(OFF_SCISSOR,      viewTransformation.viewOffsetX);
-            buf.putInt(OFF_SCISSOR + 4,  viewTransformation.viewOffsetY);
-            buf.putInt(OFF_SCISSOR + 8,  viewTransformation.viewWidth);
-            buf.putInt(OFF_SCISSOR + 12, viewTransformation.viewHeight);
+            buf.putInt(OFF_SCISSOR,      sX);
+            buf.putInt(OFF_SCISSOR + 4,  sY);
+            buf.putInt(OFF_SCISSOR + 8,  sW);
+            buf.putInt(OFF_SCISSOR + 12, sH);
         } else {
             buf.putInt(OFF_SCISSOR_ENABLED, 0);
             // Native side gates on scissor_enabled regardless, but zero the rect for cleanliness.
@@ -734,6 +806,45 @@ public class VulkanRenderer
     public boolean isViewportNeedsUpdate() { return viewportNeedsUpdate; }
     public void setViewportNeedsUpdate(boolean v) { this.viewportNeedsUpdate = v; }
 
+    // Fill mode (FIT/STRETCH/ZOOM), applied live: recompute the viewport and request a frame.
+    public void setFillMode(int mode) {
+        if (viewTransformation.mode == mode) return;
+        viewTransformation.mode = mode;
+        if (surfaceWidth > 0 && surfaceHeight > 0) {
+            viewTransformation.update(surfaceWidth, surfaceHeight,
+                    xServer.screenInfo.width, xServer.screenInfo.height);
+        }
+        viewportNeedsUpdate = true;
+        if (xServerView != null) xServerView.requestRender();
+    }
+
+    public int getFillMode() { return viewTransformation.mode; }
+
+    // Set the fill mode without recomputing the viewport (cached size may be stale mid-reparent).
+    public void setFillModeQuiet(int mode) {
+        viewTransformation.mode = mode;
+        viewportNeedsUpdate = true;
+    }
+
+    public int getPresentMode() { return requestedPresentMode; }
+
+    // Wipe the cached surface size so the next surfaceChanged/self-heal recomputes from scratch.
+    public void invalidateSurfaceSize() {
+        surfaceWidth = 0;
+        surfaceHeight = 0;
+        viewportNeedsUpdate = true;
+    }
+
+    /** Force the viewport to recompute against a known surface size (used after a display reparent). */
+    public void forceViewportRecompute(int w, int h) {
+        if (w <= 0 || h <= 0) return;
+        surfaceWidth = w;
+        surfaceHeight = h;
+        viewTransformation.update(w, h, xServer.screenInfo.width, xServer.screenInfo.height);
+        viewportNeedsUpdate = true;
+        if (xServerView != null) xServerView.requestRender();
+    }
+
     public void setNativeMode(boolean enable) {
         if (cpuSaverMode != enable) {
             cpuSaverMode = enable;
@@ -767,9 +878,7 @@ public class VulkanRenderer
     public static final int PRESENT_MODE_MAILBOX   = 1;
     public static final int PRESENT_MODE_IMMEDIATE = 2;
 
-    // Cached so callers can set a mode before the native renderer exists. Applied during
-    // attachSurface() right after nativeCreate. Updates after init forward straight to the
-    // native side and trigger a swapchain rebuild.
+    // Cached so a mode can be set before the native renderer exists (applied in attachSurface).
     private int requestedPresentMode = PRESENT_MODE_FIFO;
 
     public void setPresentMode(int mode) {
@@ -820,6 +929,12 @@ public class VulkanRenderer
     private static native void nativeSurfaceCreated(long handle, Surface surface);
     private static native void nativeSurfaceChanged(long handle, int w, int h);
     private static native void nativeSurfaceDestroyed(long handle);
+    private static native boolean nativeStartRecording(long handle, Surface encoderSurface, int fps, boolean recordUI);
+    private static native void nativeStopRecording(long handle);
+    private static native void nativeUpdateRecordUITexture(long handle, java.nio.ByteBuffer bgra, int width, int height);
+    private static native int nativeGetRecordWidth(long handle);
+    private static native int nativeGetRecordHeight(long handle);
+    private static native int nativeGetRecordOrientationHint(long handle);
     private static native boolean nativeRenderFrame(long handle);
     private static native void nativeSetScene(long handle, ByteBuffer sceneBuf);
     private static native void nativeSetFpsLimit(long handle, int fps);
