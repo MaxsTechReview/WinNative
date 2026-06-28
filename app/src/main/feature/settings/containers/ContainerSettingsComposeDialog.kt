@@ -363,11 +363,24 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val idx = pendingDriveIndex
         if (idx !in drivesWorking.indices) return
 
+        val imagefsRoot = ImageFs.find(context).getRootDir()
+        val driveRoots =
+            listOf(
+                DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                ),
+                DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+            )
+
         DirectoryPickerDialog.show(
             activity = activity,
             initialPath = drivesWorking[idx].path.ifBlank { null },
             dimAmount = 0.5f,
             preserveBackdropBlur = true,
+            extraRoots = driveRoots,
         ) { path ->
             val currentIndex = pendingDriveIndex
             if (currentIndex in drivesWorking.indices) {

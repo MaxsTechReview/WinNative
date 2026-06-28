@@ -7213,6 +7213,7 @@ class UnifiedActivity :
                         activity = this@UnifiedActivity,
                         initialPath = customPath ?: EpicConstants.getGameInstallPath(context, app.appName),
                         title = getString(R.string.settings_content_install_directory),
+                        extraRoots = driveRoots(includeInternal = true),
                     ) { path -> customPath = path }
                 },
             )
@@ -7521,6 +7522,7 @@ class UnifiedActivity :
                                 activity = this@UnifiedActivity,
                                 initialPath = customPath ?: EpicConstants.getGameInstallPath(context, app.appName),
                                 title = getString(R.string.settings_content_install_directory),
+                                extraRoots = driveRoots(includeInternal = true),
                             ) { path -> customPath = path }
                         }
                     },
@@ -7787,6 +7789,7 @@ class UnifiedActivity :
                         activity = this@UnifiedActivity,
                         initialPath = customPath ?: GOGConstants.defaultGOGGamesPath,
                         title = getString(R.string.settings_content_install_directory),
+                        extraRoots = driveRoots(includeInternal = true),
                     ) { path -> customPath = path }
                 },
             )
@@ -8125,6 +8128,7 @@ class UnifiedActivity :
                                 activity = this@UnifiedActivity,
                                 initialPath = customPath ?: GOGConstants.defaultGOGGamesPath,
                                 title = getString(R.string.settings_content_install_directory),
+                                extraRoots = driveRoots(includeInternal = true),
                             ) { path -> customPath = path }
                         }
                     },
@@ -9582,6 +9586,7 @@ class UnifiedActivity :
                         activity = this@UnifiedActivity,
                         initialPath = customPath ?: SteamService.defaultAppInstallPath,
                         title = getString(R.string.settings_content_install_directory),
+                        extraRoots = driveRoots(includeInternal = true),
                     ) { path -> customPath = path }
                 },
             )
@@ -9850,6 +9855,7 @@ class UnifiedActivity :
                                 activity = this@UnifiedActivity,
                                 initialPath = customPath ?: SteamService.defaultAppInstallPath,
                                 title = getString(R.string.settings_content_install_directory),
+                                extraRoots = driveRoots(includeInternal = true),
                             ) { path -> customPath = path }
                         }
                     },
