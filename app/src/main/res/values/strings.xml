@@ -1435,3 +1435,4 @@ Installed path:
     <string name="file_manager_rename_failed">Rename failed</string>
     <string name="file_manager_create_folder_failed">Create folder failed</string>
 </resources>
+// ADPF fence sync
