@@ -1827,7 +1827,8 @@ class UnifiedActivity :
         val contentFilters = remember { mutableStateMapOf(*initialContentFilters.entries.map { it.key to it.value }.toTypedArray()) }
         var libraryLayoutMode by remember {
             mutableStateOf(
-                initialLibraryLayoutMode,
+                runCatching { LibraryLayoutMode.valueOf(PrefManager.libraryLayoutMode) }
+                    .getOrElse { initialLibraryLayoutMode },
             )
         }
         var immersiveMode by remember { mutableStateOf(PrefManager.libraryImmersiveMode) }
@@ -11542,6 +11543,7 @@ class UnifiedActivity :
                         label = stringResource(R.string.library_games_layout_carousel),
                         checked = libraryLayoutMode == LibraryLayoutMode.CAROUSEL,
                         modifier = Modifier.weight(1f),
+                        fontSize = 11.sp,
                     ) { if (it) onLibraryLayoutSelected(LibraryLayoutMode.CAROUSEL) }
                     DrawerFilterButton(
                         label = stringResource(R.string.library_games_layout_list),
@@ -11768,6 +11770,7 @@ class UnifiedActivity :
         label: String,
         checked: Boolean,
         modifier: Modifier = Modifier,
+        fontSize: TextUnit = TextUnit.Unspecified,
         onToggle: (Boolean) -> Unit,
     ) {
         val interactionSource = remember { MutableInteractionSource() }
@@ -11814,6 +11817,7 @@ class UnifiedActivity :
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
+                fontSize = fontSize,
                 color = textColor,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
