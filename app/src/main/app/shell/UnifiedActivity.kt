@@ -3819,7 +3819,7 @@ class UnifiedActivity :
         wide: Boolean = false,
         content: @Composable ColumnScope.() -> Unit,
     ) {
-        val contentFocus = remember { FocusRequester() }
+        val registry = remember { PaneNavRegistry() }
         Dialog(
             onDismissRequest = onDismissRequest,
             properties =
@@ -3828,12 +3828,13 @@ class UnifiedActivity :
                     decorFitsSystemWindows = false,
                 ),
         ) {
+          CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismissRequest)
             BoxWithConstraints(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .controllerMenuInput(onDismiss = onDismissRequest),
+                        .windowInsetsPadding(WindowInsets.navigationBars),
                 contentAlignment = Alignment.Center,
             ) {
                 val widthModifier =
@@ -3853,11 +3854,8 @@ class UnifiedActivity :
                     Column(
                         modifier =
                             Modifier
-                                .padding(vertical = 6.dp)
-                                .focusRequester(contentFocus)
-                                .focusGroup(),
+                                .padding(vertical = 6.dp),
                     ) {
-                        LaunchedEffect(Unit) { runCatching { contentFocus.requestFocus() } }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -3878,7 +3876,7 @@ class UnifiedActivity :
                                 modifier = Modifier
                                     .padding(end = 4.dp)
                                     .size(34.dp)
-                                    .controllerFocusGlow(),
+                                    .paneNavItem(cornerRadius = 17.dp, onActivate = onDismissRequest),
                             ) {
                                 Icon(
                                     Icons.Outlined.Close,
@@ -3900,6 +3898,7 @@ class UnifiedActivity :
                     }
                 }
             }
+          }
         }
     }
 
@@ -3917,7 +3916,7 @@ class UnifiedActivity :
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
-                GameSettingsActionCard(action = action)
+                GameSettingsActionCard(action = action, isEntry = index == 0)
             }
         }
     }
@@ -3926,6 +3925,7 @@ class UnifiedActivity :
     private fun GameSettingsActionCard(
         action: GameSettingsActionItem,
         modifier: Modifier = Modifier,
+        isEntry: Boolean = false,
     ) {
         val isDanger = action.accentColor == DangerRed
         val iconColor = if (isDanger) DangerRed else TextSecondary
@@ -3945,7 +3945,7 @@ class UnifiedActivity :
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-                    }.controllerFocusGlow(cornerRadius = 0.dp)
+                    }.paneNavItem(cornerRadius = 0.dp, onActivate = action.onClick, isEntry = isEntry)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
