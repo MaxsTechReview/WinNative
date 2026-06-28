@@ -110,7 +110,7 @@ public class VulkanRenderer
     // True when the most recent frame successfully pushed an AHB to the SC,
     // so the SC layer is currently visible. Used to detect transitions to
     // the windowed/multi-drawable case so we can hide the SC cleanly.
-    private boolean dcLayerActive = false;
+    private volatile boolean dcLayerActive = false;
 
     // Last skip reason logged for the DC candidate (diagnostic throttling —
     // only log when the reason CHANGES, to avoid per-frame spam). Values:
@@ -779,16 +779,17 @@ public class VulkanRenderer
      */
     public void setDirectCompositionTarget(
             com.winlator.cmod.runtime.display.composition.DirectCompositionLayer layer) {
+        // Hide old layer before swapping to prevent stale frame on screen.
+        if (dcLayerActive && directCompositionTarget != null) {
+            directCompositionTarget.hide();
+        }
         this.directCompositionTarget = layer;
-        // Invalidate cache so the first frame after attach pushes regardless.
         dcLastPushedAhb = 0L;
         dcLastPushedW = 0;
         dcLastPushedH = 0;
         dcConsecutiveFailures = 0;
         dcLayerActive = false;
-        dcLastSkipReason = "";  // reset so next frame logs fresh skip reason
-        // Notify the listener that DC state may have changed (target attached
-        // or detached). The activity uses this to update the HUD indicator.
+        dcLastSkipReason = "";
         notifyDirectCompositionStateListener();
     }
 
