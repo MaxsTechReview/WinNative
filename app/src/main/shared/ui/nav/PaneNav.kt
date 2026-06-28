@@ -304,6 +304,7 @@ internal fun Modifier.paneNavItem(
     isEntry: Boolean = false,
     navRow: Int? = null,
     navCol: Int? = null,
+    onHighlighted: () -> Unit = {},
 ): Modifier {
     val nav = LocalPaneNav.current ?: return this
     val slot = remember { nav.nextSlot() }
@@ -316,7 +317,12 @@ internal fun Modifier.paneNavItem(
     val highlighted = nav.isActive(slot)
 
     val bring = remember { BringIntoViewRequester() }
-    LaunchedEffect(highlighted) { if (highlighted) runCatching { bring.bringIntoView() } }
+    LaunchedEffect(highlighted) {
+        if (highlighted) {
+            runCatching { bring.bringIntoView() }
+            onHighlighted()
+        }
+    }
 
     val tapInteraction = remember { MutableInteractionSource() }
     return this

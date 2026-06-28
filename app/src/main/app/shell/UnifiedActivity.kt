@@ -611,6 +611,7 @@ class UnifiedActivity :
 
     internal val settingsNavBridge = SettingsNavBridge()
     internal val downloadsNavBridge = DownloadsNavBridge()
+    internal val drawerNavBridge = DownloadsNavBridge()
     private var settingsStickEngaged = 0
 
     companion object {
@@ -1127,11 +1128,37 @@ class UnifiedActivity :
         action: Int,
     ): Boolean {
         when (keyCode) {
-            android.view.KeyEvent.KEYCODE_BUTTON_A -> {
-                if (action == android.view.KeyEvent.ACTION_DOWN || action == android.view.KeyEvent.ACTION_UP) {
-                    window.decorView.rootView.dispatchKeyEvent(
-                        android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_CENTER),
-                    )
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    drawerNavBridge.controllerActive = true
+                    when (keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> drawerNavBridge.left()
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> drawerNavBridge.right()
+                        android.view.KeyEvent.KEYCODE_DPAD_UP -> drawerNavBridge.up()
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> drawerNavBridge.down()
+                    }
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_A,
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN) {
+                    drawerNavBridge.controllerActive = true
+                    drawerNavBridge.activate()
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_Y -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN) {
+                    drawerNavBridge.controllerActive = true
+                    drawerNavBridge.secondary()
                 }
                 return true
             }
@@ -1144,7 +1171,6 @@ class UnifiedActivity :
             }
 
             android.view.KeyEvent.KEYCODE_BUTTON_X,
-            android.view.KeyEvent.KEYCODE_BUTTON_Y,
             android.view.KeyEvent.KEYCODE_BUTTON_START,
             android.view.KeyEvent.KEYCODE_BUTTON_L1,
             android.view.KeyEvent.KEYCODE_BUTTON_R1,
@@ -1809,7 +1835,10 @@ class UnifiedActivity :
         var selectedIdx by rememberSaveable { mutableIntStateOf(0) }
         var selectedDownloadId by remember { mutableStateOf<String?>(null) }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-        LaunchedEffect(drawerState.isOpen) { drawerOpen = drawerState.isOpen }
+        LaunchedEffect(drawerState.isOpen) {
+            drawerOpen = drawerState.isOpen
+            if (!drawerState.isOpen) drawerNavBridge.controllerActive = false
+        }
         val isLoggedIn by SteamService.isLoggedInFlow.collectAsState()
         val isEpicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
         val isGogLoggedIn by GOGAuthManager.isLoggedInFlow.collectAsState()
@@ -11136,8 +11165,13 @@ class UnifiedActivity :
     ) {
         val currentState = persona?.state ?: EPersonaState.Online
         var statusExpanded by remember { mutableStateOf(false) }
-        val firstItemFocus = remember { FocusRequester() }
-        LaunchedEffect(isOpen) { if (isOpen) runCatching { firstItemFocus.requestFocus() } }
+        val drawerBridge = (context as? UnifiedActivity)?.drawerNavBridge
+        val navRegistry = remember(drawerBridge) { PaneNavRegistry(initialSignal = drawerBridge?.navSignal ?: -1) }
+        navRegistry.controllerActive = drawerBridge?.controllerActive ?: false
+        LaunchedEffect(navRegistry, drawerBridge?.navSignal) {
+            navRegistry.processNav(drawerBridge?.navSignal ?: 0, drawerBridge?.navDir ?: 0)
+        }
+        LaunchedEffect(isOpen) { if (isOpen) navRegistry.reset() }
 
         ModalDrawerSheet(
             drawerShape = RectangleShape,
@@ -11146,12 +11180,12 @@ class UnifiedActivity :
             windowInsets = WindowInsets(0, 0, 0, 0),
             modifier = Modifier.width(324.dp),
         ) {
+            CompositionLocalProvider(LocalPaneNav provides navRegistry) {
             Column(
                 Modifier
                     .fillMaxHeight()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
-                    .focusGroup()
                     .padding(20.dp),
             ) {
                 // ── Avatar Card ──
@@ -11162,8 +11196,7 @@ class UnifiedActivity :
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .focusRequester(firstItemFocus)
-                            .controllerFocusGlow(cornerRadius = 16.dp)
+                            .paneNavItem(cornerRadius = 16.dp, onActivate = { statusExpanded = !statusExpanded }, isEntry = true)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -11288,7 +11321,15 @@ class UnifiedActivity :
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(rowBg)
                                                 .border(1.dp, Accent.copy(alpha = 0.4f * borderAlpha), RoundedCornerShape(8.dp))
-                                                .controllerFocusGlow(cornerRadius = 8.dp)
+                                                .paneNavItem(
+                                                    cornerRadius = 8.dp,
+                                                    onActivate = {
+                                                        scope.launch {
+                                                            SteamService.setPersonaState(state)
+                                                            statusExpanded = false
+                                                        }
+                                                    },
+                                                )
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
                                                     indication = null,
@@ -11448,6 +11489,7 @@ class UnifiedActivity :
 
                 DrawerExitAppCard(onClick = onExitApp)
             }
+            }
         }
     }
 
@@ -11472,7 +11514,7 @@ class UnifiedActivity :
                     .clip(RoundedCornerShape(12.dp))
                     .background(DangerRed.copy(alpha = 0.16f))
                     .border(1.dp, DangerRed.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                    .controllerFocusGlow(cornerRadius = 12.dp)
+                    .paneNavItem(cornerRadius = 12.dp, onActivate = onClick)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11533,7 +11575,7 @@ class UnifiedActivity :
                     .clip(RoundedCornerShape(12.dp))
                     .background(Accent.copy(alpha = 0.14f))
                     .border(1.dp, Accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
-                    .controllerFocusGlow(cornerRadius = 12.dp)
+                    .paneNavItem(cornerRadius = 12.dp, onActivate = onClick)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11609,7 +11651,7 @@ class UnifiedActivity :
                     }.clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
                     .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                    .controllerFocusGlow(cornerRadius = 8.dp)
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { onToggle(!checked) })
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -11669,7 +11711,7 @@ class UnifiedActivity :
                     }.clip(RoundedCornerShape(10.dp))
                     .background(bgColor)
                     .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-                    .controllerFocusGlow(cornerRadius = 10.dp)
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = { onCheckedChange(!checked) })
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,

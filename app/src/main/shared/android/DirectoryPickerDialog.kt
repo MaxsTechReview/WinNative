@@ -851,6 +851,12 @@ object DirectoryPickerDialog {
                                         onMenuDismiss = { menuTarget = null },
                                         actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
                                         menuRegistry = menuRegistry,
+                                        onHighlighted =
+                                            if (mode == SelectionMode.FILE) {
+                                                { selectedFile = if (entry.isSelectableFile) entry.target else null }
+                                            } else {
+                                                {}
+                                            },
                                     )
                                 }
                             }
@@ -1221,6 +1227,7 @@ object DirectoryPickerDialog {
         onMenuDismiss: () -> Unit = {},
         actions: List<ItemAction> = emptyList(),
         menuRegistry: PaneNavRegistry? = null,
+        onHighlighted: () -> Unit = {},
     ) {
         val interaction = remember { MutableInteractionSource() }
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -1267,6 +1274,7 @@ object DirectoryPickerDialog {
                             onActivate = onClick,
                             onSecondary = onSecondary,
                             isEntry = isEntry,
+                            onHighlighted = onHighlighted,
                         ).padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
