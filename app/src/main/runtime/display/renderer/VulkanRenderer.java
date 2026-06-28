@@ -682,11 +682,11 @@ public class VulkanRenderer
                 return true;
             }
 
-            // Producer-acquire fence: TAKE the FD from the scanout source
-            // under the renderLock, atomically clearing it. We are now the
-            // single owner; if pushBuffer succeeds, the framework closes the
-            // FD via setBuffer; if pushBuffer fails, the JNI layer closes the
-            // FD on its own error paths.
+            // Hardware fence sync: wait for SF to finish the previous frame before pushing the next.
+            // This lets the render thread sleep on a hardware signal instead of CPU polling.
+            if (dcLastPushedAhb != 0L) {
+                dcTarget.nativeWaitForPreviousFrame(20L);
+            }
             int fenceFd = scanoutSource.takeAcquireFenceFd();
             boolean ok = dcTarget.pushBuffer(ahbPtr, 0, 0,
                     surfaceWidth, surfaceHeight, fenceFd, /*opaque=*/true);

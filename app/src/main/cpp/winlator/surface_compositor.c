@@ -151,11 +151,14 @@ static pfn_ASurfaceTransaction_setBufferDataSpace g_tx_set_buffer_dataspace = NU
 static pfn_ASurfaceTransaction_setBufferTransparency g_tx_set_buffer_transparency = NULL;
 static pfn_ASurfaceTransaction_setExtendedRangeBrightness g_tx_set_extended_range_brightness = NULL;
 
-// === IN-FLIGHT TRANSACTION TRACKING ===
-// Tracks whether an ASurfaceTransaction_apply is still being processed by
-// SurfaceFlinger. release() waits for this to clear before calling
-// ASurfaceControl_release, to avoid the Xiaomi/HyperOS crash where releasing
-// a SurfaceControl while a transaction is in-flight kills SurfaceFlinger.
+// Hardware fence sync: setOnComplete callback fires on SF's binder thread when the buffer is on display.
+typedef struct ASurfaceTransactionStats ASurfaceTransactionStats;
+typedef void (*ASurfaceTransaction_OnComplete)(void* context, ASurfaceTransactionStats* stats);
+typedef void (*pfn_ASurfaceTransaction_setOnComplete)(struct ASurfaceTransaction* t, void* context, ASurfaceTransaction_OnComplete func);
+static pfn_ASurfaceTransaction_setOnComplete g_tx_set_on_complete = NULL;
+static bool g_has_on_complete = false;
+
+// === IN-FLIGHT TRANSACTION TRACKING (declared before on_transaction_complete) ===
 static pthread_mutex_t g_inflight_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_inflight_cv    = PTHREAD_COND_INITIALIZER;
 static int g_inflight_count = 0;
@@ -171,6 +174,35 @@ static void inflight_decrement(void) {
     if (g_inflight_count > 0) g_inflight_count--;
     if (g_inflight_count == 0) pthread_cond_broadcast(&g_inflight_cv);
     pthread_mutex_unlock(&g_inflight_mutex);
+}
+
+// Called by SurfaceFlinger on its binder thread when the transaction completes.
+static void on_transaction_complete(void* context, ASurfaceTransactionStats* stats) {
+    (void)context; (void)stats;
+    inflight_decrement();
+}
+
+// JNI: nativeWaitForPreviousFrame — blocks render thread until SF finishes (hardware signal, no CPU polling).
+JNIEXPORT jboolean JNICALL
+Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_nativeWaitForPreviousFrame(
+    JNIEnv* env, jobject thiz, jlong timeout_ms) {
+    (void)env; (void)thiz;
+    if (!g_has_on_complete || g_inflight_count == 0) return JNI_TRUE;
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    int64_t add_ns = (int64_t)timeout_ms * 1000000L;
+    deadline.tv_sec += (time_t)(add_ns / 1000000000L);
+    deadline.tv_nsec += (long)(add_ns % 1000000000L);
+    if (deadline.tv_nsec >= 1000000000L) { deadline.tv_nsec -= 1000000000L; deadline.tv_sec += 1; }
+    pthread_mutex_lock(&g_inflight_mutex);
+    bool ok = true;
+    while (g_inflight_count > 0) {
+        if (pthread_cond_timedwait(&g_inflight_cv, &g_inflight_mutex, &deadline) == ETIMEDOUT) {
+            ok = false; break;
+        }
+    }
+    pthread_mutex_unlock(&g_inflight_mutex);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 // Wait up to 500ms for all in-flight transactions to complete. Returns true
@@ -233,6 +265,8 @@ static void init_once_locked(void) {
     RESOLVE(g_tx_set_buffer_dataspace,         "ASurfaceTransaction_setBufferDataSpace");
     RESOLVE(g_tx_set_buffer_transparency,      "ASurfaceTransaction_setBufferTransparency");
     RESOLVE(g_tx_set_extended_range_brightness, "ASurfaceTransaction_setExtendedRangeBrightness");
+    RESOLVE(g_tx_set_on_complete, "ASurfaceTransaction_setOnComplete");
+    g_has_on_complete = (g_tx_set_on_complete != NULL);
 
     // Availability gate: the Phase-1 lifecycle symbols + setBuffer + at least
     // one COMPLETE geometry API (either the deprecated setGeometry, or all
@@ -494,9 +528,16 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
     // Show the layer (atomic with setBuffer — avoids blank-frame race).
     g_tx_set_visibility(tx, sc, DC_VISIBILITY_SHOW);
 
+    // Hardware fence sync: OnComplete callback fires on SF's thread when buffer is on display.
     inflight_increment();
-    g_tx_apply(tx);
-    inflight_decrement();
+    if (g_has_on_complete) {
+        g_tx_set_on_complete(tx, NULL, on_transaction_complete);
+        g_tx_apply(tx);
+        // Callback will decrement — render thread sleeps via nativeWaitForPreviousFrame.
+    } else {
+        g_tx_apply(tx);
+        inflight_decrement();
+    }
     g_tx_delete(tx);
 
     return JNI_TRUE;

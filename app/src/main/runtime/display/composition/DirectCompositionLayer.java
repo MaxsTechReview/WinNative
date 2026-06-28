@@ -155,4 +155,7 @@ public final class DirectCompositionLayer {
                                              int dstX, int dstY,
                                              int dstW, int dstH,
                                              int acquireFenceFd, boolean opaque);
+
+    // Blocks until SF finishes the previous frame (hardware signal, no CPU polling).
+    public native boolean nativeWaitForPreviousFrame(long timeoutMs);
 }

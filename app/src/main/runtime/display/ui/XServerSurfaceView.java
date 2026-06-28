@@ -42,6 +42,10 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     private volatile int width;
     private volatile int height;
+    // ADPF: PerformanceHintManager session for dynamic CPU frequency scaling.
+    private android.os.PerformanceHintManager.Session perfHintSession;
+    // Legacy sustained performance mode (API < 31 fallback).
+    private android.os.PowerManager.WakeLock sustainedPerfWakeLock;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -177,6 +181,28 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     }
 
     private void renderLoop() {
+        // ADPF: create hint session targeting 8ms (~120 FPS) so the kernel governor scales CPU clocks.
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            try {
+                android.os.PerformanceHintManager phm = (android.os.PerformanceHintManager)
+                        getContext().getSystemService(android.os.PerformanceHintManager.class);
+                if (phm != null) {
+                    perfHintSession = phm.createHintSession(
+                            new int[]{android.os.Process.myTid()}, 8_000_000L);
+                }
+            } catch (Exception ignored) {}
+        } else {
+            // Legacy fallback: sustained performance mode via wakelock (API 24-30).
+            try {
+                android.os.PowerManager pm = (android.os.PowerManager)
+                        getContext().getSystemService(Context.POWER_SERVICE);
+                if (pm != null && pm.isSustainedPerformanceModeSupported()) {
+                    sustainedPerfWakeLock = pm.newWakeLock(
+                            android.os.PowerManager.SUSTAINED_PERFORMANCE_MODE, "WinNative:SustainedPerf");
+                    sustainedPerfWakeLock.acquire();
+                }
+            } catch (Exception ignored) {}
+        }
         renderer.onSurfaceCreated();
         if (width > 0 && height > 0) renderer.onSurfaceChanged(width, height);
 
@@ -240,8 +266,23 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
+                // ADPF: report actual frame duration so the kernel governor scales CPU clocks.
+                long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
+                if (perfHintSession != null) {
+                    long duration = android.os.SystemClock.elapsedRealtimeNanos() - frameStartNs;
+                    try { perfHintSession.reportActualWorkDuration(duration); } catch (Exception ignored) {}
+                }
             }
+        }
+        // ADPF cleanup.
+        if (perfHintSession != null) {
+            try { perfHintSession.close(); } catch (Exception ignored) {}
+            perfHintSession = null;
+        }
+        if (sustainedPerfWakeLock != null && sustainedPerfWakeLock.isHeld()) {
+            sustainedPerfWakeLock.release();
+            sustainedPerfWakeLock = null;
         }
         renderer.onSurfaceDestroyed();
     }
