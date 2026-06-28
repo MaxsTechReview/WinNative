@@ -628,9 +628,6 @@ public class VulkanRenderer
         }
         // No fullscreen candidate — fall back to VulkanRenderer.
         if (directCandidate == null) {
-            // Log once when we first see no candidate (diagnostic — helps
-            // distinguish "no game window yet" from "game window exists but
-            // isn't AHB-backed"). Throttled by dcLayerActive to avoid spam.
             return false;
         }
 
@@ -669,9 +666,15 @@ public class VulkanRenderer
                 }
             }
 
-            if (!(tex instanceof GPUImage)) return false;
+            if (!(tex instanceof GPUImage)) {
+                drainFenceFd(scanoutSource);
+                return false;
+            }
             long ahbPtr = ((GPUImage) tex).getHardwareBufferPtr();
-            if (ahbPtr == 0L) return false;
+            if (ahbPtr == 0L) {
+                drainFenceFd(scanoutSource);
+                return false;
+            }
 
             // Skip JNI when nothing has changed since the last push.
             // SurfaceFlinger is still showing the layer; no point queueing a
@@ -742,6 +745,16 @@ public class VulkanRenderer
      * Idempotent and cheap after the first call: tracks dcLayerActive so we
      * only queue a hide-transaction once per direct→fallback transition.
      */
+    // Drain unconsumed fence FD to prevent FD leak when DC can't handle a frame.
+    private void drainFenceFd(Drawable scanoutSource) {
+        if (scanoutSource == null) return;
+        int fd = scanoutSource.takeAcquireFenceFd();
+        if (fd >= 0) {
+            try { android.os.ParcelFileDescriptor.adoptFd(fd).close(); }
+            catch (java.io.IOException ignored) {}
+        }
+    }
+
     private void maybeHideDirectComposition() {
         if (!dcLayerActive) return;
         com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcTarget =

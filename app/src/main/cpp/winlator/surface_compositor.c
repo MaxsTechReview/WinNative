@@ -519,10 +519,12 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
         ARect dst = { dst_x, dst_y, dst_x + dst_w, dst_y + dst_h };
         g_tx_set_geometry(tx, sc, &src, &dst, 0);
     } else {
-        // Should never happen (availability gate requires one geometry path).
         LOGE("pushBuffer: no geometry API available");
-        g_tx_delete(tx);
-        return JNI_FALSE;
+        // setBuffer already took ownership of acquire_fence_fd — but since we're
+        // deleting the tx without apply(), SF never processes it. The fd is leaked.
+        // Fix: we can't close it (setBuffer may have already consumed it), but
+        // g_tx_delete should handle cleanup. Log the error and proceed with apply
+        // so the framework closes the fd properly.
     }
 
     // Show the layer (atomic with setBuffer — avoids blank-frame race).
