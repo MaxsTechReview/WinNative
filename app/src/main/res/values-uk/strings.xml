@@ -1340,6 +1340,47 @@
     <string name="workshop_loading_items">Завантаження елементів Workshop</string>
     <string name="workshop_search_items">Пошук елементів Workshop</string>
     <string name="common_ui_failed">Помилка</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Вивід</string>
+    <string name="display_output_prompt_title">Виявлено зовнішній дисплей</string>
+    <string name="display_output_prompt_message">Надіслати гру на підключений дисплей? Екранні елементи керування та меню залишаться на цьому телефоні.</string>
+    <string name="display_output_prompt_swap">Перемкнути дисплеї</string>
+    <string name="display_output_prompt_mirror">Дублювати</string>
+    <string name="display_output_swapped_toast">Гру переміщено на зовнішній дисплей. Керування залишається на телефоні.</string>
+    <string name="display_output_cast_unavailable">Налаштування бездротового дисплея недоступні на цьому пристрої.</string>
+    <string name="display_output_restored_toast">Зовнішній дисплей відключено — гра повернулася на телефон.</string>
+    <string name="session_drawer_output_title">Вивід зображення</string>
+    <string name="session_drawer_output_subtitle">Гра відображається на зовнішньому дисплеї.</string>
+    <string name="session_drawer_output_device">Підключений дисплей</string>
+    <string name="session_drawer_output_resolution">Роздільна здатність</string>
+    <string name="session_drawer_output_refresh_rate">Частота оновлення</string>
+    <string name="session_drawer_output_aspect_ratio">Співвідношення сторін</string>
+    <string name="session_drawer_output_aspect_fit">Вписати (пропорції)</string>
+    <string name="session_drawer_output_aspect_stretch">Розтягнути (заповнити)</string>
+    <string name="session_drawer_output_aspect_zoom">Збільшити (обрізати)</string>
+    <string name="session_drawer_output_return_to_phone">Повернути на телефон</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Транслювати на телевізор</string>
+    <string name="session_drawer_output_cast_body">Підключіть адаптер USB-C / HDMI або торкніться нижче, щоб підключити бездротовий дисплей (Miracast / Wi-Fi Direct). Гра відображається на телевізорі, а це керування залишається на телефоні.</string>
+    <string name="session_drawer_output_cast_button">Підключити бездротовий дисплей</string>
+    <string name="session_drawer_output_cast_note">Телевізори лише з Chromecast не можуть показувати гру в реальному часі з приватним керуванням — для найкращого результату використовуйте бездротовий дисплей або адаптер USB‑C/HDMI.</string>
+    <string name="session_drawer_output_render_note">Режими, про які повідомляє дисплей, змінюють його реальний вивід (він може ненадовго згаснути під час повторної ініціалізації). Інші роздільні здатності рендеряться в цьому розмірі й апаратно масштабуються на панель — вище за нативну різкіше (суперсемплінг), нижче швидше.</string>
+    <string name="session_drawer_output_scaling_note">Цей телефон виводить зображення у власній роздільності %1$s і не змінює режим, тож тут задається роздільність рендерингу — вона апаратно масштабується під панель (вище за нативну — різкіше, нижче — швидше).</string>
+    <string name="session_drawer_output_game_mode">Ігровий режим (низька затримка)</string>
+    <string name="session_drawer_output_game_mode_on">Увімк.</string>
+    <string name="session_drawer_output_game_mode_off">Вимк.</string>
+    <string name="session_drawer_output_game_mode_note">Запитує ігровий режим / низьку затримку телевізора (HDMI ALLM), щоб зменшити затримку вводу. Показується лише коли підключений дисплей це підтримує.</string>
+    <string name="session_drawer_output_send_to_display">Надіслати гру на дисплей</string>
+    <string name="session_drawer_output_send_note">Дисплей підключено. Надішліть гру на нього — керування та меню залишаться на цьому телефоні. Ви можете будь-коли повернути її сюди.</string>
+    <string name="session_drawer_output_display">Екран</string>
+    <string name="session_drawer_output_glasses">Окуляри</string>
+    <string name="session_drawer_output_brightness">Яскравість</string>
+    <string name="session_drawer_output_shade">Затемнення</string>
+    <string name="session_drawer_output_3d">3D (поруч)</string>
+    <string name="glasses_panel_refresh">Частота оновлення</string>
+    <string name="glasses_panel_sunblock">Світлофільтр</string>
+    <string name="session_drawer_output_volume">Гучність</string>
+    <string name="session_drawer_output_glasses_note">Надсилається напряму на окуляри Viture через USB.</string>
 
     <!-- Touch Input & Gesture Profiles -->
     <string name="common_ui_new">Створити</string>

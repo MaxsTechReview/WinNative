@@ -1334,6 +1334,47 @@ Chemin installé :
     <string name="workshop_loading_items">Chargement des éléments du Workshop</string>
     <string name="workshop_search_items">Rechercher des éléments du Workshop</string>
     <string name="common_ui_failed">Échec</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Sortie</string>
+    <string name="display_output_prompt_title">Écran externe détecté</string>
+    <string name="display_output_prompt_message">Envoyer le jeu vers l\'écran connecté ? Vos commandes à l\'écran et le menu restent sur ce téléphone.</string>
+    <string name="display_output_prompt_swap">Changer d\'écran</string>
+    <string name="display_output_prompt_mirror">Dupliquer</string>
+    <string name="display_output_swapped_toast">Jeu déplacé vers l\'écran externe. Les commandes restent sur votre téléphone.</string>
+    <string name="display_output_cast_unavailable">Les paramètres d\'affichage sans fil ne sont pas disponibles sur cet appareil.</string>
+    <string name="display_output_restored_toast">Écran externe déconnecté — le jeu est revenu sur le téléphone.</string>
+    <string name="session_drawer_output_title">Sortie d\'affichage</string>
+    <string name="session_drawer_output_subtitle">Le jeu s\'affiche sur l\'écran externe.</string>
+    <string name="session_drawer_output_device">Écran connecté</string>
+    <string name="session_drawer_output_resolution">Résolution</string>
+    <string name="session_drawer_output_refresh_rate">Taux de rafraîchissement</string>
+    <string name="session_drawer_output_aspect_ratio">Format d\'image</string>
+    <string name="session_drawer_output_aspect_fit">Ajuster (format)</string>
+    <string name="session_drawer_output_aspect_stretch">Étirer (remplir)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoom (rogner)</string>
+    <string name="session_drawer_output_return_to_phone">Revenir au téléphone</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Diffuser sur un téléviseur</string>
+    <string name="session_drawer_output_cast_body">Branchez un adaptateur USB-C / HDMI, ou touchez ci-dessous pour connecter un écran sans fil (Miracast / Wi-Fi Direct). Le jeu s\'affiche sur le téléviseur tandis que ces commandes restent sur votre téléphone.</string>
+    <string name="session_drawer_output_cast_button">Connecter un écran sans fil</string>
+    <string name="session_drawer_output_cast_note">Les téléviseurs uniquement Chromecast ne peuvent pas afficher le jeu en direct avec des commandes privées — utilisez un écran sans fil ou un adaptateur USB‑C/HDMI pour un meilleur résultat.</string>
+    <string name="session_drawer_output_render_note">Les modes signalés par votre écran changent sa sortie réelle (il peut devenir noir un instant pendant la réinitialisation). Les autres résolutions sont rendues à cette taille et mises à l\'échelle matériellement vers la dalle — au-dessus de la native, c\'est plus net (suréchantillonnage), en dessous, c\'est plus rapide.</string>
+    <string name="session_drawer_output_scaling_note">Ce téléphone affiche l\'écran dans sa résolution native %1$s et ne change pas de mode ; ceci définit donc la résolution de rendu — elle est mise à l\'échelle matérielle vers la dalle (au‑dessus du natif c\'est plus net, en dessous c\'est plus rapide).</string>
+    <string name="session_drawer_output_game_mode">Mode jeu (faible latence)</string>
+    <string name="session_drawer_output_game_mode_on">Activé</string>
+    <string name="session_drawer_output_game_mode_off">Désactivé</string>
+    <string name="session_drawer_output_game_mode_note">Demande le mode jeu / faible latence du téléviseur (HDMI ALLM) pour réduire la latence d\'entrée. Affiché uniquement lorsque l\'écran connecté le prend en charge.</string>
+    <string name="session_drawer_output_send_to_display">Envoyer le jeu vers l\'écran</string>
+    <string name="session_drawer_output_send_note">Un écran est connecté. Envoyez-y le jeu — vos commandes et le menu restent sur ce téléphone. Vous pouvez le ramener ici à tout moment.</string>
+    <string name="session_drawer_output_display">Affichage</string>
+    <string name="session_drawer_output_glasses">Lunettes</string>
+    <string name="session_drawer_output_brightness">Luminosité</string>
+    <string name="session_drawer_output_shade">Teinte (assombrissement)</string>
+    <string name="session_drawer_output_3d">3D (côte à côte)</string>
+    <string name="glasses_panel_refresh">Fréquence d\'actualisation</string>
+    <string name="glasses_panel_sunblock">Filtre solaire</string>
+    <string name="session_drawer_output_volume">Volume</string>
+    <string name="session_drawer_output_glasses_note">Envoyé directement à vos lunettes Viture via USB.</string>
 
     <!-- Session > Touch & Gesture Profiles -->
     <string name="common_ui_new">Nouveau</string>

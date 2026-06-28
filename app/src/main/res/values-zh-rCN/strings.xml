@@ -1334,6 +1334,47 @@
     <string name="workshop_loading_items">正在加载 Workshop 项目</string>
     <string name="workshop_search_items">搜索 Workshop 项目</string>
     <string name="common_ui_failed">失败</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">输出</string>
+    <string name="display_output_prompt_title">检测到外部显示器</string>
+    <string name="display_output_prompt_message">将游戏发送到已连接的显示器？你的屏幕控制和菜单仍保留在本手机上。</string>
+    <string name="display_output_prompt_swap">切换显示器</string>
+    <string name="display_output_prompt_mirror">镜像</string>
+    <string name="display_output_swapped_toast">游戏已移至外部显示器。控制仍保留在你的手机上。</string>
+    <string name="display_output_cast_unavailable">此设备上无法使用无线显示设置。</string>
+    <string name="display_output_restored_toast">外部显示器已断开——游戏已返回手机。</string>
+    <string name="session_drawer_output_title">显示输出</string>
+    <string name="session_drawer_output_subtitle">游戏正在外部显示器上显示。</string>
+    <string name="session_drawer_output_device">已连接的显示器</string>
+    <string name="session_drawer_output_resolution">分辨率</string>
+    <string name="session_drawer_output_refresh_rate">刷新率</string>
+    <string name="session_drawer_output_aspect_ratio">宽高比</string>
+    <string name="session_drawer_output_aspect_fit">适应（按比例）</string>
+    <string name="session_drawer_output_aspect_stretch">拉伸（填满）</string>
+    <string name="session_drawer_output_aspect_zoom">缩放（裁剪）</string>
+    <string name="session_drawer_output_return_to_phone">返回手机</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">投射到电视</string>
+    <string name="session_drawer_output_cast_body">连接 USB-C / HDMI 适配器，或点按下方连接无线显示器（Miracast / Wi-Fi Direct）。游戏将在电视上显示，而这些控制仍保留在你的手机上。</string>
+    <string name="session_drawer_output_cast_button">连接无线显示器</string>
+    <string name="session_drawer_output_cast_note">仅支持 Chromecast 的电视无法以私有控制显示实时游戏画面——为获得最佳效果，请使用无线显示器或 USB‑C/HDMI 适配器。</string>
+    <string name="session_drawer_output_render_note">显示器报告的模式会改变其实际输出（重新初始化时可能短暂黑屏）。其他分辨率会以该尺寸渲染并由硬件缩放到面板——高于原生更清晰（超采样），低于原生更流畅。</string>
+    <string name="session_drawer_output_scaling_note">此手机以原生 %1$s 输出显示，且不会切换模式，因此这里设置的是渲染分辨率 —— 会由硬件缩放到面板（高于原生更锐利，低于原生更流畅）。</string>
+    <string name="session_drawer_output_game_mode">游戏模式（低延迟）</string>
+    <string name="session_drawer_output_game_mode_on">开</string>
+    <string name="session_drawer_output_game_mode_off">关</string>
+    <string name="session_drawer_output_game_mode_note">请求电视的游戏/低延迟模式（HDMI ALLM）以尽量减少输入延迟。仅在已连接的显示器支持时显示。</string>
+    <string name="session_drawer_output_send_to_display">将游戏发送到显示器</string>
+    <string name="session_drawer_output_send_note">已连接显示器。将游戏发送到该显示器——你的控制和菜单仍保留在本手机上。你可以随时将其取回这里。</string>
+    <string name="session_drawer_output_display">显示</string>
+    <string name="session_drawer_output_glasses">眼镜</string>
+    <string name="session_drawer_output_brightness">亮度</string>
+    <string name="session_drawer_output_shade">遮光（变暗）</string>
+    <string name="session_drawer_output_3d">3D（左右）</string>
+    <string name="glasses_panel_refresh">刷新率</string>
+    <string name="glasses_panel_sunblock">遮光</string>
+    <string name="session_drawer_output_volume">音量</string>
+    <string name="session_drawer_output_glasses_note">通过 USB 直接发送到你的 Viture 眼镜。</string>
 
     <!-- Touch Input & Gesture Profiles -->
     <string name="common_ui_new">新建</string>

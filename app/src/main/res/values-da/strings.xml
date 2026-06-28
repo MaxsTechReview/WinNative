@@ -1334,6 +1334,47 @@ Installeret sti:
     <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
     <string name="workshop_search_items">Søg i Workshop-elementer</string>
     <string name="common_ui_failed">Mislykket</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Udgang</string>
+    <string name="display_output_prompt_title">Ekstern skærm registreret</string>
+    <string name="display_output_prompt_message">Send spillet til den tilsluttede skærm? Dine skærmknapper og menuen forbliver på denne telefon.</string>
+    <string name="display_output_prompt_swap">Skift skærme</string>
+    <string name="display_output_prompt_mirror">Spejl</string>
+    <string name="display_output_swapped_toast">Spil flyttet til ekstern skærm. Knapperne forbliver på din telefon.</string>
+    <string name="display_output_cast_unavailable">Indstillinger for trådløs skærm er ikke tilgængelige på denne enhed.</string>
+    <string name="display_output_restored_toast">Ekstern skærm afbrudt — spillet er vendt tilbage til telefonen.</string>
+    <string name="session_drawer_output_title">Skærmudgang</string>
+    <string name="session_drawer_output_subtitle">Spillet vises på den eksterne skærm.</string>
+    <string name="session_drawer_output_device">Tilsluttet skærm</string>
+    <string name="session_drawer_output_resolution">Opløsning</string>
+    <string name="session_drawer_output_refresh_rate">Opdateringshastighed</string>
+    <string name="session_drawer_output_aspect_ratio">Billedformat</string>
+    <string name="session_drawer_output_aspect_fit">Tilpas (format)</string>
+    <string name="session_drawer_output_aspect_stretch">Stræk (udfyld)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoom (beskær)</string>
+    <string name="session_drawer_output_return_to_phone">Tilbage til telefonen</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Cast til et tv</string>
+    <string name="session_drawer_output_cast_body">Tilslut en USB-C-/HDMI-adapter, eller tryk nedenfor for at forbinde en trådløs skærm (Miracast / Wi-Fi Direct). Spillet vises på tv\'et, mens disse knapper forbliver på din telefon.</string>
+    <string name="session_drawer_output_cast_button">Forbind trådløs skærm</string>
+    <string name="session_drawer_output_cast_note">Tv\'er med kun Chromecast kan ikke vise live-spil med private knapper — brug en trådløs skærm eller en USB‑C-/HDMI-adapter for det bedste resultat.</string>
+    <string name="session_drawer_output_render_note">De tilstande, din skærm rapporterer, ændrer dens faktiske udgang (den kan blive sort et øjeblik, mens den geninitialiserer). Andre opløsninger gengives i den størrelse og skaleres via hardware til panelet — over den oprindelige bliver det skarpere (supersampling), under bliver det hurtigere.</string>
+    <string name="session_drawer_output_scaling_note">Denne telefon sender skærmen ud i dens oprindelige %1$s og skifter ikke tilstand, så dette indstiller renderingsopløsningen — den hardware‑skaleres til panelet (højere end oprindelig giver skarpere billede, lavere kører hurtigere).</string>
+    <string name="session_drawer_output_game_mode">Spiltilstand (lav latenstid)</string>
+    <string name="session_drawer_output_game_mode_on">Til</string>
+    <string name="session_drawer_output_game_mode_off">Fra</string>
+    <string name="session_drawer_output_game_mode_note">Anmoder om tv\'ets spil-/lavlatensstilstand (HDMI ALLM) for at minimere inputforsinkelse. Vises kun, når den tilsluttede skærm understøtter det.</string>
+    <string name="session_drawer_output_send_to_display">Send spil til skærm</string>
+    <string name="session_drawer_output_send_note">En skærm er tilsluttet. Send spillet til den — dine knapper og menuen forbliver på denne telefon. Du kan altid hente det tilbage hertil.</string>
+    <string name="session_drawer_output_display">Skærm</string>
+    <string name="session_drawer_output_glasses">Briller</string>
+    <string name="session_drawer_output_brightness">Lysstyrke</string>
+    <string name="session_drawer_output_shade">Skygge (dæmpning)</string>
+    <string name="session_drawer_output_3d">3D (side om side)</string>
+    <string name="glasses_panel_refresh">Opdateringshastighed</string>
+    <string name="glasses_panel_sunblock">Solfilter</string>
+    <string name="session_drawer_output_volume">Lydstyrke</string>
+    <string name="session_drawer_output_glasses_note">Sendes direkte til dine Viture-briller via USB.</string>
 
     <!-- Session > Touch &amp; Gesture Profiles -->
     <string name="common_ui_new">Ny</string>

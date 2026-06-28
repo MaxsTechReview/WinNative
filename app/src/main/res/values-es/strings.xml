@@ -1334,6 +1334,47 @@ Ruta instalada:
     <string name="workshop_loading_items">Cargando elementos de Workshop</string>
     <string name="workshop_search_items">Buscar elementos de Workshop</string>
     <string name="common_ui_failed">Fallido</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Salida</string>
+    <string name="display_output_prompt_title">Pantalla externa detectada</string>
+    <string name="display_output_prompt_message">¿Enviar el juego a la pantalla conectada? Tus controles en pantalla y el menú permanecen en este teléfono.</string>
+    <string name="display_output_prompt_swap">Cambiar pantallas</string>
+    <string name="display_output_prompt_mirror">Duplicar</string>
+    <string name="display_output_swapped_toast">Juego movido a la pantalla externa. Los controles permanecen en tu teléfono.</string>
+    <string name="display_output_cast_unavailable">Los ajustes de pantalla inalámbrica no están disponibles en este dispositivo.</string>
+    <string name="display_output_restored_toast">Pantalla externa desconectada: el juego volvió al teléfono.</string>
+    <string name="session_drawer_output_title">Salida de pantalla</string>
+    <string name="session_drawer_output_subtitle">El juego se muestra en la pantalla externa.</string>
+    <string name="session_drawer_output_device">Pantalla conectada</string>
+    <string name="session_drawer_output_resolution">Resolución</string>
+    <string name="session_drawer_output_refresh_rate">Frecuencia de actualización</string>
+    <string name="session_drawer_output_aspect_ratio">Relación de aspecto</string>
+    <string name="session_drawer_output_aspect_fit">Ajustar (aspecto)</string>
+    <string name="session_drawer_output_aspect_stretch">Estirar (llenar)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoom (recortar)</string>
+    <string name="session_drawer_output_return_to_phone">Volver al teléfono</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Enviar a una TV</string>
+    <string name="session_drawer_output_cast_body">Conecta un adaptador USB-C / HDMI, o toca abajo para conectar una pantalla inalámbrica (Miracast / Wi-Fi Direct). El juego se muestra en la TV mientras estos controles permanecen en tu teléfono.</string>
+    <string name="session_drawer_output_cast_button">Conectar pantalla inalámbrica</string>
+    <string name="session_drawer_output_cast_note">Las TV solo con Chromecast no pueden mostrar el juego en vivo con controles privados: usa una pantalla inalámbrica o un adaptador USB‑C/HDMI para el mejor resultado.</string>
+    <string name="session_drawer_output_render_note">Los modos que informa tu pantalla cambian su salida real (puede quedar en negro un momento mientras se reinicia). Otras resoluciones se renderizan a ese tamaño y se escalan por hardware al panel: por encima de la nativa se ve más nítido (supermuestreo), por debajo va más rápido.</string>
+    <string name="session_drawer_output_scaling_note">Este teléfono envía la pantalla a su resolución nativa %1$s y no cambia de modo, así que esto define la resolución de renderizado — se escala por hardware al panel (más que la nativa mejora la nitidez, menos va más rápido).</string>
+    <string name="session_drawer_output_game_mode">Modo de juego (baja latencia)</string>
+    <string name="session_drawer_output_game_mode_on">Activado</string>
+    <string name="session_drawer_output_game_mode_off">Desactivado</string>
+    <string name="session_drawer_output_game_mode_note">Solicita el modo de juego / baja latencia de la TV (HDMI ALLM) para minimizar el retardo de entrada. Se muestra solo cuando la pantalla conectada lo admite.</string>
+    <string name="session_drawer_output_send_to_display">Enviar juego a la pantalla</string>
+    <string name="session_drawer_output_send_note">Hay una pantalla conectada. Envía el juego a ella: tus controles y el menú permanecen en este teléfono. Puedes devolverlo aquí en cualquier momento.</string>
+    <string name="session_drawer_output_display">Pantalla</string>
+    <string name="session_drawer_output_glasses">Gafas</string>
+    <string name="session_drawer_output_brightness">Brillo</string>
+    <string name="session_drawer_output_shade">Sombra (atenuación)</string>
+    <string name="session_drawer_output_3d">3D (lado a lado)</string>
+    <string name="glasses_panel_refresh">Frecuencia de actualización</string>
+    <string name="glasses_panel_sunblock">Filtro solar</string>
+    <string name="session_drawer_output_volume">Volumen</string>
+    <string name="session_drawer_output_glasses_note">Se envía directamente a tus gafas Viture por USB.</string>
 
     <!-- Session > Touch & Gesture Profiles -->
     <string name="common_ui_new">Nuevo</string>

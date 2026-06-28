@@ -1334,6 +1334,47 @@ Installierter Pfad:
     <string name="workshop_loading_items">Workshop-Elemente werden geladen</string>
     <string name="workshop_search_items">Workshop-Elemente suchen</string>
     <string name="common_ui_failed">Fehlgeschlagen</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Ausgabe</string>
+    <string name="display_output_prompt_title">Externes Display erkannt</string>
+    <string name="display_output_prompt_message">Das Spiel an das verbundene Display senden? Deine Bildschirmsteuerung und das Menü bleiben auf diesem Telefon.</string>
+    <string name="display_output_prompt_swap">Displays wechseln</string>
+    <string name="display_output_prompt_mirror">Spiegeln</string>
+    <string name="display_output_swapped_toast">Spiel auf externes Display verschoben. Die Steuerung bleibt auf deinem Telefon.</string>
+    <string name="display_output_cast_unavailable">Einstellungen für drahtlose Displays sind auf diesem Gerät nicht verfügbar.</string>
+    <string name="display_output_restored_toast">Externes Display getrennt — Spiel zum Telefon zurückgekehrt.</string>
+    <string name="session_drawer_output_title">Display-Ausgabe</string>
+    <string name="session_drawer_output_subtitle">Das Spiel wird auf dem externen Display angezeigt.</string>
+    <string name="session_drawer_output_device">Verbundenes Display</string>
+    <string name="session_drawer_output_resolution">Auflösung</string>
+    <string name="session_drawer_output_refresh_rate">Bildwiederholrate</string>
+    <string name="session_drawer_output_aspect_ratio">Seitenverhältnis</string>
+    <string name="session_drawer_output_aspect_fit">Anpassen (Seitenverhältnis)</string>
+    <string name="session_drawer_output_aspect_stretch">Strecken (Füllen)</string>
+    <string name="session_drawer_output_aspect_zoom">Zoom (Zuschneiden)</string>
+    <string name="session_drawer_output_return_to_phone">Zurück zum Telefon</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">An einen Fernseher casten</string>
+    <string name="session_drawer_output_cast_body">Schließe einen USB-C-/HDMI-Adapter an oder tippe unten, um ein drahtloses Display (Miracast / Wi-Fi Direct) zu verbinden. Das Spiel wird auf dem Fernseher angezeigt, während diese Steuerung auf deinem Telefon bleibt.</string>
+    <string name="session_drawer_output_cast_button">Drahtloses Display verbinden</string>
+    <string name="session_drawer_output_cast_note">Fernseher nur mit Chromecast können kein Live-Gameplay mit privater Steuerung anzeigen — verwende für das beste Ergebnis ein drahtloses Display oder einen USB‑C-/HDMI-Adapter.</string>
+    <string name="session_drawer_output_render_note">Die von deinem Display gemeldeten Modi ändern die tatsächliche Ausgabe (es kann kurz schwarz werden, während es neu initialisiert). Andere Auflösungen werden in dieser Größe gerendert und per Hardware auf das Panel skaliert — über der nativen schärfer (Supersampling), darunter schneller.</string>
+    <string name="session_drawer_output_scaling_note">Dieses Telefon gibt das Display in seiner nativen Auflösung %1$s aus und wechselt den Modus nicht; dies legt daher die Renderauflösung fest — sie wird hardwareseitig auf das Panel skaliert (höher als nativ schärft, niedriger läuft schneller).</string>
+    <string name="session_drawer_output_game_mode">Spielmodus (geringe Latenz)</string>
+    <string name="session_drawer_output_game_mode_on">Ein</string>
+    <string name="session_drawer_output_game_mode_off">Aus</string>
+    <string name="session_drawer_output_game_mode_note">Fordert den Spiel-/Niedriglatenzmodus des Fernsehers (HDMI ALLM) an, um die Eingabeverzögerung zu minimieren. Wird nur angezeigt, wenn das verbundene Display dies unterstützt.</string>
+    <string name="session_drawer_output_send_to_display">Spiel an Display senden</string>
+    <string name="session_drawer_output_send_note">Ein Display ist verbunden. Sende das Spiel dorthin — deine Steuerung und das Menü bleiben auf diesem Telefon. Du kannst es jederzeit hierher zurückholen.</string>
+    <string name="session_drawer_output_display">Anzeige</string>
+    <string name="session_drawer_output_glasses">Brille</string>
+    <string name="session_drawer_output_brightness">Helligkeit</string>
+    <string name="session_drawer_output_shade">Tönung (Abdunkeln)</string>
+    <string name="session_drawer_output_3d">3D (Side-by-Side)</string>
+    <string name="glasses_panel_refresh">Bildwiederholrate</string>
+    <string name="glasses_panel_sunblock">Sonnenschutz</string>
+    <string name="session_drawer_output_volume">Lautstärke</string>
+    <string name="session_drawer_output_glasses_note">Direkt per USB an deine Viture-Brille gesendet.</string>
 
     <!-- Session > Touch & Gesture Profiles -->
     <string name="common_ui_new">Neu</string>

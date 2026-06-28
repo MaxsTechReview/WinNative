@@ -1340,6 +1340,47 @@ Zainstalowana ścieżka:
     <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
     <string name="workshop_search_items">Szukaj elementów Workshop</string>
     <string name="common_ui_failed">Niepowodzenie</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">Wyjście</string>
+    <string name="display_output_prompt_title">Wykryto zewnętrzny wyświetlacz</string>
+    <string name="display_output_prompt_message">Wysłać grę na podłączony wyświetlacz? Sterowanie ekranowe i menu pozostaną na tym telefonie.</string>
+    <string name="display_output_prompt_swap">Przełącz wyświetlacze</string>
+    <string name="display_output_prompt_mirror">Powiel</string>
+    <string name="display_output_swapped_toast">Gra przeniesiona na zewnętrzny wyświetlacz. Sterowanie pozostaje na telefonie.</string>
+    <string name="display_output_cast_unavailable">Ustawienia wyświetlacza bezprzewodowego są niedostępne na tym urządzeniu.</string>
+    <string name="display_output_restored_toast">Zewnętrzny wyświetlacz odłączony — gra wróciła na telefon.</string>
+    <string name="session_drawer_output_title">Wyjście obrazu</string>
+    <string name="session_drawer_output_subtitle">Gra jest wyświetlana na zewnętrznym wyświetlaczu.</string>
+    <string name="session_drawer_output_device">Podłączony wyświetlacz</string>
+    <string name="session_drawer_output_resolution">Rozdzielczość</string>
+    <string name="session_drawer_output_refresh_rate">Częstotliwość odświeżania</string>
+    <string name="session_drawer_output_aspect_ratio">Proporcje obrazu</string>
+    <string name="session_drawer_output_aspect_fit">Dopasuj (proporcje)</string>
+    <string name="session_drawer_output_aspect_stretch">Rozciągnij (wypełnij)</string>
+    <string name="session_drawer_output_aspect_zoom">Powiększ (przytnij)</string>
+    <string name="session_drawer_output_return_to_phone">Wróć do telefonu</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Prześlij do telewizora</string>
+    <string name="session_drawer_output_cast_body">Podłącz adapter USB-C / HDMI lub dotknij poniżej, aby połączyć wyświetlacz bezprzewodowy (Miracast / Wi-Fi Direct). Gra wyświetla się na telewizorze, a te elementy sterujące pozostają na telefonie.</string>
+    <string name="session_drawer_output_cast_button">Połącz wyświetlacz bezprzewodowy</string>
+    <string name="session_drawer_output_cast_note">Telewizory tylko z Chromecastem nie mogą wyświetlać rozgrywki na żywo z prywatnym sterowaniem — aby uzyskać najlepszy efekt, użyj wyświetlacza bezprzewodowego lub adaptera USB‑C/HDMI.</string>
+    <string name="session_drawer_output_render_note">Tryby zgłaszane przez wyświetlacz zmieniają jego rzeczywiste wyjście (może na chwilę zgasnąć podczas ponownej inicjalizacji). Inne rozdzielczości są renderowane w tym rozmiarze i sprzętowo skalowane do panelu — powyżej natywnej jest ostrzej (supersampling), poniżej działa szybciej.</string>
+    <string name="session_drawer_output_scaling_note">Ten telefon wyświetla obraz w natywnej rozdzielczości %1$s i nie zmienia trybu, więc to ustawia rozdzielczość renderowania — jest ona sprzętowo skalowana do panelu (powyżej natywnej wyostrza, poniżej działa szybciej).</string>
+    <string name="session_drawer_output_game_mode">Tryb gry (niskie opóźnienie)</string>
+    <string name="session_drawer_output_game_mode_on">Wł.</string>
+    <string name="session_drawer_output_game_mode_off">Wył.</string>
+    <string name="session_drawer_output_game_mode_note">Żąda trybu gry / niskiego opóźnienia telewizora (HDMI ALLM), aby zminimalizować opóźnienie wejścia. Wyświetlane tylko, gdy podłączony wyświetlacz to obsługuje.</string>
+    <string name="session_drawer_output_send_to_display">Wyślij grę na wyświetlacz</string>
+    <string name="session_drawer_output_send_note">Wyświetlacz jest podłączony. Wyślij na niego grę — sterowanie i menu pozostaną na tym telefonie. Możesz w każdej chwili przywrócić ją tutaj.</string>
+    <string name="session_drawer_output_display">Ekran</string>
+    <string name="session_drawer_output_glasses">Okulary</string>
+    <string name="session_drawer_output_brightness">Jasność</string>
+    <string name="session_drawer_output_shade">Przyciemnienie</string>
+    <string name="session_drawer_output_3d">3D (obok siebie)</string>
+    <string name="glasses_panel_refresh">Częstotliwość odświeżania</string>
+    <string name="glasses_panel_sunblock">Filtr słoneczny</string>
+    <string name="session_drawer_output_volume">Głośność</string>
+    <string name="session_drawer_output_glasses_note">Wysyłane bezpośrednio do okularów Viture przez USB.</string>
 
     <!-- Session > Touch &amp; Gesture Profiles -->
     <string name="common_ui_new">Nowy</string>

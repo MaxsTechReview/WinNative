@@ -1335,6 +1335,47 @@
     <string name="workshop_loading_items">Workshop 항목 로드 중</string>
     <string name="workshop_search_items">Workshop 항목 검색</string>
     <string name="common_ui_failed">실패</string>
+    <!-- Display output / external display -->
+    <string name="session_drawer_rail_label_output">출력</string>
+    <string name="display_output_prompt_title">외부 디스플레이 감지됨</string>
+    <string name="display_output_prompt_message">게임을 연결된 디스플레이로 보낼까요? 화면 컨트롤과 메뉴는 이 휴대폰에 그대로 유지됩니다.</string>
+    <string name="display_output_prompt_swap">디스플레이 전환</string>
+    <string name="display_output_prompt_mirror">미러링</string>
+    <string name="display_output_swapped_toast">게임이 외부 디스플레이로 이동했습니다. 컨트롤은 휴대폰에 그대로 유지됩니다.</string>
+    <string name="display_output_cast_unavailable">이 기기에서는 무선 디스플레이 설정을 사용할 수 없습니다.</string>
+    <string name="display_output_restored_toast">외부 디스플레이 연결이 끊겨 게임이 휴대폰으로 돌아왔습니다.</string>
+    <string name="session_drawer_output_title">디스플레이 출력</string>
+    <string name="session_drawer_output_subtitle">게임이 외부 디스플레이에 표시되고 있습니다.</string>
+    <string name="session_drawer_output_device">연결된 디스플레이</string>
+    <string name="session_drawer_output_resolution">해상도</string>
+    <string name="session_drawer_output_refresh_rate">주사율</string>
+    <string name="session_drawer_output_aspect_ratio">화면 비율</string>
+    <string name="session_drawer_output_aspect_fit">맞춤 (비율)</string>
+    <string name="session_drawer_output_aspect_stretch">늘이기 (채우기)</string>
+    <string name="session_drawer_output_aspect_zoom">확대 (자르기)</string>
+    <string name="session_drawer_output_return_to_phone">휴대폰으로 돌아가기</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">TV로 캐스트</string>
+    <string name="session_drawer_output_cast_body">USB-C / HDMI 어댑터를 연결하거나 아래를 눌러 무선 디스플레이(Miracast / Wi-Fi Direct)를 연결하세요. 게임은 TV에 표시되고 이 컨트롤은 휴대폰에 그대로 유지됩니다.</string>
+    <string name="session_drawer_output_cast_button">무선 디스플레이 연결</string>
+    <string name="session_drawer_output_cast_note">Chromecast 전용 TV는 비공개 컨트롤로 실시간 게임플레이를 표시할 수 없습니다 — 최상의 결과를 위해 무선 디스플레이나 USB‑C/HDMI 어댑터를 사용하세요.</string>
+    <string name="session_drawer_output_render_note">디스플레이가 보고하는 모드는 실제 출력을 변경합니다(재초기화되는 동안 잠시 검게 표시될 수 있음). 다른 해상도는 해당 크기로 렌더링되어 하드웨어로 패널에 맞게 스케일됩니다 — 기본보다 높으면 더 선명해지고(슈퍼샘플링) 낮으면 더 빨라집니다.</string>
+    <string name="session_drawer_output_scaling_note">이 휴대폰은 디스플레이를 기본 %1$s로 출력하며 모드를 전환하지 않으므로, 이 설정은 렌더링 해상도를 정합니다 — 패널에 맞춰 하드웨어로 스케일링됩니다(기본보다 높으면 선명해지고, 낮으면 더 빠릅니다).</string>
+    <string name="session_drawer_output_game_mode">게임 모드 (낮은 지연)</string>
+    <string name="session_drawer_output_game_mode_on">켜기</string>
+    <string name="session_drawer_output_game_mode_off">끄기</string>
+    <string name="session_drawer_output_game_mode_note">입력 지연을 최소화하기 위해 TV의 게임/저지연 모드(HDMI ALLM)를 요청합니다. 연결된 디스플레이가 지원할 때만 표시됩니다.</string>
+    <string name="session_drawer_output_send_to_display">게임을 디스플레이로 보내기</string>
+    <string name="session_drawer_output_send_note">디스플레이가 연결되어 있습니다. 게임을 그곳으로 보내세요 — 컨트롤과 메뉴는 이 휴대폰에 그대로 유지됩니다. 언제든지 다시 가져올 수 있습니다.</string>
+    <string name="session_drawer_output_display">디스플레이</string>
+    <string name="session_drawer_output_glasses">글래스</string>
+    <string name="session_drawer_output_brightness">밝기</string>
+    <string name="session_drawer_output_shade">셰이드(디밍)</string>
+    <string name="session_drawer_output_3d">3D(좌우 분할)</string>
+    <string name="glasses_panel_refresh">주사율</string>
+    <string name="glasses_panel_sunblock">햇빛 차단</string>
+    <string name="session_drawer_output_volume">볼륨</string>
+    <string name="session_drawer_output_glasses_note">USB로 Viture 글래스에 직접 전송됩니다.</string>
 
     <!-- Session > Touch & Gesture Profiles -->
     <string name="common_ui_new">새로 만들기</string>

@@ -131,6 +131,9 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean isNativeActive;
   private boolean isStatsRunning;
   private volatile boolean isCharging;
+  // When the controller HUD mirrors our values to the Compose overlay, the on-screen view is hidden
+  // (GONE) but we must still compute FPS/frametime so the mirrored gauges stay live.
+  private volatile boolean hudMirrorActive;
   private volatile float lastFPS;
   private volatile long lastFrameNano;
   private long lastPrimaryFrameNano;
@@ -1151,6 +1154,10 @@ public class FrameRating extends LinearLayout implements Runnable {
   }
 
   /** Called when the guest submits a new frame to the X presentation path. */
+  public void setHudMirrorActive(boolean active) {
+    this.hudMirrorActive = active;
+  }
+
   public void recordGameFrame(boolean primarySource, int serial) {
     // Notify observer before any visibility gating so perf recording / leaderboard stats keep
     // working when the HUD is hidden. Cheap path; observer is typically a single AtomicLong
@@ -1159,7 +1166,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (obs != null) {
       obs.onFramePresent(System.nanoTime());
     }
-    if (getVisibility() != View.VISIBLE) {
+    if (getVisibility() != View.VISIBLE && !this.hudMirrorActive) {
       return;
     }
     long nowNano = System.nanoTime();
@@ -1405,11 +1412,18 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
   }
 
+  private int ramPercentValue() {
+    try {
+      return Integer.parseInt(this.ramText.replace("%", "").trim());
+    } catch (Exception e) {
+      return -1;
+    }
+  }
+
   @Override
   public void run() {
-    if (getVisibility() != View.VISIBLE) return;
-
-    // Watchdog: reset FPS if no frames arrived for > 1.5s
+    // Watchdog first so a stalled game drops to 0 on the mirrored HUD too: reset FPS if no frames
+    // arrived for > 1.5s, then publish the (possibly reset) values.
     long nowNano = System.nanoTime();
     if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano > 1500000000L) {
       synchronized (this) {
@@ -1419,6 +1433,12 @@ public class FrameRating extends LinearLayout implements Runnable {
         this.frameTimesCount = 0;
       }
     }
+    // Feed the phone gauge HUD (single source of truth) even while the on-screen overlay is hidden.
+    com.winlator.cmod.runtime.display.PerformanceHudState.updateValues(
+        this.lastFPS, this.currentMs, this.gpuLoad, this.cpuPercent, ramPercentValue(),
+        (this.dualSeriesBattery && this.batteryWatts >= 0.0f) ? this.batteryWatts * 2.0f : this.batteryWatts,
+        this.cpuTemp, this.rendererName != null ? this.rendererName : "");
+    if (getVisibility() != View.VISIBLE) return;
 
     if (this.enableGpu && this.tvGpuLoad != null) {
       SpannableStringBuilder b = new SpannableStringBuilder();
