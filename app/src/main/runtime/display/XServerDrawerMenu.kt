@@ -176,6 +176,10 @@ import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav as SharedLocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry as SharedPaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem as sharedPaneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
@@ -3665,6 +3669,10 @@ private fun OutputActiveControls(
                         label = label,
                         checked = state.outputAspectMode == index,
                         onClick = { listener.onOutputAspectModeSelected(index) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputAspectModeSelected(index) },
+                        ),
                     )
                 }
             }
@@ -3678,11 +3686,19 @@ private fun OutputActiveControls(
                     label = stringResource(R.string.session_drawer_output_game_mode_on),
                     checked = state.outputGameModeEnabled,
                     onClick = { listener.onOutputGameModeToggled(true) },
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onOutputGameModeToggled(true) },
+                    ),
                 )
                 HUDToggleChip(
                     label = stringResource(R.string.session_drawer_output_game_mode_off),
                     checked = !state.outputGameModeEnabled,
                     onClick = { listener.onOutputGameModeToggled(false) },
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onOutputGameModeToggled(false) },
+                    ),
                 )
             }
             Text(
@@ -3743,11 +3759,19 @@ private fun OutputGlassesCard(
                             label = stringResource(R.string.session_drawer_output_game_mode_on),
                             checked = state.outputVitureFilm > 0,
                             onClick = { listener.onOutputVitureFilm(1) },
+                            modifier = Modifier.paneNavItem(
+                                cornerRadius = (12f * paneScale).dp,
+                                onActivate = { listener.onOutputVitureFilm(1) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_output_game_mode_off),
                             checked = state.outputVitureFilm == 0,
                             onClick = { listener.onOutputVitureFilm(0) },
+                            modifier = Modifier.paneNavItem(
+                                cornerRadius = (12f * paneScale).dp,
+                                onActivate = { listener.onOutputVitureFilm(0) },
+                            ),
                         )
                     }
                 }
@@ -3771,11 +3795,19 @@ private fun OutputGlassesCard(
                         label = stringResource(R.string.session_drawer_output_game_mode_on),
                         checked = state.outputViture3D,
                         onClick = { listener.onOutputViture3D(true) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputViture3D(true) },
+                        ),
                     )
                     HUDToggleChip(
                         label = stringResource(R.string.session_drawer_output_game_mode_off),
                         checked = !state.outputViture3D,
                         onClick = { listener.onOutputViture3D(false) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputViture3D(false) },
+                        ),
                     )
                 }
             }
@@ -3904,6 +3936,7 @@ private fun OutputPaneButton(
                 .clip(RoundedCornerShape((14f * paneScale).dp))
                 .background(PaneInnerResting)
                 .border(1.dp, RestingCardBorder, RoundedCornerShape((14f * paneScale).dp))
+                .paneNavItem(cornerRadius = (14f * paneScale).dp, onActivate = onClick)
                 .clickable { onClick() }
                 .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -5923,6 +5956,9 @@ private fun RecordSettingsDialog(
     var quality by remember { mutableStateOf(config.quality.coerceIn(0, RECORD_QUALITY_LABELS.lastIndex)) }
     var recordUI by remember { mutableStateOf(config.recordUI) }
 
+    val recordNav = remember { SharedPaneNavRegistry() }
+    val doRecord = { onRecordNow(fpsIndex, resIndex, quality, recordUI) }
+
     val shape = RoundedCornerShape(16.dp)
     // Cap card height (landscape is short); settings scroll, the Record Now button stays pinned.
     val maxCardHeight = (LocalConfiguration.current.screenHeightDp * 0.92f).dp
@@ -5930,6 +5966,8 @@ private fun RecordSettingsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        CompositionLocalProvider(SharedLocalPaneNav provides recordNav) {
+        DialogPaneNav(recordNav, onDismiss = onDismiss, onStart = doRecord)
         Box(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 14.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
@@ -5970,45 +6008,73 @@ private fun RecordSettingsDialog(
                     modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_fps),
-                        valueText = "${fpsOptions[fpsIndex]} fps",
-                        value = fpsIndex.toFloat(),
-                        valueRange = 0f..(fpsOptions.lastIndex.coerceAtLeast(1)).toFloat(),
-                        steps = (fpsOptions.size - 2).coerceAtLeast(0),
-                        onValueChange = { if (fpsOptions.size > 1) fpsIndex = it.roundToInt().coerceIn(0, fpsOptions.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> if (fpsOptions.size > 1) fpsIndex = (fpsIndex + dir).coerceIn(0, fpsOptions.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_fps),
+                            valueText = "${fpsOptions[fpsIndex]} fps",
+                            value = fpsIndex.toFloat(),
+                            valueRange = 0f..(fpsOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                            steps = (fpsOptions.size - 2).coerceAtLeast(0),
+                            onValueChange = { if (fpsOptions.size > 1) fpsIndex = it.roundToInt().coerceIn(0, fpsOptions.lastIndex) },
+                        )
+                    }
 
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_resolution),
-                        valueText = resOptions[resIndex],
-                        value = resIndex.toFloat(),
-                        valueRange = 0f..(resOptions.lastIndex.coerceAtLeast(1)).toFloat(),
-                        steps = (resOptions.size - 2).coerceAtLeast(0),
-                        onValueChange = { if (resOptions.size > 1) resIndex = it.roundToInt().coerceIn(0, resOptions.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> if (resOptions.size > 1) resIndex = (resIndex + dir).coerceIn(0, resOptions.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_resolution),
+                            valueText = resOptions[resIndex],
+                            value = resIndex.toFloat(),
+                            valueRange = 0f..(resOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                            steps = (resOptions.size - 2).coerceAtLeast(0),
+                            onValueChange = { if (resOptions.size > 1) resIndex = it.roundToInt().coerceIn(0, resOptions.lastIndex) },
+                        )
+                    }
 
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_quality),
-                        valueText = RECORD_QUALITY_LABELS[quality],
-                        value = quality.toFloat(),
-                        valueRange = 0f..(RECORD_QUALITY_LABELS.lastIndex).toFloat(),
-                        steps = (RECORD_QUALITY_LABELS.size - 2).coerceAtLeast(0),
-                        onValueChange = { quality = it.roundToInt().coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> quality = (quality + dir).coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_quality),
+                            valueText = RECORD_QUALITY_LABELS[quality],
+                            value = quality.toFloat(),
+                            valueRange = 0f..(RECORD_QUALITY_LABELS.lastIndex).toFloat(),
+                            steps = (RECORD_QUALITY_LABELS.size - 2).coerceAtLeast(0),
+                            onValueChange = { quality = it.roundToInt().coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
+                        )
+                    }
 
-                    DrawerBooleanRow(
-                        title = stringResource(R.string.session_record_include_ui),
-                        checked = recordUI,
-                        onCheckedChange = { recordUI = it },
-                        subtitle = stringResource(R.string.session_record_include_ui_subtitle),
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onActivate = { recordUI = !recordUI },
+                        ),
+                    ) {
+                        DrawerBooleanRow(
+                            title = stringResource(R.string.session_record_include_ui),
+                            checked = recordUI,
+                            onCheckedChange = { recordUI = it },
+                            subtitle = stringResource(R.string.session_record_include_ui_subtitle),
+                        )
+                    }
                 }
 
                 // Record Now button (pinned).
                 Button(
-                    onClick = { onRecordNow(fpsIndex, resIndex, quality, recordUI) },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    onClick = doRecord,
+                    modifier = Modifier.fillMaxWidth().height(48.dp).sharedPaneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = doRecord,
+                        isEntry = true,
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -6031,6 +6097,7 @@ private fun RecordSettingsDialog(
                     )
                 }
             }
+        }
         }
     }
 }

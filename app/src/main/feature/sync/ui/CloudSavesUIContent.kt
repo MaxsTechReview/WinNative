@@ -1390,6 +1390,7 @@ private fun CompactRenameDialogButton(
         modifier =
             Modifier
                 .height(32.dp)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
                 .clip(RoundedCornerShape(8.dp))
                 .background(backgroundColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
