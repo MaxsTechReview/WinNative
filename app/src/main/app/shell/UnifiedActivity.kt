@@ -6894,13 +6894,16 @@ class UnifiedActivity :
             }
         }
         DisposableEffect(displayedApps) {
-            activity?.storeItemClickCallback = { idx ->
+            val clickCallback: (Int) -> Unit = { idx ->
                 displayedApps.getOrNull(idx)?.let { selectedAppId.value = it.id }
             }
+            activity?.storeItemClickCallback = clickCallback
             activity?.storeGridState = gridState
             onDispose {
-                activity?.storeItemClickCallback = null
-                activity?.storeGridState = null
+                if (activity?.storeItemClickCallback === clickCallback) {
+                    activity?.storeItemClickCallback = null
+                    activity?.storeGridState = null
+                }
             }
         }
 
@@ -7577,13 +7580,16 @@ class UnifiedActivity :
             }
         }
         DisposableEffect(displayedApps) {
-            activity?.storeItemClickCallback = { idx ->
+            val clickCallback: (Int) -> Unit = { idx ->
                 displayedApps.getOrNull(idx)?.let { selectedGameId.value = it.id }
             }
+            activity?.storeItemClickCallback = clickCallback
             activity?.storeGridState = gridState
             onDispose {
-                activity?.storeItemClickCallback = null
-                activity?.storeGridState = null
+                if (activity?.storeItemClickCallback === clickCallback) {
+                    activity?.storeItemClickCallback = null
+                    activity?.storeGridState = null
+                }
             }
         }
 
@@ -8185,13 +8191,16 @@ class UnifiedActivity :
         }
         // Register A-button click callback and grid state for visible-area snapping
         DisposableEffect(displayedApps) {
-            activity?.storeItemClickCallback = { idx ->
+            val clickCallback: (Int) -> Unit = { idx ->
                 displayedApps.getOrNull(idx)?.let { selectedAppForDialog = it }
             }
+            activity?.storeItemClickCallback = clickCallback
             activity?.storeGridState = gridState
             onDispose {
-                activity?.storeItemClickCallback = null
-                activity?.storeGridState = null
+                if (activity?.storeItemClickCallback === clickCallback) {
+                    activity?.storeItemClickCallback = null
+                    activity?.storeGridState = null
+                }
             }
         }
 
