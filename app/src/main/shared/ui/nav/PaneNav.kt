@@ -305,6 +305,7 @@ internal fun Modifier.paneNavItem(
     navRow: Int? = null,
     navCol: Int? = null,
     onHighlighted: () -> Unit = {},
+    pinTop: Boolean = false,
 ): Modifier {
     val nav = LocalPaneNav.current ?: return this
     val slot = remember { nav.nextSlot() }
@@ -328,7 +329,7 @@ internal fun Modifier.paneNavItem(
     return this
         .onGloballyPositioned {
             val p = it.positionInWindow()
-            nav.reportPosition(slot, p.x, p.y, it.size.height.toFloat())
+            nav.reportPosition(slot, p.x, if (pinTop) -1_000_000f else p.y, it.size.height.toFloat())
         }
         .bringIntoViewRequester(bring)
         .then(

@@ -368,7 +368,6 @@ internal fun CloudSavesContent(
                         tint = CloudWarning,
                         modifier = mod,
                         enabled = !isWorking,
-                        isEntry = true,
                         onClick = {
                             val sc = shortcut
                             val container = sc?.container
@@ -420,7 +419,6 @@ internal fun CloudSavesContent(
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !isWorking && !gogZipBusy,
-                        isEntry = true,
                         onClick = { if (!isWorking && !gogZipBusy) onSyncFromCloud() },
                     )
                 }
@@ -566,7 +564,6 @@ internal fun CloudSavesContent(
                         tint = CloudAccent,
                         modifier = mod,
                         enabled = !steamBusy && steamAppIdInt != null,
-                        isEntry = true,
                         onClick = {
                             val appId = steamAppIdInt ?: return@ActionWithHelper
                             if (steamBusy) return@ActionWithHelper

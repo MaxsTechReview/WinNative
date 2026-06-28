@@ -3846,9 +3846,11 @@ class UnifiedActivity :
         title: String,
         onDismissRequest: () -> Unit,
         wide: Boolean = false,
+        contentKey: Any? = null,
         content: @Composable ColumnScope.() -> Unit,
     ) {
         val registry = remember { PaneNavRegistry() }
+        LaunchedEffect(contentKey) { registry.reset() }
         Dialog(
             onDismissRequest = onDismissRequest,
             properties =
@@ -3905,7 +3907,7 @@ class UnifiedActivity :
                                 modifier = Modifier
                                     .padding(end = 4.dp)
                                     .size(34.dp)
-                                    .paneNavItem(cornerRadius = 17.dp, onActivate = onDismissRequest),
+                                    .paneNavItem(cornerRadius = 17.dp, onActivate = onDismissRequest, pinTop = true),
                             ) {
                                 Icon(
                                     Icons.Outlined.Close,
@@ -4554,6 +4556,7 @@ class UnifiedActivity :
             title = app.name,
             onDismissRequest = onDismissRequest,
             wide = currentTab == GameSettingsScreen.CloudSaves,
+            contentKey = currentTab,
         ) {
             when (currentTab) {
                 GameSettingsScreen.Menu -> {
@@ -4907,6 +4910,7 @@ class UnifiedActivity :
             title = app.title,
             onDismissRequest = onDismissRequest,
             wide = currentTab == GameSettingsScreen.CloudSaves,
+            contentKey = currentTab,
         ) {
             when (currentTab) {
                 GameSettingsScreen.Menu -> {
@@ -6045,7 +6049,8 @@ class UnifiedActivity :
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
-                                            .verticalScroll(rememberScrollState()),
+                                            .verticalScroll(rememberScrollState())
+                                            .navigationBarsPadding(),
                                 ) {
                                 var isWorking by remember { mutableStateOf(false) }
 
