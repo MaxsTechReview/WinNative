@@ -44,8 +44,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private volatile int height;
     // ADPF: PerformanceHintManager session for dynamic CPU frequency scaling.
     private android.os.PerformanceHintManager.Session perfHintSession;
-    // Legacy sustained performance mode (API < 31 fallback).
-    private android.os.PowerManager.WakeLock sustainedPerfWakeLock;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -192,16 +190,8 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                 }
             } catch (Exception ignored) {}
         } else {
-            // Legacy fallback: sustained performance mode via wakelock (API 24-30).
-            try {
-                android.os.PowerManager pm = (android.os.PowerManager)
-                        getContext().getSystemService(Context.POWER_SERVICE);
-                if (pm != null && pm.isSustainedPerformanceModeSupported()) {
-                    sustainedPerfWakeLock = pm.newWakeLock(
-                            android.os.PowerManager.SUSTAINED_PERFORMANCE_MODE, "WinNative:SustainedPerf");
-                    sustainedPerfWakeLock.acquire();
-                }
-            } catch (Exception ignored) {}
+            // Legacy fallback: sustained performance mode (API 24-30, via Window flag on Activity).
+            // No wakelock needed — the Activity sets sustained performance mode on its Window.
         }
         renderer.onSurfaceCreated();
         if (width > 0 && height > 0) renderer.onSurfaceChanged(width, height);
@@ -279,10 +269,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         if (perfHintSession != null) {
             try { perfHintSession.close(); } catch (Exception ignored) {}
             perfHintSession = null;
-        }
-        if (sustainedPerfWakeLock != null && sustainedPerfWakeLock.isHeld()) {
-            sustainedPerfWakeLock.release();
-            sustainedPerfWakeLock = null;
         }
         renderer.onSurfaceDestroyed();
     }
