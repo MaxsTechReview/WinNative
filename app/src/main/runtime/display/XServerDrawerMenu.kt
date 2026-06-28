@@ -231,12 +231,19 @@ private class PaneNavRegistry {
     private var slotCounter = 0
     private var lastSignal = -1
     var controllerActive by mutableStateOf(false)
+    var overlay by mutableStateOf<PaneNavRegistry?>(null)
+    var overlayClose: (() -> Unit)? = null
     var activeRow by mutableStateOf(0)
         private set
     var activeCol by mutableStateOf(0)
         private set
 
     fun nextSlot(): Int = slotCounter++
+
+    fun reset() {
+        activeRow = 0
+        activeCol = 0
+    }
 
     fun reportCallbacks(slot: Int, onActivate: () -> Unit, onAdjust: (Int) -> Unit, onSecondary: () -> Unit) {
         val e = items[slot]
@@ -294,6 +301,11 @@ private class PaneNavRegistry {
     }
 
     private fun handleNav(dir: Int) {
+        overlay?.let { ov ->
+            ov.controllerActive = true
+            ov.handleNav(dir)
+            return
+        }
         val r = rows
         if (r.isEmpty()) return
         var row = activeRow.coerceIn(0, r.size - 1)
@@ -771,6 +783,14 @@ class XServerDrawerStateHolder(
     fun resetPaneNav() {}
 
     fun updateControllerConnected(connected: Boolean) { controllerConnected = connected }
+
+    var paneOverlayCloser: (() -> Unit)? = null
+
+    fun consumeOverlayBack(): Boolean {
+        val c = paneOverlayCloser ?: return false
+        c()
+        return true
+    }
 
     fun closeDrawer() {
         drawerOpen = false
@@ -1311,6 +1331,7 @@ internal fun XServerDrawerContent(
     paneNavSignal: Int = 0,
     paneNavDir: Int = 0,
     controllerActive: Boolean = false,
+    onOverlayCloserChange: ((() -> Unit)?) -> Unit = {},
 ) {
     // The drawer content stays composed even while the sheet is closed (the host
     // just translates it off-screen), so opening no longer pays a full
@@ -1324,6 +1345,9 @@ internal fun XServerDrawerContent(
     paneNav.controllerActive = controllerActive
     LaunchedEffect(paneNav, paneNavSignal) {
         paneNav.processNav(paneNavSignal, paneNavDir)
+    }
+    LaunchedEffect(paneNav, paneNav.overlay) {
+        onOverlayCloserChange(if (paneNav.overlay != null) paneNav.overlayClose else null)
     }
 
     Surface(
@@ -2741,6 +2765,19 @@ private fun InputControlsSimpleDropdown(
     val paneScale = LocalPaneScale.current
     var expanded by remember { mutableStateOf(false) }
     val selectedText = options.getOrElse(selectedIndex) { options.firstOrNull() ?: "" }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -2799,6 +2836,7 @@ private fun InputControlsSimpleDropdown(
             selectedIndex = selectedIndex,
             onSelected = onSelected,
             onDismiss = { expanded = false },
+            optionRegistry = optionRegistry,
         )
     }
 }
@@ -2814,6 +2852,19 @@ private fun InputControlsProfileSelector(
     var expanded by remember { mutableStateOf(false) }
     val disabledPlaceholder = stringResource(R.string.common_ui_disabled_placeholder)
     val selectedText = profileNames.getOrElse(selectedIndex) { disabledPlaceholder }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -2869,6 +2920,7 @@ private fun InputControlsProfileSelector(
                 selectedIndex = selectedIndex,
                 onSelected = onProfileSelected,
                 onDismiss = { expanded = false },
+                optionRegistry = optionRegistry,
             )
         }
 
@@ -2901,6 +2953,7 @@ private fun InputControlsOptionsPopup(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
     onDismiss: () -> Unit,
+    optionRegistry: PaneNavRegistry,
 ) {
     if (!expanded) return
     val paneScale = LocalPaneScale.current
@@ -2908,50 +2961,34 @@ private fun InputControlsOptionsPopup(
     val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
     val shape = RoundedCornerShape((12f * paneScale).dp)
     val scrollState = rememberScrollState()
-    var selectedOffsetPx by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(selectedOffsetPx) {
-        selectedOffsetPx?.let { scrollState.scrollTo(it) }
-    }
-    val optionFocus = remember { FocusRequester() }
-    val focusIndex = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
-    LaunchedEffect(Unit) { runCatching { optionFocus.requestFocus() } }
     Popup(
         popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
         onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
+        properties = PopupProperties(focusable = false),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .controllerMenuInput(onDismiss = onDismiss)
-                    .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
-                    .clip(shape)
-                    .background(PaneSurfaceColor)
-                    .border(1.dp, RestingCardBorder, shape)
-                    .heightIn(max = (260f * paneScale).dp)
-                    .verticalScroll(scrollState)
-                    .padding((5f * paneScale).dp),
-            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
-        ) {
-            options.forEachIndexed { index, name ->
-                val isSelected = index == selectedIndex
-                InputControlsOptionItem(
-                    label = name,
-                    selected = isSelected,
-                    focusRequester = if (index == focusIndex) optionFocus else null,
-                    onClick = {
-                        onSelected(index)
-                        onDismiss()
-                    },
-                    modifier =
-                        if (isSelected) {
-                            Modifier.onGloballyPositioned { coords ->
-                                selectedOffsetPx = coords.boundsInParent().top.roundToInt()
-                            }
-                        } else {
-                            Modifier
+        CompositionLocalProvider(LocalPaneNav provides optionRegistry) {
+            Column(
+                modifier =
+                    Modifier
+                        .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
+                        .clip(shape)
+                        .background(PaneSurfaceColor)
+                        .border(1.dp, RestingCardBorder, shape)
+                        .heightIn(max = (260f * paneScale).dp)
+                        .verticalScroll(scrollState)
+                        .padding((5f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+            ) {
+                options.forEachIndexed { index, name ->
+                    InputControlsOptionItem(
+                        label = name,
+                        selected = index == selectedIndex,
+                        onClick = {
+                            onSelected(index)
+                            onDismiss()
                         },
-                )
+                    )
+                }
             }
         }
     }
@@ -2963,7 +3000,6 @@ private fun InputControlsOptionItem(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -2978,11 +3014,10 @@ private fun InputControlsOptionItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, if (selected) ActiveCardBorder else RestingCardBorder, shape)
-                .controllerFocusBorder(cornerRadius = (8f * paneScale).dp)
+                .paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onClick)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
                 .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -4779,6 +4814,19 @@ private fun GyroscopeActivatorDropdown(
     val names = stringArrayResource(R.array.button_options)
     val keycodes = integerArrayResource(R.array.button_keycodes)
     var expanded by remember { mutableStateOf(false) }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -4827,6 +4875,7 @@ private fun GyroscopeActivatorDropdown(
             selectedIndex = names.indexOfFirst { it == currentLabel }.coerceAtLeast(0),
             onSelected = { index -> onSelected(keycodes[index]) },
             onDismiss = { expanded = false },
+            optionRegistry = optionRegistry,
         )
     }
 }

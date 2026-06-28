@@ -3848,6 +3848,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void handleNavigationBackPressed() {
         if (environment != null) {
+            if (drawerStateHolder != null && drawerStateHolder.consumeOverlayBack()) {
+                return;
+            }
             if (drawerStateHolder != null && drawerStateHolder.isPaneOpen()) {
                 drawerStateHolder.closeOpenPane();
                 return;

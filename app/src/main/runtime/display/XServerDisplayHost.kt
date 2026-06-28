@@ -338,6 +338,7 @@ private fun XServerDisplayHost(
                         paneNavSignal = stateHolder.paneNavSignal,
                         paneNavDir = stateHolder.paneNavDir,
                         controllerActive = stateHolder.controllerConnected,
+                        onOverlayCloserChange = { stateHolder.paneOverlayCloser = it },
                     )
                 }
             }
