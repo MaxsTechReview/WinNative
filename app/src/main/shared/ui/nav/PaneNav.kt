@@ -56,6 +56,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var onEdgeLeft: (() -> Unit)? = null
     var onEdgeUp: (() -> Unit)? = null
     var onEdgeDown: (() -> Unit)? = null
+    var singleRow = false
     var activeRow by mutableStateOf(0)
         private set
     var activeCol by mutableStateOf(0)
@@ -119,6 +120,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
 
     val rows: List<List<Int>>
         get() {
+            if (singleRow) return if (items.isEmpty()) emptyList() else listOf(items.keys.sorted())
             val sorted = items.entries.sortedWith(compareBy({ it.value.y + it.value.h / 2f }, { it.value.x }))
             val result = mutableListOf<MutableList<Int>>()
             var prevCenterY = Float.NaN

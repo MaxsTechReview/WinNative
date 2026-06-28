@@ -600,7 +600,7 @@ object DirectoryPickerDialog {
         val contentRegistry = remember { PaneNavRegistry() }
         val menuRegistry = remember { PaneNavRegistry() }
         val rootsRegistry = remember { PaneNavRegistry() }
-        val footerRegistry = remember { PaneNavRegistry() }
+        val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
         var footerZone by remember { mutableStateOf(false) }
         val gridState = rememberLazyGridState()
         var gridViewportTop by remember { mutableStateOf(0f) }
@@ -625,7 +625,9 @@ object DirectoryPickerDialog {
         LaunchedEffect(rootsExpanded) { if (rootsExpanded) rootsRegistry.reset() }
         contentRegistry.onEdgeDown = {
             if (gridState.canScrollForward) {
-                scope.launch { gridState.animateScrollBy(gridViewportHeight * 0.6f) }
+                val b = contentRegistry.activeItemBounds()
+                val step = if (b != null) (b.second - b.first) + with(density) { 6.dp.toPx() } else gridViewportHeight * 0.3f
+                scope.launch { gridState.animateScrollBy(step) }
             } else {
                 footerZone = true
                 contentRegistry.controllerActive = false
