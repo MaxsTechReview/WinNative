@@ -40,9 +40,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -77,6 +79,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -89,6 +92,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -595,9 +600,44 @@ object DirectoryPickerDialog {
         val contentRegistry = remember { PaneNavRegistry() }
         val menuRegistry = remember { PaneNavRegistry() }
         val rootsRegistry = remember { PaneNavRegistry() }
-        LaunchedEffect(currentDir.absolutePath) { contentRegistry.reset() }
+        val footerRegistry = remember { PaneNavRegistry() }
+        var footerZone by remember { mutableStateOf(false) }
+        val gridState = rememberLazyGridState()
+        var gridViewportTop by remember { mutableStateOf(0f) }
+        var gridViewportHeight by remember { mutableIntStateOf(0) }
+        LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, gridViewportHeight, footerZone) {
+            if (footerZone || !contentRegistry.controllerActive) return@LaunchedEffect
+            val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
+            val margin = with(density) { 16.dp.toPx() }
+            val vpBottom = gridViewportTop + gridViewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < gridViewportTop -> bounds.first - margin - gridViewportTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
+        }
+        LaunchedEffect(currentDir.absolutePath) {
+            contentRegistry.reset()
+            footerZone = false
+        }
         LaunchedEffect(menuTarget) { if (menuTarget != null) menuRegistry.reset() }
         LaunchedEffect(rootsExpanded) { if (rootsExpanded) rootsRegistry.reset() }
+        contentRegistry.onEdgeDown = {
+            if (gridState.canScrollForward) {
+                scope.launch { gridState.animateScrollBy(gridViewportHeight * 0.6f) }
+            } else {
+                footerZone = true
+                contentRegistry.controllerActive = false
+                footerRegistry.controllerActive = true
+                footerRegistry.reset()
+            }
+        }
+        footerRegistry.onEdgeUp = {
+            footerZone = false
+            footerRegistry.controllerActive = false
+            contentRegistry.controllerActive = true
+        }
         val handlers =
             remember(window) {
                 paneNavHandlers(
@@ -634,6 +674,7 @@ object DirectoryPickerDialog {
                             rootsExpanded -> rootsRegistry
                             renameTarget != null || showNewFolder || deleteTarget != null ||
                                 runTarget != null || transferProgress != null -> null
+                            footerZone -> footerRegistry
                             else -> contentRegistry
                         }
                     },
@@ -750,6 +791,10 @@ object DirectoryPickerDialog {
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(BgDark)
                                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                .onGloballyPositioned {
+                                    gridViewportTop = it.positionInWindow().y
+                                    gridViewportHeight = it.size.height
+                                }
                                 .padding(horizontal = FolderGridCardPadding, vertical = FolderGridCardPadding),
                     ) {
                         if (entries.isEmpty()) {
@@ -765,6 +810,7 @@ object DirectoryPickerDialog {
                             }
                         } else {
                             LazyVerticalGrid(
+                                state = gridState,
                                 modifier = Modifier.fillMaxWidth(),
                                 columns = GridCells.Adaptive(minSize = folderGridMinSize),
                                 contentPadding = PaddingValues(2.dp),
@@ -814,6 +860,7 @@ object DirectoryPickerDialog {
                     Spacer(Modifier.height(10.dp))
 
                     if (manage) {
+                        CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -855,6 +902,7 @@ object DirectoryPickerDialog {
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
+                        }
                         }
                         return@Column
                     }
@@ -899,6 +947,7 @@ object DirectoryPickerDialog {
                         }
                     }
 
+                    CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -911,6 +960,7 @@ object DirectoryPickerDialog {
                         )
                         rootSelector(Modifier.widthIn(min = 158.dp, max = 182.dp))
                         footerActions()
+                    }
                     }
                 }
             }

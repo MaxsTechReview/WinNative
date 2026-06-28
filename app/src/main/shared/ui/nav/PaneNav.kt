@@ -54,6 +54,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     private var lastSignal = initialSignal
     var controllerActive by mutableStateOf(false)
     var onEdgeLeft: (() -> Unit)? = null
+    var onEdgeUp: (() -> Unit)? = null
+    var onEdgeDown: (() -> Unit)? = null
     var activeRow by mutableStateOf(0)
         private set
     var activeCol by mutableStateOf(0)
@@ -198,8 +200,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         var row = activeRow.coerceIn(0, r.size - 1)
         var col = activeCol.coerceIn(0, r[row].size - 1)
         when (dir) {
-            PANE_DIR_UP -> if (row > 0) { row--; col = col.coerceAtMost(r[row].size - 1) }
-            PANE_DIR_DOWN -> if (row < r.size - 1) { row++; col = col.coerceAtMost(r[row].size - 1) }
+            PANE_DIR_UP -> if (row > 0) { row--; col = col.coerceAtMost(r[row].size - 1) } else onEdgeUp?.invoke()
+            PANE_DIR_DOWN -> if (row < r.size - 1) { row++; col = col.coerceAtMost(r[row].size - 1) } else onEdgeDown?.invoke()
             PANE_DIR_LEFT ->
                 if (r[row].size <= 1) {
                     val adjust = items[r[row][0]]?.onAdjust
