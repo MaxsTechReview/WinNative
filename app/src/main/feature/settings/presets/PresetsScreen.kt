@@ -95,7 +95,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
@@ -1259,11 +1261,13 @@ private fun DialogActionButton(
     label: String,
     textColor: Color,
     onClick: () -> Unit,
+    isEntry: Boolean = false,
 ) {
     Box(
         modifier =
             Modifier
                 .clip(RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
                 .background(CardDarker)
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onClick)
@@ -1291,6 +1295,14 @@ private fun PromptDialog(
 ) {
     var text by remember { mutableStateOf(initialValue) }
     val focusManager = LocalFocusManager.current
+    val registry = remember { PaneNavRegistry() }
+    val doConfirm = {
+        val trimmed = text.trim()
+        if (trimmed.isNotEmpty()) {
+            focusManager.clearFocus()
+            onConfirm(trimmed)
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1300,6 +1312,8 @@ private fun PromptDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+        DialogPaneNav(registry, onDismiss = onDismiss, onStart = doConfirm)
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -1384,17 +1398,13 @@ private fun PromptDialog(
                         DialogActionButton(
                             label = confirmLabel,
                             textColor = Accent,
-                            onClick = {
-                                val trimmed = text.trim()
-                                if (trimmed.isNotEmpty()) {
-                                    focusManager.clearFocus()
-                                    onConfirm(trimmed)
-                                }
-                            },
+                            onClick = doConfirm,
+                            isEntry = true,
                         )
                     }
                 }
             }
+        }
         }
     }
 }

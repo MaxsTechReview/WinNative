@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -352,7 +354,7 @@ private fun ComponentList(
 ) {
     val grouped = items.groupBy { it.category }
     val nav = LocalPaneNav.current
-    val listState = rememberLazyListState()
+    val scrollState = rememberScrollState()
     val density = LocalDensity.current
     var viewportTop by remember { mutableStateOf(0f) }
     var viewportHeight by remember { mutableIntStateOf(0) }
@@ -368,11 +370,10 @@ private fun ComponentList(
                 bounds.first - margin < vpTop -> bounds.first - margin - vpTop
                 else -> 0f
             }
-            if (delta != 0f) runCatching { listState.animateScrollBy(delta) }
+            if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
         }
     }
-    LazyColumn(
-        state = listState,
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
@@ -386,11 +387,16 @@ private fun ComponentList(
                         Modifier
                     },
                 ),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        grouped.forEach { (category, group) ->
-            item(key = "h_$category") {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            grouped.forEach { (category, group) ->
                 Text(
                     text = category.uppercase(),
                     color = SheetTextSecondary,
@@ -399,15 +405,14 @@ private fun ComponentList(
                     letterSpacing = 1.2.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
                 )
-            }
-            items(group.size, key = { group[it].manifest }) { idx ->
-                val component = group[idx]
-                ComponentRow(
-                    item = component,
-                    status = installStates[component.name],
-                    onInstall = onInstall,
-                    isEntry = category == grouped.keys.first() && idx == 0,
-                )
+                group.forEachIndexed { idx, component ->
+                    ComponentRow(
+                        item = component,
+                        status = installStates[component.name],
+                        onInstall = onInstall,
+                        isEntry = category == grouped.keys.first() && idx == 0,
+                    )
+                }
             }
         }
     }
