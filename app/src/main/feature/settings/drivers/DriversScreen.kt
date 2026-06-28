@@ -1206,7 +1206,7 @@ private fun DialogActionButton(
             )
         } else {
             Modifier
-                .controllerFocusGlow(cornerRadius = 8.dp)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, highlightColor = NavHighlight)
                 .noRippleClickable(onClick = onClick)
         }
     Box(

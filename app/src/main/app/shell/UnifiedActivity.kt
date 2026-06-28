@@ -4066,7 +4066,11 @@ class UnifiedActivity :
                         isUninstalling = true
                         onConfirm()
                     },
-                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { isUninstalling = true; onConfirm() },
+                        isEntry = true,
+                    ),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -4080,7 +4084,7 @@ class UnifiedActivity :
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = onCancel,
-                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
+                    modifier = Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onCancel),
                 ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
@@ -4119,7 +4123,11 @@ class UnifiedActivity :
                         isRemoving = true
                         onConfirm()
                     },
-                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { isRemoving = true; onConfirm() },
+                        isEntry = true,
+                    ),
                     border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
@@ -4133,7 +4141,7 @@ class UnifiedActivity :
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = onCancel,
-                    modifier = Modifier.controllerFocusGlow(cornerRadius = 8.dp),
+                    modifier = Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onCancel),
                 ) {
                     Text(stringResource(R.string.common_ui_cancel), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }

@@ -924,7 +924,7 @@ private fun InputDialogButton(
                 )
             else ->
                 Modifier
-                    .controllerFocusGlow(cornerRadius = 10.dp)
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

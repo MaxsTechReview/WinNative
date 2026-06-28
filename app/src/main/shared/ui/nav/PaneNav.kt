@@ -57,6 +57,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var onEdgeUp: (() -> Unit)? = null
     var onEdgeDown: (() -> Unit)? = null
     var singleRow = false
+    var overlay: PaneNavRegistry? = null
+    var overlayClose: (() -> Unit)? = null
     var activeRow by mutableStateOf(0)
         private set
     var activeCol by mutableStateOf(0)
@@ -193,6 +195,11 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
 
     private fun handleNav(dir: Int) {
         pendingEntry = false
+        overlay?.let { ov ->
+            ov.controllerActive = true
+            ov.handleNav(dir)
+            return
+        }
         if (explicitGrid) {
             explicitHandleNav(dir)
             return

@@ -1492,7 +1492,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             PaneNavWindowHandlers(
                 onDir = { nav.dpad(it) },
                 onActivate = { nav.dpad(PANE_DIR_ACTIVATE) },
-                onDismiss = { dialog.dismiss() },
+                onDismiss = { if (nav.onContentBack?.invoke() != true) dialog.dismiss() },
                 onStart = { if (state.isLoaded.value) saveSettings() },
             )
         )

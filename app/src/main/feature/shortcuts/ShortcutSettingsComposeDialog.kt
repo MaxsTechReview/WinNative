@@ -2294,7 +2294,7 @@ class ShortcutSettingsComposeDialog private constructor(
             PaneNavWindowHandlers(
                 onDir = { nav.dpad(it) },
                 onActivate = { nav.dpad(PANE_DIR_ACTIVATE) },
-                onDismiss = { dialog.dismiss() },
+                onDismiss = { if (nav.onContentBack?.invoke() != true) dialog.dismiss() },
                 onStart = { nav.onSave?.invoke() },
             )
         )
