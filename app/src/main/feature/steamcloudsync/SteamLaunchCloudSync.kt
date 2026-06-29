@@ -143,7 +143,13 @@ object SteamLaunchCloudSync {
         activity.runOnUiThread { lifecycle?.removeObserver(cancelObserver) }
 
         if (keepBackup && useCloud) {
+            // "Use Cloud" overwrites the LOCAL save — snapshot it first.
             backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
+        }
+        if (keepBackup && !useCloud) {
+            // "Use Local" overwrites the CLOUD save (potentially newer progress from another
+            // device). Steam keeps no server-side history, so capture the cloud copy first.
+            backupDiscardedCloudSave(activity, shortcut)
         }
         val preferredSave = if (useCloud) SaveLocation.Remote else SaveLocation.Local
         statusSink.show(
@@ -181,6 +187,34 @@ object SteamLaunchCloudSync {
             Timber.tag("SteamLaunchCloudSync").i("Discarded Steam save backup: %s", result.message)
         } catch (e: Exception) {
             Timber.tag("SteamLaunchCloudSync").w(e, "Failed to back up discarded Steam save")
+        }
+    }
+
+    /**
+     * Capture the current Steam Cloud save before a "Use Local" choice overwrites it. Runs the
+     * non-destructive cloud pre-capture (never touches the live local save). Best-effort.
+     */
+    private fun backupDiscardedCloudSave(
+        activity: Activity,
+        shortcut: Shortcut,
+    ) {
+        val appId = shortcut.getExtra("app_id").takeIf { it.isNotEmpty() }?.toIntOrNull() ?: return
+        try {
+            val captured =
+                runBlocking(Dispatchers.IO) {
+                    SteamSaveSnapshotManager.captureCloudSnapshot(
+                        activity.applicationContext,
+                        appId,
+                        SteamCloudSyncHelper.resolveShortcutContainer(activity, shortcut),
+                    )
+                }
+            Timber.tag("SteamLaunchCloudSync").i(
+                "Cloud save pre-capture before Use-Local for appId=%d: %s",
+                appId,
+                captured,
+            )
+        } catch (e: Exception) {
+            Timber.tag("SteamLaunchCloudSync").w(e, "Failed to capture cloud save before Use-Local")
         }
     }
 }

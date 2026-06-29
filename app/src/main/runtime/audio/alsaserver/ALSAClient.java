@@ -4,6 +4,7 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import com.winlator.cmod.runtime.display.recording.GameRecorder;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.sharedmemory.SysVSharedMemory;
 import java.nio.ByteBuffer;
@@ -232,6 +233,16 @@ public class ALSAClient {
         for (int i = data.position(); i < data.limit(); i++) data.put(i, (byte) 0);
       } else {
         applyAudioProcessing(data);
+      }
+
+      // Tee the post-processed PCM into an active screen recording (a duplicate, no-op when idle).
+      GameRecorder recorder = GameRecorder.active();
+      if (recorder != null) {
+        ByteBuffer tee = data.duplicate();
+        tee.order(data.order());
+        tee.position(0);
+        tee.limit(data.limit());
+        recorder.onPcm(tee, sampleRate, channelCount, getPCMEncoding(dataType));
       }
 
       while (data.position() != data.limit()) {

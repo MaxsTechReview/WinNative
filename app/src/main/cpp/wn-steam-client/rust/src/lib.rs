@@ -10,6 +10,7 @@ pub mod auth_session;
 pub mod authenticator;
 pub mod base64;
 pub mod cdn_client;
+pub mod chat_image;
 pub mod cm_bridge;
 pub mod cm_client;
 pub mod cm_runtime;

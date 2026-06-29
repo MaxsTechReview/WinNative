@@ -1,4 +1,4 @@
-use crate::proto_wire::{Reader, Writer};
+use crate::proto_wire::{Reader, WireType, Writer};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CMsgClientRequestFriendData {
@@ -28,6 +28,8 @@ pub struct PersonaStateFriend {
     pub game_name: String,
     pub gameid: u64,
     pub rich_presence: Vec<(String, String)>,
+    pub has_persona_state: bool,
+    pub has_game: bool,
 }
 
 impl PersonaStateFriend {
@@ -38,17 +40,23 @@ impl PersonaStateFriend {
             let Some(tag) = reader.next_tag() else {
                 return reader.ok().then_some(msg);
             };
-            match tag.field_number {
-                1 => msg.friendid = reader.fixed64()?,
-                2 => msg.persona_state = reader.u32()?,
-                3 => msg.game_played_app_id = reader.u32()?,
-                15 => msg.player_name = reader.string()?,
-                25 => msg
+            match (tag.field_number, tag.wire_type) {
+                (1, WireType::Fixed64) => msg.friendid = reader.fixed64()?,
+                (2, WireType::Varint) => {
+                    msg.persona_state = reader.u32()?;
+                    msg.has_persona_state = true;
+                }
+                (3, WireType::Varint) => {
+                    msg.game_played_app_id = reader.u32()?;
+                    msg.has_game = true;
+                }
+                (15, WireType::LengthDelimited) => msg.player_name = reader.string()?,
+                (25, WireType::LengthDelimited) => msg
                     .rich_presence
                     .push(parse_kv_submessage(reader.bytes()?)?),
-                31 => msg.avatar_hash = reader.bytes()?.to_vec(),
-                55 => msg.game_name = reader.string()?,
-                56 => msg.gameid = reader.fixed64()?,
+                (31, WireType::LengthDelimited) => msg.avatar_hash = reader.bytes()?.to_vec(),
+                (55, WireType::LengthDelimited) => msg.game_name = reader.string()?,
+                (56, WireType::Fixed64) => msg.gameid = reader.fixed64()?,
                 _ => {
                     if !reader.skip(tag.wire_type) {
                         return None;
@@ -83,6 +91,7 @@ fn parse_kv_submessage(body: &[u8]) -> Option<(String, String)> {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CMsgClientPersonaState {
+    pub status_flags: u32,
     pub friends: Vec<PersonaStateFriend>,
 }
 
@@ -95,6 +104,7 @@ impl CMsgClientPersonaState {
                 return reader.ok().then_some(msg);
             };
             match tag.field_number {
+                1 => msg.status_flags = reader.u32()?,
                 2 => msg
                     .friends
                     .push(PersonaStateFriend::deserialize(reader.bytes()?)?),
@@ -146,5 +156,29 @@ mod tests {
         assert_eq!(friend.rich_presence[0], ("status".into(), "Playing".into()));
         assert_eq!(friend.avatar_hash, [1, 2, 3]);
         assert_eq!(friend.game_name, "Team Fortress 2");
+        assert!(friend.has_persona_state);
+        assert!(friend.has_game);
+    }
+
+    #[test]
+    fn stateful_push_with_field25_as_fixed64_still_parses() {
+        // Live persona pushes carry field 25 as a fixed64, not the rich-presence submessage.
+        let mut friend = Vec::new();
+        {
+            let mut w = Writer::new(&mut friend);
+            w.fixed64_field(1, 77);
+            w.uint32_field(2, 1);
+            w.fixed64_field(25, 0);
+            w.string_field(15, "Online Friend");
+        }
+        let mut body = Vec::new();
+        Writer::new(&mut body).submessage_field(2, &friend);
+
+        let parsed = CMsgClientPersonaState::deserialize(&body).unwrap();
+        let friend = &parsed.friends[0];
+        assert_eq!(friend.friendid, 77);
+        assert_eq!(friend.persona_state, 1);
+        assert!(friend.has_persona_state);
+        assert_eq!(friend.player_name, "Online Friend");
     }
 }

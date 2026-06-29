@@ -93,7 +93,7 @@ public abstract class AppUtils {
   }
 
   public static void restartApplication(Context context, int selectedMenuItemId) {
-    AppTerminationHelper.stopManagedServices(context, "restart_application");
+    AppTerminationHelper.stopManagedServices(context, "restart_application", true);
     Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
     Intent mainIntent = Intent.makeRestartActivityTask(intent.getComponent());
     if (selectedMenuItemId > 0) mainIntent.putExtra("selected_menu_item_id", selectedMenuItemId);
