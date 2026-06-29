@@ -158,10 +158,12 @@ typedef void (*pfn_ASurfaceTransaction_setOnComplete)(struct ASurfaceTransaction
 static pfn_ASurfaceTransaction_setOnComplete g_tx_set_on_complete = NULL;
 static bool g_has_on_complete = false;
 
-// === IN-FLIGHT TRANSACTION TRACKING (declared before on_transaction_complete) ===
+// === ATOMIC SUBMISSION GATE ===
 static pthread_mutex_t g_inflight_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_inflight_cv    = PTHREAD_COND_INITIALIZER;
 static int g_inflight_count = 0;
+// Atomic flag: true while a transaction is pending in SF's pipeline.
+static volatile bool g_transaction_pending = false;
 
 static void inflight_increment(void) {
     pthread_mutex_lock(&g_inflight_mutex);
@@ -172,14 +174,36 @@ static void inflight_increment(void) {
 static void inflight_decrement(void) {
     pthread_mutex_lock(&g_inflight_mutex);
     if (g_inflight_count > 0) g_inflight_count--;
-    if (g_inflight_count == 0) pthread_cond_broadcast(&g_inflight_cv);
+    if (g_inflight_count == 0) {
+        g_transaction_pending = false;
+        pthread_cond_broadcast(&g_inflight_cv);
+    }
     pthread_mutex_unlock(&g_inflight_mutex);
 }
 
-// Called by SurfaceFlinger on its binder thread when the transaction completes.
+// SF binder thread callback: flips the atomic gate back to false.
 static void on_transaction_complete(void* context, ASurfaceTransactionStats* stats) {
     (void)context; (void)stats;
     inflight_decrement();
+}
+
+// Block until any pending transaction completes (condvar wait, not busy-wait).
+static void wait_for_transaction_gate(long timeout_ms) {
+    if (!g_transaction_pending) return;
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    int64_t add_ns = (int64_t)timeout_ms * 1000000L;
+    deadline.tv_sec += (time_t)(add_ns / 1000000000L);
+    deadline.tv_nsec += (long)(add_ns % 1000000000L);
+    if (deadline.tv_nsec >= 1000000000L) { deadline.tv_nsec -= 1000000000L; deadline.tv_sec += 1; }
+    pthread_mutex_lock(&g_inflight_mutex);
+    while (g_transaction_pending) {
+        if (pthread_cond_timedwait(&g_inflight_cv, &g_inflight_mutex, &deadline) == ETIMEDOUT) {
+            g_transaction_pending = false; // force-clear on timeout to prevent deadlock
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_inflight_mutex);
 }
 
 // JNI: nativeWaitForPreviousFrame — blocks render thread until SF finishes (hardware signal, no CPU polling).
@@ -530,15 +554,16 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
     // Show the layer (atomic with setBuffer — avoids blank-frame race).
     g_tx_set_visibility(tx, sc, DC_VISIBILITY_SHOW);
 
-    // Hardware fence sync: OnComplete callback fires on SF's thread when buffer is on display.
-    inflight_increment();
+    // Atomic submission gate: block if a previous transaction is still in SF's pipeline.
+    // The render thread sleeps on a condvar until on_transaction_complete fires (hardware signal).
     if (g_has_on_complete) {
+        wait_for_transaction_gate(17); // ~60Hz budget; condvar wait, not busy-spin
         g_tx_set_on_complete(tx, NULL, on_transaction_complete);
+        g_transaction_pending = true;
+        inflight_increment();
         g_tx_apply(tx);
-        // Callback will decrement — render thread sleeps via nativeWaitForPreviousFrame.
     } else {
         g_tx_apply(tx);
-        inflight_decrement();
     }
     g_tx_delete(tx);
 

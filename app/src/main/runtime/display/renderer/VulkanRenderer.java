@@ -685,14 +685,6 @@ public class VulkanRenderer
                 return true;
             }
 
-            // Hardware pacing: wait for SF to finish the previous frame (hardware signal, no CPU spin).
-            if (dcLastPushedAhb != 0L) {
-                if (!dcTarget.nativeWaitForPreviousFrame(17L)) {
-                    // SF didn't finish in 17ms (~60Hz budget) — discard this frame to avoid backlog.
-                    drainFenceFd(scanoutSource);
-                    return true;
-                }
-            }
             int fenceFd = scanoutSource.takeAcquireFenceFd();
             boolean ok = dcTarget.pushBuffer(ahbPtr, 0, 0,
                     surfaceWidth, surfaceHeight, fenceFd, /*opaque=*/true);
