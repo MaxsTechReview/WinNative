@@ -8207,6 +8207,9 @@ class SteamService : Service() {
         if (!suspendedForBackground) return
         suspendedForBackground = false
         Timber.i("App foregrounded — waking the WN-Steam-Client session")
+        runCatching {
+            startForeground(1, notificationHelper.createForegroundNotification("Steam Service is running"))
+        }.onFailure { Timber.w(it, "Failed to restore SteamService foreground state on foreground") }
         retryAttempt = 0
         if (isRunning && !isStopping && PrefManager.refreshToken.isNotBlank()) {
             runCatching {
@@ -8224,12 +8227,12 @@ class SteamService : Service() {
     }
 
     /**
-     * Arm (or re-arm) the background idle timer. After [BACKGROUND_IDLE_GRACE_MS]
-     * of the app staying backgrounded, [maybeSuspendForBackground] decides
-     * whether the Steam session may sleep. If a connection-critical operation
-     * is still running at that point the check simply repeats once per grace
-     * interval until the work finishes — so nothing has to hook every
-     * operation's completion. A foreground event cancels this timer.
+     * Arm the background suspend check. On minimize [maybeSuspendForBackground]
+     * runs immediately so the session sleeps and the notification clears right
+     * away. If a connection-critical operation is still running the check
+     * repeats once per [BACKGROUND_IDLE_GRACE_MS] until the work finishes — so
+     * nothing has to hook every operation's completion. A foreground event
+     * cancels this timer.
      */
     private fun scheduleBackgroundSuspendCheck() {
         backgroundIdleJob?.cancel()
@@ -8237,12 +8240,12 @@ class SteamService : Service() {
         backgroundIdleJob =
             scope.launch {
                 while (isActive) {
-                    delay(BACKGROUND_IDLE_GRACE_MS)
                     if (appInForeground || isStopping || isLoggingOut || suspendedForBackground) {
                         return@launch
                     }
                     // Suspended → done. Still busy → loop and re-check later.
                     if (maybeSuspendForBackground()) return@launch
+                    delay(BACKGROUND_IDLE_GRACE_MS)
                 }
             }
     }
@@ -8289,6 +8292,12 @@ class SteamService : Service() {
         picsGetProductInfoJob?.cancel()
         messagePollerJob?.cancel()
         wnSession?.let { s -> runCatching { s.disconnect() } }
+        scope.launch(Dispatchers.Main) {
+            runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+                .onFailure { Timber.w(it, "Failed to remove SteamService foreground state on background suspend") }
+            runCatching { notificationHelper.cancel() }
+                .onFailure { Timber.w(it, "Failed to cancel SteamService notification on background suspend") }
+        }
         return true
     }
 
