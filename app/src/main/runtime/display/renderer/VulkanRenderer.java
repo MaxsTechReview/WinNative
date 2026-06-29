@@ -97,14 +97,14 @@ public class VulkanRenderer
     // work when nothing changed. DRI3 allocates a fresh GPUImage per Present
     // cycle, so AHB-pointer identity is a sufficient "dirty" check.
     // Render-thread-only — no synchronization needed.
-    private long dcLastPushedAhb = 0L;
-    private int dcLastPushedW = 0;
-    private int dcLastPushedH = 0;
+    private volatile long dcLastPushedAhb = 0L;
+    private volatile int dcLastPushedW = 0;
+    private volatile int dcLastPushedH = 0;
 
     // Consecutive pushBuffer == false returns. After enough failures the
     // renderer detaches itself from the SC layer to avoid wasting JNI calls
     // every frame on a permanent failure. Render-thread-only.
-    private int dcConsecutiveFailures = 0;
+    private volatile int dcConsecutiveFailures = 0;
     private static final int DC_FAIL_LIMIT = 8;
 
     // True when the most recent frame successfully pushed an AHB to the SC,
@@ -697,16 +697,18 @@ public class VulkanRenderer
         if (dcTarget == null) return false;
         if (surfaceWidth <= 0 || surfaceHeight <= 0) return false;
 
-        // Force fallback to VulkanRenderer composition when an in-process
-        // overlay needs to be visible on top of the game frame. The SC layer
-        // at z=1 covers the VulkanRenderer's output at z=0, so anything we
-        // composite via VulkanRenderer (magnifier UI, debug HUDs, cursor)
-        // would otherwise be invisible.
+        // Force fallback to VulkanRenderer composition when the magnifier UI is
+        // active — the z=1 SC layer would otherwise cover it.
         if (magnifierUIActive) {
             return false;
         }
         // No fullscreen candidate — fall back to VulkanRenderer.
         if (directCandidate == null) {
+            return false;
+        }
+        // Only direct-scan a screen-covering window (don't stretch a sub-window fullscreen).
+        if (Short.toUnsignedInt(directCandidate.width) < xServer.screenInfo.width
+                || Short.toUnsignedInt(directCandidate.height) < xServer.screenInfo.height) {
             return false;
         }
 
@@ -766,7 +768,7 @@ public class VulkanRenderer
 
             int fenceFd = scanoutSource.takeAcquireFenceFd();
             boolean ok = dcTarget.pushBuffer(ahbPtr, 0, 0,
-                    surfaceWidth, surfaceHeight, fenceFd, /*opaque=*/true);
+                    surfaceWidth, surfaceHeight, fenceFd, /*opaque=*/true, /*pace=*/true);
             if (ok) {
                 dcLastPushedAhb = ahbPtr;
                 dcLastPushedW = surfaceWidth;
@@ -854,8 +856,9 @@ public class VulkanRenderer
     public void setDirectCompositionTarget(
             com.winlator.cmod.runtime.display.composition.DirectCompositionLayer layer) {
         // Hide old layer before swapping to prevent stale frame on screen.
-        if (dcLayerActive && directCompositionTarget != null) {
-            directCompositionTarget.hide();
+        com.winlator.cmod.runtime.display.composition.DirectCompositionLayer old = directCompositionTarget;
+        if (dcLayerActive && old != null) {
+            old.hide();
         }
         this.directCompositionTarget = layer;
         dcLastPushedAhb = 0L;
@@ -907,9 +910,12 @@ public class VulkanRenderer
     public void onUpdateWindowContent(Window window) {
         contentDirty = true;
         // Event-driven DC: try to push AHB directly from this callback.
-        if (directCompositionTarget != null) {
+        final com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dc = directCompositionTarget;
+        if (dc != null) {
             Drawable content = window.getContent();
-            if (content != null) {
+            if (content != null
+                    && Short.toUnsignedInt(content.width) >= xServer.screenInfo.width
+                    && Short.toUnsignedInt(content.height) >= xServer.screenInfo.height) {
                 synchronized (content.renderLock) {
                     Drawable ss = content.getScanoutSource();
                     if (ss == null) ss = content;
@@ -918,7 +924,7 @@ public class VulkanRenderer
                         long ahbPtr = ((GPUImage) tex).getHardwareBufferPtr();
                         if (ahbPtr != 0 && (ahbPtr != dcLastPushedAhb || surfaceWidth != dcLastPushedW || surfaceHeight != dcLastPushedH)) {
                             int fenceFd = ss.takeAcquireFenceFd();
-                            boolean ok = directCompositionTarget.pushBuffer(ahbPtr, 0, 0, surfaceWidth, surfaceHeight, fenceFd, true);
+                            boolean ok = dc.pushBuffer(ahbPtr, 0, 0, surfaceWidth, surfaceHeight, fenceFd, true, false);
                             if (ok) {
                                 dcLastPushedAhb = ahbPtr;
                                 dcLastPushedW = surfaceWidth;
@@ -940,8 +946,9 @@ public class VulkanRenderer
     public void onUpdateWindowGeometry(final Window window, boolean resized) {
         if (resized) {
             // Graphics preset change: flush DC state, invalidate cache, force re-evaluation.
-            if (dcLayerActive && directCompositionTarget != null) {
-                directCompositionTarget.hide();
+            com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcGeom = directCompositionTarget;
+            if (dcLayerActive && dcGeom != null) {
+                dcGeom.hide();
                 dcLayerActive = false;
                 notifyDirectCompositionStateListener();
             }

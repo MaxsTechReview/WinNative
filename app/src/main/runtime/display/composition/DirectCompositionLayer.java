@@ -100,7 +100,7 @@ public final class DirectCompositionLayer {
      */
     public synchronized boolean pushBuffer(long ahbPtr, int dstX, int dstY,
                                             int dstW, int dstH,
-                                            int acquireFenceFd, boolean opaque) {
+                                            int acquireFenceFd, boolean opaque, boolean pace) {
         if (!attached || nativeSc == 0) {
             if (acquireFenceFd >= 0) {
                 try { android.os.ParcelFileDescriptor.adoptFd(acquireFenceFd).close(); }
@@ -109,7 +109,7 @@ public final class DirectCompositionLayer {
             return false;
         }
         return nativePushBuffer(nativeSc, ahbPtr, dstX, dstY, dstW, dstH,
-                                acquireFenceFd, opaque);
+                                acquireFenceFd, opaque, pace);
     }
 
     /**
@@ -154,7 +154,7 @@ public final class DirectCompositionLayer {
     private native boolean nativePushBuffer(long scPtr, long ahbPtr,
                                              int dstX, int dstY,
                                              int dstW, int dstH,
-                                             int acquireFenceFd, boolean opaque);
+                                             int acquireFenceFd, boolean opaque, boolean pace);
 
     // Blocks until SF finishes the previous frame (hardware signal, no CPU polling).
     public native boolean nativeWaitForPreviousFrame(long timeoutMs);

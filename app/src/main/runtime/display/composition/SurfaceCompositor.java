@@ -110,23 +110,16 @@ public final class SurfaceCompositor {
     }
 
     /**
-     * Device-family soft-boot blocklist. Returns true for device families
-     * where ASurfaceControl is known to cause device reboots.
-     *
-     * Blocked:
-     *   - Xiaomi + Android 14+ (HyperOS 2.0+) — Flutter disabled SC entirely.
-     *   - Adreno 6xx (619, 642L, etc.) — Winlator reboot reports.
-     *
-     * Warned only (returns false, but logs a warning):
-     *   - Samsung OneUI 4.1+ (Android 12+) — PSPlay-class reboot reports,
-     *     less reproducible.
+     * Device-family soft-boot blocklist. Returns true only for families with a
+     * confirmed device-reboot signature. Unknown hardware is not statically
+     * blocked here — Direct Composition is a manual per-container toggle and the
+     * consecutive-failure self-detach handles runtime push failures.
      */
     private static boolean isBlocklisted() {
         String manufacturer = Build.MANUFACTURER != null
                 ? Build.MANUFACTURER.toLowerCase() : "";
 
-        // Xiaomi / HyperOS 2.0+ on Android 14+ — Flutter had to disable SC
-        // entirely. We block to avoid the same fate.
+        // Xiaomi / HyperOS 2.0+ on Android 14+ — known SurfaceFlinger crash.
         // https://github.com/flutter/flutter/issues/160025
         if (manufacturer.contains("xiaomi") && Build.VERSION.SDK_INT >= 34) {
             Log.w(TAG, "Direct Composition BLOCKED on Xiaomi/HyperOS (Android 14+) — "
@@ -135,26 +128,10 @@ public final class SurfaceCompositor {
             return true;
         }
 
-        // Adreno 6xx — older qdgralloc panics on certain AHB usage combos.
-        // We can't read the GPU model directly without EGL/Vulkan init, so we
-        // rely on the GL_RENDERER string if it's been populated. This is
-        // conservative — if we can't tell, we don't block.
-        String glRenderer = System.getProperty("ro.hardware.egl", "");
-        // The ro.hardware.egl property is "mali", "adreno", etc. For Adreno
-        // we'd need to check ro.hardware.chipname or similar. Since we can't
-        // reliably detect Adreno 6xx here, we skip this check and rely on the
-        // runtime failure path (pushBuffer returns false → self-detach after
-        // DC_FAIL_LIMIT). This is safer than false-positive blocking.
-        // (If reboot reports concentrate on a specific Adreno 6xx device,
-        // add it here by model name:)
-
-        // Samsung OneUI 4.1+ on Android 12+ — warn but allow. The crash is
-        // less reproducible than Xiaomi's.
+        // Samsung OneUI on Android 12+ — rare reboot reports; warn but allow.
         if (manufacturer.contains("samsung") && Build.VERSION.SDK_INT >= 31) {
             Log.w(TAG, "Direct Composition WARNING on Samsung OneUI (Android 12+) — "
-                    + "rare reboot reports exist (PSPlay-class). "
-                    + "Proceeding; disable the toggle if you experience reboots.");
-            // Don't block — just warn.
+                    + "rare reboot reports exist. Disable the toggle if you experience reboots.");
         }
 
         return false;

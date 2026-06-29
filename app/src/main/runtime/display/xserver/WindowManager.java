@@ -481,7 +481,11 @@ public class WindowManager extends XResourceManager {
   protected void triggerOnUpdateWindowContent(Window window) {
     synchronized (onWindowModificationListeners) {
       for (int i = onWindowModificationListeners.size() - 1; i >= 0; i--) {
-        onWindowModificationListeners.get(i).onUpdateWindowContent(window);
+        try {
+          onWindowModificationListeners.get(i).onUpdateWindowContent(window);
+        } catch (Throwable t) {
+          Log.e("WindowManager", "onUpdateWindowContent listener threw", t);
+        }
       }
     }
   }

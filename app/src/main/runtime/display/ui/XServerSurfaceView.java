@@ -263,10 +263,14 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                     }
 
                     if (renderMode == RENDERMODE_CONTINUOUSLY) {
-                        draw = true;
-                        transientRenderRequested = false;
-                        nextContinuousFrameNs = 0;
-                        break;
+                        if (nextContinuousFrameNs == 0 || now >= nextContinuousFrameNs) {
+                            draw = true;
+                            transientRenderRequested = false;
+                            nextContinuousFrameNs = now + TRANSIENT_FRAME_INTERVAL_NS;
+                            break;
+                        }
+                        waitNanosLocked(nextContinuousFrameNs - now);
+                        continue;
                     }
 
                     if (transientRenderRequested) {

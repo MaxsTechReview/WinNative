@@ -246,6 +246,9 @@ static bool inflight_wait_all(void) {
         if (pthread_cond_timedwait(&g_inflight_cv, &g_inflight_mutex, &deadline) == ETIMEDOUT) {
             LOGW("inflight_wait_all: timed out with %d in-flight; proceeding with release",
                  g_inflight_count);
+            g_inflight_count = 0;
+            g_transaction_pending = false;
+            pthread_cond_broadcast(&g_inflight_cv);
             ok = false;
             break;
         }
@@ -411,9 +414,16 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
     struct ASurfaceTransaction* tx = g_tx_create();
     if (tx != NULL) {
         g_tx_reparent(tx, sc, NULL);
-        inflight_increment();
-        g_tx_apply(tx);
-        inflight_decrement();
+        if (g_has_on_complete) {
+            g_tx_set_on_complete(tx, NULL, on_transaction_complete);
+            g_transaction_pending = true;
+            inflight_increment();
+            g_tx_apply(tx);
+        } else {
+            inflight_increment();
+            g_tx_apply(tx);
+            inflight_decrement();
+        }
         g_tx_delete(tx);
     }
 
@@ -468,7 +478,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_nativePushBuffer(
     JNIEnv* env, jclass clazz, jlong sc_ptr, jlong ahb_ptr,
     jint dst_x, jint dst_y, jint dst_w, jint dst_h, jint acquire_fence_fd,
-    jboolean opaque) {
+    jboolean opaque, jboolean pace) {
     (void)env;
     (void)clazz;
 
@@ -557,7 +567,7 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
     // Atomic submission gate: block if a previous transaction is still in SF's pipeline.
     // The render thread sleeps on a condvar until on_transaction_complete fires (hardware signal).
     if (g_has_on_complete) {
-        wait_for_transaction_gate(17); // ~60Hz budget; condvar wait, not busy-spin
+        if (pace) wait_for_transaction_gate(17); // ~60Hz budget; condvar wait, not busy-spin
         g_tx_set_on_complete(tx, NULL, on_transaction_complete);
         g_transaction_pending = true;
         inflight_increment();
