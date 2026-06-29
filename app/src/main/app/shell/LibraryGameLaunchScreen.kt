@@ -164,8 +164,8 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // Action icons: Settings, (Achievements), Boot, CloudSync, Shortcut, Delete.
-        val actionIconCount = if (onAchievements != null) 6 else 5
+        // Action icons: Settings, Boot, CloudSync, Shortcut, Delete.
+        val actionIconCount = 5
         val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1)
         val playHeight = 56.dp
         val contentGap = 18.dp
@@ -277,10 +277,12 @@ internal fun LibraryGameLaunchScreen(
                 showVerifyFiles = showVerifyFiles,
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
+                showAchievements = onAchievements != null,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
+                onAchievements = { onAchievements?.invoke() },
             )
         }
 
@@ -389,14 +391,6 @@ internal fun LibraryGameLaunchScreen(
                             size = actionIconSize,
                             onClick = onSettings,
                         )
-                        if (onAchievements != null) {
-                            LaunchIconActionButton(
-                                icon = Icons.Outlined.EmojiEvents,
-                                contentDescription = stringResource(R.string.steam_achievements_title),
-                                size = actionIconSize,
-                                onClick = onAchievements,
-                            )
-                        }
                         LaunchIconActionButton(
                             icon = Icons.Outlined.DesktopWindows,
                             contentDescription = stringResource(R.string.hero_boot_to_desktop_title),
@@ -828,10 +822,12 @@ private fun SourceTag(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
+    showAchievements: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
+    onAchievements: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
@@ -901,6 +897,12 @@ private fun SourceTag(
                         label = stringResource(R.string.store_game_workshop),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onWorkshop() }
+                }
+                if (showAchievements) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.EmojiEvents,
+                        label = stringResource(R.string.steam_achievements_title),
+                    ) { menuOpen = false; onAchievements() }
                 }
             }
         }
