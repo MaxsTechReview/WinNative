@@ -10,18 +10,23 @@ import com.winlator.cmod.app.service.DownloadService
 import com.winlator.cmod.feature.stores.epic.service.EpicService
 import com.winlator.cmod.feature.stores.epic.service.EpicTokenRefreshWorker
 import com.winlator.cmod.feature.stores.gog.service.GOGService
+import com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService
 import com.winlator.cmod.feature.stores.steam.events.AndroidEvent
 import com.winlator.cmod.feature.stores.steam.service.SteamService
+import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import timber.log.Timber
 
 object AppTerminationHelper {
     @JvmStatic
+    @JvmOverloads
     fun stopManagedServices(
         context: Context,
         reason: String,
+        forceStopChat: Boolean = false,
     ) {
         val appContext = context.applicationContext
-        Timber.i("Stopping managed services for app shutdown (%s)", reason)
+        val keepChatAlive = !forceStopChat && PrefManager.chatStayRunningOnExit
+        Timber.i("Stopping managed services for app shutdown (%s), keepChatAlive=%b", reason, keepChatAlive)
 
         // Do NOT call DownloadService.pauseAll() here. The DownloadCoordinator persists every
         // download's status in the records table, so downloads that were DOWNLOADING when the
@@ -38,17 +43,23 @@ object AppTerminationHelper {
         runCatching { EpicTokenRefreshWorker.cancel(appContext) }
             .onFailure { Timber.w(it, "Failed to cancel Epic refresh worker during shutdown") }
 
-        runCatching { PluviaApp.events.emit(AndroidEvent.EndProcess) }
-            .onFailure { Timber.w(it, "Failed to emit EndProcess during shutdown") }
+        if (!keepChatAlive) {
+            runCatching { PluviaApp.events.emit(AndroidEvent.EndProcess) }
+                .onFailure { Timber.w(it, "Failed to emit EndProcess during shutdown") }
 
-        runCatching { SteamService.stop() }
-            .onFailure { Timber.w(it, "Failed to stop SteamService during shutdown") }
+            runCatching { SteamService.stop() }
+                .onFailure { Timber.w(it, "Failed to stop SteamService during shutdown") }
+        }
         runCatching { EpicService.stop() }
             .onFailure { Timber.w(it, "Failed to stop EpicService during shutdown") }
         runCatching { GOGService.stop() }
             .onFailure { Timber.w(it, "Failed to stop GOGService during shutdown") }
 
-        stopServiceSafely<SteamService>(appContext)
+        if (!keepChatAlive) {
+            stopServiceSafely<SteamService>(appContext)
+            runCatching { ChatOverlayService.stop(appContext) }
+                .onFailure { Timber.w(it, "Failed to stop ChatOverlayService during shutdown") }
+        }
         stopServiceSafely<EpicService>(appContext)
         stopServiceSafely<GOGService>(appContext)
     }
@@ -58,12 +69,15 @@ object AppTerminationHelper {
         activity: Activity,
         reason: String,
     ) {
+        val keepChatAlive = PrefManager.chatStayRunningOnExit
         stopManagedServices(activity, reason)
         activity.finishAffinity()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             activity.finishAndRemoveTask()
         }
-        Process.killProcess(Process.myPid())
+        if (!keepChatAlive) {
+            Process.killProcess(Process.myPid())
+        }
     }
 
     private inline fun <reified T> stopServiceSafely(context: Context) {
