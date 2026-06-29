@@ -653,7 +653,7 @@ public class VulkanRenderer
                                     + " sourceH=" + sourceH + ")");
                 }
             }
-            if (!maybePushDirectComposition(directCandidate)) {
+            if (!maybePushDirectComposition(directCandidate, cursorOnscreen)) {
                 maybeHideDirectComposition();
             }
         }
@@ -684,7 +684,7 @@ public class VulkanRenderer
      *         showing a valid prior frame). false = no qualifying candidate
      *         (caller should hide the SC layer).
      */
-    private boolean maybePushDirectComposition(Drawable directCandidate) {
+    private boolean maybePushDirectComposition(Drawable directCandidate, boolean cursorOnscreen) {
         final com.winlator.cmod.runtime.display.composition.DirectCompositionLayer dcTarget =
                 directCompositionTarget;
         if (dcTarget == null) return false;
@@ -698,11 +698,20 @@ public class VulkanRenderer
         if (magnifierUIActive) {
             return false;
         }
+        // Cursor composited at z=0 — fall back so the opaque SC layer doesn't hide it.
+        if (cursorOnscreen) {
+            return false;
+        }
         // No fullscreen candidate — fall back to VulkanRenderer.
         if (directCandidate == null) {
             // Log once when we first see no candidate (diagnostic — helps
             // distinguish "no game window yet" from "game window exists but
             // isn't AHB-backed"). Throttled by dcLayerActive to avoid spam.
+            return false;
+        }
+        // Only direct-scan a screen-covering window (don't stretch a sub-window fullscreen).
+        if (Short.toUnsignedInt(directCandidate.width) < xServer.screenInfo.width
+                || Short.toUnsignedInt(directCandidate.height) < xServer.screenInfo.height) {
             return false;
         }
 
