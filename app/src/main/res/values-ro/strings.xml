@@ -751,6 +751,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mentine captura directa a mouse-ului activata pentru jocuri care necesita intrare bruta de cursor. Dezactiveaza cu Volum Jos.</string>
     <string name="settings_general_xinput_toggle_title">Dezactiveaza XInput</string>
     <string name="settings_general_xinput_toggle_summary">Opreste gestionarea XInput cand doresti control exclusiv cu mouse-ul si tastatura.</string>
+    <string name="settings_external_display_output_summary">Mută jocul pe un afișaj extern conectat în loc să oglindească acest ecran. Ochelarii folosesc întotdeauna propriul afișaj.</string>
     <string name="settings_general_file_provider_summary">Expune fisierele WinNative catre selectoarele de documente si managerii de fisiere Android.</string>
     <string name="settings_general_open_browser_summary">Deschide link-urile web compatibile in browserul Android in loc de Wine.</string>
     <string name="settings_general_clipboard_summary">Permite copierea si lipirea intre Android si sesiunile Wine.</string>

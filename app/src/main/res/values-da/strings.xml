@@ -751,6 +751,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_general_cursor_lock_summary">Holder direkte museopfangning aktiveret for spil der kræver rå markørinput. Deaktiver med Lydstyrke ned.</string>
     <string name="settings_general_xinput_toggle_title">Deaktiver XInput</string>
     <string name="settings_general_xinput_toggle_summary">Slår XInput-håndtering fra når du ønsker eksklusiv mus- og tastaturkontrol.</string>
+    <string name="settings_external_display_output_summary">Flyt spillet til en tilsluttet ekstern skærm i stedet for at spejle denne skærm. Briller bruger altid deres egen skærm.</string>
     <string name="settings_general_file_provider_summary">Gør WinNative-filer tilgængelige for Android-dokumentvælgere og filhåndtering.</string>
     <string name="settings_general_open_browser_summary">Åbn understøttede weblinks i Android-browseren i stedet for inde i Wine.</string>
     <string name="settings_general_clipboard_summary">Tillad kopiering og indsættelse mellem Android og Wine-sessioner.</string>

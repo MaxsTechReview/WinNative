@@ -757,6 +757,7 @@
     <string name="settings_general_cursor_lock_summary">Підтримує пряме захоплення миші для ігор, що потребують необробленого введення вказівника. Вимкніть кнопкою гучності вниз.</string>
     <string name="settings_general_xinput_toggle_title">Вимкнути XInput</string>
     <string name="settings_general_xinput_toggle_summary">Вимикає обробку XInput, коли потрібне ексклюзивне керування мишею та клавіатурою.</string>
+    <string name="settings_external_display_output_summary">Переносить гру на під\'єднаний зовнішній дисплей замість дублювання цього екрана. Окуляри завжди використовують власний дисплей.</string>
     <string name="settings_general_file_provider_summary">Надати доступ до файлів WinNative для засобів вибору документів та файлових менеджерів Android.</string>
     <string name="settings_general_open_browser_summary">Відкривати підтримувані веб-посилання у браузері Android замість Wine.</string>
     <string name="settings_general_clipboard_summary">Дозволити копіювання та вставку між Android та сесіями Wine.</string>

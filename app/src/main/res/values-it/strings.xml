@@ -751,6 +751,7 @@ Ad es. <b>META</b> per il <i>tasto META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantiene la cattura diretta del mouse abilitata per i giochi che necessitano di input raw del puntatore. Disabilitalo con Volume Giù.</string>
     <string name="settings_general_xinput_toggle_title">Disabilita XInput</string>
     <string name="settings_general_xinput_toggle_summary">Disattiva la gestione XInput quando vuoi il controllo esclusivo di mouse e tastiera.</string>
+    <string name="settings_external_display_output_summary">Sposta il gioco su un display esterno collegato invece di duplicare questo schermo. Gli occhiali usano sempre il proprio display.</string>
     <string name="settings_general_file_provider_summary">Esponi i file di WinNative ai selettori di documenti e file manager di Android.</string>
     <string name="settings_general_open_browser_summary">Apri i link web supportati nel browser Android invece che all\'interno di Wine.</string>
     <string name="settings_general_clipboard_summary">Consenti copia e incolla tra Android e le sessioni Wine.</string>

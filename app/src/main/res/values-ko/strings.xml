@@ -751,6 +751,7 @@
     <string name="settings_general_cursor_lock_summary">원시 포인터 입력이 필요한 게임에서 직접 마우스 캡처를 유지합니다. 볼륨 다운으로 비활성화할 수 있습니다.</string>
     <string name="settings_general_xinput_toggle_title">XInput 비활성화</string>
     <string name="settings_general_xinput_toggle_summary">마우스와 키보드만 사용하려는 경우 XInput 처리를 끕니다.</string>
+    <string name="settings_external_display_output_summary">이 화면을 미러링하는 대신 연결된 외부 디스플레이로 게임을 옮깁니다. 안경은 항상 자체 디스플레이를 사용합니다.</string>
     <string name="settings_general_file_provider_summary">Android 문서 선택기 및 파일 관리자에 WinNative 파일을 노출합니다.</string>
     <string name="settings_general_open_browser_summary">지원되는 웹 링크를 Wine 내부 대신 Android 브라우저에서 엽니다.</string>
     <string name="settings_general_clipboard_summary">Android와 Wine 세션 간에 복사 및 붙여넣기를 허용합니다.</string>

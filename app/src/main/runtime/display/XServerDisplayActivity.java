@@ -4018,7 +4018,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     externalDisplayController.isGameModeEnabled(),
                     externalDisplayController.isPanelScaling(),
                     externalDisplayController.getPanelNativeSummary(),
-                    externalDisplayController.hasExternalDisplay());
+                    externalDisplayController.hasExternalDisplay(),
+                    externalDisplayController.isVitureSinkAvailable());
             if (externalDisplayController.isVitureConnected()) {
                 state = XServerDrawerMenuKt.withVitureState(
                         state,
@@ -4302,6 +4303,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     @Override
                     public void onOutputModeChanged(boolean enabled) {
                         if (externalDisplayController == null) return;
+                        // Viture glasses always output regardless of the toggle.
+                        if (externalDisplayController.isVitureSinkAvailable()) return;
                         if (preferences != null) {
                             preferences.edit().putBoolean("external_display_output", enabled).apply();
                         }
@@ -6974,16 +6977,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onExternalDisplayConnected(android.view.Display display) {
                         // Automatic swap: the game shows only on the external display, controls stay on the phone.
                         runOnUiThread(() -> {
-                            if (isFinishing() || isDestroyed() || externalDisplayController == null
-                                    || externalDisplayController.isSwapActive()) return;
+                            if (isFinishing() || isDestroyed() || externalDisplayController == null) return;
                             boolean outputEnabled = preferences != null
                                     && preferences.getBoolean("external_display_output", false);
-                            if (!externalDisplayController.isVitureSinkAvailable() && !outputEnabled) return;
-                            externalDisplayController.enterSwap();
+                            boolean swap = !externalDisplayController.isSwapActive()
+                                    && (externalDisplayController.isVitureSinkAvailable() || outputEnabled);
+                            if (swap) {
+                                externalDisplayController.enterSwap();
+                                android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                        R.string.display_output_swapped_toast,
+                                        android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                            // Re-render even when not swapping so an open Output pane shows the toggle.
                             renderDrawerMenu();
-                            android.widget.Toast.makeText(XServerDisplayActivity.this,
-                                    R.string.display_output_swapped_toast,
-                                    android.widget.Toast.LENGTH_SHORT).show();
                         });
                     }
 
