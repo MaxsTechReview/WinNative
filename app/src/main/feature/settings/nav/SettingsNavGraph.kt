@@ -116,6 +116,7 @@ fun SettingsHost(
         ) {
             SettingsNavSidebar(
                 selectedItem = currentItem,
+                railActive = bridge.zone == SettingsFocusZone.SIDEBAR,
                 onItemSelected = { item ->
                     bridge.zone = SettingsFocusZone.SIDEBAR
                     navigateTo(item)

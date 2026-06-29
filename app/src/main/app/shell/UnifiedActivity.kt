@@ -89,6 +89,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -2365,15 +2366,24 @@ class UnifiedActivity :
                         val addGameFabIconSize = (libraryFabBase * 0.055f).dp.coerceIn(24.dp, 28.dp)
 
                         if (key == "library") {
-                            Box(
+                            Column(
                                 modifier =
                                     Modifier
                                         .align(Alignment.BottomEnd)
                                         .windowInsetsPadding(
                                             WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
                                         )
-                                        .padding(end = addGameFabMargin, bottom = addGameFabMargin)
-                                        .size(addGameFabSize)
+                                        .padding(end = addGameFabMargin, bottom = addGameFabMargin),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                if (isControllerConnected) {
+                                    ControllerBadge("R3")
+                                    Spacer(Modifier.height(8.dp))
+                                }
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(addGameFabSize)
                                         .drawBehind {
                                             drawCircle(
                                                 brush =
@@ -2401,6 +2411,7 @@ class UnifiedActivity :
                                     tint = Accent,
                                     modifier = Modifier.size(addGameFabIconSize),
                                 )
+                                }
                             }
                         }
 
@@ -2720,7 +2731,7 @@ class UnifiedActivity :
             ) {
                 // Center Block: Tabs (absolutely centered, unaffected by left/right content)
                 Row(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center).zIndex(1f),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (isControllerConnected) {
@@ -2910,10 +2921,14 @@ class UnifiedActivity :
                             }
                         }
                     }
+                    if (isControllerConnected) {
+                        Spacer(Modifier.width(8.dp))
+                        ControllerBadge("L3")
+                    }
                 }
 
                 Row(
-                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

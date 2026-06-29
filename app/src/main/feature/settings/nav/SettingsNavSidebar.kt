@@ -125,6 +125,7 @@ private val sectionedNavItems: Map<NavSection, List<SettingsNavItem>> =
 @Composable
 fun SettingsNavSidebar(
     selectedItem: SettingsNavItem,
+    railActive: Boolean = true,
     onItemSelected: (SettingsNavItem) -> Unit,
     onBackPressed: () -> Unit,
     bordersPaused: Boolean = false,
@@ -208,6 +209,7 @@ fun SettingsNavSidebar(
                         NavItemRow(
                             item = item,
                             isSelected = item == selectedItem,
+                            railActive = railActive,
                             borderPaused = bordersPaused,
                             onClick = { onItemSelected(item) },
                         )
@@ -291,6 +293,7 @@ private fun SectionHeader(label: String) {
 private fun NavItemRow(
     item: SettingsNavItem,
     isSelected: Boolean,
+    railActive: Boolean = true,
     borderPaused: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -311,10 +314,11 @@ private fun NavItemRow(
         animationSpec = tween(280),
         label = "textColor",
     )
+    val showFill = isSelected && railActive
     val bgAlpha by animateFloatAsState(
         targetValue =
             when {
-                isSelected -> 1f
+                showFill -> 1f
                 isHovered -> 0.5f
                 else -> 0f
             },
