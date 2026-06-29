@@ -1413,6 +1413,7 @@ Installeret sti:
     <string name="session_drawer_output_game_mode_off">Fra</string>
     <string name="session_drawer_output_game_mode_note">Anmoder om tv\'ets spil-/lavlatensstilstand (HDMI ALLM) for at minimere inputforsinkelse. Vises kun, når den tilsluttede skærm understøtter det.</string>
     <string name="session_drawer_output_send_to_display">Send spil til skærm</string>
+    <string name="session_drawer_output_to_display">Output til ekstern skærm</string>
     <string name="session_drawer_output_send_note">En skærm er tilsluttet. Send spillet til den — dine knapper og menuen forbliver på denne telefon. Du kan altid hente det tilbage hertil.</string>
     <string name="session_drawer_output_display">Skærm</string>
     <string name="session_drawer_output_glasses">Briller</string>

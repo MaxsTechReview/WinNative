@@ -617,6 +617,8 @@ interface XServerDrawerActionListener {
 
     fun onOutputSwapToDisplay()
 
+    fun onOutputModeChanged(enabled: Boolean)
+
     fun onOutputCastClick()
 
     fun onSGSREnabledChanged(enabled: Boolean)
@@ -3063,11 +3065,13 @@ private fun OutputActiveControls(
         OutputGlassesCard(state = state, listener = listener, paneScale = paneScale)
     }
 
-    OutputPaneButton(
-        label = stringResource(R.string.session_drawer_output_return_to_phone),
-        paneScale = paneScale,
-        onClick = listener::onOutputReturnToPhone,
-    )
+    if (!state.outputVitureConnected) {
+        DrawerBooleanRow(
+            title = stringResource(R.string.session_drawer_output_to_display),
+            checked = state.outputSwapActive,
+            onCheckedChange = { listener.onOutputModeChanged(it) },
+        )
+    }
 }
 
 @Composable
@@ -3216,11 +3220,13 @@ private fun OutputSendToDisplay(
     paneScale: Float,
 ) {
     OutputDeviceHeader(state = state, paneScale = paneScale)
-    OutputPaneButton(
-        label = stringResource(R.string.session_drawer_output_send_to_display),
-        paneScale = paneScale,
-        onClick = listener::onOutputSwapToDisplay,
-    )
+    if (!state.outputVitureConnected) {
+        DrawerBooleanRow(
+            title = stringResource(R.string.session_drawer_output_to_display),
+            checked = state.outputSwapActive,
+            onCheckedChange = { listener.onOutputModeChanged(it) },
+        )
+    }
     Text(
         text = stringResource(R.string.session_drawer_output_send_note),
         color = DrawerTextSecondary,

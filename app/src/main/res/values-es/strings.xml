@@ -1413,6 +1413,7 @@ Ruta instalada:
     <string name="session_drawer_output_game_mode_off">Desactivado</string>
     <string name="session_drawer_output_game_mode_note">Solicita el modo de juego / baja latencia de la TV (HDMI ALLM) para minimizar el retardo de entrada. Se muestra solo cuando la pantalla conectada lo admite.</string>
     <string name="session_drawer_output_send_to_display">Enviar juego a la pantalla</string>
+    <string name="session_drawer_output_to_display">Salida a pantalla externa</string>
     <string name="session_drawer_output_send_note">Hay una pantalla conectada. Envía el juego a ella: tus controles y el menú permanecen en este teléfono. Puedes devolverlo aquí en cualquier momento.</string>
     <string name="session_drawer_output_display">Pantalla</string>
     <string name="session_drawer_output_glasses">Gafas</string>

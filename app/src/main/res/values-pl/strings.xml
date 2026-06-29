@@ -1419,6 +1419,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_output_game_mode_off">Wył.</string>
     <string name="session_drawer_output_game_mode_note">Żąda trybu gry / niskiego opóźnienia telewizora (HDMI ALLM), aby zminimalizować opóźnienie wejścia. Wyświetlane tylko, gdy podłączony wyświetlacz to obsługuje.</string>
     <string name="session_drawer_output_send_to_display">Wyślij grę na wyświetlacz</string>
+    <string name="session_drawer_output_to_display">Wyjście na ekran zewnętrzny</string>
     <string name="session_drawer_output_send_note">Wyświetlacz jest podłączony. Wyślij na niego grę — sterowanie i menu pozostaną na tym telefonie. Możesz w każdej chwili przywrócić ją tutaj.</string>
     <string name="session_drawer_output_display">Ekran</string>
     <string name="session_drawer_output_glasses">Okulary</string>

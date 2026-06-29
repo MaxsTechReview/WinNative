@@ -822,6 +822,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_output_game_mode_off">Off</string>
     <string name="session_drawer_output_game_mode_note">Requests the TV\'s low‑latency / game mode (HDMI ALLM) to minimize input lag. Shown only when the connected display supports it.</string>
     <string name="session_drawer_output_send_to_display">Send game to display</string>
+    <string name="session_drawer_output_to_display">Output to External Display</string>
     <string name="session_drawer_output_send_note">A display is connected. Send the game to it — your controls and menu stay on this phone. You can return it here any time.</string>
     <string name="session_drawer_output_display">Display</string>
     <string name="session_drawer_output_glasses">Glasses</string>

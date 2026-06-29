@@ -1413,6 +1413,7 @@ Percorso installato:
     <string name="session_drawer_output_game_mode_off">Disattiva</string>
     <string name="session_drawer_output_game_mode_note">Richiede la modalità gioco / bassa latenza della TV (HDMI ALLM) per ridurre il ritardo di input. Mostrata solo quando il display collegato la supporta.</string>
     <string name="session_drawer_output_send_to_display">Invia il gioco al display</string>
+    <string name="session_drawer_output_to_display">Uscita su display esterno</string>
     <string name="session_drawer_output_send_note">Un display è collegato. Inviaci il gioco: i comandi e il menu restano su questo telefono. Puoi riportarlo qui in qualsiasi momento.</string>
     <string name="session_drawer_output_display">Schermo</string>
     <string name="session_drawer_output_glasses">Occhiali</string>

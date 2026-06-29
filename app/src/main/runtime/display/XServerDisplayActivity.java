@@ -4300,6 +4300,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
+                    public void onOutputModeChanged(boolean enabled) {
+                        if (externalDisplayController == null) return;
+                        if (preferences != null) {
+                            preferences.edit().putBoolean("external_display_output", enabled).apply();
+                        }
+                        if (enabled) {
+                            externalDisplayController.enterSwap();
+                        } else {
+                            externalDisplayController.exitSwap();
+                        }
+                        renderDrawerMenu();
+                    }
+
+                    @Override
                     public void onOutputCastClick() {
                         launchWirelessDisplayPicker();
                     }
@@ -6962,6 +6976,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         runOnUiThread(() -> {
                             if (isFinishing() || isDestroyed() || externalDisplayController == null
                                     || externalDisplayController.isSwapActive()) return;
+                            boolean outputEnabled = preferences != null
+                                    && preferences.getBoolean("external_display_output", false);
+                            if (!externalDisplayController.isVitureSinkAvailable() && !outputEnabled) return;
                             externalDisplayController.enterSwap();
                             renderDrawerMenu();
                             android.widget.Toast.makeText(XServerDisplayActivity.this,

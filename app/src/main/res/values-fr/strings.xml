@@ -1413,6 +1413,7 @@ Chemin installé :
     <string name="session_drawer_output_game_mode_off">Désactivé</string>
     <string name="session_drawer_output_game_mode_note">Demande le mode jeu / faible latence du téléviseur (HDMI ALLM) pour réduire la latence d\'entrée. Affiché uniquement lorsque l\'écran connecté le prend en charge.</string>
     <string name="session_drawer_output_send_to_display">Envoyer le jeu vers l\'écran</string>
+    <string name="session_drawer_output_to_display">Sortie vers l\'écran externe</string>
     <string name="session_drawer_output_send_note">Un écran est connecté. Envoyez-y le jeu — vos commandes et le menu restent sur ce téléphone. Vous pouvez le ramener ici à tout moment.</string>
     <string name="session_drawer_output_display">Affichage</string>
     <string name="session_drawer_output_glasses">Lunettes</string>

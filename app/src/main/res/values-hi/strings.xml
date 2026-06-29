@@ -1350,6 +1350,7 @@
     <string name="session_drawer_output_game_mode_off">बंद</string>
     <string name="session_drawer_output_game_mode_note">इनपुट विलंब कम करने के लिए TV का गेम / कम-विलंबता मोड (HDMI ALLM) अनुरोध करता है। केवल तब दिखता है जब कनेक्ट किया गया डिस्प्ले इसका समर्थन करता है।</string>
     <string name="session_drawer_output_send_to_display">गेम को डिस्प्ले पर भेजें</string>
+    <string name="session_drawer_output_to_display">बाहरी डिस्प्ले पर आउटपुट</string>
     <string name="session_drawer_output_send_note">एक डिस्प्ले कनेक्ट है। गेम को उस पर भेजें — आपके नियंत्रण और मेन्यू इसी फ़ोन पर रहेंगे। आप इसे कभी भी यहाँ वापस ला सकते हैं।</string>
     <string name="session_drawer_output_display">डिस्प्ले</string>
     <string name="session_drawer_output_glasses">ग्लासेस</string>
