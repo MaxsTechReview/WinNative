@@ -25,7 +25,11 @@ class NotificationHelper
             private const val CHANNEL_NAME = "WinNative Foreground Service"
             private const val NOTIFICATION_ID = 1
 
+            private const val CHAT_CHANNEL_ID = "winnative_steam_chat"
+            private const val CHAT_CHANNEL_NAME = "Steam Chat"
+
             const val ACTION_EXIT = BuildConfig.APPLICATION_ID + ".EXIT"
+            const val EXTRA_OPEN_CHAT_FRIEND_ID = BuildConfig.APPLICATION_ID + ".OPEN_CHAT_FRIEND_ID"
         }
 
         private val notificationManager: NotificationManager =
@@ -47,6 +51,52 @@ class NotificationHelper
                 }
 
             notificationManager.createNotificationChannel(channel)
+
+            val chatChannel =
+                NotificationChannel(
+                    CHAT_CHANNEL_ID,
+                    CHAT_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH,
+                ).apply {
+                    description = "Incoming Steam friend messages"
+                    setShowBadge(true)
+                }
+
+            notificationManager.createNotificationChannel(chatChannel)
+        }
+
+        private fun chatNotificationId(friendId: Long): Int = 2_000_000 + ((friendId.hashCode() and 0x7FFFFFFF) % 1_000_000)
+
+        fun notifyChatMessage(friendId: Long, sender: String, message: String) {
+            val intent =
+                Intent(context, UnifiedActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_OPEN_CHAT_FRIEND_ID, friendId)
+                }
+            val pendingIntent =
+                PendingIntent.getActivity(
+                    context,
+                    friendId.hashCode(),
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            val notification =
+                NotificationCompat
+                    .Builder(context, CHAT_CHANNEL_ID)
+                    .setContentTitle(sender)
+                    .setContentText(message)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setAutoCancel(true)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                    .setContentIntent(pendingIntent)
+                    .build()
+            notificationManager.notify(chatNotificationId(friendId), notification)
+        }
+
+        fun cancelChatNotification(friendId: Long) {
+            notificationManager.cancel(chatNotificationId(friendId))
         }
 
         fun notify(content: String) {
