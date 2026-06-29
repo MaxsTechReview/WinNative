@@ -757,6 +757,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_general_cursor_lock_summary">Utrzymuje bezpośrednie przechwytywanie myszy dla gier wymagających surowego wejścia wskaźnika. Wyłącz przyciskiem Ciszej.</string>
     <string name="settings_general_xinput_toggle_title">Wyłącz XInput</string>
     <string name="settings_general_xinput_toggle_summary">Wyłącza obsługę XInput, gdy chcesz wyłącznej kontroli myszy i klawiatury.</string>
+    <string name="settings_external_display_output_summary">Przenosi grę na podłączony zewnętrzny wyświetlacz zamiast powielać ten ekran. Okulary zawsze korzystają z własnego wyświetlacza.</string>
     <string name="settings_general_file_provider_summary">Udostępnij pliki WinNative selektorom dokumentów i menedżerom plików Androida.</string>
     <string name="settings_general_open_browser_summary">Otwieraj obsługiwane linki w przeglądarce Androida zamiast w Wine.</string>
     <string name="settings_general_clipboard_summary">Umożliw kopiowanie i wklejanie między Androidem a sesjami Wine.</string>
@@ -1419,6 +1420,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_output_game_mode_off">Wył.</string>
     <string name="session_drawer_output_game_mode_note">Żąda trybu gry / niskiego opóźnienia telewizora (HDMI ALLM), aby zminimalizować opóźnienie wejścia. Wyświetlane tylko, gdy podłączony wyświetlacz to obsługuje.</string>
     <string name="session_drawer_output_send_to_display">Wyślij grę na wyświetlacz</string>
+    <string name="session_drawer_output_to_display">Wyjście na ekran zewnętrzny</string>
     <string name="session_drawer_output_send_note">Wyświetlacz jest podłączony. Wyślij na niego grę — sterowanie i menu pozostaną na tym telefonie. Możesz w każdej chwili przywrócić ją tutaj.</string>
     <string name="session_drawer_output_display">Ekran</string>
     <string name="session_drawer_output_glasses">Okulary</string>

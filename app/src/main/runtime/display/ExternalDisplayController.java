@@ -691,6 +691,13 @@ public final class ExternalDisplayController {
         return viture.isConnected();
     }
 
+    // Viture sink check usable before a swap: USB control up, or the available display's EDID says VITURE.
+    public boolean isVitureSinkAvailable() {
+        if (viture.isConnected()) return true;
+        String name = describeDisplay(findExternalDisplay());
+        return !name.isEmpty() && name.toUpperCase(java.util.Locale.ROOT).contains("VITURE");
+    }
+
     public String getVitureName() {
         return viture.modelName();
     }

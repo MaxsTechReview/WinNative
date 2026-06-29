@@ -860,6 +860,7 @@
     <string name="settings_general_cursor_lock_summary">उन खेलों के लिए सीधे माउस कैप्चर को सक्षम रखता है जिन्हें रॉ पॉइंटर इनपुट की आवश्यकता होती है। इसे वॉल्यूम डाउन के साथ अक्षम करें।</string>
     <string name="settings_general_xinput_toggle_title">XInput अक्षम करें</string>
     <string name="settings_general_xinput_toggle_summary">जब आप विशेष माउस और कीबोर्ड नियंत्रण चाहते हैं तो XInput हैंडलिंग बंद कर देता है।</string>
+    <string name="settings_external_display_output_summary">इस स्क्रीन को मिरर करने के बजाय गेम को कनेक्टेड बाहरी डिस्प्ले पर ले जाएँ। ग्लास हमेशा अपनी डिस्प्ले का उपयोग करते हैं।</string>
     <string name="settings_general_file_provider_summary">WinNative फ़ाइलों को Android दस्तावेज़ चयनकर्ताओं और फ़ाइल प्रबंधकों के सामने उजागर करें।</string>
     <string name="settings_general_open_browser_summary">समर्थित वेब लिंक को Wine के बजाय Android ब्राउज़र में खोलें।</string>
     <string name="settings_general_clipboard_summary">Android और Wine सत्रों के बीच कॉपी और पेस्ट करने की अनुमति दें।</string>
@@ -1350,6 +1351,7 @@
     <string name="session_drawer_output_game_mode_off">बंद</string>
     <string name="session_drawer_output_game_mode_note">इनपुट विलंब कम करने के लिए TV का गेम / कम-विलंबता मोड (HDMI ALLM) अनुरोध करता है। केवल तब दिखता है जब कनेक्ट किया गया डिस्प्ले इसका समर्थन करता है।</string>
     <string name="session_drawer_output_send_to_display">गेम को डिस्प्ले पर भेजें</string>
+    <string name="session_drawer_output_to_display">बाहरी डिस्प्ले पर आउटपुट</string>
     <string name="session_drawer_output_send_note">एक डिस्प्ले कनेक्ट है। गेम को उस पर भेजें — आपके नियंत्रण और मेन्यू इसी फ़ोन पर रहेंगे। आप इसे कभी भी यहाँ वापस ला सकते हैं।</string>
     <string name="session_drawer_output_display">डिस्प्ले</string>
     <string name="session_drawer_output_glasses">ग्लासेस</string>

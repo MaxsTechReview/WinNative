@@ -751,6 +751,7 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantem a captura direta do mouse ativada para jogos que precisam de entrada bruta do ponteiro. Desative com Volume Baixo.</string>
     <string name="settings_general_xinput_toggle_title">Desativar XInput</string>
     <string name="settings_general_xinput_toggle_summary">Desliga o tratamento XInput quando voce quer controle exclusivo de mouse e teclado.</string>
+    <string name="settings_external_display_output_summary">Move o jogo para um monitor externo conectado em vez de espelhar esta tela. Os óculos sempre usam a própria tela.</string>
     <string name="settings_general_file_provider_summary">Expor arquivos do WinNative para seletores de documentos e gerenciadores de arquivos do Android.</string>
     <string name="settings_general_open_browser_summary">Abrir links da web compativeis no navegador Android em vez de dentro do Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar e colar entre o Android e sessoes do Wine.</string>
@@ -1413,6 +1414,7 @@ Caminho instalado:
     <string name="session_drawer_output_game_mode_off">Desligado</string>
     <string name="session_drawer_output_game_mode_note">Solicita o modo jogo / baixa latência da TV (HDMI ALLM) para minimizar o atraso de entrada. Exibido apenas quando a tela conectada é compatível.</string>
     <string name="session_drawer_output_send_to_display">Enviar jogo para a tela</string>
+    <string name="session_drawer_output_to_display">Saída para tela externa</string>
     <string name="session_drawer_output_send_note">Uma tela está conectada. Envie o jogo para ela — seus controles e o menu permanecem neste telefone. Você pode trazê-lo de volta aqui a qualquer momento.</string>
     <string name="session_drawer_output_display">Tela</string>
     <string name="session_drawer_output_glasses">Óculos</string>

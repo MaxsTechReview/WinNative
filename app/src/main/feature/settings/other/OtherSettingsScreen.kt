@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Monitor
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Settings
@@ -109,6 +110,7 @@ data class OtherSettingsState(
     val shareClipboard: Boolean = false,
     val recordPerformanceToFile: Boolean = false,
     val enableBackgroundSession: Boolean = false,
+    val externalDisplayOutput: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
 
@@ -152,6 +154,7 @@ fun OtherSettingsScreen(
     onShareClipboardChanged: (Boolean) -> Unit,
     onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onEnableBackgroundSessionChanged: (Boolean) -> Unit,
+    onExternalDisplayOutputChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
     bridge: SettingsNavBridge? = null,
@@ -256,6 +259,14 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.SportsEsports,
                 checked = state.xinputDisabled,
                 onCheckedChange = onXinputDisabledChanged,
+            )
+
+            SettingsToggleCard(
+                title = stringResource(R.string.session_drawer_output_to_display),
+                subtitle = stringResource(R.string.settings_external_display_output_summary),
+                icon = Icons.Outlined.Monitor,
+                checked = state.externalDisplayOutput,
+                onCheckedChange = onExternalDisplayOutputChanged,
             )
 
             SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
