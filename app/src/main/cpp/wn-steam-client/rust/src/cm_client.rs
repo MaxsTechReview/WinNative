@@ -73,6 +73,8 @@ pub struct FriendPersonaSnapshot {
     pub game_played_app_id: u32,
     pub avatar_hash: Vec<u8>,
     pub rich_presence: Vec<(String, String)>,
+    pub game_name: String,
+    pub gameid: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -145,9 +147,19 @@ pub struct CMClientCore {
     friends: Mutex<HashMap<u64, u32>>,
     self_persona: Mutex<Option<PersonaStateFriend>>,
     friend_personas: Mutex<HashMap<u64, FriendPersonaSnapshot>>,
+    incoming_messages: Mutex<Vec<IncomingFriendMessage>>,
     library: WnLibraryStore,
     tickets: WnTicketCache,
     outbound_wires: Mutex<Vec<Vec<u8>>>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct IncomingFriendMessage {
+    pub friend_id: u64,
+    pub from_self: bool,
+    pub message: String,
+    pub timestamp: u32,
+    pub ordinal: i32,
 }
 
 impl Default for CMClientCore {
@@ -163,6 +175,7 @@ impl Default for CMClientCore {
             friends: Mutex::new(HashMap::new()),
             self_persona: Mutex::new(None),
             friend_personas: Mutex::new(HashMap::new()),
+            incoming_messages: Mutex::new(Vec::new()),
             library: WnLibraryStore::default(),
             tickets: WnTicketCache::default(),
             outbound_wires: Mutex::new(Vec::new()),
@@ -333,6 +346,9 @@ impl CMClientCore {
             account_name,
             client_supplied_steam_id,
             machine_id: b"WN-Steam-Client".to_vec(),
+            protocol_version: 65580,
+            client_os_type: 16,
+            supports_rate_limit_response: true,
             ..Default::default()
         };
         if let Some(key) = generate_session_key() {
@@ -452,12 +468,66 @@ impl CMClientCore {
         })
     }
 
+    pub fn build_request_friend_persona_states(
+        &self,
+        job_id: u64,
+    ) -> Option<OutboundServiceCall> {
+        self.build_authed_service_call("Chat.RequestFriendPersonaStates#1", job_id, Vec::new())
+    }
+
+    pub fn build_send_friend_message(
+        &self,
+        steamid: u64,
+        message: &str,
+        contains_bbcode: bool,
+        job_id: u64,
+    ) -> Option<OutboundServiceCall> {
+        self.build_authed_service_call(
+            "FriendMessages.SendMessage#1",
+            job_id,
+            crate::pb::cfriendmessages::CFriendMessagesSendMessageRequest {
+                steamid,
+                chat_entry_type: crate::pb::cfriendmessages::CHAT_ENTRY_TYPE_TEXT,
+                message: message.to_string(),
+                contains_bbcode,
+                echo_to_sender: true,
+                low_priority: false,
+            }
+            .serialize(),
+        )
+    }
+
+    pub fn build_get_recent_messages(
+        &self,
+        friend_id: u64,
+        count: u32,
+        job_id: u64,
+    ) -> Option<OutboundServiceCall> {
+        let self_id = self.steam_id();
+        if self_id == 0 || friend_id == 0 {
+            return None;
+        }
+        self.build_authed_service_call(
+            "FriendMessages.GetRecentMessages#1",
+            job_id,
+            crate::pb::cfriendmessages::CFriendMessagesGetRecentMessagesRequest {
+                steamid1: self_id,
+                steamid2: friend_id,
+                count,
+                most_recent_conversation: false,
+            }
+            .serialize(),
+        )
+    }
+
     pub fn build_set_persona_state(&self, persona_state: u32) -> Option<OutboundProtoMessage> {
         self.build_outbound_proto_message(
             EMsg::CLIENT_CHANGE_STATUS,
             CMsgClientChangeStatus {
                 persona_state,
                 player_name: String::new(),
+                persona_set_by_user: true,
+                need_persona_response: true,
             }
             .serialize(),
             0,
@@ -474,6 +544,8 @@ impl CMClientCore {
             CMsgClientChangeStatus {
                 persona_state: persona_state_keep_current,
                 player_name: name.into(),
+                persona_set_by_user: true,
+                need_persona_response: false,
             }
             .serialize(),
             0,
@@ -1342,15 +1414,50 @@ impl CMClientCore {
                     .expect("friend personas poisoned");
                 for friend in msg.friends {
                     if friend.friendid == self_id {
-                        *self_persona = Some(friend);
+                        match self_persona.as_mut() {
+                            Some(existing) => {
+                                if !friend.player_name.is_empty() {
+                                    existing.player_name = friend.player_name;
+                                }
+                                if friend.has_persona_state {
+                                    existing.persona_state = friend.persona_state;
+                                }
+                                if friend.has_game {
+                                    existing.game_played_app_id = friend.game_played_app_id;
+                                }
+                                if !friend.game_name.is_empty() {
+                                    existing.game_name = friend.game_name;
+                                }
+                                if friend.gameid != 0 {
+                                    existing.gameid = friend.gameid;
+                                }
+                                if !friend.avatar_hash.is_empty() {
+                                    existing.avatar_hash = friend.avatar_hash;
+                                }
+                                if !friend.rich_presence.is_empty() {
+                                    existing.rich_presence = friend.rich_presence;
+                                }
+                            }
+                            None => *self_persona = Some(friend),
+                        }
                     } else {
                         let slot = friend_personas.entry(friend.friendid).or_default();
                         slot.sid = friend.friendid;
                         if !friend.player_name.is_empty() {
                             slot.player_name = friend.player_name;
                         }
-                        slot.persona_state = friend.persona_state;
-                        slot.game_played_app_id = friend.game_played_app_id;
+                        if friend.has_persona_state {
+                            slot.persona_state = friend.persona_state;
+                        }
+                        if friend.has_game {
+                            slot.game_played_app_id = friend.game_played_app_id;
+                        }
+                        if !friend.game_name.is_empty() {
+                            slot.game_name = friend.game_name;
+                        }
+                        if friend.gameid != 0 {
+                            slot.gameid = friend.gameid;
+                        }
                         if !friend.avatar_hash.is_empty() {
                             slot.avatar_hash = friend.avatar_hash;
                         }
@@ -1376,6 +1483,30 @@ impl CMClientCore {
             | EMsg::CLIENT_MMS_LOBBY_CHAT_MSG
             | EMsg::CLIENT_MMS_USER_JOINED_LOBBY
             | EMsg::CLIENT_MMS_USER_LEFT_LOBBY => InboundAction::LobbyPush,
+            EMsg::SERVICE_METHOD | EMsg::SERVICE_METHOD_SEND_TO_CLIENT => {
+                if header
+                    .target_job_name
+                    .starts_with("FriendMessagesClient.IncomingMessage")
+                {
+                    if let Some(note) =
+                        crate::pb::cfriendmessages::CFriendMessagesIncomingMessageNotification::deserialize(body)
+                    {
+                        if note.chat_entry_type
+                            == crate::pb::cfriendmessages::CHAT_ENTRY_TYPE_TEXT
+                            && !note.message.is_empty()
+                        {
+                            self.push_incoming_message(IncomingFriendMessage {
+                                friend_id: note.steamid_friend,
+                                from_self: note.local_echo,
+                                message: note.message,
+                                timestamp: note.rtime32_server_timestamp,
+                                ordinal: note.ordinal,
+                            });
+                        }
+                    }
+                }
+                InboundAction::ClientMessage
+            }
             _ => InboundAction::ClientMessage,
         }
     }
@@ -1411,6 +1542,22 @@ impl CMClientCore {
             .filter(|snapshot| !snapshot.player_name.is_empty())
             .cloned()
             .collect()
+    }
+
+    pub fn push_incoming_message(&self, message: IncomingFriendMessage) {
+        self.incoming_messages
+            .lock()
+            .expect("incoming messages poisoned")
+            .push(message);
+    }
+
+    pub fn drain_incoming_messages(&self) -> Vec<IncomingFriendMessage> {
+        std::mem::take(
+            &mut *self
+                .incoming_messages
+                .lock()
+                .expect("incoming messages poisoned"),
+        )
     }
 }
 
@@ -1845,7 +1992,9 @@ mod tests {
             persona.body,
             CMsgClientChangeStatus {
                 persona_state: 1,
-                player_name: "Ada".into()
+                player_name: "Ada".into(),
+                persona_set_by_user: true,
+                need_persona_response: false,
             }
             .serialize()
         );

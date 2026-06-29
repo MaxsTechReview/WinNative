@@ -269,6 +269,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private boolean effectiveShowFPS = false;
+    // Phone gauge HUD (rendered by the Compose host) shown with touch controls disabled while a
+    // physical controller + external display are active.
+    private boolean controllerHudMode = false;
+    private android.hardware.input.InputManager.InputDeviceListener hudControllerListener;
     private boolean isTapToClickEnabled = true;
     private int runtimeFpsLimit = 0;
     private String lastRendererName = "Vulkan";
@@ -397,6 +401,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean gyroscopeCardExpanded = false;
     private XServerDrawerStateHolder drawerStateHolder;
     private XServerDrawerActionListener drawerActionListener;
+    private ExternalDisplayController externalDisplayController;
+    private com.winlator.cmod.runtime.display.recording.GameRecorder screenRecorder;
+    private int savedRenderMode = XServerSurfaceView.RENDERMODE_WHEN_DIRTY;
     private Timer taskManagerTimer;
     private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
     private boolean taskManagerCpuExpanded = false;
@@ -1554,7 +1561,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onMapWindow(Window window) {
                 assignTaskAffinity(window);
-                if (effectiveShowFPS && frameRating != null) {
+                if ((effectiveShowFPS || controllerHudMode) && frameRating != null) {
                     syncFrameRatingWithExistingWindows();
                 }
             }
@@ -2313,6 +2320,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, true);
         applyPreferredRefreshRate();
         registerGyroSensorIfEnabled();
 
@@ -2342,6 +2350,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (taskManagerPaneVisible && taskManagerTimer == null) {
             startTaskManagerPolling();
         }
+
+        if (externalDisplayController != null) externalDisplayController.start();
     }
 
     @Override
@@ -2380,6 +2390,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
             taskManagerAccum.clear();
         }
+
+        if (externalDisplayController != null) externalDisplayController.stop();
     }
 
     @Override
@@ -3678,6 +3690,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, false);
+        // Finalize any in-progress recording before the renderer tears down.
+        if (screenRecorder != null && screenRecorder.isRecording()) {
+            stopScreenRecording();
+        }
+        if (hudControllerListener != null) {
+            android.hardware.input.InputManager im =
+                    (android.hardware.input.InputManager) getSystemService(Context.INPUT_SERVICE);
+            if (im != null) im.unregisterInputDeviceListener(hudControllerListener);
+            hudControllerListener = null;
+        }
+        if (externalDisplayController != null) {
+            externalDisplayController.release();
+            externalDisplayController = null;
+        }
         if (isDependencyInstall) {
             com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(dependencyExitStatus);
         }
@@ -3964,6 +3991,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 xServerView != null && xServerView.getRenderer() != null && xServerView.getRenderer().isFullscreen(),
                 RefreshRateUtils.getMaxSupportedRefreshRate(this),
                 isRefactorSizeEnabled,
+                screenRecorder != null && screenRecorder.isRecording(),
+                buildRecordConfig(),
                 screenTouchMode,
                 rtsGesturesEnabled,
                 gestureProfileNames,
@@ -3971,6 +4000,42 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preferences.getFloat("right_stick_sensitivity", 1.0f),
                 preferences.getFloat("screen_touch_rs_sensitivity", 1.25f)
         );
+
+        // Always-present "Output" tab (live controls while swapped, otherwise a Cast entry point).
+        if (externalDisplayController != null) {
+            boolean swapped = externalDisplayController.isSwapActive();
+            state = XServerDrawerMenuKt.withOutputState(
+                    state,
+                    swapped,
+                    swapped ? externalDisplayController.getDisplayName()
+                            : externalDisplayController.getAvailableDisplayName(),
+                    externalDisplayController.getResolutionLabels(),
+                    externalDisplayController.getSelectedResolutionIndex(),
+                    externalDisplayController.getRefreshRateLabels(),
+                    externalDisplayController.getSelectedRefreshRateIndex(),
+                    externalDisplayController.getFillMode(),
+                    externalDisplayController.isGameModeSupported(),
+                    externalDisplayController.isGameModeEnabled(),
+                    externalDisplayController.isPanelScaling(),
+                    externalDisplayController.getPanelNativeSummary(),
+                    externalDisplayController.hasExternalDisplay());
+            if (externalDisplayController.isVitureConnected()) {
+                state = XServerDrawerMenuKt.withVitureState(
+                        state,
+                        externalDisplayController.getVitureName(),
+                        externalDisplayController.vitureSupportsBrightness(),
+                        externalDisplayController.getVitureBrightness(),
+                        externalDisplayController.getVitureBrightnessMax(),
+                        externalDisplayController.vitureSupportsFilm(),
+                        externalDisplayController.vitureFilmStepped(),
+                        externalDisplayController.getVitureFilm(),
+                        externalDisplayController.vitureSupports3D(),
+                        externalDisplayController.isViture3D(),
+                        externalDisplayController.vitureSupportsVolume(),
+                        externalDisplayController.getVitureVolume(),
+                        externalDisplayController.getVitureVolumeMax());
+            }
+        }
 
         if (drawerActionListener == null) {
             drawerActionListener = new XServerDrawerActionListener() {
@@ -3983,6 +4048,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onHUDElementToggled(int index, boolean enabled) {
                         hudElements[index] = enabled;
                         if (frameRating != null) frameRating.toggleElement(index, enabled);
+                        com.winlator.cmod.runtime.display.PerformanceHudState.updateEnabled(hudElements);
                         saveHUDSettings();
                         renderDrawerMenu();
                     }
@@ -4154,6 +4220,88 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onScreenEffectsCardExpandedChanged(boolean expanded) {
                         screenEffectsCardExpanded = expanded;
                         renderDrawerMenu();
+                    }
+
+                    @Override
+                    public void onOutputResolutionSelected(int index) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectResolution(index);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputRefreshRateSelected(int index) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectRefreshRate(index);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputAspectModeSelected(int mode) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.selectFillMode(mode);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputGameModeToggled(boolean enabled) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setGameMode(enabled);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputVitureBrightness(int level) {
+                        if (externalDisplayController != null) externalDisplayController.setVitureBrightness(level);
+                    }
+
+                    @Override
+                    public void onOutputVitureFilm(int level) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setVitureFilm(level);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputViture3D(boolean enabled) {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.setViture3D(enabled);
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputVitureVolume(int level) {
+                        if (externalDisplayController != null) externalDisplayController.setVitureVolume(level);
+                    }
+
+                    @Override
+                    public void onOutputReturnToPhone() {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.exitSwap();
+                            renderDrawerMenu();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputSwapToDisplay() {
+                        if (externalDisplayController != null) {
+                            externalDisplayController.enterSwap();
+                            renderDrawerMenu();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_swapped_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onOutputCastClick() {
+                        launchWirelessDisplayPicker();
                     }
 
                     @Override
@@ -4635,6 +4783,11 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onLogsShare() {
                         shareLogStream();
                     }
+
+                    @Override
+                    public void onRecordStart(int fpsIndex, int resolutionIndex, int quality, boolean recordUI) {
+                        startRecordingWithSettings(fpsIndex, resolutionIndex, quality, recordUI);
+                    }
                 };
         }
 
@@ -5104,6 +5257,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
         }
+        com.winlator.cmod.runtime.display.PerformanceHudState.updateEnabled(hudElements);
     }
 
     private void saveHUDSettings() {
@@ -5258,12 +5412,267 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
                 renderDrawerMenu();
                 break;
+            case R.id.main_menu_record:
+                // Starting is handled by the popup (onRecordStart); reaching here means stop.
+                if (screenRecorder != null && screenRecorder.isRecording()) stopScreenRecording();
+                renderDrawerMenu();
+                break;
             case R.id.main_menu_exit:
                 closeDrawerMenu();
                 exit();
                 break;
         }
         return true;
+    }
+
+    private static final int[] RECORD_FPS_TIERS = {30, 60, 90, 120, 144, 165};
+    private static final int[] RECORD_RES_TIERS = {2160, 1440, 1080, 720}; // short-side heights
+
+    /** FPS options the panel supports (ascending), e.g. a 120Hz panel → [30,60,90,120]. */
+    private java.util.List<Integer> recordFpsOptions() {
+        int max = Math.max(30, RefreshRateUtils.getMaxSupportedRefreshRate(this));
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        for (int f : RECORD_FPS_TIERS) if (f <= max + 1) out.add(f);
+        if (out.isEmpty()) out.add(60);
+        return out;
+    }
+
+    /** The native (full-res) capture short side — min of the composited image dimensions. */
+    private int recordNativeShortSide() {
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        int w = renderer != null ? renderer.getRecordWidth() : 0;
+        int h = renderer != null ? renderer.getRecordHeight() : 0;
+        if (w <= 0 || h <= 0) {
+            w = xServerView != null ? xServerView.getSurfaceWidth() : 0;
+            h = xServerView != null ? xServerView.getSurfaceHeight() : 0;
+        }
+        if (w <= 0 || h <= 0) return 0;
+        return Math.min(w, h);
+    }
+
+    /** Resolution labels: Native first, then standard tiers strictly below the panel's native res. */
+    private java.util.List<String> recordResolutionLabels(int nativeShort) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        out.add("Native");
+        if (nativeShort > 0) {
+            for (int t : RECORD_RES_TIERS) {
+                if (t < nativeShort) out.add(resTierLabel(t));
+            }
+        }
+        return out;
+    }
+
+    private static String resTierLabel(int shortSide) {
+        switch (shortSide) {
+            case 2160: return "4K";
+            case 1440: return "2K";
+            case 1080: return "1080p";
+            case 720:  return "720p";
+            default:   return shortSide + "p";
+        }
+    }
+
+    // Build the popup config with persisted selections mapped to current indices.
+    private RecordUiConfig buildRecordConfig() {
+        java.util.List<Integer> fps = recordFpsOptions();
+        int nativeShort = recordNativeShortSide();
+        java.util.List<String> res = recordResolutionLabels(nativeShort);
+
+        int savedFps = preferences.getInt("record_fps", 60);
+        int fpsIndex = fps.indexOf(savedFps);
+        if (fpsIndex < 0) { // nearest supported
+            fpsIndex = 0;
+            int best = Integer.MAX_VALUE;
+            for (int i = 0; i < fps.size(); i++) {
+                int d = Math.abs(fps.get(i) - savedFps);
+                if (d < best) { best = d; fpsIndex = i; }
+            }
+        }
+        int resIndex = preferences.getInt("record_res_index", 0);
+        if (resIndex < 0 || resIndex >= res.size()) resIndex = 0;
+        int quality = preferences.getInt("record_quality", 2);
+        boolean recordUI = preferences.getBoolean("record_ui", false);
+        return new RecordUiConfig(fps, res, fpsIndex, resIndex, quality, recordUI);
+    }
+
+    // Start recording with the popup's chosen settings, persisting them for next time.
+    private void startRecordingWithSettings(int fpsIndex, int resolutionIndex, int quality, boolean recordUI) {
+        if (screenRecorder != null && screenRecorder.isRecording()) return;
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        if (renderer == null || xServerView == null) {
+            android.widget.Toast.makeText(this, R.string.session_record_failed, android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Native composited size (swapchain extent), else the SurfaceView size.
+        int nativeW = renderer.getRecordWidth();
+        int nativeH = renderer.getRecordHeight();
+        if (nativeW <= 0 || nativeH <= 0) {
+            nativeW = xServerView.getSurfaceWidth();
+            nativeH = xServerView.getSurfaceHeight();
+        }
+        if (nativeW <= 0 || nativeH <= 0) {
+            android.widget.Toast.makeText(this, R.string.session_record_failed, android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        java.util.List<Integer> fpsOptions = recordFpsOptions();
+        int nativeShort = Math.min(nativeW, nativeH);
+        java.util.List<String> resLabels = recordResolutionLabels(nativeShort);
+        fpsIndex = Math.max(0, Math.min(fpsIndex, fpsOptions.size() - 1));
+        resolutionIndex = Math.max(0, Math.min(resolutionIndex, resLabels.size() - 1));
+        quality = Math.max(0, Math.min(quality, 2));
+
+        int fps = fpsOptions.get(fpsIndex);
+
+        // Resolution: index 0 = Native; otherwise scale so the short side hits the chosen tier.
+        int encW = nativeW, encH = nativeH;
+        if (resolutionIndex > 0) {
+            int tierShort = tierShortForLabel(resLabels.get(resolutionIndex));
+            if (tierShort > 0 && tierShort < nativeShort) {
+                double scale = (double) tierShort / nativeShort;
+                encW = (int) Math.round(nativeW * scale) & ~1;
+                encH = (int) Math.round(nativeH * scale) & ~1;
+            }
+        }
+
+        int orientationHint = renderer.getRecordOrientationHint();
+        int bitRate = recordBitrate(encW, encH, fps, quality);
+
+        // Persist selections for next time.
+        preferences.edit()
+                .putInt("record_fps", fps)
+                .putInt("record_res_index", resolutionIndex)
+                .putInt("record_quality", quality)
+                .putBoolean("record_ui", recordUI)
+                .apply();
+
+        screenRecorder = new com.winlator.cmod.runtime.display.recording.GameRecorder(this);
+        android.view.Surface encoderSurface = screenRecorder.start(encW, encH, fps, orientationHint, bitRate);
+        if (encoderSurface == null || !renderer.startRecording(encoderSurface, fps, recordUI)) {
+            screenRecorder.stop();
+            screenRecorder = null;
+            android.widget.Toast.makeText(this, R.string.session_record_failed, android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // Force continuous frames while recording (renderer is otherwise on-demand).
+        savedRenderMode = xServerView.getRenderMode();
+        xServerView.setRenderMode(XServerSurfaceView.RENDERMODE_CONTINUOUSLY);
+        if (recordUI) startRecordUiCapture(encW, encH, orientationHint);
+        renderDrawerMenu();
+        android.widget.Toast.makeText(this, R.string.session_record_started, android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    // Record UI: snapshot the overlay views and feed them to the native composite.
+    private android.os.Handler recordUiHandler;
+    private Runnable recordUiSnapshot;
+    private android.graphics.Bitmap recordUiBitmap;
+    private int[] recordUiPixels;
+    private java.nio.ByteBuffer recordUiBuffer;
+    private int recordUiW, recordUiH, recordUiRotation;
+
+    private void startRecordUiCapture(int w, int h, int orientationHint) {
+        stopRecordUiCapture();
+        recordUiW = w;
+        recordUiH = h;
+        // Pre-rotate the upright screen-space UI into the recording's frame to match the game.
+        recordUiRotation = ((360 - (orientationHint % 360)) % 360);
+        try {
+            recordUiBitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            recordUiPixels = new int[w * h];
+            recordUiBuffer = java.nio.ByteBuffer.allocateDirect(w * h * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        } catch (Throwable t) {
+            Log.e("XServerDisplayActivity", "Record UI buffer alloc failed", t);
+            return;
+        }
+        recordUiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        recordUiSnapshot = new Runnable() {
+            @Override
+            public void run() {
+                if (screenRecorder == null || !screenRecorder.isRecording()) return;
+                snapshotRecordUi();
+                if (recordUiHandler != null) recordUiHandler.postDelayed(this, 100); // ~10 fps overlay refresh
+            }
+        };
+        recordUiHandler.post(recordUiSnapshot);
+    }
+
+    private void snapshotRecordUi() {
+        try {
+            VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+            View root = xServerView != null ? xServerView.getRootView() : null;
+            if (renderer == null || root == null || recordUiBitmap == null) return;
+            int sw = root.getWidth();
+            int sh = root.getHeight();
+            if (sw <= 0 || sh <= 0) return;
+
+            recordUiBitmap.eraseColor(0); // transparent — the game area (SurfaceView) stays see-through
+            android.graphics.Canvas c = new android.graphics.Canvas(recordUiBitmap);
+            android.graphics.Matrix m = new android.graphics.Matrix();
+            m.postRotate(recordUiRotation, sw / 2f, sh / 2f);
+            android.graphics.RectF r = new android.graphics.RectF(0, 0, sw, sh);
+            m.mapRect(r);
+            m.postTranslate(-r.left, -r.top);
+            float s = Math.min(recordUiW / r.width(), recordUiH / r.height());
+            m.postScale(s, s);
+            c.setMatrix(m);
+            root.draw(c);
+
+            recordUiBitmap.getPixels(recordUiPixels, 0, recordUiW, 0, 0, recordUiW, recordUiH);
+            recordUiBuffer.clear();
+            recordUiBuffer.asIntBuffer().put(recordUiPixels); // little-endian int → BGRA bytes
+            recordUiBuffer.position(0);
+            renderer.updateRecordUITexture(recordUiBuffer, recordUiW, recordUiH);
+        } catch (Throwable t) {
+            Log.e("XServerDisplayActivity", "Record UI snapshot failed", t);
+        }
+    }
+
+    private void stopRecordUiCapture() {
+        if (recordUiHandler != null && recordUiSnapshot != null) {
+            recordUiHandler.removeCallbacks(recordUiSnapshot);
+        }
+        recordUiHandler = null;
+        recordUiSnapshot = null;
+        if (recordUiBitmap != null) {
+            try { recordUiBitmap.recycle(); } catch (Exception ignore) {}
+        }
+        recordUiBitmap = null;
+        recordUiPixels = null;
+        recordUiBuffer = null;
+    }
+
+    private static int tierShortForLabel(String label) {
+        switch (label) {
+            case "4K":    return 2160;
+            case "2K":    return 1440;
+            case "1080p": return 1080;
+            case "720p":  return 720;
+            default:      return 0;
+        }
+    }
+
+    // Quality preset → bits-per-pixel·frame, then bitrate, clamped to a sane window.
+    private static int recordBitrate(int w, int h, int fps, int quality) {
+        double bpp;
+        switch (quality) {
+            case 0:  bpp = 0.035; break; // Performance
+            case 1:  bpp = 0.075; break; // Balance
+            default: bpp = 0.15;  break; // Quality
+        }
+        long bps = (long) (w * (long) h * fps * bpp);
+        return (int) Math.max(2_000_000L, Math.min(bps, 80_000_000L));
+    }
+
+    private void stopScreenRecording() {
+        if (screenRecorder == null) return;
+        stopRecordUiCapture();
+        if (xServerView != null) xServerView.setRenderMode(savedRenderMode);
+        VulkanRenderer renderer = xServerView != null ? xServerView.getRenderer() : null;
+        if (renderer != null) renderer.stopRecording();
+        screenRecorder.stop();
+        screenRecorder = null;
+        android.widget.Toast.makeText(this, R.string.session_record_saved, android.widget.Toast.LENGTH_SHORT).show();
     }
 
     private void applyRefactorSize(boolean enabled) {
@@ -6041,6 +6450,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     "' effective='" + effectiveCustomEnvVars + "'");
             envVars.putAll(effectiveCustomEnvVars);
 
+            // Steam-style launch options: KEY=VALUE tokens before %command% become env vars.
+            String launchOptsForEnv = shortcut != null
+                    ? getShortcutSetting("execArgs", container.getExecArgs())
+                    : container.getExecArgs();
+            java.util.Map<String, String> steamOptEnv =
+                    com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.parseEnvVars(launchOptsForEnv);
+            for (java.util.Map.Entry<String, String> e : steamOptEnv.entrySet()) {
+                envVars.put(e.getKey(), e.getValue());
+            }
+
             normalizeSyncEnvVars(envVars);
 
             ArrayList<String> bindingPaths = new ArrayList<>();
@@ -6668,16 +7087,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
 
         effectiveShowFPS = preferences.getBoolean("fps_monitor_enabled", false);
-        if (effectiveShowFPS) {
-            frameRating = new FrameRating(this, graphicsDriverConfig);
-            frameRating.setRenderer(lastRendererName);
-            if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
-            frameRating.setVisibility(View.VISIBLE);
-            applyHUDSettings();
-            updateHUDRenderMode();
-            rootView.addView(frameRating);
-            if (perfController != null) perfController.attachToFrameRating(frameRating);
-        }
+        // Always create FrameRating so it feeds the phone gauge HUD; its on-screen overlay only shows
+        // when the FPS monitor is enabled.
+        frameRating = new FrameRating(this, graphicsDriverConfig);
+        frameRating.setRenderer(lastRendererName);
+        if (lastGpuName != null) frameRating.setGpuName(lastGpuName);
+        frameRating.setVisibility(effectiveShowFPS ? View.VISIBLE : View.GONE);
+        applyHUDSettings();
+        updateHUDRenderMode();
+        rootView.addView(frameRating);
+        if (perfController != null) perfController.attachToFrameRating(frameRating);
+
+        setupControllerHudDetection();
 
         startFullscreenStretched = "1".equals(getShortcutSetting("fullscreenStretched",
                 container != null && container.isFullscreenStretched() ? "1" : "0"));
@@ -6703,7 +7124,64 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         startTouchscreenTimeout();
 
+        // Detect a connected external display and offer to move the game onto it (controls stay here).
+        externalDisplayController = new ExternalDisplayController(
+                this, xServerDisplayFrame, xServerView,
+                new ExternalDisplayController.Callbacks() {
+                    @Override
+                    public void onExternalDisplayConnected(android.view.Display display) {
+                        // Automatic swap: the game shows only on the external display, controls stay on the phone.
+                        runOnUiThread(() -> {
+                            if (isFinishing() || isDestroyed() || externalDisplayController == null
+                                    || externalDisplayController.isSwapActive()) return;
+                            externalDisplayController.enterSwap();
+                            renderDrawerMenu();
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_swapped_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        });
+                    }
+
+                    @Override
+                    public void onExternalDisplayDisconnected() {
+                        runOnUiThread(() -> {
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    R.string.display_output_restored_toast,
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                            renderDrawerMenu();
+                            AppUtils.hideSystemUI(XServerDisplayActivity.this);
+                        });
+                    }
+
+                    @Override
+                    public void onSwapStateChanged(boolean swapActive) {
+                        runOnUiThread(() -> {
+                            // On return-to-phone, re-measure the display frame to reclaim full size.
+                            if (!swapActive && drawerStateHolder != null) {
+                                drawerStateHolder.requestPhoneRelayout();
+                            }
+                            evaluateControllerHudMode();
+                            renderDrawerMenu();
+                        });
+                    }
+                });
+        externalDisplayController.start();
+
         AppUtils.observeSoftKeyboardVisibility(displayHostComposeView, renderer::setScreenOffsetYRelativeToCursor);
+    }
+
+    // Open the system Cast / wireless-display picker; a connected display flows through the swap path.
+    private void launchWirelessDisplayPicker() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_CAST_SETTINGS));
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS));
+            } catch (Exception ignore) {
+                android.widget.Toast.makeText(this, R.string.display_output_cast_unavailable,
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
 
@@ -6878,6 +7356,51 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private boolean hasActiveTouchscreenProfile() {
         return inputControlsView != null && inputControlsView.getProfile() != null;
+    }
+
+    private void setupControllerHudDetection() {
+        android.hardware.input.InputManager im =
+                (android.hardware.input.InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (im == null) return;
+        hudControllerListener = new android.hardware.input.InputManager.InputDeviceListener() {
+            @Override public void onInputDeviceAdded(int id) { evaluateControllerHudMode(); }
+            @Override public void onInputDeviceRemoved(int id) { evaluateControllerHudMode(); }
+            @Override public void onInputDeviceChanged(int id) { evaluateControllerHudMode(); }
+        };
+        im.registerInputDeviceListener(hudControllerListener,
+                new android.os.Handler(android.os.Looper.getMainLooper()));
+        evaluateControllerHudMode();
+    }
+
+    private void evaluateControllerHudMode() {
+        boolean controller =
+                com.winlator.cmod.runtime.input.ControllerHelper.INSTANCE.isControllerConnected();
+        boolean externalDisplay =
+                externalDisplayController != null && externalDisplayController.isSwapActive();
+        updateControllerHudMode(controller && externalDisplay);
+    }
+
+    // Physical controller present -> disable the touch controls and show the gauge HUD; otherwise
+    // restore the normal touch controls + on-screen overlay. The trackpad (touchpadView) stays either way.
+    private void updateControllerHudMode(boolean connected) {
+        if (connected == controllerHudMode) return;
+        controllerHudMode = connected;
+        runOnUiThread(() -> {
+            com.winlator.cmod.runtime.display.PerformanceHudState.setVisible(connected);
+            if (frameRating != null) frameRating.setHudMirrorActive(connected);
+            if (connected) {
+                if (inputControlsView != null) inputControlsView.setVisibility(View.GONE);
+                if (frameRating != null) frameRating.setVisibility(View.GONE);
+                // Lock onto the game window now so FPS/renderer come from it (it's on the external display).
+                syncFrameRatingWithExistingWindows();
+            } else {
+                if (effectiveShowFPS && frameRating != null) frameRating.setVisibility(View.VISIBLE);
+                if (inputControlsView != null && hasActiveTouchscreenProfile()
+                        && preferences.getBoolean("show_touchscreen_controls_enabled", false)) {
+                    inputControlsView.setVisibility(View.VISIBLE);
+                }
+            }
+        });
     }
 
     private void applyTouchscreenOverlayPreference() {
@@ -7077,7 +7600,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void startTouchscreenTimeout() {
         if (inputControlsView == null || touchpadView == null) return;
         touchpadView.setOnTouchListener(null);
-        if (inputControlsRevealAllowed && hasActiveTouchscreenProfile()) {
+        if (!controllerHudMode && inputControlsRevealAllowed && hasActiveTouchscreenProfile()) {
             inputControlsView.setVisibility(View.VISIBLE);
         }
     }
@@ -7105,6 +7628,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             winHandler.sendGamepadState();
         }
         startTouchscreenTimeout();
+        // In controller-HUD mode the on-screen controls stay hidden even though the profile is set.
+        if (controllerHudMode) inputControlsView.setVisibility(View.GONE);
     }
 
     private void hideInputControls() {
@@ -7695,7 +8220,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
-                String steamExtraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
+                String steamExtraArgs = appendSteamJoinConnect(
+                        com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions
+                                .gameArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs())));
                 steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
 
                 boolean useColdClient = parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"));
@@ -8082,7 +8609,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = appendSteamJoinConnect(com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.gameArgs(perGameExecArgs));
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -8091,6 +8618,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.d("XServerDisplayActivity",
                 "Wrote ColdClientLoader.ini: Exe=" + exePath + " ExeRunDir=" + exeRunDir
                         + " AppId=" + appId + " runtimePatcher=" + runtimePatcher);
+    }
+
+    // Appends a friend's join connect string to the game's launch arguments.
+    private String appendSteamJoinConnect(String args) {
+        String joinConnect = getIntent().getStringExtra("steam_join_connect");
+        if (joinConnect == null || joinConnect.trim().isEmpty()) return args != null ? args : "";
+        joinConnect = joinConnect.trim();
+        if (args == null || args.trim().isEmpty()) return joinConnect;
+        return args.trim() + " " + joinConnect;
     }
 
     private String buildColdClientIni(int appId, String exePath, String exeRunDir,
@@ -8158,7 +8694,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = appendSteamJoinConnect(com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.gameArgs(perGameExecArgs));
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -10431,7 +10967,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
-        if (!effectiveShowFPS || frameRating == null || window == null) return false;
+        if ((!effectiveShowFPS && !controllerHudMode) || frameRating == null || window == null) return false;
         if (source == WindowManager.FrameSource.UNKNOWN) return false;
         if (frameRatingWindowId == window.id) return true;
         if (isRelatedToFrameRatingWindow(window)) return true;

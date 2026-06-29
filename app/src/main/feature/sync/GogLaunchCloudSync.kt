@@ -6,7 +6,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.stores.gog.service.GOGCloudSavesManager
+import com.winlator.cmod.feature.sync.google.GameSaveBackupManager
+import com.winlator.cmod.feature.sync.google.GoogleAuthMode
 import com.winlator.cmod.runtime.container.Shortcut
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -62,6 +66,7 @@ object GogLaunchCloudSync {
         val dialogLatch = CountDownLatch(1)
         var useCloud = false
         var useLocal = false
+        var keepBackup = false
         val timestamps = CloudSyncHelper.getGogConflictTimestamps(activity, shortcut)
 
         val lifecycle = (activity as? LifecycleOwner)?.lifecycle
@@ -80,13 +85,15 @@ object GogLaunchCloudSync {
             GogCloudConflictDialog.show(
                 activity = activity,
                 timestamps = timestamps,
-                onUseCloud = {
+                onUseCloud = { keep ->
                     useCloud = true
+                    keepBackup = keep
                     dialogLatch.countDown()
                 },
-                onUseLocal = {
+                onUseLocal = { keep ->
                     useCloud = false
                     useLocal = true
+                    keepBackup = keep
                     dialogLatch.countDown()
                 },
             )
@@ -108,15 +115,56 @@ object GogLaunchCloudSync {
 
         when {
             useCloud -> {
+                if (keepBackup) {
+                    // "Use Cloud" overwrites the local save — back it up first (M-2).
+                    backupLocalSaveToGoogle(activity, shortcut)
+                }
                 statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
                 CloudSyncHelper.downloadCloudSaves(activity, shortcut)
                 statusSink.show(activity.getString(R.string.preloader_initializing))
             }
             useLocal -> {
+                if (keepBackup) {
+                    // "Use Local" pushes the local save over the GOG cloud. GOG has no
+                    // non-destructive way to capture the cloud copy (only Steam does), so honor the
+                    // checkbox by backing up the local save to Google as a recovery point at this
+                    // conflict — rather than silently doing nothing.
+                    backupLocalSaveToGoogle(activity, shortcut)
+                }
                 statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
                 CloudSyncHelper.uploadCloudSaves(activity, shortcut)
                 statusSink.show(activity.getString(R.string.preloader_initializing))
             }
+        }
+    }
+
+    /**
+     * Back up the current local GOG save before it is overwritten by a "Use Cloud" download.
+     * GOG has no local snapshot backend, so this mirrors the save to Google Play Games (silent;
+     * a no-op when not signed in). Best-effort — never blocks or throws into the launch path.
+     */
+    private fun backupLocalSaveToGoogle(
+        activity: Activity,
+        shortcut: Shortcut,
+    ) {
+        val gameId =
+            shortcut.getExtra("gog_id").ifEmpty { shortcut.getExtra("app_id") }.takeIf { it.isNotEmpty() } ?: return
+        val gameName = shortcut.name ?: "Unknown"
+        try {
+            val result =
+                runBlocking(Dispatchers.IO) {
+                    GameSaveBackupManager.backupSaveToGoogle(
+                        activity = activity,
+                        gameSource = GameSaveBackupManager.GameSource.GOG,
+                        gameId = gameId,
+                        gameName = gameName,
+                        origin = GameSaveBackupManager.BackupOrigin.LOCAL,
+                        authMode = GoogleAuthMode.RESUME,
+                    )
+                }
+            Timber.tag("GogLaunchCloudSync").i("Pre-overwrite GOG local backup: %s", result.message)
+        } catch (e: Exception) {
+            Timber.tag("GogLaunchCloudSync").w(e, "Failed to back up GOG local save before Use-Cloud")
         }
     }
 }

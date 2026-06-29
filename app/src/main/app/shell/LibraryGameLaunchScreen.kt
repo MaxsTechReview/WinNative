@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DesktopWindows
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
@@ -139,6 +140,7 @@ internal fun LibraryGameLaunchScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onBootToDesktop: () -> Unit,
+    onAchievements: (() -> Unit)? = null,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
@@ -156,8 +158,9 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // 5 action icons: Settings, Boot, CloudSync, Shortcut, Delete.
-        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
+        // Action icons: Settings, (Achievements), Boot, CloudSync, Shortcut, Delete.
+        val actionIconCount = if (onAchievements != null) 6 else 5
+        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1)
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -380,6 +383,14 @@ internal fun LibraryGameLaunchScreen(
                             size = actionIconSize,
                             onClick = onSettings,
                         )
+                        if (onAchievements != null) {
+                            LaunchIconActionButton(
+                                icon = Icons.Outlined.EmojiEvents,
+                                contentDescription = stringResource(R.string.steam_achievements_title),
+                                size = actionIconSize,
+                                onClick = onAchievements,
+                            )
+                        }
                         LaunchIconActionButton(
                             icon = Icons.Outlined.DesktopWindows,
                             contentDescription = stringResource(R.string.hero_boot_to_desktop_title),
