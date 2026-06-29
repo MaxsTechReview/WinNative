@@ -4018,8 +4018,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     externalDisplayController.isGameModeEnabled(),
                     externalDisplayController.isPanelScaling(),
                     externalDisplayController.getPanelNativeSummary(),
-                    externalDisplayController.hasExternalDisplay(),
-                    externalDisplayController.isVitureSinkAvailable());
+                    externalDisplayController.hasExternalDisplay());
             if (externalDisplayController.isVitureConnected()) {
                 state = XServerDrawerMenuKt.withVitureState(
                         state,
@@ -4298,22 +4297,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     R.string.display_output_swapped_toast,
                                     android.widget.Toast.LENGTH_SHORT).show();
                         }
-                    }
-
-                    @Override
-                    public void onOutputModeChanged(boolean enabled) {
-                        if (externalDisplayController == null) return;
-                        // Viture glasses always output regardless of the toggle.
-                        if (externalDisplayController.isVitureSinkAvailable()) return;
-                        if (preferences != null) {
-                            preferences.edit().putBoolean("external_display_output", enabled).apply();
-                        }
-                        if (enabled) {
-                            externalDisplayController.enterSwap();
-                        } else {
-                            externalDisplayController.exitSwap();
-                        }
-                        renderDrawerMenu();
                     }
 
                     @Override

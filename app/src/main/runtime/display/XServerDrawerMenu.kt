@@ -400,8 +400,6 @@ data class XServerDrawerState(
     val outputDisplayAvailable: Boolean = false,
     // Viture XR glasses controls (USB), present only when Viture glasses are connected.
     val outputVitureConnected: Boolean = false,
-    // Viture sink present via USB control or EDID name; the output toggle is hidden for it.
-    val outputVitureSink: Boolean = false,
     val outputVitureName: String = "",
     val outputVitureSupportsBrightness: Boolean = false,
     val outputVitureBrightness: Int = 0,
@@ -618,8 +616,6 @@ interface XServerDrawerActionListener {
     fun onOutputReturnToPhone()
 
     fun onOutputSwapToDisplay()
-
-    fun onOutputModeChanged(enabled: Boolean)
 
     fun onOutputCastClick()
 
@@ -1033,7 +1029,6 @@ fun withOutputState(
     panelScaling: Boolean,
     panelNative: String,
     displayAvailable: Boolean,
-    vitureSink: Boolean,
 ): XServerDrawerState {
     val outputItem =
         XServerDrawerItem(
@@ -1056,7 +1051,6 @@ fun withOutputState(
         outputPanelScaling = panelScaling,
         outputPanelNative = panelNative,
         outputDisplayAvailable = displayAvailable,
-        outputVitureSink = vitureSink,
     )
 }
 
@@ -3069,13 +3063,11 @@ private fun OutputActiveControls(
         OutputGlassesCard(state = state, listener = listener, paneScale = paneScale)
     }
 
-    if (!state.outputVitureSink) {
-        DrawerBooleanRow(
-            title = stringResource(R.string.session_drawer_output_to_display),
-            checked = state.outputSwapActive,
-            onCheckedChange = { listener.onOutputModeChanged(it) },
-        )
-    }
+    OutputPaneButton(
+        label = stringResource(R.string.session_drawer_output_return_to_phone),
+        paneScale = paneScale,
+        onClick = listener::onOutputReturnToPhone,
+    )
 }
 
 @Composable
@@ -3224,13 +3216,11 @@ private fun OutputSendToDisplay(
     paneScale: Float,
 ) {
     OutputDeviceHeader(state = state, paneScale = paneScale)
-    if (!state.outputVitureSink) {
-        DrawerBooleanRow(
-            title = stringResource(R.string.session_drawer_output_to_display),
-            checked = state.outputSwapActive,
-            onCheckedChange = { listener.onOutputModeChanged(it) },
-        )
-    }
+    OutputPaneButton(
+        label = stringResource(R.string.session_drawer_output_send_to_display),
+        paneScale = paneScale,
+        onClick = listener::onOutputSwapToDisplay,
+    )
     Text(
         text = stringResource(R.string.session_drawer_output_send_note),
         color = DrawerTextSecondary,
