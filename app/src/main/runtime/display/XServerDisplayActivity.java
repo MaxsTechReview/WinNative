@@ -7065,12 +7065,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     // DC: check if enabled for this session.
     private boolean isDirectCompositionEnabledForSession() {
-        if (shortcut != null) {
-            return shortcut.getExtra(
-                    com.winlator.cmod.runtime.container.Container.EXTRA_DIRECT_COMPOSITION,
-                    container != null && container.isDirectCompositionEnabled() ? "1" : "0").equals("1");
-        }
-        return container != null && container.isDirectCompositionEnabled();
+        String containerValue = container != null && container.isDirectCompositionEnabled() ? "1" : "0";
+        return getShortcutSetting(
+                com.winlator.cmod.runtime.container.Container.EXTRA_DIRECT_COMPOSITION,
+                containerValue).equals("1");
     }
 
     // DC: install SurfaceHolder lifecycle.
