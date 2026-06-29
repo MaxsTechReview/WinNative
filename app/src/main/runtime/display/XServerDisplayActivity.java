@@ -2320,6 +2320,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, true);
         applyPreferredRefreshRate();
         registerGyroSensorIfEnabled();
 
@@ -3689,6 +3690,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     @Override
     protected void onDestroy() {
         activityDestroyed.set(true);
+        com.winlator.cmod.feature.stores.steam.service.GameSessionState.setInGame(this, false);
         // Finalize any in-progress recording before the renderer tears down.
         if (screenRecorder != null && screenRecorder.isRecording()) {
             stopScreenRecording();
@@ -6445,6 +6447,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     "' effective='" + effectiveCustomEnvVars + "'");
             envVars.putAll(effectiveCustomEnvVars);
 
+            // Steam-style launch options: KEY=VALUE tokens before %command% become env vars.
+            String launchOptsForEnv = shortcut != null
+                    ? getShortcutSetting("execArgs", container.getExecArgs())
+                    : container.getExecArgs();
+            java.util.Map<String, String> steamOptEnv =
+                    com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.parseEnvVars(launchOptsForEnv);
+            for (java.util.Map.Entry<String, String> e : steamOptEnv.entrySet()) {
+                envVars.put(e.getKey(), e.getValue());
+            }
+
             normalizeSyncEnvVars(envVars);
 
             ArrayList<String> bindingPaths = new ArrayList<>();
@@ -8036,7 +8048,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
-                String steamExtraArgs = shortcut.getSettingExtra("execArgs", container.getExecArgs());
+                String steamExtraArgs = appendSteamJoinConnect(
+                        com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions
+                                .gameArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs())));
                 steamExtraArgs = (steamExtraArgs != null && !steamExtraArgs.isEmpty()) ? " " + steamExtraArgs : "";
 
                 boolean useColdClient = parseBoolean(getShortcutSetting("useColdClient", container.isUseColdClient() ? "1" : "0"));
@@ -8423,7 +8437,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = appendSteamJoinConnect(com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.gameArgs(perGameExecArgs));
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 
@@ -8432,6 +8446,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Log.d("XServerDisplayActivity",
                 "Wrote ColdClientLoader.ini: Exe=" + exePath + " ExeRunDir=" + exeRunDir
                         + " AppId=" + appId + " runtimePatcher=" + runtimePatcher);
+    }
+
+    // Appends a friend's join connect string to the game's launch arguments.
+    private String appendSteamJoinConnect(String args) {
+        String joinConnect = getIntent().getStringExtra("steam_join_connect");
+        if (joinConnect == null || joinConnect.trim().isEmpty()) return args != null ? args : "";
+        joinConnect = joinConnect.trim();
+        if (args == null || args.trim().isEmpty()) return joinConnect;
+        return args.trim() + " " + joinConnect;
     }
 
     private String buildColdClientIni(int appId, String exePath, String exeRunDir,
@@ -8499,7 +8522,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         String perGameExecArgs = shortcut != null ? shortcut.getSettingExtra("execArgs", container.getExecArgs()) : container.getExecArgs();
-        String exeCommandLine = perGameExecArgs != null ? perGameExecArgs : "";
+        String exeCommandLine = appendSteamJoinConnect(com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions.gameArgs(perGameExecArgs));
 
         String iniContent = buildColdClientIni(appId, exePath, exeRunDir, exeCommandLine, runtimePatcher);
 

@@ -448,6 +448,12 @@ private val ExtraArgPresets = listOf(
         "General", listOf(
             "-windowed", "-fullscreen", "-nointro", "-skipvideos", "-novsync", "/d3d9"
         )
+    ),
+    // Steam-style launch options: KEY=VALUE before %command% become env vars; args after go to the game.
+    ExtraArgGroup(
+        "Steam (%command%)", listOf(
+            "%command%", "%command% -windowed", "DXVK_HUD=fps %command%", "WINEDEBUG=-all %command%"
+        )
     )
 )
 

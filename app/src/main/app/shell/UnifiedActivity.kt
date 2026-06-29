@@ -1498,6 +1498,38 @@ class UnifiedActivity :
         val persona by SteamService.instance?.localPersona?.collectAsState()
             ?: remember { mutableStateOf(null) }
         val scope = rememberCoroutineScope()
+        val rightDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val friends by SteamService.instance?.friendsList?.collectAsState()
+            ?: remember { mutableStateOf(emptyList<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry>()) }
+        var chatFriend by remember { mutableStateOf<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry?>(null) }
+        val friendsDrawerOpen = rightDrawerState.isOpen
+        var installedFriendGameIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+        LaunchedEffect(friends) {
+            val ids = friends.map { it.gameAppId }.filter { it > 0 }.distinct()
+            installedFriendGameIds =
+                withContext(Dispatchers.IO) { ids.filter { SteamService.isAppInstalled(it) }.toSet() }
+        }
+        LaunchedEffect(isLoggedIn) {
+            if (isLoggedIn) {
+                while (true) {
+                    runCatching { SteamService.instance?.refreshFriends() }
+                    kotlinx.coroutines.delay(30_000L)
+                }
+            }
+        }
+        LaunchedEffect(isLoggedIn, friendsDrawerOpen) {
+            if (isLoggedIn && friendsDrawerOpen) {
+                while (true) {
+                    runCatching { SteamService.instance?.syncFriendsPresence() }
+                    kotlinx.coroutines.delay(5_000L)
+                }
+            }
+        }
+        LaunchedEffect(isLoggedIn) {
+            if (isLoggedIn) {
+                runCatching { com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService.start(context) }
+            }
+        }
 
         val epicApps by db.epicGameDao().getAll().collectAsState(initial = emptyList())
         val gogApps by db.gogGameDao().getAll().collectAsState(initial = emptyList())
@@ -1725,6 +1757,60 @@ class UnifiedActivity :
             }
         }
 
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl,
+        ) {
+        ModalNavigationDrawer(
+            drawerState = rightDrawerState,
+            drawerContent = {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr,
+                ) {
+                    com.winlator.cmod.feature.stores.steam.friends.FriendsDrawerContent(
+                        self = persona ?: com.winlator.cmod.feature.stores.steam.data.SteamFriend(),
+                        friends = friends,
+                        installedGameIds = installedFriendGameIds,
+                        onSetState = { st -> scope.launch { SteamService.setPersonaState(st) } },
+                        onOpenChat = { f -> chatFriend = f; scope.launch { rightDrawerState.close() } },
+                        onJoinGame = { f ->
+                            scope.launch { rightDrawerState.close() }
+                            scope.launch {
+                                val app = withContext(Dispatchers.IO) { SteamService.getAppInfoOf(f.gameAppId) }
+                                val installed = withContext(Dispatchers.IO) { SteamService.getInstalledApp(f.gameAppId) }
+                                val label = f.gameName.ifBlank { context.getString(R.string.steam_join_the_game) }
+                                if (app != null && installed != null) {
+                                    android.widget.Toast.makeText(
+                                        context, context.getString(R.string.steam_join_joining, f.name, label), android.widget.Toast.LENGTH_SHORT,
+                                    ).show()
+                                    launchSteamGame(context, ContainerManager(context), app, f.connectString)
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        if (app != null) context.getString(R.string.steam_join_install, label, f.name)
+                                        else context.getString(R.string.steam_join_not_owned, label),
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            }
+                        },
+                        onPlayGame = { f ->
+                            scope.launch { rightDrawerState.close() }
+                            scope.launch {
+                                val app = withContext(Dispatchers.IO) { SteamService.getAppInfoOf(f.gameAppId) }
+                                if (app != null) {
+                                    launchSteamGame(context, ContainerManager(context), app, null)
+                                }
+                            }
+                        },
+                    )
+                }
+            },
+            scrimColor = Color.Black.copy(alpha = 0.5f),
+            gesturesEnabled = rightDrawerState.isOpen,
+        ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr,
+        ) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -1883,7 +1969,7 @@ class UnifiedActivity :
                         }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
                             searchQueryTfv =
                                 it
-                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onOpenFileManager = openFileManager) {
+                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onFriendsClicked = { scope.launch { rightDrawerState.open() } }, onOpenFileManager = openFileManager) {
                             if (selectedLibrarySource == "GOG") {
                                 globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                             } else {
@@ -1994,6 +2080,21 @@ class UnifiedActivity :
                         val addGameFabMargin = (libraryFabBase * 0.035f).dp.coerceIn(12.dp, 20.dp)
                         val addGameFabIconSize = (libraryFabBase * 0.055f).dp.coerceIn(24.dp, 28.dp)
 
+                        if (drawerState.isClosed) {
+                            DrawerSwipeHotZone(
+                                modifier = Modifier.align(Alignment.CenterStart),
+                                onOpenDrawer = { scope.launch { drawerState.open() } },
+                            )
+                        }
+                        if (rightDrawerState.isClosed) {
+                            DrawerSwipeHotZone(
+                                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
+                                isRightSide = true,
+                                onOpenDrawer = { scope.launch { rightDrawerState.open() } },
+                            )
+                        }
+
+                        // Composed after the hot zones so the FAB stays on top for hit-testing.
                         if (key == "library") {
                             Box(
                                 modifier =
@@ -2033,17 +2134,13 @@ class UnifiedActivity :
                                 )
                             }
                         }
-
-                        if (drawerState.isClosed) {
-                            DrawerSwipeHotZone(
-                                modifier = Modifier.align(Alignment.CenterStart),
-                                onOpenDrawer = { scope.launch { drawerState.open() } },
-                            )
-                        }
                     }
                 }
             }
         } // end ModalNavigationDrawer
+        } // end inner LTR
+        } // end right friends ModalNavigationDrawer
+        } // end RTL provider
 
         if (globalSettingsApp != null) {
             GameSettingsDialog(
@@ -2065,8 +2162,19 @@ class UnifiedActivity :
             })
         }
 
+        chatFriend?.let { cf ->
+            com.winlator.cmod.feature.stores.steam.friends.SteamChatScreen(
+                friend = friends.firstOrNull { it.steamId == cf.steamId } ?: cf,
+                onClose = { chatFriend = null },
+            )
+        }
+
         BackHandler(enabled = true) {
-            if (drawerState.isOpen) {
+            if (chatFriend != null) {
+                chatFriend = null
+            } else if (rightDrawerState.isOpen) {
+                scope.launch { rightDrawerState.close() }
+            } else if (drawerState.isOpen) {
                 scope.launch { drawerState.close() }
             } else if (globalSettingsApp != null) {
                 globalSettingsApp = null
@@ -2134,6 +2242,7 @@ class UnifiedActivity :
     @Composable
     private fun DrawerSwipeHotZone(
         modifier: Modifier = Modifier,
+        isRightSide: Boolean = false,
         onOpenDrawer: () -> Unit,
     ) {
         val density = LocalDensity.current
@@ -2143,8 +2252,8 @@ class UnifiedActivity :
             modifier =
                 modifier
                     .fillMaxHeight()
-                    .width(40.dp)
-                    .pointerInput(openThresholdPx) {
+                    .width(if (isRightSide) 30.dp else 40.dp)
+                    .pointerInput(openThresholdPx, isRightSide) {
                         var accumulatedDrag = 0f
                         var opened = false
 
@@ -2154,9 +2263,10 @@ class UnifiedActivity :
                                 opened = false
                             },
                             onHorizontalDrag = { change, dragAmount ->
-                                if (dragAmount <= 0f || opened) return@detectHorizontalDragGestures
+                                val delta = if (isRightSide) -dragAmount else dragAmount
+                                if (delta <= 0f || opened) return@detectHorizontalDragGestures
 
-                                accumulatedDrag += dragAmount
+                                accumulatedDrag += delta
                                 change.consume()
 
                                 if (accumulatedDrag >= openThresholdPx) {
@@ -2302,6 +2412,7 @@ class UnifiedActivity :
         searchQuery: TextFieldValue,
         onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
+        onFriendsClicked: () -> Unit = {},
         onOpenFileManager: () -> Unit,
         onGameSettingsClicked: () -> Unit,
     ) {
@@ -2533,6 +2644,25 @@ class UnifiedActivity :
                             }
                         }
                     }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .focusProperties { canFocus = !isLibraryTab }
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = androidx.compose.material3.ripple(color = Accent),
+                                ) { onFilterClicked() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
                 }
 
                 Row(
@@ -2554,13 +2684,14 @@ class UnifiedActivity :
                                 Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(SurfaceDark)
+                                    .background(Color.Transparent)
+                                    .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                     .clickable { showGlassesPanel = true },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(Eyeglasses2Icon, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
                     }
 
                     Box(
@@ -2589,14 +2720,10 @@ class UnifiedActivity :
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = androidx.compose.material3.ripple(color = Accent),
-                                ) { onFilterClicked() },
+                                .clickable { onFriendsClicked() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
@@ -4807,6 +4934,7 @@ class UnifiedActivity :
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(LibraryDetailScreen.Main) }
         var activePopup by remember { mutableStateOf<LibraryDetailPopup?>(null) }
+        var showAchievements by remember(app.id) { mutableStateOf(false) }
         var shortcutRefreshKey by remember(app.id, gogGame?.id) { mutableStateOf(0) }
         var pinnedShortcutOverride by remember(app.id, gogGame?.id) { mutableStateOf<Boolean?>(null) }
         var showWorkshopDialog by remember(app.id) { mutableStateOf(false) }
@@ -5496,6 +5624,9 @@ class UnifiedActivity :
                                             )
                                         }
                                     },
+                                    onAchievements = if (!isCustom && !isEpic && !isGog) {
+                                        { showAchievements = true }
+                                    } else null,
                                     onShortcut = {
                                         if (hasPinnedShortcut) {
                                             heroPopup = HeroLaunchPopup.RemoveShortcut
@@ -5852,6 +5983,22 @@ class UnifiedActivity :
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    if (showAchievements) {
+                        Dialog(
+                            onDismissRequest = { showAchievements = false },
+                            properties = DialogProperties(
+                                usePlatformDefaultWidth = false,
+                                dismissOnClickOutside = false,
+                            ),
+                        ) {
+                            com.winlator.cmod.feature.stores.steam.achievements.SteamAchievementsScreen(
+                                appId = app.id,
+                                appName = app.name,
+                                onClose = { showAchievements = false },
+                            )
                         }
                     }
 
@@ -9900,6 +10047,7 @@ class UnifiedActivity :
         context: android.content.Context,
         containerManager: ContainerManager,
         app: SteamApp,
+        joinConnect: String? = null,
     ) {
         lifecycleScope.launch(Dispatchers.IO) {
             val gameInstallPath = SteamService.getAppDirPath(app.id)
@@ -9962,6 +10110,7 @@ class UnifiedActivity :
                 intent.putExtra("container_id", shortcut.container.id)
                 intent.putExtra("shortcut_path", shortcut.file.path)
                 intent.putExtra("shortcut_name", shortcut.name)
+                if (!joinConnect.isNullOrBlank()) intent.putExtra("steam_join_connect", joinConnect)
                 withContext(Dispatchers.Main) {
                     launchGame(context, intent)
                 }
@@ -10006,6 +10155,7 @@ class UnifiedActivity :
                 intent.putExtra("container_id", container.id)
                 intent.putExtra("shortcut_path", shortcutFile.path)
                 intent.putExtra("shortcut_name", app.name)
+                if (!joinConnect.isNullOrBlank()) intent.putExtra("steam_join_connect", joinConnect)
                 withContext(Dispatchers.Main) {
                     launchGame(context, intent)
                 }
@@ -10789,8 +10939,6 @@ class UnifiedActivity :
         onExportAll: () -> Unit,
         onExitApp: () -> Unit,
     ) {
-        val currentState = persona?.state ?: EPersonaState.Online
-        var statusExpanded by remember { mutableStateOf(false) }
 
         ModalDrawerSheet(
             drawerShape = RectangleShape,
@@ -10806,176 +10954,6 @@ class UnifiedActivity :
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
             ) {
-                // ── Avatar Card ──
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = SurfaceDark,
-                    border = BorderStroke(1.dp, CardBorder),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { statusExpanded = !statusExpanded },
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val avatarUrl =
-                                persona?.avatarHash?.getAvatarURL()
-                                    ?: "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
-
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape),
-                            ) {
-                                AsyncImage(
-                                    model =
-                                        ImageRequest
-                                            .Builder(context)
-                                            .data(avatarUrl)
-                                            .crossfade(true)
-                                            .build(),
-                                    contentDescription = "Profile",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-
-                            Spacer(Modifier.width(12.dp))
-
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = persona?.name ?: stringResource(R.string.stores_accounts_not_signed_in),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                val statusLabel =
-                                    when (currentState) {
-                                        EPersonaState.Online -> stringResource(R.string.stores_accounts_status_online)
-                                        EPersonaState.Away -> stringResource(R.string.stores_accounts_status_away)
-                                        else -> stringResource(R.string.stores_accounts_status_offline)
-                                    }
-                                val statusColor =
-                                    when (currentState) {
-                                        EPersonaState.Online -> StatusOnline
-                                        EPersonaState.Away -> StatusAway
-                                        else -> StatusOffline
-                                    }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(8.dp).background(statusColor, CircleShape))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(statusLabel, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                                }
-                            }
-
-                            val chevronRotation by animateFloatAsState(
-                                targetValue = if (statusExpanded) 90f else 0f,
-                                animationSpec = tween(250),
-                                label = "chevronRotation",
-                            )
-                            Icon(
-                                Icons.Outlined.ChevronRight,
-                                contentDescription = "Toggle status",
-                                tint = TextSecondary,
-                                modifier =
-                                    Modifier
-                                        .size(20.dp)
-                                        .graphicsLayer { rotationZ = chevronRotation },
-                            )
-                        }
-
-                        // Expandable status options
-                        AnimatedVisibility(visible = statusExpanded) {
-                            Column(Modifier.padding(top = 12.dp)) {
-                                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    stringResource(R.string.stores_accounts_status_header),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = TextSecondary,
-                                )
-                                Spacer(Modifier.height(8.dp))
-
-                                listOf(
-                                    Triple(EPersonaState.Online, stringResource(R.string.stores_accounts_status_online), StatusOnline),
-                                    Triple(EPersonaState.Away, stringResource(R.string.stores_accounts_status_away), StatusAway),
-                                    Triple(
-                                        EPersonaState.Invisible,
-                                        stringResource(R.string.stores_accounts_status_invisible),
-                                        StatusOffline,
-                                    ),
-                                ).forEach { (state, label, color) ->
-                                    val isSelected = currentState == state
-                                    val rowBg by animateColorAsState(
-                                        targetValue = if (isSelected) Accent.copy(alpha = 0.12f) else Color.Transparent,
-                                        animationSpec = tween(250),
-                                        label = "statusRowBg",
-                                    )
-                                    val borderAlpha by animateFloatAsState(
-                                        targetValue = if (isSelected) 1f else 0f,
-                                        animationSpec = tween(250),
-                                        label = "statusBorder",
-                                    )
-                                    val checkScale by animateFloatAsState(
-                                        targetValue = if (isSelected) 1f else 0f,
-                                        animationSpec =
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium,
-                                            ),
-                                        label = "checkScale",
-                                    )
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(rowBg)
-                                                .border(1.dp, Accent.copy(alpha = 0.4f * borderAlpha), RoundedCornerShape(8.dp))
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null,
-                                                ) {
-                                                    scope.launch {
-                                                        SteamService.setPersonaState(state)
-                                                        statusExpanded = false
-                                                    }
-                                                }.padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Box(Modifier.size(10.dp).background(color, CircleShape))
-                                        Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
-                                        Spacer(Modifier.weight(1f))
-                                        Icon(
-                                            Icons.Outlined.Check,
-                                            contentDescription = null,
-                                            tint = Accent,
-                                            modifier =
-                                                Modifier
-                                                    .size(16.dp)
-                                                    .graphicsLayer {
-                                                        scaleX = checkScale
-                                                        scaleY = checkScale
-                                                        alpha = checkScale
-                                                    },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-                HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
-                Spacer(Modifier.height(20.dp))
 
                 // ── Layouts ──
                 Text(

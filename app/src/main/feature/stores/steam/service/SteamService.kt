@@ -32,6 +32,7 @@ import com.winlator.cmod.feature.stores.steam.data.PostSyncInfo
 import com.winlator.cmod.feature.stores.steam.data.SteamApp
 import com.winlator.cmod.feature.stores.steam.data.SteamControllerConfigDetail
 import com.winlator.cmod.feature.stores.steam.data.SteamFriend
+import com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry
 import com.winlator.cmod.feature.stores.steam.data.SteamLicense
 import com.winlator.cmod.feature.stores.steam.data.UserFileInfo
 import com.winlator.cmod.feature.stores.steam.db.dao.AppInfoDao
@@ -122,7 +123,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.filter
@@ -285,6 +288,25 @@ class SteamService : Service() {
         )
     val localPersona = _localPersona.asStateFlow()
 
+    private val _friendsList = MutableStateFlow<List<SteamFriendEntry>>(emptyList())
+    val friendsList = _friendsList.asStateFlow()
+
+    private val _incomingChat =
+        MutableSharedFlow<Pair<Long, com.winlator.cmod.feature.stores.steam.data.SteamChatMessage>>(
+            replay = 32,
+            extraBufferCapacity = 256,
+        )
+    val incomingChat = _incomingChat.asSharedFlow()
+
+    private val _unreadCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    val unreadCounts = _unreadCounts.asStateFlow()
+
+    private val _recentChats = MutableStateFlow<Map<Long, Long>>(emptyMap())
+    val recentChats = _recentChats.asStateFlow()
+
+    private val activeConversations = java.util.concurrent.ConcurrentHashMap<Long, Int>()
+    private var messagePollerJob: Job? = null
+
     data class ManifestSizes(
         val installSize: Long = 0L,
         val downloadSize: Long = 0L,
@@ -362,6 +384,46 @@ class SteamService : Service() {
         fun clearCachedAchievements() {
             cachedAchievements = null
             cachedAchievementsAppId = null
+        }
+
+        // Generate (CM schema + unlock state) and return achievements for a game.
+        suspend fun loadAchievements(
+            appId: Int,
+            configDirectory: String,
+        ): List<com.winlator.cmod.feature.stores.steam.statsgen.Achievement> {
+            runCatching { generateAchievements(appId, configDirectory) }
+            return if (cachedAchievementsAppId == appId) cachedAchievements ?: emptyList() else emptyList()
+        }
+
+        // Overlay the real unlock state onto schema-derived achievement definitions.
+        private suspend fun mergeAchievementUnlockState(
+            appId: Int,
+            achievements: List<com.winlator.cmod.feature.stores.steam.statsgen.Achievement>,
+            nameToBlockBit: Map<String, Pair<Int, Int>>,
+        ): List<com.winlator.cmod.feature.stores.steam.statsgen.Achievement> {
+            if (achievements.isEmpty() || nameToBlockBit.isEmpty()) return achievements
+            val statsJson = withWnSession { s -> s.getUserStatsFull(appId) } ?: return achievements
+            val blockUnlock = HashMap<Int, List<Long>>()
+            runCatching {
+                val obj = JSONObject(statsJson)
+                if (obj.optInt("eresult", 2) != EResult.OK.code()) return achievements
+                val blocks = obj.optJSONArray("achievementBlocks") ?: return achievements
+                for (i in 0 until blocks.length()) {
+                    val b = blocks.getJSONObject(i)
+                    val times = b.optJSONArray("unlockTimes")
+                    val list = ArrayList<Long>(times?.length() ?: 0)
+                    for (j in 0 until (times?.length() ?: 0)) list.add(times!!.getLong(j))
+                    blockUnlock[b.optInt("achievementId")] = list
+                }
+            }
+            if (blockUnlock.isEmpty()) return achievements
+            val unlockedTotal = blockUnlock.values.sumOf { times -> times.count { it != 0L } }
+            Timber.i("Achievements: app=$appId merged unlock state ($unlockedTotal unlocked across ${blockUnlock.size} blocks)")
+            return achievements.map { ach ->
+                val mapped = nameToBlockBit[ach.name] ?: return@map ach
+                val t = blockUnlock[mapped.first]?.getOrNull(mapped.second) ?: 0L
+                if (t != 0L) ach.copy(unlocked = true, unlockTimestamp = t.toInt()) else ach.copy(unlocked = false)
+            }
         }
 
         private fun downloadUrlsFor(fileName: String): List<String> {
@@ -5248,10 +5310,9 @@ class SteamService : Service() {
             }
             val generator = StatsAchievementsGenerator()
             val result = generator.generateStatsAchievements(schemaArray, configDirectory)
-            cachedAchievements = result.achievements
-            cachedAchievementsAppId = appId
-
             val nameToBlockBit = result.nameToBlockBit
+            cachedAchievements = mergeAchievementUnlockState(appId, result.achievements, nameToBlockBit)
+            cachedAchievementsAppId = appId
             if (nameToBlockBit.isNotEmpty()) {
                 val mappingJson = JSONObject()
                 nameToBlockBit.forEach { (name, pair) ->
@@ -7410,6 +7471,7 @@ class SteamService : Service() {
             instance?.picsGetProductInfoJob?.cancel()
             instance?.picsChangesCheckerJob?.cancel()
             instance?.friendCheckerJob?.cancel()
+            instance?.messagePollerJob?.cancel()
 
             // Emit event synchronously so the UI can react in the same frame
             PluviaApp.events.emit(SteamEvent.LoggedOut(username))
@@ -8199,6 +8261,7 @@ class SteamService : Service() {
             DownloadCoordinator.hasActiveDownload() -> "a download is active"
             PluviaApp.isGameSessionActive() -> "a game session is running"
             syncInProgressApps.values.any { it.get() } -> "a cloud save sync is in progress"
+            PrefManager.chatStayRunningOnExit -> "background chat is enabled"
             else -> null
         }
 
@@ -8224,6 +8287,7 @@ class SteamService : Service() {
         refreshTokenWatchdogJob?.cancel()
         picsChangesCheckerJob?.cancel()
         picsGetProductInfoJob?.cancel()
+        messagePollerJob?.cancel()
         wnSession?.let { s -> runCatching { s.disconnect() } }
         return true
     }
@@ -8292,6 +8356,7 @@ class SteamService : Service() {
         refreshTokenWatchdogJob?.cancel()
         picsChangesCheckerJob?.cancel()
         picsGetProductInfoJob?.cancel()
+        messagePollerJob?.cancel()
         wnSession?.let { s -> runCatching { s.logOffAndDisconnect(500) } }
     }
 
@@ -8596,6 +8661,8 @@ class SteamService : Service() {
         picsChangesCheckerJob = continuousPICSChangesChecker()
         picsGetProductInfoJob?.cancel()
         picsGetProductInfoJob = continuousPICSGetProductInfo()
+        messagePollerJob?.cancel()
+        messagePollerJob = continuousIncomingMessagePoller()
 
         // Repair legacy depots whose stored download>size was frozen by the change-number skip.
         healCorruptManifestDownloadSizes()
@@ -8821,6 +8888,253 @@ class SteamService : Service() {
         val pushed = com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
             .pushFriendPersonasJson(json, persistSnapshot = true)
         Timber.i("Pushed $pushed friend persona(s) to libsteamclient.so (snapshot persisted)")
+    }
+
+    suspend fun refreshFriends() {
+        val svc = instance ?: return
+        val ids = withWnSession { s -> s.getFriendsList() } ?: LongArray(0)
+        if (ids.isEmpty()) return
+        com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient.setFriendsList(ids)
+        val merged = LinkedHashMap<Long, SteamFriendEntry>()
+        for (id in ids) merged[id] = SteamFriendEntry(steamId = id, name = "", state = EPersonaState.Offline)
+        fun mergeJson(json: String?) {
+            val arr = try { JSONArray(json ?: "[]") } catch (_: Exception) { JSONArray() }
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val sid = o.optLong("sid", 0L)
+                if (sid == 0L) continue
+                merged[sid] = SteamFriendEntry(
+                    steamId = sid,
+                    name = o.optString("name", ""),
+                    state = EPersonaState.from(o.optInt("state", 0)) ?: EPersonaState.Offline,
+                    gameAppId = o.optInt("app", 0),
+                    gameName = o.optString("gameName", ""),
+                    avatarHash = o.optString("avatarHash", ""),
+                    connectString = o.optString("connect", ""),
+                )
+            }
+        }
+        runCatching {
+            mergeJson(com.winlator.cmod.feature.stores.steam.utils.PrefManager.friendsSnapshotJson)
+        }
+        svc._friendsList.value = merged.values.toList()
+        withWnSession { s -> s.requestFriendPersonas(ids, personaStateRequested = 0xffff) }
+        var gotLive = false
+        for (attempt in 0 until 20) {
+            if (attempt > 0 && attempt % 5 == 0) {
+                withWnSession { s -> s.requestFriendPersonas(ids, personaStateRequested = 0xffff) }
+            }
+            val json = withWnSession { s -> s.getFriendPersonas() }
+            if (!json.isNullOrBlank() && json != "[]") {
+                mergeJson(json)
+                gotLive = true
+                runCatching {
+                    com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient.pushFriendPersonasJson(json, persistSnapshot = true)
+                }
+            }
+            // Resolve game titles for in-game friends (Steam omits game_name for Steam apps).
+            for ((id, entry) in merged.toList()) {
+                if (entry.isOnline && entry.gameName.isBlank() && entry.gameAppId > 0) {
+                    val name = resolveGameName(entry.gameAppId)
+                    if (name.isNotBlank()) merged[id] = entry.copy(gameName = name)
+                }
+            }
+            svc._friendsList.value = merged.values.toList()
+            if (gotLive && merged.values.count { it.name.isNotBlank() } >= ids.size) break
+            kotlinx.coroutines.delay(1000L)
+        }
+    }
+
+    suspend fun syncFriendsPresence() {
+        val svc = instance ?: return
+        val current = svc._friendsList.value
+        if (current.isEmpty()) return
+        val json = withContext(Dispatchers.IO) { withWnSession { s -> s.getFriendPersonas() } } ?: return
+        val arr = try { JSONArray(json) } catch (_: Exception) { return }
+        if (arr.length() == 0) return
+        val byId = LinkedHashMap<Long, SteamFriendEntry>(current.size)
+        for (e in current) byId[e.steamId] = e
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val sid = o.optLong("sid", 0L)
+            if (sid == 0L || !byId.containsKey(sid)) continue
+            byId[sid] = SteamFriendEntry(
+                steamId = sid,
+                name = o.optString("name", ""),
+                state = EPersonaState.from(o.optInt("state", 0)) ?: EPersonaState.Offline,
+                gameAppId = o.optInt("app", 0),
+                gameName = o.optString("gameName", ""),
+                avatarHash = o.optString("avatarHash", ""),
+                connectString = o.optString("connect", ""),
+            )
+        }
+        for ((id, entry) in byId.toList()) {
+            if (entry.isOnline && entry.gameName.isBlank() && entry.gameAppId > 0) {
+                val name = resolveGameName(entry.gameAppId)
+                if (name.isNotBlank()) byId[id] = entry.copy(gameName = name)
+            }
+        }
+        svc._friendsList.value = byId.values.toList()
+    }
+
+    private val gameNameCache = java.util.concurrent.ConcurrentHashMap<Int, String>()
+
+    // appId -> display name: cached, local app DB first, then the public store API.
+    suspend fun resolveGameName(appId: Int): String {
+        if (appId <= 0) return ""
+        gameNameCache[appId]?.let { return it }
+        getAppInfoOf(appId)?.name?.takeIf { it.isNotBlank() }?.let {
+            gameNameCache[appId] = it
+            return it
+        }
+        val fetched = withContext(Dispatchers.IO) {
+            runCatching {
+                val conn = java.net.URL(
+                    "https://store.steampowered.com/api/appdetails?appids=$appId&filters=basic",
+                ).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                val o = JSONObject(text).optJSONObject(appId.toString())
+                if (o?.optBoolean("success") == true) o.optJSONObject("data")?.optString("name").orEmpty() else ""
+            }.getOrDefault("")
+        }
+        if (fetched.isNotBlank()) gameNameCache[appId] = fetched
+        return fetched
+    }
+
+    // Send a 1-to-1 text message to a friend. Returns true on success.
+    suspend fun sendChatMessage(steamId: Long, text: String): Boolean {
+        if (text.isBlank()) return false
+        val resp = withContext(Dispatchers.IO) { withWnSession { s -> s.sendFriendMessage(steamId, text) } }
+        return !resp.isNullOrBlank()
+    }
+
+    // Upload an image to Steam chat UGC and send it to a friend; returns the URL or null.
+    suspend fun sendChatImage(steamId: Long, bytes: ByteArray, fileName: String): String? {
+        if (bytes.isEmpty()) return null
+        val refreshToken = com.winlator.cmod.feature.stores.steam.utils.PrefManager.refreshToken
+        if (refreshToken.isBlank()) return null
+        return withContext(Dispatchers.IO) {
+            withWnSession { s -> s.sendChatImage(steamId, refreshToken, bytes, fileName) }
+        }
+    }
+
+    // Load conversation history with a friend, ordered oldest-first.
+    suspend fun loadChatHistory(steamId: Long, count: Int = 50): List<com.winlator.cmod.feature.stores.steam.data.SteamChatMessage> {
+        val json = withContext(Dispatchers.IO) { withWnSession { s -> s.getRecentMessages(steamId, count) } } ?: "[]"
+        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+        val out = ArrayList<com.winlator.cmod.feature.stores.steam.data.SteamChatMessage>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            out.add(
+                com.winlator.cmod.feature.stores.steam.data.SteamChatMessage(
+                    fromSelf = o.optBoolean("fromSelf", false),
+                    text = o.optString("message", ""),
+                    timestamp = o.optInt("timestamp", 0),
+                    ordinal = o.optInt("ordinal", 0),
+                )
+            )
+        }
+        out.sortWith(compareBy({ it.timestamp }, { it.ordinal }))
+        return out
+    }
+
+    // Drain queued incoming messages, grouped by friend steamId.
+    suspend fun drainIncomingMessages(): Map<Long, List<com.winlator.cmod.feature.stores.steam.data.SteamChatMessage>> {
+        val json = withWnSession { s -> s.drainFriendMessages() } ?: "[]"
+        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+        if (arr.length() == 0) return emptyMap()
+        val grouped = LinkedHashMap<Long, MutableList<com.winlator.cmod.feature.stores.steam.data.SteamChatMessage>>()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val fid = o.optLong("friendId", 0L)
+            if (fid == 0L) continue
+            grouped.getOrPut(fid) { ArrayList() }.add(
+                com.winlator.cmod.feature.stores.steam.data.SteamChatMessage(
+                    fromSelf = o.optBoolean("fromSelf", false),
+                    text = o.optString("message", ""),
+                    timestamp = o.optInt("timestamp", 0),
+                    ordinal = o.optInt("ordinal", 0),
+                )
+            )
+        }
+        return grouped
+    }
+
+    fun setActiveConversation(steamId: Long) {
+        if (steamId == 0L) return
+        activeConversations.merge(steamId, 1) { a, b -> a + b }
+        touchRecentChat(steamId)
+        clearUnread(steamId)
+        runCatching { notificationHelper.cancelChatNotification(steamId) }
+    }
+
+    private fun touchRecentChat(friendId: Long) {
+        if (friendId == 0L) return
+        _recentChats.update { it + (friendId to System.currentTimeMillis()) }
+    }
+
+    fun sendChatImageAsync(friendId: Long, bytes: ByteArray, fileName: String) {
+        if (friendId == 0L || bytes.isEmpty()) return
+        scope.launch { sendChatImage(friendId, bytes, fileName) }
+    }
+
+    fun clearActiveConversation(steamId: Long) {
+        if (steamId == 0L) return
+        activeConversations.compute(steamId) { _, v -> if (v == null || v <= 1) null else v - 1 }
+    }
+
+    private fun isActiveConversation(steamId: Long): Boolean = activeConversations.containsKey(steamId)
+
+    fun clearUnread(steamId: Long) {
+        _unreadCounts.update { if (it.containsKey(steamId)) it - steamId else it }
+    }
+
+    private fun continuousIncomingMessagePoller(): Job =
+        scope.launch {
+            while (isActive && isLoggedIn) {
+                delay(1000L)
+                val grouped = runCatching { drainIncomingMessages() }.getOrNull()
+                if (grouped.isNullOrEmpty()) continue
+                dispatchIncomingChat(grouped)
+            }
+        }
+
+    private fun dispatchIncomingChat(
+        grouped: Map<Long, List<com.winlator.cmod.feature.stores.steam.data.SteamChatMessage>>,
+    ) {
+        val friends = _friendsList.value.associateBy { it.steamId }
+        val suppressed = GameSessionState.inGame && !PrefManager.chatInGameEnabled
+        for ((friendId, messages) in grouped) {
+            for (m in messages) _incomingChat.tryEmit(friendId to m)
+            val fromFriend = messages.filter { !it.fromSelf && it.text.isNotBlank() }
+            if (fromFriend.isEmpty()) continue
+            touchRecentChat(friendId)
+            if (isActiveConversation(friendId)) continue
+            _unreadCounts.update { it + (friendId to ((it[friendId] ?: 0) + fromFriend.size)) }
+            if (suppressed) continue
+            val name = friends[friendId]?.name?.ifBlank { friendId.toString() } ?: friendId.toString()
+            val preview = chatPreview(fromFriend.last().text)
+            if (PrefManager.chatNotificationsEnabled) {
+                runCatching { notificationHelper.notifyChatMessage(friendId, name, preview) }
+            }
+            if (PrefManager.chatHeadsEnabled) {
+                runCatching {
+                    com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService.onIncoming(this, friendId)
+                }
+            }
+        }
+    }
+
+    private fun chatPreview(text: String): String {
+        val t = text.trim()
+        return if (t.startsWith("[img") || t.contains("steamusercontent.com")) {
+            getString(com.winlator.cmod.R.string.steam_chat_image)
+        } else {
+            t
+        }
     }
 
     /**
