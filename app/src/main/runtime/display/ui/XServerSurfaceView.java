@@ -208,17 +208,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                             new int[]{android.os.Process.myTid()}, 8_000_000L);
                 }
             } catch (Exception ignored) {}
-        } else {
-            // Legacy fallback: sustained performance mode via wakelock (API 24-30).
-            try {
-                android.os.PowerManager pm = (android.os.PowerManager)
-                        getContext().getSystemService(Context.POWER_SERVICE);
-                if (pm != null && pm.isSustainedPerformanceModeSupported()) {
-                    sustainedPerfWakeLock = pm.newWakeLock(
-                            android.os.PowerManager.SUSTAINED_PERFORMANCE_MODE, "WinNative:SustainedPerf");
-                    sustainedPerfWakeLock.acquire();
-                }
-            } catch (Exception ignored) {}
         }
         renderer.onSurfaceCreated();
         if (width > 0 && height > 0) renderer.onSurfaceChanged(width, height);
