@@ -51,9 +51,8 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private static final int ADPF_REPORT_INTERVAL = 6;
     private static final double ADPF_DEVIATION_THRESHOLD = 0.15;
     private static final double ADPF_HEADROOM_BIAS = 1.12;
-    // Frame floor: minimum ns between renders (16.6ms = 60 FPS target).
-    private long lastRenderTimeNs = 0;
-    private static final long FRAME_FLOOR_NS = 16_600_000L;
+    // Lockless input flag — set by input thread, consumed by render thread.
+    private volatile boolean inputDirty = false;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -81,6 +80,17 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (renderRequested) return;
             renderRequested = true;
             renderLock.notifyAll();
+        }
+    }
+
+    // Lockless input signal — no buildAndSubmitFrame, just wake the render thread.
+    public void signalInputDirty() {
+        inputDirty = true;
+        synchronized (renderLock) {
+            if (!renderRequested) {
+                renderRequested = true;
+                renderLock.notifyAll();
+            }
         }
     }
 
@@ -267,17 +277,10 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
-                long now = System.nanoTime();
-                if (lastRenderTimeNs > 0 && (now - lastRenderTimeNs) < FRAME_FLOOR_NS) {
-                    long waitNs = FRAME_FLOOR_NS - (now - lastRenderTimeNs);
-                    long waitMs = waitNs / 1_000_000;
-                    int waitExtra = (int)(waitNs % 1_000_000);
-                    synchronized (renderLock) {
-                        try { renderLock.wait(waitMs, waitExtra); } catch (InterruptedException ignored) {}
-                    }
-                    if (!renderRequested && eventQueue.isEmpty()) continue;
+                if (inputDirty) {
+                    inputDirty = false;
+                    renderer.markContentDirty();
                 }
-                lastRenderTimeNs = System.nanoTime();
                 long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
                 if (perfHintSession != null) {

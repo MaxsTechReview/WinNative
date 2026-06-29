@@ -111,9 +111,6 @@ public class VulkanRenderer
     // so the SC layer is currently visible. Used to detect transitions to
     // the windowed/multi-drawable case so we can hide the SC cleanly.
     private volatile boolean dcLayerActive = false;
-    // Content dirty flag — set when DRI3 delivers a new frame, cleared after nativeRenderFrame.
-    private volatile boolean contentDirty = false;
-
     // Last skip reason logged for the DC candidate (diagnostic throttling —
     // only log when the reason CHANGES, to avoid per-frame spam). Values:
     //   "no-texture", "texture-not-gpuimage(Texture)", "gpuimage-ahb-null",
@@ -170,7 +167,12 @@ public class VulkanRenderer
     private final ByteBuffer sceneBuf =
             ByteBuffer.allocateDirect(SCENE_BUF_SIZE).order(ByteOrder.nativeOrder());
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final AtomicBoolean renderRequested = new AtomicBoolean(false);
+    // Content dirty flag — set when DRI3 delivers a new frame or input arrives.
+    private volatile boolean contentDirty = false;
+
+    public void markContentDirty() {
+        contentDirty = true;
+    }
 
     // Reusable scratch — sized once, refilled per frame.
     private final float[] sceneXform = XForm.getInstance();
@@ -219,21 +221,13 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
-        if (renderRequested.compareAndSet(false, true)) {
-            xServerView.requestRender();
-        }
+        xServerView.requestRender();
     }
 
-    // Input-driven wake: throttled to 33ms (30 FPS) for cursor redraws.
+    // Non-blocking input wake — just signals the render thread, no throttle, no direct render.
     public void requestInputRender() {
-        long now = System.nanoTime();
-        if (now - lastInputRenderNs < INPUT_RENDER_FLOOR_NS) return;
-        lastInputRenderNs = now;
-        contentDirty = true;
-        requestRenderCoalesced();
+        xServerView.signalInputDirty();
     }
-    private volatile long lastInputRenderNs = 0;
-    private static final long INPUT_RENDER_FLOOR_NS = 33_300_000L;
 
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
@@ -558,12 +552,13 @@ public class VulkanRenderer
             buf.putFloat(pOff + 12, effectParamsScratch[i * 4 + 3]);
         }
 
-        nativeSetScene(nativeHandle, buf);
-        // Event-driven: only render if new content arrived. No duplicate renders.
-        if (contentDirty || viewportNeedsUpdate) {
-            nativeRenderFrame(nativeHandle);
-            contentDirty = false;
+        // Skip entire scene submission + GPU render if no new content arrived.
+        if (!contentDirty && !viewportNeedsUpdate) {
+            return;
         }
+        nativeSetScene(nativeHandle, buf);
+        nativeRenderFrame(nativeHandle);
+        contentDirty = false;
 
         // === DIRECT COMPOSITION per-frame hook ===
         // After the VulkanRenderer composition, push the fullscreen candidate's

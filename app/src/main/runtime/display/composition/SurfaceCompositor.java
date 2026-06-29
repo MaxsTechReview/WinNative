@@ -212,15 +212,11 @@ public final class SurfaceCompositor {
      */
     public static void logEvent(String message) {
         String timestamped = "[" + diagDateFormat.format(new Date()) + "] " + message;
-        Log.i(TAG, message);  // also to logcat
+        Log.i(TAG, message);
         synchronized (diagLock) {
             if (diagWriter != null) {
-                try {
-                    diagWriter.write(timestamped + "\n");
-                    diagWriter.flush();
-                } catch (IOException e) {
-                    // ignore — logcat still got it
-                }
+                try { diagWriter.write(timestamped + "\n"); }
+                catch (IOException ignored) {}
             }
         }
     }
