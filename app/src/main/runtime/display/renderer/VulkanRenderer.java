@@ -219,12 +219,10 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
+        // Event-driven: wake render thread directly, no Choreographer.
         if (renderRequested.compareAndSet(false, true)) {
-            mainHandler.post(() ->
-                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
-                        renderRequested.set(false);
-                        xServerView.requestRender();
-                    }));
+            xServerView.requestRender();
+            renderRequested.set(false);
         }
     }
 
@@ -552,8 +550,8 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
-        // Skip GPU render if no new content arrived since last frame — prevents CPU spike at 30 FPS.
-        if (contentDirty || viewportNeedsUpdate || cursorActiveUntilNs > System.nanoTime()) {
+        // Event-driven: only render if new content arrived. No duplicate renders.
+        if (contentDirty || viewportNeedsUpdate) {
             nativeRenderFrame(nativeHandle);
             contentDirty = false;
         }
@@ -832,6 +830,33 @@ public class VulkanRenderer
     @Override
     public void onUpdateWindowContent(Window window) {
         contentDirty = true;
+        // Event-driven DC: try to push AHB directly from this callback.
+        if (directCompositionTarget != null) {
+            Drawable content = window.getContent();
+            if (content != null) {
+                synchronized (content.renderLock) {
+                    Drawable ss = content.getScanoutSource();
+                    if (ss == null) ss = content;
+                    Texture tex = ss.getTexture();
+                    if (tex instanceof GPUImage && surfaceWidth > 0 && surfaceHeight > 0 && !magnifierUIActive) {
+                        long ahbPtr = ((GPUImage) tex).getHardwareBufferPtr();
+                        if (ahbPtr != 0 && (ahbPtr != dcLastPushedAhb || surfaceWidth != dcLastPushedW || surfaceHeight != dcLastPushedH)) {
+                            int fenceFd = ss.takeAcquireFenceFd();
+                            boolean ok = directCompositionTarget.pushBuffer(ahbPtr, 0, 0, surfaceWidth, surfaceHeight, fenceFd, true);
+                            if (ok) {
+                                dcLastPushedAhb = ahbPtr;
+                                dcLastPushedW = surfaceWidth;
+                                dcLastPushedH = surfaceHeight;
+                                dcConsecutiveFailures = 0;
+                                if (!dcLayerActive) { dcLayerActive = true; notifyDirectCompositionStateListener(); }
+                                return; // DC handled this frame — VulkanRenderer stays asleep
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback: wake render thread for one isolated VulkanRenderer pass.
         requestRenderCoalesced();
     }
 

@@ -77,6 +77,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     public void requestRender() {
         synchronized (renderLock) {
+            if (renderRequested) return; // already pending — skip redundant wake
             renderRequested = true;
             renderLock.notifyAll();
         }
