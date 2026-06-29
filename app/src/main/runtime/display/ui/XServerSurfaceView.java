@@ -44,6 +44,15 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private volatile int height;
     // ADPF: PerformanceHintManager session for dynamic CPU frequency scaling.
     private android.os.PerformanceHintManager.Session perfHintSession;
+    // Rolling average filter (8-frame window) + throttled reporting (every 6 frames or >15% deviation).
+    private final long[] adpfDurationHistory = new long[8];
+    private int adpfHistoryIndex = 0;
+    private int adpfHistoryCount = 0;
+    private int adpfFrameCounter = 0;
+    private long adpfLastReportedAvg = 0;
+    private static final int ADPF_REPORT_INTERVAL = 6;
+    private static final double ADPF_DEVIATION_THRESHOLD = 0.15;
+    private static final double ADPF_HEADROOM_BIAS = 1.12;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -256,12 +265,11 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
-                // ADPF: report actual frame duration so the kernel governor scales CPU clocks.
                 long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
                 if (perfHintSession != null) {
-                    long duration = android.os.SystemClock.elapsedRealtimeNanos() - frameStartNs;
-                    try { perfHintSession.reportActualWorkDuration(duration); } catch (Exception ignored) {}
+                    long rawDuration = android.os.SystemClock.elapsedRealtimeNanos() - frameStartNs;
+                    reportAdpfDuration(rawDuration);
                 }
             }
         }
@@ -271,6 +279,26 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             perfHintSession = null;
         }
         renderer.onSurfaceDestroyed();
+    }
+
+    // ADPF smoothed reporting: rolling 8-frame average + 12% headroom bias + throttled to every 6 frames or >15% deviation.
+    private void reportAdpfDuration(long rawDurationNs) {
+        adpfDurationHistory[adpfHistoryIndex] = rawDurationNs;
+        adpfHistoryIndex = (adpfHistoryIndex + 1) % 8;
+        if (adpfHistoryCount < 8) adpfHistoryCount++;
+        long sum = 0;
+        for (int i = 0; i < adpfHistoryCount; i++) sum += adpfDurationHistory[i];
+        long avg = sum / adpfHistoryCount;
+        long biased = (long)(avg * ADPF_HEADROOM_BIAS);
+        adpfFrameCounter++;
+        boolean intervalMet = (adpfFrameCounter >= ADPF_REPORT_INTERVAL);
+        boolean deviationExceeded = (adpfLastReportedAvg == 0 ||
+                Math.abs(biased - adpfLastReportedAvg) > adpfLastReportedAvg * ADPF_DEVIATION_THRESHOLD);
+        if (intervalMet || deviationExceeded) {
+            try { perfHintSession.reportActualWorkDuration(biased); } catch (Exception ignored) {}
+            adpfLastReportedAvg = biased;
+            adpfFrameCounter = 0;
+        }
     }
 
     private void waitNanosLocked(long nanos) {
