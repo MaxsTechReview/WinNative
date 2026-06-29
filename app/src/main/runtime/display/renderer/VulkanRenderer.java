@@ -111,6 +111,8 @@ public class VulkanRenderer
     // so the SC layer is currently visible. Used to detect transitions to
     // the windowed/multi-drawable case so we can hide the SC cleanly.
     private volatile boolean dcLayerActive = false;
+    // Content dirty flag — set when DRI3 delivers a new frame, cleared after nativeRenderFrame.
+    private volatile boolean contentDirty = false;
 
     // Last skip reason logged for the DC candidate (diagnostic throttling —
     // only log when the reason CHANGES, to avoid per-frame spam). Values:
@@ -550,8 +552,11 @@ public class VulkanRenderer
         }
 
         nativeSetScene(nativeHandle, buf);
-        // nativeSetFpsLimit is a native no-op (pacing is done elsewhere); not called per frame.
-        nativeRenderFrame(nativeHandle);
+        // Skip GPU render if no new content arrived since last frame — prevents CPU spike at 30 FPS.
+        if (contentDirty || viewportNeedsUpdate || cursorActiveUntilNs > System.nanoTime()) {
+            nativeRenderFrame(nativeHandle);
+            contentDirty = false;
+        }
 
         // === DIRECT COMPOSITION per-frame hook ===
         // After the VulkanRenderer composition, push the fullscreen candidate's
@@ -826,6 +831,7 @@ public class VulkanRenderer
 
     @Override
     public void onUpdateWindowContent(Window window) {
+        contentDirty = true;
         requestRenderCoalesced();
     }
 
