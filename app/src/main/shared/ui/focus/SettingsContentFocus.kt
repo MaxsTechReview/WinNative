@@ -10,7 +10,8 @@ import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
 @Composable
 internal fun rememberSettingsContentNav(bridge: SettingsNavBridge?): PaneNavRegistry {
     val registry = remember(bridge) { PaneNavRegistry(initialSignal = bridge?.contentNavSignal ?: -1) }
-    registry.controllerActive = bridge?.contentControllerActive ?: false
+    registry.controllerActive =
+        (bridge?.contentControllerActive ?: false) && bridge?.zone == SettingsFocusZone.CONTENT
     registry.onEdgeLeft = { bridge?.zone = SettingsFocusZone.SIDEBAR }
     LaunchedEffect(registry, bridge?.contentNavSignal) {
         registry.processNav(bridge?.contentNavSignal ?: 0, bridge?.contentNavDir ?: 0)
