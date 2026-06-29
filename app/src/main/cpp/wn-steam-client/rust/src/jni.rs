@@ -2134,6 +2134,14 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             "state": persona.persona_state,
             "app": persona.game_played_app_id,
             "avatarHash": crate::cdn_client::hex_encode(&persona.avatar_hash),
+            "gameName": persona.game_name,
+            "gameId": persona.gameid as i64,
+            "connect": persona
+                .rich_presence
+                .iter()
+                .find(|(k, _)| k == "connect")
+                .map(|(_, v)| v.as_str())
+                .unwrap_or(""),
         }))
         .collect::<Vec<_>>())
     .to_string();
@@ -2162,6 +2170,188 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
     })
     .to_string();
     new_string_or_null(&mut env, &value)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeSendFriendMessage(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    steam_id: jlong,
+    message: JString,
+) -> jstring {
+    let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
+        return ptr::null_mut();
+    };
+    let Some(runtime) = handle.connected_runtime() else {
+        return ptr::null_mut();
+    };
+    let Some(message) = jstring_to_string(&mut env, &message) else {
+        return ptr::null_mut();
+    };
+    if message.is_empty() {
+        return ptr::null_mut();
+    }
+    let contains_bbcode = message.contains("[img]");
+    let Some(body) =
+        request_authed_service_body(&runtime, Duration::from_secs(15), |core, job_id| {
+            core.build_send_friend_message(steam_id as u64, &message, contains_bbcode, job_id)
+        })
+    else {
+        return ptr::null_mut();
+    };
+    let Some(response) =
+        crate::pb::cfriendmessages::CFriendMessagesSendMessageResponse::deserialize(&body)
+    else {
+        return ptr::null_mut();
+    };
+    let value = json!({
+        "serverTimestamp": response.server_timestamp,
+        "ordinal": response.ordinal,
+    })
+    .to_string();
+    new_string_or_null(&mut env, &value)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeGetRecentMessages(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    steam_id: jlong,
+    count: jint,
+) -> jstring {
+    let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
+        return new_string_or_null(&mut env, "[]");
+    };
+    let Some(runtime) = handle.connected_runtime() else {
+        return new_string_or_null(&mut env, "[]");
+    };
+    let self_accountid = (handle.core.steam_id() & 0xFFFF_FFFF) as u32;
+    let count = count.clamp(1, 200) as u32;
+    let Some(body) =
+        request_authed_service_body(&runtime, Duration::from_secs(15), |core, job_id| {
+            core.build_get_recent_messages(steam_id as u64, count, job_id)
+        })
+    else {
+        return new_string_or_null(&mut env, "[]");
+    };
+    let Some(response) =
+        crate::pb::cfriendmessages::CFriendMessagesGetRecentMessagesResponse::deserialize(&body)
+    else {
+        return new_string_or_null(&mut env, "[]");
+    };
+    let value = json!(response
+        .messages
+        .iter()
+        .map(|m| json!({
+            "fromSelf": m.accountid == self_accountid,
+            "message": m.message,
+            "timestamp": m.timestamp,
+            "ordinal": m.ordinal,
+        }))
+        .collect::<Vec<_>>())
+    .to_string();
+    new_string_or_null(&mut env, &value)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeDrainFriendMessages(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+) -> jstring {
+    let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
+        return new_string_or_null(&mut env, "[]");
+    };
+    let value = json!(handle
+        .core
+        .drain_incoming_messages()
+        .iter()
+        .map(|m| json!({
+            "friendId": m.friend_id as i64,
+            "fromSelf": m.from_self,
+            "message": m.message,
+            "timestamp": m.timestamp,
+            "ordinal": m.ordinal,
+        }))
+        .collect::<Vec<_>>())
+    .to_string();
+    new_string_or_null(&mut env, &value)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSteamSession_nativeSendChatImage(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    steam_id: jlong,
+    refresh_token: JString,
+    image: JByteArray,
+    file_name: JString,
+) -> jstring {
+    let Some(handle) = (unsafe { from_session_handle_mut(handle) }) else {
+        return ptr::null_mut();
+    };
+    let Some(runtime) = handle.connected_runtime() else {
+        return ptr::null_mut();
+    };
+    let self_steamid = handle.core.steam_id();
+    let ca_bundle_path = handle.ca_bundle_path.clone();
+    let Some(refresh_token) = jstring_to_string(&mut env, &refresh_token) else {
+        return ptr::null_mut();
+    };
+    let file_name = jstring_to_string(&mut env, &file_name).unwrap_or_else(|| "image.png".into());
+    let Ok(bytes) = env.convert_byte_array(image) else {
+        return ptr::null_mut();
+    };
+    if bytes.is_empty() || self_steamid == 0 || refresh_token.is_empty() {
+        return ptr::null_mut();
+    }
+
+    // Mint a short-lived web access token for the steamLoginSecure cookie.
+    let request = crate::pb::cauthentication::AccessTokenGenerateForAppRequest {
+        refresh_token,
+        steamid: self_steamid,
+        renewal_type: crate::pb::cauthentication::EAuthTokenRenewalType::None,
+    }
+    .serialize();
+    let Some(token_body) =
+        request_authed_service_body(&runtime, Duration::from_secs(15), move |core, job_id| {
+            core.build_authed_service_call(
+                "Authentication.GenerateAccessTokenForApp#1",
+                job_id,
+                request,
+            )
+        })
+    else {
+        return ptr::null_mut();
+    };
+    let access_token = crate::pb::cauthentication::AccessTokenGenerateForAppResponse::deserialize(
+        &token_body,
+    )
+    .map(|r| r.access_token)
+    .unwrap_or_default();
+    if access_token.is_empty() {
+        android_log("WNIMG", "no web access token");
+        return ptr::null_mut();
+    }
+
+    let url = match crate::chat_image::upload(
+        &ca_bundle_path,
+        self_steamid,
+        steam_id as u64,
+        &access_token,
+        &bytes,
+        &file_name,
+    ) {
+        Ok(url) => url,
+        Err(err) => {
+            android_log("WNIMG", &format!("upload failed: {err}"));
+            return ptr::null_mut();
+        }
+    };
+    new_string_or_null(&mut env, &url)
 }
 
 #[no_mangle]

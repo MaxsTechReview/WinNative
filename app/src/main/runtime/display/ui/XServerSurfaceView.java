@@ -31,6 +31,9 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private final Object renderLock = new Object();
     private final Deque<Runnable> eventQueue = new ArrayDeque<>();
     private Thread renderThread;
+    // Outgoing render thread still finishing teardown; the next surfaceCreated joins it before
+    // re-attaching so a stale destroy() can't free the handle the new surface re-attaches to.
+    private Thread retiringRenderThread;
     private volatile boolean running;
     private volatile boolean renderRequested;
     private volatile boolean transientRenderRequested;
@@ -114,6 +117,8 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+        // Let any retiring render thread finish freeing the renderer before attaching the new surface.
+        joinRetiringRenderThread();
         synchronized (renderLock) {
             surfaceReady = false;
             width = 0;
@@ -121,6 +126,17 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         }
         renderer.attachSurface(holder.getSurface());
         startRenderThreadIfNeeded();
+    }
+
+    private void joinRetiringRenderThread() {
+        Thread t;
+        synchronized (renderLock) {
+            t = retiringRenderThread;
+            retiringRenderThread = null;
+        }
+        if (t != null && t != Thread.currentThread() && t.isAlive()) {
+            try { t.join(3000); } catch (InterruptedException ignore) {}
+        }
     }
 
     @Override
@@ -172,6 +188,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         synchronized (renderLock) {
             running = false;
             renderLock.notifyAll();
+            if (renderThread != null) retiringRenderThread = renderThread;
             renderThread = null;
         }
     }

@@ -557,6 +557,34 @@ class WnSteamSession : AutoCloseable {
                catch (_: UnsatisfiedLinkError) { "[]" }
     }
 
+    // Blocking: send a 1-to-1 friend message; returns response JSON or null.
+    fun sendFriendMessage(steamId: Long, message: String): String? {
+        val h = nativeHandle.get(); if (h == 0L) return null
+        return try { nativeSendFriendMessage(h, steamId, message) }
+               catch (_: UnsatisfiedLinkError) { null }
+    }
+
+    // Blocking: recent message history for a conversation; JSON array.
+    fun getRecentMessages(steamId: Long, count: Int = 50): String {
+        val h = nativeHandle.get(); if (h == 0L) return "[]"
+        return try { nativeGetRecentMessages(h, steamId, count) ?: "[]" }
+               catch (_: UnsatisfiedLinkError) { "[]" }
+    }
+
+    // Drains queued incoming-message notifications; JSON array.
+    fun drainFriendMessages(): String {
+        val h = nativeHandle.get(); if (h == 0L) return "[]"
+        return try { nativeDrainFriendMessages(h) ?: "[]" }
+               catch (_: UnsatisfiedLinkError) { "[]" }
+    }
+
+    // Blocking: upload an image to Steam chat UGC and send it to a friend; returns the URL or null.
+    fun sendChatImage(steamId: Long, refreshToken: String, bytes: ByteArray, fileName: String): String? {
+        val h = nativeHandle.get(); if (h == 0L) return null
+        return try { nativeSendChatImage(h, steamId, refreshToken, bytes, fileName) }
+               catch (_: UnsatisfiedLinkError) { null }
+    }
+
     fun getOwnedGames(steamId: Long): String? {
         val h = nativeHandle.get(); if (h == 0L) return null
         return nativeGetOwnedGames(h, steamId)
@@ -744,6 +772,10 @@ class WnSteamSession : AutoCloseable {
         @JvmStatic private external fun nativeGetLicenseList(handle: Long): String?
         @JvmStatic private external fun nativeGetFriendsList(handle: Long): LongArray
         @JvmStatic private external fun nativeGetFriendPersonas(handle: Long): String?
+        @JvmStatic private external fun nativeSendFriendMessage(handle: Long, steamId: Long, message: String): String?
+        @JvmStatic private external fun nativeGetRecentMessages(handle: Long, steamId: Long, count: Int): String?
+        @JvmStatic private external fun nativeDrainFriendMessages(handle: Long): String?
+        @JvmStatic private external fun nativeSendChatImage(handle: Long, steamId: Long, refreshToken: String, image: ByteArray, fileName: String): String?
         @JvmStatic private external fun nativeGetOwnedGames(
             handle: Long, steamId: Long): String?
         @JvmStatic private external fun nativeSignalAppLaunchIntent(handle: Long, appId: Int, clientId: Long, machineName: String, ignorePending: Boolean, osType: Int): String?
