@@ -221,15 +221,19 @@ public class VulkanRenderer
     public void requestRenderCoalesced() {
         if (renderRequested.compareAndSet(false, true)) {
             xServerView.requestRender();
-            renderRequested.set(false);
         }
     }
 
-    // Input-driven wake: bypasses frame floor for cursor responsiveness.
+    // Input-driven wake: throttled to 33ms (30 FPS) for cursor redraws.
     public void requestInputRender() {
+        long now = System.nanoTime();
+        if (now - lastInputRenderNs < INPUT_RENDER_FLOOR_NS) return;
+        lastInputRenderNs = now;
         contentDirty = true;
-        xServerView.requestInputRender();
+        requestRenderCoalesced();
     }
+    private volatile long lastInputRenderNs = 0;
+    private static final long INPUT_RENDER_FLOOR_NS = 33_300_000L;
 
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();

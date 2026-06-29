@@ -54,7 +54,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     // Frame floor: minimum ns between renders (16.6ms = 60 FPS target).
     private long lastRenderTimeNs = 0;
     private static final long FRAME_FLOOR_NS = 16_600_000L;
-    private volatile boolean bypassFrameFloor = false;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -78,16 +77,6 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     }
 
     public void requestRender() {
-        synchronized (renderLock) {
-            if (renderRequested) return;
-            renderRequested = true;
-            renderLock.notifyAll();
-        }
-    }
-
-    // Input-driven wake: bypasses frame floor for cursor responsiveness.
-    public void requestInputRender() {
-        bypassFrameFloor = true;
         synchronized (renderLock) {
             if (renderRequested) return;
             renderRequested = true;
@@ -279,11 +268,15 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
                 long now = System.nanoTime();
-                if (!bypassFrameFloor && lastRenderTimeNs > 0 && (now - lastRenderTimeNs) < FRAME_FLOOR_NS) {
-                    long sleepNs = FRAME_FLOOR_NS - (now - lastRenderTimeNs);
-                    try { Thread.sleep(sleepNs / 1_000_000, (int)(sleepNs % 1_000_000)); } catch (InterruptedException ignored) {}
+                if (lastRenderTimeNs > 0 && (now - lastRenderTimeNs) < FRAME_FLOOR_NS) {
+                    long waitNs = FRAME_FLOOR_NS - (now - lastRenderTimeNs);
+                    long waitMs = waitNs / 1_000_000;
+                    int waitExtra = (int)(waitNs % 1_000_000);
+                    synchronized (renderLock) {
+                        try { renderLock.wait(waitMs, waitExtra); } catch (InterruptedException ignored) {}
+                    }
+                    if (!renderRequested && eventQueue.isEmpty()) continue;
                 }
-                bypassFrameFloor = false;
                 lastRenderTimeNs = System.nanoTime();
                 long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
