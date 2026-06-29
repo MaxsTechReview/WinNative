@@ -42,9 +42,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     private volatile int width;
     private volatile int height;
-    // ADPF: PerformanceHintManager session for dynamic CPU frequency scaling.
     private android.os.PerformanceHintManager.Session perfHintSession;
-    // Rolling average filter (8-frame window) + throttled reporting (every 6 frames or >15% deviation).
     private final long[] adpfDurationHistory = new long[8];
     private int adpfHistoryIndex = 0;
     private int adpfHistoryCount = 0;
@@ -53,6 +51,10 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private static final int ADPF_REPORT_INTERVAL = 6;
     private static final double ADPF_DEVIATION_THRESHOLD = 0.15;
     private static final double ADPF_HEADROOM_BIAS = 1.12;
+    // Frame floor: minimum ns between renders (16.6ms = 60 FPS target).
+    private long lastRenderTimeNs = 0;
+    private static final long FRAME_FLOOR_NS = 16_600_000L;
+    private volatile boolean bypassFrameFloor = false;
 
     public XServerSurfaceView(Context context, XServer xServer) {
         super(context);
@@ -77,7 +79,17 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
 
     public void requestRender() {
         synchronized (renderLock) {
-            if (renderRequested) return; // already pending — skip redundant wake
+            if (renderRequested) return;
+            renderRequested = true;
+            renderLock.notifyAll();
+        }
+    }
+
+    // Input-driven wake: bypasses frame floor for cursor responsiveness.
+    public void requestInputRender() {
+        bypassFrameFloor = true;
+        synchronized (renderLock) {
+            if (renderRequested) return;
             renderRequested = true;
             renderLock.notifyAll();
         }
@@ -266,6 +278,13 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             if (event != null) {
                 try { event.run(); } catch (Throwable ignore) {}
             } else if (draw) {
+                long now = System.nanoTime();
+                if (!bypassFrameFloor && lastRenderTimeNs > 0 && (now - lastRenderTimeNs) < FRAME_FLOOR_NS) {
+                    long sleepNs = FRAME_FLOOR_NS - (now - lastRenderTimeNs);
+                    try { Thread.sleep(sleepNs / 1_000_000, (int)(sleepNs % 1_000_000)); } catch (InterruptedException ignored) {}
+                }
+                bypassFrameFloor = false;
+                lastRenderTimeNs = System.nanoTime();
                 long frameStartNs = android.os.SystemClock.elapsedRealtimeNanos();
                 try { renderer.onDrawFrame(); } catch (Throwable ignore) {}
                 if (perfHintSession != null) {

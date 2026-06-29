@@ -219,11 +219,16 @@ public class VulkanRenderer
     }
 
     public void requestRenderCoalesced() {
-        // Event-driven: wake render thread directly, no Choreographer.
         if (renderRequested.compareAndSet(false, true)) {
             xServerView.requestRender();
             renderRequested.set(false);
         }
+    }
+
+    // Input-driven wake: bypasses frame floor for cursor responsiveness.
+    public void requestInputRender() {
+        contentDirty = true;
+        xServerView.requestInputRender();
     }
 
     private Drawable createRootCursorDrawable() {
@@ -897,7 +902,8 @@ public class VulkanRenderer
 
     @Override
     public void onPointerMove(short x, short y) {
-        requestCursorRender();
+        cursorActiveUntilNs = System.nanoTime() + CURSOR_ACTIVE_NS;
+        requestInputRender();
     }
 
     @Override
