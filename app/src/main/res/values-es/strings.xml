@@ -751,6 +751,7 @@ Ej. <b>META</b> para la <i>tecla META</i>, \n
     <string name="settings_general_cursor_lock_summary">Mantiene la captura directa del ratón activada para juegos que necesitan entrada de puntero sin procesar. Desactívalo con Bajar Volumen.</string>
     <string name="settings_general_xinput_toggle_title">Desactivar XInput</string>
     <string name="settings_general_xinput_toggle_summary">Desactiva el manejo de XInput cuando quieras control exclusivo de ratón y teclado.</string>
+    <string name="settings_external_display_output_summary">Mueve el juego a una pantalla externa conectada en lugar de duplicar esta pantalla. Las gafas siempre usan su propia pantalla.</string>
     <string name="settings_general_file_provider_summary">Exponer los archivos de WinNative a los selectores de documentos y administradores de archivos de Android.</string>
     <string name="settings_general_open_browser_summary">Abrir enlaces web compatibles en el navegador de Android en lugar de dentro de Wine.</string>
     <string name="settings_general_clipboard_summary">Permitir copiar y pegar entre Android y las sesiones de Wine.</string>
@@ -1413,6 +1414,7 @@ Ruta instalada:
     <string name="session_drawer_output_game_mode_off">Desactivado</string>
     <string name="session_drawer_output_game_mode_note">Solicita el modo de juego / baja latencia de la TV (HDMI ALLM) para minimizar el retardo de entrada. Se muestra solo cuando la pantalla conectada lo admite.</string>
     <string name="session_drawer_output_send_to_display">Enviar juego a la pantalla</string>
+    <string name="session_drawer_output_to_display">Salida a pantalla externa</string>
     <string name="session_drawer_output_send_note">Hay una pantalla conectada. Envía el juego a ella: tus controles y el menú permanecen en este teléfono. Puedes devolverlo aquí en cualquier momento.</string>
     <string name="session_drawer_output_display">Pantalla</string>
     <string name="session_drawer_output_glasses">Gafas</string>

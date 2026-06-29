@@ -751,6 +751,7 @@
     <string name="settings_general_cursor_lock_summary">为需要原始指针输入的游戏保持直接鼠标捕获。按音量减键禁用。</string>
     <string name="settings_general_xinput_toggle_title">禁用 XInput</string>
     <string name="settings_general_xinput_toggle_summary">在需要独占鼠标和键盘控制时关闭 XInput 处理。</string>
+    <string name="settings_external_display_output_summary">将游戏移到已连接的外部显示器，而不是镜像此屏幕。眼镜始终使用自己的显示屏。</string>
     <string name="settings_general_file_provider_summary">向 Android 文档选择器和文件管理器公开 WinNative 文件。</string>
     <string name="settings_general_open_browser_summary">在 Android 浏览器中打开支持的网页链接，而非在 Wine 内部打开。</string>
     <string name="settings_general_clipboard_summary">允许在 Android 和 Wine 会话之间复制和粘贴。</string>
@@ -1413,6 +1414,7 @@
     <string name="session_drawer_output_game_mode_off">关</string>
     <string name="session_drawer_output_game_mode_note">请求电视的游戏/低延迟模式（HDMI ALLM）以尽量减少输入延迟。仅在已连接的显示器支持时显示。</string>
     <string name="session_drawer_output_send_to_display">将游戏发送到显示器</string>
+    <string name="session_drawer_output_to_display">输出到外部显示器</string>
     <string name="session_drawer_output_send_note">已连接显示器。将游戏发送到该显示器——你的控制和菜单仍保留在本手机上。你可以随时将其取回这里。</string>
     <string name="session_drawer_output_display">显示</string>
     <string name="session_drawer_output_glasses">眼镜</string>

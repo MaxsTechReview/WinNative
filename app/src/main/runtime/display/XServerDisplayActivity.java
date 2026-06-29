@@ -6960,13 +6960,19 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onExternalDisplayConnected(android.view.Display display) {
                         // Automatic swap: the game shows only on the external display, controls stay on the phone.
                         runOnUiThread(() -> {
-                            if (isFinishing() || isDestroyed() || externalDisplayController == null
-                                    || externalDisplayController.isSwapActive()) return;
-                            externalDisplayController.enterSwap();
+                            if (isFinishing() || isDestroyed() || externalDisplayController == null) return;
+                            boolean outputEnabled = preferences != null
+                                    && preferences.getBoolean("external_display_output", false);
+                            boolean swap = !externalDisplayController.isSwapActive()
+                                    && (externalDisplayController.isVitureSinkAvailable() || outputEnabled);
+                            if (swap) {
+                                externalDisplayController.enterSwap();
+                                android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                        R.string.display_output_swapped_toast,
+                                        android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                            // Re-render even when not swapping so an open Output pane shows the toggle.
                             renderDrawerMenu();
-                            android.widget.Toast.makeText(XServerDisplayActivity.this,
-                                    R.string.display_output_swapped_toast,
-                                    android.widget.Toast.LENGTH_SHORT).show();
                         });
                     }
 
