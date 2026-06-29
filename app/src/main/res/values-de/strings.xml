@@ -751,6 +751,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_general_cursor_lock_summary">Hält die direkte Mauserfassung für Spiele aktiv, die Rohdaten-Zeigereingabe benötigen. Mit Leiser-Taste deaktivieren.</string>
     <string name="settings_general_xinput_toggle_title">XInput deaktivieren</string>
     <string name="settings_general_xinput_toggle_summary">Schaltet die XInput-Behandlung aus, wenn du exklusive Maus- und Tastatursteuerung möchtest.</string>
+    <string name="settings_external_display_output_summary">Verschiebt das Spiel auf ein angeschlossenes externes Display, anstatt diesen Bildschirm zu spiegeln. Brillen nutzen immer ihr eigenes Display.</string>
     <string name="settings_general_file_provider_summary">WinNative-Dateien für Android-Dokumentenauswahl und Dateimanager bereitstellen.</string>
     <string name="settings_general_open_browser_summary">Unterstützte Weblinks im Android-Browser statt in Wine öffnen.</string>
     <string name="settings_general_clipboard_summary">Kopieren und Einfügen zwischen Android und Wine-Sitzungen erlauben.</string>
@@ -1413,6 +1414,7 @@ Installierter Pfad:
     <string name="session_drawer_output_game_mode_off">Aus</string>
     <string name="session_drawer_output_game_mode_note">Fordert den Spiel-/Niedriglatenzmodus des Fernsehers (HDMI ALLM) an, um die Eingabeverzögerung zu minimieren. Wird nur angezeigt, wenn das verbundene Display dies unterstützt.</string>
     <string name="session_drawer_output_send_to_display">Spiel an Display senden</string>
+    <string name="session_drawer_output_to_display">Auf externem Display ausgeben</string>
     <string name="session_drawer_output_send_note">Ein Display ist verbunden. Sende das Spiel dorthin — deine Steuerung und das Menü bleiben auf diesem Telefon. Du kannst es jederzeit hierher zurückholen.</string>
     <string name="session_drawer_output_display">Anzeige</string>
     <string name="session_drawer_output_glasses">Brille</string>

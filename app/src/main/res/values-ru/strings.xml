@@ -819,6 +819,7 @@
     <string name="settings_general_cursor_lock_summary">Сохраняет прямой захват мыши включенным для игр, которым требуется необработанный ввод указателя. Отключите его с помощью Volume Down.</string>
     <string name="settings_general_xinput_toggle_title">Отключить XInput</string>
     <string name="settings_general_xinput_toggle_summary">Отключает обработку XInput, если вам требуется единоличное управление мышью и клавиатурой.</string>
+    <string name="settings_external_display_output_summary">Переносит игру на подключённый внешний дисплей вместо зеркалирования этого экрана. Очки всегда используют собственный дисплей.</string>
     <string name="settings_general_file_provider_summary">Предоставляйте файлы WinNative средствам выбора документов и файловым менеджерам Android.</string>
     <string name="settings_general_open_browser_summary">Открывайте поддерживаемые веб-ссылки в браузере Android, а не внутри Wine.</string>
     <string name="settings_general_clipboard_summary">Разрешить копирование и вставку между сеансами Android и Wine.</string>
@@ -1319,6 +1320,7 @@
     <string name="session_drawer_output_game_mode_off">Выкл.</string>
     <string name="session_drawer_output_game_mode_note">Запрашивает игровой режим / низкую задержку телевизора (HDMI ALLM) для уменьшения задержки ввода. Показывается только если подключённый дисплей это поддерживает.</string>
     <string name="session_drawer_output_send_to_display">Отправить игру на дисплей</string>
+    <string name="session_drawer_output_to_display">Вывод на внешний дисплей</string>
     <string name="session_drawer_output_send_note">Дисплей подключён. Отправьте игру на него — управление и меню останутся на этом телефоне. Вы можете вернуть её сюда в любой момент.</string>
     <string name="session_drawer_output_display">Экран</string>
     <string name="session_drawer_output_glasses">Очки</string>

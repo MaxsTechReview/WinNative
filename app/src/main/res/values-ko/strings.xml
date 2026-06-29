@@ -751,6 +751,7 @@
     <string name="settings_general_cursor_lock_summary">원시 포인터 입력이 필요한 게임에서 직접 마우스 캡처를 유지합니다. 볼륨 다운으로 비활성화할 수 있습니다.</string>
     <string name="settings_general_xinput_toggle_title">XInput 비활성화</string>
     <string name="settings_general_xinput_toggle_summary">마우스와 키보드만 사용하려는 경우 XInput 처리를 끕니다.</string>
+    <string name="settings_external_display_output_summary">이 화면을 미러링하는 대신 연결된 외부 디스플레이로 게임을 옮깁니다. 안경은 항상 자체 디스플레이를 사용합니다.</string>
     <string name="settings_general_file_provider_summary">Android 문서 선택기 및 파일 관리자에 WinNative 파일을 노출합니다.</string>
     <string name="settings_general_open_browser_summary">지원되는 웹 링크를 Wine 내부 대신 Android 브라우저에서 엽니다.</string>
     <string name="settings_general_clipboard_summary">Android와 Wine 세션 간에 복사 및 붙여넣기를 허용합니다.</string>
@@ -1414,6 +1415,7 @@
     <string name="session_drawer_output_game_mode_off">끄기</string>
     <string name="session_drawer_output_game_mode_note">입력 지연을 최소화하기 위해 TV의 게임/저지연 모드(HDMI ALLM)를 요청합니다. 연결된 디스플레이가 지원할 때만 표시됩니다.</string>
     <string name="session_drawer_output_send_to_display">게임을 디스플레이로 보내기</string>
+    <string name="session_drawer_output_to_display">외부 디스플레이로 출력</string>
     <string name="session_drawer_output_send_note">디스플레이가 연결되어 있습니다. 게임을 그곳으로 보내세요 — 컨트롤과 메뉴는 이 휴대폰에 그대로 유지됩니다. 언제든지 다시 가져올 수 있습니다.</string>
     <string name="session_drawer_output_display">디스플레이</string>
     <string name="session_drawer_output_glasses">글래스</string>
