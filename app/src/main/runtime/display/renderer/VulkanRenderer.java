@@ -685,10 +685,13 @@ public class VulkanRenderer
                 return true;
             }
 
-            // Hardware fence sync: wait for SF to finish the previous frame before pushing the next.
-            // This lets the render thread sleep on a hardware signal instead of CPU polling.
+            // Hardware pacing: wait for SF to finish the previous frame (hardware signal, no CPU spin).
             if (dcLastPushedAhb != 0L) {
-                dcTarget.nativeWaitForPreviousFrame(20L);
+                if (!dcTarget.nativeWaitForPreviousFrame(17L)) {
+                    // SF didn't finish in 17ms (~60Hz budget) — discard this frame to avoid backlog.
+                    drainFenceFd(scanoutSource);
+                    return true;
+                }
             }
             int fenceFd = scanoutSource.takeAcquireFenceFd();
             boolean ok = dcTarget.pushBuffer(ahbPtr, 0, 0,
@@ -837,6 +840,16 @@ public class VulkanRenderer
     @Override
     public void onUpdateWindowGeometry(final Window window, boolean resized) {
         if (resized) {
+            // Graphics preset change: flush DC state, invalidate cache, force re-evaluation.
+            if (dcLayerActive && directCompositionTarget != null) {
+                directCompositionTarget.hide();
+                dcLayerActive = false;
+                notifyDirectCompositionStateListener();
+            }
+            dcLastPushedAhb = 0L;
+            dcLastPushedW = 0;
+            dcLastPushedH = 0;
+            dcLastSkipReason = "";
             xServerView.queueEvent(this::updateScene);
         } else {
             xServerView.queueEvent(() -> updateWindowPosition(window));
