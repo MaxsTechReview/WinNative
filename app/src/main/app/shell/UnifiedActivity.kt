@@ -613,6 +613,7 @@ class UnifiedActivity :
     internal val settingsNavBridge = SettingsNavBridge()
     internal val downloadsNavBridge = DownloadsNavBridge()
     internal val drawerNavBridge = DownloadsNavBridge()
+    internal val friendsDrawerNavBridge = DownloadsNavBridge()
     private var settingsStickEngaged = 0
 
     companion object {
@@ -774,6 +775,10 @@ class UnifiedActivity :
 
         if (drawerOpen) {
             return dispatchDrawerNavKey(event, keyCode, action)
+        }
+
+        if (rightDrawerOpen) {
+            return dispatchDrawerNavKey(event, keyCode, action, friendsDrawerNavBridge)
         }
 
         // Prevent global controller buttons from falling through to launch actions.
@@ -961,7 +966,7 @@ class UnifiedActivity :
                     val right = isHatRight || isJoystickRight
                     val up = isHatUp || isJoystickUp
                     val down = isHatDown || isJoystickDown
-                    if (menuNavActive || drawerOpen) {
+                    if (menuNavActive || drawerOpen || rightDrawerOpen) {
                         val dpadCode =
                             when {
                                 left -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
@@ -997,6 +1002,7 @@ class UnifiedActivity :
 
     @Volatile
     private var drawerOpen: Boolean = false
+    private var rightDrawerOpen: Boolean = false
 
     private val menuNavActive: Boolean
         get() = inSettingsRoute
@@ -1127,6 +1133,7 @@ class UnifiedActivity :
         event: android.view.KeyEvent,
         keyCode: Int,
         action: Int,
+        bridge: DownloadsNavBridge = drawerNavBridge,
     ): Boolean {
         when (keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_LEFT,
@@ -1135,12 +1142,12 @@ class UnifiedActivity :
             android.view.KeyEvent.KEYCODE_DPAD_DOWN,
             -> {
                 if (action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                    drawerNavBridge.controllerActive = true
+                    bridge.controllerActive = true
                     when (keyCode) {
-                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> drawerNavBridge.left()
-                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> drawerNavBridge.right()
-                        android.view.KeyEvent.KEYCODE_DPAD_UP -> drawerNavBridge.up()
-                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> drawerNavBridge.down()
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> bridge.left()
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> bridge.right()
+                        android.view.KeyEvent.KEYCODE_DPAD_UP -> bridge.up()
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> bridge.down()
                     }
                 }
                 return true
@@ -1150,16 +1157,16 @@ class UnifiedActivity :
             android.view.KeyEvent.KEYCODE_DPAD_CENTER,
             -> {
                 if (action == android.view.KeyEvent.ACTION_DOWN) {
-                    drawerNavBridge.controllerActive = true
-                    drawerNavBridge.activate()
+                    bridge.controllerActive = true
+                    bridge.activate()
                 }
                 return true
             }
 
             android.view.KeyEvent.KEYCODE_BUTTON_Y -> {
                 if (action == android.view.KeyEvent.ACTION_DOWN) {
-                    drawerNavBridge.controllerActive = true
-                    drawerNavBridge.secondary()
+                    bridge.controllerActive = true
+                    bridge.secondary()
                 }
                 return true
             }
@@ -1855,6 +1862,10 @@ class UnifiedActivity :
             ?: remember { mutableStateOf(emptyList<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry>()) }
         var chatFriend by remember { mutableStateOf<com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry?>(null) }
         val friendsDrawerOpen = rightDrawerState.isOpen
+        LaunchedEffect(rightDrawerState.isOpen) {
+            rightDrawerOpen = rightDrawerState.isOpen
+            if (!rightDrawerState.isOpen) friendsDrawerNavBridge.controllerActive = false
+        }
         var installedFriendGameIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
         LaunchedEffect(friends) {
             val ids = friends.map { it.gameAppId }.filter { it > 0 }.distinct()
@@ -2053,7 +2064,11 @@ class UnifiedActivity :
                     }
 
                     android.view.KeyEvent.KEYCODE_BUTTON_B -> {
-                        if (drawerState.isOpen) {
+                        if (chatFriend != null) {
+                            chatFriend = null
+                        } else if (rightDrawerState.isOpen) {
+                            rightDrawerState.close()
+                        } else if (drawerState.isOpen) {
                             drawerState.close()
                         } else if (globalSettingsApp != null) {
                             globalSettingsApp = null
@@ -2137,6 +2152,7 @@ class UnifiedActivity :
                     androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr,
                 ) {
                     com.winlator.cmod.feature.stores.steam.friends.FriendsDrawerContent(
+                        isOpen = rightDrawerState.isOpen,
                         self = persona ?: com.winlator.cmod.feature.stores.steam.data.SteamFriend(),
                         friends = friends,
                         installedGameIds = installedFriendGameIds,
