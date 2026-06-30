@@ -11512,7 +11512,7 @@ class UnifiedActivity :
 
         ModalDrawerSheet(
             drawerShape = RectangleShape,
-            drawerContainerColor = BgDark,
+            drawerContainerColor = Color(0xFF12121B),
             drawerContentColor = TextPrimary,
             windowInsets = WindowInsets(0, 0, 0, 0),
             modifier = Modifier.width(324.dp),

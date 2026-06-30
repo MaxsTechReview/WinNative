@@ -109,7 +109,7 @@ fun FriendsDrawerContent(
 
     ModalDrawerSheet(
         drawerShape = RectangleShape,
-        drawerContainerColor = BgDark,
+        drawerContainerColor = WsBg,
         drawerContentColor = TextPrimary,
         windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = Modifier.width(332.dp),
