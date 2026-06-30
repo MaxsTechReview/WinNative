@@ -37,6 +37,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,10 @@ import com.winlator.cmod.feature.stores.steam.data.SteamFriend
 import com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry
 import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val BgDark = Color(0xFF18181D)
 private val SurfaceDark = Color(0xFF1E252E)
@@ -253,16 +258,19 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     var autoHide by remember { mutableStateOf(PrefManager.chatHeadsAutoHide) }
     var inGame by remember { mutableStateOf(PrefManager.chatInGameEnabled) }
     var stayRunning by remember { mutableStateOf(PrefManager.chatStayRunningOnExit) }
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = WsBg,
-            border = BorderStroke(1.dp, CardBorder),
-            modifier = Modifier.fillMaxWidth(0.94f),
-        ) {
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismiss)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = WsBg,
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier.fillMaxWidth(0.94f),
+            ) {
             Column(Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
@@ -292,7 +300,7 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onDismiss, navRow = 0, navCol = 0)) {
                         Icon(
                             Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.steam_common_back),
@@ -311,11 +319,16 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             stringResource(R.string.steam_chat_setting_notifications),
                             stringResource(R.string.steam_chat_setting_notifications_desc),
                             notifications,
+                            navRow = 1,
+                            navCol = 0,
+                            isEntry = true,
                         ) { v -> notifications = v; PrefManager.chatNotificationsEnabled = v }
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_heads),
                             stringResource(R.string.steam_chat_setting_heads_desc),
                             heads,
+                            navRow = 2,
+                            navCol = 0,
                         ) { v ->
                             if (v) {
                                 if (android.provider.Settings.canDrawOverlays(context)) {
@@ -342,6 +355,8 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             stringResource(R.string.steam_chat_setting_autohide),
                             stringResource(R.string.steam_chat_setting_autohide_desc),
                             autoHide,
+                            navRow = 3,
+                            navCol = 0,
                         ) { v -> autoHide = v; PrefManager.chatHeadsAutoHide = v }
                     }
                     Column(Modifier.weight(1f)) {
@@ -349,14 +364,19 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             stringResource(R.string.steam_chat_setting_ingame),
                             stringResource(R.string.steam_chat_setting_ingame_desc),
                             inGame,
+                            navRow = 1,
+                            navCol = 1,
                         ) { v -> inGame = v; PrefManager.chatInGameEnabled = v }
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_stay_running),
                             stringResource(R.string.steam_chat_setting_stay_running_desc),
                             stayRunning,
+                            navRow = 2,
+                            navCol = 1,
                         ) { v -> stayRunning = v; PrefManager.chatStayRunningOnExit = v }
                     }
                 }
+            }
             }
         }
     }
@@ -367,10 +387,23 @@ private fun ChatSettingToggle(
     title: String,
     desc: String,
     checked: Boolean,
+    navRow: Int,
+    navCol: Int,
+    isEntry: Boolean = false,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        Modifier
+            .fillMaxWidth()
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = { onChange(!checked) },
+                tapToSelect = true,
+                navRow = navRow,
+                navCol = navCol,
+                isEntry = isEntry,
+            )
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

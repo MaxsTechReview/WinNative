@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,11 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -35,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +55,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.statsgen.Achievement
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -93,6 +97,7 @@ fun SteamAchievementsScreen(
     val context = LocalContext.current
     var loading by remember { mutableStateOf(true) }
     var achievements by remember { mutableStateOf<List<Achievement>>(emptyList()) }
+    val registry = remember { PaneNavRegistry() }
 
     LaunchedEffect(appId) {
         loading = true
@@ -110,6 +115,8 @@ fun SteamAchievementsScreen(
             .thenByDescending { it.unlockTimestamp ?: 0 },
     )
 
+    CompositionLocalProvider(LocalPaneNav provides registry) {
+    DialogPaneNav(registry, onDismiss = onClose)
     BoxWithConstraints(
         modifier =
             Modifier
@@ -154,17 +161,20 @@ fun SteamAchievementsScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp),
                         )
-                        else -> LazyColumn(
-                            Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        else -> Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(vertical = 12.dp),
                         ) {
-                            items(ordered) { ach -> AchievementRow(appId, ach) }
+                            ordered.forEach { ach -> AchievementRow(appId, ach) }
                         }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -222,7 +232,7 @@ private fun AchievementsHeader(
                 )
             }
         }
-        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onClose, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onClose)) {
             Icon(
                 Icons.Outlined.Close,
                 contentDescription = stringResource(R.string.steam_common_back),
@@ -242,7 +252,7 @@ private fun AchievementRow(appId: Int, ach: Achievement) {
         shape = RoundedCornerShape(12.dp),
         color = if (unlocked) Accent.copy(alpha = 0.06f) else SurfaceDark.copy(alpha = 0.5f),
         border = androidx.compose.foundation.BorderStroke(1.dp, if (unlocked) Accent.copy(alpha = 0.25f) else CardBorder),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().paneNavItem(cornerRadius = 12.dp, onActivate = {}),
     ) {
         Row(
             Modifier.padding(10.dp),
