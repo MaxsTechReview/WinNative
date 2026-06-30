@@ -1128,10 +1128,10 @@ private fun InputChoiceDialog(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (selected) InputAccent.copy(alpha = 0.08f) else InputField)
+                            .background(InputField)
                             .border(
                                 1.dp,
-                                if (selected) InputAccent.copy(alpha = 0.24f) else InputOutline,
+                                InputOutline,
                                 RoundedCornerShape(12.dp),
                             ).paneNavItem(
                                 cornerRadius = 12.dp,
@@ -2000,7 +2000,7 @@ private fun <T> OptionDropdown(
         Text(label, color = InputTextSecondary, fontSize = InputPrimaryTextSize, modifier = Modifier.weight(1f))
         Box {
             SelectionPill(text = optionLabel(current), onClick = { expanded = true })
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = InputCard) {
                 options.forEach { option ->
                     DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
                 }
@@ -2020,7 +2020,7 @@ private fun <T> PillDropdown(
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
         SelectionPill(text = optionLabel(current), onClick = { expanded = true })
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = InputCard) {
             options.forEach { option ->
                 DropdownMenuItem(text = { Text(optionLabel(option)) }, onClick = { onSelect(option); expanded = false })
             }
