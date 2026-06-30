@@ -387,6 +387,37 @@ public class VulkanRenderer
             }
         }
 
+        // Skip everything if no new content and no viewport change.
+        if (!contentDirty && !viewportNeedsUpdate) {
+            return;
+        }
+
+        Drawable directCandidate = findDirectCompositionCandidate();
+        boolean dcOwnsFrame = false;
+        if (directCompositionTarget != null) {
+            String candidateState = (directCandidate != null) ? "present" : "null";
+            if (!candidateState.equals(dcLastCandidateState)) {
+                dcLastCandidateState = candidateState;
+                com.winlator.cmod.runtime.display.composition.SurfaceCompositor.logEvent(
+                        directCandidate == null
+                                ? "DC: no fullscreen candidate"
+                                : "DC: fullscreen candidate " + directCandidate.width + "x" + directCandidate.height);
+            }
+            if (maybePushDirectComposition(directCandidate)) {
+                dcOwnsFrame = true;
+                dcDisengageStreak = 0;
+            } else if (dcLayerActive && ++dcDisengageStreak < DC_DISENGAGE_FRAMES) {
+                dcOwnsFrame = true;
+            } else {
+                maybeHideDirectComposition();
+                dcDisengageStreak = 0;
+            }
+        }
+        if (dcOwnsFrame && !recordingActive) {
+            contentDirty = false;
+            return;
+        }
+
         // Compute scene transform / viewport / scissor (mirrors GLRenderer.drawFrame logic).
         textureUploadBatch.reset();
         boolean useScissor = false;
@@ -472,10 +503,6 @@ public class VulkanRenderer
         int sourceW = 0;
         int sourceH = 0;
         int sourceArea = 0;
-        // Track the direct-scanout candidate Drawable (the largest window
-        // matching screen size) so we can push its AHB to the SurfaceControl
-        // after the VulkanRenderer composition. Render-thread-only.
-        Drawable directCandidate = null;
 
         try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER)) {
             int screenW = xServer.screenInfo.width;
@@ -533,12 +560,6 @@ public class VulkanRenderer
                     sourceW = candidateW;
                     sourceH = candidateH;
                     sourceArea = candidateArea;
-                }
-                // DC candidate: only a window at the origin covering the whole screen (topmost wins).
-                if (rw.rootX == 0 && rw.rootY == 0
-                        && Short.toUnsignedInt(drawable.width) >= screenW
-                        && Short.toUnsignedInt(drawable.height) >= screenH) {
-                    directCandidate = drawable;
                 }
                 if (!loggedAhbSceneUse && tex instanceof GPUImage && ApplicationLogGate.isEnabled()) {
                     Log.i(TAG, "Submitting AHB-backed texture in Vulkan scene: windowCount="
@@ -636,40 +657,28 @@ public class VulkanRenderer
             buf.putFloat(pOff + 12, effectParamsScratch[i * 4 + 3]);
         }
 
-        // Skip entire scene submission + GPU render if no new content arrived.
-        if (!contentDirty && !viewportNeedsUpdate) {
-            return;
-        }
-
-        // Direct Composition is the single decision point here (no event-thread push).
-        // When DC owns the frame the GPU composite is skipped — the opaque z=1 overlay
-        // covers it. A short disengage hysteresis prevents flapping on transient frames.
-        boolean dcOwnsFrame = false;
-        if (directCompositionTarget != null) {
-            String candidateState = (directCandidate != null) ? "present" : "null";
-            if (!candidateState.equals(dcLastCandidateState)) {
-                dcLastCandidateState = candidateState;
-                com.winlator.cmod.runtime.display.composition.SurfaceCompositor.logEvent(
-                        directCandidate == null
-                                ? "DC: no fullscreen candidate (winCount=" + winCount + ")"
-                                : "DC: fullscreen candidate " + directCandidate.width + "x" + directCandidate.height);
-            }
-            if (maybePushDirectComposition(directCandidate)) {
-                dcOwnsFrame = true;
-                dcDisengageStreak = 0;
-            } else if (dcLayerActive && ++dcDisengageStreak < DC_DISENGAGE_FRAMES) {
-                dcOwnsFrame = true;
-            } else {
-                maybeHideDirectComposition();
-                dcDisengageStreak = 0;
-            }
-        }
-
-        if (!dcOwnsFrame || recordingActive) {
-            nativeSetScene(nativeHandle, buf);
-            nativeRenderFrame(nativeHandle);
-        }
+        nativeSetScene(nativeHandle, buf);
+        nativeRenderFrame(nativeHandle);
         contentDirty = false;
+    }
+
+    // Geometry-only scan for the fullscreen DC candidate (no Vulkan import).
+    private Drawable findDirectCompositionCandidate() {
+        Drawable candidate = null;
+        try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER)) {
+            int screenW = xServer.screenInfo.width;
+            int screenH = xServer.screenInfo.height;
+            for (int i = 0; i < renderableWindows.size(); i++) {
+                RenderableWindow rw = renderableWindows.get(i);
+                Drawable d = rw.content;
+                if (d != null && rw.rootX == 0 && rw.rootY == 0
+                        && Short.toUnsignedInt(d.width) >= screenW
+                        && Short.toUnsignedInt(d.height) >= screenH) {
+                    candidate = d;
+                }
+            }
+        }
+        return candidate;
     }
 
     /**
