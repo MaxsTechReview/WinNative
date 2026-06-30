@@ -177,6 +177,10 @@ class OtherSettingsFragment : Fragment() {
                             preferences.edit { putBoolean("enable_background_session", checked) }
                             refresh()
                         },
+                        onExternalDisplayOutputChanged = { checked ->
+                            preferences.edit { putBoolean("external_display_output", checked) }
+                            refresh()
+                        },
                         onRunSetupWizard = {
                             startActivity(SetupWizardActivity.createManualRerunIntent(ctx))
                         },
@@ -248,6 +252,7 @@ class OtherSettingsFragment : Fragment() {
                 shareClipboard = preferences.getBoolean("share_android_clipboard", false),
                 recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
                 enableBackgroundSession = preferences.getBoolean("enable_background_session", false),
+                externalDisplayOutput = preferences.getBoolean("external_display_output", false),
                 imagefsInstallProgress = uiState.imagefsInstallProgress,
             )
     }

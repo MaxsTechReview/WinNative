@@ -2134,6 +2134,46 @@ class UnifiedActivity :
                                 )
                             }
                         }
+
+                        if (key != "downloads") {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomStart)
+                                        .windowInsetsPadding(
+                                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                                        )
+                                        .padding(start = addGameFabMargin, bottom = addGameFabMargin)
+                                        .size(addGameFabSize)
+                                        .drawBehind {
+                                            drawCircle(
+                                                brush =
+                                                    Brush.radialGradient(
+                                                        colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
+                                                        center = center,
+                                                        radius = size.minDimension * 0.64f,
+                                                    ),
+                                                radius = size.minDimension * 0.64f,
+                                            )
+                                        }
+                                        .clip(CircleShape)
+                                        .background(Color.Transparent, CircleShape)
+                                        .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
+                                        .focusProperties { canFocus = false }
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = androidx.compose.material3.ripple(color = Accent),
+                                        ) { scope.launch { drawerState.open() } },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.FilterList,
+                                    contentDescription = "Filter",
+                                    tint = Accent,
+                                    modifier = Modifier.size(addGameFabIconSize),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -2645,24 +2685,6 @@ class UnifiedActivity :
                         }
                     }
 
-                    Spacer(Modifier.width(12.dp))
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent)
-                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = androidx.compose.material3.ripple(color = Accent),
-                                ) { onFilterClicked() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
-                    }
                 }
 
                 Row(
@@ -2691,24 +2713,23 @@ class UnifiedActivity :
                         ) {
                             Icon(Eyeglasses2Icon, contentDescription = "Glasses", tint = Accent, modifier = Modifier.size(24.dp))
                         }
-                        Spacer(Modifier.width(12.dp))
-                    }
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent)
-                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = androidx.compose.material3.ripple(color = Accent),
-                                ) { onOpenFileManager() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
+                    } else {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Transparent)
+                                    .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                    .focusProperties { canFocus = !isLibraryTab }
+                                    .clickable(
+                                        interactionSource = null,
+                                        indication = androidx.compose.material3.ripple(color = Accent),
+                                    ) { onOpenFileManager() },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
+                        }
                     }
 
                     Spacer(Modifier.width(12.dp))

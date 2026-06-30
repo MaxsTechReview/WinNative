@@ -822,6 +822,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_output_game_mode_off">Off</string>
     <string name="session_drawer_output_game_mode_note">Requests the TV\'s low‑latency / game mode (HDMI ALLM) to minimize input lag. Shown only when the connected display supports it.</string>
     <string name="session_drawer_output_send_to_display">Send game to display</string>
+    <string name="session_drawer_output_to_display">Output to External Display</string>
     <string name="session_drawer_output_send_note">A display is connected. Send the game to it — your controls and menu stay on this phone. You can return it here any time.</string>
     <string name="session_drawer_output_display">Display</string>
     <string name="session_drawer_output_glasses">Glasses</string>
@@ -1034,6 +1035,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_general_cursor_lock_summary">Keeps direct mouse capture enabled for games that need raw pointer input. Disable it with Volume Down.</string>
     <string name="settings_general_xinput_toggle_title">Disable XInput</string>
     <string name="settings_general_xinput_toggle_summary">Turns off XInput handling when you want exclusive mouse and keyboard control.</string>
+    <string name="settings_external_display_output_summary">Move the game to a connected external display instead of mirroring this screen. Glasses always use their own display.</string>
     <string name="settings_general_file_provider_summary">Expose WinNative files to Android document pickers and file managers.</string>
     <string name="settings_general_open_browser_summary">Open supported web links in the Android browser instead of inside Wine.</string>
     <string name="settings_general_clipboard_summary">Allow copy and paste between Android and Wine sessions.</string>
