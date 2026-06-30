@@ -2,6 +2,8 @@ package com.winlator.cmod.shared.ui.nav
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -21,6 +23,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Dp
@@ -67,6 +70,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var entrySlot: Int? = null
         private set
     private var pendingEntry = true
+    private var manualSelection = false
 
     var explicitGrid by mutableStateOf(false)
         private set
@@ -147,6 +151,12 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         return row[activeCol.coerceIn(0, row.size - 1)] == slot
     }
 
+    fun tapSelect(slot: Int) {
+        pendingEntry = false
+        manualSelection = true
+        selectSlot(slot)
+    }
+
     fun selectSlot(slot: Int) {
         if (explicitGrid) {
             activeSlot = slot
@@ -167,6 +177,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         activeRow = 0
         activeCol = 0
         pendingEntry = true
+        manualSelection = false
         entrySlot?.let { selectSlot(it) }
     }
 
@@ -175,7 +186,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         controllerActive = true
         if (!wasActive) {
             pendingEntry = false
-            entrySlot?.let { selectSlot(it) }
+            if (!manualSelection) entrySlot?.let { selectSlot(it) }
+            manualSelection = false
             if (dir == PANE_DIR_ACTIVATE || dir == PANE_DIR_SECONDARY) handleNav(dir)
             return
         }
@@ -339,10 +351,16 @@ internal fun Modifier.paneNavItem(
             nav.reportPosition(slot, p.x, if (pinTop) -1_000_000f else p.y, it.size.height.toFloat())
         }
         .bringIntoViewRequester(bring)
+        .pointerInput(slot) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                nav.tapSelect(slot)
+            }
+        }
         .then(
             if (tapToSelect) {
                 Modifier.clickable(interactionSource = tapInteraction, indication = null) {
-                    nav.selectSlot(slot)
+                    nav.tapSelect(slot)
                     onActivate()
                 }
             } else {
