@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -489,6 +491,19 @@ private fun FriendActionButtons(
     }
 }
 
+private fun longPressFriend(
+    context: android.content.Context,
+    friend: SteamFriendEntry,
+    onOpenChat: (SteamFriendEntry) -> Unit,
+) {
+    if (PrefManager.chatHeadsEnabled && android.provider.Settings.canDrawOverlays(context)) {
+        ChatOverlayService.openHead(context, friend.steamId)
+    } else {
+        onOpenChat(friend)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun InGameFriendCard(
     friend: SteamFriendEntry,
@@ -497,14 +512,18 @@ private fun InGameFriendCard(
     onJoinGame: (SteamFriendEntry) -> Unit,
     onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
+    val ctx = LocalContext.current
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = Accent.copy(alpha = 0.07f),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) }, tapToSelect = true)
-            .clickable { onOpenChat(friend) },
+            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) })
+            .combinedClickable(
+                onClick = { onOpenChat(friend) },
+                onLongClick = { longPressFriend(ctx, friend, onOpenChat) },
+            ),
     ) {
         Row(
             Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
@@ -554,6 +573,7 @@ private fun InGameFriendCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FriendRow(
     friend: SteamFriendEntry,
@@ -562,6 +582,7 @@ private fun FriendRow(
     onJoinGame: (SteamFriendEntry) -> Unit,
     onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
+    val ctx = LocalContext.current
     val scale by animateFloatAsState(1f, label = "row")
     Surface(
         shape = RoundedCornerShape(10.dp),
@@ -569,8 +590,11 @@ private fun FriendRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) }, tapToSelect = true)
-            .clickable { onOpenChat(friend) },
+            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) })
+            .combinedClickable(
+                onClick = { onOpenChat(friend) },
+                onLongClick = { longPressFriend(ctx, friend, onOpenChat) },
+            ),
     ) {
         Row(
             Modifier.padding(horizontal = 8.dp, vertical = 7.dp),

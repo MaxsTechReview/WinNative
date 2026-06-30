@@ -1000,6 +1000,12 @@ class ChatOverlayService : Service() {
             runCatching { context.startService(Intent(context, ChatOverlayService::class.java)) }
         }
 
+        fun openHead(context: Context, friendId: Long) {
+            if (!PrefManager.chatHeadsEnabled || !Settings.canDrawOverlays(context)) return
+            val intent = Intent(context, ChatOverlayService::class.java).putExtra(EXTRA_FRIEND_ID, friendId)
+            runCatching { context.startService(intent) }
+        }
+
         fun stop(context: Context) {
             runCatching { context.stopService(Intent(context, ChatOverlayService::class.java)) }
         }
