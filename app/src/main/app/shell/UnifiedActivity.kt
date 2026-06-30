@@ -6508,6 +6508,7 @@ class UnifiedActivity :
                             properties = DialogProperties(
                                 usePlatformDefaultWidth = false,
                                 dismissOnClickOutside = false,
+                                decorFitsSystemWindows = false,
                             ),
                         ) {
                             com.winlator.cmod.feature.stores.steam.achievements.SteamAchievementsScreen(
