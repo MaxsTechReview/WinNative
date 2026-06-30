@@ -57,6 +57,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     private var lastSignal = initialSignal
     var controllerActive by mutableStateOf(false)
     var onEdgeLeft: (() -> Unit)? = null
+    var onEdgeRight: (() -> Unit)? = null
     var onEdgeUp: (() -> Unit)? = null
     var onEdgeDown: (() -> Unit)? = null
     var singleRow = false
@@ -75,6 +76,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var explicitGrid by mutableStateOf(false)
         private set
     private var activeSlot by mutableStateOf<Int?>(null)
+    var stableCursor = false
+    private var cursorSlot by mutableStateOf<Int?>(null)
 
     fun nextSlot(): Int = slotCounter++
 
@@ -114,6 +117,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     }
 
     fun activeItemBounds(): Pair<Float, Float>? {
+        if (stableCursor) {
+            val e = cursorSlot?.let { items[it] } ?: return null
+            return e.y to (e.y + e.h)
+        }
         val r = rows
         if (r.isEmpty()) return null
         val row = r[activeRow.coerceIn(0, r.size - 1)]
@@ -145,6 +152,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     fun isActive(slot: Int): Boolean {
         if (!controllerActive) return false
         if (explicitGrid) return (activeSlot ?: entrySlot) == slot
+        if (stableCursor) return cursorSlot == slot
         val r = rows
         if (r.isEmpty()) return false
         val row = r[activeRow.coerceIn(0, r.size - 1)]
@@ -162,6 +170,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
             activeSlot = slot
             return
         }
+        cursorSlot = slot
         val r = rows
         for (ri in r.indices) {
             val ci = r[ri].indexOf(slot)
@@ -176,6 +185,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     fun reset() {
         activeRow = 0
         activeCol = 0
+        cursorSlot = entrySlot
         pendingEntry = true
         manualSelection = false
         entrySlot?.let { selectSlot(it) }
@@ -220,6 +230,18 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         if (r.isEmpty()) return
         var row = activeRow.coerceIn(0, r.size - 1)
         var col = activeCol.coerceIn(0, r[row].size - 1)
+        if (stableCursor) {
+            cursorSlot?.let { cs ->
+                for (ri in r.indices) {
+                    val ci = r[ri].indexOf(cs)
+                    if (ci >= 0) {
+                        row = ri
+                        col = ci
+                        break
+                    }
+                }
+            }
+        }
         when (dir) {
             PANE_DIR_UP -> if (row > 0) { row--; col = col.coerceAtMost(r[row].size - 1) } else onEdgeUp?.invoke()
             PANE_DIR_DOWN -> if (row < r.size - 1) { row++; col = col.coerceAtMost(r[row].size - 1) } else onEdgeDown?.invoke()
@@ -233,12 +255,13 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
                     onEdgeLeft?.invoke()
                 }
             PANE_DIR_RIGHT ->
-                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(1) else if (col < r[row].size - 1) col++
+                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(1) else if (col < r[row].size - 1) col++ else onEdgeRight?.invoke()
             PANE_DIR_ACTIVATE -> items[r[row][col]]?.onActivate?.invoke()
             PANE_DIR_SECONDARY -> items[r[row][col]]?.onSecondary?.invoke()
         }
         activeRow = row
         activeCol = col
+        if (stableCursor) cursorSlot = r.getOrNull(row)?.getOrNull(col) ?: cursorSlot
     }
 
     private fun explicitHandleNav(dir: Int) {
@@ -285,6 +308,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
             activeSlot = best
         } else when (dir) {
             PANE_DIR_LEFT -> onEdgeLeft?.invoke()
+            PANE_DIR_RIGHT -> onEdgeRight?.invoke()
             PANE_DIR_UP -> onEdgeUp?.invoke()
             PANE_DIR_DOWN -> onEdgeDown?.invoke()
         }

@@ -2767,10 +2767,13 @@ class UnifiedActivity :
         val volumeMax = gm.volumeMax()
         val brightness = if (settings.brightness < 0) brightnessMax else settings.brightness
         val volume = if (settings.volume < 0) volumeMax else settings.volume
+        val registry = remember { PaneNavRegistry() }
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false),
         ) {
+            CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismiss)
             androidx.compose.material3.Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = SurfaceDark,
@@ -2799,6 +2802,7 @@ class UnifiedActivity :
                                                 .weight(1f)
                                                 .clip(RoundedCornerShape(11.dp))
                                                 .background(if (selected) Accent else TextSecondary.copy(alpha = 0.12f))
+                                                .paneNavItem(cornerRadius = 11.dp, onActivate = { gm.setRefreshHz(hz) }, isEntry = hz == 60)
                                                 .clickable { gm.setRefreshHz(hz) }
                                                 .padding(vertical = 10.dp),
                                             contentAlignment = Alignment.Center,
@@ -2825,6 +2829,7 @@ class UnifiedActivity :
                     }
                 }
             }
+            }
         }
     }
 
@@ -2846,6 +2851,10 @@ class UnifiedActivity :
                 onValueChange = { onChange(it.roundToInt()) },
                 valueRange = 0f..max.toFloat(),
                 steps = (max - 1).coerceAtLeast(0),
+                modifier = Modifier.paneNavItem(
+                    cornerRadius = 8.dp,
+                    onAdjust = { dir -> onChange((level + dir).coerceIn(0, max)) },
+                ),
                 colors = androidx.compose.material3.SliderDefaults.colors(
                     thumbColor = Accent,
                     activeTrackColor = Accent,
@@ -2861,6 +2870,7 @@ class UnifiedActivity :
             modifier = modifier
                 .clip(RoundedCornerShape(13.dp))
                 .background(if (checked) Accent.copy(alpha = 0.16f) else TextSecondary.copy(alpha = 0.08f))
+                .paneNavItem(cornerRadius = 13.dp, onActivate = { onChange(!checked) })
                 .clickable { onChange(!checked) }
                 .padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

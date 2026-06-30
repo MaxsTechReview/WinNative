@@ -44,6 +44,12 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -106,8 +112,15 @@ import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.focus.controllerFocusItem
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavHandlers
 import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.SideEffect
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -575,6 +588,8 @@ private fun ChannelChip(
 private fun SmallActionButton(
     label: String,
     textColor: Color,
+    usePaneNav: Boolean = false,
+    isEntry: Boolean = false,
     onClick: () -> Unit,
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -590,7 +605,13 @@ private fun SmallActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .then(
+                    if (usePaneNav) {
+                        Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
+                    } else {
+                        Modifier.controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                    },
+                )
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -624,20 +645,73 @@ private fun WineChannelsDialog(
         remember(initiallySelected) {
             mutableStateOf(initiallySelected.toSet())
         }
+    val contentRegistry = remember { PaneNavRegistry().apply { stableCursor = true } }
+    val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
+    var footerZone by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, viewportHeight, footerZone) {
+        if (footerZone || !contentRegistry.controllerActive) return@LaunchedEffect
+        val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
+        val margin = (bounds.second - bounds.first) + with(density) { 10.dp.toPx() }
+        val vpBottom = viewportTop + viewportHeight
+        val delta = when {
+            bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+            bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+            else -> 0f
+        }
+        if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
+    }
+    val toFooter: () -> Unit = {
+        footerZone = true
+        contentRegistry.controllerActive = false
+        footerRegistry.controllerActive = true
+        footerRegistry.reset()
+    }
+    SideEffect {
+        contentRegistry.onEdgeDown = {
+            if (gridState.canScrollForward) {
+                val b = contentRegistry.activeItemBounds()
+                val step = if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
+                scope.launch { runCatching { gridState.animateScrollBy(step) } }
+            } else {
+                toFooter()
+            }
+        }
+        contentRegistry.onEdgeLeft = toFooter
+        contentRegistry.onEdgeRight = toFooter
+        footerRegistry.onEdgeUp = {
+            footerZone = false
+            footerRegistry.controllerActive = false
+            contentRegistry.controllerActive = true
+        }
+    }
+    val handlers =
+        remember {
+            paneNavHandlers(
+                onDismiss = onDismiss,
+                onStart = {
+                    val ordered = options.filter { it in selected.value }
+                    onConfirm(ordered)
+                },
+                registry = { if (footerZone) footerRegistry else contentRegistry },
+            )
+        }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties =
             DialogProperties(
                 usePlatformDefaultWidth = false,
-                // Parent activity runs edge-to-edge (WindowCompat.setDecorFitsSystemWindows(window, false)),
-                // so we also take the dialog window edge-to-edge and pad for insets manually below.
-                // This gives predictable behavior regardless of platform defaults.
                 decorFitsSystemWindows = false,
             ),
     ) {
-        // fillMaxSize + safeDrawing inset padding keeps the dialog clear of the
-        // system status/nav bars and any display cutout on every device.
+        DialogPaneNav(handlers)
+        CompositionLocalProvider(LocalPaneNav provides contentRegistry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -676,6 +750,11 @@ private fun WineChannelsDialog(
                     ChannelGrid(
                         options = options,
                         selected = selected.value,
+                        gridState = gridState,
+                        onViewport = { top, h ->
+                            viewportTop = top
+                            viewportHeight = h
+                        },
                         onToggle = { channel ->
                             selected.value =
                                 if (channel in selected.value) {
@@ -687,26 +766,32 @@ private fun WineChannelsDialog(
                     )
 
                     Spacer(Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                    ) {
-                        SmallActionButton(
-                            label = stringResource(R.string.common_ui_cancel),
-                            textColor = TextSecondary,
-                            onClick = onDismiss,
-                        )
-                        SmallActionButton(
-                            label = stringResource(R.string.common_ui_confirm),
-                            textColor = Accent,
-                            onClick = {
-                                val ordered = options.filter { it in selected.value }
-                                onConfirm(ordered)
-                            },
-                        )
+                    CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                        ) {
+                            SmallActionButton(
+                                label = stringResource(R.string.common_ui_cancel),
+                                textColor = TextSecondary,
+                                usePaneNav = true,
+                                onClick = onDismiss,
+                            )
+                            SmallActionButton(
+                                label = stringResource(R.string.common_ui_confirm),
+                                textColor = Accent,
+                                usePaneNav = true,
+                                isEntry = true,
+                                onClick = {
+                                    val ordered = options.filter { it in selected.value }
+                                    onConfirm(ordered)
+                                },
+                            )
+                        }
                     }
                 }
             }
+        }
         }
     }
 }
@@ -715,6 +800,8 @@ private fun WineChannelsDialog(
 private fun ColumnScope.ChannelGrid(
     options: List<String>,
     selected: Set<String>,
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
+    onViewport: (Float, Int) -> Unit,
     onToggle: (String) -> Unit,
 ) {
     if (options.isEmpty()) {
@@ -726,22 +813,24 @@ private fun ColumnScope.ChannelGrid(
         )
         return
     }
-    // Adaptive grid reflows columns on smaller screens (3 cols on ~300dp+ wide,
-    // 2 cols on narrow ~200dp wide). weight(1f, fill = false) lets the grid
-    // shrink on short landscape screens without pushing buttons off-screen.
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(minSize = 92.dp),
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
+                .weight(1f, fill = false)
+                .onGloballyPositioned {
+                    onViewport(it.positionInWindow().y, it.size.height)
+                },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(options) { channel ->
+        itemsIndexed(options) { index, channel ->
             SelectableChannelChip(
                 label = channel,
                 isSelected = channel in selected,
+                isEntry = index == 0,
                 onToggle = { onToggle(channel) },
             )
         }
@@ -752,6 +841,7 @@ private fun ColumnScope.ChannelGrid(
 private fun SelectableChannelChip(
     label: String,
     isSelected: Boolean,
+    isEntry: Boolean,
     onToggle: () -> Unit,
 ) {
     val bg = if (isSelected) Accent.copy(alpha = 0.18f) else IconBoxBg
@@ -765,7 +855,7 @@ private fun SelectableChannelChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(bg)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onToggle() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onToggle, isEntry = isEntry)
                 .pointerInput(label) {
                     detectTapGestures(onTap = { onToggle() })
                 },
