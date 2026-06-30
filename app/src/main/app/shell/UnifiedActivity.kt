@@ -582,6 +582,8 @@ class UnifiedActivity :
 
     val openSearchSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+    val openFriendsSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     val libraryFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var libraryItemCount: Int = 0
     private var currentLibraryLayoutMode: LibraryLayoutMode = LibraryLayoutMode.GRID_4
@@ -766,6 +768,11 @@ class UnifiedActivity :
             action == android.view.KeyEvent.ACTION_DOWN &&
             hideImeIfVisible()
         ) {
+            return true
+        }
+
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_MODE) {
+            handleGuideButton(action, event.repeatCount)
             return true
         }
 
@@ -1003,6 +1010,8 @@ class UnifiedActivity :
     @Volatile
     private var drawerOpen: Boolean = false
     private var rightDrawerOpen: Boolean = false
+    private val guideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var guideHoldRunnable: Runnable? = null
 
     private val menuNavActive: Boolean
         get() = inSettingsRoute
@@ -1127,6 +1136,28 @@ class UnifiedActivity :
             return
         }
         navigateSettingsContent(code)
+    }
+
+    private fun handleGuideButton(action: Int, repeatCount: Int) {
+        when (action) {
+            android.view.KeyEvent.ACTION_DOWN -> {
+                if (repeatCount != 0) return
+                guideHoldRunnable?.let { guideHandler.removeCallbacks(it) }
+                guideHoldRunnable = null
+                if (rightDrawerOpen) {
+                    val r = Runnable { openFriendsSignal.tryEmit(Unit) }
+                    guideHoldRunnable = r
+                    guideHandler.postDelayed(r, 400L)
+                } else if (!menuNavActive && !drawerOpen && currentTabKey == "library") {
+                    openFriendsSignal.tryEmit(Unit)
+                }
+            }
+
+            android.view.KeyEvent.ACTION_UP -> {
+                guideHoldRunnable?.let { guideHandler.removeCallbacks(it) }
+                guideHoldRunnable = null
+            }
+        }
     }
 
     private fun dispatchDrawerNavKey(
@@ -1865,6 +1896,11 @@ class UnifiedActivity :
         LaunchedEffect(rightDrawerState.isOpen) {
             rightDrawerOpen = rightDrawerState.isOpen
             if (!rightDrawerState.isOpen) friendsDrawerNavBridge.controllerActive = false
+        }
+        LaunchedEffect(Unit) {
+            (context as? UnifiedActivity)?.openFriendsSignal?.collect {
+                if (rightDrawerState.isOpen) rightDrawerState.close() else rightDrawerState.open()
+            }
         }
         var installedFriendGameIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
         LaunchedEffect(friends) {
