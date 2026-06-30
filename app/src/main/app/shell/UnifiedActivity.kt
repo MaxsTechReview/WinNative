@@ -2392,7 +2392,7 @@ class UnifiedActivity :
                         }, persona, context, scope, isControllerConnected, isPS, isLibraryTab, searchQueryTfv, {
                             searchQueryTfv =
                                 it
-                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onFriendsClicked = { scope.launch { rightDrawerState.open() } }, onOpenFileManager = openFileManager) {
+                        }, onFilterClicked = { scope.launch { drawerState.open() } }, onFriendsClicked = { scope.launch { rightDrawerState.open() } }) {
                             if (selectedLibrarySource == "GOG") {
                                 globalSettingsGogGame = gogApps.find { it.id == selectedGogGameId }
                             } else {
@@ -2526,7 +2526,7 @@ class UnifiedActivity :
                                         .windowInsetsPadding(
                                             WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
                                         )
-                                        .padding(end = addGameFabMargin, bottom = addGameFabMargin),
+                                        .padding(end = 4.dp, bottom = addGameFabMargin),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 if (isControllerConnected) {
@@ -2565,6 +2565,46 @@ class UnifiedActivity :
                                     modifier = Modifier.size(addGameFabIconSize),
                                 )
                                 }
+                            }
+                        }
+
+                        if (key == "library" || key == "downloads") {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomStart)
+                                        .windowInsetsPadding(
+                                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                                        )
+                                        .padding(start = addGameFabMargin, bottom = addGameFabMargin)
+                                        .size(addGameFabSize)
+                                        .drawBehind {
+                                            drawCircle(
+                                                brush =
+                                                    Brush.radialGradient(
+                                                        colors = listOf(Accent.copy(alpha = 0.22f), Color.Transparent),
+                                                        center = center,
+                                                        radius = size.minDimension * 0.64f,
+                                                    ),
+                                                radius = size.minDimension * 0.64f,
+                                            )
+                                        }
+                                        .clip(CircleShape)
+                                        .background(Color.Transparent, CircleShape)
+                                        .border(1.5.dp, Accent.copy(alpha = 0.55f), CircleShape)
+                                        .focusProperties { canFocus = false }
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = androidx.compose.material3.ripple(color = Accent),
+                                        ) { openFileManager() },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.FolderOpen,
+                                    contentDescription = "Files",
+                                    tint = Accent,
+                                    modifier = Modifier.size(addGameFabIconSize),
+                                )
                             }
                         }
                     }
@@ -2846,7 +2886,6 @@ class UnifiedActivity :
         onSearchQueryChange: (TextFieldValue) -> Unit,
         onFilterClicked: () -> Unit,
         onFriendsClicked: () -> Unit = {},
-        onOpenFileManager: () -> Unit,
         onGameSettingsClicked: () -> Unit,
     ) {
         var isSearchExpanded by remember { mutableStateOf(false) }
@@ -3094,7 +3133,7 @@ class UnifiedActivity :
                     }
                 }
 
-                val rightEdgeShift = if (isControllerConnected) UnifiedTopBarHorizontalPadding else 0.dp
+                val rightEdgeShift = if (isControllerConnected) 24.dp else 0.dp
                 Row(
                     modifier = Modifier.align(Alignment.CenterEnd).offset(x = rightEdgeShift).fillMaxHeight().zIndex(2f),
                     horizontalArrangement = Arrangement.End,
@@ -3125,40 +3164,6 @@ class UnifiedActivity :
                                 .clip(CircleShape)
                                 .background(Color.Transparent)
                                 .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .clickable { onFriendsClicked() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
-                    }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent)
-                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
-                                .focusProperties { canFocus = !isLibraryTab }
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = androidx.compose.material3.ripple(color = Accent),
-                                ) { onOpenFileManager() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Outlined.FolderOpen, contentDescription = "Files", tint = Accent, modifier = Modifier.size(24.dp))
-                    }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Transparent)
-                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
                                 .focusProperties { canFocus = !isLibraryTab }
                                 .clickable(
                                     interactionSource = null,
@@ -3171,6 +3176,39 @@ class UnifiedActivity :
                     if (isControllerConnected) {
                         Spacer(Modifier.width(8.dp))
                         ControllerBadge("Select")
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Transparent)
+                                .border(1.dp, Accent.copy(alpha = 0.5f), CircleShape)
+                                .clickable { onFriendsClicked() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
+                    }
+                    if (isControllerConnected) {
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier =
+                                Modifier
+                                    .background(Color(0xFF394048), RoundedCornerShape(15.dp))
+                                    .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
+                                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.SportsEsports,
+                                contentDescription = "Guide",
+                                tint = Color(0xFFE6EDF3),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
             }
