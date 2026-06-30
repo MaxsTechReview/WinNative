@@ -7413,6 +7413,7 @@ class SteamService : Service() {
                     }.onFailure { Timber.w(it, "Failed to remove SteamService foreground state during shutdown") }
                     runCatching {
                         steamInstance.notificationHelper.cancel()
+                        steamInstance.notificationHelper.cancelBackgroundRunning()
                     }.onFailure { Timber.w(it, "Failed to cancel SteamService notification during shutdown") }
                     steamInstance.stopSelf()
                 }
@@ -8103,8 +8104,12 @@ class SteamService : Service() {
         when (intent?.action) {
             NotificationHelper.ACTION_EXIT -> {
                 Timber.d("Exiting app via notification intent")
-                AppTerminationHelper.stopManagedServices(applicationContext, "notification_exit")
-
+                AppTerminationHelper.stopManagedServices(applicationContext, "notification_exit", forceStopChat = true)
+                runCatching {
+                    getSystemService(android.app.ActivityManager::class.java)
+                        ?.appTasks?.forEach { it.finishAndRemoveTask() }
+                }
+                android.os.Process.killProcess(android.os.Process.myPid())
                 return START_NOT_STICKY
             }
         }
@@ -8143,6 +8148,7 @@ class SteamService : Service() {
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         notificationHelper.cancel()
+        notificationHelper.cancelBackgroundRunning()
 
         if (!isStopping) {
             scope.launch { stop() }
@@ -8204,12 +8210,16 @@ class SteamService : Service() {
         // must stay up regardless of how long it was minimized.
         backgroundIdleJob?.cancel()
         backgroundIdleJob = null
+        // Restore the quiet foreground notification and drop the background-chat one.
+        if (isRunning && !isStopping) {
+            runCatching {
+                startForeground(1, notificationHelper.createForegroundNotification("Steam Service is running"))
+                notificationHelper.cancelBackgroundRunning()
+            }.onFailure { Timber.w(it, "Failed to restore SteamService foreground notification") }
+        }
         if (!suspendedForBackground) return
         suspendedForBackground = false
         Timber.i("App foregrounded — waking the WN-Steam-Client session")
-        runCatching {
-            startForeground(1, notificationHelper.createForegroundNotification("Steam Service is running"))
-        }.onFailure { Timber.w(it, "Failed to restore SteamService foreground state on foreground") }
         retryAttempt = 0
         if (isRunning && !isStopping && PrefManager.refreshToken.isNotBlank()) {
             runCatching {
@@ -8223,6 +8233,15 @@ class SteamService : Service() {
     /** App went to the background — arm the deferred suspend check. */
     private fun handleAppBackgrounded() {
         appInForeground = false
+        if (PrefManager.chatStayRunningOnExit && isRunning && !isStopping) {
+            runCatching {
+                startForeground(
+                    NotificationHelper.BACKGROUND_RUNNING_NOTIFICATION_ID,
+                    notificationHelper.createBackgroundRunningNotification(),
+                )
+                notificationHelper.cancel()
+            }.onFailure { Timber.w(it, "Failed to show Steam background-chat notification") }
+        }
         scheduleBackgroundSuspendCheck()
     }
 
