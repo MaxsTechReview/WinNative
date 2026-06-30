@@ -47,8 +47,19 @@ internal fun paneNavHandlers(
 private class PaneNavWindowCallback(
     private val base: Window.Callback,
     private val handlers: PaneNavWindowHandlers,
+    private val window: Window?,
 ) : Window.Callback by base {
     private var stickEngaged = 0
+
+    private fun hideImeIfVisible(): Boolean {
+        val win = window ?: return false
+        val decor = win.decorView
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(decor) ?: return false
+        if (!insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) return false
+        androidx.core.view.WindowInsetsControllerCompat(win, decor)
+            .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        return true
+    }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
@@ -70,7 +81,7 @@ private class PaneNavWindowCallback(
             KeyEvent.KEYCODE_BUTTON_START -> handlers.onStart()
             KeyEvent.KEYCODE_BUTTON_B,
             KeyEvent.KEYCODE_BACK,
-            -> handlers.onDismiss()
+            -> if (!hideImeIfVisible()) handlers.onDismiss()
         }
         return true
     }
@@ -132,7 +143,7 @@ private class PaneNavWindowCallback(
 // that reinstalls the previous callback; call it from onDispose / on teardown.
 internal fun Window.bindPaneNav(handlers: PaneNavWindowHandlers): () -> Unit {
     val prev = callback ?: return {}
-    val wrapper = PaneNavWindowCallback(prev, handlers)
+    val wrapper = PaneNavWindowCallback(prev, handlers, this)
     callback = wrapper
     return { if (callback === wrapper) callback = prev }
 }

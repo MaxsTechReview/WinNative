@@ -283,8 +283,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
         }
         if (best != null) {
             activeSlot = best
-        } else if (dir == PANE_DIR_LEFT) {
-            onEdgeLeft?.invoke()
+        } else when (dir) {
+            PANE_DIR_LEFT -> onEdgeLeft?.invoke()
+            PANE_DIR_UP -> onEdgeUp?.invoke()
+            PANE_DIR_DOWN -> onEdgeDown?.invoke()
         }
     }
 }
