@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -46,6 +47,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -110,7 +113,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
-import com.winlator.cmod.shared.ui.focus.controllerFocusItem
 import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
 import com.winlator.cmod.shared.ui.nav.DialogPaneNav
 import com.winlator.cmod.shared.ui.nav.LocalPaneNav
@@ -119,6 +121,7 @@ import com.winlator.cmod.shared.ui.nav.paneNavHandlers
 import com.winlator.cmod.shared.ui.nav.paneNavItem
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.SideEffect
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
@@ -588,7 +591,6 @@ private fun ChannelChip(
 private fun SmallActionButton(
     label: String,
     textColor: Color,
-    usePaneNav: Boolean = false,
     isEntry: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -605,13 +607,7 @@ private fun SmallActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .then(
-                    if (usePaneNav) {
-                        Modifier.paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
-                    } else {
-                        Modifier.controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
-                    },
-                )
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -773,15 +769,11 @@ private fun WineChannelsDialog(
                         ) {
                             SmallActionButton(
                                 label = stringResource(R.string.common_ui_cancel),
-                                textColor = TextSecondary,
-                                usePaneNav = true,
-                                onClick = onDismiss,
+                                textColor = TextSecondary,                                onClick = onDismiss,
                             )
                             SmallActionButton(
                                 label = stringResource(R.string.common_ui_confirm),
-                                textColor = Accent,
-                                usePaneNav = true,
-                                isEntry = true,
+                                textColor = Accent,                                isEntry = true,
                                 onClick = {
                                     val ordered = options.filter { it in selected.value }
                                     onConfirm(ordered)
@@ -964,6 +956,9 @@ private fun LogsBrowserDialog(
     var downloaded by remember {
         mutableStateOf(initialFiles.filter { it.downloaded }.map { it.absolutePath }.toSet())
     }
+    val registry = remember { PaneNavRegistry().apply { stableCursor = true } }
+    var rightStick by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(selected) { registry.reset() }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -978,6 +973,15 @@ private fun LogsBrowserDialog(
         val showSavedToast: (String) -> Unit = { path ->
             WinToast.show(context, context.getString(R.string.settings_debug_logs_saved, path), dialogView)
         }
+        val logNavHandlers =
+            remember {
+                paneNavHandlers(
+                    onDismiss = { if (selected != null) selected = null else onDismiss() },
+                    onScroll = { rightStick = it },
+                ) { registry }
+            }
+        DialogPaneNav(logNavHandlers)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -1044,11 +1048,13 @@ private fun LogsBrowserDialog(
                                 onBack = { selected = null },
                                 onClose = onDismiss,
                                 onReadLogFile = onReadLogFile,
+                                rightStick = rightStick,
                             )
                         }
                     }
                 }
             }
+        }
         }
     }
 
@@ -1087,7 +1093,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1132,7 +1138,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Success.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1177,7 +1183,7 @@ private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Warning.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1220,7 +1226,7 @@ private fun LogsHeaderIcon(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
@@ -1253,11 +1259,49 @@ private fun ColumnScope.LogFileList(
         )
         return
     }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val nav = LocalPaneNav.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    if (nav != null) {
+        LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
+            if (!nav.controllerActive) return@LaunchedEffect
+            val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
+            val rowH = bounds.second - bounds.first
+            val margin = (rowH * 2f + with(density) { 12.dp.toPx() }).coerceAtMost(viewportHeight * 0.4f)
+            val vpBottom = viewportTop + viewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { listState.animateScrollBy(delta) }
+        }
+        SideEffect {
+            val rowStep: () -> Float = {
+                val b = nav.activeItemBounds()
+                if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
+            }
+            nav.onEdgeDown = {
+                if (listState.canScrollForward) scope.launch { runCatching { listState.animateScrollBy(rowStep()) } }
+            }
+            nav.onEdgeUp = {
+                if (listState.canScrollBackward) scope.launch { runCatching { listState.animateScrollBy(-rowStep()) } }
+            }
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
+                .weight(1f, fill = false)
+                .onGloballyPositioned {
+                    viewportTop = it.positionInWindow().y
+                    viewportHeight = it.size.height
+                },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(files, key = { it.absolutePath }) { entry ->
@@ -1297,7 +1341,7 @@ private fun LogFileRow(
                 Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onOpen() })
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { onOpen() })
                     .pointerInput(entry.absolutePath) {
                         detectTapGestures(onTap = { onOpen() })
                     }.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -1363,7 +1407,7 @@ private fun LogRowIconButton(
                 .clip(shape)
                 .background(fillBrush, shape)
                 .border(1.dp, tint.copy(alpha = if (filled) 0.65f else 0.30f), shape)
-                .controllerFocusItem(cornerRadius = 8.dp, onActivate = { onClick() })
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
@@ -1434,6 +1478,7 @@ private fun LogDetailView(
     onBack: () -> Unit,
     onClose: () -> Unit,
     onReadLogFile: (LogFileEntry) -> String,
+    rightStick: Float,
 ) {
     var content by remember(entry.absolutePath) { mutableStateOf<String?>(null) }
     LaunchedEffect(entry.absolutePath) {
@@ -1477,6 +1522,7 @@ private fun LogDetailView(
         LogContentBody(
             content = content,
             entry = entry,
+            rightStick = rightStick,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -1489,6 +1535,7 @@ private fun LogDetailView(
 private fun LogContentBody(
     content: String?,
     entry: LogFileEntry,
+    rightStick: Float,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -1518,6 +1565,13 @@ private fun LogContentBody(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 val logScrollState = rememberScrollState()
+                LaunchedEffect(rightStick) {
+                    if (rightStick == 0f) return@LaunchedEffect
+                    while (true) {
+                        logScrollState.scrollBy(rightStick * 26f)
+                        withFrameNanos { }
+                    }
+                }
                 val scrollbarAlpha by animateFloatAsState(
                     targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
                     animationSpec =

@@ -118,8 +118,10 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
 
     fun activeItemBounds(): Pair<Float, Float>? {
         if (stableCursor) {
-            val e = cursorSlot?.let { items[it] } ?: return null
-            return e.y to (e.y + e.h)
+            cursorSlot?.let { cs ->
+                val e = items[cs] ?: return null
+                return e.y to (e.y + e.h)
+            }
         }
         val r = rows
         if (r.isEmpty()) return null
@@ -152,7 +154,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     fun isActive(slot: Int): Boolean {
         if (!controllerActive) return false
         if (explicitGrid) return (activeSlot ?: entrySlot) == slot
-        if (stableCursor) return cursorSlot == slot
+        cursorSlot?.let { if (stableCursor) return it == slot }
         val r = rows
         if (r.isEmpty()) return false
         val row = r[activeRow.coerceIn(0, r.size - 1)]

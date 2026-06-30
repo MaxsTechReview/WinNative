@@ -26,6 +26,7 @@ internal class PaneNavWindowHandlers(
     val onSecondary: () -> Unit = {},
     val onDismiss: () -> Unit,
     val onStart: () -> Unit = {},
+    val onScroll: (Float) -> Unit = {},
 )
 
 // Build handlers that drive a (possibly swappable) PaneNavRegistry. The provider
@@ -34,6 +35,7 @@ internal class PaneNavWindowHandlers(
 internal fun paneNavHandlers(
     onDismiss: () -> Unit,
     onStart: () -> Unit = {},
+    onScroll: (Float) -> Unit = {},
     registry: () -> PaneNavRegistry?,
 ): PaneNavWindowHandlers =
     PaneNavWindowHandlers(
@@ -42,6 +44,7 @@ internal fun paneNavHandlers(
         onSecondary = { registry()?.navDir(PANE_DIR_SECONDARY) },
         onDismiss = onDismiss,
         onStart = onStart,
+        onScroll = onScroll,
     )
 
 private class PaneNavWindowCallback(
@@ -92,6 +95,7 @@ private class PaneNavWindowCallback(
         ) {
             return base.dispatchGenericMotionEvent(event)
         }
+        handlers.onScroll(event.getAxisValue(MotionEvent.AXIS_RZ))
         val sx = event.getAxisValue(MotionEvent.AXIS_X)
         val sy = event.getAxisValue(MotionEvent.AXIS_Y)
         val hx = event.getAxisValue(MotionEvent.AXIS_HAT_X)
