@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -290,11 +292,13 @@ private fun WorkshopSearchBar(
     onQueryChange: (String) -> Unit,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
+    val fieldFocus = remember { FocusRequester() }
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
+                .paneNavItem(cornerRadius = 9.dp, onActivate = { runCatching { fieldFocus.requestFocus() } })
                 .clip(RoundedCornerShape(9.dp))
                 .background(WsInputBg)
                 .border(1.dp, WsBorder, RoundedCornerShape(9.dp))
@@ -325,7 +329,7 @@ private fun WorkshopSearchBar(
                 cursorBrush = Brush.verticalGradient(listOf(WsAccent, WsAccentGlow)),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
             )
         }
         if (query.isNotEmpty()) {
