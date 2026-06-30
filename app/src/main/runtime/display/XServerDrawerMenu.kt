@@ -1697,6 +1697,7 @@ private fun TopRail(
     }
 
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
+    val railScroll = rememberScrollState()
 
     val selectedKey =
         if (controllerActive && region == 0) {
@@ -1751,7 +1752,7 @@ private fun TopRail(
                 modifier =
                     Modifier
                         .offset(
-                            x = indicatorX + underlineHorizontalInset,
+                            x = indicatorX - with(density) { railScroll.value.toDp() } + underlineHorizontalInset,
                             y = indicatorTileHeight - underlineThickness,
                         )
                         .width((indicatorWidth - underlineHorizontalInset * 2).coerceAtLeast(0.dp))
@@ -1763,7 +1764,7 @@ private fun TopRail(
         }
 
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier.horizontalScroll(railScroll),
             horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1847,10 +1848,15 @@ private fun TopRailTile(
     )
 
     val shape = RoundedCornerShape(cornerRadius)
+    val bring = remember { BringIntoViewRequester() }
+    LaunchedEffect(highlighted, selected) {
+        if (highlighted || selected) runCatching { bring.bringIntoView() }
+    }
     Column(
         modifier =
             Modifier
                 .defaultMinSize(minWidth = minWidth)
+                .bringIntoViewRequester(bring)
                 .onGloballyPositioned { coords ->
                     val bounds = coords.boundsInParent()
                     onBoundsChanged(
