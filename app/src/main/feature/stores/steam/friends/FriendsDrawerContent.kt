@@ -23,11 +23,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Surface
@@ -70,6 +72,8 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
+private val WsBg = Color(0xFF12121B)
+private val AccentGlow = Color(0xFF58A6FF)
 
 private fun statusColor(state: EPersonaState): Color = when (state) {
     EPersonaState.Online, EPersonaState.LookingToTrade, EPersonaState.LookingToPlay -> StatusOnline
@@ -255,19 +259,53 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     ) {
         Surface(
             shape = RoundedCornerShape(18.dp),
-            color = SurfaceDark,
+            color = WsBg,
             border = BorderStroke(1.dp, CardBorder),
             modifier = Modifier.fillMaxWidth(0.94f),
         ) {
-            Column(Modifier.padding(18.dp).fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.steam_chat_settings_title),
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Accent.copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = AccentGlow,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.steam_chat_settings_title),
+                        modifier = Modifier.weight(1f),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.steam_common_back),
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
+                Row(
+                    modifier = Modifier.padding(18.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
                     Column(Modifier.weight(1f)) {
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_notifications),
