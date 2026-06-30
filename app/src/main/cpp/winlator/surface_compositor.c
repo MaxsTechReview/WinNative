@@ -414,16 +414,9 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
     struct ASurfaceTransaction* tx = g_tx_create();
     if (tx != NULL) {
         g_tx_reparent(tx, sc, NULL);
-        if (g_has_on_complete) {
-            g_tx_set_on_complete(tx, NULL, on_transaction_complete);
-            g_transaction_pending = true;
-            inflight_increment();
-            g_tx_apply(tx);
-        } else {
-            inflight_increment();
-            g_tx_apply(tx);
-            inflight_decrement();
-        }
+        inflight_increment();
+        g_tx_apply(tx);
+        inflight_decrement();
         g_tx_delete(tx);
     }
 
