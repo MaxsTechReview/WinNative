@@ -793,7 +793,7 @@ class XServerDrawerStateHolder(
                 when {
                     cardCount > 0 -> {
                         menuNavRegion = 1
-                        menuNavIndex = menuNavIndex.coerceAtMost(cardCount - 1)
+                        menuNavIndex = 0
                     }
                     bottomCount > 0 -> {
                         menuNavRegion = 2
