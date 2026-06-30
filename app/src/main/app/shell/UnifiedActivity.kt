@@ -2502,6 +2502,13 @@ class UnifiedActivity :
                         val addGameFabSize = (libraryFabBase * 0.125f).dp.coerceIn(56.dp, 64.dp)
                         val addGameFabMargin = (libraryFabBase * 0.035f).dp.coerceIn(12.dp, 20.dp)
                         val addGameFabIconSize = (libraryFabBase * 0.055f).dp.coerceIn(24.dp, 28.dp)
+                        val fabNavInsets = WindowInsets.navigationBars.asPaddingValues()
+                        val fabEndInset =
+                            (20.dp - fabNavInsets.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr))
+                                .coerceAtLeast(4.dp)
+                        val fabStartInset =
+                            (20.dp - fabNavInsets.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr))
+                                .coerceAtLeast(4.dp)
 
                         if (drawerState.isClosed) {
                             DrawerSwipeHotZone(
@@ -2526,7 +2533,7 @@ class UnifiedActivity :
                                         .windowInsetsPadding(
                                             WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
                                         )
-                                        .padding(end = 4.dp, bottom = addGameFabMargin),
+                                        .padding(end = fabEndInset, bottom = addGameFabMargin),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 if (isControllerConnected) {
@@ -2576,7 +2583,7 @@ class UnifiedActivity :
                                         .windowInsetsPadding(
                                             WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
                                         )
-                                        .padding(start = addGameFabMargin, bottom = addGameFabMargin)
+                                        .padding(start = fabStartInset, bottom = addGameFabMargin)
                                         .size(addGameFabSize)
                                         .drawBehind {
                                             drawCircle(
@@ -3133,9 +3140,16 @@ class UnifiedActivity :
                     }
                 }
 
-                val rightEdgeShift = if (isControllerConnected) 24.dp else 0.dp
+                val topBarView = androidx.compose.ui.platform.LocalView.current
+                val topBarDensity = androidx.compose.ui.platform.LocalDensity.current
+                val topBarOrientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
+                val navRightInset = remember(topBarOrientation, topBarView) {
+                    val px = androidx.core.view.ViewCompat.getRootWindowInsets(topBarView)
+                        ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.right ?: 0
+                    with(topBarDensity) { px.toDp() }
+                }
                 Row(
-                    modifier = Modifier.align(Alignment.CenterEnd).offset(x = rightEdgeShift).fillMaxHeight().zIndex(2f),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().zIndex(2f),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -3174,11 +3188,11 @@ class UnifiedActivity :
                         Icon(Icons.Outlined.FilterList, contentDescription = "Filter", tint = Accent, modifier = Modifier.size(24.dp))
                     }
                     if (isControllerConnected) {
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(4.dp))
                         ControllerBadge("Select")
                     }
 
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     Box(
                         modifier =
@@ -3192,23 +3206,26 @@ class UnifiedActivity :
                     ) {
                         Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
                     }
-                    if (isControllerConnected) {
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            modifier =
-                                Modifier
-                                    .background(Color(0xFF394048), RoundedCornerShape(15.dp))
-                                    .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
-                                    .padding(horizontal = 7.dp, vertical = 3.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Outlined.SportsEsports,
-                                contentDescription = "Guide",
-                                tint = Color(0xFFE6EDF3),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
+                }
+
+                if (isControllerConnected) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .offset(x = navRightInset)
+                                .zIndex(2f)
+                                .background(Color(0xFF394048), RoundedCornerShape(15.dp))
+                                .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
+                                .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.SportsEsports,
+                            contentDescription = "Guide",
+                            tint = Color(0xFFE6EDF3),
+                            modifier = Modifier.size(16.dp),
+                        )
                     }
                 }
             }
