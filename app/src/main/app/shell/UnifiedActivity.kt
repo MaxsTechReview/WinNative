@@ -3064,11 +3064,11 @@ class UnifiedActivity :
                         }
                     }
                     if (isControllerConnected) {
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(4.dp))
                         ControllerBadge(if (isPS) "\u2261" else "Start")
                     }
 
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     val searchIconRotation by animateFloatAsState(
                         targetValue = if (isSearchExpanded) 90f else 0f,
@@ -3135,7 +3135,7 @@ class UnifiedActivity :
                         }
                     }
                     if (isControllerConnected) {
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(4.dp))
                         ControllerBadge("L3")
                     }
                 }
@@ -3206,14 +3206,32 @@ class UnifiedActivity :
                     ) {
                         Icon(Icons.Outlined.People, contentDescription = "Friends", tint = Accent, modifier = Modifier.size(24.dp))
                     }
+                    if (isControllerConnected && navRightInset <= 0.dp) {
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier =
+                                Modifier
+                                    .background(Color(0xFF394048), RoundedCornerShape(15.dp))
+                                    .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
+                                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.SportsEsports,
+                                contentDescription = "Guide",
+                                tint = Color(0xFFE6EDF3),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
                 }
 
-                if (isControllerConnected) {
+                if (isControllerConnected && navRightInset > 0.dp) {
                     Box(
                         modifier =
                             Modifier
                                 .align(Alignment.CenterEnd)
-                                .offset(x = navRightInset)
+                                .offset(x = 38.dp)
                                 .zIndex(2f)
                                 .background(Color(0xFF394048), RoundedCornerShape(15.dp))
                                 .border(1.dp, Color(0xFF8B949E).copy(alpha = 0.5f), RoundedCornerShape(15.dp))
