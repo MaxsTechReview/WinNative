@@ -1335,6 +1335,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">Workshop 항목 로드 중</string>
     <string name="workshop_search_items">Workshop 항목 검색</string>
+    <string name="workshop_title">STEAM 창작마당</string>
+    <string name="workshop_loading_subtitle">Steam에서 구독한 항목을 가져오는 중입니다.</string>
+    <string name="workshop_error_title">창작마당 항목을 불러올 수 없습니다</string>
+    <string name="workshop_error_subtitle">문제가 발생했습니다. 다시 시도하세요.</string>
+    <string name="workshop_empty_title">구독한 창작마당 항목이 없습니다</string>
+    <string name="workshop_empty_subtitle">Steam 창작마당에서 항목을 구독한 후 이 창을 다시 여세요.</string>
+    <string name="workshop_search_empty_title">\"%1$s\"와(과) 일치하는 항목이 없습니다</string>
+    <string name="workshop_search_empty_subtitle">다른 검색어를 사용해 보세요.</string>
+    <string name="workshop_clear_search">검색 지우기</string>
+    <string name="workshop_item_fallback">창작마당 항목</string>
     <string name="common_ui_failed">실패</string>
     <string name="steam_presence_snooze">잠시 자리 비움</string>
     <string name="steam_presence_busy">다른 용무 중</string>

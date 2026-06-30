@@ -1334,6 +1334,16 @@ Percorso installato:
     <!-- Workshop -->
     <string name="workshop_loading_items">Caricamento elementi Workshop</string>
     <string name="workshop_search_items">Cerca elementi Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Recupero dei tuoi oggetti sottoscritti da Steam.</string>
+    <string name="workshop_error_title">Impossibile caricare gli oggetti del Workshop</string>
+    <string name="workshop_error_subtitle">Qualcosa è andato storto. Riprova.</string>
+    <string name="workshop_empty_title">Nessun oggetto del Workshop sottoscritto</string>
+    <string name="workshop_empty_subtitle">Iscriviti agli oggetti nel Steam Workshop, poi riapri questa finestra.</string>
+    <string name="workshop_search_empty_title">Nessun oggetto corrisponde a \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prova un altro termine di ricerca.</string>
+    <string name="workshop_clear_search">Cancella ricerca</string>
+    <string name="workshop_item_fallback">Oggetto del Workshop</string>
     <string name="common_ui_failed">Non riuscito</string>
     <string name="steam_presence_snooze">Inattivo</string>
     <string name="steam_presence_busy">Occupato</string>

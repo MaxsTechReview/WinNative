@@ -1340,6 +1340,16 @@ Zainstalowana ścieżka:
     <!-- Workshop -->
     <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
     <string name="workshop_search_items">Szukaj elementów Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Pobieranie subskrybowanych elementów ze Steam.</string>
+    <string name="workshop_error_title">Nie udało się załadować elementów Workshop</string>
+    <string name="workshop_error_subtitle">Coś poszło nie tak. Spróbuj ponownie.</string>
+    <string name="workshop_empty_title">Brak subskrybowanych elementów Workshop</string>
+    <string name="workshop_empty_subtitle">Subskrybuj elementy w Steam Workshop, a następnie ponownie otwórz to okno.</string>
+    <string name="workshop_search_empty_title">Żaden element nie pasuje do \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Spróbuj innego wyszukiwanego hasła.</string>
+    <string name="workshop_clear_search">Wyczyść wyszukiwanie</string>
+    <string name="workshop_item_fallback">Element Workshop</string>
     <string name="common_ui_failed">Niepowodzenie</string>
     <string name="steam_presence_snooze">Drzemka</string>
     <string name="steam_presence_busy">Zajęty</string>

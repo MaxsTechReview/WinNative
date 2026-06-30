@@ -1334,6 +1334,16 @@ Ruta instalada:
     <!-- Workshop -->
     <string name="workshop_loading_items">Cargando elementos de Workshop</string>
     <string name="workshop_search_items">Buscar elementos de Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Obteniendo tus elementos suscritos de Steam.</string>
+    <string name="workshop_error_title">No se pudieron cargar los elementos del Workshop</string>
+    <string name="workshop_error_subtitle">Algo salió mal. Inténtalo de nuevo.</string>
+    <string name="workshop_empty_title">No hay elementos del Workshop suscritos</string>
+    <string name="workshop_empty_subtitle">Suscríbete a elementos en el Steam Workshop y vuelve a abrir esta ventana.</string>
+    <string name="workshop_search_empty_title">Ningún elemento coincide con \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prueba con otro término de búsqueda.</string>
+    <string name="workshop_clear_search">Borrar búsqueda</string>
+    <string name="workshop_item_fallback">Elemento del Workshop</string>
     <string name="common_ui_failed">Fallido</string>
     <string name="steam_presence_snooze">Inactivo</string>
     <string name="steam_presence_busy">Ocupado</string>

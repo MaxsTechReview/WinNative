@@ -1334,6 +1334,16 @@ Chemin installé :
     <!-- Workshop -->
     <string name="workshop_loading_items">Chargement des éléments du Workshop</string>
     <string name="workshop_search_items">Rechercher des éléments du Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Récupération de vos objets abonnés depuis Steam.</string>
+    <string name="workshop_error_title">Impossible de charger les objets du Workshop</string>
+    <string name="workshop_error_subtitle">Une erreur s\'est produite. Réessayez.</string>
+    <string name="workshop_empty_title">Aucun objet du Workshop abonné</string>
+    <string name="workshop_empty_subtitle">Abonnez-vous à des objets sur le Steam Workshop, puis rouvrez cette fenêtre.</string>
+    <string name="workshop_search_empty_title">Aucun objet ne correspond à \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Essayez un autre terme de recherche.</string>
+    <string name="workshop_clear_search">Effacer la recherche</string>
+    <string name="workshop_item_fallback">Objet du Workshop</string>
     <string name="common_ui_failed">Échec</string>
     <string name="steam_presence_snooze">En veille</string>
     <string name="steam_presence_busy">Occupé</string>

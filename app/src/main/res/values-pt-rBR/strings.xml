@@ -1334,6 +1334,16 @@ Caminho instalado:
     <!-- Workshop -->
     <string name="workshop_loading_items">Carregando itens do Workshop</string>
     <string name="workshop_search_items">Buscar itens do Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Obtendo seus itens inscritos da Steam.</string>
+    <string name="workshop_error_title">Não foi possível carregar os itens do Workshop</string>
+    <string name="workshop_error_subtitle">Algo deu errado. Tente novamente.</string>
+    <string name="workshop_empty_title">Nenhum item do Workshop inscrito</string>
+    <string name="workshop_empty_subtitle">Inscreva-se em itens no Steam Workshop e reabra esta janela.</string>
+    <string name="workshop_search_empty_title">Nenhum item corresponde a \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Tente outro termo de pesquisa.</string>
+    <string name="workshop_clear_search">Limpar pesquisa</string>
+    <string name="workshop_item_fallback">Item do Workshop</string>
     <string name="common_ui_failed">Falhou</string>
     <string name="steam_presence_snooze">Soneca</string>
     <string name="steam_presence_busy">Ocupado</string>

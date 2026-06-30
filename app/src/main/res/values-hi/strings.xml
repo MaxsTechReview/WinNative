@@ -1271,6 +1271,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">Workshop आइटम लोड हो रहे हैं</string>
     <string name="workshop_search_items">Workshop आइटम खोजें</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Steam से आपकी सब्सक्राइब की गई वस्तुएँ प्राप्त की जा रही हैं।</string>
+    <string name="workshop_error_title">Workshop आइटम लोड नहीं हो सके</string>
+    <string name="workshop_error_subtitle">कुछ गलत हो गया। पुनः प्रयास करें।</string>
+    <string name="workshop_empty_title">कोई सब्सक्राइब किया गया Workshop आइटम नहीं</string>
+    <string name="workshop_empty_subtitle">Steam Workshop पर आइटम सब्सक्राइब करें, फिर इस विंडो को दोबारा खोलें।</string>
+    <string name="workshop_search_empty_title">\"%1$s\" से कोई आइटम मेल नहीं खाता</string>
+    <string name="workshop_search_empty_subtitle">कोई दूसरा खोज शब्द आज़माएँ।</string>
+    <string name="workshop_clear_search">खोज साफ़ करें</string>
+    <string name="workshop_item_fallback">Workshop आइटम</string>
     <string name="common_ui_failed">विफल</string>
     <string name="steam_presence_snooze">स्नूज़</string>
     <string name="steam_presence_busy">व्यस्त</string>

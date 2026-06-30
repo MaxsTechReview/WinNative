@@ -1334,6 +1334,16 @@ Installeret sti:
     <!-- Workshop -->
     <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
     <string name="workshop_search_items">Søg i Workshop-elementer</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Henter dine abonnerede emner fra Steam.</string>
+    <string name="workshop_error_title">Kunne ikke indlæse Workshop-emner</string>
+    <string name="workshop_error_subtitle">Noget gik galt. Prøv igen.</string>
+    <string name="workshop_empty_title">Ingen abonnerede Workshop-emner</string>
+    <string name="workshop_empty_subtitle">Abonnér på emner i Steam Workshop, og åbn derefter dette vindue igen.</string>
+    <string name="workshop_search_empty_title">Ingen emner matcher \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prøv et andet søgeord.</string>
+    <string name="workshop_clear_search">Ryd søgning</string>
+    <string name="workshop_item_fallback">Workshop-emne</string>
     <string name="common_ui_failed">Mislykket</string>
     <string name="steam_presence_snooze">Snooze</string>
     <string name="steam_presence_busy">Optaget</string>

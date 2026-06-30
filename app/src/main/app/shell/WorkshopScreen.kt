@@ -171,14 +171,14 @@ internal fun StoreWorkshopScreen(
                             WorkshopStatus(
                                 icon = null,
                                 title = stringResource(R.string.workshop_loading_items),
-                                subtitle = "Fetching your subscribed items from Steam.",
+                                subtitle = stringResource(R.string.workshop_loading_subtitle),
                             )
                         WorkshopLoadState.ERROR ->
                             WorkshopStatus(
                                 icon = Icons.Outlined.Refresh,
-                                title = "Couldn't load Workshop items",
-                                subtitle = errorMessage ?: "Something went wrong. Try again.",
-                                actionLabel = "Retry",
+                                title = stringResource(R.string.workshop_error_title),
+                                subtitle = errorMessage ?: stringResource(R.string.workshop_error_subtitle),
+                                actionLabel = stringResource(R.string.session_drawer_retry),
                                 onAction = onRetry,
                             )
                         WorkshopLoadState.READY ->
@@ -187,15 +187,15 @@ internal fun StoreWorkshopScreen(
                                     icon = if (query.isBlank()) Icons.Outlined.Inventory2 else Icons.Outlined.SearchOff,
                                     title =
                                         if (query.isBlank()) {
-                                            "No subscribed Workshop items"
+                                            stringResource(R.string.workshop_empty_title)
                                         } else {
-                                            "No items match \"$query\""
+                                            stringResource(R.string.workshop_search_empty_title, query)
                                         },
                                     subtitle =
                                         if (query.isBlank()) {
-                                            "Subscribe to items on the Steam Workshop, then reopen this window."
+                                            stringResource(R.string.workshop_empty_subtitle)
                                         } else {
-                                            "Try a different search term."
+                                            stringResource(R.string.workshop_search_empty_subtitle)
                                         },
                                 )
                             } else {
@@ -241,7 +241,7 @@ private fun WorkshopHeader(
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
-                "STEAM WORKSHOP",
+                stringResource(R.string.workshop_title),
                 color = WsTextSecondary,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -277,7 +277,7 @@ private fun WorkshopHeader(
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onClose)) {
             Icon(
                 Icons.Outlined.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.common_ui_close),
                 tint = WsTextSecondary,
                 modifier = Modifier.size(20.dp),
             )
@@ -343,7 +343,7 @@ private fun WorkshopSearchBar(
             ) {
                 Icon(
                     Icons.Outlined.Close,
-                    contentDescription = "Clear search",
+                    contentDescription = stringResource(R.string.workshop_clear_search),
                     tint = WsTextSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -436,6 +436,7 @@ private fun WorkshopItemRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            val itemFallback = stringResource(R.string.workshop_item_fallback)
             Text(
                 buildString {
                     if (item.author.isNotBlank()) append(item.author)
@@ -443,7 +444,7 @@ private fun WorkshopItemRow(
                         if (isNotEmpty()) append("  ·  ")
                         append(StorageUtils.formatBinarySize(item.fileSizeBytes))
                     }
-                    if (isEmpty()) append("Workshop item")
+                    if (isEmpty()) append(itemFallback)
                 },
                 color = WsTextSecondary,
                 fontSize = 11.sp,
@@ -477,14 +478,14 @@ private fun WorkshopRowAction(
         isInstalled ->
             WorkshopActionPill(
                 icon = Icons.Outlined.Delete,
-                label = "Uninstall",
+                label = stringResource(R.string.common_ui_uninstall),
                 tint = WsDanger,
                 onClick = onUninstall,
             )
         else ->
             WorkshopActionPill(
                 icon = Icons.Outlined.Download,
-                label = "Install",
+                label = stringResource(R.string.common_ui_install),
                 tint = WsAccentGlow,
                 onClick = onInstall,
             )

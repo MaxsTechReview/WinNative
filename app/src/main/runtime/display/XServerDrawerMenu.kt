@@ -1216,7 +1216,7 @@ fun buildXServerDrawerState(
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_gyroscope,
-                title = "Gyroscope",
+                title = context.getString(R.string.session_gyroscope_title),
                 subtitle = "",
                 icon = Icons.Outlined.SportsEsports,
                 active = gyroscopeEnabled,
@@ -1428,11 +1428,12 @@ fun withOutputState(
     panelScaling: Boolean,
     panelNative: String,
     displayAvailable: Boolean,
+    outputTitle: String,
 ): XServerDrawerState {
     val outputItem =
         XServerDrawerItem(
             itemId = R.id.main_menu_output,
-            title = "Output",
+            title = outputTitle,
             subtitle = "",
             icon = Icons.Outlined.Monitor,
         )

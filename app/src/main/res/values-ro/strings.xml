@@ -1334,6 +1334,16 @@ Cale instalata:
     <!-- Workshop -->
     <string name="workshop_loading_items">Se încarcă elementele Workshop</string>
     <string name="workshop_search_items">Caută elemente Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Se preiau obiectele tale abonate de la Steam.</string>
+    <string name="workshop_error_title">Articolele din Workshop nu au putut fi încărcate</string>
+    <string name="workshop_error_subtitle">Ceva n-a mers bine. Încearcă din nou.</string>
+    <string name="workshop_empty_title">Niciun articol abonat din Workshop</string>
+    <string name="workshop_empty_subtitle">Abonează-te la articole în Steam Workshop, apoi redeschide această fereastră.</string>
+    <string name="workshop_search_empty_title">Niciun articol nu corespunde cu \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Încearcă alt termen de căutare.</string>
+    <string name="workshop_clear_search">Șterge căutarea</string>
+    <string name="workshop_item_fallback">Articol din Workshop</string>
     <string name="common_ui_failed">Eșuat</string>
     <string name="steam_presence_snooze">Inactiv</string>
     <string name="steam_presence_busy">Ocupat</string>

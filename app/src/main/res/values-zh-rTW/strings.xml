@@ -1334,6 +1334,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">正在載入 Workshop 項目</string>
     <string name="workshop_search_items">搜尋 Workshop 項目</string>
+    <string name="workshop_title">STEAM 創意工坊</string>
+    <string name="workshop_loading_subtitle">正在從 Steam 取得您訂閱的物品。</string>
+    <string name="workshop_error_title">無法載入創意工坊物品</string>
+    <string name="workshop_error_subtitle">發生錯誤。請重試。</string>
+    <string name="workshop_empty_title">沒有已訂閱的創意工坊物品</string>
+    <string name="workshop_empty_subtitle">在 Steam 創意工坊訂閱物品，然後重新開啟此視窗。</string>
+    <string name="workshop_search_empty_title">沒有符合 \"%1$s\" 的物品</string>
+    <string name="workshop_search_empty_subtitle">請嘗試其他搜尋字詞。</string>
+    <string name="workshop_clear_search">清除搜尋</string>
+    <string name="workshop_item_fallback">創意工坊物品</string>
     <string name="common_ui_failed">失敗</string>
     <string name="steam_presence_snooze">小憩</string>
     <string name="steam_presence_busy">忙碌</string>

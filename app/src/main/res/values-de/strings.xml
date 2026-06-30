@@ -1334,6 +1334,16 @@ Installierter Pfad:
     <!-- Workshop -->
     <string name="workshop_loading_items">Workshop-Elemente werden geladen</string>
     <string name="workshop_search_items">Workshop-Elemente suchen</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Deine abonnierten Objekte werden von Steam abgerufen.</string>
+    <string name="workshop_error_title">Workshop-Objekte konnten nicht geladen werden</string>
+    <string name="workshop_error_subtitle">Etwas ist schiefgelaufen. Versuche es erneut.</string>
+    <string name="workshop_empty_title">Keine abonnierten Workshop-Objekte</string>
+    <string name="workshop_empty_subtitle">Abonniere Objekte im Steam Workshop und öffne dieses Fenster dann erneut.</string>
+    <string name="workshop_search_empty_title">Keine Objekte stimmen mit \"%1$s\" überein</string>
+    <string name="workshop_search_empty_subtitle">Versuche einen anderen Suchbegriff.</string>
+    <string name="workshop_clear_search">Suche löschen</string>
+    <string name="workshop_item_fallback">Workshop-Objekt</string>
     <string name="common_ui_failed">Fehlgeschlagen</string>
     <string name="steam_presence_snooze">Schlummern</string>
     <string name="steam_presence_busy">Beschäftigt</string>

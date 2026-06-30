@@ -4057,7 +4057,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     externalDisplayController.isGameModeEnabled(),
                     externalDisplayController.isPanelScaling(),
                     externalDisplayController.getPanelNativeSummary(),
-                    externalDisplayController.hasExternalDisplay());
+                    externalDisplayController.hasExternalDisplay(),
+                    getString(R.string.session_drawer_rail_label_output));
             if (externalDisplayController.isVitureConnected()) {
                 state = XServerDrawerMenuKt.withVitureState(
                         state,

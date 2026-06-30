@@ -1240,6 +1240,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">Загрузка элементов Workshop</string>
     <string name="workshop_search_items">Поиск элементов Workshop</string>
+    <string name="workshop_title">МАСТЕРСКАЯ STEAM</string>
+    <string name="workshop_loading_subtitle">Получение предметов, на которые вы подписаны, из Steam.</string>
+    <string name="workshop_error_title">Не удалось загрузить предметы Мастерской</string>
+    <string name="workshop_error_subtitle">Что-то пошло не так. Повторите попытку.</string>
+    <string name="workshop_empty_title">Нет предметов Мастерской, на которые вы подписаны</string>
+    <string name="workshop_empty_subtitle">Подпишитесь на предметы в Мастерской Steam, затем снова откройте это окно.</string>
+    <string name="workshop_search_empty_title">Нет предметов, соответствующих \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Попробуйте другой поисковый запрос.</string>
+    <string name="workshop_clear_search">Очистить поиск</string>
+    <string name="workshop_item_fallback">Предмет Мастерской</string>
     <string name="common_ui_failed">Ошибка</string>
     <string name="steam_presence_snooze">Спящий режим</string>
     <string name="steam_presence_busy">Занят</string>
