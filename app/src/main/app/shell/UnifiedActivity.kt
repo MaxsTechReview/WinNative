@@ -584,6 +584,28 @@ class UnifiedActivity :
 
     val openFriendsSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+    val openGlassesSignal = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private var l2KeyDown = false
+    private var r2KeyDown = false
+    private var l2AxisDown = false
+    private var r2AxisDown = false
+    private var glassesComboArmed = true
+
+    private fun updateGlassesCombo() {
+        val l2 = l2KeyDown || l2AxisDown
+        val r2 = r2KeyDown || r2AxisDown
+        if (l2 && r2) {
+            if (glassesComboArmed) {
+                glassesComboArmed = false
+                if (com.winlator.cmod.runtime.display.GlassesManager.isConnected()) {
+                    openGlassesSignal.tryEmit(Unit)
+                }
+            }
+        } else {
+            glassesComboArmed = true
+        }
+    }
+
     val libraryFocusIndex = kotlinx.coroutines.flow.MutableStateFlow(0)
     var libraryItemCount: Int = 0
     private var currentLibraryLayoutMode: LibraryLayoutMode = LibraryLayoutMode.GRID_4
@@ -776,6 +798,14 @@ class UnifiedActivity :
             return true
         }
 
+        if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_L2 ||
+            keyCode == android.view.KeyEvent.KEYCODE_BUTTON_R2
+        ) {
+            val down = action == android.view.KeyEvent.ACTION_DOWN
+            if (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_L2) l2KeyDown = down else r2KeyDown = down
+            updateGlassesCombo()
+        }
+
         if (menuNavActive) {
             return dispatchMenuNavKey(event, keyCode, action)
         }
@@ -912,6 +942,18 @@ class UnifiedActivity :
         if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
             event.action == android.view.MotionEvent.ACTION_MOVE
         ) {
+            val lt = kotlin.math.max(
+                event.getAxisValue(android.view.MotionEvent.AXIS_LTRIGGER),
+                event.getAxisValue(android.view.MotionEvent.AXIS_BRAKE),
+            )
+            val rt = kotlin.math.max(
+                event.getAxisValue(android.view.MotionEvent.AXIS_RTRIGGER),
+                event.getAxisValue(android.view.MotionEvent.AXIS_GAS),
+            )
+            l2AxisDown = lt > 0.5f
+            r2AxisDown = rt > 0.5f
+            updateGlassesCombo()
+
             if (menuNavActive) {
                 val sx = event.getAxisValue(android.view.MotionEvent.AXIS_X)
                 val sy = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
@@ -2933,6 +2975,11 @@ class UnifiedActivity :
         LaunchedEffect(Unit) {
             controllerSearchActivity?.openSearchSignal?.collect {
                 if (!isDownloadsTab) isSearchExpanded = true
+            }
+        }
+        LaunchedEffect(Unit) {
+            controllerSearchActivity?.openGlassesSignal?.collect {
+                if (glassesConnected) showGlassesPanel = true
             }
         }
 
