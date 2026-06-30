@@ -2,16 +2,19 @@ package com.winlator.cmod.runtime.display.environment.components;
 
 import android.content.Context;
 import android.media.AudioManager;
-import android.os.Process;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.io.FileUtils;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,10 +22,12 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 
 public class PulseAudioComponent extends EnvironmentComponent {
+  private static final String SINK_NAME = "AAudioSink";
   private final UnixSocketConfig socketConfig;
   private final Options options;
   private static int pid = -1;
   private static final Object lock = new Object();
+  private boolean isPaused = false;
 
   public PulseAudioComponent(UnixSocketConfig socketConfig) {
     this(socketConfig, new Options());
@@ -156,7 +161,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
   @Override
   public void start() {
     synchronized (lock) {
-      stop();
+      if (isServerRunning()) return;
+      killAllPulseAudioProcesses();
+      isPaused = false;
       pid = execPulseAudio();
     }
   }
@@ -164,22 +171,117 @@ public class PulseAudioComponent extends EnvironmentComponent {
   @Override
   public void stop() {
     synchronized (lock) {
-      if (pid != -1) {
-        Process.killProcess(pid);
-        pid = -1;
-      }
+      updateSink(true);
+      killAllPulseAudioProcesses();
+      pid = -1;
+      isPaused = false;
     }
   }
 
   public void suspend() {
     synchronized (lock) {
-      if (pid != -1) ProcessHelper.suspendProcess(pid);
+      if (!isPaused && isServerRunning()) {
+        isPaused = true;
+        execPactlCommand("suspend-sink " + SINK_NAME + " true");
+      }
     }
   }
 
   public void resume() {
     synchronized (lock) {
-      if (pid != -1) ProcessHelper.resumeProcess(pid);
+      if (!isPaused) return;
+      isPaused = false;
+
+      if (isServerRunning()) {
+        execPactlCommand("suspend-sink " + SINK_NAME + " true");
+        execPactlCommand("unload-module module-aaudio-sink");
+        int sampleRate = options.sampleRateOverridden
+            ? options.sampleRate
+            : getNativeOutputSampleRate(environment.getContext());
+        execPactlCommand("load-module module-aaudio-sink sink_name=" + SINK_NAME + " rate=" + sampleRate);
+        execPactlCommand("set-default-sink " + SINK_NAME);
+        execPactlCommand("set-sink-volume " + SINK_NAME + " " + pulseVolumeHex(options.volume));
+      } else {
+        start();
+      }
+    }
+  }
+
+  public boolean isServerRunning() {
+    String info = execPactlCommand("info").toLowerCase(java.util.Locale.ROOT);
+    return info.contains("server name:") && !info.contains("connection failure");
+  }
+
+  private void killAllPulseAudioProcesses() {
+    File proc = new File("/proc");
+    String[] allPids = proc.list((dir, name) -> new File(dir, name).isDirectory() && name.matches("[0-9]+"));
+    if (allPids == null) return;
+    boolean killed = false;
+    for (String pidStr : allPids) {
+      String cmdline = readProcCmdline(pidStr);
+      if (cmdline.contains("libpulseaudio.so")) {
+        try {
+          android.os.Process.killProcess(Integer.parseInt(pidStr));
+          killed = true;
+        } catch (NumberFormatException ignored) {
+        }
+      }
+    }
+    if (killed) {
+      try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+  }
+
+  private String execPactlCommand(String command) {
+    Context context = environment.getContext();
+    File workingDir = new File(context.getFilesDir(), "/pulseaudio");
+    if (!workingDir.isDirectory()) return "";
+
+    String archName = AppUtils.getArchName();
+    File modulesDir = new File(workingDir, "modules/" + archName);
+    String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "/system/lib";
+
+    StringBuilder output = new StringBuilder();
+    try {
+      String[] envp = new String[] {
+        "LD_LIBRARY_PATH=" + systemLibPath + ":" + modulesDir + ":" + workingDir,
+        "HOME=" + workingDir,
+        "PULSE_SERVER=" + socketConfig.path,
+        "TMPDIR=" + environment.getTmpDir()
+      };
+      Process process = Runtime.getRuntime().exec(
+          workingDir + "/pactl " + command, envp, workingDir);
+      try (BufferedReader reader = new BufferedReader(
+          new InputStreamReader(process.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          output.append(line).append('\n');
+        }
+      }
+      process.waitFor();
+    } catch (IOException e) {
+      return "";
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return "";
+    }
+    return output.toString();
+  }
+
+  private void updateSink(boolean suspend) {
+    if (suspend) {
+      execPactlCommand("suspend-sink " + SINK_NAME + " true");
+    } else {
+      execPactlCommand("suspend-sink " + SINK_NAME + " false");
+    }
+  }
+
+  private static String readProcCmdline(String pid) {
+    try (FileInputStream fr = new FileInputStream("/proc/" + pid + "/cmdline")) {
+      byte[] bytes = fr.readAllBytes();
+      return new String(bytes, StandardCharsets.UTF_8).replace('\0', ' ');
+    } catch (IOException e) {
+      return "";
     }
   }
 
@@ -282,7 +384,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     command += " --disable-shm=true";
     command += " --fail=false";
     command += " -n --file=default.pa";
-    command += " --daemonize=false";
+    command += " --daemonize=true";
     command += " --use-pid-file=false";
     command += " --exit-idle-time=-1";
     command += " --high-priority=true";
