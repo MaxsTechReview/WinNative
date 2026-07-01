@@ -193,14 +193,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
       isPaused = false;
 
       if (isServerRunning()) {
-        execPactlCommand("suspend-sink " + SINK_NAME + " true");
-        execPactlCommand("unload-module module-aaudio-sink");
-        int sampleRate = options.sampleRateOverridden
-            ? options.sampleRate
-            : getNativeOutputSampleRate(environment.getContext());
-        execPactlCommand("load-module module-aaudio-sink sink_name=" + SINK_NAME + " rate=" + sampleRate);
-        execPactlCommand("set-default-sink " + SINK_NAME);
-        execPactlCommand("set-sink-volume " + SINK_NAME + " " + pulseVolumeHex(options.volume));
+        updateSink(false);
       } else {
         start();
       }
