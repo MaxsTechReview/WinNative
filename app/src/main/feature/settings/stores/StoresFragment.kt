@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.feature.stores.epic.service.EpicAuthManager
 import com.winlator.cmod.feature.stores.epic.ui.auth.EpicOAuthActivity
 import com.winlator.cmod.feature.stores.gog.service.GOGAuthManager
@@ -149,6 +150,7 @@ class StoresFragment : Fragment() {
                         onPickSteamFolder = { pickFolder(PrefManager.steamDownloadFolder) { PrefManager.steamDownloadFolder = it } },
                         onPickEpicFolder = { pickFolder(PrefManager.epicDownloadFolder) { PrefManager.epicDownloadFolder = it } },
                         onPickGogFolder = { pickFolder(PrefManager.gogDownloadFolder) { PrefManager.gogDownloadFolder = it } },
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                     )
                 }
             }

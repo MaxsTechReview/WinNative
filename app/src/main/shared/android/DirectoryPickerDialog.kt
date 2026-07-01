@@ -40,9 +40,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -77,6 +79,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -89,9 +92,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,6 +119,11 @@ import com.winlator.cmod.shared.theme.WinNativeTextPrimary
 import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.toast.WinToast
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavHandlers
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -315,6 +326,7 @@ object DirectoryPickerDialog {
                                 }
 
                                 DirectoryPickerDialogContent(
+                                    window = dialog.window,
                                     title = title,
                                     initialDir = initialDir,
                                     roots = roots,
@@ -372,6 +384,7 @@ object DirectoryPickerDialog {
 
     @Composable
     private fun DirectoryPickerDialogContent(
+        window: Window?,
         title: String,
         initialDir: File,
         roots: List<File>,
@@ -584,6 +597,97 @@ object DirectoryPickerDialog {
             contentVisible = true
         }
 
+        val contentRegistry = remember { PaneNavRegistry().apply { stableCursor = true } }
+        val menuRegistry = remember { PaneNavRegistry() }
+        val rootsRegistry = remember { PaneNavRegistry() }
+        val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
+        var footerZone by remember { mutableStateOf(false) }
+        val gridState = rememberLazyGridState()
+        var gridViewportTop by remember { mutableStateOf(0f) }
+        var gridViewportHeight by remember { mutableIntStateOf(0) }
+        LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, gridViewportHeight, footerZone) {
+            if (footerZone || !contentRegistry.controllerActive || contentRegistry.manualSelection) return@LaunchedEffect
+            val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
+            val rowH = bounds.second - bounds.first
+            val margin = (rowH * 2f + with(density) { 12.dp.toPx() }).coerceAtMost(gridViewportHeight * 0.4f)
+            val vpBottom = gridViewportTop + gridViewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < gridViewportTop -> bounds.first - margin - gridViewportTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
+        }
+        LaunchedEffect(currentDir.absolutePath) {
+            contentRegistry.reset()
+            footerZone = false
+        }
+        LaunchedEffect(menuTarget) { if (menuTarget != null) menuRegistry.reset() }
+        LaunchedEffect(rootsExpanded) { if (rootsExpanded) rootsRegistry.reset() }
+        contentRegistry.onEdgeDown = {
+            if (gridState.canScrollForward) {
+                val b = contentRegistry.activeItemBounds()
+                val step = if (b != null) (b.second - b.first) + with(density) { 6.dp.toPx() } else gridViewportHeight * 0.3f
+                scope.launch { gridState.animateScrollBy(step) }
+            } else {
+                footerZone = true
+                contentRegistry.controllerActive = false
+                footerRegistry.controllerActive = true
+                footerRegistry.reset()
+            }
+        }
+        footerRegistry.onEdgeUp = {
+            footerZone = false
+            footerRegistry.controllerActive = false
+            contentRegistry.controllerActive = true
+        }
+        val handlers =
+            remember(window) {
+                paneNavHandlers(
+                    onDismiss = {
+                        when {
+                            renameTarget != null -> renameTarget = null
+                            showNewFolder -> showNewFolder = false
+                            deleteTarget != null -> deleteTarget = null
+                            runTarget != null -> runTarget = null
+                            transferProgress != null -> transferJob?.cancel()
+                            menuTarget != null -> menuTarget = null
+                            rootsExpanded -> rootsExpanded = false
+                            else -> onDismiss()
+                        }
+                    },
+                    onStart = {
+                        val overlayOpen =
+                            rootsExpanded || menuTarget != null || renameTarget != null ||
+                                showNewFolder || deleteTarget != null || runTarget != null ||
+                                transferProgress != null
+                        if (!overlayOpen) {
+                            if (manage) {
+                                onDismiss()
+                            } else {
+                                val selectedPath =
+                                    if (mode == SelectionMode.FILE) selectedFile?.absolutePath else currentDir.absolutePath
+                                if (selectedPath != null) onSelect(selectedPath)
+                            }
+                        }
+                    },
+                    registry = {
+                        when {
+                            menuTarget != null -> menuRegistry
+                            rootsExpanded -> rootsRegistry
+                            renameTarget != null || showNewFolder || deleteTarget != null ||
+                                runTarget != null || transferProgress != null -> null
+                            footerZone -> footerRegistry
+                            else -> contentRegistry
+                        }
+                    },
+                )
+            }
+        DisposableEffect(window, handlers) {
+            val restore = window?.bindPaneNav(handlers)
+            onDispose { restore?.invoke() }
+        }
+
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -627,6 +731,7 @@ object DirectoryPickerDialog {
             val entryCountMaxWidth = (maxWidth * 0.42f).coerceIn(128.dp, 220.dp)
             val folderGridMinSize = (maxWidth * 0.22f).coerceIn(140.dp, 150.dp)
 
+            CompositionLocalProvider(LocalPaneNav provides contentRegistry) {
             Surface(
                 modifier =
                     Modifier
@@ -689,6 +794,10 @@ object DirectoryPickerDialog {
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(BgDark)
                                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                .onGloballyPositioned {
+                                    gridViewportTop = it.positionInWindow().y
+                                    gridViewportHeight = it.size.height
+                                }
                                 .padding(horizontal = FolderGridCardPadding, vertical = FolderGridCardPadding),
                     ) {
                         if (entries.isEmpty()) {
@@ -704,6 +813,7 @@ object DirectoryPickerDialog {
                             }
                         } else {
                             LazyVerticalGrid(
+                                state = gridState,
                                 modifier = Modifier.fillMaxWidth(),
                                 columns = GridCells.Adaptive(minSize = folderGridMinSize),
                                 contentPadding = PaddingValues(2.dp),
@@ -718,9 +828,14 @@ object DirectoryPickerDialog {
                                     EntryTile(
                                         entry = entry,
                                         selected = selectedFile?.absolutePath == entry.target.absolutePath,
+                                        isEntry = entry === entries.first(),
                                         onClick = {
                                             if (entry.isSelectableFile) {
-                                                selectedFile = entry.target
+                                                if (mode == SelectionMode.FILE) {
+                                                    onSelect(entry.target.absolutePath)
+                                                } else {
+                                                    selectedFile = entry.target
+                                                }
                                             } else {
                                                 currentDir = entry.target
                                             }
@@ -731,9 +846,22 @@ object DirectoryPickerDialog {
                                             } else {
                                                 null
                                             },
+                                        onSecondary =
+                                            if (manage && !entry.isParent) {
+                                                { menuTarget = entry.target }
+                                            } else {
+                                                {}
+                                            },
                                         menuExpanded = isMenuOpen,
                                         onMenuDismiss = { menuTarget = null },
                                         actions = if (isMenuOpen) buildItemActions(entry) else emptyList(),
+                                        menuRegistry = menuRegistry,
+                                        onHighlighted =
+                                            if (mode == SelectionMode.FILE) {
+                                                { selectedFile = if (entry.isSelectableFile) entry.target else null }
+                                            } else {
+                                                {}
+                                            },
                                     )
                                 }
                             }
@@ -745,6 +873,7 @@ object DirectoryPickerDialog {
                     Spacer(Modifier.height(10.dp))
 
                     if (manage) {
+                        CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -778,6 +907,7 @@ object DirectoryPickerDialog {
                                     currentDir = File(it)
                                     rootsExpanded = false
                                 },
+                                navRegistry = rootsRegistry,
                                 modifier = Modifier.widthIn(min = 150.dp, max = 182.dp),
                             )
                             FooterActionButton(
@@ -785,6 +915,7 @@ object DirectoryPickerDialog {
                                 modifier = Modifier.height(FooterButtonHeight),
                                 onClick = onDismiss,
                             )
+                        }
                         }
                         return@Column
                     }
@@ -799,6 +930,7 @@ object DirectoryPickerDialog {
                                 currentDir = it
                                 rootsExpanded = false
                             },
+                            navRegistry = rootsRegistry,
                             modifier = modifier,
                             extraRoots = extraRoots,
                         )
@@ -828,6 +960,7 @@ object DirectoryPickerDialog {
                         }
                     }
 
+                    CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -841,7 +974,9 @@ object DirectoryPickerDialog {
                         rootSelector(Modifier.widthIn(min = 158.dp, max = 182.dp))
                         footerActions()
                     }
+                    }
                 }
+            }
             }
 
             if (manage) {
@@ -984,6 +1119,7 @@ object DirectoryPickerDialog {
         onRootSelected: (File) -> Unit,
         modifier: Modifier = Modifier,
         extraRoots: List<ManagedRoot> = emptyList(),
+        navRegistry: PaneNavRegistry? = null,
     ) {
         val chevronRotation by animateFloatAsState(
             targetValue = if (expanded) 180f else 0f,
@@ -1008,17 +1144,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 220.dp, max = 420.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides navRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        extraRoots.forEach { root ->
+                        extraRoots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1041,12 +1178,17 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(File(root.path)) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(File(root.path)) },
+                                            isEntry = index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
-                        roots.forEach { root ->
+                        roots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, root)
                             DropdownMenuItem(
                                 text = {
@@ -1061,9 +1203,14 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(root) },
+                                            isEntry = extraRoots.isEmpty() && index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
                     }
@@ -1078,10 +1225,14 @@ object DirectoryPickerDialog {
         entry: Entry,
         selected: Boolean,
         onClick: () -> Unit,
+        isEntry: Boolean = false,
         onLongClick: (() -> Unit)? = null,
+        onSecondary: () -> Unit = {},
         menuExpanded: Boolean = false,
         onMenuDismiss: () -> Unit = {},
         actions: List<ItemAction> = emptyList(),
+        menuRegistry: PaneNavRegistry? = null,
+        onHighlighted: () -> Unit = {},
     ) {
         val interaction = remember { MutableInteractionSource() }
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -1122,7 +1273,14 @@ object DirectoryPickerDialog {
                                     onClick = onClick,
                                 )
                             }
-                        }.padding(horizontal = 8.dp, vertical = 8.dp),
+                        }
+                        .paneNavItem(
+                            cornerRadius = 10.dp,
+                            onActivate = onClick,
+                            onSecondary = onSecondary,
+                            isEntry = isEntry,
+                            onHighlighted = onHighlighted,
+                        ).padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -1154,17 +1312,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 180.dp, max = 240.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides menuRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 260.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        actions.forEach { action ->
+                        actions.forEachIndexed { index, action ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1184,6 +1343,12 @@ object DirectoryPickerDialog {
                                     }
                                 },
                                 onClick = action.onClick,
+                                modifier =
+                                    Modifier.paneNavItem(
+                                        cornerRadius = 6.dp,
+                                        onActivate = action.onClick,
+                                        isEntry = index == 0,
+                                    ),
                             )
                         }
                     }
@@ -1210,6 +1375,7 @@ object DirectoryPickerDialog {
             modifier =
                 modifier
                     .clip(RoundedCornerShape(10.dp))
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
                     .background(chipBackground)
                     .border(1.dp, chipBorder, RoundedCornerShape(10.dp))
                     .clickable(
@@ -1261,6 +1427,7 @@ object DirectoryPickerDialog {
                     .widthIn(min = 74.dp)
                     .height(FooterButtonHeight)
                     .clip(RoundedCornerShape(10.dp))
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = onClick)
                     .border(1.dp, tone.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -1468,6 +1635,7 @@ object DirectoryPickerDialog {
         expanded: Boolean,
         onExpandedChange: (Boolean) -> Unit,
         onRootSelected: (String) -> Unit,
+        navRegistry: PaneNavRegistry? = null,
         modifier: Modifier = Modifier,
     ) {
         val chevronRotation by animateFloatAsState(
@@ -1491,17 +1659,18 @@ object DirectoryPickerDialog {
                 shape = RoundedCornerShape(10.dp),
                 containerColor = Color(0xFF24243B),
                 border = BorderStroke(1.dp, CardBorder),
+                properties = PopupProperties(focusable = false),
                 modifier = Modifier.widthIn(min = 200.dp, max = 420.dp),
             ) {
                 @Suppress("DEPRECATION")
-                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                CompositionLocalProvider(LocalRippleConfiguration provides null, LocalPaneNav provides navRegistry) {
                     Column(
                         modifier =
                             Modifier
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        managedRoots.forEach { root ->
+                        managedRoots.forEachIndexed { index, root ->
                             val selected = isSameOrDescendant(currentDir, File(root.path))
                             DropdownMenuItem(
                                 text = {
@@ -1524,9 +1693,14 @@ object DirectoryPickerDialog {
                                 },
                                 onClick = { onRootSelected(root.path) },
                                 modifier =
-                                    Modifier.background(
-                                        if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
-                                    ),
+                                    Modifier
+                                        .paneNavItem(
+                                            cornerRadius = 6.dp,
+                                            onActivate = { onRootSelected(root.path) },
+                                            isEntry = index == 0,
+                                        ).background(
+                                            if (selected) Accent.copy(alpha = 0.08f) else Color.Transparent,
+                                        ),
                             )
                         }
                     }

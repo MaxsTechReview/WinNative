@@ -60,9 +60,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,6 +103,7 @@ import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -171,6 +174,40 @@ private data class TabInfo(
     val indicatorColor: Color,
     val highlight: Boolean = false,
 )
+
+private val NavHighlightAccent = Color(0xFF57CBDE)
+
+private fun Modifier.navHighlight(highlighted: Boolean, cornerRadius: Dp): Modifier =
+    drawBehind {
+        if (highlighted) {
+            val cr = cornerRadius.toPx()
+            drawRoundRect(
+                color = NavHighlightAccent.copy(alpha = 0.18f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cr, cr),
+            )
+            drawRoundRect(
+                color = NavHighlightAccent,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cr, cr),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
+            )
+        }
+    }
+
+private const val REGION_TABS = 0
+private const val REGION_CONTENT = 1
+private const val REGION_NAV = 2
+
+private suspend fun LazyListState.scrollToSelected(index: Int) {
+    if (index < 0) return
+    val info = layoutInfo
+    if (info.visibleItemsInfo.isEmpty()) return
+    val visible = info.visibleItemsInfo.firstOrNull { it.index == index }
+    val fullyVisible =
+        visible != null &&
+            visible.offset >= info.viewportStartOffset &&
+            visible.offset + visible.size <= info.viewportEndOffset
+    if (!fullyVisible) runCatching { animateScrollToItem(index) }
+}
 
 class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     companion object {
@@ -502,6 +539,18 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private val backgroundSessionEnabled = mutableStateOf(false)
 
     private val pageIndex = mutableIntStateOf(0)
+    private val navRegion = mutableIntStateOf(REGION_CONTENT)
+    private val navIndex = mutableIntStateOf(0)
+    private val activateSignal = mutableIntStateOf(0)
+    private val controllerConnected = mutableStateOf(false)
+    private var tabCount = 0
+    private var contentCount = 0
+    private var contentColumns = 1
+    private var navCount = 2
+    private var wideLayout = false
+    private var lastTabIndex = 0
+    private var lastContentIndex = 0
+    private var onTabIndexChange: ((Int) -> Unit)? = null
     private val imageFsInstalling = mutableStateOf(false)
     private val imageFsProgress = mutableIntStateOf(0)
     private val imageFsDone = mutableStateOf(false)
@@ -559,6 +608,255 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 permissions[Manifest.permission.READ_EXTERNAL_STORAGE] == true
         }
 
+    private var stickEngaged = 0
+
+    private fun advanceWizardPage() {
+        val page = pageIndex.intValue
+        if (page < 2) {
+            val canGoNext = if (page == 0) storageGranted.value && imageFsDone.value else true
+            if (canGoNext) pageIndex.intValue += 1
+        } else if (!creatingContainer.value && transferState.value == null) {
+            finishWizard()
+        }
+    }
+
+    private fun resetNav(region: Int = REGION_CONTENT) {
+        navRegion.intValue = if (region == REGION_TABS && tabCount == 0) REGION_CONTENT else region
+        navIndex.intValue = 0
+        lastTabIndex = 0
+        lastContentIndex = 0
+    }
+
+    private fun regionSize(r: Int) =
+        when (r) {
+            REGION_TABS -> tabCount
+            REGION_CONTENT -> contentCount
+            REGION_NAV -> navCount
+            else -> 0
+        }
+
+    private fun clampNav() {
+        val max = (regionSize(navRegion.intValue) - 1).coerceAtLeast(0)
+        if (navIndex.intValue > max) navIndex.intValue = max
+    }
+
+    private fun setNav(region: Int, index: Int) {
+        navRegion.intValue = region
+        navIndex.intValue = index.coerceAtLeast(0)
+        clampNav()
+        if (region == REGION_TABS) onTabIndexChange?.invoke(navIndex.intValue)
+    }
+
+    fun setTabCount(n: Int) {
+        tabCount = n.coerceAtLeast(0)
+        clampNav()
+    }
+
+    fun setContentLayout(count: Int, columns: Int) {
+        contentCount = count.coerceAtLeast(0)
+        contentColumns = columns.coerceAtLeast(1)
+        clampNav()
+    }
+
+    private fun navLeft() {
+        if (wideLayout) {
+            when (navRegion.intValue) {
+                REGION_CONTENT ->
+                    if (contentColumns > 1 && navIndex.intValue % contentColumns != 0) {
+                        navIndex.intValue -= 1
+                    } else if (tabCount > 0) {
+                        lastContentIndex = navIndex.intValue
+                        setNav(REGION_TABS, lastTabIndex.coerceAtMost(tabCount - 1))
+                    }
+                REGION_NAV ->
+                    when {
+                        navIndex.intValue > 0 -> navIndex.intValue -= 1
+                        contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = lastContentIndex.coerceAtMost(contentCount - 1) }
+                        tabCount > 0 -> setNav(REGION_TABS, lastTabIndex.coerceAtMost(tabCount - 1))
+                    }
+            }
+            return
+        }
+        when (navRegion.intValue) {
+            REGION_TABS -> if (navIndex.intValue > 0) setNav(REGION_TABS, navIndex.intValue - 1)
+            else -> if (navIndex.intValue > 0) navIndex.intValue -= 1
+        }
+    }
+
+    private fun navRight() {
+        if (wideLayout) {
+            when (navRegion.intValue) {
+                REGION_TABS ->
+                    when {
+                        contentCount > 0 -> { lastTabIndex = navIndex.intValue; navRegion.intValue = REGION_CONTENT; navIndex.intValue = lastContentIndex.coerceAtMost(contentCount - 1) }
+                        navCount > 0 -> { navRegion.intValue = REGION_NAV; navIndex.intValue = navCount - 1 }
+                    }
+                REGION_CONTENT ->
+                    if (navIndex.intValue % contentColumns != contentColumns - 1 && navIndex.intValue < contentCount - 1) {
+                        navIndex.intValue += 1
+                    } else if (navCount > 0) {
+                        lastContentIndex = navIndex.intValue
+                        navRegion.intValue = REGION_NAV
+                        navIndex.intValue = navCount - 1
+                    }
+                REGION_NAV -> if (navIndex.intValue < navCount - 1) navIndex.intValue += 1
+            }
+            return
+        }
+        val size = regionSize(navRegion.intValue)
+        if (navRegion.intValue == REGION_TABS) {
+            if (navIndex.intValue < size - 1) setNav(REGION_TABS, navIndex.intValue + 1)
+        } else if (navIndex.intValue < size - 1) {
+            navIndex.intValue += 1
+        }
+    }
+
+    private fun navUp() {
+        if (wideLayout) {
+            when (navRegion.intValue) {
+                REGION_TABS -> if (navIndex.intValue > 0) setNav(REGION_TABS, navIndex.intValue - 1)
+                REGION_CONTENT -> if (navIndex.intValue >= contentColumns) navIndex.intValue -= contentColumns
+                REGION_NAV ->
+                    when {
+                        contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = lastContentIndex.coerceAtMost(contentCount - 1) }
+                        tabCount > 0 -> setNav(REGION_TABS, lastTabIndex.coerceAtMost(tabCount - 1))
+                    }
+            }
+            return
+        }
+        when (navRegion.intValue) {
+            REGION_CONTENT ->
+                if (navIndex.intValue < contentColumns) {
+                    if (tabCount > 0) setNav(REGION_TABS, navIndex.intValue.coerceAtMost(tabCount - 1))
+                } else {
+                    navIndex.intValue -= contentColumns
+                }
+            REGION_NAV ->
+                when {
+                    contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = contentCount - 1 }
+                    tabCount > 0 -> setNav(REGION_TABS, 0)
+                }
+        }
+    }
+
+    private fun navDown() {
+        if (wideLayout) {
+            when (navRegion.intValue) {
+                REGION_TABS -> if (navIndex.intValue < tabCount - 1) setNav(REGION_TABS, navIndex.intValue + 1)
+                REGION_CONTENT -> {
+                    val below = navIndex.intValue + contentColumns
+                    if (below < contentCount) navIndex.intValue = below
+                    else if (navCount > 0) { lastContentIndex = navIndex.intValue; navRegion.intValue = REGION_NAV; navIndex.intValue = navCount - 1 }
+                }
+            }
+            return
+        }
+        when (navRegion.intValue) {
+            REGION_TABS ->
+                when {
+                    contentCount > 0 -> { navRegion.intValue = REGION_CONTENT; navIndex.intValue = lastContentIndex.coerceAtMost(contentCount - 1) }
+                    navCount > 0 -> { navRegion.intValue = REGION_NAV; navIndex.intValue = 0 }
+                }
+            REGION_CONTENT -> {
+                val below = navIndex.intValue + contentColumns
+                if (below < contentCount) {
+                    navIndex.intValue = below
+                } else if (navCount > 0) {
+                    navRegion.intValue = REGION_NAV
+                    navIndex.intValue = 0
+                }
+            }
+        }
+    }
+
+    private fun navActivate() { activateSignal.intValue++ }
+
+    private fun applyNavDir(code: Int) {
+        when (code) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> navLeft()
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> navRight()
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> navUp()
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> navDown()
+        }
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (com.winlator.cmod.runtime.input.controls.ExternalController.isGameController(event.device)) {
+            controllerConnected.value = true
+        }
+        val down = event.action == android.view.KeyEvent.ACTION_DOWN
+        when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            -> {
+                if (down) applyNavDir(event.keyCode)
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_A,
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            -> {
+                if (down) navActivate()
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_B -> {
+                if (down && pageIndex.intValue > 0) {
+                    pageIndex.intValue -= 1
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_START -> {
+                if (down) advanceWizardPage()
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_X,
+            android.view.KeyEvent.KEYCODE_BUTTON_Y,
+            android.view.KeyEvent.KEYCODE_BUTTON_L1,
+            android.view.KeyEvent.KEYCODE_BUTTON_R1,
+            -> return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        if ((event.source and android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK &&
+            event.action == android.view.MotionEvent.ACTION_MOVE
+        ) {
+            controllerConnected.value = true
+            val x = event.getAxisValue(android.view.MotionEvent.AXIS_X)
+            val y = event.getAxisValue(android.view.MotionEvent.AXIS_Y)
+            val hx = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X)
+            val hy = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y)
+            val code =
+                when {
+                    x < -0.5f || hx < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                    x > 0.5f || hx > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                    y < -0.5f || hy < -0.5f -> android.view.KeyEvent.KEYCODE_DPAD_UP
+                    y > 0.5f || hy > 0.5f -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                    else -> 0
+                }
+            if (code != 0) {
+                if (stickEngaged == 0) {
+                    stickEngaged = code
+                    applyNavDir(code)
+                }
+                return true
+            }
+            if (kotlin.math.abs(x) < 0.35f && kotlin.math.abs(y) < 0.35f &&
+                kotlin.math.abs(hx) < 0.35f && kotlin.math.abs(hy) < 0.35f
+            ) {
+                stickEngaged = 0
+            }
+            return true
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.clearFlags(
@@ -604,13 +902,28 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         surface = Color(0xFF1E252E),
                     ),
             ) {
-                SetupWizardScreen()
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified,
+                ) {
+                    SetupWizardScreen()
+                }
             }
         }
     }
 
+    private fun isAnyControllerConnected(): Boolean {
+        for (id in android.view.InputDevice.getDeviceIds()) {
+            val dev = android.view.InputDevice.getDevice(id)
+            if (dev != null && com.winlator.cmod.runtime.input.controls.ExternalController.isGameController(dev)) {
+                return true
+            }
+        }
+        return false
+    }
+
     override fun onResume() {
         super.onResume()
+        controllerConnected.value = isAnyControllerConnected()
         storageGranted.value = hasStoragePermission()
         val notificationsEnabled = hasNotificationPermissionSilently()
         notifGranted.value = notificationsEnabled
@@ -1221,6 +1534,26 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             }
         val lastPage = totalPages - 1
 
+        LaunchedEffect(page) {
+            onTabIndexChange = null
+            resetNav(REGION_CONTENT)
+        }
+
+        val region by navRegion
+        val navIdx by navIndex
+        val activate by activateSignal
+        val controller by controllerConnected
+
+        LaunchedEffect(activate) {
+            if (activate == 0) return@LaunchedEffect
+            if (region == REGION_NAV) {
+                when (navIdx) {
+                    0 -> if (page > 0) pageIndex.intValue -= 1
+                    1 -> advanceWizardPage()
+                }
+            }
+        }
+
         // Particle seeds — stable across recomposition
         val particles =
             remember {
@@ -1479,6 +1812,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     contentAlignment = Alignment.Center,
                 ) {
                     val isCompact = maxWidth < 500.dp
+                    wideLayout = !isCompact
                     AnimatedContent(
                         targetState = page,
                         transitionSpec = {
@@ -1538,21 +1872,24 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 ) {
                     GhostPillButton(
                         label = stringResource(R.string.common_ui_back),
-                        enabled = page > 0 && !transferActive,
-                        onClick = { if (page > 0) pageIndex.intValue -= 1 },
+                        enabled = page > 0,
+                        highlighted = controller && region == REGION_NAV && navIdx == 0,
+                        onClick = { setNav(REGION_NAV, 0); if (page > 0) pageIndex.intValue -= 1 },
                     )
 
                     if (page < lastPage) {
                         AccentPillButton(
                             label = stringResource(R.string.setup_wizard_next),
-                            enabled = canGoNext && !transferActive,
-                            onClick = { if (canGoNext) pageIndex.intValue += 1 },
+                            enabled = canGoNext,
+                            highlighted = controller && region == REGION_NAV && navIdx == 1,
+                            onClick = { setNav(REGION_NAV, 1); if (canGoNext) pageIndex.intValue += 1 },
                         )
                     } else {
                         AccentPillButton(
                             label = stringResource(R.string.setup_wizard_finish),
                             enabled = !creatingContainer.value && !transferActive,
-                            onClick = { finishWizard() },
+                            highlighted = controller && region == REGION_NAV && navIdx == 1,
+                            onClick = { setNav(REGION_NAV, 1); finishWizard() },
                         )
                     }
                 }
@@ -1788,11 +2125,13 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private fun GhostPillButton(
         label: String,
         enabled: Boolean = true,
+        highlighted: Boolean = false,
         onClick: () -> Unit,
     ) {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
+            modifier = Modifier.navHighlight(highlighted, cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, if (enabled) Color(0xFF434D5C) else Color(0xFF222D3D)),
             colors =
@@ -1809,6 +2148,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private fun AccentPillButton(
         label: String,
         enabled: Boolean,
+        highlighted: Boolean = false,
         onClick: () -> Unit,
     ) {
         val borderColor by animateColorAsState(
@@ -1819,6 +2159,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
+            modifier = Modifier.navHighlight(highlighted, cornerRadius = 12.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.5.dp, borderColor),
             colors =
@@ -1833,6 +2174,27 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
 
     @Composable
     private fun PagePermissions(isCompact: Boolean) {
+        val region by navRegion
+        val navIdx by navIndex
+        val activate by activateSignal
+        val controller by controllerConnected
+
+        LaunchedEffect(isCompact) {
+            setTabCount(0)
+            setContentLayout(3, if (isCompact) 1 else 3)
+        }
+        val lastActivate = remember { mutableStateOf(activate) }
+        LaunchedEffect(activate) {
+            if (activate == lastActivate.value) return@LaunchedEffect
+            lastActivate.value = activate
+            if (region != REGION_CONTENT) return@LaunchedEffect
+            when (navIdx) {
+                0 -> requestFileAccess()
+                1 -> requestNotifications()
+                2 -> if (!imageFsInstalling.value) installImageFs()
+            }
+        }
+
         val fileAccessCard: @Composable (Modifier) -> Unit = { mod ->
             WizardActionCard(
                 modifier = mod,
@@ -1840,7 +2202,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 subtitle = stringResource(R.string.common_ui_required),
                 completed = storageGranted.value,
                 buttonLabel = stringResource(if (storageGranted.value) R.string.setup_wizard_granted else R.string.setup_wizard_grant),
-                onClick = { requestFileAccess() },
+                highlighted = controller && region == REGION_CONTENT && navIdx == 0,
+                onClick = { setNav(REGION_CONTENT, 0); requestFileAccess() },
             )
         }
         val notifCard: @Composable (Modifier) -> Unit = { mod ->
@@ -1855,7 +2218,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         notifDenied.value -> stringResource(R.string.setup_wizard_denied)
                         else -> stringResource(R.string.setup_wizard_allow)
                     },
-                onClick = { requestNotifications() },
+                highlighted = controller && region == REGION_CONTENT && navIdx == 1,
+                onClick = { setNav(REGION_CONTENT, 1); requestNotifications() },
             )
         }
         val systemCard: @Composable (Modifier) -> Unit = { mod ->
@@ -1870,7 +2234,8 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                         imageFsInstalling.value -> "${imageFsProgress.intValue}%"
                         else -> stringResource(R.string.setup_wizard_install_system_files)
                     },
-                onClick = { installImageFs() },
+                highlighted = controller && region == REGION_CONTENT && navIdx == 2,
+                onClick = { setNav(REGION_CONTENT, 2); installImageFs() },
                 enabled = !imageFsInstalling.value,
                 progress = if (imageFsInstalling.value) imageFsProgress.intValue / 100f else null,
             )
@@ -1957,6 +2322,24 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 }
             }
 
+        val region by navRegion
+        val navIdx by navIndex
+        val activate by activateSignal
+        val controller by controllerConnected
+
+        LaunchedEffect(tabs.size) {
+            setTabCount(tabs.size)
+            onTabIndexChange = { i -> tabs.getOrNull(i)?.let { selectedTab = it.key } }
+        }
+        LaunchedEffect(selectedTab) {
+            lastContentIndex = 0
+            if (navRegion.intValue == REGION_CONTENT) navIndex.intValue = 0
+            val i = tabs.indexOfFirst { it.key == selectedTab }
+            if (i >= 0 && navRegion.intValue == REGION_TABS && navIndex.intValue != i) {
+                navIndex.intValue = i
+            }
+        }
+
         // Content panel (shared between layouts)
         @Composable
         fun ContentPanel(modifier: Modifier) {
@@ -1969,6 +2352,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             ) {
                 when (selectedTab) {
                     "drivers" -> {
+                        LaunchedEffect(selectedTab) { setContentLayout(0, 1) }
                         if (!imageFsDone.value) {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
@@ -2022,6 +2406,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             }
                         when {
                             advancedProfiles.isEmpty() -> {
+                                LaunchedEffect(selectedTab) { setContentLayout(0, 1) }
                                 Row(
                                     modifier = Modifier.align(Alignment.Center),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -2042,6 +2427,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             }
 
                             tabProfiles.isEmpty() -> {
+                                LaunchedEffect(selectedTab) { setContentLayout(0, 1) }
                                 Text(
                                     text = stringResource(R.string.setup_wizard_no_components_available),
                                     color = Color(0xFF8B949E),
@@ -2060,14 +2446,38 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                     isRecommendedTab &&
                                         transferState.value == null &&
                                         !allRecommendedInstalled
+                                val installAllSlots = if (isRecommendedTab) 1 else 0
+                                val listState = rememberLazyListState()
+
+                                LaunchedEffect(selectedTab, tabProfiles.size, installAllSlots) {
+                                    setContentLayout(tabProfiles.size + installAllSlots, 1)
+                                }
+                                LaunchedEffect(region, navIdx) {
+                                    if (region == REGION_CONTENT) runCatching { listState.scrollToSelected(navIdx) }
+                                }
+                                val lastActivate = remember { mutableStateOf(activate) }
+                                LaunchedEffect(activate) {
+                                    if (activate == lastActivate.value) return@LaunchedEffect
+                                    lastActivate.value = activate
+                                    if (region != REGION_CONTENT) return@LaunchedEffect
+                                    if (isRecommendedTab && navIdx == 0) {
+                                        if (!allRecommendedInstalled) enqueueAllRecommended()
+                                    } else {
+                                        tabProfiles.getOrNull(navIdx - installAllSlots)?.let { spec ->
+                                            if (spec.verName !in advancedInstalledSet) enqueueAdvancedComponent(spec)
+                                        }
+                                    }
+                                }
 
                                 LazyColumn(
+                                    state = listState,
                                     modifier = Modifier.fillMaxSize(),
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
                                     if (isRecommendedTab) {
                                         item {
                                             val installAllEnabled = !allRecommendedInstalled
+                                            val navHere = controller && region == REGION_CONTENT && navIdx == 0
                                             val installAllShape = RoundedCornerShape(8.dp)
                                             Box(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -2106,11 +2516,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                                                         shape = installAllShape,
                                                                     )
                                                                 },
-                                                            ).clickable(
+                                                            ).navHighlight(navHere, cornerRadius = 8.dp)
+                                                            .clickable(
                                                                 enabled = installAllEnabled,
                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                 indication = null,
-                                                            ) { enqueueAllRecommended() }
+                                                            ) { setNav(REGION_CONTENT, 0); enqueueAllRecommended() }
                                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                                     contentAlignment = Alignment.Center,
                                                 ) {
@@ -2141,12 +2552,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                                             }
                                         }
                                     }
-                                    items(tabProfiles) { spec ->
+                                    itemsIndexed(tabProfiles) { i, spec ->
                                         val installed = spec.verName in advancedInstalledSet
+                                        val navHere = controller && region == REGION_CONTENT && navIdx == i + installAllSlots
                                         AdvancedComponentCard(
                                             name = spec.verName,
                                             installed = installed,
-                                            onClick = { enqueueAdvancedComponent(spec) },
+                                            highlighted = navHere,
+                                            onClick = { setNav(REGION_CONTENT, i + installAllSlots); enqueueAdvancedComponent(spec) },
                                             enabled = !installed,
                                             recommended = isRecommendedSpec(spec),
                                             status = queueStatus[spec.remoteUrl],
@@ -2163,10 +2576,12 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         @Composable
         fun TabItem(
             tab: TabInfo,
+            index: Int,
             fillWidth: Boolean,
             fontSize: TextUnit,
         ) {
             val isSelected = selectedTab == tab.key
+            val highlighted = controller && region == REGION_TABS && navIdx == index
             val interactionSource = remember { MutableInteractionSource() }
             val bgColor = if (isSelected) glassSurfaceActive else Color.Transparent
             val labelColor =
@@ -2180,10 +2595,11 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     Modifier
                         .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
                         .background(bgColor, RoundedCornerShape(8.dp))
+                        .navHighlight(highlighted, cornerRadius = 8.dp)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
-                        ) { selectedTab = tab.key }
+                        ) { setNav(REGION_TABS, index) }
                         .padding(horizontal = 10.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2221,7 +2637,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             .padding(horizontal = 6.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    tabs.forEach { tab -> TabItem(tab, fillWidth = false, fontSize = 12.sp) }
+                    tabs.forEachIndexed { i, tab -> TabItem(tab, i, fillWidth = false, fontSize = 12.sp) }
                 }
 
                 ContentPanel(
@@ -2238,18 +2654,22 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 // Left rail
-                Column(
+                val tabListState = rememberLazyListState()
+                LaunchedEffect(region, navIdx) {
+                    if (region == REGION_TABS) runCatching { tabListState.scrollToSelected(navIdx) }
+                }
+                LazyColumn(
+                    state = tabListState,
                     modifier =
                         Modifier
                             .weight(0.38f)
                             .fillMaxHeight()
                             .background(glassSurface, glassShape)
                             .border(1.dp, glassBorder, glassShape)
-                            .verticalScroll(rememberScrollState())
                             .padding(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    tabs.forEach { tab -> TabItem(tab, fillWidth = true, fontSize = 13.sp) }
+                    itemsIndexed(tabs) { i, tab -> TabItem(tab, i, fillWidth = true, fontSize = 13.sp) }
                 }
 
                 ContentPanel(
@@ -2270,6 +2690,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         enabled: Boolean = true,
         recommended: Boolean = false,
         status: QueueItemStatus? = null,
+        highlighted: Boolean = false,
     ) {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
@@ -2292,6 +2713,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     .fillMaxWidth()
                     .background(bgColor, cardShape)
                     .border(1.dp, outlineColor, cardShape)
+                    .navHighlight(highlighted, cornerRadius = 12.dp)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2435,6 +2857,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             ) {
                 val gridColumns = 3
                 val compactGrid = maxWidth < 720.dp || maxHeight < 280.dp
+                val region by navRegion
+                val navIdx by navIndex
+                val activate by activateSignal
+                val controller by controllerConnected
+                LaunchedEffect(installedRuntimes.size, gridColumns) {
+                    setTabCount(0)
+                    setContentLayout(installedRuntimes.size, gridColumns)
+                }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridColumns),
                     modifier =
@@ -2446,8 +2876,14 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     verticalArrangement = Arrangement.spacedBy(if (compactGrid) 6.dp else 10.dp),
                     contentPadding = PaddingValues(bottom = if (compactGrid) 4.dp else 12.dp),
                 ) {
-                    gridItems(installedRuntimes) { profile ->
-                        RuntimeContainerCard(profile, compact = compactGrid)
+                    gridItemsIndexed(installedRuntimes) { i, profile ->
+                        RuntimeContainerCard(
+                            profile,
+                            compact = compactGrid,
+                            highlighted = controller && region == REGION_CONTENT && navIdx == i,
+                            activate = activate,
+                            onTap = { setNav(REGION_CONTENT, i) },
+                        )
                     }
                 }
             }
@@ -2458,6 +2894,9 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
     private fun RuntimeContainerCard(
         profile: ContentProfile,
         compact: Boolean = false,
+        highlighted: Boolean = false,
+        activate: Int = 0,
+        onTap: () -> Unit = {},
     ) {
         val entryName = ContentsManager.getEntryName(profile)
         val displayName = ContainerCreation.displayNameForProfile(profile)
@@ -2485,12 +2924,59 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 Color.White.copy(alpha = SetupGlassBorderAlpha)
             }
 
+        val createContainer = {
+            if (!creating && transferState.value == null) {
+                creatingContainer.value = true
+                lifecycleScope.launch {
+                    wizardError.value = null
+                    val container =
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val c = ensureContainerForProfile(profile, displayName)
+                                if (isArm64) {
+                                    saveDefaultArm64ContainerId(this@SetupWizardActivity, c.id)
+                                } else {
+                                    saveDefaultX86ContainerId(this@SetupWizardActivity, c.id)
+                                }
+                                c
+                            } catch (e: Exception) {
+                                updateWizardError("Container creation failed: ${e.message}")
+                                null
+                            }
+                        }
+                    existingContainer = container
+                    creatingContainer.value = false
+                    refreshAdvancedInstalledSet()
+                    refreshWizardState()
+                }
+            }
+        }
+        val openSettings = {
+            existingContainer?.let { openContainerDefaultSettings(it.id, if (isArm64) "arm64" else "x86") }
+            Unit
+        }
+
+        val lastActivate = remember { mutableStateOf(activate) }
+        LaunchedEffect(activate) {
+            if (activate != lastActivate.value) {
+                lastActivate.value = activate
+                if (highlighted) {
+                    if (existingContainer == null) createContainer() else openSettings()
+                }
+            }
+        }
+
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .background(bgColor, cardShape)
                     .border(1.dp, outlineColor, cardShape)
+                    .navHighlight(highlighted, cornerRadius = 12.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onTap() }
                     .padding(horizontal = if (compact) 10.dp else 12.dp, vertical = if (compact) 6.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2529,32 +3015,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
             Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             if (existingContainer == null) {
                 Button(
-                    onClick = {
-                        if (creating) return@Button
-                        creatingContainer.value = true
-                        lifecycleScope.launch {
-                            wizardError.value = null
-                            val container =
-                                withContext(Dispatchers.IO) {
-                                    try {
-                                        val c = ensureContainerForProfile(profile, displayName)
-                                        if (isArm64) {
-                                            saveDefaultArm64ContainerId(this@SetupWizardActivity, c.id)
-                                        } else {
-                                            saveDefaultX86ContainerId(this@SetupWizardActivity, c.id)
-                                        }
-                                        c
-                                    } catch (e: Exception) {
-                                        updateWizardError("Container creation failed: ${e.message}")
-                                        null
-                                    }
-                                }
-                            existingContainer = container
-                            creatingContainer.value = false
-                            refreshAdvancedInstalledSet()
-                            refreshWizardState()
-                        }
-                    },
+                    onClick = { onTap(); createContainer() },
                     enabled = !creating && transferState.value == null,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.height(if (compact) 24.dp else 28.dp),
@@ -2588,11 +3049,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 }
             } else {
                 Button(
-                    onClick = {
-                        val id = existingContainer!!.id
-                        val type = if (isArm64) "arm64" else "x86"
-                        openContainerDefaultSettings(id, type)
-                    },
+                    onClick = { onTap(); openSettings() },
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.height(if (compact) 24.dp else 28.dp),
                     contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 12.dp, vertical = 0.dp),
@@ -2623,6 +3080,7 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
         onClick: () -> Unit,
         enabled: Boolean = true,
         progress: Float? = null,
+        highlighted: Boolean = false,
     ) {
         val turquoise = Color(0xFF57CBDE)
         val completedTurquoise = Color(0xFF3FAFBE)
@@ -2639,11 +3097,18 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 progress != null -> turquoise
                 else -> Color.White.copy(alpha = SetupGlassBorderAlpha)
             }
+        val buttonFocused = highlighted && enabled && !completed
         Column(
             modifier =
                 modifier
                     .background(glassSurface, glassShape)
                     .border(1.dp, borderColor, glassShape)
+                    .navHighlight(highlighted, cornerRadius = 12.dp)
+                    .clickable(
+                        enabled = enabled && !completed,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onClick() }
                     .padding(horizontal = 12.dp, vertical = 11.dp),
         ) {
             // Status chip
@@ -2707,12 +3172,33 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(32.dp),
+                        .height(32.dp)
+                        .then(
+                            if (buttonFocused) {
+                                Modifier.chasingBorder(
+                                    cornerRadius = 8.dp,
+                                    borderWidth = 1.5.dp,
+                                    animationDurationMs = 8200,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        ),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = if (completed) completedTurquoise.copy(alpha = 0.16f) else turquoise,
-                        contentColor = if (completed) completedTurquoise else Color(0xFF111822),
+                        containerColor =
+                            when {
+                                completed -> completedTurquoise.copy(alpha = 0.16f)
+                                buttonFocused -> Color(0xFF0E2A38)
+                                else -> turquoise
+                            },
+                        contentColor =
+                            when {
+                                completed -> completedTurquoise
+                                buttonFocused -> Color(0xFFE6EDF3)
+                                else -> Color(0xFF111822)
+                            },
                         disabledContainerColor =
                             when {
                                 completed -> completedTurquoise.copy(alpha = 0.16f)

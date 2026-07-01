@@ -127,6 +127,7 @@ typedef struct VkDispatch {
     PFN_vkCmdDraw CmdDraw;
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
+    PFN_vkCmdBlitImage CmdBlitImage;
 
     // Queue
     PFN_vkQueueSubmit QueueSubmit;
@@ -253,6 +254,7 @@ void vkd_unload(void);
 #define vkCmdDraw vkd.CmdDraw
 #define vkCmdPipelineBarrier vkd.CmdPipelineBarrier
 #define vkCmdCopyBufferToImage vkd.CmdCopyBufferToImage
+#define vkCmdBlitImage vkd.CmdBlitImage
 
 #define vkQueueSubmit vkd.QueueSubmit
 #define vkQueueWaitIdle vkd.QueueWaitIdle

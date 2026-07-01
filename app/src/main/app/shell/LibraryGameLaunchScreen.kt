@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DesktopWindows
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Home
@@ -102,6 +103,12 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
+import androidx.compose.runtime.CompositionLocalProvider
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -139,6 +146,7 @@ internal fun LibraryGameLaunchScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onBootToDesktop: () -> Unit,
+    onAchievements: (() -> Unit)? = null,
     onShortcut: () -> Unit,
     onCloudSaves: () -> Unit,
     onUninstall: () -> Unit,
@@ -156,8 +164,9 @@ internal fun LibraryGameLaunchScreen(
         val bottomPadding = 20.dp
         val actionIconSize = 46.dp
         val actionIconSpacing = 8.dp
-        // 5 action icons: Settings, Boot, CloudSync, Shortcut, Delete.
-        val actionWidth = actionIconSize * 5 + actionIconSpacing * 4
+        // Action icons: Settings, Boot, CloudSync, Shortcut, Delete.
+        val actionIconCount = 5
+        val actionWidth = actionIconSize * actionIconCount + actionIconSpacing * (actionIconCount - 1)
         val playHeight = 56.dp
         val contentGap = 18.dp
         val horizontalNavInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
@@ -268,10 +277,12 @@ internal fun LibraryGameLaunchScreen(
                 showVerifyFiles = showVerifyFiles,
                 showCheckForUpdate = showCheckForUpdate,
                 showWorkshop = showWorkshop,
+                showAchievements = onAchievements != null,
                 areSteamActionsEnabled = areSteamActionsEnabled,
                 onVerifyFiles = onVerifyFiles,
                 onCheckForUpdate = onCheckForUpdate,
                 onWorkshop = onWorkshop,
+                onAchievements = { onAchievements?.invoke() },
             )
         }
 
@@ -467,9 +478,7 @@ private fun LaunchScreenCutoutMode() {
             WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
                 WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
         )
-        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor to take effect.
-        // Compose Dialog windows use Theme.DeviceDefault.Dialog which doesn't set it by default,
-        // so the system would otherwise draw its own opaque navbar over our transparent request.
+        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor; Dialog windows don't set it by default.
         window.addFlags(
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
@@ -628,49 +637,53 @@ internal fun LaunchDangerConfirmDialog(
 ) {
     if (!visible) return
 
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(LaunchBlack.copy(alpha = 0.46f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismissRequest,
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismissRequest)
+            Box(
                 modifier =
                     Modifier
-                        .width(286.dp)
+                        .fillMaxSize()
+                        .background(LaunchBlack.copy(alpha = 0.46f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { },
+                            onClick = onDismissRequest,
                         ),
-                shape = RoundedCornerShape(12.dp),
-                color = LaunchCard,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                shadowElevation = 14.dp,
-                tonalElevation = 0.dp,
+                contentAlignment = Alignment.Center,
             ) {
-                LaunchDangerConfirmContent(
-                    title = title,
-                    message = message,
-                    confirmLabel = confirmLabel,
-                    onDismissRequest = onDismissRequest,
-                    onConfirm = onConfirm,
-                    icon = icon,
-                    titleTextAlign = titleTextAlign,
-                    messageTextAlign = messageTextAlign,
-                    accentColor = accentColor,
-                    cancelColor = cancelColor,
-                )
+                Surface(
+                    modifier =
+                        Modifier
+                            .width(286.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { },
+                            ),
+                    shape = RoundedCornerShape(12.dp),
+                    color = LaunchCard,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    shadowElevation = 14.dp,
+                    tonalElevation = 0.dp,
+                ) {
+                    LaunchDangerConfirmContent(
+                        title = title,
+                        message = message,
+                        confirmLabel = confirmLabel,
+                        onDismissRequest = onDismissRequest,
+                        onConfirm = onConfirm,
+                        icon = icon,
+                        titleTextAlign = titleTextAlign,
+                        messageTextAlign = messageTextAlign,
+                        accentColor = accentColor,
+                        cancelColor = cancelColor,
+                    )
+                }
             }
         }
     }
@@ -762,11 +775,13 @@ private fun LaunchDangerConfirmContent(
                 label = stringResource(R.string.common_ui_cancel),
                 textColor = cancelColor,
                 onClick = onDismissRequest,
+                modifier = Modifier.paneNavItem(onActivate = onDismissRequest),
             )
             LaunchMenuTextAction(
                 label = confirmLabel,
                 textColor = accentColor,
                 onClick = onConfirm,
+                modifier = Modifier.paneNavItem(onActivate = onConfirm, isEntry = true),
             )
         }
     }
@@ -777,11 +792,13 @@ private fun LaunchMenuTextAction(
     label: String,
     textColor: Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier =
-            Modifier
+            modifier
                 .clip(RoundedCornerShape(8.dp))
+                .controllerFocusGlow(cornerRadius = 8.dp)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
@@ -803,10 +820,12 @@ private fun SourceTag(
     showVerifyFiles: Boolean = true,
     showCheckForUpdate: Boolean = true,
     showWorkshop: Boolean = true,
+    showAchievements: Boolean = false,
     areSteamActionsEnabled: Boolean = true,
     onVerifyFiles: () -> Unit = {},
     onCheckForUpdate: () -> Unit = {},
     onWorkshop: () -> Unit = {},
+    onAchievements: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var anchorHeightPx by remember { mutableStateOf(0) }
@@ -876,6 +895,12 @@ private fun SourceTag(
                         label = stringResource(R.string.store_game_workshop),
                         enabled = areSteamActionsEnabled,
                     ) { menuOpen = false; onWorkshop() }
+                }
+                if (showAchievements) {
+                    LaunchSourceMenuItem(
+                        icon = Icons.Outlined.EmojiEvents,
+                        label = stringResource(R.string.steam_achievements_title),
+                    ) { menuOpen = false; onAchievements() }
                 }
             }
         }
@@ -1030,8 +1055,7 @@ private fun LaunchPlayButton(
     )
 
     val playShape = remember { RoundedCornerShape(14.dp) }
-    // When disabled, the clickable is removed entirely (not no-op'd) so
-    // accessibility / focus skip it and a stray controller A-press can't fire onClick.
+    // Disabled: drop the clickable entirely so focus skips it and a stray controller A-press can't fire onClick.
     val backgroundBrush =
         if (enabled) {
             Brush.horizontalGradient(
@@ -1095,11 +1119,13 @@ private fun LaunchPlayButton(
             .border(1.dp, glassRimBrush, playShape)
     val finalModifier =
         if (enabled) {
-            baseModifier.clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
+            baseModifier
+                .controllerFocusGlow(cornerRadius = 14.dp)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
         } else {
             baseModifier
         }

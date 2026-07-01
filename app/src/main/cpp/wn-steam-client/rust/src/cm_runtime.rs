@@ -171,6 +171,14 @@ impl CMClientRuntime {
             }
             InboundAction::LogonOk => {
                 self.start_heartbeat_from_logon(body);
+                self.core
+                    .enqueue_proto_message(self.core.build_set_persona_state(1));
+                self.core
+                    .enqueue_proto_message(self.core.build_request_user_persona());
+                let job_id = self.jobs.next_job_id();
+                self.core
+                    .enqueue_service_call(self.core.build_request_friend_persona_states(job_id));
+                self.flush_outbound();
                 cm_bridge::global_bridge()
                     .observers()
                     .dispatch_logon_state(true);

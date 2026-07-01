@@ -9,27 +9,70 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.fragment.compose.AndroidFragment
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.winlator.cmod.R
 import com.winlator.cmod.feature.sync.google.GoogleFragment
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_SECONDARY
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
 
 object SettingsRoutes {
     fun fromNavItem(item: SettingsNavItem): String = "settings/${item.name.lowercase()}"
+}
+
+enum class SettingsFocusZone { SIDEBAR, CONTENT }
+
+class SettingsNavBridge {
+    var selectedItem by mutableStateOf(SettingsNavItem.CONTAINERS)
+    var zone by mutableStateOf(SettingsFocusZone.SIDEBAR)
+    var onSelectItem: ((SettingsNavItem) -> Unit)? = null
+
+    var contentControllerActive by mutableStateOf(false)
+    var contentNavSignal by mutableStateOf(0)
+        private set
+    var contentNavDir by mutableStateOf(0)
+        private set
+
+    private fun contentNav(dir: Int) {
+        contentNavDir = dir
+        contentNavSignal++
+    }
+
+    fun contentNavLeft() = contentNav(PANE_DIR_LEFT)
+
+    fun contentNavRight() = contentNav(PANE_DIR_RIGHT)
+
+    fun contentNavUp() = contentNav(PANE_DIR_UP)
+
+    fun contentNavDown() = contentNav(PANE_DIR_DOWN)
+
+    fun contentActivate() = contentNav(PANE_DIR_ACTIVATE)
+
+    fun contentSecondary() = contentNav(PANE_DIR_SECONDARY)
 }
 
 private val SettingsBg = Color(0xFF11111C)
 
 @Composable
 fun SettingsHost(
+    bridge: SettingsNavBridge,
     startItem: SettingsNavItem = SettingsNavItem.CONTAINERS,
     selectedProfileId: Int = 0,
     bordersPaused: Boolean = false,
@@ -37,6 +80,28 @@ fun SettingsHost(
 ) {
     val settingsNavController = rememberNavController()
     var currentItem by rememberSaveable { mutableStateOf(startItem) }
+
+    val navigateTo: (SettingsNavItem) -> Unit = { item ->
+        if (item != currentItem) {
+            currentItem = item
+            settingsNavController.navigate(SettingsRoutes.fromNavItem(item)) {
+                popUpTo(SettingsRoutes.fromNavItem(startItem)) {
+                    inclusive = false
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
+    SideEffect { bridge.selectedItem = currentItem }
+
+    DisposableEffect(Unit) {
+        bridge.zone = SettingsFocusZone.SIDEBAR
+        bridge.onSelectItem = navigateTo
+        onDispose { bridge.onSelectItem = null }
+    }
 
     Box(
         modifier =
@@ -51,66 +116,73 @@ fun SettingsHost(
         ) {
             SettingsNavSidebar(
                 selectedItem = currentItem,
+                railActive = bridge.zone == SettingsFocusZone.SIDEBAR,
                 onItemSelected = { item ->
-                    if (item != currentItem) {
-                        currentItem = item
-                        settingsNavController.navigate(SettingsRoutes.fromNavItem(item)) {
-                            popUpTo(SettingsRoutes.fromNavItem(startItem)) {
-                                inclusive = false
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    bridge.zone = SettingsFocusZone.SIDEBAR
+                    navigateTo(item)
                 },
                 onBackPressed = onBack,
                 bordersPaused = bordersPaused,
             )
 
-            NavHost(
-                navController = settingsNavController,
-                startDestination = SettingsRoutes.fromNavItem(startItem),
-                enterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                exitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                popEnterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
-                popExitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+            Box(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (ev.type == PointerEventType.Press) {
+                                        bridge.zone = SettingsFocusZone.CONTENT
+                                        bridge.contentControllerActive = false
+                                    }
+                                }
+                            }
+                        },
             ) {
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.CONTAINERS)) {
-                    AndroidFragment<ContainersFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.INPUT_CONTROLS)) {
-                    AndroidFragment<InputControlsFragment>(
-                        arguments =
-                            Bundle().apply {
-                                putInt("selectedProfileId", selectedProfileId)
-                            },
-                    )
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.COMPONENTS)) {
-                    AndroidFragment<ContentsFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.DRIVERS)) {
-                    AndroidFragment<DriversFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.STORES)) {
-                    AndroidFragment<StoresFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.DEBUG)) {
-                    AndroidFragment<DebugFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.GOOGLE)) {
-                    AndroidFragment<GoogleFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.PRESETS)) {
-                    AndroidFragment<PresetsFragment>()
-                }
-                composable(SettingsRoutes.fromNavItem(SettingsNavItem.OTHER)) {
-                    AndroidFragment<OtherSettingsFragment>()
+                NavHost(
+                    navController = settingsNavController,
+                    startDestination = SettingsRoutes.fromNavItem(startItem),
+                    enterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    exitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    popEnterTransition = { fadeIn(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    popExitTransition = { fadeOut(tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)) },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.CONTAINERS)) {
+                        AndroidFragment<ContainersFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.INPUT_CONTROLS)) {
+                        AndroidFragment<InputControlsFragment>(
+                            arguments =
+                                Bundle().apply {
+                                    putInt("selectedProfileId", selectedProfileId)
+                                },
+                        )
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.COMPONENTS)) {
+                        AndroidFragment<ContentsFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.DRIVERS)) {
+                        AndroidFragment<DriversFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.STORES)) {
+                        AndroidFragment<StoresFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.DEBUG)) {
+                        AndroidFragment<DebugFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.GOOGLE)) {
+                        AndroidFragment<GoogleFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.PRESETS)) {
+                        AndroidFragment<PresetsFragment>()
+                    }
+                    composable(SettingsRoutes.fromNavItem(SettingsNavItem.OTHER)) {
+                        AndroidFragment<OtherSettingsFragment>()
+                    }
                 }
             }
         }
