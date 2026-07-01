@@ -2,18 +2,21 @@ package com.winlator.cmod.runtime.display.environment.components;
 
 import android.content.Context;
 import android.media.AudioManager;
+import android.net.LocalSocket;
+import android.net.LocalSocketAddress;
+import android.util.Log;
 import com.winlator.cmod.runtime.display.connector.UnixSocketConfig;
 import com.winlator.cmod.runtime.display.environment.EnvironmentComponent;
 import com.winlator.cmod.runtime.system.ProcessHelper;
 import com.winlator.cmod.runtime.wine.EnvVars;
 import com.winlator.cmod.shared.android.AppUtils;
 import com.winlator.cmod.shared.io.FileUtils;
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,12 +25,37 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 
 public class PulseAudioComponent extends EnvironmentComponent {
+  private static final String TAG = "PulseAudioComponent";
   private static final String SINK_NAME = "AAudioSink";
+
+  // --- PulseAudio native protocol (talk to module-native-protocol-unix directly) ---
+  // The daemon loads module-native-protocol-unix with auth-anonymous=1, so we can drive it
+  // over its unix socket with a tiny hand-rolled client. This avoids shipping a `pactl`
+  // binary (never bundled) and avoids the glibc/PA-17 CLI modules that cannot load into the
+  // bionic/PA-13 host daemon. A suspend->unsuspend toggle forces module-aaudio-sink to close
+  // and reopen its AAudio stream, which is what recovers output after a phone call (during the
+  // call Android disconnects the app's AAudio output stream and it never re-opens on its own).
+  private static final int PA_COMMAND_AUTH = 8;
+  private static final int PA_COMMAND_SUSPEND_SINK = 69;
+  private static final int PA_NATIVE_COOKIE_LENGTH = 256;
+  private static final int PA_PROTOCOL_VERSION = 33; // PulseAudio 13.x; server negotiates down if older
+  private static final long PA_INVALID_INDEX = 0xFFFFFFFFL;
+
+  private static final byte TAG_U32 = 'L';
+  private static final byte TAG_STRING = 't';
+  private static final byte TAG_STRING_NULL = 'N';
+  private static final byte TAG_ARBITRARY = 'x';
+  private static final byte TAG_BOOLEAN_TRUE = '1';
+  private static final byte TAG_BOOLEAN_FALSE = '0';
+
   private final UnixSocketConfig socketConfig;
   private final Options options;
   private static int pid = -1;
   private static final Object lock = new Object();
   private boolean isPaused = false;
+  // Bumped whenever the sink lifecycle changes (suspend/resume/start/stop) so a stale
+  // reopen watchdog started by an earlier resume() cancels itself instead of fighting.
+  private static int reopenGeneration = 0;
 
   public PulseAudioComponent(UnixSocketConfig socketConfig) {
     this(socketConfig, new Options());
@@ -161,7 +189,11 @@ public class PulseAudioComponent extends EnvironmentComponent {
   @Override
   public void start() {
     synchronized (lock) {
-      if (isServerRunning()) return;
+      reopenGeneration++;
+      if (isServerRunning()) {
+        isPaused = false;
+        return;
+      }
       killAllPulseAudioProcesses();
       isPaused = false;
       pid = execPulseAudio();
@@ -171,7 +203,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
   @Override
   public void stop() {
     synchronized (lock) {
-      updateSink(true);
+      reopenGeneration++;
+      // Best-effort: suspend so module-aaudio-sink releases the AAudio device before we kill it.
+      sendNativeCommands(buildSuspendSinkPacket(1, SINK_NAME, true));
       killAllPulseAudioProcesses();
       pid = -1;
       isPaused = false;
@@ -180,29 +214,189 @@ public class PulseAudioComponent extends EnvironmentComponent {
 
   public void suspend() {
     synchronized (lock) {
-      if (!isPaused && isServerRunning()) {
+      if (isPaused) return;
+      reopenGeneration++; // cancel any pending reopen watchdog from a prior resume()
+      if (isServerRunning()) {
         isPaused = true;
-        execPactlCommand("suspend-sink " + SINK_NAME + " true");
+        sendNativeCommands(buildSuspendSinkPacket(1, SINK_NAME, true));
       }
     }
   }
 
   public void resume() {
+    final int gen;
     synchronized (lock) {
       if (!isPaused) return;
       isPaused = false;
 
-      if (isServerRunning()) {
-        updateSink(false);
-      } else {
+      if (!isServerRunning()) {
+        // Daemon died while backgrounded (e.g. low-memory kill). Relaunch it; default.pa
+        // re-creates the sink. Wine clients may need to re-open, but this is the best we can do.
         start();
+        return;
+      }
+
+      gen = ++reopenGeneration;
+      // Force a full state transition (suspend then unsuspend) so module-aaudio-sink closes
+      // and reopens its AAudio stream even if it was left in a broken state by the phone call.
+      sendNativeCommands(
+          buildSuspendSinkPacket(1, SINK_NAME, true),
+          buildSuspendSinkPacket(2, SINK_NAME, false));
+    }
+    // Right after a call the audio route may not be released yet, so the first reopen can fail
+    // silently. Re-issue the toggle a couple more times as insurance (each is a quick, mostly
+    // inaudible close/reopen). The generation check cancels this if the state changes again.
+    startReopenWatchdog(gen);
+  }
+
+  public boolean isServerRunning() {
+    LocalSocket socket = new LocalSocket();
+    try {
+      socket.connect(
+          new LocalSocketAddress(socketConfig.path, LocalSocketAddress.Namespace.FILESYSTEM));
+      return true;
+    } catch (IOException e) {
+      return false;
+    } finally {
+      try {
+        socket.close();
+      } catch (IOException ignored) {
       }
     }
   }
 
-  public boolean isServerRunning() {
-    String info = execPactlCommand("info").toLowerCase(java.util.Locale.ROOT);
-    return info.contains("server name:") && !info.contains("connection failure");
+  private void startReopenWatchdog(final int gen) {
+    Thread thread =
+        new Thread(
+            () -> {
+              int[] delaysMs = {600, 1400};
+              for (int delay : delaysMs) {
+                try {
+                  Thread.sleep(delay);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                synchronized (lock) {
+                  if (gen != reopenGeneration || isPaused) return; // superseded or re-suspended
+                  if (!isServerRunning()) return;
+                  sendNativeCommands(
+                      buildSuspendSinkPacket(1, SINK_NAME, true),
+                      buildSuspendSinkPacket(2, SINK_NAME, false));
+                }
+              }
+            },
+            "PulseAudioReopen");
+    thread.setDaemon(true);
+    thread.start();
+  }
+
+  /**
+   * Opens one connection to the PulseAudio native-protocol socket, authenticates anonymously and
+   * writes the given command packets in order. Returns false (and logs) if the server is
+   * unreachable. Never throws.
+   */
+  private boolean sendNativeCommands(byte[]... commandPackets) {
+    LocalSocket socket = new LocalSocket();
+    try {
+      socket.connect(
+          new LocalSocketAddress(socketConfig.path, LocalSocketAddress.Namespace.FILESYSTEM));
+      socket.setSoTimeout(150);
+      OutputStream os = socket.getOutputStream();
+      os.write(buildAuthPacket(0));
+      for (byte[] packet : commandPackets) os.write(packet);
+      os.flush();
+      // Drain the replies briefly so the daemon has processed our commands before we disconnect.
+      drain(socket.getInputStream());
+      return true;
+    } catch (IOException e) {
+      Log.w(TAG, "PulseAudio native command failed: " + e.getMessage());
+      return false;
+    } finally {
+      try {
+        socket.close();
+      } catch (IOException ignored) {
+      }
+    }
+  }
+
+  private static void drain(InputStream is) {
+    byte[] buffer = new byte[512];
+    int total = 0;
+    try {
+      // A couple of short reads is enough to confirm the handshake/command replies arrived.
+      for (int i = 0; i < 4 && total < 8192; i++) {
+        int n = is.read(buffer);
+        if (n <= 0) break;
+        total += n;
+      }
+    } catch (IOException ignored) {
+      // SocketTimeoutException (subclass of IOException) is expected once the replies stop.
+    }
+  }
+
+  private static byte[] buildAuthPacket(int tag) {
+    ByteArrayOutputStream ts = new ByteArrayOutputStream();
+    putU32(ts, PA_COMMAND_AUTH);
+    putU32(ts, tag);
+    putU32(ts, PA_PROTOCOL_VERSION); // no SHM/MEMFD flags set -> server disables shared memory for us
+    putArbitrary(ts, new byte[PA_NATIVE_COOKIE_LENGTH]); // ignored by auth-anonymous=1
+    return frameCommandPacket(ts.toByteArray());
+  }
+
+  private static byte[] buildSuspendSinkPacket(int tag, String sinkName, boolean suspend) {
+    ByteArrayOutputStream ts = new ByteArrayOutputStream();
+    putU32(ts, PA_COMMAND_SUSPEND_SINK);
+    putU32(ts, tag);
+    putU32(ts, PA_INVALID_INDEX); // select sink by name rather than index
+    putString(ts, sinkName);
+    putBoolean(ts, suspend);
+    return frameCommandPacket(ts.toByteArray());
+  }
+
+  /** Wraps a tagstruct payload in the 20-byte pa_pstream control-packet descriptor. */
+  private static byte[] frameCommandPacket(byte[] tagstruct) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    putRawU32(out, tagstruct.length); // LENGTH
+    putRawU32(out, 0xFFFFFFFFL); // CHANNEL = (uint32) -1 marks a command packet
+    putRawU32(out, 0); // OFFSET_HI
+    putRawU32(out, 0); // OFFSET_LO
+    putRawU32(out, 0); // FLAGS
+    out.write(tagstruct, 0, tagstruct.length);
+    return out.toByteArray();
+  }
+
+  private static void putRawU32(ByteArrayOutputStream b, long value) {
+    b.write((int) ((value >> 24) & 0xFF));
+    b.write((int) ((value >> 16) & 0xFF));
+    b.write((int) ((value >> 8) & 0xFF));
+    b.write((int) (value & 0xFF));
+  }
+
+  private static void putU32(ByteArrayOutputStream b, long value) {
+    b.write(TAG_U32);
+    putRawU32(b, value);
+  }
+
+  private static void putString(ByteArrayOutputStream b, String s) {
+    if (s == null) {
+      b.write(TAG_STRING_NULL);
+      return;
+    }
+    b.write(TAG_STRING);
+    byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+    b.write(bytes, 0, bytes.length);
+    b.write(0); // NUL terminator
+  }
+
+  private static void putArbitrary(ByteArrayOutputStream b, byte[] data) {
+    b.write(TAG_ARBITRARY);
+    putRawU32(b, data.length);
+    b.write(data, 0, data.length);
+  }
+
+  private static void putBoolean(ByteArrayOutputStream b, boolean value) {
+    b.write(value ? TAG_BOOLEAN_TRUE : TAG_BOOLEAN_FALSE);
   }
 
   private void killAllPulseAudioProcesses() {
@@ -222,50 +416,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     if (killed) {
       try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-    }
-  }
-
-  private String execPactlCommand(String command) {
-    Context context = environment.getContext();
-    File workingDir = new File(context.getFilesDir(), "/pulseaudio");
-    if (!workingDir.isDirectory()) return "";
-
-    String archName = AppUtils.getArchName();
-    File modulesDir = new File(workingDir, "modules/" + archName);
-    String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "/system/lib";
-
-    StringBuilder output = new StringBuilder();
-    try {
-      String[] envp = new String[] {
-        "LD_LIBRARY_PATH=" + systemLibPath + ":" + modulesDir + ":" + workingDir,
-        "HOME=" + workingDir,
-        "PULSE_SERVER=" + socketConfig.path,
-        "TMPDIR=" + environment.getTmpDir()
-      };
-      Process process = Runtime.getRuntime().exec(
-          workingDir + "/pactl " + command, envp, workingDir);
-      try (BufferedReader reader = new BufferedReader(
-          new InputStreamReader(process.getInputStream()))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          output.append(line).append('\n');
-        }
-      }
-      process.waitFor();
-    } catch (IOException e) {
-      return "";
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return "";
-    }
-    return output.toString();
-  }
-
-  private void updateSink(boolean suspend) {
-    if (suspend) {
-      execPactlCommand("suspend-sink " + SINK_NAME + " true");
-    } else {
-      execPactlCommand("suspend-sink " + SINK_NAME + " false");
     }
   }
 
@@ -384,6 +534,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
     command += " --realtime=false";
     command += " --resample-method=speex-float-1";
 
+    // Note: with --daemonize=true the returned pid is the short-lived parent that forks the
+    // daemon, so `pid` is not used to control it; lifecycle control goes through the native
+    // protocol (suspend/resume) and killAllPulseAudioProcesses() (scan /proc by cmdline).
     return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
   }
 
