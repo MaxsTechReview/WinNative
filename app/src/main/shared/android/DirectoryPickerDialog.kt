@@ -597,7 +597,7 @@ object DirectoryPickerDialog {
             contentVisible = true
         }
 
-        val contentRegistry = remember { PaneNavRegistry() }
+        val contentRegistry = remember { PaneNavRegistry().apply { stableCursor = true } }
         val menuRegistry = remember { PaneNavRegistry() }
         val rootsRegistry = remember { PaneNavRegistry() }
         val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
@@ -606,9 +606,10 @@ object DirectoryPickerDialog {
         var gridViewportTop by remember { mutableStateOf(0f) }
         var gridViewportHeight by remember { mutableIntStateOf(0) }
         LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, gridViewportHeight, footerZone) {
-            if (footerZone || !contentRegistry.controllerActive) return@LaunchedEffect
+            if (footerZone || !contentRegistry.controllerActive || contentRegistry.manualSelection) return@LaunchedEffect
             val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
-            val margin = with(density) { 16.dp.toPx() }
+            val rowH = bounds.second - bounds.first
+            val margin = (rowH * 2f + with(density) { 12.dp.toPx() }).coerceAtMost(gridViewportHeight * 0.4f)
             val vpBottom = gridViewportTop + gridViewportHeight
             val delta = when {
                 bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
