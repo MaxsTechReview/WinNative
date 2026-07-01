@@ -432,6 +432,7 @@ public class VulkanRenderer
                         scanoutX = 0;
                         scanoutY = 0;
                     }
+                    if (textureSrc == drawable && !drawable.hasContent()) continue;
                     tex = textureSrc.getTexture();
                     if (tex != null) {
                         tex.appendUploadFromDrawable(textureSrc, textureUploadBatch);
