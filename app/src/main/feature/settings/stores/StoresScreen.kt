@@ -1,5 +1,3 @@
-/* Settings > Stores screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -19,11 +17,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -60,6 +56,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -79,6 +77,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette
@@ -88,6 +89,7 @@ private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
 private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 private val Divider = Color(0xFF343434)
@@ -126,12 +128,14 @@ fun StoresScreen(
     onPickSteamFolder: () -> Unit,
     onPickEpicFolder: () -> Unit,
     onPickGogFolder: () -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
     val downloadSpeedOptions =
         listOf(
             8 to stringResource(R.string.stores_accounts_download_speed_conservative),
@@ -140,25 +144,22 @@ fun StoresScreen(
             32 to stringResource(R.string.stores_accounts_download_speed_performance),
         )
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "stores_section") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             SectionLabel(stringResource(R.string.stores_accounts_connected_stores))
-        }
 
-        item(key = "steam_card") {
             StoreCard(
                 name = stringResource(R.string.stores_accounts_steam_integration_title),
                 icon = Icons.Outlined.Gamepad,
@@ -167,8 +168,6 @@ fun StoresScreen(
                 onSignIn = onSteamSignIn,
                 onSignOut = onSteamSignOut,
             )
-        }
-        item(key = "epic_card") {
             StoreCard(
                 name = stringResource(R.string.preloader_platform_epic),
                 icon = Icons.Outlined.Gamepad,
@@ -177,8 +176,6 @@ fun StoresScreen(
                 onSignIn = onEpicSignIn,
                 onSignOut = onEpicSignOut,
             )
-        }
-        item(key = "gog_card") {
             StoreCard(
                 name = stringResource(R.string.preloader_platform_gog),
                 icon = Icons.Outlined.Gamepad,
@@ -187,13 +184,9 @@ fun StoresScreen(
                 onSignIn = onGogSignIn,
                 onSignOut = onGogSignOut,
             )
-        }
 
-        item(key = "download_section") {
             SectionLabel(stringResource(R.string.stores_accounts_download_settings), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "shared_folder_toggle") {
             SettingsToggleCard(
                 title = stringResource(R.string.stores_accounts_shared_downloads_folder),
                 subtitle = stringResource(R.string.stores_accounts_shared_downloads_subtitle),
@@ -201,9 +194,7 @@ fun StoresScreen(
                 checked = state.sharedFolder,
                 onCheckedChange = onSharedFolderChanged,
             )
-        }
 
-        item(key = "folder_paths") {
             AnimatedContent(
                 targetState = state.sharedFolder,
                 transitionSpec = {
@@ -238,13 +229,9 @@ fun StoresScreen(
                     }
                 }
             }
-        }
 
-        item(key = "steam_section") {
             SectionLabel(stringResource(R.string.steam_section_title), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "download_speed") {
             SettingsDropdownCard(
                 title = stringResource(R.string.stores_accounts_download_speed),
                 subtitle = stringResource(R.string.stores_accounts_download_speed_subtitle),
@@ -254,8 +241,7 @@ fun StoresScreen(
                 onOptionSelected = onDownloadSpeedChanged,
                 highlightMaxValue = true,
             )
-        }
-        item(key = "download_server") {
+
             val serverSubtitle =
                 if (!state.downloadServerManuallySet && state.downloadServer != 0) {
                     val name = serverOptions.firstOrNull { it.first == state.downloadServer }?.second ?: ""
@@ -271,10 +257,8 @@ fun StoresScreen(
                 options = serverOptions,
                 onOptionSelected = onDownloadServerChanged,
             )
-        }
 
-        item(key = "bottom_spacer") {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp + navBarBottomPadding))
         }
     }
 }
@@ -502,6 +486,11 @@ private fun ActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                )
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -546,6 +535,12 @@ private fun SettingsToggleCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
                     .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -573,7 +568,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -651,6 +646,16 @@ private fun SettingsDropdownCard(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF222232))
                             .border(1.dp, selectedColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                            .paneNavItem(
+                                cornerRadius = 8.dp,
+                                onActivate = { expanded = true },
+                                onAdjust = { dir ->
+                                    val curr = options.indexOfFirst { it.first == selectedValue }.coerceAtLeast(0)
+                                    val next = (curr + dir).coerceIn(0, options.size - 1)
+                                    if (next != curr) onOptionSelected(options[next].first)
+                                },
+                                highlightColor = NavHighlight,
+                            )
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onPress = {
@@ -787,6 +792,11 @@ private fun BrowseButton(onClick: () -> Unit) {
                 .scale(scale)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Accent.copy(alpha = 0.12f))
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                )
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {

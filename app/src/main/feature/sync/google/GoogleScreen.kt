@@ -12,15 +12,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -37,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudSync
@@ -49,6 +47,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,6 +70,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.feature.settings.SettingsNavBridge
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.toast.WinToast
 import kotlinx.coroutines.launch
 
@@ -83,10 +87,11 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusGreen = Color(0xFF3FB950)
 private val WarningAmber = Color(0xFFFFC857)
 private val DangerRed = Color(0xFFFF6B6B)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val StoreLoginActionButtonWidth = 112.dp
 
 @Composable
-fun GoogleScreen() {
+fun GoogleScreen(bridge: SettingsNavBridge? = null) {
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
@@ -95,6 +100,8 @@ fun GoogleScreen() {
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+
+    val contentNav = rememberSettingsContentNav(bridge)
 
     var googleSignedIn by remember { mutableStateOf(false) }
     var syncState by remember { mutableStateOf(CloudSyncManager.StoreLoginSyncState()) }
@@ -128,25 +135,23 @@ fun GoogleScreen() {
         googleSignedIn = syncState.googleSignedIn
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                top = 16.dp,
-                end = 16.dp + navBarEndPadding,
-                bottom = 16.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item("auto_signin_section") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        top = 16.dp,
+                        end = 16.dp + navBarEndPadding,
+                        bottom = 16.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             SectionLabel(stringResource(R.string.google_auto_signin_section))
-        }
 
-        item("auto_signin_card") {
             AutoSignInToggleCard(
                 checked = autoSignIn,
                 onCheckedChange = { enabled ->
@@ -169,13 +174,9 @@ fun GoogleScreen() {
                     }
                 },
             )
-        }
 
-        item("services_section") {
             SectionLabel(stringResource(R.string.google_cloud_services))
-        }
 
-        item("google_account_card") {
             GoogleAccountCard(
                 isLoggedIn = googleSignedIn,
                 busy = busy,
@@ -203,13 +204,9 @@ fun GoogleScreen() {
                     }
                 },
             )
-        }
 
-        item("store_logins_section") {
             SectionLabel(stringResource(R.string.google_cloud_store_logins), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item("store_login_card") {
             StoreLoginCard(
                 state = syncState,
                 busy = busy,
@@ -276,7 +273,12 @@ private fun AutoSignInToggleCard(
                 .clip(RoundedCornerShape(14.dp))
                 .background(CardDark)
                 .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                .clickable { onCheckedChange(!checked) }
+                .paneNavItem(
+                    cornerRadius = 14.dp,
+                    onActivate = { onCheckedChange(!checked) },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -315,6 +317,7 @@ private fun AutoSignInToggleCard(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            modifier = Modifier.focusProperties { canFocus = false },
             colors =
                 SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
@@ -705,7 +708,9 @@ private fun StoreLoginCard(
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         ActionButton(
                             label = if (busy) stringResource(R.string.google_cloud_working) else stringResource(R.string.cloud_saves_history_refresh),
                             textColor = StatusGreen,
@@ -854,7 +859,12 @@ private fun ActionButton(
                     1.dp,
                     if (enabled) textColor.copy(alpha = 0.30f) else TextSecondary.copy(alpha = 0.2f),
                     RoundedCornerShape(8.dp),
-                ).pointerInput(onClick, enabled) {
+                ).paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (enabled) onClick() },
+                    highlightColor = NavHighlight,
+                )
+                .pointerInput(onClick, enabled) {
                     detectTapGestures(
                         onPress = {
                             if (!enabled) return@detectTapGestures

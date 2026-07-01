@@ -26,8 +26,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.LongAdder
 
 /**
- * Writes a per-session CSV of performance metrics plus a JSON metadata sidecar to
- * `/sdcard/WinNative/logs/`. Sampled at 1 Hz on a dedicated background thread.
+ * Writes a per-session CSV of performance metrics plus a JSON metadata sidecar to the
+ * app logs directory. Sampled at 1 Hz on a dedicated background thread.
  *
  * Lifecycle:
  *  - [start] opens both files. Sidecar is written with `endedAt:null, clean:false` so a

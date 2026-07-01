@@ -12,6 +12,9 @@ import androidx.appcompat.app.AppCompatDialog
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -28,6 +31,7 @@ import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
+import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
@@ -89,6 +93,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private val context = activity
     private val dialog: Dialog
+    private val nav = GameSettingsNav()
+    private var restorePaneNav: (() -> Unit)? = null
     private val state = GameSettingsStateHolder()
     private val manager = ContainerManager(context)
     private val contentsManager = ContentsManager(context)
@@ -134,6 +140,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             // path as Save/Cancel and still fires onFinished (important for
             // the setup wizard launcher that blocks on UnifiedActivity finishing).
             setOnDismissListener {
+                restorePaneNav?.invoke()
+                restorePaneNav = null
                 AppUtils.hideKeyboard(activity)
                 scope.cancel()
                 onFinished?.run()
@@ -159,7 +167,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(state = state, callbacks = createCallbacks())
+                        val callbacks = createCallbacks()
+                        GameSettingsContent(state = state, callbacks = callbacks, nav = nav)
                     }
                 }
             }
@@ -354,11 +363,24 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val idx = pendingDriveIndex
         if (idx !in drivesWorking.indices) return
 
+        val imagefsRoot = ImageFs.find(context).getRootDir()
+        val driveRoots =
+            listOf(
+                DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                ),
+                DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+            )
+
         DirectoryPickerDialog.show(
             activity = activity,
             initialPath = drivesWorking[idx].path.ifBlank { null },
             dimAmount = 0.5f,
             preserveBackdropBlur = true,
+            extraRoots = driveRoots,
         ) { path ->
             val currentIndex = pendingDriveIndex
             if (currentIndex in drivesWorking.indices) {
@@ -1478,6 +1500,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     fun show() {
         dialog.show()
+        restorePaneNav?.invoke()
+        restorePaneNav = dialog.window?.bindPaneNav(
+            PaneNavWindowHandlers(
+                onDir = { nav.dpad(it) },
+                onActivate = { nav.dpad(PANE_DIR_ACTIVATE) },
+                onDismiss = { if (nav.onContentBack?.invoke() != true) dialog.dismiss() },
+                onStart = { if (state.isLoaded.value) saveSettings() },
+            )
+        )
         dialog.window?.apply {
             applyDialogLayout()
             decorView.post { applyDialogLayout() }
@@ -1649,10 +1680,22 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             confirmLabel = context.getString(R.string.common_ui_import),
         ) { dismiss ->
             dismiss()
+            val imagefsRoot = ImageFs.find(context).getRootDir()
+            val driveRoots =
+                listOf(
+                    DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                    DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                    DirectoryPickerDialog.ManagedRoot(
+                        "D:",
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                    ),
+                    DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+                )
             DirectoryPickerDialog.showFile(
                 activity,
                 title = context.getString(R.string.common_ui_import),
                 allowedExtensions = setOf("zip"),
+                extraRoots = driveRoots,
             ) { pickedPath ->
                 importSaves(File(pickedPath))
             }

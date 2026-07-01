@@ -9,13 +9,23 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Monitor
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,10 +46,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -75,6 +87,8 @@ interface XServerDisplayHostCallbacks {
     fun onDrawerGestureClaimed()
 
     fun onDialogVisibilityChanged(visible: Boolean)
+
+    fun isControllerConnected(): Boolean
 }
 
 fun setupXServerDisplayHost(
@@ -115,11 +129,12 @@ private fun XServerDisplayHost(
             closedFallbackPx
         }
     val drawerOpenOffset = 0f
-    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
-    // to trigger the card-reveal animation; the content itself is always composed.
+    // "Engaged" = on or sliding onto the screen; drives the card-reveal animation (the content itself is always composed).
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
+    val drawerContentComposed = stateHolder.isDrawerOpen ||
+        (drawerWidthPx > 0f && drawerOffsetPx > drawerClosedOffset + 1f)
     val dialogVisible = false
 
     DisposableEffect(stateHolder) {
@@ -160,6 +175,11 @@ private fun XServerDisplayHost(
         callbacks.onDialogVisibilityChanged(dialogVisible)
     }
 
+    // On swap-back, re-measure the hosted display frame so the reparented surface reclaims full size.
+    LaunchedEffect(stateHolder.phoneRelayoutTick) {
+        if (stateHolder.phoneRelayoutTick > 0) displayFrame.requestLayout()
+    }
+
     WinNativeTheme {
         BoxWithConstraints(
             modifier =
@@ -180,7 +200,8 @@ private fun XServerDisplayHost(
                                     down.position.x <= edgeWidthPx
                                 }
                             if (!canStartFromHere) {
-                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx) {
+                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx
+                                    && !callbacks.isControllerConnected()) {
                                     stateHolder.closeDrawer()
                                 }
                                 return@awaitEachGesture
@@ -289,6 +310,34 @@ private fun XServerDisplayHost(
                 )
             }
 
+            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own touches so the rest stays a trackpad. Hosted here, not a nested ComposeView.
+            val perfHudVisible by PerformanceHudState.visible.collectAsState()
+            if (perfHudVisible) {
+                val landscape =
+                    LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                Box(
+                    modifier =
+                        Modifier
+                            .zIndex(1f)
+                            .then(
+                                if (landscape) {
+                                    Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart)
+                                } else {
+                                    Modifier.fillMaxWidth().fillMaxHeight(0.5f).align(Alignment.TopCenter)
+                                },
+                            )
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent().changes.forEach { it.consume() }
+                                    }
+                                }
+                            },
+                ) {
+                    PerformanceHudOverlay()
+                }
+            }
+
             ModalDrawerSheet(
                 drawerShape = RoundedCornerShape(20.dp),
                 drawerContainerColor = PaneSurfaceColor,
@@ -311,20 +360,30 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                // Keep the drawer content composed at all times. When closed the sheet
-                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
-                // but the composition stays warm — opening becomes a cheap slide instead
-                // of rebuilding the whole tree on the first animation frame.
-                XServerDrawerContent(
-                    state = stateHolder.state,
-                    taskManagerState = stateHolder.taskManagerState,
-                    logsState = stateHolder.logsState,
-                    openPane = stateHolder.openPane,
-                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                    listener = listener,
-                    onDismiss = { stateHolder.closeDrawer() },
-                    revealCards = drawerEngaged,
-                )
+                // Compose the heavy drawer tree only while open or sliding; a settled-closed drawer is disposed so it can't contend with the game surface.
+                if (drawerContentComposed) {
+                    XServerDrawerContent(
+                        state = stateHolder.state,
+                        taskManagerState = stateHolder.taskManagerState,
+                        logsState = stateHolder.logsState,
+                        openPane = stateHolder.openPane,
+                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                        listener = listener,
+                        onDismiss = { stateHolder.closeDrawer() },
+                        revealCards = drawerEngaged,
+                        menuNavRegion = stateHolder.menuNavRegion,
+                        menuNavIndex = stateHolder.menuNavIndex,
+                        menuActivateSignal = stateHolder.menuActivateSignal,
+                        onSetTabCount = { stateHolder.setMenuTabCount(it) },
+                        onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
+                        onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
+                        onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
+                        paneNavSignal = stateHolder.paneNavSignal,
+                        paneNavDir = stateHolder.paneNavDir,
+                        controllerActive = stateHolder.controllerConnected,
+                        onOverlayCloserChange = { stateHolder.paneOverlayCloser = it },
+                    )
+                }
             }
         }
     }

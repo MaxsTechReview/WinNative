@@ -35,6 +35,13 @@ import com.winlator.cmod.feature.library.EnvVarItem
 import androidx.compose.runtime.getValue
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
+import com.winlator.cmod.feature.library.GameSettingsNav
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
 import com.winlator.cmod.feature.settings.DXVKConfigUtils
@@ -99,6 +106,8 @@ class ShortcutSettingsComposeDialog private constructor(
         this(activity, shortcut, null)
     private val dialog: Dialog
     private val state = GameSettingsStateHolder()
+    private val nav = GameSettingsNav()
+    private var restorePaneNav: (() -> Unit)? = null
 
     // Java interop references
     private var inputControlsManager: InputControlsManager = InputControlsManager(context)
@@ -163,6 +172,10 @@ class ShortcutSettingsComposeDialog private constructor(
                 }
                 // Blur-behind is applied in show() post-attach to avoid flicker.
             }
+            setOnDismissListener {
+                restorePaneNav?.invoke()
+                restorePaneNav = null
+            }
         }
 
         loadInitialData()
@@ -181,10 +194,8 @@ class ShortcutSettingsComposeDialog private constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(
-                            state = state,
-                            callbacks = createCallbacks()
-                        )
+                        val callbacks = createCallbacks()
+                        GameSettingsContent(state = state, callbacks = callbacks, nav = nav)
                     }
                 }
             }
@@ -2278,6 +2289,15 @@ class ShortcutSettingsComposeDialog private constructor(
 
     fun show() {
         dialog.show()
+        restorePaneNav?.invoke()
+        restorePaneNav = dialog.window?.bindPaneNav(
+            PaneNavWindowHandlers(
+                onDir = { nav.dpad(it) },
+                onActivate = { nav.dpad(PANE_DIR_ACTIVATE) },
+                onDismiss = { if (nav.onContentBack?.invoke() != true) dialog.dismiss() },
+                onStart = { nav.onSave?.invoke() },
+            )
+        )
         dialog.window?.apply {
             applyDialogLayout()
             decorView.post { applyDialogLayout() }

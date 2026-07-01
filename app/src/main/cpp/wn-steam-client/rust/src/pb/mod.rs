@@ -2,6 +2,7 @@ pub mod cauthentication;
 pub mod ccloud;
 pub mod ccontentserverdirectory;
 pub mod cfamilygroups;
+pub mod cfriendmessages;
 pub mod cinventory;
 pub mod cmsg_client_change_status;
 pub mod cmsg_client_friends_list;
