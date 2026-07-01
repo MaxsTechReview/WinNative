@@ -13,13 +13,7 @@ import kotlin.math.abs
 private const val PANE_STICK_ENGAGE = 0.5f
 private const val PANE_STICK_RELEASE = 0.35f
 
-// Touch-mode-proof key/stick source for any dialog window. Android touch-mode
-// clears Compose focus, so onPreviewKeyEvent / requestFocus / focused-view
-// dispatch never fire for a tap-opened dialog. The Window.Callback path does:
-// DecorView.dispatch{Key,GenericMotion}Event invoke the window callback BEFORE
-// descending into the view tree and BEFORE any focus resolution, so a wrapped
-// callback receives every D-pad / A / B / Y key-down and every joystick move
-// regardless of touch-mode or whether any node is focused.
+// Window-callback nav source: fires before Compose focus resolution, so it works in tap-opened dialogs with no focused node.
 internal class PaneNavWindowHandlers(
     val onDir: (Int) -> Unit,
     val onActivate: () -> Unit,
@@ -29,9 +23,7 @@ internal class PaneNavWindowHandlers(
     val onScroll: (Float) -> Unit = {},
 )
 
-// Build handlers that drive a (possibly swappable) PaneNavRegistry. The provider
-// is read on every event so a host can route to an overlay's registry while the
-// overlay is open and back to the content registry when it closes.
+// Handlers driving a swappable PaneNavRegistry; the provider is re-read per event so a host can route to an overlay and back.
 internal fun paneNavHandlers(
     onDismiss: () -> Unit,
     onStart: () -> Unit = {},
@@ -143,8 +135,7 @@ private class PaneNavWindowCallback(
         }
 }
 
-// Install a touch-mode-proof nav source on this window. Returns a restore lambda
-// that reinstalls the previous callback; call it from onDispose / on teardown.
+// Install the nav source on this window; returns a restore lambda that reinstalls the previous callback on teardown.
 internal fun Window.bindPaneNav(handlers: PaneNavWindowHandlers): () -> Unit {
     val prev = callback ?: return {}
     val wrapper = PaneNavWindowCallback(prev, handlers, this)
@@ -158,8 +149,7 @@ internal fun Window.bindPaneNav(
     onStart: () -> Unit = {},
 ): () -> Unit = bindPaneNav(paneNavHandlers(onDismiss, onStart) { registry })
 
-// For androidx.compose.ui.window.Dialog { } content: resolves the dialog's own
-// Window via DialogWindowProvider and binds the nav source at window level.
+// For Dialog { } content: resolves the dialog's own Window via DialogWindowProvider and binds the nav source.
 @Composable
 internal fun DialogPaneNav(
     registry: PaneNavRegistry,

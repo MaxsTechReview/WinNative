@@ -1190,7 +1190,7 @@ class UnifiedActivity :
                     val r = Runnable { openFriendsSignal.tryEmit(Unit) }
                     guideHoldRunnable = r
                     guideHandler.postDelayed(r, 400L)
-                } else if (!menuNavActive && !drawerOpen && currentTabKey == "library") {
+                } else if (!menuNavActive && !drawerOpen) {
                     openFriendsSignal.tryEmit(Unit)
                 }
             }
