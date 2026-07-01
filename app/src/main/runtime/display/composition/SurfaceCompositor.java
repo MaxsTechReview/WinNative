@@ -19,37 +19,15 @@ import java.util.Locale;
  * resolvable on this device.
  *
  * <h3>Availability gate</h3>
- * {@link #isAvailable()} returns {@code true} only when ALL of these hold:
+ * {@link #isAvailable()} returns {@code true} only when both of these hold:
  * <ol>
  *   <li>API level 29+ (ASurfaceControl arrived in API 29).</li>
  *   <li>The required libandroid.so symbols resolve via dlsym.</li>
- *   <li>The device is NOT on the soft-boot blocklist (see below).</li>
  * </ol>
  *
- * <h3>Soft-boot blocklist</h3>
- * The original PR #380 caused soft boots (device reboots) on several device
- * families because their gralloc / HWC / SurfaceFlinger implementations crash
- * when ASurfaceControl is used. The blocklist skips Direct Composition on the
- * known-bad families. Research: /home/z/my-project/download/pr380-research-report.md
- *
- * Blocked families:
- * <ul>
- *   <li><b>Xiaomi / HyperOS 2.0+ (Android 14+)</b> — Flutter disabled
- *       SurfaceControl entirely on these due to unrecoverable SF crashes.
- *       See https://github.com/flutter/flutter/issues/160025</li>
- *   <li><b>Adreno 6xx with older qdgralloc</b> — Winlator user reports of
- *       device reboots. See r/winlator reboot reports.</li>
- * </ul>
- *
- * Warned (but not blocked) families:
- * <ul>
- *   <li><b>Samsung OneUI 4.1+ (Android 12+)</b> — PSPlay-class full-phone-reboot
- *       reports. We warn but allow, because the crash is less reproducible.</li>
- * </ul>
- *
- * The blocklist is conservative — when in doubt, block. Users who want to
- * override can set the developer setting "Force enable Direct Composition"
- * (not yet implemented — the block is hard for safety).
+ * Direct Composition is a per-container opt-in toggle
+ * ({@link com.winlator.cmod.runtime.container.Container#EXTRA_DIRECT_COMPOSITION}),
+ * so device eligibility is left to the user rather than a static blocklist.
  */
 public final class SurfaceCompositor {
 
@@ -69,10 +47,9 @@ public final class SurfaceCompositor {
 
     /**
      * @return {@code true} when the device exposes the API 29+ SurfaceControl
-     *         + SurfaceTransaction NDK symbols AND is not on the soft-boot
-     *         blocklist. {@code false} on any earlier Android version, on any
-     *         device where libandroid.so is missing the symbol, on blocklisted
-     *         device families, or if the JNI lookup itself fails.
+     *         + SurfaceTransaction NDK symbols. {@code false} on any earlier
+     *         Android version, on any device where libandroid.so is missing the
+     *         symbol, or if the JNI lookup itself fails.
      */
     public static boolean isAvailable() {
         Boolean cached = cachedAvailability;
@@ -82,15 +59,6 @@ public final class SurfaceCompositor {
         // Hard short-circuit on platforms where the native call would always
         // resolve to the API-< 29 fallback.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            cachedAvailability = Boolean.FALSE;
-            return false;
-        }
-
-        // === SOFT-BOOT BLOCKLIST ===
-        // Check device family BEFORE the native probe — if we're blocklisted,
-        // don't even dlopen the symbols (some grallocs crash on the probe
-        // itself on the worst devices).
-        if (isBlocklisted()) {
             cachedAvailability = Boolean.FALSE;
             return false;
         }
@@ -107,34 +75,6 @@ public final class SurfaceCompositor {
             Log.i(TAG, "Direct Composition is available on this device");
         }
         return result;
-    }
-
-    /**
-     * Device-family soft-boot blocklist. Returns true only for families with a
-     * confirmed device-reboot signature. Unknown hardware is not statically
-     * blocked here — Direct Composition is a manual per-container toggle and the
-     * consecutive-failure self-detach handles runtime push failures.
-     */
-    private static boolean isBlocklisted() {
-        String manufacturer = Build.MANUFACTURER != null
-                ? Build.MANUFACTURER.toLowerCase() : "";
-
-        // Xiaomi / HyperOS 2.0+ on Android 14+ — known SurfaceFlinger crash.
-        // https://github.com/flutter/flutter/issues/160025
-        if (manufacturer.contains("xiaomi") && Build.VERSION.SDK_INT >= 34) {
-            Log.w(TAG, "Direct Composition BLOCKED on Xiaomi/HyperOS (Android 14+) — "
-                    + "known SurfaceFlinger crash (flutter/flutter#160025). "
-                    + "Falling back to VulkanRenderer composition.");
-            return true;
-        }
-
-        // Samsung OneUI on Android 12+ — rare reboot reports; warn but allow.
-        if (manufacturer.contains("samsung") && Build.VERSION.SDK_INT >= 31) {
-            Log.w(TAG, "Direct Composition WARNING on Samsung OneUI (Android 12+) — "
-                    + "rare reboot reports exist. Disable the toggle if you experience reboots.");
-        }
-
-        return false;
     }
 
     private static native boolean nativeIsAvailable();
