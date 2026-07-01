@@ -1121,10 +1121,26 @@ class UnifiedActivity :
                 return true
             }
 
+            android.view.KeyEvent.KEYCODE_BUTTON_L1 -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN &&
+                    settingsNavBridge.zone == SettingsFocusZone.CONTENT
+                ) {
+                    settingsNavBridge.contentSectionPrev()
+                }
+                return true
+            }
+
+            android.view.KeyEvent.KEYCODE_BUTTON_R1 -> {
+                if (action == android.view.KeyEvent.ACTION_DOWN &&
+                    settingsNavBridge.zone == SettingsFocusZone.CONTENT
+                ) {
+                    settingsNavBridge.contentSectionNext()
+                }
+                return true
+            }
+
             android.view.KeyEvent.KEYCODE_BUTTON_X,
             android.view.KeyEvent.KEYCODE_BUTTON_START,
-            android.view.KeyEvent.KEYCODE_BUTTON_L1,
-            android.view.KeyEvent.KEYCODE_BUTTON_R1,
             -> return true
         }
         return super.dispatchKeyEvent(event)

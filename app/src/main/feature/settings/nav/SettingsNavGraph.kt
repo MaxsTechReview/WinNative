@@ -66,6 +66,20 @@ class SettingsNavBridge {
     fun contentActivate() = contentNav(PANE_DIR_ACTIVATE)
 
     fun contentSecondary() = contentNav(PANE_DIR_SECONDARY)
+
+    var contentSectionSignal by mutableStateOf(0)
+        private set
+    var contentSectionDir by mutableStateOf(0)
+        private set
+
+    private fun contentSection(dir: Int) {
+        contentSectionDir = dir
+        contentSectionSignal++
+    }
+
+    fun contentSectionPrev() = contentSection(-1)
+
+    fun contentSectionNext() = contentSection(1)
 }
 
 private val SettingsBg = Color(0xFF11111C)

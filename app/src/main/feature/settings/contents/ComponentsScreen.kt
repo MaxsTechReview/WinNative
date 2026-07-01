@@ -51,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -147,6 +148,21 @@ fun ComponentsScreen(
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
     val contentNav = rememberSettingsContentNav(bridge)
+
+    // L1/R1 cycle the component type (Wine -> Proton -> DXVK …) while navigating the list.
+    val sectionSignal = bridge?.contentSectionSignal ?: 0
+    var lastSectionSignal by remember { mutableStateOf(sectionSignal) }
+    LaunchedEffect(sectionSignal) {
+        if (sectionSignal != lastSectionSignal) {
+            lastSectionSignal = sectionSignal
+            val dir = bridge?.contentSectionDir ?: 0
+            if (dir != 0) {
+                val types = ContentProfile.ContentType.values()
+                val idx = types.indexOf(state.currentType).coerceAtLeast(0)
+                onTypeSelected(types[((idx + dir) % types.size + types.size) % types.size])
+            }
+        }
+    }
 
     itemPendingRemoval?.let { item ->
         val nav = remember { PaneNavRegistry() }
