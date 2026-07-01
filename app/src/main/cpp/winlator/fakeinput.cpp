@@ -379,31 +379,39 @@ struct SnapshotState {
 
 static long long monotonic_ms();
 
-// Read the authoritative absolute-state snapshot using the writer's seqlock.
-// Retries on a torn read (snapshot_seq odd or changed mid-read); after a few
-// failed attempts returns the neutral baseline rather than spinning. This
-// mirrors the publication model already used for write_seq.
-__attribute__((visibility("hidden"))) static SnapshotState
-read_snapshot(const FakeInputRingHeader *ring) {
-  SnapshotState out;
-  for (int attempt = 0; attempt < 8; attempt++) {
+static constexpr int kSnapshotReadAttempts = 128;
+
+static inline void snapshot_cpu_relax() {
+#if defined(__aarch64__)
+  __asm__ __volatile__("yield" ::: "memory");
+#else
+  __asm__ __volatile__("" ::: "memory");
+#endif
+}
+
+// Reads the writer's seqlock snapshot, relaxing between torn/in-progress reads.
+// Returns false on exhaustion, leaving out untouched (caller keeps last-known-good).
+__attribute__((visibility("hidden"))) static bool
+read_snapshot(const FakeInputRingHeader *ring, SnapshotState &out) {
+  for (int attempt = 0; attempt < kSnapshotReadAttempts; attempt++) {
     uint64_t s1 = __atomic_load_n(&ring->snapshot_seq, __ATOMIC_ACQUIRE);
-    if (s1 & 1ULL)
-      continue; // a write is in progress
-    uint32_t buttons = ring->snapshot_buttons;
-    int16_t axes[8];
-    for (int i = 0; i < 8; i++)
-      axes[i] = ring->snapshot_axes[i];
-    __atomic_thread_fence(__ATOMIC_ACQUIRE);
-    uint64_t s2 = __atomic_load_n(&ring->snapshot_seq, __ATOMIC_RELAXED);
-    if (s1 == s2) {
-      out.buttons = buttons;
+    if (!(s1 & 1ULL)) {
+      uint32_t buttons = ring->snapshot_buttons;
+      int16_t axes[8];
       for (int i = 0; i < 8; i++)
-        out.axes[i] = axes[i]; // sign-extend to int32 for the event value
-      return out;
+        axes[i] = ring->snapshot_axes[i];
+      __atomic_thread_fence(__ATOMIC_ACQUIRE);
+      uint64_t s2 = __atomic_load_n(&ring->snapshot_seq, __ATOMIC_RELAXED);
+      if (s1 == s2) {
+        out.buttons = buttons;
+        for (int i = 0; i < 8; i++)
+          out.axes[i] = axes[i]; // sign-extend to int32
+        return true;
+      }
     }
+    snapshot_cpu_relax();
   }
-  return out;
+  return false;
 }
 
 // Capture the current absolute state into the controller so it can be streamed
@@ -412,14 +420,18 @@ read_snapshot(const FakeInputRingHeader *ring) {
 // frame is never restarted mid-stream.
 __attribute__((visibility("hidden"))) static void
 capture_keyframe(FakeController &fake, const char *reason, int fd) {
-  SnapshotState snap = read_snapshot(fake.ring);
-  fake.keyframe_buttons = snap.buttons;
-  for (int i = 0; i < 8; i++)
-    fake.keyframe_axes[i] = snap.axes[i];
+  SnapshotState snap;
+  // On a failed read keep the previous keyframe rather than publishing a neutral.
+  bool fresh = read_snapshot(fake.ring, snap);
+  if (fresh) {
+    fake.keyframe_buttons = snap.buttons;
+    for (int i = 0; i < 8; i++)
+      fake.keyframe_axes[i] = snap.axes[i];
+  }
   fake.keyframe_remaining = kNeutralEventCount;
-  Logger::log("Fake input keyframe reason=%s fd=%d slot=%d read_seq=%llu "
+  Logger::log("Fake input keyframe reason=%s fd=%d slot=%d snapshot=%s read_seq=%llu "
               "write_seq=%llu buttons=0x%03x axes=[%d,%d,%d,%d,%d,%d,%d,%d]\n",
-              reason ? reason : "unknown", fd, fake.slot,
+              reason ? reason : "unknown", fd, fake.slot, fresh ? "fresh" : "stale",
               static_cast<unsigned long long>(fake.read_seq),
               static_cast<unsigned long long>(ring_write_seq(fake.ring)),
               fake.keyframe_buttons, fake.keyframe_axes[0],
