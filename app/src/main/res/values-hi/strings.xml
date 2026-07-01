@@ -888,10 +888,14 @@
     <string name="settings_debug_box_logs_subtitle">फ़ाइल में Box86 और Box64 डिबग आउटपुट लिखें</string>
     <string name="settings_debug_fex_logs_title">FEXCore लॉग सक्षम करें</string>
     <string name="settings_debug_fex_logs_subtitle">फ़ाइल में FEXCore डिबग आउटपुट लिखें</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX एमुलेशन लॉग</string>
+    <string name="settings_debug_emulator_logs_subtitle">आपका कंटेनर जो एमुलेटर उपयोग करता है उसे फ़ाइल में लॉग करता है।</string>
     <string name="settings_debug_steam_logs_title">Steam लॉग सक्षम करें</string>
     <string name="settings_debug_steam_logs_subtitle">डिबगिंग के लिए Steam प्रमाणीकरण और सत्र ईवेंट लॉग करें।</string>
     <string name="settings_debug_wine_channels_title">Wine डीबग चैनल</string>
     <string name="settings_debug_wine_channels_summary">चुनें कि Wine डिबग लॉगिंग सक्षम होने पर कौन से Wine चैनल शामिल हैं।</string>
+    <string name="settings_debug_wine_classes_title">Wine लॉग स्तर</string>
+    <string name="settings_debug_wine_classes_summary">चुनें कि कौन-से संदेश प्रकार लॉग किए जाएँ। Trace अत्यधिक विस्तृत होता है।</string>
     <string name="settings_debug_input_logs">इनपुट लॉग</string>
     <string name="settings_debug_input_logs_description">गेमपैड, टच और कीबोर्ड इनपुट इवेंट लॉग करें</string>
     <string name="settings_debug_download_logs">डाउनलोड लॉग</string>
@@ -1223,7 +1227,7 @@
     <string name="preloader_platform_gog">GOG</string>
     <string name="preloader_platform_custom">कस्टम गेम</string>
     <string name="settings_hud_record_to_file_title">प्रदर्शन को फ़ाइल में रिकॉर्ड करें</string>
-    <string name="settings_hud_record_to_file_summary">गेमप्ले के दौरान प्रति सेकंड FPS, CPU, GPU, तापमान और बैटरी मेट्रिक्स को /WinNative/logs/ पर लिखें।</string>
+    <string name="settings_hud_record_to_file_summary">गेमप्ले के दौरान प्रति सेकंड FPS, CPU, GPU, तापमान और बैटरी मेट्रिक्स को /WinNative/logs/ में निर्यात करता है।</string>
     <string name="settings_leaderboard_category">प्रदर्शन</string>
     <string name="saves_import_warning_title">यह इस कंटेनर में मौजूदा सेव को ओवरराइट कर देगा</string>
     <string name="saves_import_warning_body">कई गेम वाली पुरानी बैकअप को पुनर्स्थापित करते समय, पहले अपने फ़ाइल मैनेजर से किसी भी नए सेव को zip में कॉपी करें। केवल .zip में मौजूद सेव ही प्रभावित होंगे। अपने सेव को समझदारी से प्रबंधित करें।</string>
@@ -1271,6 +1275,16 @@
     <!-- Workshop -->
     <string name="workshop_loading_items">Workshop आइटम लोड हो रहे हैं</string>
     <string name="workshop_search_items">Workshop आइटम खोजें</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Steam से आपकी सब्सक्राइब की गई वस्तुएँ प्राप्त की जा रही हैं।</string>
+    <string name="workshop_error_title">Workshop आइटम लोड नहीं हो सके</string>
+    <string name="workshop_error_subtitle">कुछ गलत हो गया। पुनः प्रयास करें।</string>
+    <string name="workshop_empty_title">कोई सब्सक्राइब किया गया Workshop आइटम नहीं</string>
+    <string name="workshop_empty_subtitle">Steam Workshop पर आइटम सब्सक्राइब करें, फिर इस विंडो को दोबारा खोलें।</string>
+    <string name="workshop_search_empty_title">\"%1$s\" से कोई आइटम मेल नहीं खाता</string>
+    <string name="workshop_search_empty_subtitle">कोई दूसरा खोज शब्द आज़माएँ।</string>
+    <string name="workshop_clear_search">खोज साफ़ करें</string>
+    <string name="workshop_item_fallback">Workshop आइटम</string>
     <string name="common_ui_failed">विफल</string>
     <string name="steam_presence_snooze">स्नूज़</string>
     <string name="steam_presence_busy">व्यस्त</string>

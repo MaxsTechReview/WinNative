@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,16 +20,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Surface
@@ -35,6 +39,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +66,10 @@ import com.winlator.cmod.feature.stores.steam.data.SteamFriend
 import com.winlator.cmod.feature.stores.steam.data.SteamFriendEntry
 import com.winlator.cmod.feature.stores.steam.enums.EPersonaState
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val BgDark = Color(0xFF18181D)
 private val SurfaceDark = Color(0xFF1E252E)
@@ -70,6 +80,8 @@ private val TextSecondary = Color(0xFF7A8FA8)
 private val StatusOnline = Color(0xFF3FB950)
 private val StatusAway = Color(0xFFF0C040)
 private val StatusOffline = Color(0xFF6E7681)
+private val WsBg = Color(0xFF12121B)
+private val AccentGlow = Color(0xFF58A6FF)
 
 private fun statusColor(state: EPersonaState): Color = when (state) {
     EPersonaState.Online, EPersonaState.LookingToTrade, EPersonaState.LookingToPlay -> StatusOnline
@@ -91,6 +103,7 @@ private fun statusLabel(state: EPersonaState): String = when (state) {
 
 @Composable
 fun FriendsDrawerContent(
+    isOpen: Boolean,
     self: SteamFriend,
     friends: List<SteamFriendEntry>,
     installedGameIds: Set<Int>,
@@ -103,51 +116,60 @@ fun FriendsDrawerContent(
     val online = friends.filter { it.isOnline && !it.isPlayingGame }.sortedBy { it.name.lowercase() }
     val offline = friends.filter { !it.isOnline }.sortedBy { it.name.lowercase() }
 
-    ModalDrawerSheet(
-        drawerShape = RectangleShape,
-        drawerContainerColor = BgDark,
-        drawerContentColor = TextPrimary,
-        windowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = Modifier.width(332.dp),
-    ) {
-        Column(
-            Modifier
-                .fillMaxHeight()
-                .statusBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 16.dp),
+    val context = LocalContext.current
+    val bridge = (context as? com.winlator.cmod.app.shell.UnifiedActivity)?.friendsDrawerNavBridge
+    val navRegistry = remember(bridge) { PaneNavRegistry(initialSignal = bridge?.navSignal ?: -1) }
+    navRegistry.controllerActive = bridge?.controllerActive ?: false
+    LaunchedEffect(navRegistry, bridge?.navSignal) {
+        navRegistry.processNav(bridge?.navSignal ?: 0, bridge?.navDir ?: 0)
+    }
+    LaunchedEffect(isOpen) { if (isOpen) navRegistry.reset() }
+
+    CompositionLocalProvider(LocalPaneNav provides navRegistry) {
+        ModalDrawerSheet(
+            drawerShape = RectangleShape,
+            drawerContainerColor = WsBg,
+            drawerContentColor = TextPrimary,
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            modifier = Modifier.width(332.dp),
         ) {
-            SelfCard(self = self, onSetState = onSetState)
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = stringResource(R.string.steam_friends_count, friends.count { it.isOnline }),
-                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-                color = TextSecondary,
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-            )
-            LazyColumn(
-                Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Column(
+                Modifier
+                    .fillMaxHeight()
+                    .statusBarsPadding()
+                    .padding(horizontal = 14.dp, vertical = 16.dp),
             ) {
-                if (inGame.isNotEmpty()) {
-                    item { SectionHeader(stringResource(R.string.steam_friends_section_in_game, inGame.size)) }
-                    items(inGame, key = { it.steamId }) {
-                        InGameFriendCard(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                SelfCard(self = self, onSetState = onSetState)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.steam_friends_count, friends.count { it.isOnline }),
+                    style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                )
+                Column(
+                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (inGame.isNotEmpty()) {
+                        SectionHeader(stringResource(R.string.steam_friends_section_in_game, inGame.size))
+                        inGame.forEach {
+                            InGameFriendCard(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                        }
                     }
-                }
-                if (online.isNotEmpty()) {
-                    item { SectionHeader(stringResource(R.string.steam_friends_section_online, online.size)) }
-                    items(online, key = { it.steamId }) {
-                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                    if (online.isNotEmpty()) {
+                        SectionHeader(stringResource(R.string.steam_friends_section_online, online.size))
+                        online.forEach {
+                            FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                        }
                     }
-                }
-                if (offline.isNotEmpty()) {
-                    item { SectionHeader(stringResource(R.string.steam_friends_section_offline, offline.size)) }
-                    items(offline, key = { it.steamId }) {
-                        FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                    if (offline.isNotEmpty()) {
+                        SectionHeader(stringResource(R.string.steam_friends_section_offline, offline.size))
+                        offline.forEach {
+                            FriendRow(it, it.gameAppId in installedGameIds, onOpenChat, onJoinGame, onPlayGame)
+                        }
                     }
-                }
-                if (friends.isEmpty()) {
-                    item {
+                    if (friends.isEmpty()) {
                         Text(
                             stringResource(R.string.steam_friends_none_loaded),
                             color = TextSecondary,
@@ -211,6 +233,7 @@ private fun SelfCard(self: SteamFriend, onSetState: (EPersonaState) -> Unit) {
                     tint = TextSecondary,
                     modifier = Modifier
                         .clip(CircleShape)
+                        .paneNavItem(onActivate = { showChatSettings = true }, tapToSelect = true)
                         .clickable { showChatSettings = true }
                         .padding(6.dp)
                         .size(20.dp),
@@ -221,6 +244,7 @@ private fun SelfCard(self: SteamFriend, onSetState: (EPersonaState) -> Unit) {
                     color = TextSecondary,
                     modifier = Modifier
                         .clip(CircleShape)
+                        .paneNavItem(onActivate = { expanded = !expanded }, tapToSelect = true)
                         .clickable { expanded = !expanded }
                         .padding(6.dp),
                 )
@@ -249,35 +273,77 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     var autoHide by remember { mutableStateOf(PrefManager.chatHeadsAutoHide) }
     var inGame by remember { mutableStateOf(PrefManager.chatInGameEnabled) }
     var stayRunning by remember { mutableStateOf(PrefManager.chatStayRunningOnExit) }
+    val registry = remember { PaneNavRegistry() }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = SurfaceDark,
-            border = BorderStroke(1.dp, CardBorder),
-            modifier = Modifier.fillMaxWidth(0.94f),
-        ) {
-            Column(Modifier.padding(18.dp).fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.steam_chat_settings_title),
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            DialogPaneNav(registry, onDismiss = onDismiss)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = WsBg,
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier.fillMaxWidth(0.94f),
+            ) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Accent.copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = AccentGlow,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.steam_chat_settings_title),
+                        modifier = Modifier.weight(1f),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onDismiss, navRow = 0, navCol = 0)) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.steam_common_back),
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
+                Row(
+                    modifier = Modifier.padding(18.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
                     Column(Modifier.weight(1f)) {
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_notifications),
                             stringResource(R.string.steam_chat_setting_notifications_desc),
                             notifications,
+                            navRow = 1,
+                            navCol = 0,
+                            isEntry = true,
                         ) { v -> notifications = v; PrefManager.chatNotificationsEnabled = v }
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_heads),
                             stringResource(R.string.steam_chat_setting_heads_desc),
                             heads,
+                            navRow = 2,
+                            navCol = 0,
                         ) { v ->
                             if (v) {
                                 if (android.provider.Settings.canDrawOverlays(context)) {
@@ -304,6 +370,8 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             stringResource(R.string.steam_chat_setting_autohide),
                             stringResource(R.string.steam_chat_setting_autohide_desc),
                             autoHide,
+                            navRow = 3,
+                            navCol = 0,
                         ) { v -> autoHide = v; PrefManager.chatHeadsAutoHide = v }
                     }
                     Column(Modifier.weight(1f)) {
@@ -311,14 +379,19 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             stringResource(R.string.steam_chat_setting_ingame),
                             stringResource(R.string.steam_chat_setting_ingame_desc),
                             inGame,
+                            navRow = 1,
+                            navCol = 1,
                         ) { v -> inGame = v; PrefManager.chatInGameEnabled = v }
                         ChatSettingToggle(
                             stringResource(R.string.steam_chat_setting_stay_running),
                             stringResource(R.string.steam_chat_setting_stay_running_desc),
                             stayRunning,
+                            navRow = 2,
+                            navCol = 1,
                         ) { v -> stayRunning = v; PrefManager.chatStayRunningOnExit = v }
                     }
                 }
+            }
             }
         }
     }
@@ -329,10 +402,23 @@ private fun ChatSettingToggle(
     title: String,
     desc: String,
     checked: Boolean,
+    navRow: Int,
+    navCol: Int,
+    isEntry: Boolean = false,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        Modifier
+            .fillMaxWidth()
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = { onChange(!checked) },
+                tapToSelect = true,
+                navRow = navRow,
+                navCol = navCol,
+                isEntry = isEntry,
+            )
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -354,6 +440,7 @@ private fun StatusOption(label: String, dot: Color, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
+            .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, tapToSelect = true)
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -370,7 +457,9 @@ private fun FriendActionButton(label: String, icon: ImageVector, onClick: () -> 
         shape = RoundedCornerShape(8.dp),
         color = Accent.copy(alpha = 0.18f),
         border = BorderStroke(1.dp, Accent.copy(alpha = 0.6f)),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier
+            .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, tapToSelect = true)
+            .clickable(onClick = onClick),
     ) {
         Row(
             Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -402,6 +491,19 @@ private fun FriendActionButtons(
     }
 }
 
+private fun longPressFriend(
+    context: android.content.Context,
+    friend: SteamFriendEntry,
+    onOpenChat: (SteamFriendEntry) -> Unit,
+) {
+    if (PrefManager.chatHeadsEnabled && android.provider.Settings.canDrawOverlays(context)) {
+        ChatOverlayService.openHead(context, friend.steamId)
+    } else {
+        onOpenChat(friend)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun InGameFriendCard(
     friend: SteamFriendEntry,
@@ -410,13 +512,18 @@ private fun InGameFriendCard(
     onJoinGame: (SteamFriendEntry) -> Unit,
     onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
+    val ctx = LocalContext.current
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = Accent.copy(alpha = 0.07f),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .clickable { onOpenChat(friend) },
+            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) })
+            .combinedClickable(
+                onClick = { onOpenChat(friend) },
+                onLongClick = { longPressFriend(ctx, friend, onOpenChat) },
+            ),
     ) {
         Row(
             Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
@@ -433,7 +540,6 @@ private fun InGameFriendCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // Small game art at text height, with the game name to the right.
                 Row(
                     Modifier.padding(top = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -466,6 +572,7 @@ private fun InGameFriendCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FriendRow(
     friend: SteamFriendEntry,
@@ -474,6 +581,7 @@ private fun FriendRow(
     onJoinGame: (SteamFriendEntry) -> Unit,
     onPlayGame: (SteamFriendEntry) -> Unit,
 ) {
+    val ctx = LocalContext.current
     val scale by animateFloatAsState(1f, label = "row")
     Surface(
         shape = RoundedCornerShape(10.dp),
@@ -481,7 +589,11 @@ private fun FriendRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .clickable { onOpenChat(friend) },
+            .paneNavItem(cornerRadius = 10.dp, onActivate = { onOpenChat(friend) })
+            .combinedClickable(
+                onClick = { onOpenChat(friend) },
+                onLongClick = { longPressFriend(ctx, friend, onOpenChat) },
+            ),
     ) {
         Row(
             Modifier.padding(horizontal = 8.dp, vertical = 7.dp),

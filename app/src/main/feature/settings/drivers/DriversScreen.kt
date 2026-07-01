@@ -12,14 +12,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -66,7 +62,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -89,6 +87,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val BgDark = Color(0xFF11111C)
 private val CardDark = Color(0xFF1C1C2A)
@@ -96,6 +102,7 @@ private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val SuccessGreen = Color(0xFF5BD68F)
 private val DangerRed = Color(0xFFFF7A88)
 private val TextPrimary = Color(0xFFD6DAE0)
@@ -183,6 +190,7 @@ fun DriversScreen(
     onRepoUpdated: (index: Int, name: String, apiUrl: String) -> Unit,
     onRepoDeleted: (index: Int) -> Unit,
     onRestoreDefaultRepos: () -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     var showAddRepoDialog by remember { mutableStateOf(false) }
     var editingRepo by remember { mutableStateOf<Pair<Int, DriverRepo>?>(null) }
@@ -193,6 +201,7 @@ fun DriversScreen(
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
     if (showAddRepoDialog || editingRepo != null) {
         val editing = editingRepo
@@ -215,38 +224,46 @@ fun DriversScreen(
     }
 
     driverPendingRemoval?.let { driver ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = { driverPendingRemoval = null }) {
-            PopupDialog(
-                title = stringResource(R.string.settings_drivers_remove_title),
-                message = stringResource(R.string.settings_drivers_confirm_remove),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Delete,
-                accentColor = DangerRed,
-                onCancel = { driverPendingRemoval = null },
-                onConfirm = {
-                    onRemoveDriver(driver)
-                    driverPendingRemoval = null
-                },
-            )
+            DialogPaneNav(nav, onDismiss = { driverPendingRemoval = null })
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_drivers_remove_title),
+                    message = stringResource(R.string.settings_drivers_confirm_remove),
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = DangerRed,
+                    onCancel = { driverPendingRemoval = null },
+                    onConfirm = {
+                        onRemoveDriver(driver)
+                        driverPendingRemoval = null
+                    },
+                )
+            }
         }
     }
 
     repoPendingRemoval?.let { (index, repo) ->
+        val nav = remember { PaneNavRegistry() }
         Dialog(onDismissRequest = { repoPendingRemoval = null }) {
-            PopupDialog(
-                title = stringResource(R.string.settings_drivers_remove_repo_title),
-                message = stringResource(R.string.settings_drivers_remove_repo_message, repo.name),
-                confirmLabel = stringResource(R.string.common_ui_remove),
-                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                icon = Icons.Outlined.Delete,
-                accentColor = DangerRed,
-                onCancel = { repoPendingRemoval = null },
-                onConfirm = {
-                    onRepoDeleted(index)
-                    repoPendingRemoval = null
-                },
-            )
+            DialogPaneNav(nav, onDismiss = { repoPendingRemoval = null })
+            CompositionLocalProvider(LocalPaneNav provides nav) {
+                PopupDialog(
+                    title = stringResource(R.string.settings_drivers_remove_repo_title),
+                    message = stringResource(R.string.settings_drivers_remove_repo_message, repo.name),
+                    confirmLabel = stringResource(R.string.common_ui_remove),
+                    modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                    icon = Icons.Outlined.Delete,
+                    accentColor = DangerRed,
+                    onCancel = { repoPendingRemoval = null },
+                    onConfirm = {
+                        onRepoDeleted(index)
+                        repoPendingRemoval = null
+                    },
+                )
+            }
         }
     }
 
@@ -254,55 +271,47 @@ fun DriversScreen(
         DownloadProgressDialog(progress = progress)
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "hero_header") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                        bottom = 4.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             HeroHeader(
                 installedCount = state.installedDrivers.size,
                 repoCount = state.sources.size,
                 onInstall = onInstallFromFile,
                 onAddRepo = { showAddRepoDialog = true },
             )
-        }
 
-        item(key = "empty_state") {
             if (state.installedDrivers.isEmpty() && state.sources.isEmpty()) {
                 EmptyState()
             }
-        }
 
-        if (state.installedDrivers.isNotEmpty()) {
-            item(key = "installed_section") {
+            if (state.installedDrivers.isNotEmpty()) {
                 SectionLabel(
                     text = stringResource(R.string.common_ui_installed),
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                state.installedDrivers.forEach { driver ->
+                    key(driver.id) {
+                        InstalledDriverCard(
+                            driver = driver,
+                            onRemove = { driverPendingRemoval = driver },
+                        )
+                    }
+                }
             }
-            items(
-                items = state.installedDrivers,
-                key = { driver -> driver.id },
-                contentType = { "installedDriverCard" },
-            ) { driver ->
-                InstalledDriverCard(
-                    driver = driver,
-                    onRemove = { driverPendingRemoval = driver },
-                )
-            }
-        }
 
-        item(key = "repos_header") {
             Row(
                 modifier =
                     Modifier
@@ -323,38 +332,32 @@ fun DriversScreen(
                     )
                 }
             }
-        }
 
-        if (state.sources.isEmpty()) {
-            item(key = "repos_empty") {
+            if (state.sources.isEmpty()) {
                 EmptyRepoCard()
+            } else {
+                state.sources.forEachIndexed { index, source ->
+                    key(source.apiUrl) {
+                        val releases = state.releasesBySource[source.apiUrl].orEmpty()
+                        val isExpanded = state.expandedSourceApiUrl == source.apiUrl
+                        val isLoading = state.loadingSourceApiUrl == source.apiUrl
+                        RepoCard(
+                            source = source,
+                            isExpanded = isExpanded,
+                            isLoading = isLoading,
+                            releases = releases,
+                            expandedReleaseId = state.expandedReleaseId,
+                            installedAssetNames = state.installedAssetNames,
+                            onTap = { onSourceTapped(source) },
+                            onReleaseTap = onReleaseTapped,
+                            onDownloadAsset = onDownloadAsset,
+                            onEdit = { editingRepo = index to source },
+                            onDelete = { repoPendingRemoval = index to source },
+                        )
+                    }
+                }
             }
-        } else {
-            itemsIndexed(
-                items = state.sources,
-                key = { _, source -> source.apiUrl },
-                contentType = { _, _ -> "repoCard" },
-            ) { index, source ->
-                val releases = state.releasesBySource[source.apiUrl].orEmpty()
-                val isExpanded = state.expandedSourceApiUrl == source.apiUrl
-                val isLoading = state.loadingSourceApiUrl == source.apiUrl
-                RepoCard(
-                    source = source,
-                    isExpanded = isExpanded,
-                    isLoading = isLoading,
-                    releases = releases,
-                    expandedReleaseId = state.expandedReleaseId,
-                    installedAssetNames = state.installedAssetNames,
-                    onTap = { onSourceTapped(source) },
-                    onReleaseTap = onReleaseTapped,
-                    onDownloadAsset = onDownloadAsset,
-                    onEdit = { editingRepo = index to source },
-                    onDelete = { repoPendingRemoval = index to source },
-                )
-            }
-        }
 
-        item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -527,7 +530,12 @@ private fun HeroButton(
                 .clip(RoundedCornerShape(9.dp))
                 .background(Accent.copy(alpha = 0.12f))
                 .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(9.dp))
-                .noRippleClickable(onClick = onClick)
+                .paneNavItem(
+                    cornerRadius = 9.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .height(30.dp)
                 .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
@@ -705,7 +713,12 @@ private fun RepoCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .noRippleClickable(enabled = !isLoading, onClick = onTap)
+                        .paneNavItem(
+                            cornerRadius = 12.dp,
+                            onActivate = { if (!isLoading) onTap() },
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -905,7 +918,12 @@ private fun ReleaseCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .noRippleClickable(onClick = onTap)
+                        .paneNavItem(
+                            cornerRadius = 10.dp,
+                            onActivate = onTap,
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1097,7 +1115,12 @@ private fun IconTapButton(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .noRippleClickable(onClick = onClick),
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -1133,7 +1156,18 @@ private fun SmallPillButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                .then(if (enabled) Modifier.noRippleClickable(onClick = onClick) else Modifier)
+                .then(
+                    if (enabled) {
+                        Modifier.paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = onClick,
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1161,13 +1195,27 @@ private fun DialogActionButton(
     textColor: Color,
     onClick: () -> Unit,
 ) {
+    val nav = LocalPaneNav.current
+    val clickModifier =
+        if (nav != null) {
+            Modifier.paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
+        } else {
+            Modifier
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, highlightColor = NavHighlight)
+                .noRippleClickable(onClick = onClick)
+        }
     Box(
         modifier =
             Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .noRippleClickable(onClick = onClick)
+                .then(clickModifier)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1277,6 +1325,7 @@ private fun RepoEditDialog(
 ) {
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }
     var url by remember { mutableStateOf(existing?.apiUrl.orEmpty()) }
+    val registry = remember { PaneNavRegistry() }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1286,72 +1335,76 @@ private fun RepoEditDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
+        DialogPaneNav(registry, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+            BoxWithConstraints(
                 modifier =
                     Modifier
-                        .widthIn(max = 440.dp)
-                        .fillMaxWidth()
-                        .heightIn(max = maxHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(CardDark)
-                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
+                Box(
                     modifier =
                         Modifier
-                            .wrapContentHeight()
-                            .verticalScroll(rememberScrollState()),
+                            .widthIn(max = 440.dp)
+                            .fillMaxWidth()
+                            .heightIn(max = maxHeight)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(CardDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        text = if (existing == null) "Add Repository" else "Edit Repository",
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    LabeledField(
-                        label = "Name",
-                        value = name,
-                        onValueChange = { name = it },
-                        placeholder = "Display name",
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    LabeledField(
-                        label = "GitHub URL",
-                        value = url,
-                        onValueChange = { url = it },
-                        placeholder = "https://github.com/owner/repo/releases",
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Done,
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    Column(
+                        modifier =
+                            Modifier
+                                .wrapContentHeight()
+                                .verticalScroll(rememberScrollState()),
                     ) {
-                        DialogActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
-                        DialogActionButton(
-                            label = if (existing == null) "Add" else "Save",
-                            textColor = Accent,
-                            onClick = {
-                                val trimmedName = name.trim()
-                                val trimmedUrl = url.trim()
-                                if (trimmedName.isNotEmpty() && trimmedUrl.isNotEmpty()) {
-                                    onConfirm(trimmedName, trimmedUrl)
-                                }
-                            },
+                        Text(
+                            text = if (existing == null) "Add Repository" else "Edit Repository",
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                        Spacer(Modifier.height(8.dp))
+
+                        LabeledField(
+                            label = "Name",
+                            value = name,
+                            onValueChange = { name = it },
+                            placeholder = "Display name",
+                            isEntry = true,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        LabeledField(
+                            label = "GitHub URL",
+                            value = url,
+                            onValueChange = { url = it },
+                            placeholder = "https://github.com/owner/repo/releases",
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Done,
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        ) {
+                            DialogActionButton(label = "Cancel", textColor = TextSecondary, onClick = onDismiss)
+                            DialogActionButton(
+                                label = if (existing == null) "Add" else "Save",
+                                textColor = Accent,
+                                onClick = {
+                                    val trimmedName = name.trim()
+                                    val trimmedUrl = url.trim()
+                                    if (trimmedName.isNotEmpty() && trimmedUrl.isNotEmpty()) {
+                                        onConfirm(trimmedName, trimmedUrl)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -1394,6 +1447,7 @@ private fun LabeledField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Next,
+    isEntry: Boolean = false,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -1410,6 +1464,7 @@ private fun LabeledField(
         val isFocused by interactionSource.collectIsFocusedAsState()
         val borderColor = if (isFocused) Accent else CardBorder
         val borderWidth = if (isFocused) 1.5.dp else 1.dp
+        val fieldFocus = remember { FocusRequester() }
         // Fixed min height + CenterStart alignment so the field keeps a consistent
         // tappable bar instead of collapsing to the font's intrinsic line height
         // (which made typed text look squashed against the top of the box).
@@ -1421,6 +1476,12 @@ private fun LabeledField(
                     .clip(RoundedCornerShape(9.dp))
                     .background(CardDarker)
                     .border(borderWidth, borderColor, RoundedCornerShape(9.dp))
+                    .paneNavItem(
+                        cornerRadius = 9.dp,
+                        onActivate = { runCatching { fieldFocus.requestFocus() } },
+                        highlightColor = NavHighlight,
+                        isEntry = isEntry,
+                    )
                     .padding(horizontal = 11.dp, vertical = 8.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -1434,7 +1495,7 @@ private fun LabeledField(
                         .SolidColor(Accent),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
                 interactionSource = interactionSource,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
                 decorationBox = { innerTextField ->
                     if (value.isEmpty()) {
                         Text(

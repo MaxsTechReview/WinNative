@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.runtime.container.ContainerCreation
 import com.winlator.cmod.runtime.container.ContainerManager
 import com.winlator.cmod.runtime.content.ContentProfile
@@ -90,6 +91,7 @@ class ContentsFragment : Fragment() {
                         ),
                 ) {
                     ComponentsScreen(
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                         state = componentsState,
                         onTypeSelected = { type -> selectContentType(type) },
                         onInstallFromFile = { promptInstallFromFile() },

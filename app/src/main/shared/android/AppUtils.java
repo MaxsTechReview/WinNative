@@ -149,8 +149,7 @@ public abstract class AppUtils {
     }
   }
 
-  // Like hideSystemUI but skips the per-call insets relayout when bars are already hidden.
-  // Safe to call every animation frame.
+  // Like hideSystemUI but skips the insets relayout when bars are already hidden; safe to call every frame.
   public static void hideSystemUIIfVisible(final Activity activity) {
     final View decorView = activity.getWindow().getDecorView();
     final WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(decorView);
@@ -380,10 +379,8 @@ public abstract class AppUtils {
       return;
     }
 
-    // Create a Timer to schedule the task
     Timer timer = new Timer();
 
-    // Schedule the task with the specified delay
     timer.schedule(
         new TimerTask() {
           @Override

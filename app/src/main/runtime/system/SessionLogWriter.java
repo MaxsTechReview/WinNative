@@ -9,12 +9,19 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.regex.Pattern;
 
 public final class SessionLogWriter {
   private static final String TAG = "SessionLogWriter";
 
   /** Max session files kept per category. */
   private static final int MAX_SESSION_FILES_PER_CATEGORY = 15;
+
+  private static final Pattern BOX64_LINE =
+      Pattern.compile("^(?:\\[\\d\\d:\\d\\d:\\d\\d\\]\\s+)?\\[?(?:Box64|BOX64|Box|BOX|Dynarec|DynaRec|Dynablock)");
+  private static final Pattern FEX_LINE =
+      Pattern.compile(
+          "^(?:\\[\\d\\d:\\d\\d:\\d\\d\\]\\s+)?\\[(?:ASSERT|ERROR|ERR|WARNING|WARN|INFO|DEBUG|VERBOSE|CRIT|STDOUT|STDERR)\\]");
 
   private BufferedWriter box64Writer;
   private BufferedWriter fexWriter;
@@ -70,11 +77,17 @@ public final class SessionLogWriter {
     return new BufferedWriter(new FileWriter(file));
   }
 
-  /** Writes one line to every open session file. */
   public synchronized void write(String line) {
-    writeTo(box64Writer, line);
-    writeTo(fexWriter, line);
-    writeTo(wineWriter, line);
+    if (box64Writer != null && BOX64_LINE.matcher(line).find()) {
+      writeTo(box64Writer, line);
+    } else if (fexWriter != null && FEX_LINE.matcher(line).find()) {
+      writeTo(fexWriter, line);
+    } else if (wineWriter != null) {
+      writeTo(wineWriter, line);
+    } else {
+      writeTo(box64Writer, line);
+      writeTo(fexWriter, line);
+    }
   }
 
   private static void writeTo(BufferedWriter writer, String line) {

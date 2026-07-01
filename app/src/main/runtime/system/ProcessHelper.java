@@ -4,18 +4,21 @@ import android.os.Process;
 import android.util.Log;
 import com.winlator.cmod.shared.util.Callback;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class ProcessHelper {
   private static final String TAG = "ProcessHelper";
@@ -285,6 +288,7 @@ public abstract class ProcessHelper {
       ProcessBuilder pb = new ProcessBuilder(splitCommand);
       pb.directory(workingDir);
       pb.environment().putAll(EnvironmentManager.getEnvVars());
+      File tailCapture = null;
       if (debugCallbacks.isEmpty()) {
         String wineDebug = EnvironmentManager.getEnvVars().get("WINEDEBUG");
         boolean wineDebugActive = wineDebug != null
@@ -310,12 +314,24 @@ public abstract class ProcessHelper {
           pb.redirectOutput(nullFile);
         }
       } else {
-        Log.i("ProcessHelper", "exec: debugCallbacks non-empty (" + debugCallbacks.size() + "), routing wine stderr to logcat");
+        tailCapture = resolveWineTailCapture();
+        if (tailCapture != null) {
+          pb.redirectErrorStream(true);
+          pb.redirectOutput(ProcessBuilder.Redirect.to(tailCapture));
+          Log.i("ProcessHelper", "exec: debugCallbacks non-empty (" + debugCallbacks.size()
+                  + "), capturing wine output to " + tailCapture.getAbsolutePath() + " and tailing to drawer");
+        } else {
+          Log.w("ProcessHelper", "exec: no capture file; falling back to piped debug reader");
+        }
       }
       java.lang.Process process = pb.start();
       if (!debugCallbacks.isEmpty()) {
-        createDebugThread(process.getInputStream());
-        createDebugThread(process.getErrorStream());
+        if (tailCapture != null) {
+          startDebugTailThread(tailCapture, process);
+        } else {
+          createDebugThread(process.getInputStream());
+          createDebugThread(process.getErrorStream());
+        }
       }
 
       // Accessing hidden field
@@ -364,6 +380,83 @@ public abstract class ProcessHelper {
             },
             "ProcessDebugReader")
         .start();
+  }
+
+  private static final AtomicLong tailSeq = new AtomicLong();
+
+  private static File resolveWineTailCapture() {
+    try {
+      File cacheDir = com.winlator.cmod.app.PluviaApp.Companion.getInstance().getCacheDir();
+      if (cacheDir != null) {
+        File dir = new File(cacheDir, "wine_tail");
+        if (!dir.exists()) dir.mkdirs();
+        return new File(dir, "wine_tail_" + tailSeq.incrementAndGet() + ".log");
+      }
+    } catch (Throwable t) {
+      Log.w(TAG, "resolveWineTailCapture: app context unavailable; tail disabled", t);
+    }
+    return null;
+  }
+
+  private static void emitDebugLine(String line) {
+    synchronized (debugCallbacks) {
+      if (!debugCallbacks.isEmpty())
+        for (Callback<String> callback : debugCallbacks) callback.call(line);
+    }
+  }
+
+  private static void startDebugTailThread(final File file, final java.lang.Process process) {
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+              } catch (Throwable ignored) {
+              }
+              try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+                ByteArrayOutputStream line = new ByteArrayOutputStream(256);
+                byte[] buf = new byte[8192];
+                boolean finalPass = false;
+                while (true) {
+                  int n = raf.read(buf);
+                  if (n > 0) {
+                    for (int i = 0; i < n; i++) {
+                      byte b = buf[i];
+                      if (b == '\n') {
+                        emitDebugLine(new String(line.toByteArray(), StandardCharsets.UTF_8));
+                        line.reset();
+                      } else if (b != '\r') {
+                        line.write(b);
+                      }
+                    }
+                  } else if (finalPass) {
+                    if (line.size() > 0)
+                      emitDebugLine(new String(line.toByteArray(), StandardCharsets.UTF_8));
+                    break;
+                  } else {
+                    boolean alive;
+                    try {
+                      process.exitValue();
+                      alive = false;
+                    } catch (IllegalThreadStateException ex) {
+                      alive = true;
+                    }
+                    if (alive) Thread.sleep(40);
+                    else finalPass = true;
+                  }
+                }
+              } catch (Exception e) {
+                Log.e("ProcessHelper", "Error in debug tail thread", e);
+              } finally {
+                try {
+                  file.delete();
+                } catch (Exception ignored) {
+                }
+              }
+            },
+            "ProcessDebugTail");
+    thread.setDaemon(true);
+    thread.start();
   }
 
   private static void createWaitForThread(

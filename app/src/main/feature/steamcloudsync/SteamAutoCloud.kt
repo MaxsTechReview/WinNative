@@ -29,13 +29,7 @@ import java.util.stream.Collectors
 import kotlin.io.path.pathString
 import kotlin.time.measureTime
 
-/**
- * [Steam Auto Cloud](https://partner.steamgames.com/doc/features/cloud#steam_auto-cloud)
- *
- * this is now built entirely on the in-house C++ WN-Steam-Client —
- * the cloud file list, downloads and uploads all flow through
- * [WnSteamSession]. No JavaSteam `SteamCloud` handler is involved.
- */
+/** Steam Auto Cloud: file list, downloads and uploads all flow through the in-house WN-Steam-Client session. */
 object SteamAutoCloud {
     private const val MAX_CLOUD_FILE_SIZE_BYTES = 100L * 1024L * 1024L
     private const val DOWNLOAD_TMP_SUFFIX = ".steamtmp"
@@ -391,16 +385,7 @@ object SteamAutoCloud {
         val localPath: Path,
     )
 
-    /**
-     * Resolve every *persisted* cloud file for [appInfo] to a [CloudFileTarget] using the SAME
-     * canonical mapping the live downloader uses. Pure computation — no I/O, no DB writes, no
-     * file writes, no session/container side effects.
-     *
-     * [prefixToPath] maps a PathType root name to an absolute directory; passing the normal
-     * Steam prefix resolver yields the exact local path the downloader would write to. Used by
-     * the cloud-save backup path to enumerate the current cloud state so it can be captured
-     * WITHOUT touching the live save directory.
-     */
+    /** Resolve every persisted cloud file to its local path via the downloader's canonical mapping. Pure, side-effect-free — used to enumerate cloud state without touching the live save dir. */
     fun resolvePersistedCloudFiles(
         appInfo: SteamApp,
         fileList: CloudFileChangeList,
@@ -929,13 +914,7 @@ object SteamAutoCloud {
                                     try {
                                         fs.fd.sync()
                                     } catch (e: Exception) {
-                                        // MD-3: a failed fsync means the bytes may not be durably on
-                                        // disk (e.g. disk full / I/O error). Do NOT commit a
-                                        // possibly-non-durable file — that would also advance the
-                                        // change number while the save isn't really persisted. Abort
-                                        // this file's write so it's not counted; the sync then reports
-                                        // a download failure and retries on the next launch, and the
-                                        // existing local file is preserved by the catch below.
+                                        // MD-3: failed fsync = bytes maybe not durable; abort so a non-durable save isn't committed or counted (sync reports a download failure and retries next launch).
                                         Timber.w(e, "fsync failed for %s; treating as a download failure", tmpPath)
                                         throw e
                                     }
@@ -1059,9 +1038,7 @@ object SteamAutoCloud {
                             val skippedFiles = mutableListOf<String>()
                             filesToUpload.forEach { (cloudName, file) ->
                                 val absPath = file.getAbsPath(prefixToPath)
-                                // MD-4: refuse to load an oversize save into memory. The scan-time
-                                // filter should already exclude these, but guard here too so one big
-                                // file can't OOM the whole upload.
+                                // MD-4: refuse to load an oversize save into memory — guard so one big file can't OOM the whole upload.
                                 val fileSize = runCatching { Files.size(absPath) }.getOrDefault(-1L)
                                 if (fileSize > MAX_CLOUD_FILE_SIZE_BYTES) {
                                     Timber.e(
@@ -1078,9 +1055,7 @@ object SteamAutoCloud {
                                     try {
                                         Files.readAllBytes(absPath)
                                     } catch (e: Throwable) {
-                                        // MD-4: catch Throwable so an OutOfMemoryError (an Error, not
-                                        // an Exception) reading one large file degrades to a skipped
-                                        // file instead of aborting the whole sync uncaught.
+                                        // MD-4: catch Throwable so an OOM reading one large file degrades to a skipped file instead of aborting the whole sync.
                                         Timber.e(e, "wn cloud upload: cannot read ${file.prefixPath}; skipping")
                                         skippedFiles += file.filename
                                         allOk = false
@@ -1238,13 +1213,7 @@ object SteamAutoCloud {
                                 return@async PostSyncInfo(syncResult)
                             }
 
-                            // C-2: verify the downloaded files against the cloud hashes BEFORE
-                            // applying any cloud-side deletions. Previously the deletions ran
-                            // first, so a download that failed verification (corrupt/truncated)
-                            // left the cloud-removed local files permanently gone with no
-                            // rollback. hasHashConflicts re-reads the on-disk files for the
-                            // PERSISTED cloud set only, so running it before the deletions (which
-                            // only touch cloud-DELETED files) yields the identical result.
+                            // C-2: verify downloads against cloud hashes BEFORE applying cloud-side deletions, so a corrupt/truncated download can't strand cloud-removed local files with no rollback.
                             val hasLocalChanges: Boolean
                             microsecValidateState =
                                 measureTime {
@@ -1258,14 +1227,12 @@ object SteamAutoCloud {
                                         "(downloaded=$filesDownloaded, expected=$expectedDownloads); " +
                                         "aborting before applying deletions",
                                 )
-                                // Deletions deliberately NOT applied — leave local intact so a
-                                // corrupt/incomplete download cannot also strand cloud-removed files.
+                                // Deletions deliberately NOT applied — leave local intact so a bad download can't also strand cloud-removed files.
                                 syncResult = SyncResult.DownloadFail
                                 return@async PostSyncInfo(syncResult)
                             }
 
-                            // Downloads verified — only now is it safe to apply the cloud-side
-                            // deletions to the local save directory.
+                            // Downloads verified — only now safe to apply cloud-side deletions locally.
                             microsecDeleteFiles =
                                 measureTime {
                                     var totalFilesDeleted = 0
@@ -1373,15 +1340,7 @@ object SteamAutoCloud {
                             )
                             when (preferredSave) {
                                 SaveLocation.Local -> {
-                                    // MD-6: an empty file list with a non-zero change number is
-                                    // suspicious — the cloud SHOULD hold files at changeNumber > 0.
-                                    // Before honoring an explicit local push (which would overwrite
-                                    // whatever the cloud really has, e.g. another device's progress),
-                                    // re-fetch the list once to tell a genuinely-empty cloud apart
-                                    // from a transient API/desync artifact. If the retry returns
-                                    // files, the empty list was a glitch — treat it as a conflict so
-                                    // the user resolves it (and the conflict path's backup applies)
-                                    // rather than blindly clobbering the cloud.
+                                    // MD-6: empty list + non-zero change number is suspicious; re-fetch once before an explicit local push so a transient empty-list glitch becomes a conflict instead of clobbering the cloud.
                                     val retryHasFiles =
                                         runCatching {
                                             val json =

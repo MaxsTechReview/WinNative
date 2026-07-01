@@ -26,6 +26,7 @@ import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.input.ControllerHelper
 import com.winlator.cmod.runtime.input.ControlsEditorActivity
@@ -122,6 +123,7 @@ class InputControlsFragment : Fragment() {
                 ) {
                     InputControlsScreen(
                         state = screenState,
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                         actions =
                             InputControlsScreenActions(
                                 onSelectProfile = ::showProfilePicker,

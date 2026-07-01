@@ -3,7 +3,6 @@ package com.winlator.cmod.feature.steamcloudsync
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,6 +24,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +37,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 data class SteamCloudConflictTimestamps(
     val localTimestampLabel: String,
@@ -56,6 +59,7 @@ private val SteamMuted = Color(0xFF8F98A0)
 
 @Composable
 internal fun SteamCloudConflictDialogContent(
+    navRegistry: PaneNavRegistry,
     timestamps: SteamCloudConflictTimestamps,
     initialKeepBackup: Boolean,
     onKeepBackupChanged: (Boolean) -> Unit,
@@ -65,6 +69,7 @@ internal fun SteamCloudConflictDialogContent(
     val scrollState = rememberScrollState()
     var keepBackup by remember { mutableStateOf(initialKeepBackup) }
 
+    CompositionLocalProvider(LocalPaneNav provides navRegistry) {
     Surface(
         modifier =
             Modifier
@@ -150,10 +155,17 @@ internal fun SteamCloudConflictDialogContent(
                                 .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SteamOutlinedButton("Use Local Files", Modifier.fillMaxWidth()) {
+                        SteamOutlinedButton(
+                            "Use Local Files",
+                            Modifier.fillMaxWidth().paneNavItem(onActivate = { onUseLocal(keepBackup) }),
+                        ) {
                             onUseLocal(keepBackup)
                         }
-                        SteamPrimaryButton("Use Cloud Files", Modifier.fillMaxWidth()) {
+                        SteamPrimaryButton(
+                            "Use Cloud Files",
+                            Modifier.fillMaxWidth()
+                                .paneNavItem(onActivate = { onUseCloud(keepBackup) }, isEntry = true),
+                        ) {
                             onUseCloud(keepBackup)
                         }
                     }
@@ -167,16 +179,24 @@ internal fun SteamCloudConflictDialogContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
-                        SteamOutlinedButton("Use Local Files", Modifier.widthIn(min = 132.dp)) {
+                        SteamOutlinedButton(
+                            "Use Local Files",
+                            Modifier.widthIn(min = 132.dp).paneNavItem(onActivate = { onUseLocal(keepBackup) }),
+                        ) {
                             onUseLocal(keepBackup)
                         }
-                        SteamPrimaryButton("Use Cloud Files", Modifier.widthIn(min = 132.dp)) {
+                        SteamPrimaryButton(
+                            "Use Cloud Files",
+                            Modifier.widthIn(min = 132.dp)
+                                .paneNavItem(onActivate = { onUseCloud(keepBackup) }, isEntry = true),
+                        ) {
                             onUseCloud(keepBackup)
                         }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -257,7 +277,12 @@ private fun KeepBackupCheckbox(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) },
+                .paneNavItem(
+                    cornerRadius = 2.dp,
+                    onActivate = { onCheckedChange(!checked) },
+                    onAdjust = { onCheckedChange(!checked) },
+                    tapToSelect = true,
+                ),
         shape = RoundedCornerShape(2.dp),
         color = SteamPanelAlt,
         border = BorderStroke(1.dp, SteamBorder),

@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -33,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +50,10 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.theme.WinNativeTheme
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val GogCloudConflictWindow = Color(0xFF171A21)
 private val GogCloudConflictPanel = Color(0xFF1B2838)
@@ -87,6 +91,8 @@ object GogCloudConflictDialog {
                 }
             }
 
+        val navRegistry = PaneNavRegistry()
+
         val composeView =
             ComposeView(activity).apply {
                 layoutParams =
@@ -111,6 +117,7 @@ object GogCloudConflictDialog {
                             ),
                     ) {
                         GogCloudConflictDialogContent(
+                            navRegistry = navRegistry,
                             timestamps = timestamps,
                             onUseCloud = { keep ->
                                 dialog.dismiss()
@@ -127,6 +134,8 @@ object GogCloudConflictDialog {
 
         dialog.setContentView(composeView)
         dialog.show()
+        val restoreNav = dialog.window?.bindPaneNav(navRegistry, onDismiss = {})
+        dialog.setOnDismissListener { restoreNav?.invoke() }
         dialog.window?.apply {
             val dm = activity.resources.displayMetrics
             val horizontalMarginPx =
@@ -141,6 +150,7 @@ object GogCloudConflictDialog {
 
 @Composable
 internal fun GogCloudConflictDialogContent(
+    navRegistry: PaneNavRegistry,
     timestamps: GogCloudConflictTimestamps,
     onUseCloud: (keepBackup: Boolean) -> Unit,
     onUseLocal: (keepBackup: Boolean) -> Unit,
@@ -148,6 +158,7 @@ internal fun GogCloudConflictDialogContent(
     val scrollState = rememberScrollState()
     var keepBackup by remember { mutableStateOf(true) }
 
+    CompositionLocalProvider(LocalPaneNav provides navRegistry) {
     Surface(
         modifier =
             Modifier
@@ -229,10 +240,17 @@ internal fun GogCloudConflictDialogContent(
                                 .padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        GogOutlinedButton("Use Local Saves", Modifier.fillMaxWidth()) {
+                        GogOutlinedButton(
+                            "Use Local Saves",
+                            Modifier.fillMaxWidth().paneNavItem(onActivate = { onUseLocal(keepBackup) }),
+                        ) {
                             onUseLocal(keepBackup)
                         }
-                        GogPrimaryButton("Use GOG Cloud", Modifier.fillMaxWidth()) {
+                        GogPrimaryButton(
+                            "Use GOG Cloud",
+                            Modifier.fillMaxWidth()
+                                .paneNavItem(onActivate = { onUseCloud(keepBackup) }, isEntry = true),
+                        ) {
                             onUseCloud(keepBackup)
                         }
                     }
@@ -246,16 +264,24 @@ internal fun GogCloudConflictDialogContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
-                        GogOutlinedButton("Use Local Saves", Modifier.widthIn(min = 132.dp)) {
+                        GogOutlinedButton(
+                            "Use Local Saves",
+                            Modifier.widthIn(min = 132.dp).paneNavItem(onActivate = { onUseLocal(keepBackup) }),
+                        ) {
                             onUseLocal(keepBackup)
                         }
-                        GogPrimaryButton("Use GOG Cloud", Modifier.widthIn(min = 132.dp)) {
+                        GogPrimaryButton(
+                            "Use GOG Cloud",
+                            Modifier.widthIn(min = 132.dp)
+                                .paneNavItem(onActivate = { onUseCloud(keepBackup) }, isEntry = true),
+                        ) {
                             onUseCloud(keepBackup)
                         }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -268,7 +294,12 @@ private fun GogKeepBackupCheckbox(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) },
+                .paneNavItem(
+                    cornerRadius = 2.dp,
+                    onActivate = { onCheckedChange(!checked) },
+                    onAdjust = { onCheckedChange(!checked) },
+                    tapToSelect = true,
+                ),
         shape = RoundedCornerShape(2.dp),
         color = GogPanelAlt,
         border = BorderStroke(1.dp, GogBorder),
