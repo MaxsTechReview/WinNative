@@ -1316,7 +1316,7 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud jest teraz niedostępny. Ponowne łączenie w tle dotknij odśwież, gdy wrócisz online.</string>
     <string name="steam_session_refused_event">Steam odrzucił zapisaną w pamięci podręcznej sesję (EResult=%1$d). Zaloguj się ponownie.</string>
     <string name="settings_hud_record_to_file_title">Rejestruj wydajność do pliku</string>
-    <string name="settings_hud_record_to_file_summary">Zapisuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
+    <string name="settings_hud_record_to_file_summary">Eksportuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
     <string name="settings_leaderboard_category">Wydajność</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Przygotowywanie środowiska Steam</string>

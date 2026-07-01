@@ -108,7 +108,6 @@ data class OtherSettingsState(
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
-    val recordPerformanceToFile: Boolean = false,
     val enableBackgroundSession: Boolean = false,
     val imagefsInstallProgress: Int? = null,
 )
@@ -151,7 +150,6 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
-    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onEnableBackgroundSessionChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
@@ -322,23 +320,6 @@ fun OtherSettingsScreen(
                 icon = Icons.Outlined.ContentCopy,
                 checked = state.shareClipboard,
                 onCheckedChange = onShareClipboardChanged,
-            )
-        }
-
-        item(key = "perf_leaderboard_section") {
-            SectionLabel(
-                stringResource(R.string.settings_leaderboard_category),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-
-        item(key = "record_perf_to_file_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.settings_hud_record_to_file_title),
-                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
-                icon = Icons.Outlined.Speed,
-                checked = state.recordPerformanceToFile,
-                onCheckedChange = onRecordPerformanceToFileChanged,
             )
         }
 

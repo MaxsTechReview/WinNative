@@ -1409,7 +1409,7 @@ Installed path:
 
     <!-- Performance recording settings -->
     <string name="settings_hud_record_to_file_title">Record performance to file</string>
-    <string name="settings_hud_record_to_file_summary">Write per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
+    <string name="settings_hud_record_to_file_summary">Exports per-second FPS, CPU, GPU, temperature, and battery metrics to /WinNative/logs/ during gameplay.</string>
     <string name="settings_leaderboard_category">Performance</string>
     <!-- Workshop -->
     <string name="workshop_loading_items">Loading Workshop items</string>

@@ -1310,7 +1310,7 @@ Installierter Pfad:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud ist derzeit nicht erreichbar. Verbindung wird im Hintergrund wiederhergestellt tippe auf Aktualisieren, sobald du wieder online bist.</string>
     <string name="steam_session_refused_event">Steam hat die zwischengespeicherte Sitzung abgelehnt (EResult=%1$d). Bitte melde dich erneut an.</string>
     <string name="settings_hud_record_to_file_title">Leistung in Datei aufzeichnen</string>
-    <string name="settings_hud_record_to_file_summary">Schreibt während des Spielens sekündliche FPS-, CPU-, GPU-, Temperatur- und Akkumetriken nach /WinNative/logs/.</string>
+    <string name="settings_hud_record_to_file_summary">Exportiert während des Spielens sekündliche FPS-, CPU-, GPU-, Temperatur- und Akkumetriken nach /WinNative/logs/.</string>
     <string name="settings_leaderboard_category">Leistung</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Steam-Umgebung wird vorbereitet</string>

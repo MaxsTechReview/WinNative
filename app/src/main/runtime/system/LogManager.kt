@@ -166,7 +166,7 @@ object LogManager {
         return logsDir
             .listFiles()
             ?.filter {
-                it.isFile && (it.name.endsWith(".log") || it.name.endsWith(".old.log") || it.name.endsWith(".txt"))
+                it.isFile && (it.name.endsWith(".log") || it.name.endsWith(".old.log") || it.name.endsWith(".txt") || it.name.endsWith(".csv"))
             }?.toTypedArray() ?: emptyArray()
     }
 

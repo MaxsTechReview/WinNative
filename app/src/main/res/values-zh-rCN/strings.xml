@@ -1310,7 +1310,7 @@
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud 目前无法访问。正在后台重新连接重新上线后点按刷新。</string>
     <string name="steam_session_refused_event">Steam 拒绝了缓存的会话 (EResult=%1$d)。请重新登录。</string>
     <string name="settings_hud_record_to_file_title">将性能记录到文件</string>
-    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标写入 /WinNative/logs/。</string>
+    <string name="settings_hud_record_to_file_summary">游戏过程中每秒将 FPS、CPU、GPU、温度和电池指标导出到 /WinNative/logs/。</string>
     <string name="settings_leaderboard_category">性能</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">正在准备 Steam 环境</string>

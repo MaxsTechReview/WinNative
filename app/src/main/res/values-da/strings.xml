@@ -1310,7 +1310,7 @@ Installeret sti:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden tryk opdater, når du er online igen.</string>
     <string name="steam_session_refused_event">Steam afviste den cachede session (EResult=%1$d). Log ind igen.</string>
     <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
-    <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
+    <string name="settings_hud_record_to_file_summary">Eksporterer FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
     <string name="settings_leaderboard_category">Ydeevne</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Forbereder Steam-miljø</string>

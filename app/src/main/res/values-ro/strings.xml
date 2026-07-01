@@ -1310,7 +1310,7 @@ Cale instalata:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud nu este accesibil acum. Reconectare în fundal atinge reîmprospătare când revii online.</string>
     <string name="steam_session_refused_event">Steam a refuzat sesiunea din cache (EResult=%1$d). Conectează-te din nou.</string>
     <string name="settings_hud_record_to_file_title">Înregistrează performanța în fișier</string>
-    <string name="settings_hud_record_to_file_summary">Scrie în /WinNative/logs/ metrici pe secundă pentru FPS, CPU, GPU, temperatură și baterie în timpul jocului.</string>
+    <string name="settings_hud_record_to_file_summary">Exportă în /WinNative/logs/ metrici pe secundă pentru FPS, CPU, GPU, temperatură și baterie în timpul jocului.</string>
     <string name="settings_leaderboard_category">Performanță</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Se pregătește mediul Steam</string>

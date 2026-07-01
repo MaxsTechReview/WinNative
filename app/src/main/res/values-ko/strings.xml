@@ -1311,7 +1311,7 @@
     <string name="cloud_saves_history_steam_unreachable">현재 Steam Cloud에 연결할 수 없습니다. 백그라운드에서 다시 연결 중입니다 온라인 상태가 되면 새로 고침을 누르세요.</string>
     <string name="steam_session_refused_event">Steam이 캐시된 세션을 거부했습니다(EResult=%1$d). 다시 로그인하세요.</string>
     <string name="settings_hud_record_to_file_title">성능을 파일로 기록</string>
-    <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/에 기록합니다.</string>
+    <string name="settings_hud_record_to_file_summary">게임 플레이 중 초당 FPS, CPU, GPU, 온도 및 배터리 지표를 /WinNative/logs/로 내보냅니다.</string>
     <string name="settings_leaderboard_category">성능</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Steam 환경 준비 중</string>

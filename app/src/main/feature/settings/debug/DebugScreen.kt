@@ -63,6 +63,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
@@ -133,6 +134,7 @@ data class DebugState(
     val steamLogs: Boolean = false,
     val inputLogs: Boolean = false,
     val downloadLogs: Boolean = false,
+    val recordPerformanceToFile: Boolean = false,
     val vulkanValidationLayers: Boolean = false,
     val wnHybridMode: Boolean = false,
     val logsSize: String = "0 B",
@@ -162,6 +164,7 @@ fun DebugScreen(
     onSteamLogsChanged: (Boolean) -> Unit,
     onInputLogsChanged: (Boolean) -> Unit,
     onDownloadLogsChanged: (Boolean) -> Unit,
+    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
@@ -333,6 +336,16 @@ fun DebugScreen(
                 icon = Icons.Outlined.CloudDownload,
                 checked = state.downloadLogs,
                 onCheckedChange = onDownloadLogsChanged,
+            )
+        }
+
+        item(key = "record_perf_to_file_card") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_hud_record_to_file_title),
+                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
+                icon = Icons.Outlined.Speed,
+                checked = state.recordPerformanceToFile,
+                onCheckedChange = onRecordPerformanceToFileChanged,
             )
         }
 

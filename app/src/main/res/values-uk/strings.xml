@@ -1316,7 +1316,7 @@
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud зараз недоступний. Повторне підключення виконується у фоні натисніть оновити, коли знову будете онлайн.</string>
     <string name="steam_session_refused_event">Steam відхилив кешований сеанс (EResult=%1$d). Увійдіть знову.</string>
     <string name="settings_hud_record_to_file_title">Записувати продуктивність у файл</string>
-    <string name="settings_hud_record_to_file_summary">Записує щосекундні показники FPS, CPU, GPU, температури й батареї до /WinNative/logs/ під час гри.</string>
+    <string name="settings_hud_record_to_file_summary">Експортує щосекундні показники FPS, CPU, GPU, температури й батареї до /WinNative/logs/ під час гри.</string>
     <string name="settings_leaderboard_category">Продуктивність</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Підготовка середовища Steam</string>

@@ -1310,7 +1310,7 @@ Ruta instalada:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud no está disponible ahora. Reconectando en segundo plano toca actualizar cuando vuelvas a estar en línea.</string>
     <string name="steam_session_refused_event">Steam rechazó la sesión en caché (EResult=%1$d). Inicia sesión de nuevo.</string>
     <string name="settings_hud_record_to_file_title">Grabar rendimiento en archivo</string>
-    <string name="settings_hud_record_to_file_summary">Escribe métricas por segundo de FPS, CPU, GPU, temperatura y batería en /WinNative/logs/ durante el juego.</string>
+    <string name="settings_hud_record_to_file_summary">Exporta métricas por segundo de FPS, CPU, GPU, temperatura y batería a /WinNative/logs/ durante el juego.</string>
     <string name="settings_leaderboard_category">Rendimiento</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Preparando entorno de Steam</string>

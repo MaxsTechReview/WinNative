@@ -1310,7 +1310,7 @@
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud 目前無法存取。正在背景重新連線重新上線後點按重新整理。</string>
     <string name="steam_session_refused_event">Steam 拒絕了快取的工作階段 (EResult=%1$d)。請重新登入。</string>
     <string name="settings_hud_record_to_file_title">將效能記錄到檔案</string>
-    <string name="settings_hud_record_to_file_summary">遊戲過程中每秒將 FPS、CPU、GPU、溫度和電池指標寫入 /WinNative/logs/。</string>
+    <string name="settings_hud_record_to_file_summary">遊戲過程中每秒將 FPS、CPU、GPU、溫度和電池指標匯出到 /WinNative/logs/。</string>
     <string name="settings_leaderboard_category">效能</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">正在準備 Steam 環境</string>

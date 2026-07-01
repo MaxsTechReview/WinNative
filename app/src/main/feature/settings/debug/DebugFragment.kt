@@ -142,6 +142,10 @@ class DebugFragment : Fragment() {
                                     .updateLoggingState(ctx)
                                 refresh()
                             },
+                            onRecordPerformanceToFileChanged = { checked ->
+                                preferences.edit { putBoolean("hud_record_to_file", checked) }
+                                refresh()
+                            },
                             onVulkanValidationLayersChanged = { checked ->
                                 preferences.edit { putBoolean("enable_vulkan_validation_layers", checked) }
                                 refresh()
@@ -207,6 +211,7 @@ class DebugFragment : Fragment() {
                 steamLogs = com.winlator.cmod.feature.stores.steam.utils.PrefManager.enableSteamLogs,
                 inputLogs = preferences.getBoolean("enable_input_logs", false),
                 downloadLogs = preferences.getBoolean("enable_download_logs", false),
+                recordPerformanceToFile = preferences.getBoolean("hud_record_to_file", false),
                 vulkanValidationLayers = preferences.getBoolean("enable_vulkan_validation_layers", false),
                 wnHybridMode = com.winlator.cmod.feature.stores.steam.utils.PrefManager.wnHybridMode,
                 logsSize =

@@ -1310,7 +1310,7 @@ Percorso installato:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud non è raggiungibile al momento. Riconnessione in background tocca aggiorna quando torni online.</string>
     <string name="steam_session_refused_event">Steam ha rifiutato la sessione in cache (EResult=%1$d). Accedi di nuovo.</string>
     <string name="settings_hud_record_to_file_title">Registra prestazioni su file</string>
-    <string name="settings_hud_record_to_file_summary">Scrive ogni secondo metriche FPS, CPU, GPU, temperatura e batteria in /WinNative/logs/ durante il gioco.</string>
+    <string name="settings_hud_record_to_file_summary">Esporta ogni secondo metriche FPS, CPU, GPU, temperatura e batteria in /WinNative/logs/ durante il gioco.</string>
     <string name="settings_leaderboard_category">Prestazioni</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Preparazione ambiente Steam</string>
