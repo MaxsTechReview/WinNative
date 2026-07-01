@@ -651,7 +651,7 @@ private fun WineChannelsDialog(
     var viewportHeight by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, viewportHeight, footerZone) {
-        if (footerZone || !contentRegistry.controllerActive) return@LaunchedEffect
+        if (footerZone || !contentRegistry.controllerActive || contentRegistry.manualSelection) return@LaunchedEffect
         val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
         val margin = (bounds.second - bounds.first) + with(density) { 10.dp.toPx() }
         val vpBottom = viewportTop + viewportHeight
@@ -1267,7 +1267,7 @@ private fun ColumnScope.LogFileList(
     var viewportHeight by remember { mutableIntStateOf(0) }
     if (nav != null) {
         LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
-            if (!nav.controllerActive) return@LaunchedEffect
+            if (!nav.controllerActive || nav.manualSelection) return@LaunchedEffect
             val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
             val rowH = bounds.second - bounds.first
             val margin = (rowH * 2f + with(density) { 12.dp.toPx() }).coerceAtMost(viewportHeight * 0.4f)

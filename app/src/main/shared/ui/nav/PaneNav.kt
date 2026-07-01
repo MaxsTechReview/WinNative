@@ -71,7 +71,8 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
     var entrySlot: Int? = null
         private set
     private var pendingEntry = true
-    private var manualSelection = false
+    var manualSelection = false
+        private set
 
     var explicitGrid by mutableStateOf(false)
         private set
@@ -219,6 +220,7 @@ internal class PaneNavRegistry(initialSignal: Int = -1) {
 
     private fun handleNav(dir: Int) {
         pendingEntry = false
+        manualSelection = false
         overlay?.let { ov ->
             ov.controllerActive = true
             ov.handleNav(dir)
@@ -367,7 +369,7 @@ internal fun Modifier.paneNavItem(
     val bring = remember { BringIntoViewRequester() }
     LaunchedEffect(highlighted) {
         if (highlighted) {
-            runCatching { bring.bringIntoView() }
+            if (!nav.manualSelection) runCatching { bring.bringIntoView() }
             onHighlighted()
         }
     }

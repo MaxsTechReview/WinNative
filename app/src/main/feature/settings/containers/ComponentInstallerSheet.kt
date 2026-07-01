@@ -360,7 +360,7 @@ private fun ComponentList(
     var viewportHeight by remember { mutableIntStateOf(0) }
     if (nav != null) {
         LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
-            if (!nav.controllerActive) return@LaunchedEffect
+            if (!nav.controllerActive || nav.manualSelection) return@LaunchedEffect
             val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
             val margin = with(density) { 16.dp.toPx() }
             val vpTop = viewportTop
