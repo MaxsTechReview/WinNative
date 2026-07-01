@@ -899,7 +899,6 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_display_renderer_label">Renderer:</string>
     <string name="session_display_gpu_label">GPU:</string>
     <string name="session_display_direct_composition">Direct Composition (zero-copy)</string>
-    <string name="session_display_direct_composition_summary">Route fullscreen game frames directly to the display via SurfaceControl + HWC overlay. Bypasses GPU compositing for true zero-copy. Experimental — may cause reboots on Xiaomi/HyperOS 2.0+ and some Adreno 6xx devices.</string>
     <string name="session_display_ram_label">RAM:</string>
     <string name="session_display_ram_usage_format">%1$s GB Used / %2$s Total</string>
 

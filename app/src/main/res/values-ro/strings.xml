@@ -618,6 +618,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_display_frame_rate">Rata cadrelor</string>
     <string name="session_display_title">Afisaj</string>
     <string name="session_display_fullscreen_stretched">Activeaza ecran complet (intins)</string>
+    <string name="session_display_direct_composition">Compoziție directă (zero-copy)</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">Renderer:</string>
     <string name="session_display_gpu_label">GPU:</string>

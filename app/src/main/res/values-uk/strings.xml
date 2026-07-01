@@ -624,6 +624,7 @@
     <string name="session_display_frame_rate">Частота кадрів</string>
     <string name="session_display_title">Дисплей</string>
     <string name="session_display_fullscreen_stretched">Увімкнути повноекранний режим (розтягнутий)</string>
+    <string name="session_display_direct_composition">Пряма композиція (без копіювання)</string>
     <string name="session_display_fps_label">FPS:</string>
     <string name="session_display_renderer_label">Рендерер:</string>
     <string name="session_display_gpu_label">GPU:</string>
