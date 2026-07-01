@@ -4,6 +4,7 @@ import androidx.collection.ArrayMap;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
+import com.winlator.cmod.shared.android.RefreshRateUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.locks.LockSupport;
@@ -166,6 +167,42 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
       return;
     }
 
+    FramePaceClock clock = xServer.getFramePaceClock();
+    float hz = clock.getDisplayRefreshHz();
+    long anchor = clock.getLastVsyncNanos();
+
+    // No vsync sample yet, or panel rate isn't an integer multiple of the target: free-run.
+    if (hz <= 0f || anchor == 0 || !RefreshRateUtils.isFrameCadenceCompatible(hz, targetFps)) {
+      enforceFreeRunning(targetFps);
+      return;
+    }
+
+    long period = (long) (1_000_000_000.0 / hz);
+    int n = Math.round(hz / targetFps);
+    long stride = (long) n * period;
+    long now = System.nanoTime();
+
+    // First frame or >100ms late: snap onto the live vsync grid.
+    if (nextFrameTimeNanos == 0 || now > nextFrameTimeNanos + 100_000_000L) {
+      long k = Math.floorDiv(now - anchor, period) + 1;
+      nextFrameTimeNanos = anchor + k * period;
+    }
+
+    long remaining = nextFrameTimeNanos - now;
+    while (remaining > 0) {
+      LockSupport.parkNanos(remaining);
+      if (Thread.interrupted()) break;
+      remaining = nextFrameTimeNanos - System.nanoTime();
+    }
+
+    // Advance N vsync periods, then re-snap to the freshest phase (mean interval unchanged).
+    long target = nextFrameTimeNanos + stride;
+    long anchorNow = clock.getLastVsyncNanos();
+    long steps = Math.round((double) (target - anchorNow) / period);
+    nextFrameTimeNanos = anchorNow + steps * period;
+  }
+
+  private void enforceFreeRunning(int targetFps) {
     long targetFrameTime = 1_000_000_000L / targetFps;
     long now = System.nanoTime();
 
