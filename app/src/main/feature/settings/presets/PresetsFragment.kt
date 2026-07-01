@@ -18,6 +18,7 @@ import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.winlator.cmod.R
+import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.compat.fexcore.FEXCorePreset
@@ -213,6 +214,7 @@ class PresetsFragment : Fragment() {
                             refresh()
                         },
                         suggestedNewPresetName = { buildDefaultPresetName(currentEngine) },
+                        bridge = (requireActivity() as? UnifiedActivity)?.settingsNavBridge,
                     )
                 }
             }

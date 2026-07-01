@@ -6,8 +6,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
-// Material Symbols "eyeglasses_2" (not shipped by compose material-icons). Its 960x960 viewBox is
-// offset by -960 in y, so the path lives in a group translated back down by 960.
+// "eyeglasses_2" glyph (absent from compose material-icons); its 960x960 viewBox is offset -960 in y, so the path sits in a group translated down 960.
 private const val EYEGLASSES_2_PATH =
     "M218-320q-42 0-75.5-27T100-416L71-550l-44 3-7-80q78-7 133.5-10t99.5-3q65 0 105 6t72 21q14 7 " +
         "26.5 10t23.5 3q11 0 21.5-3t24.5-9q33-15 76-21.5t114-6.5q46 0 102 3t122 9l-7 79-43-3-30 137q-9 " +

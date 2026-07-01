@@ -33,6 +33,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -69,8 +73,12 @@ import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -80,13 +88,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -103,7 +114,22 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import com.winlator.cmod.R
 import com.winlator.cmod.runtime.wine.WineThemeManager
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
+import com.winlator.cmod.shared.ui.focus.controllerFocusGlow
+import com.winlator.cmod.shared.ui.focus.controllerSliderEscape
+import com.winlator.cmod.shared.ui.focus.controllerTextFieldEscape
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
+import com.winlator.cmod.shared.ui.nav.paneHighlight
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.widget.EnvVarsView
 import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
@@ -127,6 +153,96 @@ private val ChipBorder = Color(0xFF2A2A3A)
 private val DangerRed = Color(0xFFFF6B6B)
 private val WarningAmber = Color(0xFFFFB74D)
 private val SelectableDriveLetters = ('D'..'Y').filter { it != 'E' }.map { "$it" }
+
+private val NavHighlight = Color(0xFF4FC3F7)
+
+@Stable
+class GameSettingsNav {
+    var active by mutableStateOf(false)
+    var inContent by mutableStateOf(false)
+    var sidebarIndex by mutableStateOf(0)
+    var sidebarCount by mutableStateOf(0)
+    var actionCol by mutableStateOf(0)
+    var contentSignal by mutableStateOf(0)
+        private set
+    var contentDir by mutableStateOf(0)
+        private set
+    var contentResetSignal by mutableStateOf(0)
+        private set
+    var onSelectSection: ((Int) -> Unit)? = null
+    var onSave: (() -> Unit)? = null
+    var onCancel: (() -> Unit)? = null
+    var onContentBack: (() -> Boolean)? = null
+
+    val onActionRow: Boolean get() = sidebarIndex >= sidebarCount
+
+    private fun pushContent(dir: Int) {
+        contentDir = dir
+        contentSignal++
+    }
+
+    fun dpad(dir: Int) {
+        if (!active) {
+            active = true
+            return
+        }
+        if (inContent) {
+            pushContent(dir)
+            return
+        }
+        when (dir) {
+            PANE_DIR_UP -> moveSidebar(-1)
+            PANE_DIR_DOWN -> moveSidebar(1)
+            PANE_DIR_LEFT -> if (onActionRow && actionCol == 1) actionCol = 0
+            PANE_DIR_RIGHT ->
+                if (onActionRow) {
+                    if (actionCol == 0) actionCol = 1
+                } else {
+                    enterContent()
+                }
+            PANE_DIR_ACTIVATE ->
+                if (onActionRow) {
+                    if (actionCol == 0) onCancel?.invoke() else onSave?.invoke()
+                } else {
+                    enterContent()
+                }
+        }
+    }
+
+    private fun moveSidebar(delta: Int) {
+        val next = (sidebarIndex + delta).coerceIn(0, sidebarCount)
+        sidebarIndex = next
+        if (next < sidebarCount) onSelectSection?.invoke(next)
+    }
+
+    fun enterContent() {
+        inContent = true
+        contentResetSignal++
+    }
+
+    fun exitToSidebar() {
+        inContent = false
+    }
+
+    fun tapSection(index: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = index
+        onSelectSection?.invoke(index)
+    }
+
+    fun tapAction(col: Int) {
+        active = false
+        inContent = false
+        sidebarIndex = sidebarCount
+        actionCol = col
+    }
+
+    fun tapContent() {
+        active = false
+        inContent = true
+    }
+}
 
 private val SettingGroupCorner = 12.dp
 private val SettingGroupPadding = 12.dp
@@ -171,19 +287,42 @@ private fun Modifier.smartDropdownAnchor(
 ): Modifier {
     if (!enabled) return this
     val density = LocalDensity.current
-    return pointerInput(enabled, density, onOpen) {
-        detectTapGestures { tapOffset ->
-            offset.value =
-                with(density) {
-                    val tapX = tapOffset.x.toDp()
-                    DpOffset(
-                        if (tapX > SmartDropdownPressStartInset) tapX - SmartDropdownPressStartInset else 0.dp,
-                        0.dp,
-                    )
-                }
-            onOpen()
+    val interactionSource = remember { MutableInteractionSource() }
+    return this
+        .onKeyEvent { e ->
+            if (e.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN &&
+                (
+                    e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                        e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                        e.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
+                )
+            ) {
+                offset.value = DpOffset.Zero
+                onOpen()
+                true
+            } else {
+                false
+            }
+        }.focusable(interactionSource = interactionSource)
+        .pointerInput(enabled, density, onOpen) {
+            detectTapGestures { tapOffset ->
+                offset.value =
+                    with(density) {
+                        val tapX = tapOffset.x.toDp()
+                        DpOffset(
+                            if (tapX > SmartDropdownPressStartInset) tapX - SmartDropdownPressStartInset else 0.dp,
+                            0.dp,
+                        )
+                    }
+                onOpen()
+            }
         }
-    }
+        .paneNavItem(
+            cornerRadius = SettingFieldCorner,
+            onActivate = { offset.value = DpOffset.Zero; onOpen() },
+            highlightColor = NavHighlight,
+            tapToSelect = true,
+        )
 }
 
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
@@ -296,9 +435,7 @@ class GameSettingsStateHolder {
     val midiSoundFontEntries = mutableStateOf<List<String>>(emptyList())
     val selectedMidiSoundFont = mutableIntStateOf(0)
 
-    // Wine — emulator32/64Entries are wine-arch-filtered views of emulatorEntries
-    // used by the 32/64-bit dropdowns; selectedEmulator indexes into
-    // emulator32Entries, selectedEmulator64 into emulator64Entries.
+    // Wine — emulator32/64Entries are arch-filtered views of emulatorEntries; selectedEmulator/selectedEmulator64 index into them.
     val emulatorEntries = mutableStateOf<List<String>>(emptyList())
     val emulator32Entries = mutableStateOf<List<String>>(emptyList())
     val emulator64Entries = mutableStateOf<List<String>>(emptyList())
@@ -327,8 +464,7 @@ class GameSettingsStateHolder {
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
     val steamLauncher = mutableStateOf(true)
-    // Single toggle that drives both the ColdClient launcher and SteamStub DRM
-    // unpacking (persisted as the "useColdClient" + "unpackFiles" keys).
+    // Single toggle driving the ColdClient launcher + SteamStub DRM unpacking (persisted as "useColdClient" + "unpackFiles").
     val useLegacyLauncher = mutableStateOf(false)
     val useSteamInput = mutableStateOf(false)
     val steamOfflineMode = mutableStateOf(false)
@@ -492,11 +628,11 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     return list
 }
 
-// Main Content Composable
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
+    nav: GameSettingsNav? = null
 ) {
     val isSteam by state.isSteamGame
     val isContainer by state.isContainerEditMode
@@ -504,6 +640,15 @@ fun GameSettingsContent(
     val selectedIdx by state.currentSection
     val currentSectionId = sections.getOrNull(selectedIdx)?.first ?: SEC_GENERAL
     val saveEnabled by state.isLoaded
+
+    if (nav != null) {
+        SideEffect {
+            nav.sidebarCount = sections.size
+            nav.onSelectSection = { state.currentSection.intValue = it }
+            nav.onSave = { if (saveEnabled) callbacks.onConfirm() }
+            nav.onCancel = { callbacks.onDismiss() }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -520,6 +665,7 @@ fun GameSettingsContent(
                 saveEnabled = saveEnabled,
                 onSave = { callbacks.onConfirm() },
                 onCancel = { callbacks.onDismiss() },
+                nav = nav,
                 modifier = Modifier
                     .width(220.dp)
                     .fillMaxHeight()
@@ -537,8 +683,22 @@ fun GameSettingsContent(
                     .weight(1f)
                     .fillMaxHeight()
                     .background(ContentBg)
+                    .then(
+                        if (nav != null) {
+                            Modifier.pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                        if (ev.type == PointerEventType.Press) nav.tapContent()
+                                    }
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
-                SectionContent(currentSectionId, state, callbacks)
+                SectionContent(currentSectionId, state, callbacks, nav)
             }
         }
     }
@@ -548,7 +708,8 @@ fun GameSettingsContent(
 private fun SectionContent(
     sectionId: Int,
     state: GameSettingsStateHolder,
-    callbacks: GameSettingsCallbacks
+    callbacks: GameSettingsCallbacks,
+    nav: GameSettingsNav? = null
 ) {
     AnimatedContent(
         targetState = sectionId,
@@ -566,30 +727,90 @@ private fun SectionContent(
         label = "SectionTransition"
     ) { id ->
         val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
-        ) {
-            when (id) {
-                SEC_GENERAL -> GeneralSection(state, callbacks)
-                SEC_STEAM -> SteamSection(state)
-                SEC_DISPLAY -> DisplaySection(state, callbacks)
-                SEC_WINE -> WineSection(state, callbacks)
-                SEC_COMPONENTS -> ComponentsSection(state, callbacks)
-                SEC_VARIABLES -> VariablesSection(state, callbacks)
-                SEC_INPUT -> InputSection(state)
-                SEC_ADVANCED -> AdvancedSection(state, callbacks)
-                SEC_DRIVES -> DrivesSection(state, callbacks)
-                SEC_SAVES -> SavesSection(state, callbacks)
+        val contentNav = remember(nav) {
+            nav?.let { PaneNavRegistry(initialSignal = it.contentSignal) }
+        }
+        val isCurrent = id == sectionId
+        if (nav != null && contentNav != null) {
+            contentNav.controllerActive = nav.active && nav.inContent && isCurrent
+            contentNav.onEdgeLeft = { nav.exitToSidebar() }
+            if (isCurrent) {
+                nav.onContentBack = {
+                    if (contentNav.overlay != null) {
+                        contentNav.overlayClose?.invoke()
+                        true
+                    } else {
+                        false
+                    }
+                }
             }
-            Spacer(Modifier.height(SettingSectionGap))
+            LaunchedEffect(nav.contentSignal) {
+                if (isCurrent) contentNav.processNav(nav.contentSignal, nav.contentDir)
+            }
+            LaunchedEffect(nav.contentResetSignal) {
+                if (isCurrent) contentNav.reset()
+            }
+        }
+        val density = LocalDensity.current
+        var viewportTop by remember { mutableStateOf(0f) }
+        var viewportHeight by remember { mutableIntStateOf(0) }
+        if (contentNav != null) {
+            LaunchedEffect(contentNav.activeRow, contentNav.activeCol, viewportHeight) {
+                if (!contentNav.controllerActive) return@LaunchedEffect
+                if (viewportHeight == 0) return@LaunchedEffect
+                val bounds = contentNav.activeItemBounds() ?: return@LaunchedEffect
+                if (bounds.second <= bounds.first) return@LaunchedEffect
+                val margin = with(density) { 16.dp.toPx() }
+                val vpTop = viewportTop
+                val vpBottom = viewportTop + viewportHeight
+                val delta = when {
+                    bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                    bounds.first - margin < vpTop -> bounds.first - margin - vpTop
+                    else -> 0f
+                }
+                if (delta != 0f) runCatching { scrollState.animateScrollBy(delta) }
+            }
+        }
+        val sectionBody: @Composable () -> Unit = {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (contentNav != null) {
+                            Modifier.onGloballyPositioned {
+                                viewportTop = it.positionInWindow().y
+                                viewportHeight = it.size.height
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
+            ) {
+                when (id) {
+                    SEC_GENERAL -> GeneralSection(state, callbacks)
+                    SEC_STEAM -> SteamSection(state)
+                    SEC_DISPLAY -> DisplaySection(state, callbacks)
+                    SEC_WINE -> WineSection(state, callbacks)
+                    SEC_COMPONENTS -> ComponentsSection(state, callbacks)
+                    SEC_VARIABLES -> VariablesSection(state, callbacks)
+                    SEC_INPUT -> InputSection(state)
+                    SEC_ADVANCED -> AdvancedSection(state, callbacks)
+                    SEC_DRIVES -> DrivesSection(state, callbacks)
+                    SEC_SAVES -> SavesSection(state, callbacks)
+                }
+                Spacer(Modifier.height(SettingSectionGap))
+            }
+        }
+        if (contentNav != null) {
+            CompositionLocalProvider(LocalPaneNav provides contentNav) { sectionBody() }
+        } else {
+            sectionBody()
         }
     }
 }
 
-// Sidebar
 @Composable
 private fun Sidebar(
     title: String,
@@ -599,14 +820,16 @@ private fun Sidebar(
     saveEnabled: Boolean,
     onSave: () -> Unit,
     onCancel: () -> Unit,
+    nav: GameSettingsNav? = null,
     modifier: Modifier = Modifier
 ) {
+    val cancelHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 0
+    val saveHighlighted = nav != null && nav.active && !nav.inContent && nav.onActionRow && nav.actionCol == 1
     Column(
         modifier = modifier
             .background(SidebarBg)
             .padding(top = 14.dp, bottom = 12.dp)
     ) {
-        // Header: shortcut/game title being edited
         if (title.isNotBlank()) {
             Text(
                 text = title,
@@ -632,7 +855,6 @@ private fun Sidebar(
             Spacer(Modifier.height(8.dp))
         }
 
-        // Sidebar items
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -645,12 +867,14 @@ private fun Sidebar(
                     icon = section.icon,
                     label = stringResource(section.labelResId),
                     isSelected = currentIndex == index,
-                    onClick = { onSectionSelected(index) }
+                    navHighlighted = nav != null && nav.active && !nav.inContent && !nav.onActionRow && nav.sidebarIndex == index,
+                    onClick = {
+                        if (nav != null) nav.tapSection(index) else onSectionSelected(index)
+                    }
                 )
             }
         }
 
-        // Divider above the action buttons (matches the one under the title)
         Box(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
@@ -660,7 +884,6 @@ private fun Sidebar(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Cancel + Save buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -674,7 +897,8 @@ private fun Sidebar(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                     .background(CardSurface)
-                    .clickable { onCancel() },
+                    .paneHighlight(cancelHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
+                    .clickable { nav?.tapAction(0); onCancel() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -686,10 +910,11 @@ private fun Sidebar(
             }
             SaveButton(
                 enabled = saveEnabled,
-                onClick = onSave,
+                onClick = { nav?.tapAction(1); onSave() },
                 height = 30.dp,
                 corner = 8.dp,
                 fontSize = SettingLabelSize,
+                navHighlighted = saveHighlighted,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -703,6 +928,7 @@ private fun SaveButton(
     height: Dp,
     corner: Dp,
     fontSize: TextUnit,
+    navHighlighted: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -717,6 +943,7 @@ private fun SaveButton(
             .background(
                 if (enabled) AccentBlue.copy(alpha = 0.1f) else CardSurface
             )
+            .paneHighlight(navHighlighted, cornerRadius = corner, highlightColor = NavHighlight)
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -730,19 +957,27 @@ private fun SaveButton(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SidebarItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
+    navHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(navHighlighted) {
+        if (navHighlighted) runCatching { bringIntoView.bringIntoView() }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoView)
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(8.dp))
             .chasingBorder(isFocused = isSelected, cornerRadius = 8.dp, borderWidth = 2.dp)
+            .paneHighlight(navHighlighted, cornerRadius = 8.dp, highlightColor = NavHighlight)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -769,7 +1004,6 @@ private fun SidebarItem(
     }
 }
 
-// Section 0: General
 @Composable
 private fun GeneralSection(
     state: GameSettingsStateHolder,
@@ -796,6 +1030,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(9.dp))
                     .background(tint.copy(alpha = 0.08f))
                     .border(1.dp, tint.copy(alpha = 0.2f), RoundedCornerShape(9.dp))
+                    .paneNavItem(cornerRadius = 9.dp, onActivate = { onClick() }, highlightColor = NavHighlight)
                     .clickable { onClick() }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
@@ -869,7 +1104,6 @@ private fun GeneralSection(
     }
 
     SettingGroup {
-        // Name
         SettingTextField(
             label = stringResource(R.string.common_ui_name),
             value = state.name.value,
@@ -893,6 +1127,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(SettingFieldCorner))
                     .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                     .background(InputSurface)
+                    .paneNavItem(cornerRadius = SettingFieldCorner, onActivate = { callbacks.onSelectExe() }, highlightColor = NavHighlight)
                     .clickable { callbacks.onSelectExe() }
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
             ) {
@@ -940,6 +1175,7 @@ private fun GeneralSection(
                     .clip(RoundedCornerShape(10.dp))
                     .background(AccentBlue.copy(alpha = 0.08f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                    .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onAddToHomeScreen() }, highlightColor = NavHighlight)
                     .clickable { callbacks.onAddToHomeScreen() }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -984,6 +1220,7 @@ private fun GeneralSection(
                         .clip(RoundedCornerShape(10.dp))
                         .background(AccentBlue.copy(alpha = 0.08f))
                         .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource() }, highlightColor = NavHighlight)
                         .clickable { callbacks.onOpenArtworkSource() }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
@@ -1106,7 +1343,6 @@ private fun GeneralSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // Sound
     SettingGroup {
         Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
@@ -1132,15 +1368,13 @@ private fun GeneralSection(
         Spacer(Modifier.height(SettingSectionGap))
         SettingGroup(verticalPadding = SettingTightGap) {
             val fpsMin = 30
-            // Cap the slider at the panel's highest supported refresh rate, parsed
-            // from the refresh-rate entries (e.g. "120 Hz"); fall back to 60.
+            // Cap the slider at the panel's highest supported refresh rate (parsed from entries like "120 Hz"); fall back to 60.
             val supportedMax = state.refreshRateEntries.value
                 .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }
                 .maxOrNull() ?: 60
             val maxFps = supportedMax.coerceAtLeast(fpsMin)
             val enabled = state.fpsLimit.intValue > 0
-            // Remember the last enabled value so off→on restores it; re-seed when
-            // the panel's supported max changes.
+            // Remember the last enabled value so off→on restores it; re-seed when the supported max changes.
             var lastFps by remember(maxFps) {
                 mutableStateOf(
                     (if (state.fpsLimit.intValue > 0) state.fpsLimit.intValue else 60)
@@ -1177,7 +1411,6 @@ private fun GeneralSection(
     }
 }
 
-// Section 1: Display
 @Composable
 private fun DisplaySection(
     state: GameSettingsStateHolder,
@@ -1235,12 +1468,10 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
-    // Graphics Driver Configuration - expandable inline card
     GraphicsDriverConfigCard(state, callbacks)
 
     Spacer(Modifier.height(SettingItemGap))
 
-    // Show DXVK or WineD3D config card based on selected DX wrapper
     val dxWrapperEntries = state.dxWrapperEntries.value
     val dxWrapperIdx = state.selectedDxWrapper.intValue
     val selectedDxWrapper = if (dxWrapperIdx in dxWrapperEntries.indices)
@@ -1255,7 +1486,6 @@ private fun DisplaySection(
 
 }
 
-// Graphics Driver Configuration Card
 @Composable
 private fun GraphicsDriverConfigCard(
     state: GameSettingsStateHolder,
@@ -1270,11 +1500,17 @@ private fun GraphicsDriverConfigCard(
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row - always visible, acts as expand/collapse toggle
+        // Header row — tap to expand/collapse.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { state.gfxConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.gfxConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1292,7 +1528,6 @@ private fun GraphicsDriverConfigCard(
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
-            // Version badge
             if (state.graphicsDriverVersion.value.isNotEmpty()) {
                 Box(
                     modifier = Modifier
@@ -1317,7 +1552,6 @@ private fun GraphicsDriverConfigCard(
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -1439,7 +1673,6 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                // Toggles
                 Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingCheckbox(
@@ -1461,7 +1694,6 @@ private fun GraphicsDriverConfigCard(
     }
 }
 
-// Extensions multi-select
 @Composable
 private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
     val extensions = state.gfxAvailableExtensions.value
@@ -1479,7 +1711,6 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
             modifier = Modifier.padding(bottom = SettingTightGap)
         )
 
-        // Summary button — opens popup
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1487,6 +1718,18 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                 .clickable(enabled = extensions.isNotEmpty()) { showDialog = true }
+                .then(
+                    if (extensions.isNotEmpty()) {
+                        Modifier.paneNavItem(
+                            cornerRadius = SettingFieldCorner,
+                            onActivate = { showDialog = true },
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1543,7 +1786,6 @@ private fun ExtensionsPickerDialog(
                 .background(BgDeep)
                 .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
         ) {
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1575,7 +1817,6 @@ private fun ExtensionsPickerDialog(
 
             Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-            // Scrollable list — takes remaining space between header and button
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1589,6 +1830,7 @@ private fun ExtensionsPickerDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
+                            .paneNavItem(cornerRadius = 8.dp, onActivate = { onToggle(ext, !isEnabled) }, highlightColor = NavHighlight)
                             .clickable { onToggle(ext, !isEnabled) }
                             .padding(horizontal = 8.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -1616,10 +1858,10 @@ private fun ExtensionsPickerDialog(
 
             Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-            // Close button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { onDismiss() }, highlightColor = NavHighlight)
                     .clickable { onDismiss() }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
@@ -1635,7 +1877,6 @@ private fun ExtensionsPickerDialog(
     }
 }
 
-// DXVK Configuration Card
 @Composable
 private fun DXVKConfigCard(
     state: GameSettingsStateHolder,
@@ -1658,11 +1899,16 @@ private fun DXVKConfigCard(
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { state.dxvkConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.dxvkConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1688,7 +1934,6 @@ private fun DXVKConfigCard(
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -1771,7 +2016,6 @@ private fun DXVKConfigCard(
     }
 }
 
-// WineD3D Configuration Card
 @Composable
 private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
@@ -1783,11 +2027,16 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { state.wined3dConfigExpanded.value = !expanded }
+                .paneNavItem(
+                    cornerRadius = SettingGroupCorner,
+                    onActivate = { state.wined3dConfigExpanded.value = !expanded },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(SettingGroupPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1813,7 +2062,6 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -1892,12 +2140,10 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     }
 }
 
-// Section: Steam (conditional)
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
 
-    // Steam Launcher is the default Steam path; toggling it on auto-uncheck
-    // every other Steam mode (they're all mutually exclusive launch paths).
+    // Steam Launcher is the default path; enabling it unchecks every other Steam mode (mutually exclusive launch paths).
     val onSteamLauncherChange: (Boolean) -> Unit = { enabled ->
         state.steamLauncher.value = enabled
         if (enabled) {
@@ -2035,6 +2281,7 @@ private fun WineSection(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                        .paneNavItem(cornerRadius = 8.dp, onActivate = { showLocalePicker = true }, highlightColor = NavHighlight)
                         .smartDropdownAnchor(offset = localeMenuOffset) { showLocalePicker = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -2069,7 +2316,6 @@ private fun WineSection(
         }
     }
 
-    // Desktop Theme
     if (state.desktopThemeEntries.value.isNotEmpty()) {
         Spacer(Modifier.height(SettingItemGap))
         SettingGroup {
@@ -2129,6 +2375,12 @@ private fun WineSection(
                                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
                                 .background(InputSurface)
                                 .clickable { callbacks.onPickWallpaper() }
+                                .paneNavItem(
+                                    cornerRadius = SettingFieldCorner,
+                                    onActivate = { callbacks.onPickWallpaper() },
+                                    highlightColor = NavHighlight,
+                                    tapToSelect = true,
+                                )
                                 .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -2171,14 +2423,12 @@ private fun WineSection(
     }
 }
 
-// Section 4: Components
 @Composable
 private fun ComponentsSection(
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks
 ) {
 
-    // DirectX components
     if (state.directXComponents.value.isNotEmpty()) {
         SubsectionLabel(stringResource(R.string.container_wine_directx))
         Spacer(Modifier.height(8.dp))
@@ -2207,7 +2457,6 @@ private fun ComponentsSection(
         Spacer(Modifier.height(SettingSectionGap))
     }
 
-    // General components
     if (state.generalComponents.value.isNotEmpty()) {
         SubsectionLabel(stringResource(R.string.settings_general_title))
         Spacer(Modifier.height(8.dp))
@@ -2236,7 +2485,6 @@ private fun ComponentsSection(
     }
 }
 
-// Section 5: Variables
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
@@ -2328,6 +2576,14 @@ private fun VariablesSection(
                     .clickable {
                         state.envVars.value = state.envVars.value + EnvVarItem("", "")
                     }
+                    .paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = {
+                            state.envVars.value = state.envVars.value + EnvVarItem("", "")
+                        },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2402,6 +2658,12 @@ private fun DrivesSection(
                             .background(InputSurface)
                             .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
                             .clickable { callbacks.onPickDrivePath(index) }
+                            .paneNavItem(
+                                cornerRadius = 8.dp,
+                                onActivate = { callbacks.onPickDrivePath(index) },
+                                highlightColor = NavHighlight,
+                                tapToSelect = true,
+                            )
                             .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding)
                     ) {
                         Text(
@@ -2418,7 +2680,13 @@ private fun DrivesSection(
                             .size(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(DangerRed.copy(alpha = 0.1f))
-                            .clickable { callbacks.onRemoveDrive(index) },
+                            .clickable { callbacks.onRemoveDrive(index) }
+                            .paneNavItem(
+                                cornerRadius = 6.dp,
+                                onActivate = { callbacks.onRemoveDrive(index) },
+                                highlightColor = NavHighlight,
+                                tapToSelect = true,
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -2440,6 +2708,12 @@ private fun DrivesSection(
                 .background(AccentBlue.copy(alpha = 0.08f))
                 .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                 .clickable { callbacks.onAddDrive() }
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { callbacks.onAddDrive() },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2481,6 +2755,7 @@ private fun DriveLetterSelector(
                     .clip(RoundedCornerShape(6.dp))
                     .background(AccentBlue.copy(alpha = 0.1f))
                     .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                    .paneNavItem(cornerRadius = 6.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
                     .smartDropdownAnchor(enabled = showDropdown, offset = menuOffset) { expanded = true }
                     .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2540,7 +2815,6 @@ private fun DriveLetterSelector(
     }
 }
 
-// Env Var row: name dropdown + type-aware value editor
 @Composable
 private fun EnvVarRow(
     name: String,
@@ -2567,7 +2841,6 @@ private fun EnvVarRow(
         // Name dropdown or custom text field
         Box(modifier = Modifier.weight(1.6f)) {
             if (isCustomMode) {
-                // Custom mode: show editable text field for variable name
                 BasicTextField(
                     value = customText,
                     onValueChange = { newText ->
@@ -2583,6 +2856,7 @@ private fun EnvVarRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(EnvVarControlHeight)
+                        .controllerTextFieldEscape()
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
@@ -2608,6 +2882,7 @@ private fun EnvVarRow(
                         .clip(RoundedCornerShape(8.dp))
                         .background(InputSurface)
                         .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .paneNavItem(cornerRadius = 8.dp, onActivate = { nameMenuExpanded = true }, highlightColor = NavHighlight)
                         .smartDropdownAnchor(offset = nameMenuOffset) { nameMenuExpanded = true }
                         .padding(horizontal = SettingFieldHorizontalPadding),
                     contentAlignment = Alignment.CenterStart
@@ -2640,7 +2915,6 @@ private fun EnvVarRow(
                     .height(360.dp)
                     .width(260.dp)
             ) {
-                // "Custom" option at top — allows typing a variable name
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -2657,7 +2931,6 @@ private fun EnvVarRow(
                         nameMenuExpanded = false
                     }
                 )
-                // Divider after Custom
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
                 val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
@@ -2690,7 +2963,6 @@ private fun EnvVarRow(
             }
         }
         Spacer(Modifier.width(6.dp))
-        // Value editor (type-aware)
         Box(modifier = Modifier.weight(1f)) {
             EnvVarValueEditor(
                 name = name,
@@ -2705,7 +2977,13 @@ private fun EnvVarRow(
                     .size(26.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(DangerRed.copy(alpha = 0.1f))
-                    .clickable { onRemove() },
+                    .clickable { onRemove() }
+                    .paneNavItem(
+                        cornerRadius = 6.dp,
+                        onActivate = { onRemove() },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -2786,6 +3064,7 @@ private fun EnvValueDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
@@ -2849,6 +3128,7 @@ private fun EnvValueMultiDropdown(
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true }
                 .padding(horizontal = SettingFieldHorizontalPadding),
             contentAlignment = Alignment.CenterStart
@@ -2915,6 +3195,14 @@ private fun EnvValueTextField(
     numeric: Boolean = false,
     decimal: Boolean = false
 ) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    var isEditing by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            keyboard?.show()
+            isEditing = false
+        }
+    }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -2928,7 +3216,13 @@ private fun EnvValueTextField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(EnvVarControlHeight),
+            .height(EnvVarControlHeight)
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = { isEditing = true },
+                highlightColor = NavHighlight,
+            )
+            .controllerTextFieldEscape(),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
@@ -2948,12 +3242,10 @@ private fun EnvValueTextField(
     )
 }
 
-// Section 6: Input
 @Composable
 private fun InputSection(state: GameSettingsStateHolder) {
     val isContainer = state.isContainerEditMode.value
 
-    // Input Controls group
     SubsectionLabel(stringResource(R.string.common_ui_input_controls))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3072,7 +3364,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // Game Controller group
     SubsectionLabel(stringResource(R.string.session_gamepad_game_controller))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3114,6 +3405,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                        .paneNavItem(cornerRadius = 6.dp, onActivate = { showXInputHelp = !showXInputHelp }, highlightColor = NavHighlight)
                         .smartDropdownAnchor(offset = xInputHelpOffset) { showXInputHelp = !showXInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
@@ -3146,7 +3438,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         Spacer(Modifier.height(4.dp))
 
-        // Enable DInput with help
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -3171,6 +3462,7 @@ private fun InputSection(state: GameSettingsStateHolder) {
                         .clip(RoundedCornerShape(6.dp))
                         .background(InputSurface)
                         .border(1.dp, InputBorder, RoundedCornerShape(6.dp))
+                        .paneNavItem(cornerRadius = 6.dp, onActivate = { showDInputHelp = !showDInputHelp }, highlightColor = NavHighlight)
                         .smartDropdownAnchor(offset = dInputHelpOffset) { showDInputHelp = !showDInputHelp },
                     contentAlignment = Alignment.Center
                 ) {
@@ -3204,7 +3496,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
     }
 }
 
-// Section 7: Advanced
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AdvancedSection(
@@ -3212,9 +3503,7 @@ private fun AdvancedSection(
     callbacks: GameSettingsCallbacks
 ) {
 
-    // Wine / Proton version (read-only) — only show on existing containers
-    // where it's not editable. When creating a new container the user already
-    // selects the Wine Version in the General tab.
+    // Wine/Proton version (read-only); shown only on existing containers where it isn't editable (new ones pick it in General).
     val wineVersionDisplay = state.wineVersionDisplay.value
     if (wineVersionDisplay.isNotEmpty() && !state.wineVersionEditable.value) {
         SubsectionLabel(stringResource(R.string.container_wine_version))
@@ -3332,7 +3621,6 @@ private fun AdvancedSection(
         Spacer(Modifier.height(SettingSectionGap))
     }
 
-    // System
     SubsectionLabel(stringResource(R.string.common_ui_system))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3345,7 +3633,6 @@ private fun AdvancedSection(
 
         Spacer(Modifier.height(SettingItemGap))
 
-        // Exec Arguments with helper dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -3378,7 +3665,6 @@ private fun AdvancedSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // CPU Affinity
     SubsectionLabel(stringResource(R.string.container_config_processor_affinity))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3394,9 +3680,7 @@ private fun AdvancedSection(
                     index = i,
                     isChecked = isChecked,
                     onClick = {
-                        // Block unchecking the last remaining core: zero-selected
-                        // and all-selected would otherwise serialize identically,
-                        // and runtime skips affinity for a zero mask.
+                        // Block unchecking the last core: zero-selected and all-selected serialize identically, and runtime skips affinity for a zero mask.
                         val wouldLeaveNone = isChecked && checkedList.count { it } <= 1
                         if (!wouldLeaveNone) {
                             val mutable = checkedList.toMutableList()
@@ -3411,7 +3695,6 @@ private fun AdvancedSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // CPU Affinity (32-bit apps)
     SubsectionLabel(stringResource(R.string.container_config_processor_affinity_32bit))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3440,7 +3723,6 @@ private fun AdvancedSection(
     }
 }
 
-// Exec Args Helper Dropdown
 @Composable
 private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -3453,6 +3735,7 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
                 .smartDropdownAnchor(offset = menuOffset) { expanded = true },
             contentAlignment = Alignment.Center
         ) {
@@ -3475,7 +3758,6 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                 .width(240.dp)
         ) {
             ExtraArgPresets.forEach { group ->
-                // Group header
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -3509,7 +3791,6 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     }
 }
 
-// CPU Chip
 @Composable
 private fun CpuChip(
     index: Int,
@@ -3526,6 +3807,12 @@ private fun CpuChip(
             .background(bgColor)
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
+            .paneNavItem(
+                cornerRadius = 8.dp,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
             .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -3538,7 +3825,6 @@ private fun CpuChip(
     }
 }
 
-// Reusable Components
 
 @Composable
 private fun HtmlText(
@@ -3677,6 +3963,19 @@ private fun SettingDropdown(
     val menuOffset = rememberSmartDropdownOffset()
     val selectedText = entries.getOrElse(selectedIndex) { "" }
     val alpha = if (enabled) 1f else disabledAlpha
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
         Text(
@@ -3694,6 +3993,11 @@ private fun SettingDropdown(
                     .clip(RoundedCornerShape(SettingFieldCorner))
                     .background(InputSurface)
                     .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
+                    .paneNavItem(
+                        cornerRadius = SettingFieldCorner,
+                        onActivate = { if (enabled) expanded = true },
+                        highlightColor = NavHighlight,
+                    )
                     .smartDropdownAnchor(enabled = enabled, offset = menuOffset) { expanded = true }
                     .padding(horizontal = SettingFieldHorizontalPadding, vertical = SettingFieldVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically
@@ -3718,27 +4022,35 @@ private fun SettingDropdown(
                 offset = menuOffset.value,
                 shape = RoundedCornerShape(8.dp),
                 containerColor = CardSurface,
+                properties = PopupProperties(focusable = false),
             ) {
-                entries.forEachIndexed { index, entry ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                entry,
-                                color = if (index == selectedIndex) AccentBlue else TextPrimary,
-                                fontSize = SettingValueSize,
-                                fontWeight = if (index == selectedIndex) FontWeight.Medium else FontWeight.Normal
-                            )
-                        },
-                        onClick = {
-                            onSelected(index)
-                            expanded = false
-                        },
-                        modifier = if (index == selectedIndex) {
-                            Modifier.background(AccentBlue.copy(alpha = 0.06f))
-                        } else {
-                            Modifier
-                        }
-                    )
+                CompositionLocalProvider(LocalPaneNav provides optionRegistry) {
+                    entries.forEachIndexed { index, entry ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    entry,
+                                    color = if (index == selectedIndex) AccentBlue else TextPrimary,
+                                    fontSize = SettingValueSize,
+                                    fontWeight = if (index == selectedIndex) FontWeight.Medium else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                onSelected(index)
+                                expanded = false
+                            },
+                            modifier = (if (index == selectedIndex) Modifier.background(AccentBlue.copy(alpha = 0.06f)) else Modifier)
+                                .paneNavItem(
+                                    cornerRadius = 6.dp,
+                                    onActivate = {
+                                        onSelected(index)
+                                        expanded = false
+                                    },
+                                    isEntry = index == selectedIndex,
+                                    highlightColor = NavHighlight,
+                                )
+                        )
+                    }
                 }
             }
         }
@@ -3753,6 +4065,14 @@ private fun SettingTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true
 ) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    var isEditing by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            keyboard?.show()
+            isEditing = false
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             label,
@@ -3775,6 +4095,12 @@ private fun SettingTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
                 .fillMaxWidth()
+                .paneNavItem(
+                    cornerRadius = SettingFieldCorner,
+                    onActivate = { if (enabled) isEditing = true },
+                    highlightColor = NavHighlight,
+                )
+                .controllerTextFieldEscape()
                 .clip(RoundedCornerShape(SettingFieldCorner))
                 .background(InputSurface)
                 .border(1.dp, InputBorder, RoundedCornerShape(SettingFieldCorner))
@@ -3797,6 +4123,18 @@ private fun SettingCheckbox(
             .alpha(alpha)
             .clip(RoundedCornerShape(8.dp))
             .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .then(
+                if (enabled) {
+                    Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .padding(vertical = SettingTightGap),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3868,6 +4206,18 @@ private fun SettingSwitch(
                     Modifier
                 }
             )
+            .then(
+                if (enabled) {
+                    Modifier.paneNavItem(
+                        cornerRadius = 8.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .padding(vertical = SettingTightGap),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3910,7 +4260,6 @@ private fun SettingSlider(
                 letterSpacing = 0.3.sp
             )
             Spacer(Modifier.weight(1f))
-            // Value badge
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
@@ -3934,7 +4283,13 @@ private fun SettingSlider(
             enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(SettingSliderHeight),
+                .height(SettingSliderHeight)
+                .controllerSliderEscape()
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onAdjust = { d -> onValueChange((value + d).coerceIn(range.first, range.last)) },
+                    highlightColor = NavHighlight,
+                ),
             colors = settingSliderColors(),
             track = { SettingSliderTrack(it) },
             thumb = {
@@ -3950,7 +4305,6 @@ private fun SettingSlider(
     }
 }
 
-// Section 10: Saves
 @Composable
 private fun SavesSection(
     state: GameSettingsStateHolder,
@@ -3992,6 +4346,12 @@ private fun SavesActionCard(
             .background(InputSurface)
             .border(1.dp, InputBorder, RoundedCornerShape(SettingGroupCorner))
             .clickable { onClick() }
+            .paneNavItem(
+                cornerRadius = SettingGroupCorner,
+                onActivate = onClick,
+                highlightColor = NavHighlight,
+                tapToSelect = true,
+            )
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

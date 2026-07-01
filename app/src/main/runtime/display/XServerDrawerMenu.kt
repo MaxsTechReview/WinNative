@@ -23,6 +23,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusable
+import com.winlator.cmod.shared.ui.focus.controllerMenuInput
+import com.winlator.cmod.shared.ui.focus.controllerFocusBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -108,6 +111,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -128,6 +132,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -165,7 +176,12 @@ import com.winlator.cmod.shared.theme.WinNativeTextSecondary
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogButton
 import com.winlator.cmod.shared.ui.dialog.WinNativeDialogShell
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav as SharedLocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry as SharedPaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem as sharedPaneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
+import com.winlator.cmod.shared.ui.widget.chasingBorder
 import kotlin.math.roundToInt
 
 // Drawer-local colors.
@@ -176,6 +192,7 @@ private const val DrawerGradientLift = 0.014f
 
 private val DrawerAccent = Color(0xFF2196F3)
 private val DrawerActiveAccent = Color(0xFF29B6F6)
+private val DrawerFocusFill = Color(0xFF0E2438)
 private val DrawerTextPrimary = WinNativeTextPrimary.copy(alpha = 0.88f)
 private val DrawerTextSecondary = WinNativeTextSecondary.copy(alpha = 0.82f)
 private val DrawerOutline = WinNativeOutline
@@ -200,6 +217,247 @@ private val RecordRed = Color(0xFFE53935)
 
 // Pane content scales down on short displays.
 private val LocalPaneScale = staticCompositionLocalOf { 1f }
+
+private const val PANE_DIR_LEFT = 1
+private const val PANE_DIR_RIGHT = 2
+private const val PANE_DIR_UP = 3
+private const val PANE_DIR_DOWN = 4
+private const val PANE_DIR_ACTIVATE = 5
+private const val PANE_DIR_SECONDARY = 6
+private const val PANE_ROW_Y_THRESHOLD = 24f
+
+private class PaneNavEntry(
+    var x: Float,
+    var y: Float,
+    var onActivate: () -> Unit,
+    var onAdjust: (Int) -> Unit,
+    var onSecondary: () -> Unit,
+)
+
+@Stable
+private class PaneNavRegistry {
+    private val items = mutableStateMapOf<Int, PaneNavEntry>()
+    private var slotCounter = 0
+    private var lastSignal = -1
+    var controllerActive by mutableStateOf(false)
+    var overlay by mutableStateOf<PaneNavRegistry?>(null)
+    var overlayClose: (() -> Unit)? = null
+    var activeRow by mutableStateOf(0)
+        private set
+    var activeCol by mutableStateOf(0)
+        private set
+
+    fun nextSlot(): Int = slotCounter++
+
+    fun reset() {
+        activeRow = 0
+        activeCol = 0
+    }
+
+    fun reportCallbacks(slot: Int, onActivate: () -> Unit, onAdjust: (Int) -> Unit, onSecondary: () -> Unit) {
+        val e = items[slot]
+        if (e == null) {
+            items[slot] = PaneNavEntry(0f, 0f, onActivate, onAdjust, onSecondary)
+        } else {
+            e.onActivate = onActivate
+            e.onAdjust = onAdjust
+            e.onSecondary = onSecondary
+        }
+    }
+
+    fun reportPosition(slot: Int, x: Float, y: Float) {
+        val e = items[slot] ?: return
+        if (e.x != x || e.y != y) {
+            items[slot] = PaneNavEntry(x, y, e.onActivate, e.onAdjust, e.onSecondary)
+        }
+    }
+
+    fun unregister(slot: Int) { items.remove(slot) }
+
+    val rows: List<List<Int>>
+        get() {
+            val sorted = items.entries.sortedWith(compareBy({ it.value.y }, { it.value.x }))
+            val result = mutableListOf<MutableList<Int>>()
+            var prevY = Float.NaN
+            for (entry in sorted) {
+                val y = entry.value.y
+                if (result.isEmpty() || kotlin.math.abs(y - prevY) > PANE_ROW_Y_THRESHOLD) {
+                    result.add(mutableListOf(entry.key))
+                } else {
+                    result.last().add(entry.key)
+                }
+                prevY = y
+            }
+            return result
+        }
+
+    fun isActive(slot: Int): Boolean {
+        if (!controllerActive) return false
+        val r = rows
+        if (r.isEmpty()) return false
+        val row = r[activeRow.coerceIn(0, r.size - 1)]
+        return row[activeCol.coerceIn(0, row.size - 1)] == slot
+    }
+
+    fun processNav(signal: Int, dir: Int) {
+        if (lastSignal == -1) {
+            lastSignal = signal
+            return
+        }
+        if (signal == lastSignal) return
+        lastSignal = signal
+        handleNav(dir)
+    }
+
+    private fun handleNav(dir: Int) {
+        overlay?.let { ov ->
+            ov.controllerActive = true
+            ov.handleNav(dir)
+            return
+        }
+        val r = rows
+        if (r.isEmpty()) return
+        var row = activeRow.coerceIn(0, r.size - 1)
+        var col = activeCol.coerceIn(0, r[row].size - 1)
+        when (dir) {
+            PANE_DIR_UP -> if (row > 0) { row--; col = col.coerceAtMost(r[row].size - 1) }
+            PANE_DIR_DOWN -> if (row < r.size - 1) { row++; col = col.coerceAtMost(r[row].size - 1) }
+            PANE_DIR_LEFT ->
+                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(-1) else if (col > 0) col--
+            PANE_DIR_RIGHT ->
+                if (r[row].size <= 1) items[r[row][0]]?.onAdjust?.invoke(1) else if (col < r[row].size - 1) col++
+            PANE_DIR_ACTIVATE -> items[r[row][col]]?.onActivate?.invoke()
+            PANE_DIR_SECONDARY -> items[r[row][col]]?.onSecondary?.invoke()
+        }
+        activeRow = row
+        activeCol = col
+    }
+}
+
+private val LocalPaneNav = staticCompositionLocalOf<PaneNavRegistry?> { null }
+
+private fun Modifier.paneHighlight(highlighted: Boolean, cornerRadius: Dp): Modifier =
+    drawWithContent {
+        val cr = cornerRadius.toPx()
+        if (highlighted) {
+            drawRoundRect(color = DrawerAccent.copy(alpha = 0.20f), cornerRadius = CornerRadius(cr, cr))
+        }
+        drawContent()
+        if (highlighted) {
+            drawRoundRect(
+                color = DrawerAccent,
+                cornerRadius = CornerRadius(cr, cr),
+                style = Stroke(width = 1.5.dp.toPx()),
+            )
+        }
+    }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Modifier.paneNavItem(
+    cornerRadius: Dp = 10.dp,
+    onActivate: () -> Unit = {},
+    onAdjust: (Int) -> Unit = {},
+    onSecondary: () -> Unit = {},
+): Modifier {
+    val nav = LocalPaneNav.current ?: return this
+    val slot = remember { nav.nextSlot() }
+    DisposableEffect(slot) { onDispose { nav.unregister(slot) } }
+    SideEffect { nav.reportCallbacks(slot, onActivate, onAdjust, onSecondary) }
+    val highlighted = nav.isActive(slot)
+
+    val bring = remember { BringIntoViewRequester() }
+    LaunchedEffect(highlighted) { if (highlighted) runCatching { bring.bringIntoView() } }
+
+    return this
+        .onGloballyPositioned {
+            val p = it.positionInWindow()
+            nav.reportPosition(slot, p.x, p.y)
+        }
+        .bringIntoViewRequester(bring)
+        .paneHighlight(highlighted, cornerRadius)
+}
+
+@Composable
+private fun NavBooleanRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onCheckedChange(!checked) },
+        ),
+    ) {
+        DrawerBooleanRow(title = title, checked = checked, onCheckedChange = onCheckedChange, subtitle = subtitle)
+    }
+}
+
+@Composable
+private fun NavEnableRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onCheckedChange(!checked) },
+        ),
+    ) {
+        PaneEnableRow(title = title, checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun NavSliderRow(
+    label: String,
+    valueText: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    onValueClick: (() -> Unit)? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
+    adjustStep: Float? = null,
+) {
+    val paneScale = LocalPaneScale.current
+    Box(
+        Modifier.fillMaxWidth().paneNavItem(
+            cornerRadius = (12f * paneScale).dp,
+            onActivate = { onValueClick?.invoke() },
+            onAdjust = { dir ->
+                val next =
+                    if (adjustStep != null) {
+                        val q = (value / adjustStep).toDouble()
+                        val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
+                        (units * adjustStep).toFloat()
+                    } else {
+                        val divisions = if (steps > 0) steps + 1 else 20
+                        value + dir * (valueRange.endInclusive - valueRange.start) / divisions
+                    }
+                onValueChange(next.coerceIn(valueRange.start, valueRange.endInclusive))
+                onValueChangeFinished?.invoke()
+            },
+        ),
+    ) {
+        DrawerSliderRow(
+            label = label,
+            valueText = valueText,
+            value = value,
+            valueRange = valueRange,
+            steps = steps,
+            onValueChange = onValueChange,
+            onValueClick = onValueClick,
+            onValueChangeFinished = onValueChangeFinished,
+        )
+    }
+}
+
 private const val PaneScaleMin = 0.78f
 private const val ControlsPaneScaleMin = 0.62f
 private const val PaneScaleReferenceHeightDp = 520f
@@ -220,6 +478,7 @@ private enum class HUDMetricEditor(
 internal enum class DrawerPane { INPUT_CONTROLS, HUD, GYROSCOPE, SCREEN_EFFECTS, OUTPUT, TASK_MANAGER, LOGS, TOUCH }
 
 internal const val LogsPaneMaxLines = 2000
+internal const val LogsFlushIntervalMs = 200L
 
 data class LogsPaneState(
     val lines: List<String> = emptyList(),
@@ -412,7 +671,6 @@ data class XServerDrawerState(
     val outputVitureSupportsVolume: Boolean = false,
     val outputVitureVolume: Int = 0,
     val outputVitureVolumeMax: Int = 8,
-    // Record settings popup config (device-aware options + persisted selections).
     val recordConfig: RecordUiConfig = RecordUiConfig(),
     val mouseEnabled: Boolean = true,
     val relativeMouseEnabled: Boolean = false,
@@ -442,6 +700,22 @@ class XServerDrawerStateHolder(
     }
     private var drawerOpen by mutableStateOf(false)
     internal var openPane by mutableStateOf<DrawerPane?>(null)
+    var menuNavRegion by mutableStateOf(0)
+        private set
+    var menuNavIndex by mutableStateOf(0)
+        private set
+    var menuActivateSignal by mutableStateOf(0)
+        private set
+    private var tabCount = 1
+    private var cardCount = 0
+    private var cardColumns = 3
+    private var bottomCount = 0
+    var paneNavSignal by mutableStateOf(0)
+        private set
+    var paneNavDir by mutableStateOf(0)
+        private set
+    var controllerConnected by mutableStateOf(false)
+        private set
     private var paneVisibilityListener: ((Boolean) -> Unit)? = null
 
     // Bumped on swap-back so the host re-requests a layout pass on the Compose-hosted display frame.
@@ -457,6 +731,130 @@ class XServerDrawerStateHolder(
 
     fun openDrawer() {
         drawerOpen = true
+    }
+
+    private fun regionSize(r: Int) = when (r) {
+        0 -> tabCount
+        1 -> cardCount
+        2 -> bottomCount
+        else -> 0
+    }
+
+    private fun clampNav() {
+        val max = (regionSize(menuNavRegion) - 1).coerceAtLeast(0)
+        if (menuNavIndex > max) menuNavIndex = max
+    }
+
+    fun menuActivate() { menuActivateSignal++ }
+
+    fun resetMenuNav() {
+        menuNavRegion = 0
+        menuNavIndex = 0
+    }
+
+    fun menuNavLeft() { if (menuNavIndex > 0) menuNavIndex-- }
+
+    fun menuNavRight() { if (menuNavIndex < regionSize(menuNavRegion) - 1) menuNavIndex++ }
+
+    fun setMenuNav(region: Int, index: Int) {
+        menuNavRegion = region
+        menuNavIndex = index.coerceAtLeast(0)
+        clampNav()
+    }
+
+    fun menuNavUp() {
+        when (menuNavRegion) {
+            1 ->
+                if (menuNavIndex < cardColumns) {
+                    if (tabCount > 0) {
+                        menuNavRegion = 0
+                        menuNavIndex = menuNavIndex.coerceAtMost(tabCount - 1)
+                    }
+                } else {
+                    menuNavIndex -= cardColumns
+                }
+            2 ->
+                when {
+                    cardCount > 0 -> {
+                        menuNavRegion = 1
+                        menuNavIndex = cardCount - 1
+                    }
+                    tabCount > 0 -> {
+                        menuNavRegion = 0
+                        menuNavIndex = menuNavIndex.coerceAtMost(tabCount - 1)
+                    }
+                }
+        }
+    }
+
+    fun menuNavDown() {
+        when (menuNavRegion) {
+            0 ->
+                when {
+                    cardCount > 0 -> {
+                        menuNavRegion = 1
+                        menuNavIndex = 0
+                    }
+                    bottomCount > 0 -> {
+                        menuNavRegion = 2
+                        menuNavIndex = 0
+                    }
+                }
+            1 -> {
+                val below = menuNavIndex + cardColumns
+                if (below < cardCount) {
+                    menuNavIndex = below
+                } else if (bottomCount > 0) {
+                    menuNavRegion = 2
+                    menuNavIndex = 0
+                }
+            }
+        }
+    }
+
+    fun setMenuTabCount(n: Int) {
+        tabCount = n.coerceAtLeast(0)
+        clampNav()
+    }
+
+    fun setMenuCardLayout(count: Int, columns: Int) {
+        cardCount = count.coerceAtLeast(0)
+        cardColumns = columns.coerceAtLeast(1)
+        clampNav()
+    }
+
+    fun setMenuBottomCount(n: Int) {
+        bottomCount = n.coerceAtLeast(0)
+        clampNav()
+    }
+
+    private fun paneNav(dir: Int) {
+        paneNavDir = dir
+        paneNavSignal++
+    }
+
+    fun paneNavLeft() = paneNav(PANE_DIR_LEFT)
+
+    fun paneNavRight() = paneNav(PANE_DIR_RIGHT)
+
+    fun paneNavUp() = paneNav(PANE_DIR_UP)
+
+    fun paneNavDown() = paneNav(PANE_DIR_DOWN)
+
+    fun paneActivate() = paneNav(PANE_DIR_ACTIVATE)
+
+    fun paneSecondary() = paneNav(PANE_DIR_SECONDARY)
+
+    fun resetPaneNav() {}
+
+    fun updateControllerConnected(connected: Boolean) { controllerConnected = connected }
+
+    var paneOverlayCloser: (() -> Unit)? = null
+
+    fun consumeOverlayBack(): Boolean {
+        val c = paneOverlayCloser ?: return false
+        c()
+        return true
     }
 
     fun closeDrawer() {
@@ -485,6 +883,7 @@ class XServerDrawerStateHolder(
         val wasVisible = openPane != null
         val nowVisible = newPane != null
         openPane = newPane
+        if (newPane != null) resetPaneNav()
         if (wasVisible != nowVisible) paneVisibilityListener?.invoke(nowVisible)
     }
 
@@ -492,13 +891,7 @@ class XServerDrawerStateHolder(
         setOpenPaneAndNotify(DrawerPane.LOGS)
     }
 
-    /**
-     * Append a log line. Safe to call from any thread. When the logs pane is not
-     * visible, this only stores the line in an off-thread ring buffer — no
-     * recomposition or main-thread work is scheduled. The buffer is flushed into
-     * observable state when the pane becomes visible (and live while visible,
-     * coalesced through a single posted runnable).
-     */
+    /** Append a log line (any thread). Buffers off-thread when the pane is hidden (no recomposition); flushes to state when the pane is visible. */
     fun appendLogLine(line: String) {
         if (logsPausedFlag) return
         synchronized(logsBuffer) {
@@ -506,7 +899,7 @@ class XServerDrawerStateHolder(
             while (logsBuffer.size > LogsPaneMaxLines) logsBuffer.removeAt(0)
         }
         if (logsPaneVisibleFlag && logsFlushPending.compareAndSet(false, true)) {
-            logsMainHandler.post(logsFlushRunnable)
+            logsMainHandler.postDelayed(logsFlushRunnable, LogsFlushIntervalMs)
         }
     }
 
@@ -817,7 +1210,7 @@ fun buildXServerDrawerState(
             ),
             XServerDrawerItem(
                 itemId = R.id.main_menu_gyroscope,
-                title = "Gyroscope",
+                title = context.getString(R.string.session_gyroscope_title),
                 subtitle = "",
                 icon = Icons.Outlined.SportsEsports,
                 active = gyroscopeEnabled,
@@ -1029,11 +1422,12 @@ fun withOutputState(
     panelScaling: Boolean,
     panelNative: String,
     displayAvailable: Boolean,
+    outputTitle: String,
 ): XServerDrawerState {
     val outputItem =
         XServerDrawerItem(
             itemId = R.id.main_menu_output,
-            title = "Output",
+            title = outputTitle,
             subtitle = "",
             icon = Icons.Outlined.Monitor,
         )
@@ -1096,14 +1490,30 @@ internal fun XServerDrawerContent(
     listener: XServerDrawerActionListener,
     onDismiss: () -> Unit,
     revealCards: Boolean = true,
+    menuNavRegion: Int = 0,
+    menuNavIndex: Int = 0,
+    menuActivateSignal: Int = 0,
+    onSetTabCount: (Int) -> Unit = {},
+    onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
+    onSetBottomCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
+    paneNavSignal: Int = 0,
+    paneNavDir: Int = 0,
+    controllerActive: Boolean = false,
+    onOverlayCloserChange: ((() -> Unit)?) -> Unit = {},
 ) {
-    // The drawer content stays composed even while the sheet is closed (the host
-    // just translates it off-screen), so opening no longer pays a full
-    // first-composition cost. Drive the staggered card reveal from the sheet's
-    // engaged state so it still replays each time the drawer opens, and stays
-    // stable while switching between panes.
+    // Content stays composed while the sheet is closed (host translates it off-screen) to avoid a first-composition cost on open; the staggered card reveal is driven from the sheet's engaged state so it replays on each open.
     val cardsRevealed = remember { mutableStateOf(false) }
     LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
+
+    val paneNav = remember(openPane) { PaneNavRegistry() }
+    paneNav.controllerActive = controllerActive
+    LaunchedEffect(paneNav, paneNavSignal) {
+        paneNav.processNav(paneNavSignal, paneNavDir)
+    }
+    LaunchedEffect(paneNav, paneNav.overlay) {
+        onOverlayCloserChange(if (paneNav.overlay != null) paneNav.overlayClose else null)
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -1139,6 +1549,12 @@ internal fun XServerDrawerContent(
                                     onOpenPaneChange(if (openPane == spec.pane) null else spec.pane)
                                 },
                                 onMenuClick = { onOpenPaneChange(null) },
+                                region = menuNavRegion,
+                                navIndex = menuNavIndex,
+                                activateSignal = menuActivateSignal,
+                                onSetNavCount = onSetTabCount,
+                                onCursor = onCursor,
+                                controllerActive = controllerActive,
                             )
 
                             ThinDivider()
@@ -1174,6 +1590,7 @@ internal fun XServerDrawerContent(
                             },
                             label = "drawerBody",
                         ) { pane ->
+                            CompositionLocalProvider(LocalPaneNav provides paneNav) {
                             when (pane) {
                                 DrawerPane.INPUT_CONTROLS -> InputControlsPaneContent(state = state, listener = listener)
                                 DrawerPane.HUD -> HUDPaneContent(state = state, listener = listener)
@@ -1201,7 +1618,14 @@ internal fun XServerDrawerContent(
                                         onOpenTaskManager = { onOpenPaneChange(DrawerPane.TASK_MANAGER) },
                                         onOpenLogs = { onOpenPaneChange(DrawerPane.LOGS) },
                                         onOpenTouch = { onOpenPaneChange(DrawerPane.TOUCH) },
+                                        region = menuNavRegion,
+                                        navIndex = menuNavIndex,
+                                        activateSignal = menuActivateSignal,
+                                        onSetCardLayout = onSetCardLayout,
+                                        onCursor = onCursor,
+                                        controllerActive = controllerActive,
                                     )
+                            }
                             }
                         }
                     }
@@ -1217,6 +1641,12 @@ internal fun XServerDrawerContent(
                             BottomActions(
                                 state = state,
                                 listener = listener,
+                                region = menuNavRegion,
+                                navIndex = menuNavIndex,
+                                activateSignal = menuActivateSignal,
+                                onSetCount = onSetBottomCount,
+                                onCursor = onCursor,
+                                controllerActive = controllerActive,
                             )
                         }
                     }
@@ -1234,17 +1664,40 @@ private fun TopRail(
     openPane: DrawerPane?,
     onTabClick: (RailPaneSpec) -> Unit,
     onMenuClick: () -> Unit,
+    region: Int = 0,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetNavCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val density = LocalDensity.current
     val activeSpecs = RAIL_PANES.filter { spec -> state.items.any { it.itemId == spec.itemId } }
 
+    val tabCount = activeSpecs.size + 1
+    LaunchedEffect(tabCount) { onSetNavCount(tabCount) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 0) {
+                if (navIndex <= 0) onMenuClick() else activeSpecs.getOrNull(navIndex - 1)?.let { onTabClick(it) }
+            }
+        }
+    }
+
     val tileBounds = remember { mutableStateMapOf<String, RailTileBounds>() }
+    val railScroll = rememberScrollState()
 
     val selectedKey =
-        when (openPane) {
-            null -> "menu"
-            else -> activeSpecs.firstOrNull { it.pane == openPane }?.itemId?.toString() ?: "menu"
+        if (controllerActive && region == 0) {
+            if (navIndex <= 0) "menu" else activeSpecs.getOrNull(navIndex - 1)?.itemId?.toString() ?: "menu"
+        } else {
+            when (openPane) {
+                null -> "menu"
+                else -> activeSpecs.firstOrNull { it.pane == openPane }?.itemId?.toString() ?: "menu"
+            }
         }
     val selectedBounds = tileBounds[selectedKey]
 
@@ -1290,7 +1743,7 @@ private fun TopRail(
                 modifier =
                     Modifier
                         .offset(
-                            x = indicatorX + underlineHorizontalInset,
+                            x = indicatorX - with(density) { railScroll.value.toDp() } + underlineHorizontalInset,
                             y = indicatorTileHeight - underlineThickness,
                         )
                         .width((indicatorWidth - underlineHorizontalInset * 2).coerceAtLeast(0.dp))
@@ -1302,7 +1755,7 @@ private fun TopRail(
         }
 
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier.horizontalScroll(railScroll),
             horizontalArrangement = Arrangement.spacedBy(TopRailTileSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1311,11 +1764,12 @@ private fun TopRail(
                 label = stringResource(R.string.session_drawer_main_menu_title),
                 active = false,
                 selected = openPane == null,
-                onClick = onMenuClick,
+                onClick = { onCursor(0, 0); onMenuClick() },
                 tileKey = "menu",
                 onBoundsChanged = { tileBounds["menu"] = it },
+                highlighted = controllerActive && region == 0 && navIndex == 0,
             )
-            activeSpecs.forEach { spec ->
+            activeSpecs.forEachIndexed { index, spec ->
                 val item = state.items.first { it.itemId == spec.itemId }
                 val key = item.itemId.toString()
                 TopRailTile(
@@ -1323,9 +1777,10 @@ private fun TopRail(
                     label = stringResource(spec.labelRes),
                     active = item.active,
                     selected = openPane == spec.pane,
-                    onClick = { onTabClick(spec) },
+                    onClick = { onCursor(0, index + 1); onTabClick(spec) },
                     tileKey = key,
                     onBoundsChanged = { tileBounds[key] = it },
+                    highlighted = controllerActive && region == 0 && navIndex == index + 1,
                 )
             }
         }
@@ -1341,6 +1796,7 @@ private fun TopRailTile(
     onClick: () -> Unit,
     tileKey: String,
     onBoundsChanged: (RailTileBounds) -> Unit,
+    highlighted: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -1364,6 +1820,7 @@ private fun TopRailTile(
     val bgColor by animateColorAsState(
         targetValue =
             when {
+                highlighted -> DrawerFocusFill
                 pressed && !selected -> PaneSurfacePressed
                 else -> Color.Transparent
             },
@@ -1382,10 +1839,15 @@ private fun TopRailTile(
     )
 
     val shape = RoundedCornerShape(cornerRadius)
+    val bring = remember { BringIntoViewRequester() }
+    LaunchedEffect(highlighted, selected) {
+        if (highlighted || selected) runCatching { bring.bringIntoView() }
+    }
     Column(
         modifier =
             Modifier
                 .defaultMinSize(minWidth = minWidth)
+                .bringIntoViewRequester(bring)
                 .onGloballyPositioned { coords ->
                     val bounds = coords.boundsInParent()
                     onBoundsChanged(
@@ -1402,6 +1864,17 @@ private fun TopRailTile(
                 }
                 .clip(shape)
                 .background(bgColor)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -1444,6 +1917,12 @@ private fun ActionCardGrid(
     onOpenTaskManager: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenTouch: () -> Unit,
+    region: Int = 0,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetCardLayout: (Int, Int) -> Unit = { _, _ -> },
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val cards =
@@ -1451,6 +1930,28 @@ private fun ActionCardGrid(
             it.itemId !in RAIL_PANE_ITEM_IDS && it.itemId !in PINNED_BOTTOM_ITEM_IDS
         }
     var showRecordSettings by remember { mutableStateOf(false) }
+
+    fun cardClick(item: XServerDrawerItem) {
+        when (item.itemId) {
+            R.id.main_menu_task_manager -> onOpenTaskManager()
+            R.id.main_menu_logs -> onOpenLogs()
+            // Recording: stop if active, otherwise open the settings popup.
+            R.id.main_menu_record ->
+                if (item.active) listener.onActionSelected(item.itemId)
+                else showRecordSettings = true
+            R.id.main_menu_touch -> onOpenTouch()
+            else -> listener.onActionSelected(item.itemId)
+        }
+    }
+
+    LaunchedEffect(cards.size) { onSetCardLayout(cards.size, ActionCardColumns) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 1) cards.getOrNull(navIndex)?.let { cardClick(it) }
+        }
+    }
 
     val verticalPadding = (10f * paneScale).dp
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -1478,25 +1979,12 @@ private fun ActionCardGrid(
                         label = label,
                         revealIndex = index,
                         revealed = cardsRevealed,
+                        highlighted = controllerActive && region == 1 && navIndex == index,
                         modifier =
                             Modifier
                                 .weight(1f)
                                 .height(rowHeight),
-                        onClick = {
-                            when (item.itemId) {
-                                R.id.main_menu_task_manager -> onOpenTaskManager()
-                                R.id.main_menu_logs -> onOpenLogs()
-                                // Recording: stop. Otherwise open the settings popup.
-                                R.id.main_menu_record ->
-                                    if (item.active) listener.onActionSelected(item.itemId)
-                                    else showRecordSettings = true
-                                R.id.main_menu_touch -> onOpenTouch()
-                                R.id.main_menu_relative_mouse_movement,
-                                R.id.main_menu_disable_mouse,
-                                R.id.main_menu_toggle_fullscreen -> listener.onActionSelected(item.itemId)
-                                else -> listener.onActionSelected(item.itemId)
-                            }
-                        },
+                        onClick = { onCursor(1, index); cardClick(item) },
                     )
                 }
                 val trailing = (ActionCardColumns - cards.size % ActionCardColumns) % ActionCardColumns
@@ -1525,6 +2013,7 @@ private fun ActionCard(
     label: String,
     revealIndex: Int,
     revealed: Boolean,
+    highlighted: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1568,6 +2057,7 @@ private fun ActionCard(
         targetValue =
             when {
                 !enabled -> Color(0x05FFFFFF)
+                highlighted -> DrawerFocusFill
                 pressed -> PaneInnerPressed
                 else -> PaneInnerResting
             },
@@ -1617,6 +2107,17 @@ private fun ActionCard(
                 .clip(shape)
                 .background(cardBrush)
                 .border(1.dp, borderColor, shape)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     enabled = enabled,
                     interactionSource = interactionSource,
@@ -1651,10 +2152,32 @@ private fun ActionCard(
 private fun BottomActions(
     state: XServerDrawerState,
     listener: XServerDrawerActionListener,
+    region: Int = 0,
+    navIndex: Int = 0,
+    activateSignal: Int = 0,
+    onSetCount: (Int) -> Unit = {},
+    onCursor: (Int, Int) -> Unit = { _, _ -> },
+    controllerActive: Boolean = false,
 ) {
     val paneScale = LocalPaneScale.current
     val pause = state.items.firstOrNull { it.itemId == R.id.main_menu_pause }
     val exit = state.items.firstOrNull { it.itemId == R.id.main_menu_exit }
+    val pauseIndex = if (pause != null) 0 else -1
+    val exitIndex = if (exit != null) (if (pause != null) 1 else 0) else -1
+    val count = (if (pause != null) 1 else 0) + (if (exit != null) 1 else 0)
+    LaunchedEffect(count) { onSetCount(count) }
+    val lastActivate = remember { mutableStateOf(activateSignal) }
+    LaunchedEffect(activateSignal) {
+        if (activateSignal != lastActivate.value) {
+            lastActivate.value = activateSignal
+            if (region == 2) {
+                when (navIndex) {
+                    pauseIndex -> pause?.let { listener.onActionSelected(it.itemId) }
+                    exitIndex -> exit?.let { listener.onActionSelected(it.itemId) }
+                }
+            }
+        }
+    }
     if (pause == null && exit == null) return
     Row(
         modifier =
@@ -1669,8 +2192,9 @@ private fun BottomActions(
                 item = pause,
                 label = pause.title,
                 isExit = false,
+                highlighted = controllerActive && region == 2 && navIndex == pauseIndex,
                 modifier = Modifier.weight(1f),
-                onClick = { listener.onActionSelected(pause.itemId) },
+                onClick = { onCursor(2, pauseIndex); listener.onActionSelected(pause.itemId) },
             )
         }
         if (exit != null) {
@@ -1678,8 +2202,9 @@ private fun BottomActions(
                 item = exit,
                 label = stringResource(R.string.common_ui_exit),
                 isExit = true,
+                highlighted = controllerActive && region == 2 && navIndex == exitIndex,
                 modifier = Modifier.weight(1f),
-                onClick = { listener.onActionSelected(exit.itemId) },
+                onClick = { onCursor(2, exitIndex); listener.onActionSelected(exit.itemId) },
             )
         }
     }
@@ -1690,6 +2215,7 @@ private fun BottomActionButton(
     item: XServerDrawerItem,
     label: String,
     isExit: Boolean,
+    highlighted: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1700,6 +2226,7 @@ private fun BottomActionButton(
     val bgColor by animateColorAsState(
         targetValue =
             when {
+                highlighted -> DrawerFocusFill
                 isExit && pressed -> TileExitPressed
                 isExit -> TileExitResting
                 pressed -> PaneSurfacePressed
@@ -1729,6 +2256,17 @@ private fun BottomActionButton(
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, borderColor, shape)
+                .then(
+                    if (highlighted) {
+                        Modifier.chasingBorder(
+                            cornerRadius = cornerRadius,
+                            borderWidth = 1.5.dp,
+                            animationDurationMs = 8200,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -1879,14 +2417,14 @@ private fun HUDPaneContent(
                         .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
-            PaneEnableRow(
+            NavEnableRow(
                 title = stringResource(R.string.session_drawer_fps_monitor),
                 checked = active,
                 onCheckedChange = { listener.onActionSelected(R.id.main_menu_fps_monitor) },
             )
 
             if (active) {
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_alpha),
                     valueText = "${(state.hudTransparency * 100).toInt()}%",
                     value = state.hudTransparency,
@@ -1897,7 +2435,7 @@ private fun HUDPaneContent(
                 )
 
                 if (state.hudBackgroundAlphaEnabled) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_hud_background),
                         valueText = "${(state.hudBackgroundTransparency * 100).toInt()}%",
                         value = state.hudBackgroundTransparency,
@@ -1908,33 +2446,45 @@ private fun HUDPaneContent(
                     )
                 }
 
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_hud_scale),
-                    valueText = "${(state.hudScale * 100).toInt()}%",
+                    valueText = "${Math.round(state.hudScale * 100)}%",
                     value = state.hudScale,
                     valueRange = 0.3f..2.0f,
-                    steps = 16,
+                    steps = 33,
                     onValueClick = { activeEditor = HUDMetricEditor.SCALE },
-                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.1f, 0.3f, 2.0f)) },
+                    onValueChange = { listener.onHUDScaleChanged(it.snapToStep(0.05f, 0.3f, 2.0f)) },
+                    adjustStep = 0.05f,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_hud_background_alpha),
                     checked = state.hudBackgroundAlphaEnabled,
                     onCheckedChange = listener::onHUDBackgroundAlphaDecoupledChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_hud_frametime_numeric),
                     checked = state.frametimeNumericEnabled,
                     onCheckedChange = listener::onFrametimeNumericChanged,
                 )
 
-                FPSLimiterCard(
-                    currentLimit = state.fpsLimit,
-                    maxRefreshRate = state.maxRefreshRate,
-                    onLimitChanged = listener::onFPSLimitChanged,
-                )
+                Box(
+                    Modifier.fillMaxWidth().paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else state.maxRefreshRate) },
+                        onAdjust = { dir ->
+                            val base = if (state.fpsLimit > 0) state.fpsLimit else state.maxRefreshRate
+                            listener.onFPSLimitChanged((base + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
+                        },
+                    ),
+                ) {
+                    FPSLimiterCard(
+                        currentLimit = state.fpsLimit,
+                        maxRefreshRate = state.maxRefreshRate,
+                        onLimitChanged = listener::onFPSLimitChanged,
+                    )
+                }
 
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_hud_elements))
@@ -1944,12 +2494,16 @@ private fun HUDPaneContent(
                                 label = elementNames[index],
                                 checked = state.hudElements[index],
                                 onClick = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
+                                modifier = Modifier.paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onHUDElementToggled(index, !state.hudElements[index]) },
+                                ),
                             )
                         }
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_dual_series_battery),
                     checked = state.dualSeriesBatteryEnabled,
                     onCheckedChange = listener::onDualSeriesBatteryChanged,
@@ -1982,6 +2536,7 @@ private fun TouchPaneContent(
                         Modifier
                             .size((30f * paneScale).dp)
                             .clip(RoundedCornerShape((8f * paneScale).dp))
+                            .paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onClose)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -1996,36 +2551,48 @@ private fun TouchPaneContent(
                         modifier = Modifier.size((20f * paneScale).dp),
                     )
                 }
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_mouse_input),
-                    checked = state.mouseEnabled,
-                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_disable_mouse) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_relative_mouse_movement),
-                    checked = state.relativeMouseEnabled,
-                    onCheckedChange = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_trackpad),
-                    checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_touchscreen),
-                    checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_touch_map_right_stick),
-                    checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
-                )
-                DrawerBooleanRow(
-                    title = stringResource(R.string.session_drawer_rts_gestures),
-                    checked = state.rtsGesturesEnabled,
-                    onCheckedChange = { listener.onRtsGesturesToggled(it) },
-                )
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onActionSelected(R.id.main_menu_disable_mouse) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_mouse_input),
+                        checked = state.mouseEnabled,
+                        onCheckedChange = { listener.onActionSelected(R.id.main_menu_disable_mouse) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_relative_mouse_movement),
+                        checked = state.relativeMouseEnabled,
+                        onCheckedChange = { listener.onActionSelected(R.id.main_menu_relative_mouse_movement) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(0) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_trackpad),
+                        checked = state.screenTouchMode == 0 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { if (it) listener.onScreenTouchModeChanged(0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(1) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_touchscreen),
+                        checked = state.screenTouchMode == 1 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 1 else 0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onScreenTouchModeChanged(2) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_touch_map_right_stick),
+                        checked = state.screenTouchMode == 2 && !state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onScreenTouchModeChanged(if (it) 2 else 0) },
+                    )
+                }
+                Box(Modifier.fillMaxWidth().paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = { listener.onRtsGesturesToggled(!state.rtsGesturesEnabled) })) {
+                    DrawerBooleanRow(
+                        title = stringResource(R.string.session_drawer_rts_gestures),
+                        checked = state.rtsGesturesEnabled,
+                        onCheckedChange = { listener.onRtsGesturesToggled(it) },
+                    )
+                }
                 if (state.rtsGesturesEnabled) {
                     Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                         PaneSectionLabel(stringResource(R.string.session_gesture_profile_section))
@@ -2060,7 +2627,7 @@ private fun GyroscopePaneContent(
                         .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
                 verticalArrangement = Arrangement.spacedBy((10f * paneScale).dp),
             ) {
-            PaneEnableRow(
+            NavEnableRow(
                 title = stringResource(R.string.session_gyroscope_title),
                 checked = state.gyroscopeEnabled,
                 onCheckedChange = listener::onGyroscopeEnabledChanged,
@@ -2081,13 +2648,16 @@ private fun GyroscopePaneContent(
                                 label = label,
                                 checked = state.gyroscopeModeIndex == index,
                                 onClick = { listener.onGyroscopeModeSelected(index) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onGyroscopeModeSelected(index) },
+                                ),
                             )
                         }
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_orientation_mode),
                     checked = state.gyroOrientationEnabled,
                     onCheckedChange = listener::onGyroOrientationModeChanged,
@@ -2101,20 +2671,20 @@ private fun GyroscopePaneContent(
                     )
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_enable_right_stick),
                     checked = state.rightStickGyroEnabled,
                     onCheckedChange = listener::onRightStickGyroChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gyroscope_experimental_mouse_movement),
                     checked = state.gyroMouseEnabled,
                     onCheckedChange = listener::onGyroMouseEnabledChanged,
                 )
 
                 if (state.gyroMouseEnabled) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_mouse_scale),
                         valueText = "${state.gyroMouseScale.toInt()}%",
                         value = state.gyroMouseScale,
@@ -2129,7 +2699,7 @@ private fun GyroscopePaneContent(
                     expanded = calibrateExpanded,
                     onToggle = { calibrateExpanded = !calibrateExpanded },
                 ) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_x_sensitivity),
                         valueText = "${(state.gyroXSensitivity * 100).roundToInt()}%",
                         value = state.gyroXSensitivity,
@@ -2138,7 +2708,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroXSensitivityChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_y_sensitivity),
                         valueText = "${(state.gyroYSensitivity * 100).roundToInt()}%",
                         value = state.gyroYSensitivity,
@@ -2147,7 +2717,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroYSensitivityChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_smoothing),
                         valueText = "${(state.gyroSmoothing * 100).toInt()}%",
                         value = state.gyroSmoothing,
@@ -2156,7 +2726,7 @@ private fun GyroscopePaneContent(
                         onValueChange = { listener.onGyroSmoothingChanged(it) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_gyroscope_deadzone),
                         valueText = "${(state.gyroDeadzone * 100).toInt()}%",
                         value = state.gyroDeadzone,
@@ -2173,23 +2743,30 @@ private fun GyroscopePaneContent(
                             label = stringResource(R.string.session_gyroscope_invert_x),
                             checked = state.invertGyroX,
                             onClick = { listener.onInvertGyroXChanged(!state.invertGyroX) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(cornerRadius = (16f * paneScale).dp, onActivate = { listener.onInvertGyroXChanged(!state.invertGyroX) }),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_gyroscope_invert_y),
                             checked = state.invertGyroY,
                             onClick = { listener.onInvertGyroYChanged(!state.invertGyroY) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(cornerRadius = (16f * paneScale).dp, onActivate = { listener.onInvertGyroYChanged(!state.invertGyroY) }),
                         )
                     }
 
-                    WinNativeDialogButton(
-                        label = stringResource(R.string.session_gyroscope_reset_stick),
-                        textColor = DrawerAccent,
-                        backgroundColor = DrawerAccent.copy(alpha = 0.12f),
-                        borderColor = DrawerAccent.copy(alpha = 0.3f),
-                        onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
-                    )
+                    Box(
+                        Modifier.paneNavItem(
+                            cornerRadius = 10.dp,
+                            onActivate = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
+                        ),
+                    ) {
+                        WinNativeDialogButton(
+                            label = stringResource(R.string.session_gyroscope_reset_stick),
+                            textColor = DrawerAccent,
+                            backgroundColor = DrawerAccent.copy(alpha = 0.12f),
+                            borderColor = DrawerAccent.copy(alpha = 0.3f),
+                            onClick = { listener.onActionSelected(R.id.main_menu_gyroscope_reset) },
+                        )
+                    }
                 }
             }
             }
@@ -2252,14 +2829,14 @@ private fun InputControlsPaneContent(
                     }
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_drawer_show_touchscreen_controls),
                     checked = state.inputControlsShowOverlay,
                     onCheckedChange = listener::onInputControlsShowOverlayChanged,
                 )
 
                 if (state.inputControlsShowOverlay) {
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.input_controls_editor_overlay_opacity),
                         valueText = "${(state.inputControlsOverlayOpacity * 100).toInt()}%",
                         value = state.inputControlsOverlayOpacity,
@@ -2269,50 +2846,52 @@ private fun InputControlsPaneContent(
                     )
                     Spacer(Modifier.height(4.dp))
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.input_controls_tap_to_click),
                         checked = state.inputControlsTapToClick,
                         onCheckedChange = listener::onInputControlsTapToClickChanged,
                     )
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.settings_general_touchscreen_haptics),
                     checked = state.inputControlsTouchscreenHaptics,
                     onCheckedChange = listener::onInputControlsTouchscreenHapticsChanged,
                 )
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = stringResource(R.string.session_gamepad_enable_vibration),
                     checked = state.inputControlsGamepadVibration,
                     onCheckedChange = listener::onInputControlsGamepadVibrationChanged,
                 )
 
-                DrawerSliderRow(
+                NavSliderRow(
                     label = "Mouse sensitivity scale",
                     valueText = "${Math.round(state.cursorSpeed * 100)}%",
                     value = state.cursorSpeed * 100f,
                     valueRange = 10f..300f,
                     steps = 0,
                     onValueChange = { listener.onCursorSpeedChanged(it / 100f) },
+                    adjustStep = 5f,
                 )
 
                 val rsMapMode = state.screenTouchMode == 2
                 val rsValue = if (rsMapMode) state.screenTouchRsSensitivity else state.rightStickSensitivity
-                DrawerSliderRow(
+                NavSliderRow(
                     label = stringResource(R.string.session_drawer_right_stick_sensitivity),
                     valueText = "${Math.round(rsValue * 100)}%",
                     value = rsValue * 100f,
                     valueRange = (if (rsMapMode) 25f else 10f)..200f,
                     steps = 0,
                     onValueChange = { listener.onRightStickSensitivityChanged(it / 100f) },
+                    adjustStep = 5f,
                 )
 
                 LaunchedEffect(gcmEnabled) {
                     if (gcmEnabled) scrollState.animateScrollTo(Int.MAX_VALUE)
                 }
 
-                DrawerBooleanRow(
+                NavBooleanRow(
                     title = "GameSir Controller Rumble",
                     subtitle = "For Android-mode GameSir controllers only",
                     checked = gcmEnabled,
@@ -2331,13 +2910,19 @@ private fun InputControlsPaneContent(
                                 label = "Known",
                                 checked = state.inputControlsGcmRumbleMode == "known",
                                 onClick = { listener.onInputControlsGcmRumbleModeChanged("known") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onInputControlsGcmRumbleModeChanged("known") },
+                                ),
                             )
                             HUDToggleChip(
                                 label = "All (experimental)",
                                 checked = state.inputControlsGcmRumbleMode == "all",
                                 onClick = { listener.onInputControlsGcmRumbleModeChanged("all") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onInputControlsGcmRumbleModeChanged("all") },
+                                ),
                             )
                         }
                         Text(
@@ -2355,11 +2940,7 @@ private fun InputControlsPaneContent(
     }
 }
 
-/**
- * Compact dropdown shared by the Style and Label Theme rows in the Controls pane.
- * Mirrors the styling of [InputControlsProfileSelector] but omits the trailing edit-pencil button
- * since these are built-in choices, not user-editable.
- */
+/** Compact dropdown for the Controls Style/Label-Theme rows; like [InputControlsProfileSelector] but without the edit button (built-in, non-editable choices). */
 @Composable
 private fun InputControlsSimpleDropdown(
     options: List<String>,
@@ -2369,6 +2950,19 @@ private fun InputControlsSimpleDropdown(
     val paneScale = LocalPaneScale.current
     var expanded by remember { mutableStateOf(false) }
     val selectedText = options.getOrElse(selectedIndex) { options.firstOrNull() ?: "" }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -2388,6 +2982,15 @@ private fun InputControlsSimpleDropdown(
                     .clip(shape)
                     .background(bgColor)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(
+                        cornerRadius = cornerRadius,
+                        onActivate = { expanded = true },
+                        onAdjust = { dir ->
+                            if (options.isNotEmpty()) {
+                                onSelected(((selectedIndex + dir) % options.size + options.size) % options.size)
+                            }
+                        },
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -2418,6 +3021,7 @@ private fun InputControlsSimpleDropdown(
             selectedIndex = selectedIndex,
             onSelected = onSelected,
             onDismiss = { expanded = false },
+            optionRegistry = optionRegistry,
         )
     }
 }
@@ -2433,6 +3037,19 @@ private fun InputControlsProfileSelector(
     var expanded by remember { mutableStateOf(false) }
     val disabledPlaceholder = stringResource(R.string.common_ui_disabled_placeholder)
     val selectedText = profileNames.getOrElse(selectedIndex) { disabledPlaceholder }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -2457,6 +3074,7 @@ private fun InputControlsProfileSelector(
                         .clip(shape)
                         .background(bgColor)
                         .border(1.dp, RestingCardBorder, shape)
+                        .paneNavItem(cornerRadius = cornerRadius, onActivate = { expanded = true })
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -2487,6 +3105,7 @@ private fun InputControlsProfileSelector(
                 selectedIndex = selectedIndex,
                 onSelected = onProfileSelected,
                 onDismiss = { expanded = false },
+                optionRegistry = optionRegistry,
             )
         }
 
@@ -2497,6 +3116,7 @@ private fun InputControlsProfileSelector(
                     .clip(shape)
                     .background(PaneInnerResting)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(cornerRadius = cornerRadius, onActivate = onEditClick)
                     .clickable(onClick = onEditClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -2510,7 +3130,7 @@ private fun InputControlsProfileSelector(
     }
 }
 
-// Drawer-styled dropdown for the Controls selectors; opens scrolled to the selected option.
+// Drawer-styled dropdown for the Controls selectors.
 @Composable
 private fun InputControlsOptionsPopup(
     expanded: Boolean,
@@ -2518,6 +3138,7 @@ private fun InputControlsOptionsPopup(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
     onDismiss: () -> Unit,
+    optionRegistry: PaneNavRegistry,
 ) {
     if (!expanded) return
     val paneScale = LocalPaneScale.current
@@ -2525,45 +3146,34 @@ private fun InputControlsOptionsPopup(
     val gapPx = with(density) { (4f * paneScale).dp.roundToPx() }
     val shape = RoundedCornerShape((12f * paneScale).dp)
     val scrollState = rememberScrollState()
-    var selectedOffsetPx by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(selectedOffsetPx) {
-        selectedOffsetPx?.let { scrollState.scrollTo(it) }
-    }
     Popup(
         popupPositionProvider = remember(gapPx) { TaskManagerPopupPositionProvider(gapPx) },
         onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
+        properties = PopupProperties(focusable = false),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
-                    .clip(shape)
-                    .background(PaneSurfaceColor)
-                    .border(1.dp, RestingCardBorder, shape)
-                    .heightIn(max = (260f * paneScale).dp)
-                    .verticalScroll(scrollState)
-                    .padding((5f * paneScale).dp),
-            verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
-        ) {
-            options.forEachIndexed { index, name ->
-                val isSelected = index == selectedIndex
-                InputControlsOptionItem(
-                    label = name,
-                    selected = isSelected,
-                    onClick = {
-                        onSelected(index)
-                        onDismiss()
-                    },
-                    modifier =
-                        if (isSelected) {
-                            Modifier.onGloballyPositioned { coords ->
-                                selectedOffsetPx = coords.boundsInParent().top.roundToInt()
-                            }
-                        } else {
-                            Modifier
+        CompositionLocalProvider(LocalPaneNav provides optionRegistry) {
+            Column(
+                modifier =
+                    Modifier
+                        .widthIn(min = (160f * paneScale).dp, max = (280f * paneScale).dp)
+                        .clip(shape)
+                        .background(PaneSurfaceColor)
+                        .border(1.dp, RestingCardBorder, shape)
+                        .heightIn(max = (260f * paneScale).dp)
+                        .verticalScroll(scrollState)
+                        .padding((5f * paneScale).dp),
+                verticalArrangement = Arrangement.spacedBy((4f * paneScale).dp),
+            ) {
+                options.forEachIndexed { index, name ->
+                    InputControlsOptionItem(
+                        label = name,
+                        selected = index == selectedIndex,
+                        onClick = {
+                            onSelected(index)
+                            onDismiss()
                         },
-                )
+                    )
+                }
             }
         }
     }
@@ -2592,6 +3202,7 @@ private fun InputControlsOptionItem(
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, if (selected) ActiveCardBorder else RestingCardBorder, shape)
+                .paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onClick)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
                 .padding(horizontal = (12f * paneScale).dp, vertical = (10f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2655,6 +3266,7 @@ private fun ExpandableSection(
                     .clip(headerShape)
                     .background(headerBg)
                     .border(1.dp, headerBorder, headerShape)
+                    .paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = onToggle)
                     .clickable(
                         interactionSource = headerInteractionSource,
                         indication = null,
@@ -2707,7 +3319,7 @@ private fun ScreenEffectsPaneContent(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.shortcuts_graphics_sgsr_full_title))
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_upscaler_fsr),
                         checked = state.sgsrEnabled,
                         onCheckedChange = listener::onSGSREnabledChanged,
@@ -2727,7 +3339,7 @@ private fun ScreenEffectsPaneContent(
                             ) + fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
-                            DrawerSliderRow(
+                            NavSliderRow(
                                 label = stringResource(R.string.session_drawer_sgsr_edge_sharpness),
                                 valueText = "${state.sgsrSharpness}%",
                                 value = state.sgsrSharpness.toFloat(),
@@ -2761,18 +3373,22 @@ private fun ScreenEffectsPaneContent(
                                 label = label,
                                 checked = state.colorProfile == id,
                                 onClick = { listener.onColorProfileSelected(id) },
+                                modifier = Modifier.paneNavItem(
+                                    cornerRadius = (16f * paneScale).dp,
+                                    onActivate = { listener.onColorProfileSelected(id) },
+                                ),
                             )
                         }
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_vivid),
                         checked = state.vividEnabled,
                         onCheckedChange = listener::onVividEnabledChanged,
                     )
 
                     if (state.vividEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_vivid_strength),
                             valueText = "${state.vividStrength}%",
                             value = state.vividStrength.toFloat(),
@@ -2782,14 +3398,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_sharpen),
                         checked = state.sharpenEnabled,
                         onCheckedChange = listener::onSharpenEnabledChanged,
                     )
 
                     if (state.sharpenEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_strength),
                             valueText = "${state.sharpenStrength}%",
                             value = state.sharpenStrength.toFloat(),
@@ -2799,14 +3415,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scanlines),
                         checked = state.scanlinesEnabled,
                         onCheckedChange = listener::onScanlinesEnabledChanged,
                     )
 
                     if (state.scanlinesEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_intensity),
                             valueText = "${state.scanlinesIntensity}%",
                             value = state.scanlinesIntensity.toFloat(),
@@ -2816,14 +3432,14 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_pixelate),
                         checked = state.pixelateEnabled,
                         onCheckedChange = listener::onPixelateEnabledChanged,
                     )
 
                     if (state.pixelateEnabled) {
-                        DrawerSliderRow(
+                        NavSliderRow(
                             label = stringResource(R.string.session_drawer_block_size),
                             valueText = "${state.pixelateBlock}px",
                             value = state.pixelateBlock.toFloat(),
@@ -2833,7 +3449,7 @@ private fun ScreenEffectsPaneContent(
                         )
                     }
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_brightness),
                         valueText = "${state.brightness}",
                         value = state.brightness.toFloat(),
@@ -2842,7 +3458,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onBrightnessChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_contrast),
                         valueText = "${state.contrast}",
                         value = state.contrast.toFloat(),
@@ -2851,7 +3467,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onContrastChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_gamma),
                         valueText = String.format("%.2fx", state.gammaPercent / 100f),
                         value = state.gammaPercent.toFloat(),
@@ -2860,7 +3476,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onGammaChanged(it.roundToInt().coerceIn(50, 250)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_saturation),
                         valueText = "${state.saturation}%",
                         value = state.saturation.toFloat(),
@@ -2869,7 +3485,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onSaturationChanged(it.roundToInt().coerceIn(0, 200)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_temperature),
                         valueText = "${state.temperature}",
                         value = state.temperature.toFloat(),
@@ -2878,7 +3494,7 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onTemperatureChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerSliderRow(
+                    NavSliderRow(
                         label = stringResource(R.string.session_drawer_tint),
                         valueText = "${state.tint}",
                         value = state.tint.toFloat(),
@@ -2887,10 +3503,17 @@ private fun ScreenEffectsPaneContent(
                         onValueChange = { listener.onTintChanged(it.roundToInt().coerceIn(-100, 100)) },
                     )
 
-                    DrawerResetRow(
-                        label = stringResource(R.string.session_drawer_reset_effects),
-                        onClick = listener::onResetEffects,
-                    )
+                    Box(
+                        Modifier.fillMaxWidth().paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onResetEffects() },
+                        ),
+                    ) {
+                        DrawerResetRow(
+                            label = stringResource(R.string.session_drawer_reset_effects),
+                            onClick = listener::onResetEffects,
+                        )
+                    }
                 }
 
                 ThinDivider()
@@ -2903,19 +3526,28 @@ private fun ScreenEffectsPaneContent(
                             label = stringResource(R.string.session_drawer_color_blind_protan),
                             checked = state.colorBlind == 1,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 1) 0 else 1) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 1) 0 else 1) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_color_blind_deutan),
                             checked = state.colorBlind == 2,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 2) 0 else 2) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 2) 0 else 2) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_color_blind_tritan),
                             checked = state.colorBlind == 3,
                             onClick = { listener.onColorBlindSelected(if (state.colorBlind == 3) 0 else 3) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).paneNavItem(
+                                cornerRadius = (16f * paneScale).dp,
+                                onActivate = { listener.onColorBlindSelected(if (state.colorBlind == 3) 0 else 3) },
+                            ),
                         )
                     }
                 }
@@ -2925,19 +3557,19 @@ private fun ScreenEffectsPaneContent(
                 Column(verticalArrangement = Arrangement.spacedBy((8f * paneScale).dp)) {
                     PaneSectionLabel(stringResource(R.string.session_drawer_scale))
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_nearest),
                         checked = state.scaleFilter == 1,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 1 else 0) },
                     )
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_linear),
                         checked = state.scaleFilter == 2,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 2 else 0) },
                     )
 
-                    DrawerBooleanRow(
+                    NavBooleanRow(
                         title = stringResource(R.string.session_drawer_scale_bicubic),
                         checked = state.scaleFilter == 3,
                         onCheckedChange = { on -> listener.onScaleFilterSelected(if (on) 3 else 0) },
@@ -3030,6 +3662,10 @@ private fun OutputActiveControls(
                         label = label,
                         checked = state.outputAspectMode == index,
                         onClick = { listener.onOutputAspectModeSelected(index) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputAspectModeSelected(index) },
+                        ),
                     )
                 }
             }
@@ -3043,11 +3679,19 @@ private fun OutputActiveControls(
                     label = stringResource(R.string.session_drawer_output_game_mode_on),
                     checked = state.outputGameModeEnabled,
                     onClick = { listener.onOutputGameModeToggled(true) },
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onOutputGameModeToggled(true) },
+                    ),
                 )
                 HUDToggleChip(
                     label = stringResource(R.string.session_drawer_output_game_mode_off),
                     checked = !state.outputGameModeEnabled,
                     onClick = { listener.onOutputGameModeToggled(false) },
+                    modifier = Modifier.paneNavItem(
+                        cornerRadius = (12f * paneScale).dp,
+                        onActivate = { listener.onOutputGameModeToggled(false) },
+                    ),
                 )
             }
             Text(
@@ -3108,11 +3752,19 @@ private fun OutputGlassesCard(
                             label = stringResource(R.string.session_drawer_output_game_mode_on),
                             checked = state.outputVitureFilm > 0,
                             onClick = { listener.onOutputVitureFilm(1) },
+                            modifier = Modifier.paneNavItem(
+                                cornerRadius = (12f * paneScale).dp,
+                                onActivate = { listener.onOutputVitureFilm(1) },
+                            ),
                         )
                         HUDToggleChip(
                             label = stringResource(R.string.session_drawer_output_game_mode_off),
                             checked = state.outputVitureFilm == 0,
                             onClick = { listener.onOutputVitureFilm(0) },
+                            modifier = Modifier.paneNavItem(
+                                cornerRadius = (12f * paneScale).dp,
+                                onActivate = { listener.onOutputVitureFilm(0) },
+                            ),
                         )
                     }
                 }
@@ -3136,11 +3788,19 @@ private fun OutputGlassesCard(
                         label = stringResource(R.string.session_drawer_output_game_mode_on),
                         checked = state.outputViture3D,
                         onClick = { listener.onOutputViture3D(true) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputViture3D(true) },
+                        ),
                     )
                     HUDToggleChip(
                         label = stringResource(R.string.session_drawer_output_game_mode_off),
                         checked = !state.outputViture3D,
                         onClick = { listener.onOutputViture3D(false) },
+                        modifier = Modifier.paneNavItem(
+                            cornerRadius = (12f * paneScale).dp,
+                            onActivate = { listener.onOutputViture3D(false) },
+                        ),
                     )
                 }
             }
@@ -3269,6 +3929,7 @@ private fun OutputPaneButton(
                 .clip(RoundedCornerShape((14f * paneScale).dp))
                 .background(PaneInnerResting)
                 .border(1.dp, RestingCardBorder, RoundedCornerShape((14f * paneScale).dp))
+                .paneNavItem(cornerRadius = (14f * paneScale).dp, onActivate = onClick)
                 .clickable { onClick() }
                 .padding(horizontal = (12f * paneScale).dp, vertical = (12f * paneScale).dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -3540,6 +4201,7 @@ private fun LogsPaneActionTile(
             Modifier
                 .size((38f * paneScale).dp)
                 .clip(CircleShape)
+                .paneNavItem(cornerRadius = (19f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -3714,6 +4376,7 @@ private fun TaskManagerCloseButton(onClick: () -> Unit) {
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, RestingCardBorder, shape)
+                .paneNavItem(cornerRadius = (10f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -3880,6 +4543,7 @@ private fun TaskManagerNewTaskButton(onClick: () -> Unit) {
                 .clip(shape)
                 .background(bgColor)
                 .border(1.dp, RestingCardBorder, shape)
+                .paneNavItem(cornerRadius = (12f * paneScale).dp, onActivate = onClick)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -4000,6 +4664,7 @@ private fun TaskManagerAffinityChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(bgColor)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -4557,6 +5222,11 @@ private fun TaskManagerProcessCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .paneNavItem(
+                            cornerRadius = (8f * paneScale).dp,
+                            onActivate = onToggleAffinity,
+                            onSecondary = onBringToFront,
+                        )
                         .combinedClickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -4590,7 +5260,11 @@ private fun TaskManagerProcessCard(
                     modifier = Modifier.width((78f * paneScale).dp),
                 )
                 Spacer(modifier = Modifier.width((10f * paneScale).dp))
-                TaskManagerEndButton(onClick = onEndProcess)
+                Box(
+                    Modifier.paneNavItem(cornerRadius = (8f * paneScale).dp, onActivate = onEndProcess),
+                ) {
+                    TaskManagerEndButton(onClick = onEndProcess)
+                }
             }
 
             TaskManagerActionPopup(
@@ -4688,6 +5362,19 @@ private fun GyroscopeActivatorDropdown(
     val names = stringArrayResource(R.array.button_options)
     val keycodes = integerArrayResource(R.array.button_keycodes)
     var expanded by remember { mutableStateOf(false) }
+    val parentNav = LocalPaneNav.current
+    val optionRegistry = remember { PaneNavRegistry() }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            optionRegistry.reset()
+            optionRegistry.controllerActive = true
+            parentNav?.overlay = optionRegistry
+            parentNav?.overlayClose = { expanded = false }
+        } else if (parentNav?.overlay === optionRegistry) {
+            parentNav.overlay = null
+            parentNav.overlayClose = null
+        }
+    }
 
     val cornerRadius = (14f * paneScale).dp
     val shape = RoundedCornerShape(cornerRadius)
@@ -4707,6 +5394,7 @@ private fun GyroscopeActivatorDropdown(
                     .clip(shape)
                     .background(bgColor)
                     .border(1.dp, RestingCardBorder, shape)
+                    .paneNavItem(cornerRadius = cornerRadius, onActivate = { expanded = true })
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -4729,49 +5417,14 @@ private fun GyroscopeActivatorDropdown(
             )
         }
 
-        DropdownMenu(
+        InputControlsOptionsPopup(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier =
-                Modifier
-                    .background(PaneSurfaceColor)
-                    .heightIn(max = 280.dp),
-        ) {
-            names.forEachIndexed { index, name ->
-                val isSelected = name == currentLabel
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = name,
-                            color = if (isSelected) DrawerAccent else DrawerTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    },
-                    trailingIcon =
-                        if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    tint = DrawerAccent,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    onClick = {
-                        onSelected(keycodes[index])
-                        expanded = false
-                    },
-                    colors =
-                        MenuDefaults.itemColors(
-                            textColor = DrawerTextPrimary,
-                        ),
-                )
-            }
-        }
+            options = names.toList(),
+            selectedIndex = names.indexOfFirst { it == currentLabel }.coerceAtLeast(0),
+            onSelected = { index -> onSelected(keycodes[index]) },
+            onDismiss = { expanded = false },
+            optionRegistry = optionRegistry,
+        )
     }
 }
 
@@ -4995,6 +5648,37 @@ private fun Float.snapToStep(
 ): Float = (min + (((this - min) / step).roundToInt() * step)).coerceIn(min, max)
 
 @Composable
+private fun DialogFocusButton(
+    label: String,
+    textColor: Color,
+    backgroundColor: Color,
+    borderColor: Color,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .widthIn(min = 84.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(backgroundColor)
+                .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                .controllerFocusBorder(cornerRadius = 10.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 18.dp, vertical = 11.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
 private fun HUDMetricInputDialog(
     editor: HUDMetricEditor,
     initialPercent: Int,
@@ -5009,6 +5693,7 @@ private fun HUDMetricInputDialog(
         onConfirm(parsed.coerceIn(editor.minPercent, editor.maxPercent))
     }
 
+    val focusRequester = remember { FocusRequester() }
     WinNativeDialogShell(
         onDismiss = onDismiss,
         title =
@@ -5019,6 +5704,18 @@ private fun HUDMetricInputDialog(
             },
         maxWidth = 380.dp,
     ) {
+      LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+      Column(
+          modifier =
+              Modifier
+                  .controllerMenuInput(
+                      onDismiss = onDismiss,
+                      onStart = {
+                          keyboardController?.hide()
+                          submit()
+                      },
+                  ),
+      ) {
         Text(
             text = stringResource(R.string.session_drawer_hud_input_hint, editor.minPercent, editor.maxPercent),
             color = DrawerTextSecondary,
@@ -5077,22 +5774,26 @@ private fun HUDMetricInputDialog(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
         ) {
-            WinNativeDialogButton(
+            DialogFocusButton(
                 label = stringResource(R.string.common_ui_cancel),
                 textColor = DrawerTextPrimary,
+                backgroundColor = PaneInnerResting,
+                borderColor = RestingCardBorder,
                 onClick = onDismiss,
             )
-            WinNativeDialogButton(
+            DialogFocusButton(
                 label = stringResource(R.string.common_ui_apply),
                 textColor = DrawerAccent,
                 backgroundColor = DrawerAccent.copy(alpha = 0.12f),
                 borderColor = DrawerAccent.copy(alpha = 0.3f),
+                focusRequester = focusRequester,
                 onClick = {
                     keyboardController?.hide()
                     submit()
                 },
             )
         }
+      }
     }
 }
 
@@ -5248,6 +5949,9 @@ private fun RecordSettingsDialog(
     var quality by remember { mutableStateOf(config.quality.coerceIn(0, RECORD_QUALITY_LABELS.lastIndex)) }
     var recordUI by remember { mutableStateOf(config.recordUI) }
 
+    val recordNav = remember { SharedPaneNavRegistry() }
+    val doRecord = { onRecordNow(fpsIndex, resIndex, quality, recordUI) }
+
     val shape = RoundedCornerShape(16.dp)
     // Cap card height (landscape is short); settings scroll, the Record Now button stays pinned.
     val maxCardHeight = (LocalConfiguration.current.screenHeightDp * 0.92f).dp
@@ -5255,6 +5959,8 @@ private fun RecordSettingsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        CompositionLocalProvider(SharedLocalPaneNav provides recordNav) {
+        DialogPaneNav(recordNav, onDismiss = onDismiss, onStart = doRecord)
         Box(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 14.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
@@ -5290,50 +5996,76 @@ private fun RecordSettingsDialog(
                     )
                 }
 
-                // Scrollable settings above the pinned button.
                 Column(
                     modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_fps),
-                        valueText = "${fpsOptions[fpsIndex]} fps",
-                        value = fpsIndex.toFloat(),
-                        valueRange = 0f..(fpsOptions.lastIndex.coerceAtLeast(1)).toFloat(),
-                        steps = (fpsOptions.size - 2).coerceAtLeast(0),
-                        onValueChange = { if (fpsOptions.size > 1) fpsIndex = it.roundToInt().coerceIn(0, fpsOptions.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> if (fpsOptions.size > 1) fpsIndex = (fpsIndex + dir).coerceIn(0, fpsOptions.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_fps),
+                            valueText = "${fpsOptions[fpsIndex]} fps",
+                            value = fpsIndex.toFloat(),
+                            valueRange = 0f..(fpsOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                            steps = (fpsOptions.size - 2).coerceAtLeast(0),
+                            onValueChange = { if (fpsOptions.size > 1) fpsIndex = it.roundToInt().coerceIn(0, fpsOptions.lastIndex) },
+                        )
+                    }
 
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_resolution),
-                        valueText = resOptions[resIndex],
-                        value = resIndex.toFloat(),
-                        valueRange = 0f..(resOptions.lastIndex.coerceAtLeast(1)).toFloat(),
-                        steps = (resOptions.size - 2).coerceAtLeast(0),
-                        onValueChange = { if (resOptions.size > 1) resIndex = it.roundToInt().coerceIn(0, resOptions.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> if (resOptions.size > 1) resIndex = (resIndex + dir).coerceIn(0, resOptions.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_resolution),
+                            valueText = resOptions[resIndex],
+                            value = resIndex.toFloat(),
+                            valueRange = 0f..(resOptions.lastIndex.coerceAtLeast(1)).toFloat(),
+                            steps = (resOptions.size - 2).coerceAtLeast(0),
+                            onValueChange = { if (resOptions.size > 1) resIndex = it.roundToInt().coerceIn(0, resOptions.lastIndex) },
+                        )
+                    }
 
-                    DrawerSliderRow(
-                        label = stringResource(R.string.session_record_quality),
-                        valueText = RECORD_QUALITY_LABELS[quality],
-                        value = quality.toFloat(),
-                        valueRange = 0f..(RECORD_QUALITY_LABELS.lastIndex).toFloat(),
-                        steps = (RECORD_QUALITY_LABELS.size - 2).coerceAtLeast(0),
-                        onValueChange = { quality = it.roundToInt().coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onAdjust = { dir -> quality = (quality + dir).coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
+                        ),
+                    ) {
+                        DrawerSliderRow(
+                            label = stringResource(R.string.session_record_quality),
+                            valueText = RECORD_QUALITY_LABELS[quality],
+                            value = quality.toFloat(),
+                            valueRange = 0f..(RECORD_QUALITY_LABELS.lastIndex).toFloat(),
+                            steps = (RECORD_QUALITY_LABELS.size - 2).coerceAtLeast(0),
+                            onValueChange = { quality = it.roundToInt().coerceIn(0, RECORD_QUALITY_LABELS.lastIndex) },
+                        )
+                    }
 
-                    DrawerBooleanRow(
-                        title = stringResource(R.string.session_record_include_ui),
-                        checked = recordUI,
-                        onCheckedChange = { recordUI = it },
-                        subtitle = stringResource(R.string.session_record_include_ui_subtitle),
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().sharedPaneNavItem(
+                            onActivate = { recordUI = !recordUI },
+                        ),
+                    ) {
+                        DrawerBooleanRow(
+                            title = stringResource(R.string.session_record_include_ui),
+                            checked = recordUI,
+                            onCheckedChange = { recordUI = it },
+                            subtitle = stringResource(R.string.session_record_include_ui_subtitle),
+                        )
+                    }
                 }
 
-                // Record Now button (pinned).
                 Button(
-                    onClick = { onRecordNow(fpsIndex, resIndex, quality, recordUI) },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    onClick = doRecord,
+                    modifier = Modifier.fillMaxWidth().height(48.dp).sharedPaneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = doRecord,
+                        isEntry = true,
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -5357,6 +6089,7 @@ private fun RecordSettingsDialog(
                 }
             }
         }
+        }
     }
 }
 
@@ -5374,10 +6107,7 @@ private fun FPSLimiterCard(
     val maxFps = maxRefreshRate.coerceAtLeast(FPS_LIMITER_MIN)
     val steps = (maxFps - FPS_LIMITER_MIN - 1).coerceAtLeast(0)
 
-    // Slider position is tracked locally so the readout follows the drag and the
-    // last value survives an off/on toggle; the limit/refresh-rate commit is
-    // deferred to release (onValueChangeFinished). Re-seeds when the panel's max
-    // changes — e.g. a mid-game refresh-rate change that clamps the limit.
+    // Slider position tracked locally (readout follows the drag, value survives an off/on toggle); the commit is deferred to release and re-seeds when maxFps changes (e.g. a mid-game refresh-rate change that clamps the limit).
     var sliderValue by remember(maxFps) {
         mutableStateOf(
             (if (currentLimit > 0) currentLimit else FPS_LIMITER_DEFAULT)

@@ -30,10 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// Single source of truth for the performance HUD: FrameRating pushes live values each tick and the
-// XServer menu pushes which elements are enabled, so the in-game overlay and the phone gauges always
-// show the same set. Element indices match FrameRating: 0 FPS, 1 renderer, 2 GPU, 3 CPU, 4 RAM,
-// 5 battery+temp, 6 frametime.
+// Single source of truth for the perf HUD (FrameRating pushes values, the menu pushes the enabled set). Element indices: 0 FPS, 1 renderer, 2 GPU, 3 CPU, 4 RAM, 5 battery+temp, 6 frametime.
 object PerformanceHudState {
     data class Snapshot(
         val enabled: BooleanArray = BooleanArray(7),
@@ -92,8 +89,7 @@ private data class GaugeSpec(
 @Composable
 fun PerformanceHudOverlay(modifier: Modifier = Modifier) {
     val s by PerformanceHudState.state.collectAsState()
-    // A gauge stays on screen for as long as its element is enabled; a momentarily-unavailable
-    // value shows N/A rather than dropping the gauge (which would make the row jump around).
+    // A gauge stays while its element is enabled; a momentarily-unavailable value shows N/A rather than dropping the gauge (which would make the row jump).
     val gauges = ArrayList<GaugeSpec>(8)
     if (s.enabled.getOrElse(0) { false }) {
         gauges.add(GaugeSpec("FPS", s.fps.toInt().toString(), s.fps / 120f, HudAccent))

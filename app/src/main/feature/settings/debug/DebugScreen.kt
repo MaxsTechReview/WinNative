@@ -1,5 +1,3 @@
-/* Settings > Debug screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -18,12 +16,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +45,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -63,6 +69,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
@@ -72,10 +79,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +93,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -104,6 +115,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavHandlers
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.SideEffect
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.toast.WinToast
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
@@ -117,6 +139,7 @@ private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
 private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val Warning = Color(0xFFFF4444)
 private val Success = Color(0xFF7CC142)
 private val TextPrimary = Color(0xFFF0F4FF)
@@ -127,11 +150,12 @@ data class DebugState(
     val appDebug: Boolean = false,
     val wineDebug: Boolean = false,
     val wineChannels: List<String> = emptyList(),
-    val box64Logs: Boolean = false,
-    val fexcoreLogs: Boolean = false,
+    val wineClasses: List<String> = emptyList(),
+    val emulatorLogs: Boolean = false,
     val steamLogs: Boolean = false,
     val inputLogs: Boolean = false,
     val downloadLogs: Boolean = false,
+    val recordPerformanceToFile: Boolean = false,
     val vulkanValidationLayers: Boolean = false,
     val wnHybridMode: Boolean = false,
     val logsSize: String = "0 B",
@@ -150,16 +174,18 @@ data class LogFileEntry(
 fun DebugScreen(
     state: DebugState,
     wineChannelOptions: List<String>,
+    wineClassOptions: List<String>,
     onAppDebugChanged: (Boolean) -> Unit,
     onWineDebugChanged: (Boolean) -> Unit,
     onWineChannelsChanged: (List<String>) -> Unit,
+    onWineClassesChanged: (List<String>) -> Unit,
     onResetWineChannels: () -> Unit,
     onRemoveWineChannel: (String) -> Unit,
-    onBox64LogsChanged: (Boolean) -> Unit,
-    onFexcoreLogsChanged: (Boolean) -> Unit,
+    onEmulatorLogsChanged: (Boolean) -> Unit,
     onSteamLogsChanged: (Boolean) -> Unit,
     onInputLogsChanged: (Boolean) -> Unit,
     onDownloadLogsChanged: (Boolean) -> Unit,
+    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onVulkanValidationLayersChanged: (Boolean) -> Unit,
     onWnHybridModeChanged: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
@@ -170,6 +196,7 @@ fun DebugScreen(
     onShareLogFile: (LogFileEntry) -> Unit,
     onDownloadLogFile: (LogFileEntry) -> String?,
     onDeleteLogFile: (LogFileEntry) -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     var showChannelsDialog by remember { mutableStateOf(false) }
     var showLogsBrowser by remember { mutableStateOf(false) }
@@ -207,25 +234,25 @@ fun DebugScreen(
         )
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "application_section") {
-            SectionLabel(stringResource(R.string.common_ui_application))
-        }
+    val contentNav = rememberSettingsContentNav(bridge)
 
-        item(key = "app_debug_card") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                        bottom = 4.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SectionLabel(stringResource(R.string.common_ui_application))
+
             SettingsToggleCard(
                 title = stringResource(R.string.common_ui_application),
                 subtitle = stringResource(R.string.settings_debug_log_to_file_desc),
@@ -234,13 +261,9 @@ fun DebugScreen(
                 checked = state.appDebug,
                 onCheckedChange = onAppDebugChanged,
             )
-        }
 
-        item(key = "emulation_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_emulation), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "wine_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_wine_logs_title),
                 subtitle = stringResource(R.string.settings_debug_wine_logs_subtitle),
@@ -248,9 +271,7 @@ fun DebugScreen(
                 checked = state.wineDebug,
                 onCheckedChange = onWineDebugChanged,
             )
-        }
 
-        item(key = "wine_channels_card") {
             WineChannelsCard(
                 channels = state.wineChannels,
                 enabled = state.wineDebug,
@@ -258,34 +279,33 @@ fun DebugScreen(
                 onReset = onResetWineChannels,
                 onRemoveChannel = onRemoveWineChannel,
             )
-        }
 
-        item(key = "box64_logs_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.settings_debug_box_logs_title),
-                subtitle = stringResource(R.string.settings_debug_box_logs_subtitle),
-                icon = Icons.Outlined.Memory,
-                checked = state.box64Logs,
-                onCheckedChange = onBox64LogsChanged,
+            WineClassesCard(
+                options = wineClassOptions,
+                selected = state.wineClasses,
+                enabled = state.wineDebug,
+                onToggle = { cls ->
+                    val updated =
+                        if (cls in state.wineClasses) {
+                            state.wineClasses - cls
+                        } else {
+                            state.wineClasses + cls
+                        }
+                    onWineClassesChanged(wineClassOptions.filter { it in updated })
+                },
             )
-        }
 
-        item(key = "fexcore_logs_card") {
             SettingsToggleCard(
-                title = stringResource(R.string.settings_debug_fex_logs_title),
-                subtitle = stringResource(R.string.settings_debug_fex_logs_subtitle),
+                title = stringResource(R.string.settings_debug_emulator_logs_title),
+                subtitle = stringResource(R.string.settings_debug_emulator_logs_subtitle),
                 icon = Icons.Outlined.Memory,
-                checked = state.fexcoreLogs,
-                onCheckedChange = onFexcoreLogsChanged,
+                checked = state.emulatorLogs,
+                onCheckedChange = onEmulatorLogsChanged,
             )
-        }
 
-        item(key = "subsystems_section") {
             SectionLabel(stringResource(R.string.settings_debug_section_subsystems), modifier = Modifier.padding(top = 8.dp))
-        }
 
 /*
-        item(key = "vulkan_validation_layers_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_vulkan_validation_layers_title),
                 subtitle = stringResource(R.string.settings_debug_vulkan_validation_layers_subtitle),
@@ -294,10 +314,8 @@ fun DebugScreen(
                 checked = state.vulkanValidationLayers,
                 onCheckedChange = onVulkanValidationLayersChanged,
             )
-        }
 */
 
-        item(key = "steam_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_steam_logs_title),
                 subtitle = stringResource(R.string.settings_debug_steam_logs_subtitle),
@@ -305,9 +323,7 @@ fun DebugScreen(
                 checked = state.steamLogs,
                 onCheckedChange = onSteamLogsChanged,
             )
-        }
 
-        item(key = "input_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_input_logs),
                 subtitle = stringResource(R.string.settings_debug_input_logs_description),
@@ -315,9 +331,7 @@ fun DebugScreen(
                 checked = state.inputLogs,
                 onCheckedChange = onInputLogsChanged,
             )
-        }
 
-        item(key = "download_logs_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_debug_download_logs),
                 subtitle = stringResource(R.string.settings_debug_download_logs_description),
@@ -325,9 +339,15 @@ fun DebugScreen(
                 checked = state.downloadLogs,
                 onCheckedChange = onDownloadLogsChanged,
             )
-        }
 
-        item(key = "log_actions_row") {
+            SettingsToggleCard(
+                title = stringResource(R.string.settings_hud_record_to_file_title),
+                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
+                icon = Icons.Outlined.Speed,
+                checked = state.recordPerformanceToFile,
+                onCheckedChange = onRecordPerformanceToFileChanged,
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -339,9 +359,7 @@ fun DebugScreen(
                     onClick = { showLogsBrowser = true },
                 )
             }
-        }
 
-        item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -385,7 +403,12 @@ private fun SettingsToggleCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                    .paneNavItem(
+                        cornerRadius = 12.dp,
+                        onActivate = { onCheckedChange(!checked) },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ).padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -412,7 +435,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -431,6 +454,122 @@ private fun WineChannelsCard(
     onEdit: () -> Unit,
     onReset: () -> Unit,
     onRemoveChannel: (String) -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.48f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(IconBoxBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Tune,
+                        contentDescription = null,
+                        tint = Accent,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+                Spacer(Modifier.width(13.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_debug_wine_channels_title),
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_debug_wine_channels_summary),
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier =
+                        Modifier.paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { if (enabled) onEdit() },
+                            highlightColor = NavHighlight,
+                        ),
+                ) {
+                    SmallActionButton(
+                        label = stringResource(R.string.common_ui_select),
+                        textColor = Accent,
+                        onClick = { if (enabled) onEdit() },
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier =
+                        Modifier.paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { if (enabled) onReset() },
+                            highlightColor = NavHighlight,
+                        ),
+                ) {
+                    SmallActionButton(
+                        label = stringResource(R.string.common_ui_reset),
+                        textColor = TextSecondary,
+                        onClick = { if (enabled) onReset() },
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (channels.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_debug_no_channels_selected),
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                    )
+                } else {
+                    channels.forEach { channel ->
+                        key(channel) {
+                            ChannelChip(
+                                label = channel,
+                                onRemove = { if (enabled) onRemoveChannel(channel) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Wine debug message-class card (err / warn / fixme / trace)
+@Composable
+private fun WineClassesCard(
+    options: List<String>,
+    selected: List<String>,
+    enabled: Boolean,
+    onToggle: (String) -> Unit,
 ) {
     Box(
         modifier =
@@ -466,55 +605,70 @@ private fun WineChannelsCard(
                 Spacer(Modifier.width(13.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.settings_debug_wine_channels_title),
+                        text = stringResource(R.string.settings_debug_wine_classes_title),
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = stringResource(R.string.settings_debug_wine_channels_summary),
+                        text = stringResource(R.string.settings_debug_wine_classes_summary),
                         color = TextSecondary,
                         fontSize = 11.sp,
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                SmallActionButton(
-                    label = stringResource(R.string.common_ui_select),
-                    textColor = Accent,
-                    onClick = { if (enabled) onEdit() },
-                )
-                Spacer(Modifier.width(6.dp))
-                SmallActionButton(
-                    label = stringResource(R.string.common_ui_reset),
-                    textColor = TextSecondary,
-                    onClick = { if (enabled) onReset() },
-                )
             }
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (channels.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.settings_debug_no_channels_selected),
-                        color = TextSecondary,
-                        fontSize = 11.sp,
+                options.forEach { cls ->
+                    ClassChip(
+                        label = cls,
+                        isSelected = cls in selected,
+                        enabled = enabled,
+                        onToggle = { onToggle(cls) },
                     )
-                } else {
-                    channels.forEach { channel ->
-                        ChannelChip(
-                            label = channel,
-                            onRemove = { if (enabled) onRemoveChannel(channel) },
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.ClassChip(
+    label: String,
+    isSelected: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    // pointerInput keys never change, so capture the latest callback to avoid acting
+    // on a stale selection snapshot.
+    val action = rememberUpdatedState { if (enabled) onToggle() }
+    val bg = if (isSelected) Accent.copy(alpha = 0.18f) else IconBoxBg
+    val borderColor = if (isSelected) Accent.copy(alpha = 0.55f) else CardBorder
+    val textColor = if (isSelected) Accent else TextPrimary
+    Box(
+        modifier =
+            Modifier
+                .weight(1f)
+                .height(34.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(bg)
+                .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { if (enabled) onToggle() })
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { action.value() })
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
     }
 }
 
@@ -544,9 +698,12 @@ private fun ChannelChip(
                 Modifier
                     .size(18.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .pointerInput(onRemove) {
-                        detectTapGestures(onTap = { onRemove() })
-                    },
+                    .paneNavItem(
+                        cornerRadius = 5.dp,
+                        onActivate = { onRemove() },
+                        highlightColor = NavHighlight,
+                        tapToSelect = true,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -563,6 +720,7 @@ private fun ChannelChip(
 private fun SmallActionButton(
     label: String,
     textColor: Color,
+    isEntry: Boolean = false,
     onClick: () -> Unit,
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -578,6 +736,7 @@ private fun SmallActionButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -611,20 +770,73 @@ private fun WineChannelsDialog(
         remember(initiallySelected) {
             mutableStateOf(initiallySelected.toSet())
         }
+    val contentRegistry = remember { PaneNavRegistry().apply { stableCursor = true } }
+    val footerRegistry = remember { PaneNavRegistry().apply { singleRow = true } }
+    var footerZone by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(contentRegistry.activeRow, contentRegistry.activeCol, viewportHeight, footerZone) {
+        if (footerZone || !contentRegistry.controllerActive || contentRegistry.manualSelection) return@LaunchedEffect
+        val bounds = contentRegistry.activeItemBounds() ?: return@LaunchedEffect
+        val margin = (bounds.second - bounds.first) + with(density) { 10.dp.toPx() }
+        val vpBottom = viewportTop + viewportHeight
+        val delta = when {
+            bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+            bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+            else -> 0f
+        }
+        if (delta != 0f) runCatching { gridState.animateScrollBy(delta) }
+    }
+    val toFooter: () -> Unit = {
+        footerZone = true
+        contentRegistry.controllerActive = false
+        footerRegistry.controllerActive = true
+        footerRegistry.reset()
+    }
+    SideEffect {
+        contentRegistry.onEdgeDown = {
+            if (gridState.canScrollForward) {
+                val b = contentRegistry.activeItemBounds()
+                val step = if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
+                scope.launch { runCatching { gridState.animateScrollBy(step) } }
+            } else {
+                toFooter()
+            }
+        }
+        contentRegistry.onEdgeLeft = toFooter
+        contentRegistry.onEdgeRight = toFooter
+        footerRegistry.onEdgeUp = {
+            footerZone = false
+            footerRegistry.controllerActive = false
+            contentRegistry.controllerActive = true
+        }
+    }
+    val handlers =
+        remember {
+            paneNavHandlers(
+                onDismiss = onDismiss,
+                onStart = {
+                    val ordered = options.filter { it in selected.value }
+                    onConfirm(ordered)
+                },
+                registry = { if (footerZone) footerRegistry else contentRegistry },
+            )
+        }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties =
             DialogProperties(
                 usePlatformDefaultWidth = false,
-                // Parent activity runs edge-to-edge (WindowCompat.setDecorFitsSystemWindows(window, false)),
-                // so we also take the dialog window edge-to-edge and pad for insets manually below.
-                // This gives predictable behavior regardless of platform defaults.
                 decorFitsSystemWindows = false,
             ),
     ) {
-        // fillMaxSize + safeDrawing inset padding keeps the dialog clear of the
-        // system status/nav bars and any display cutout on every device.
+        DialogPaneNav(handlers)
+        CompositionLocalProvider(LocalPaneNav provides contentRegistry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -663,6 +875,11 @@ private fun WineChannelsDialog(
                     ChannelGrid(
                         options = options,
                         selected = selected.value,
+                        gridState = gridState,
+                        onViewport = { top, h ->
+                            viewportTop = top
+                            viewportHeight = h
+                        },
                         onToggle = { channel ->
                             selected.value =
                                 if (channel in selected.value) {
@@ -674,26 +891,28 @@ private fun WineChannelsDialog(
                     )
 
                     Spacer(Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                    ) {
-                        SmallActionButton(
-                            label = stringResource(R.string.common_ui_cancel),
-                            textColor = TextSecondary,
-                            onClick = onDismiss,
-                        )
-                        SmallActionButton(
-                            label = stringResource(R.string.common_ui_confirm),
-                            textColor = Accent,
-                            onClick = {
-                                val ordered = options.filter { it in selected.value }
-                                onConfirm(ordered)
-                            },
-                        )
+                    CompositionLocalProvider(LocalPaneNav provides footerRegistry) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                        ) {
+                            SmallActionButton(
+                                label = stringResource(R.string.common_ui_cancel),
+                                textColor = TextSecondary,                                onClick = onDismiss,
+                            )
+                            SmallActionButton(
+                                label = stringResource(R.string.common_ui_confirm),
+                                textColor = Accent,                                isEntry = true,
+                                onClick = {
+                                    val ordered = options.filter { it in selected.value }
+                                    onConfirm(ordered)
+                                },
+                            )
+                        }
                     }
                 }
             }
+        }
         }
     }
 }
@@ -702,6 +921,8 @@ private fun WineChannelsDialog(
 private fun ColumnScope.ChannelGrid(
     options: List<String>,
     selected: Set<String>,
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
+    onViewport: (Float, Int) -> Unit,
     onToggle: (String) -> Unit,
 ) {
     if (options.isEmpty()) {
@@ -713,22 +934,24 @@ private fun ColumnScope.ChannelGrid(
         )
         return
     }
-    // Adaptive grid reflows columns on smaller screens (3 cols on ~300dp+ wide,
-    // 2 cols on narrow ~200dp wide). weight(1f, fill = false) lets the grid
-    // shrink on short landscape screens without pushing buttons off-screen.
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(minSize = 92.dp),
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
+                .weight(1f, fill = false)
+                .onGloballyPositioned {
+                    onViewport(it.positionInWindow().y, it.size.height)
+                },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(options) { channel ->
+        itemsIndexed(options) { index, channel ->
             SelectableChannelChip(
                 label = channel,
                 isSelected = channel in selected,
+                isEntry = index == 0,
                 onToggle = { onToggle(channel) },
             )
         }
@@ -739,6 +962,7 @@ private fun ColumnScope.ChannelGrid(
 private fun SelectableChannelChip(
     label: String,
     isSelected: Boolean,
+    isEntry: Boolean,
     onToggle: () -> Unit,
 ) {
     val bg = if (isSelected) Accent.copy(alpha = 0.18f) else IconBoxBg
@@ -752,6 +976,7 @@ private fun SelectableChannelChip(
                 .clip(RoundedCornerShape(8.dp))
                 .background(bg)
                 .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onToggle, isEntry = isEntry)
                 .pointerInput(label) {
                     detectTapGestures(onTap = { onToggle() })
                 },
@@ -790,6 +1015,7 @@ private fun RowScope.LogActionButton(
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
                 .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+                .paneNavItem(cornerRadius = 12.dp, onActivate = { onClick() }, highlightColor = NavHighlight)
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -859,6 +1085,9 @@ private fun LogsBrowserDialog(
     var downloaded by remember {
         mutableStateOf(initialFiles.filter { it.downloaded }.map { it.absolutePath }.toSet())
     }
+    val registry = remember { PaneNavRegistry().apply { stableCursor = true } }
+    var rightStick by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(selected) { registry.reset() }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -873,6 +1102,15 @@ private fun LogsBrowserDialog(
         val showSavedToast: (String) -> Unit = { path ->
             WinToast.show(context, context.getString(R.string.settings_debug_logs_saved, path), dialogView)
         }
+        val logNavHandlers =
+            remember {
+                paneNavHandlers(
+                    onDismiss = { if (selected != null) selected = null else onDismiss() },
+                    onScroll = { rightStick = it },
+                ) { registry }
+            }
+        DialogPaneNav(logNavHandlers)
+        CompositionLocalProvider(LocalPaneNav provides registry) {
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -939,11 +1177,13 @@ private fun LogsBrowserDialog(
                                 onBack = { selected = null },
                                 onClose = onDismiss,
                                 onReadLogFile = onReadLogFile,
+                                rightStick = rightStick,
                             )
                         }
                     }
                 }
             }
+        }
         }
     }
 
@@ -982,6 +1222,7 @@ private fun LogsHeaderShareAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1026,6 +1267,7 @@ private fun LogsHeaderDownloadAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Success.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1070,6 +1312,7 @@ private fun LogsHeaderDeleteAll(onClick: () -> Unit) {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, Warning.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(
                         onPress = {
@@ -1112,6 +1355,7 @@ private fun LogsHeaderIcon(
             Modifier
                 .size(30.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
@@ -1144,11 +1388,49 @@ private fun ColumnScope.LogFileList(
         )
         return
     }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val nav = LocalPaneNav.current
+    var viewportTop by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
+    if (nav != null) {
+        LaunchedEffect(nav.activeRow, nav.activeCol, viewportHeight) {
+            if (!nav.controllerActive || nav.manualSelection) return@LaunchedEffect
+            val bounds = nav.activeItemBounds() ?: return@LaunchedEffect
+            val rowH = bounds.second - bounds.first
+            val margin = (rowH * 2f + with(density) { 12.dp.toPx() }).coerceAtMost(viewportHeight * 0.4f)
+            val vpBottom = viewportTop + viewportHeight
+            val delta = when {
+                bounds.second + margin > vpBottom -> bounds.second + margin - vpBottom
+                bounds.first - margin < viewportTop -> bounds.first - margin - viewportTop
+                else -> 0f
+            }
+            if (delta != 0f) runCatching { listState.animateScrollBy(delta) }
+        }
+        SideEffect {
+            val rowStep: () -> Float = {
+                val b = nav.activeItemBounds()
+                if (b != null) (b.second - b.first) + with(density) { 8.dp.toPx() } else viewportHeight * 0.3f
+            }
+            nav.onEdgeDown = {
+                if (listState.canScrollForward) scope.launch { runCatching { listState.animateScrollBy(rowStep()) } }
+            }
+            nav.onEdgeUp = {
+                if (listState.canScrollBackward) scope.launch { runCatching { listState.animateScrollBy(-rowStep()) } }
+            }
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
+                .weight(1f, fill = false)
+                .onGloballyPositioned {
+                    viewportTop = it.positionInWindow().y
+                    viewportHeight = it.size.height
+                },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(files, key = { it.absolutePath }) { entry ->
@@ -1180,12 +1462,19 @@ private fun LogFileRow(
                 .clip(RoundedCornerShape(10.dp))
                 .background(IconBoxBg)
                 .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
-                .pointerInput(entry.absolutePath) {
-                    detectTapGestures(onTap = { onOpen() })
-                }.padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { onOpen() })
+                    .pointerInput(entry.absolutePath) {
+                        detectTapGestures(onTap = { onOpen() })
+                    }.padding(horizontal = 4.dp, vertical = 2.dp),
+        ) {
             Text(
                 text = entry.name,
                 color = TextPrimary,
@@ -1247,6 +1536,7 @@ private fun LogRowIconButton(
                 .clip(shape)
                 .background(fillBrush, shape)
                 .border(1.dp, tint.copy(alpha = if (filled) 0.65f else 0.30f), shape)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = { onClick() })
                 .pointerInput(onClick) {
                     detectTapGestures(onTap = { onClick() })
                 },
@@ -1317,6 +1607,7 @@ private fun LogDetailView(
     onBack: () -> Unit,
     onClose: () -> Unit,
     onReadLogFile: (LogFileEntry) -> String,
+    rightStick: Float,
 ) {
     var content by remember(entry.absolutePath) { mutableStateOf<String?>(null) }
     LaunchedEffect(entry.absolutePath) {
@@ -1360,6 +1651,7 @@ private fun LogDetailView(
         LogContentBody(
             content = content,
             entry = entry,
+            rightStick = rightStick,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -1372,6 +1664,7 @@ private fun LogDetailView(
 private fun LogContentBody(
     content: String?,
     entry: LogFileEntry,
+    rightStick: Float,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -1401,6 +1694,13 @@ private fun LogContentBody(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 val logScrollState = rememberScrollState()
+                LaunchedEffect(rightStick) {
+                    if (rightStick == 0f) return@LaunchedEffect
+                    while (true) {
+                        logScrollState.scrollBy(rightStick * 26f)
+                        withFrameNanos { }
+                    }
+                }
                 val scrollbarAlpha by animateFloatAsState(
                     targetValue = if (logScrollState.isScrollInProgress) 1f else 0f,
                     animationSpec =

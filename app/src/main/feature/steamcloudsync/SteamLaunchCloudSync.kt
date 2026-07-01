@@ -22,10 +22,7 @@ object SteamLaunchCloudSync {
         fun show(text: String)
     }
 
-    /**
-     * Steam provider cloud saves need launch-time reconciliation. This is Steam-only
-     * and never starts Google Play Games or Drive consent.
-     */
+    /** Launch-time Steam cloud reconciliation. Steam-only — never starts Google Play Games or Drive consent. */
     @JvmStatic
     fun syncBeforeLaunch(
         activity: Activity,
@@ -91,11 +88,7 @@ object SteamLaunchCloudSync {
         var keepBackup = false
         val timestamps = SteamCloudSyncHelper.timestampsFromSyncInfo(activity, shortcut, initialSync)
 
-        // If the activity is destroyed (back-to-launcher, system kill, finish())
-        // while the dialog is up, the latch must still count down or this thread
-        // will block forever. Attach a lifecycle observer that releases the latch
-        // on ON_DESTROY; the default of useCloud=false then falls back to "keep
-        // local" — the safer choice when no user input is captured.
+        // If the activity is destroyed while the dialog is up, release the latch on ON_DESTROY or this thread blocks forever; default useCloud=false falls back to "keep local".
         val lifecycle = (activity as? LifecycleOwner)?.lifecycle
         val cancelObserver =
             LifecycleEventObserver { _, event ->
@@ -126,9 +119,7 @@ object SteamLaunchCloudSync {
         }
 
         try {
-            // Belt-and-suspenders timeout in case both the dialog and the lifecycle
-            // observer somehow fail to fire. 10 minutes is generous for a user
-            // looking at the dialog, but bounds the worst case.
+            // Timeout in case the dialog and lifecycle observer both fail to fire — bounds the worst case.
             if (!dialogLatch.await(10, TimeUnit.MINUTES)) {
                 Timber.tag("SteamLaunchCloudSync").w(
                     "Cloud-conflict dialog timed out after 10 minutes; treating as 'keep local'",
@@ -147,8 +138,7 @@ object SteamLaunchCloudSync {
             backupDiscardedSave(activity, shortcut, GameSaveBackupManager.BackupOrigin.LOCAL)
         }
         if (keepBackup && !useCloud) {
-            // "Use Local" overwrites the CLOUD save (potentially newer progress from another
-            // device). Steam keeps no server-side history, so capture the cloud copy first.
+            // "Use Local" overwrites the CLOUD save (maybe newer progress from another device); Steam keeps no server-side history, so capture the cloud copy first.
             backupDiscardedCloudSave(activity, shortcut)
         }
         val preferredSave = if (useCloud) SaveLocation.Remote else SaveLocation.Local
@@ -190,10 +180,7 @@ object SteamLaunchCloudSync {
         }
     }
 
-    /**
-     * Capture the current Steam Cloud save before a "Use Local" choice overwrites it. Runs the
-     * non-destructive cloud pre-capture (never touches the live local save). Best-effort.
-     */
+    /** Capture the Steam Cloud save before "Use Local" overwrites it — non-destructive pre-capture (never touches the live local save). Best-effort. */
     private fun backupDiscardedCloudSave(
         activity: Activity,
         shortcut: Shortcut,

@@ -781,10 +781,14 @@ Ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Gravar saida de depuracao do Box86 &amp; Box64 em arquivo</string>
     <string name="settings_debug_fex_logs_title">Ativar Logs do FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Gravar saida de depuracao do FEXCore em arquivo</string>
+    <string name="settings_debug_emulator_logs_title">Logs de emulação Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Registra em arquivo o emulador que seu contêiner usa.</string>
     <string name="settings_debug_steam_logs_title">Ativar Logs do Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Registrar eventos de autenticacao e sessao do Steam para depuracao.</string>
     <string name="settings_debug_wine_channels_title">Canais de Depuracao do Wine</string>
     <string name="settings_debug_wine_channels_summary">Escolher quais canais do Wine sao incluidos quando o log de depuracao do Wine esta ativado.</string>
+    <string name="settings_debug_wine_classes_title">Níveis de log do Wine</string>
+    <string name="settings_debug_wine_classes_summary">Escolha quais tipos de mensagem são registrados. Trace é extremamente detalhado.</string>
     <string name="settings_debug_input_logs">Logs de Entrada</string>
     <string name="settings_debug_input_logs_description">Registrar eventos de entrada do gamepad, toque e teclado</string>
     <string name="settings_debug_download_logs">Logs de Download</string>
@@ -1307,7 +1311,7 @@ Caminho instalado:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud está inacessível no momento. Reconectando em segundo plano toque em atualizar quando estiver online novamente.</string>
     <string name="steam_session_refused_event">Steam recusou a sessão em cache (EResult=%1$d). Entre novamente.</string>
     <string name="settings_hud_record_to_file_title">Gravar desempenho em arquivo</string>
-    <string name="settings_hud_record_to_file_summary">Grava métricas por segundo de FPS, CPU, GPU, temperatura e bateria em /WinNative/logs/ durante o jogo.</string>
+    <string name="settings_hud_record_to_file_summary">Exporta métricas por segundo de FPS, CPU, GPU, temperatura e bateria para /WinNative/logs/ durante o jogo.</string>
     <string name="settings_leaderboard_category">Desempenho</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Preparando ambiente Steam</string>
@@ -1334,6 +1338,16 @@ Caminho instalado:
     <!-- Workshop -->
     <string name="workshop_loading_items">Carregando itens do Workshop</string>
     <string name="workshop_search_items">Buscar itens do Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Obtendo seus itens inscritos da Steam.</string>
+    <string name="workshop_error_title">Não foi possível carregar os itens do Workshop</string>
+    <string name="workshop_error_subtitle">Algo deu errado. Tente novamente.</string>
+    <string name="workshop_empty_title">Nenhum item do Workshop inscrito</string>
+    <string name="workshop_empty_subtitle">Inscreva-se em itens no Steam Workshop e reabra esta janela.</string>
+    <string name="workshop_search_empty_title">Nenhum item corresponde a \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Tente outro termo de pesquisa.</string>
+    <string name="workshop_clear_search">Limpar pesquisa</string>
+    <string name="workshop_item_fallback">Item do Workshop</string>
     <string name="common_ui_failed">Falhou</string>
     <string name="steam_presence_snooze">Soneca</string>
     <string name="steam_presence_busy">Ocupado</string>
