@@ -1680,10 +1680,22 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             confirmLabel = context.getString(R.string.common_ui_import),
         ) { dismiss ->
             dismiss()
+            val imagefsRoot = ImageFs.find(context).getRootDir()
+            val driveRoots =
+                listOf(
+                    DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                    DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                    DirectoryPickerDialog.ManagedRoot(
+                        "D:",
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                    ),
+                    DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+                )
             DirectoryPickerDialog.showFile(
                 activity,
                 title = context.getString(R.string.common_ui_import),
                 allowedExtensions = setOf("zip"),
+                extraRoots = driveRoots,
             ) { pickedPath ->
                 importSaves(File(pickedPath))
             }
