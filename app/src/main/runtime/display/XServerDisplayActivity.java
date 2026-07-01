@@ -7544,7 +7544,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         envVars.put("GALLIUM_DRIVER", "zink");
-        envVars.put("LIBGL_KOPPER_DISABLE", "true");
+        // Kopper off only on the Steam path; normal GL needs it on to present.
+        if (isSteamShortcut()) {
+            envVars.put("LIBGL_KOPPER_DISABLE", "true");
+        }
 
         if (firstTimeBoot) {
             Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
