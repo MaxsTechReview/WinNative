@@ -540,7 +540,6 @@ private fun InGameFriendCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // Small game art at text height, with the game name to the right.
                 Row(
                     Modifier.padding(top = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,

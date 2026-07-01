@@ -435,9 +435,7 @@ class GameSettingsStateHolder {
     val midiSoundFontEntries = mutableStateOf<List<String>>(emptyList())
     val selectedMidiSoundFont = mutableIntStateOf(0)
 
-    // Wine — emulator32/64Entries are wine-arch-filtered views of emulatorEntries
-    // used by the 32/64-bit dropdowns; selectedEmulator indexes into
-    // emulator32Entries, selectedEmulator64 into emulator64Entries.
+    // Wine — emulator32/64Entries are arch-filtered views of emulatorEntries; selectedEmulator/selectedEmulator64 index into them.
     val emulatorEntries = mutableStateOf<List<String>>(emptyList())
     val emulator32Entries = mutableStateOf<List<String>>(emptyList())
     val emulator64Entries = mutableStateOf<List<String>>(emptyList())
@@ -466,8 +464,7 @@ class GameSettingsStateHolder {
     // Steam (visible only for Steam games)
     val isSteamGame = mutableStateOf(false)
     val steamLauncher = mutableStateOf(true)
-    // Single toggle that drives both the ColdClient launcher and SteamStub DRM
-    // unpacking (persisted as the "useColdClient" + "unpackFiles" keys).
+    // Single toggle driving the ColdClient launcher + SteamStub DRM unpacking (persisted as "useColdClient" + "unpackFiles").
     val useLegacyLauncher = mutableStateOf(false)
     val useSteamInput = mutableStateOf(false)
     val steamOfflineMode = mutableStateOf(false)
@@ -631,7 +628,6 @@ private fun buildSections(isSteam: Boolean, isContainer: Boolean): List<Pair<Int
     return list
 }
 
-// Main Content Composable
 @Composable
 fun GameSettingsContent(
     state: GameSettingsStateHolder,
@@ -815,7 +811,6 @@ private fun SectionContent(
     }
 }
 
-// Sidebar
 @Composable
 private fun Sidebar(
     title: String,
@@ -835,7 +830,6 @@ private fun Sidebar(
             .background(SidebarBg)
             .padding(top = 14.dp, bottom = 12.dp)
     ) {
-        // Header: shortcut/game title being edited
         if (title.isNotBlank()) {
             Text(
                 text = title,
@@ -861,7 +855,6 @@ private fun Sidebar(
             Spacer(Modifier.height(8.dp))
         }
 
-        // Sidebar items
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -882,7 +875,6 @@ private fun Sidebar(
             }
         }
 
-        // Divider above the action buttons (matches the one under the title)
         Box(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
@@ -892,7 +884,6 @@ private fun Sidebar(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Cancel + Save buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1013,7 +1004,6 @@ private fun SidebarItem(
     }
 }
 
-// Section 0: General
 @Composable
 private fun GeneralSection(
     state: GameSettingsStateHolder,
@@ -1114,7 +1104,6 @@ private fun GeneralSection(
     }
 
     SettingGroup {
-        // Name
         SettingTextField(
             label = stringResource(R.string.common_ui_name),
             value = state.name.value,
@@ -1354,7 +1343,6 @@ private fun GeneralSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // Sound
     SettingGroup {
         Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
             Box(Modifier.weight(1f)) {
@@ -1380,15 +1368,13 @@ private fun GeneralSection(
         Spacer(Modifier.height(SettingSectionGap))
         SettingGroup(verticalPadding = SettingTightGap) {
             val fpsMin = 30
-            // Cap the slider at the panel's highest supported refresh rate, parsed
-            // from the refresh-rate entries (e.g. "120 Hz"); fall back to 60.
+            // Cap the slider at the panel's highest supported refresh rate (parsed from entries like "120 Hz"); fall back to 60.
             val supportedMax = state.refreshRateEntries.value
                 .mapNotNull { it.trim().substringBefore(" ").toIntOrNull() }
                 .maxOrNull() ?: 60
             val maxFps = supportedMax.coerceAtLeast(fpsMin)
             val enabled = state.fpsLimit.intValue > 0
-            // Remember the last enabled value so off→on restores it; re-seed when
-            // the panel's supported max changes.
+            // Remember the last enabled value so off→on restores it; re-seed when the supported max changes.
             var lastFps by remember(maxFps) {
                 mutableStateOf(
                     (if (state.fpsLimit.intValue > 0) state.fpsLimit.intValue else 60)
@@ -1425,7 +1411,6 @@ private fun GeneralSection(
     }
 }
 
-// Section 1: Display
 @Composable
 private fun DisplaySection(
     state: GameSettingsStateHolder,
@@ -1483,12 +1468,10 @@ private fun DisplaySection(
 
     Spacer(Modifier.height(SettingItemGap))
 
-    // Graphics Driver Configuration - expandable inline card
     GraphicsDriverConfigCard(state, callbacks)
 
     Spacer(Modifier.height(SettingItemGap))
 
-    // Show DXVK or WineD3D config card based on selected DX wrapper
     val dxWrapperEntries = state.dxWrapperEntries.value
     val dxWrapperIdx = state.selectedDxWrapper.intValue
     val selectedDxWrapper = if (dxWrapperIdx in dxWrapperEntries.indices)
@@ -1503,7 +1486,6 @@ private fun DisplaySection(
 
 }
 
-// Graphics Driver Configuration Card
 @Composable
 private fun GraphicsDriverConfigCard(
     state: GameSettingsStateHolder,
@@ -1518,7 +1500,7 @@ private fun GraphicsDriverConfigCard(
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row - always visible, acts as expand/collapse toggle
+        // Header row — tap to expand/collapse.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1546,7 +1528,6 @@ private fun GraphicsDriverConfigCard(
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
-            // Version badge
             if (state.graphicsDriverVersion.value.isNotEmpty()) {
                 Box(
                     modifier = Modifier
@@ -1571,7 +1552,6 @@ private fun GraphicsDriverConfigCard(
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -1693,7 +1673,6 @@ private fun GraphicsDriverConfigCard(
 
                 Spacer(Modifier.height(SettingItemGap))
 
-                // Toggles
                 Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
                     Box(Modifier.weight(1f)) {
                         SettingCheckbox(
@@ -1715,7 +1694,6 @@ private fun GraphicsDriverConfigCard(
     }
 }
 
-// Extensions multi-select
 @Composable
 private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
     val extensions = state.gfxAvailableExtensions.value
@@ -1733,7 +1711,6 @@ private fun ExtensionsMultiSelect(state: GameSettingsStateHolder) {
             modifier = Modifier.padding(bottom = SettingTightGap)
         )
 
-        // Summary button — opens popup
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1809,7 +1786,6 @@ private fun ExtensionsPickerDialog(
                 .background(BgDeep)
                 .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
         ) {
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1841,7 +1817,6 @@ private fun ExtensionsPickerDialog(
 
             Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-            // Scrollable list — takes remaining space between header and button
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1883,7 +1858,6 @@ private fun ExtensionsPickerDialog(
 
             Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-            // Close button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1903,7 +1877,6 @@ private fun ExtensionsPickerDialog(
     }
 }
 
-// DXVK Configuration Card
 @Composable
 private fun DXVKConfigCard(
     state: GameSettingsStateHolder,
@@ -1926,7 +1899,6 @@ private fun DXVKConfigCard(
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1962,7 +1934,6 @@ private fun DXVKConfigCard(
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -2045,7 +2016,6 @@ private fun DXVKConfigCard(
     }
 }
 
-// WineD3D Configuration Card
 @Composable
 private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     val expanded by state.wined3dConfigExpanded
@@ -2057,7 +2027,6 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
             .background(CardSurface)
             .border(1.dp, CardBorder, RoundedCornerShape(SettingGroupCorner))
     ) {
-        // Header row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2093,7 +2062,6 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
             )
         }
 
-        // Expandable content
         AnimatedVisibility(
             visible = expanded,
             enter = graphicsCardExpandEnter(),
@@ -2172,12 +2140,10 @@ private fun WineD3DConfigCard(state: GameSettingsStateHolder) {
     }
 }
 
-// Section: Steam (conditional)
 @Composable
 private fun SteamSection(state: GameSettingsStateHolder) {
 
-    // Steam Launcher is the default Steam path; toggling it on auto-uncheck
-    // every other Steam mode (they're all mutually exclusive launch paths).
+    // Steam Launcher is the default path; enabling it unchecks every other Steam mode (mutually exclusive launch paths).
     val onSteamLauncherChange: (Boolean) -> Unit = { enabled ->
         state.steamLauncher.value = enabled
         if (enabled) {
@@ -2350,7 +2316,6 @@ private fun WineSection(
         }
     }
 
-    // Desktop Theme
     if (state.desktopThemeEntries.value.isNotEmpty()) {
         Spacer(Modifier.height(SettingItemGap))
         SettingGroup {
@@ -2458,14 +2423,12 @@ private fun WineSection(
     }
 }
 
-// Section 4: Components
 @Composable
 private fun ComponentsSection(
     state: GameSettingsStateHolder,
     callbacks: GameSettingsCallbacks
 ) {
 
-    // DirectX components
     if (state.directXComponents.value.isNotEmpty()) {
         SubsectionLabel(stringResource(R.string.container_wine_directx))
         Spacer(Modifier.height(8.dp))
@@ -2494,7 +2457,6 @@ private fun ComponentsSection(
         Spacer(Modifier.height(SettingSectionGap))
     }
 
-    // General components
     if (state.generalComponents.value.isNotEmpty()) {
         SubsectionLabel(stringResource(R.string.settings_general_title))
         Spacer(Modifier.height(8.dp))
@@ -2523,7 +2485,6 @@ private fun ComponentsSection(
     }
 }
 
-// Section 5: Variables
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
@@ -2854,7 +2815,6 @@ private fun DriveLetterSelector(
     }
 }
 
-// Env Var row: name dropdown + type-aware value editor
 @Composable
 private fun EnvVarRow(
     name: String,
@@ -2881,7 +2841,6 @@ private fun EnvVarRow(
         // Name dropdown or custom text field
         Box(modifier = Modifier.weight(1.6f)) {
             if (isCustomMode) {
-                // Custom mode: show editable text field for variable name
                 BasicTextField(
                     value = customText,
                     onValueChange = { newText ->
@@ -2956,7 +2915,6 @@ private fun EnvVarRow(
                     .height(360.dp)
                     .width(260.dp)
             ) {
-                // "Custom" option at top — allows typing a variable name
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -2973,7 +2931,6 @@ private fun EnvVarRow(
                         nameMenuExpanded = false
                     }
                 )
-                // Divider after Custom
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
                 val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
@@ -3006,7 +2963,6 @@ private fun EnvVarRow(
             }
         }
         Spacer(Modifier.width(6.dp))
-        // Value editor (type-aware)
         Box(modifier = Modifier.weight(1f)) {
             EnvVarValueEditor(
                 name = name,
@@ -3286,12 +3242,10 @@ private fun EnvValueTextField(
     )
 }
 
-// Section 6: Input
 @Composable
 private fun InputSection(state: GameSettingsStateHolder) {
     val isContainer = state.isContainerEditMode.value
 
-    // Input Controls group
     SubsectionLabel(stringResource(R.string.common_ui_input_controls))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3410,7 +3364,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // Game Controller group
     SubsectionLabel(stringResource(R.string.session_gamepad_game_controller))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3485,7 +3438,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
 
         Spacer(Modifier.height(4.dp))
 
-        // Enable DInput with help
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -3544,7 +3496,6 @@ private fun InputSection(state: GameSettingsStateHolder) {
     }
 }
 
-// Section 7: Advanced
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AdvancedSection(
@@ -3552,9 +3503,7 @@ private fun AdvancedSection(
     callbacks: GameSettingsCallbacks
 ) {
 
-    // Wine / Proton version (read-only) — only show on existing containers
-    // where it's not editable. When creating a new container the user already
-    // selects the Wine Version in the General tab.
+    // Wine/Proton version (read-only); shown only on existing containers where it isn't editable (new ones pick it in General).
     val wineVersionDisplay = state.wineVersionDisplay.value
     if (wineVersionDisplay.isNotEmpty() && !state.wineVersionEditable.value) {
         SubsectionLabel(stringResource(R.string.container_wine_version))
@@ -3672,7 +3621,6 @@ private fun AdvancedSection(
         Spacer(Modifier.height(SettingSectionGap))
     }
 
-    // System
     SubsectionLabel(stringResource(R.string.common_ui_system))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3685,7 +3633,6 @@ private fun AdvancedSection(
 
         Spacer(Modifier.height(SettingItemGap))
 
-        // Exec Arguments with helper dropdown
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -3718,7 +3665,6 @@ private fun AdvancedSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // CPU Affinity
     SubsectionLabel(stringResource(R.string.container_config_processor_affinity))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3734,9 +3680,7 @@ private fun AdvancedSection(
                     index = i,
                     isChecked = isChecked,
                     onClick = {
-                        // Block unchecking the last remaining core: zero-selected
-                        // and all-selected would otherwise serialize identically,
-                        // and runtime skips affinity for a zero mask.
+                        // Block unchecking the last core: zero-selected and all-selected serialize identically, and runtime skips affinity for a zero mask.
                         val wouldLeaveNone = isChecked && checkedList.count { it } <= 1
                         if (!wouldLeaveNone) {
                             val mutable = checkedList.toMutableList()
@@ -3751,7 +3695,6 @@ private fun AdvancedSection(
 
     Spacer(Modifier.height(SettingSectionGap))
 
-    // CPU Affinity (32-bit apps)
     SubsectionLabel(stringResource(R.string.container_config_processor_affinity_32bit))
     Spacer(Modifier.height(8.dp))
     SettingGroup {
@@ -3780,7 +3723,6 @@ private fun AdvancedSection(
     }
 }
 
-// Exec Args Helper Dropdown
 @Composable
 private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -3816,7 +3758,6 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
                 .width(240.dp)
         ) {
             ExtraArgPresets.forEach { group ->
-                // Group header
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -3850,7 +3791,6 @@ private fun ExecArgsHelper(onArgSelected: (String) -> Unit) {
     }
 }
 
-// CPU Chip
 @Composable
 private fun CpuChip(
     index: Int,
@@ -3885,7 +3825,6 @@ private fun CpuChip(
     }
 }
 
-// Reusable Components
 
 @Composable
 private fun HtmlText(
@@ -4321,7 +4260,6 @@ private fun SettingSlider(
                 letterSpacing = 0.3.sp
             )
             Spacer(Modifier.weight(1f))
-            // Value badge
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
@@ -4367,7 +4305,6 @@ private fun SettingSlider(
     }
 }
 
-// Section 10: Saves
 @Composable
 private fun SavesSection(
     state: GameSettingsStateHolder,

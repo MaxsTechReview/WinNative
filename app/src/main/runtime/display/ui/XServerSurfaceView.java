@@ -12,14 +12,7 @@ import com.winlator.cmod.runtime.display.xserver.XServer;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * SurfaceView that drives a {@link VulkanRenderer} on a dedicated render thread.
- *
- * <p>This is the Vulkan replacement for the previous {@code GLSurfaceView}-backed
- * {@code XServerView}. It preserves the public API the rest of the codebase relies on:
- * {@link #queueEvent(Runnable)}, {@link #requestRender()}, {@link #setRenderMode(int)},
- * {@link #onResume()}, {@link #onPause()}, {@link #getRenderer()}.
- */
+/** SurfaceView that drives a {@link VulkanRenderer} on a dedicated render thread, preserving the public API: {@link #queueEvent(Runnable)}, {@link #requestRender()}, {@link #setRenderMode(int)}, {@link #onResume()}, {@link #onPause()}, {@link #getRenderer()}. */
 @SuppressLint("ViewConstructor")
 public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int RENDERMODE_WHEN_DIRTY  = 0;
@@ -31,8 +24,7 @@ public class XServerSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private final Object renderLock = new Object();
     private final Deque<Runnable> eventQueue = new ArrayDeque<>();
     private Thread renderThread;
-    // Outgoing render thread still finishing teardown; the next surfaceCreated joins it before
-    // re-attaching so a stale destroy() can't free the handle the new surface re-attaches to.
+    // Outgoing render thread finishing teardown; the next surfaceCreated joins it first so a stale destroy() can't free the handle the new surface re-attaches to.
     private Thread retiringRenderThread;
     private volatile boolean running;
     private volatile boolean renderRequested;

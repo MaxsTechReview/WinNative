@@ -159,11 +159,7 @@ internal fun CloudSavesContent(
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: shortcut?.container?.id?.takeIf { it > 0 }
-    // Resolve the game's REAL container the way the launcher does (resolveShortcutLaunchContainer):
-    // the `container_id` override wins over shortcut.container, which is only the container whose
-    // folder physically holds the .desktop file and is stale once a game is reassigned. Passing
-    // shortcut.container directly made cloud ops activate the wrong wineprefix → "No save files
-    // found to back up" for any game whose run-container differs from its shortcut-file container.
+    // Resolve the game's REAL container: the `container_id` override wins over shortcut.container (stale once a game is reassigned), or cloud ops hit the wrong wineprefix → "No save files found".
     val targetContainer =
         remember(shortcut, targetContainerId) {
             targetContainerId?.let { ContainerManager(context).getContainerById(it) } ?: shortcut?.container
@@ -222,11 +218,7 @@ internal fun CloudSavesContent(
                                     emptyList()
                                 }
                             }
-                        // Surface the local rolling snapshots (pre-download safety net, exit/use-local
-                        // backups, the cloud-save pre-capture taken before "Use Local", and manual
-                        // imports). These STEAM_LOCAL entries are the only ones that support true
-                        // per-entry rollback (restoreFromEntry), so without listing them the user
-                        // could never recover those saves.
+                        // Surface the local rolling snapshots — STEAM_LOCAL entries are the only ones supporting true per-entry rollback (restoreFromEntry), so without them the user couldn't recover those saves.
                         val localSnapshots = SteamSaveSnapshotManager.listHistory(context, appId)
                         // Surface Google-mirrored "keep a copy" saves in the same list (silent no-op when not signed in).
                         val google =
@@ -542,11 +534,7 @@ internal fun CloudSavesContent(
 
         }
 
-        // "Backup To Google" — manual backup of the current local save to Google Play Games,
-        // available for every store. Reused both inside the Steam action grid (to the right of
-        // "Import Files") and as a standalone button for other stores. Passes the game's container
-        // so the save resolves against the correct wineprefix — without it the wrong/default
-        // container is used and no saves are found.
+        // "Backup To Google" — manual backup of the local save to Google Play Games (every store). Passes the game's container so the save resolves against the correct wineprefix.
         val backupToGoogleAction: @Composable (Modifier) -> Unit = { mod ->
             ActionWithHelper(
                 icon = Icons.Outlined.CloudUpload,
@@ -700,9 +688,7 @@ internal fun CloudSavesContent(
                         },
                     )
                 }
-                // 2x2 grid: Sync / Push on top, Import / Backup To Google below — each cell the
-                // same width so "Import Files" and "Backup To Google" line up under "Sync from
-                // Steam Cloud" and "Push to Steam Cloud".
+                // 2x2 grid: Sync / Push on top, Import / Backup To Google below — equal-width cells so columns line up.
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -725,8 +711,7 @@ internal fun CloudSavesContent(
             }
         }
 
-        // For non-Steam stores, "Backup To Google" is its own full-width button (for Steam it
-        // lives in the action grid above, to the right of "Import Files").
+        // For non-Steam stores, "Backup To Google" is its own full-width button (Steam puts it in the action grid above).
         if (!steamManagedCloud) {
             if (googleBackupBusy) {
                 LinearProgressIndicator(
@@ -839,8 +824,7 @@ internal fun CloudSavesContent(
                                 }
                             }
                             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> {
-                                // GOG has no per-file snapshot rollback; restoring any entry
-                                // re-pulls the full cloud state for the game.
+                                // GOG has no per-file rollback; restoring any entry re-pulls the full cloud state.
                                 GOGCloudHistoryProvider.restoreSaveGroup(context, gameId, targetContainerId)
                             }
                             GameSaveBackupManager.BackupStorage.GOOGLE -> {
@@ -1184,11 +1168,7 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    // STEAM_CLOUD "groups" are a time-clustered view of the CURRENT cloud file list — Steam keeps
-    // no server-side version history, so every group would restore the same current cloud state.
-    // Surfacing a per-group "Restore" implied a rollback that does not exist; the real per-entry
-    // rollback is the STEAM_LOCAL snapshots, and "Sync from Steam Cloud" pulls the current cloud.
-    // So STEAM_CLOUD entries are read-only history (like GOG_CLOUD).
+    // STEAM_CLOUD "groups" view the CURRENT cloud file list (no server-side version history), so they're read-only history like GOG_CLOUD — per-entry rollback lives in STEAM_LOCAL snapshots.
     val canRestore =
         entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
             entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD

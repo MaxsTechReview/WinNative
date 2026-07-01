@@ -670,7 +670,6 @@ data class XServerDrawerState(
     val outputVitureSupportsVolume: Boolean = false,
     val outputVitureVolume: Int = 0,
     val outputVitureVolumeMax: Int = 8,
-    // Record settings popup config (device-aware options + persisted selections).
     val recordConfig: RecordUiConfig = RecordUiConfig(),
     val mouseEnabled: Boolean = true,
     val relativeMouseEnabled: Boolean = false,
@@ -891,13 +890,7 @@ class XServerDrawerStateHolder(
         setOpenPaneAndNotify(DrawerPane.LOGS)
     }
 
-    /**
-     * Append a log line. Safe to call from any thread. When the logs pane is not
-     * visible, this only stores the line in an off-thread ring buffer — no
-     * recomposition or main-thread work is scheduled. The buffer is flushed into
-     * observable state when the pane becomes visible (and live while visible,
-     * coalesced through a single posted runnable).
-     */
+    /** Append a log line (any thread). Buffers off-thread when the pane is hidden (no recomposition); flushes to state when the pane is visible. */
     fun appendLogLine(line: String) {
         if (logsPausedFlag) return
         synchronized(logsBuffer) {
@@ -1508,11 +1501,7 @@ internal fun XServerDrawerContent(
     controllerActive: Boolean = false,
     onOverlayCloserChange: ((() -> Unit)?) -> Unit = {},
 ) {
-    // The drawer content stays composed even while the sheet is closed (the host
-    // just translates it off-screen), so opening no longer pays a full
-    // first-composition cost. Drive the staggered card reveal from the sheet's
-    // engaged state so it still replays each time the drawer opens, and stays
-    // stable while switching between panes.
+    // Content stays composed while the sheet is closed (host translates it off-screen) to avoid a first-composition cost on open; the staggered card reveal is driven from the sheet's engaged state so it replays on each open.
     val cardsRevealed = remember { mutableStateOf(false) }
     LaunchedEffect(revealCards) { cardsRevealed.value = revealCards }
 
@@ -2950,11 +2939,7 @@ private fun InputControlsPaneContent(
     }
 }
 
-/**
- * Compact dropdown shared by the Style and Label Theme rows in the Controls pane.
- * Mirrors the styling of [InputControlsProfileSelector] but omits the trailing edit-pencil button
- * since these are built-in choices, not user-editable.
- */
+/** Compact dropdown for the Controls Style/Label-Theme rows; like [InputControlsProfileSelector] but without the edit button (built-in, non-editable choices). */
 @Composable
 private fun InputControlsSimpleDropdown(
     options: List<String>,
@@ -3144,7 +3129,7 @@ private fun InputControlsProfileSelector(
     }
 }
 
-// Drawer-styled dropdown for the Controls selectors; opens scrolled to the selected option.
+// Drawer-styled dropdown for the Controls selectors.
 @Composable
 private fun InputControlsOptionsPopup(
     expanded: Boolean,
@@ -6010,7 +5995,6 @@ private fun RecordSettingsDialog(
                     )
                 }
 
-                // Scrollable settings above the pinned button.
                 Column(
                     modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -6074,7 +6058,6 @@ private fun RecordSettingsDialog(
                     }
                 }
 
-                // Record Now button (pinned).
                 Button(
                     onClick = doRecord,
                     modifier = Modifier.fillMaxWidth().height(48.dp).sharedPaneNavItem(
@@ -6123,10 +6106,7 @@ private fun FPSLimiterCard(
     val maxFps = maxRefreshRate.coerceAtLeast(FPS_LIMITER_MIN)
     val steps = (maxFps - FPS_LIMITER_MIN - 1).coerceAtLeast(0)
 
-    // Slider position is tracked locally so the readout follows the drag and the
-    // last value survives an off/on toggle; the limit/refresh-rate commit is
-    // deferred to release (onValueChangeFinished). Re-seeds when the panel's max
-    // changes — e.g. a mid-game refresh-rate change that clamps the limit.
+    // Slider position tracked locally (readout follows the drag, value survives an off/on toggle); the commit is deferred to release and re-seeds when maxFps changes (e.g. a mid-game refresh-rate change that clamps the limit).
     var sliderValue by remember(maxFps) {
         mutableStateOf(
             (if (currentLimit > 0) currentLimit else FPS_LIMITER_DEFAULT)

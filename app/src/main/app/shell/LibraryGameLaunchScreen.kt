@@ -478,9 +478,7 @@ private fun LaunchScreenCutoutMode() {
             WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION or
                 WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
         )
-        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor to take effect.
-        // Compose Dialog windows use Theme.DeviceDefault.Dialog which doesn't set it by default,
-        // so the system would otherwise draw its own opaque navbar over our transparent request.
+        // FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS is required for navigationBarColor; Dialog windows don't set it by default.
         window.addFlags(
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
@@ -1057,8 +1055,7 @@ private fun LaunchPlayButton(
     )
 
     val playShape = remember { RoundedCornerShape(14.dp) }
-    // When disabled, the clickable is removed entirely (not no-op'd) so
-    // accessibility / focus skip it and a stray controller A-press can't fire onClick.
+    // Disabled: drop the clickable entirely so focus skips it and a stray controller A-press can't fire onClick.
     val backgroundBrush =
         if (enabled) {
             Brush.horizontalGradient(

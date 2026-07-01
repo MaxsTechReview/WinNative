@@ -39,32 +39,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-/**
- * Backup and restore of per-game save files via Google Play Games **Saved Games (Snapshots)** API.
- *
- * Each backup is stored as a "manifest" snapshot plus N "part" snapshots:
- *
- *     wnsv_<src>_<gameKeyHash16>_<saveId>_m       — small JSON manifest, written last
- *     wnsv_<src>_<gameKeyHash16>_<saveId>_p000    — gzipped zip chunks, written first
- *     wnsv_<src>_<gameKeyHash16>_<saveId>_p001
- *     ...
- *
- * The manifest's existence is the commit point — a save is only valid when its
- * manifest is present and references existing parts. Listing/restore enumerate
- * manifests; orphan parts (no parent manifest) are GC'd after a 24-hour grace
- * window so an interrupted upload can resume.
- *
- * Steam is intentionally **not** stored here: Steam saves go through Steam Cloud
- * directly via [SteamCloudSyncHelper] / SteamService. All Steam-targeted entry
- * points in this object short-circuit; the existing cloud-saves UI in
- * [com.winlator.cmod.app.shell.UnifiedActivity.CloudSavesContent] already hides
- * Backup/Restore/History for Steam games via `steamManagedCloud`.
- *
- * Backwards-compat note (post-#308):
- *  - Public data classes/enums are still shared by the Steam local/cloud history UI.
- *  - Non-store Google save snapshot entry points have been retired; store-login
- *    sync continues through [CloudSyncManager].
- */
+/** Backup/restore per-game saves via Google Play Saved Games: a manifest snapshot (written LAST = the commit point) plus N gzipped-zip part snapshots; orphan parts are GC'd after a 24h grace so an interrupted upload can resume. Steam saves go through Steam Cloud, not here. */
 object GameSaveBackupManager {
     private const val TAG = "GameSaveBackup"
     private const val PREFS_NAME = "google_store_login_sync"
@@ -111,25 +86,13 @@ object GameSaveBackupManager {
         CUSTOM('c'),
     }
 
-    /**
-     * Backend storage for a [BackupHistoryEntry]. Used by `UnifiedActivity.CloudSavesContent`
-     * to route Restore/Rename/Delete actions to the right manager and to hide actions that
-     * don't apply (e.g. Delete is hidden for STEAM_LOCAL since Steam manages cloud retention).
-     */
+    /** Backend storage for a [BackupHistoryEntry] — routes Restore/Rename/Delete to the right manager and hides actions that don't apply. */
     enum class BackupStorage {
         /** Local rolling-snapshot capture (zipped to filesDir/save_history/steam/...). */
         STEAM_LOCAL,
-        /**
-         * Steam Cloud's CURRENT file listing, grouped into save sets by timestamp clusters.
-         * Backed by `SteamCloudHistoryProvider`. Restore downloads the group's files via
-         * `clientFileDownload` and writes to the resolved local paths. Steam Cloud has no
-         * server-side version history — each "group" is files written within ~120s of each other.
-         */
+        /** Steam Cloud's CURRENT file listing, grouped into save sets by ~120s timestamp clusters (Steam has no server-side version history). Restore re-downloads the group's files to their local paths. */
         STEAM_CLOUD,
-        /**
-         * Epic Games Store cloud-save manifests listed by savesync. Each upload writes a
-         * timestamped manifest plus chunk files; selecting a row restores that manifest.
-         */
+        /** Epic cloud-save manifests: each upload writes a timestamped manifest plus chunk files; selecting a row restores that manifest. */
         EPIC_CLOUD,
         /** GOG cloud's live file listing. Restore pulls full cloud state down. */
         GOG_CLOUD,
@@ -160,12 +123,7 @@ object GameSaveBackupManager {
         val message: String,
     )
 
-    /**
-     * A backed-up save in Google Play Saved Games.
-     *
-     * `fileId` holds the manifest snapshot's unique-name (formerly a Drive file ID — name
-     * preserved for caller compatibility).
-     */
+    /** A backed-up save in Google Play Saved Games. `fileId` holds the manifest snapshot's unique-name (name kept for caller compatibility). */
     data class BackupHistoryEntry(
         val fileId: String,
         val fileName: String,
@@ -185,7 +143,7 @@ object GameSaveBackupManager {
     const val CUSTOM_SAVE_CONTAINER_ID_KEY = "customSaveContainerId"
     const val CUSTOM_SAVE_WINDOWS_PATH_KEY = "customSaveWindowsPath"
 
-    /** Legacy upstream key — an Android absolute path to a single custom-game folder. */
+    /** Legacy key — an Android absolute path to a single custom-game folder. */
     private const val LEGACY_CUSTOM_GAME_FOLDER_KEY = "custom_game_folder"
 
     private data class SaveBackupSource(
@@ -194,9 +152,7 @@ object GameSaveBackupManager {
         val exactFiles: List<File>? = null,
     )
 
-    /**
-     * Parsed manifest payload — what gets written into the manifest snapshot's contents.
-     */
+    /** Parsed manifest payload — what gets written into the manifest snapshot's contents. */
     private data class Manifest(
         val schema: Int,
         val source: GameSource,
@@ -269,15 +225,7 @@ object GameSaveBackupManager {
         prefs(context).edit().putBoolean(KEY_KEEP_REPLACED_BACKUP, enabled).apply()
     }
 
-    /**
-     * Snapshot the current local save files and write them to Save History as origin=[origin].
-     * Central upload path for manual backup, auto backup, and conflict-resolution
-     * "keep a copy of the replaced save" flows.
-     *
-     * The [authMode] parameter mirrors upstream's call sites: AUTO/list paths use SILENT
-     * to avoid any UI prompts; manual paths use INTERACTIVE so the Play Games sign-in
-     * sheet can appear if needed.
-     */
+    /** Snapshot local saves into Save History as origin=[origin] — the central path for manual/auto backup and "keep a copy of the replaced save". [authMode]: SILENT for auto/list (no UI), INTERACTIVE for manual (may show the sign-in sheet). */
     @JvmOverloads
     suspend fun backupDiscardedSave(
         activity: Activity,
@@ -506,9 +454,7 @@ object GameSaveBackupManager {
                         return@withContext BackupResult(false, "Cannot determine save directory for this game.")
                     }
 
-                    // M-5: pre-restore rollback point for Steam (Steam has a local snapshot
-                    // backend; other stores fall back to the Google backup being restored plus the
-                    // provider's own cloud copy).
+                    // M-5: pre-restore rollback point for Steam (other stores rely on the Google backup being restored plus the provider's cloud copy).
                     if (gameSource == GameSource.STEAM) {
                         gameId.toIntOrNull()?.let { appId ->
                             runCatching {
@@ -517,11 +463,7 @@ object GameSaveBackupManager {
                         }
                     }
 
-                    // M-5: extract to a temp staging tree first, then atomically swap each save dir
-                    // into place (move-aside + copy + rollback on failure). Previously extraction
-                    // wrote straight into the live dirs, so a mid-extraction failure (OOM, disk
-                    // full, I/O error) left a corrupt partial save with no way to recover the
-                    // pre-restore content.
+                    // M-5: extract to a temp staging tree, then atomically swap each save dir into place (move-aside + copy + rollback) so a mid-extraction failure can't leave a corrupt partial save.
                     val staging = File(context.cacheDir, "wnsv_restore_${System.currentTimeMillis()}")
                     try {
                         staging.deleteRecursively()
@@ -679,7 +621,7 @@ object GameSaveBackupManager {
             return findCustomShortcutByContainerAndFile(context, cid, file)
                 ?.let(::getCustomGameSaveWindowsPath)
         }
-        // Fall back to upstream's gameId conventions (app_id / custom_name / shortcut.name).
+        // Fall back to legacy gameId conventions (app_id / custom_name / shortcut.name).
         return findCustomShortcutByGameId(context, gameId)
             ?.let(::getCustomGameSaveWindowsPath)
     }
@@ -730,7 +672,7 @@ object GameSaveBackupManager {
                 .firstOrNull { it.container?.id == containerId && (it.file?.name == shortcutFile) }
         }.getOrNull()
 
-    /** Mirrors upstream's lookup-by-gameId logic for backwards compatibility. */
+    /** Legacy lookup-by-gameId for backwards compatibility. */
     private fun findCustomShortcutByGameId(context: Context, gameId: String): Shortcut? =
         runCatching {
             ContainerManager(context).loadShortcuts().firstOrNull {
@@ -773,9 +715,7 @@ object GameSaveBackupManager {
         containerHint: Container? = null,
     ): List<SaveBackupSource> {
         val appId = gameId.toIntOrNull() ?: return emptyList()
-        // Pass the game's container so the save dir resolves against the right wineprefix — without
-        // it a manual backup/restore from the Cloud Saves screen (game not running) would resolve
-        // the wrong/default container and find no saves.
+        // Pass the game's container so the save dir resolves against the right wineprefix — without it a manual backup/restore (game not running) finds no saves.
         val saveDir =
             EpicCloudSavesManager.getResolvedSaveDirectory(context, appId, containerHint?.id) ?: return emptyList()
         return if (forRestore || (saveDir.exists() && !saveDir.listFiles().isNullOrEmpty())) {
@@ -801,13 +741,7 @@ object GameSaveBackupManager {
         }
     }
 
-    /**
-     * Custom-game save sources, resolved in priority order:
-     *   1. Explicit `customSaveDir` argument (from the picker flow).
-     *   2. `customSaveWindowsPath` extra (set by our "Select Save Folder" picker).
-     *   3. Upstream's `custom_game_folder` extra (legacy absolute Android path).
-     *   4. Wine prefix's `users/xuser/{Documents,Saved Games,AppData}` directories.
-     */
+    /** Custom-game save sources in priority order: explicit customSaveDir, then the customSaveWindowsPath extra, then the legacy custom_game_folder extra, then the prefix's users/xuser/{Documents,Saved Games,AppData}. */
     private fun getCustomSaveSources(
         context: Context,
         gameId: String,
@@ -822,7 +756,7 @@ object GameSaveBackupManager {
             return sources.values.toList()
         }
 
-        // Fall back to upstream's custom_game_folder + xuser dirs lookup.
+        // Fall back to the legacy custom_game_folder + xuser dirs lookup.
         val shortcut =
             parseCustomGameId(gameId)?.let { (cid, f) ->
                 findCustomShortcutByContainerAndFile(context, cid, f)
@@ -1003,8 +937,7 @@ object GameSaveBackupManager {
         partNames: List<String>,
         partSize: Long,
     ): Boolean {
-        // Allocate once and reuse — for a 50 MB save split into ~25 parts at ~3 MB each,
-        // this avoids ~75 MB of transient allocations under GC pressure on exit-backup.
+        // Allocate once and reuse — avoids tens of MB of transient allocations under GC pressure on exit-backup.
         val partBufferSize = partSize.toInt().coerceAtMost(Int.MAX_VALUE).coerceAtLeast(1)
         val part = ByteArray(partBufferSize)
         FileInputStream(sourceFile).use { fis ->
@@ -1019,9 +952,7 @@ object GameSaveBackupManager {
                     Timber.tag(TAG).e("uploadParts: ran out of source bytes at part %d/%d", index, partNames.size)
                     return false
                 }
-                // writeBytes copies into the snapshot contents and Tasks.await blocks until
-                // commit completes, so we can safely hand `part` directly on a full read and
-                // only allocate a fresh array on the (at most one) partial last part.
+                // writeBytes copies and Tasks.await blocks until commit, so hand `part` directly on a full read; only the last partial part needs a fresh array.
                 val data = if (off == part.size) part else part.copyOf(off)
                 val ok =
                     writeSnapshot(
@@ -1097,10 +1028,7 @@ object GameSaveBackupManager {
             while (result.isConflict && conflictAttempts < MAX_CONFLICT_RESOLVE_ATTEMPTS) {
                 val candidates = listOfNotNull(result.conflict?.snapshot, result.conflict?.conflictingSnapshot)
                 val chosen = candidates.maxByOrNull { it.metadata.lastModifiedTimestamp } ?: return null
-                // MN-3: Play Games resolves by most-recent mtime, which trusts device clocks — a
-                // device with a wrong clock can win a conflict with an actually-older save. Log the
-                // auto-resolution (with all candidate timestamps) so a bad pick is diagnosable
-                // rather than fully silent.
+                // MN-3: conflict resolution by most-recent mtime trusts device clocks (a wrong clock can win with an older save); log the pick + candidate timestamps so a bad auto-resolution is diagnosable.
                 Timber.tag(TAG).w(
                     "Auto-resolving Google save conflict for %s by most-recent mtime; chose %d of %s",
                     uniqueName,
@@ -1142,8 +1070,7 @@ object GameSaveBackupManager {
                 while (result.isConflict && conflictAttempts < MAX_CONFLICT_RESOLVE_ATTEMPTS) {
                     val candidates = listOfNotNull(result.conflict?.snapshot, result.conflict?.conflictingSnapshot)
                     val chosen = candidates.maxByOrNull { it.metadata.lastModifiedTimestamp } ?: return null
-                    // MN-3: see readSnapshotBytes — log clock-based auto-resolution so a wrong-clock
-                    // mis-pick is diagnosable.
+                    // MN-3: see readSnapshotBytes — log clock-based auto-resolution so a wrong-clock mis-pick is diagnosable.
                     Timber.tag(TAG).w(
                         "Auto-resolving Google save conflict for %s by most-recent mtime; chose %d of %s",
                         uniqueName,
@@ -1306,15 +1233,7 @@ object GameSaveBackupManager {
 
     // ── Restore: extract ──
 
-    /**
-     * Apply a staged restore (extracted under [staging]/<zipRoot>) onto the live save dirs.
-     *
-     * Each existing live dir is MOVED ASIDE first, the staged replacement is copied into a fresh
-     * dir, and the aside-backup is only deleted once EVERY source has copied successfully. On any
-     * failure, all moved-aside dirs are restored so the live save is left EXACTLY as it was —
-     * honoring the caller's "existing save was left unchanged" guarantee. This matters for
-     * Epic/GOG/Custom, which have no separate pre-restore snapshot to fall back on.
-     */
+    /** Apply a staged restore onto the live save dirs: move each live dir aside, copy in the staged one, delete the aside-backup only after every source succeeds; on failure restore the aside dirs so the live save is unchanged (the only rollback Epic/GOG/Custom have). */
     private fun swapRestoredSources(liveSources: List<SaveBackupSource>, staging: File): Boolean {
         val done = mutableListOf<Triple<File, File?, Boolean>>() // (live, bak, hadLive)
         fun rollback() {
@@ -1508,18 +1427,7 @@ object GameSaveBackupManager {
         return false
     }
 
-    /**
-     * Honors the GoogleAuthMode contract:
-     *   - SILENT       single shot, no UI, no retry.
-     *   - RESUME       silent retries to settle the SDK's background bootstrap. No UI.
-     *   - INTERACTIVE  may launch the Play Games sign-in sheet.
-     *
-     * RESUME exists because on cold start `PlayGamesSdk.initialize` kicks off the silent
-     * re-auth asynchronously, and `isAuthenticated.await()` can resolve `false` before
-     * that background work lands. A short retry gives the SDK time to settle without
-     * popping any UI. We only spend the retries when the user has previously connected
-     * (per the on-disk pref) — a strong prior that silent auth SHOULD succeed.
-     */
+    /** GoogleAuthMode contract: SILENT = one shot no UI; RESUME = silent retries (no UI) since cold-start re-auth is async and isAuthenticated can resolve false before it lands; INTERACTIVE = may launch the sign-in sheet. RESUME only retries when previously connected. */
     private suspend fun ensureAuthenticated(activity: Activity, mode: GoogleAuthMode): Boolean {
         return when (mode) {
             GoogleAuthMode.SILENT -> isAuthenticatedBlocking(activity)
@@ -1534,8 +1442,7 @@ object GameSaveBackupManager {
         if (!isDriveConnected(activity.applicationContext)) {
             return isAuthenticatedBlocking(activity)
         }
-        // Up to ~2.25s total (3 attempts × 750ms) — bounded enough to not feel like a hang
-        // on a screen open, generous enough to cover slow-device cold starts.
+        // Up to ~2.25s total (3 × 750ms) — bounded so a screen open doesn't feel like a hang but covers slow cold starts.
         repeat(3) { attempt ->
             if (isAuthenticatedBlocking(activity)) return true
             if (attempt < 2) delay(AUTH_SESSION_RETRY_DELAY_MS)

@@ -162,7 +162,7 @@ private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF93A6BC)
 private val Danger = Color(0xFFFF5A5A)
 
-/** Facebook-Messenger-style floating chat heads rendered as a system overlay so they work over games. */
+/** Floating chat heads rendered as a system overlay so they work over games. */
 class ChatOverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private val lifecycleOwner = OverlayLifecycleOwner()

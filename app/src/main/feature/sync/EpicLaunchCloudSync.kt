@@ -121,10 +121,7 @@ object EpicLaunchCloudSync {
             }
             useLocal -> {
                 if (keepBackup) {
-                    // "Use Local" pushes the local save over the Epic cloud. Epic has no
-                    // non-destructive way to capture the cloud copy (only Steam does), so honor the
-                    // checkbox by backing up the local save to Google as a recovery point at this
-                    // conflict — rather than silently doing nothing.
+                    // "Use Local" pushes local over the Epic cloud; Epic has no non-destructive cloud capture (only Steam does), so back up the local save to Google as the recovery point.
                     backupLocalSaveToGoogle(activity, shortcut)
                 }
                 statusSink.show(activity.getString(R.string.preloader_syncing_cloud))
@@ -134,11 +131,7 @@ object EpicLaunchCloudSync {
         }
     }
 
-    /**
-     * Back up the current local Epic save before it is overwritten by a "Use Cloud" download.
-     * Epic has no local snapshot backend, so this mirrors the save to Google Play Games (silent;
-     * a no-op when not signed in). Best-effort — never blocks or throws into the launch path.
-     */
+    /** Back up the local Epic save before a "Use Cloud" download overwrites it — mirrors to Google Play Games (no-op when not signed in). Best-effort; never blocks the launch path. */
     private fun backupLocalSaveToGoogle(
         activity: Activity,
         shortcut: Shortcut,

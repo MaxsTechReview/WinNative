@@ -25,12 +25,7 @@ import com.winlator.cmod.runtime.display.ui.XServerSurfaceView;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Swaps the game onto a connected external display (USB-C/HDMI/Miracast/XR glasses) by moving the
- * {@link XServerSurfaceView} into a {@link Presentation}, while controls and the menu stay on the
- * phone. Offers a hybrid resolution/refresh list — real {@link Display.Mode}s switch the panel via
- * preferredDisplayModeId; other tiers render via SurfaceHolder.setFixedSize and are hardware-scaled.
- */
+/** Moves the game's {@link XServerSurfaceView} onto a connected external display (USB-C/HDMI/Miracast/XR glasses) via a {@link Presentation}; controls/menu stay on the phone. Real {@link Display.Mode}s switch the panel via preferredDisplayModeId, other tiers render via SurfaceHolder.setFixedSize and are hardware-scaled. */
 public final class ExternalDisplayController {
     private static final String TAG = "ExternalDisplay";
 
@@ -96,8 +91,7 @@ public final class ExternalDisplayController {
     private int savedPhoneViewWidth = 0;
     private int savedPhoneViewHeight = 0;
 
-    // Shared Viture glasses controller + settings (owned app-wide by GlassesManager so the library and
-    // the in-game swap never double-claim the USB); values persist across both.
+    // Shared Viture controller + settings (owned by GlassesManager so library and in-game swap never double-claim the USB); values persist across both.
     private final VitureGlasses viture;
     private final GlassesManager.Listener glassesListener;
 
@@ -111,8 +105,7 @@ public final class ExternalDisplayController {
         GlassesManager.INSTANCE.init(activity);
         this.viture = GlassesManager.INSTANCE.glasses();
         this.glassesListener = (connectionChanged) -> {
-            // Only re-apply the mode / re-render on (re)connect — not on every slider tick, which would
-            // storm the drawer recompose and the display-mode command while dragging.
+            // Only re-apply on (re)connect, not on every slider tick (which would storm recompose + the display-mode command while dragging).
             if (connectionChanged) {
                 if (viture != null && viture.isConnected() && swapActive) applyOutputMode();
                 callbacks.onSwapStateChanged(swapActive);
@@ -365,8 +358,7 @@ public final class ExternalDisplayController {
         if (gameView.getParent() == null && phoneFrame != null) {
             phoneFrame.addView(gameView, 0, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            // Compose's empty AndroidView update={} won't re-measure the reparented view, so size it
-            // explicitly at the phone frame; the posted/delayed retries cover the async surface.
+            // Compose's empty AndroidView update={} won't re-measure the reparented view, so size it explicitly; posted/delayed retries cover the async surface.
             restorePhoneSurfaceSize();
             gameView.requestLayout();
             phoneFrame.requestLayout();
@@ -526,8 +518,7 @@ public final class ExternalDisplayController {
         WindowManager.LayoutParams lp = presentation.getWindow().getAttributes();
         final int gen = ++modeRequestGen;
 
-        // On Viture glasses the panel timing is driven over USB (Android may not even enumerate the
-        // mode), so force it via the MCU; the Android calls below then lock the Presentation onto it.
+        // Viture panel timing is driven over USB (Android may not enumerate the mode), so force it via the MCU; the Android calls below then lock the Presentation onto it.
         if (viture.isConnected()) viture.forceRefreshHz(Math.round(hz));
 
         if (res.physical && !panelScalerLocked) {
@@ -576,10 +567,7 @@ public final class ExternalDisplayController {
         return best;
     }
 
-    // After requesting a real switch, confirm the panel actually moved. Some phone display pipelines
-    // (e.g. OnePlus over USB-C/HDMI) silently hold the native timing and hardware-scale — even the
-    // system setUserPreferredDisplayMode can't move them. When that happens, latch into render scaling
-    // so the Output controls stay honest instead of implying a switch that never landed.
+    // Confirm the panel actually moved: some pipelines silently hold native timing and hardware-scale, so latch into render scaling instead of implying a switch that never landed.
     private void verifyPhysicalSwitch(Display.Mode requested, final int gen) {
         final int wantW = requested.getPhysicalWidth();
         final int wantH = requested.getPhysicalHeight();
@@ -638,9 +626,7 @@ public final class ExternalDisplayController {
         try { gameView.getHolder().setSizeFromLayout(); } catch (Exception ignore) {}
     }
 
-    // Push the external surface toward a refresh rate (API 30+). FIXED_SOURCE + CHANGE_FRAME_RATE_ALWAYS
-    // is the most aggressive public lever — it requests a non-seamless switch to the panel's nearest
-    // matching mode rather than only a seamless one. Still a vote: a no-op if the panel can't produce it.
+    // Push the external surface toward a refresh rate (API 30+). FIXED_SOURCE + CHANGE_FRAME_RATE_ALWAYS requests a non-seamless switch to the nearest mode; still only a vote (no-op if the panel can't produce it).
     private void requestSurfaceFrameRate(float hz) {
         if (hz <= 0f || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
         try {

@@ -30,12 +30,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Native Vulkan compositor.
- *
- * <p>Owns the C-side renderer handle and pushes a scene snapshot every frame. Replaces the
- * previous GLES2 {@code GLRenderer}; preserves the same public API so callers do not change.
- */
+/** Native Vulkan compositor: owns the C-side renderer handle and pushes a scene snapshot per frame. */
 public class VulkanRenderer
         implements RenderCallback,
                    WindowManager.OnWindowModificationListener,
@@ -83,8 +78,7 @@ public class VulkanRenderer
     private float magnifierPanY = 0f;
     private boolean magnifierPanInitialized = false;
     private static final float MAGNIFIER_DEADZONE_FRACTION = 0.6f;
-    // volatile: written from the main thread (onXServerScreenChanged / fill-mode / display-swap
-    // recompute) and read from the render thread (buildAndSubmitFrame self-heal).
+    // volatile: written on the main thread, read on the render thread (buildAndSubmitFrame self-heal).
     public volatile int surfaceWidth;
     public volatile int surfaceHeight;
     private boolean cpuSaverMode = false;
@@ -140,13 +134,12 @@ public class VulkanRenderer
 
     public void destroy() {
         if (destroyed.compareAndSet(false, true)) {
-            // LEAK FIX: Unregister from the persistent XServer to prevent "zombie" listeners
+            // Unregister from the persistent XServer to avoid leaking listeners.
             xServer.windowManager.removeOnWindowModificationListener(this);
             xServer.pointer.removeOnPointerMotionListener(this);
 
             if (nativeHandle != 0) {
-                // If we are on the UI thread, nativeDestroy (which might block on vkDeviceWaitIdle)
-                // should run on a background thread to avoid freezing the UI.
+                // On the UI thread, run nativeDestroy off-thread — it may block on vkDeviceWaitIdle.
                 if (Looper.myLooper() == Looper.getMainLooper()) {
                     new Thread(() -> {
                         synchronized (this) {
@@ -205,8 +198,7 @@ public class VulkanRenderer
                     return;
                 }
                 Texture.setRendererHandle(nativeHandle);
-                // Apply the cached present-mode request now that the native renderer exists.
-                // No-op if the requested mode equals the native default (FIFO).
+                // Apply the cached present-mode request (no-op if it equals the native default FIFO).
                 if (requestedPresentMode != PRESENT_MODE_FIFO) {
                     nativeSetPresentMode(nativeHandle, requestedPresentMode);
                 }
@@ -288,7 +280,7 @@ public class VulkanRenderer
 
     @Override
     public void onSurfaceCreated() {
-        // Surface is already attached in attachSurface(). Nothing else to do here.
+        // Surface already attached in attachSurface().
     }
 
     @Override
@@ -314,8 +306,7 @@ public class VulkanRenderer
     // ----- Scene assembly ----------------------------------------------------
 
     private void buildAndSubmitFrame() {
-        // Self-heal: if the actual surface size differs from our cache (after a display reparent),
-        // recompute the viewport against the real size.
+        // Self-heal: if the real surface size differs from our cache (display reparent), recompute the viewport.
         if (xServerView != null) {
             int actualW = xServerView.getSurfaceWidth();
             int actualH = xServerView.getSurfaceHeight();
@@ -328,7 +319,6 @@ public class VulkanRenderer
             }
         }
 
-        // Compute scene transform / viewport / scissor (mirrors GLRenderer.drawFrame logic).
         textureUploadBatch.reset();
         boolean useScissor = false;
 
@@ -353,7 +343,6 @@ public class VulkanRenderer
 
         final ByteBuffer buf = sceneBuf;
 
-        // Viewport
         int viewX, viewY, viewW, viewH;
         if (fullscreen) {
             viewX = 0;
@@ -371,9 +360,7 @@ public class VulkanRenderer
         buf.putInt(OFF_VIEWPORT + 8,  viewW);
         buf.putInt(OFF_VIEWPORT + 12, viewH);
 
-        // Scissor (only in non-magnifier non-fullscreen mode). Clamp to the framebuffer so a
-        // ZOOM/crop fill mode (whose viewport intentionally overflows the surface) never asks
-        // Vulkan for an out-of-bounds scissor. For FIT/STRETCH this is a no-op.
+        // Scissor (non-magnifier non-fullscreen): clamp to the framebuffer so a ZOOM/crop viewport overflow never yields an out-of-bounds scissor.
         if (useScissor) {
             int sX = Math.max(0, viewTransformation.viewOffsetX);
             int sY = Math.max(0, viewTransformation.viewOffsetY);
@@ -388,14 +375,13 @@ public class VulkanRenderer
             buf.putInt(OFF_SCISSOR + 12, sH);
         } else {
             buf.putInt(OFF_SCISSOR_ENABLED, 0);
-            // Native side gates on scissor_enabled regardless, but zero the rect for cleanliness.
+            // Native gates on scissor_enabled anyway; zero the rect for cleanliness.
             buf.putInt(OFF_SCISSOR,      0);
             buf.putInt(OFF_SCISSOR + 4,  0);
             buf.putInt(OFF_SCISSOR + 8,  0);
             buf.putInt(OFF_SCISSOR + 12, 0);
         }
 
-        // XForm
         buf.putFloat(OFF_XFORM,      sceneXform[0]);
         buf.putFloat(OFF_XFORM + 4,  sceneXform[1]);
         buf.putFloat(OFF_XFORM + 8,  sceneXform[2]);
@@ -405,7 +391,7 @@ public class VulkanRenderer
 
         viewportNeedsUpdate = false;
 
-        // Collect renderable windows (matches GLRenderer.renderWindows occlusion skipping).
+        // Collect renderable windows (occlusion skipping).
         int winCount = 0;
         long cursorHandle = 0;
         boolean cursorOnscreen = false;
@@ -553,7 +539,6 @@ public class VulkanRenderer
         buf.putInt(OFF_SOURCE_W, sourceW);
         buf.putInt(OFF_SOURCE_H, sourceH);
 
-        // Effects snapshot
         Effect[] active = effectComposer.snapshot();
         int effectCount = Math.min(active.length, MAX_EFFECTS);
         buf.putInt(OFF_EFFECT_COUNT, effectCount);
@@ -675,7 +660,7 @@ public class VulkanRenderer
         }
     }
 
-    // ----- Public API (matches the previous GLRenderer) ---------------------
+    // ----- Public API -------------------------------------------------------
 
     public EffectComposer getEffectComposer() { return effectComposer; }
 
@@ -916,8 +901,7 @@ public class VulkanRenderer
     }
 
     public void enforceFpsLimit() {
-        // FPS limiting is now performed in native (after queue submit/present), so this
-        // method is a no-op kept for source compatibility with any external callers.
+        // No-op: FPS limiting now runs in native (after submit/present); kept for source compatibility.
     }
 
     // ---- JNI ---------------------------------------------------------------

@@ -129,8 +129,7 @@ private fun XServerDisplayHost(
             closedFallbackPx
         }
     val drawerOpenOffset = 0f
-    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
-    // to trigger the card-reveal animation; the content itself is always composed.
+    // "Engaged" = on or sliding onto the screen; drives the card-reveal animation (the content itself is always composed).
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
@@ -311,8 +310,7 @@ private fun XServerDisplayHost(
                 )
             }
 
-            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own
-            // touches so the rest stays a trackpad. Rendered in the host (not a nested ComposeView).
+            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own touches so the rest stays a trackpad. Hosted here, not a nested ComposeView.
             val perfHudVisible by PerformanceHudState.visible.collectAsState()
             if (perfHudVisible) {
                 val landscape =
@@ -362,8 +360,7 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                // Compose the heavy drawer tree only while open or sliding; a settled-closed
-                // drawer is disposed so it can't contend with the game surface on the shared view.
+                // Compose the heavy drawer tree only while open or sliding; a settled-closed drawer is disposed so it can't contend with the game surface.
                 if (drawerContentComposed) {
                     XServerDrawerContent(
                         state = stateHolder.state,
