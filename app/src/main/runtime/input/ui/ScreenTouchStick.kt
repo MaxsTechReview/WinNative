@@ -70,6 +70,23 @@ class ScreenTouchStick(context: Context, private val xServer: XServer) {
         }
     }
 
+    // Release a stranded stick: pointer stolen by a control it drifted onto, or no longer down (missed UP).
+    fun reconcile(event: MotionEvent, controlOwnedPointerIds: Set<Int>) {
+        if (activePointerId == -1) return
+        if (controlOwnedPointerIds.contains(activePointerId)) {
+            releaseAll()
+            return
+        }
+        val liftingIndex = when (event.actionMasked) {
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> event.actionIndex
+            else -> -1
+        }
+        for (p in 0 until event.pointerCount) {
+            if (p != liftingIndex && event.getPointerId(p) == activePointerId) return
+        }
+        releaseAll()
+    }
+
     private fun push(x: Float, y: Float) {
         xServer.winHandler?.setScreenTouchRightStick(x, y)
     }

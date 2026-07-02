@@ -904,6 +904,7 @@ public class InputControlsView extends View {
       }
 
       releaseStaleCaptures(event);
+      if (touchpadView != null) touchpadView.reconcileScreenTouchStick(event);
     }
     return true;
   }

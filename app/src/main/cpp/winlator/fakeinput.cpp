@@ -418,17 +418,17 @@ read_snapshot(const FakeInputRingHeader *ring, SnapshotState &out) {
 // as a keyframe independently of the ring. Idempotent w.r.t. an in-flight
 // keyframe: callers guard on keyframe_remaining == 0 so a partially delivered
 // frame is never restarted mid-stream.
-__attribute__((visibility("hidden"))) static void
+__attribute__((visibility("hidden"))) static bool
 capture_keyframe(FakeController &fake, const char *reason, int fd) {
   SnapshotState snap;
-  // On a failed read keep the previous keyframe rather than publishing a neutral.
+  // Only a fresh snapshot arms a keyframe; a failed read stays unarmed so the caller replays the ring window instead of a stale frame.
   bool fresh = read_snapshot(fake.ring, snap);
   if (fresh) {
     fake.keyframe_buttons = snap.buttons;
     for (int i = 0; i < 8; i++)
       fake.keyframe_axes[i] = snap.axes[i];
+    fake.keyframe_remaining = kNeutralEventCount;
   }
-  fake.keyframe_remaining = kNeutralEventCount;
   Logger::log("Fake input keyframe reason=%s fd=%d slot=%d snapshot=%s read_seq=%llu "
               "write_seq=%llu buttons=0x%03x axes=[%d,%d,%d,%d,%d,%d,%d,%d]\n",
               reason ? reason : "unknown", fd, fake.slot, fresh ? "fresh" : "stale",
@@ -439,6 +439,18 @@ capture_keyframe(FakeController &fake, const char *reason, int fd) {
               fake.keyframe_axes[3], fake.keyframe_axes[4],
               fake.keyframe_axes[5], fake.keyframe_axes[6],
               fake.keyframe_axes[7]);
+  return fresh;
+}
+
+// Overflow recovery: a fresh keyframe holds the full state so drop the stale window; on a failed read replay the window instead.
+__attribute__((visibility("hidden"))) static void
+handle_overflow(FakeController &fake, uint64_t write_seq, int fd) {
+  fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
+  bool discard = true;
+  if (fake.keyframe_remaining == 0)
+    discard = capture_keyframe(fake, "overflow", fd);
+  if (discard)
+    fake.read_seq = write_seq;
 }
 
 // Resolve the value a keyframe event should carry from the captured snapshot.
@@ -541,10 +553,7 @@ fake_fd_has_unread_data(int fd) {
   if (write_seq < fake.read_seq)
     fake.read_seq = write_seq;
   if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
-    fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-    if (fake.keyframe_remaining == 0) {
-      capture_keyframe(fake, "overflow", fd);
-    }
+    handle_overflow(fake, write_seq, fd);
   }
   // A pending keyframe counts as readable so poll/blocking reads wake to finish
   // flushing it even after the ring itself has drained.
@@ -1086,10 +1095,7 @@ EXPORT ssize_t read(int fd, void *buf, size_t count) {
 
     uint64_t write_seq = ring_write_seq(fake.ring);
     if (write_seq - fake.read_seq > FAKE_INPUT_RING_CAPACITY) {
-      fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-      if (fake.keyframe_remaining == 0) {
-        capture_keyframe(fake, "overflow", fd);
-      }
+      handle_overflow(fake, write_seq, fd);
     }
 
     uint8_t *out = static_cast<uint8_t *>(buf);

@@ -652,6 +652,10 @@ class TouchpadView(
         pointerIdsToIgnore.addAll(ids)
     }
 
+    fun reconcileScreenTouchStick(event: MotionEvent) {
+        screenTouchStick.reconcile(event, pointerIdsToIgnore)
+    }
+
     var tapToClickEnabled = true
 
     fun setMouseEnabled(enabled: Boolean) {
