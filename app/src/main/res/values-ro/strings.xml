@@ -588,6 +588,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>
@@ -1511,7 +1512,7 @@ Cale instalata:
     <string name="session_drawer_hud_background">Fundal</string>
     <string name="session_drawer_hud_background_alpha">Alfa fundal</string>
     <string name="session_drawer_hud_background_alpha_input_title">Setează alfa fundalului</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustează dimensiunea</string>
     <string name="session_task_bring_to_front">Adu în față</string>
     <string name="session_task_custom_value">Valoare personalizată</string>

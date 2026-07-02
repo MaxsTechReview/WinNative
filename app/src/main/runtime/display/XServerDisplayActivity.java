@@ -402,7 +402,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean hudBackgroundAlphaDecoupled = false;
     private float hudBackgroundTransparency = 1.0f;
     private float hudScale = 1.0f;
-    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true};
+    private boolean[] hudElements = new boolean[]{true, true, true, true, true, true, true, true, false};
     private boolean dualSeriesBattery = false;
     private boolean frametimeNumericMode = false;
     private boolean hudCardExpanded = false;
@@ -5299,6 +5299,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 hudElements[5] = obj.optBoolean("showBattery", legacyBattTemp);
                 hudElements[6] = obj.optBoolean("showTemp", legacyBattTemp);
                 hudElements[7] = obj.optBoolean("showGraph", true);
+                hudElements[8] = obj.optBoolean("showCpuTemp", false);
             } catch (JSONException e) {
                 Log.e("XServerDisplayActivity", "Failed to load HUD settings", e);
             }
@@ -5322,6 +5323,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             obj.put("showBattery", hudElements[5]);
             obj.put("showTemp", hudElements[6]);
             obj.put("showGraph", hudElements[7]);
+            obj.put("showCpuTemp", hudElements[8]);
             container.putExtra("hudSettings", obj.toString());
             container.saveData();
         } catch (JSONException e) {
@@ -7349,24 +7351,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void persistSelectedProfile(ControlsProfile profile) {
-        SharedPreferences.Editor editor = preferences.edit();
-        if (profile != null) {
-            int selectedProfileIndex = -1;
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile storedProfile = profiles.get(i);
-                if (storedProfile != null && storedProfile.id == profile.id) {
-                    selectedProfileIndex = i;
-                    break;
-                }
-            }
-            editor.putInt("selected_profile_id", profile.id);
-            editor.putInt("selected_profile_index", selectedProfileIndex);
-        } else {
-            editor.remove("selected_profile_id");
-            editor.putInt("selected_profile_index", -1);
+        if (shortcut == null) return;
+        String newVal = profile != null ? String.valueOf(profile.id) : "";
+        if (!newVal.equals(shortcut.getExtra("controlsProfile", ""))) {
+            shortcut.putExtra("controlsProfile", newVal.isEmpty() ? null : newVal);
+            shortcut.saveData();
         }
-        editor.apply();
     }
 
     private void pushSelectedGestureConfig() {
@@ -7421,16 +7411,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {
-        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-        int selectedProfileId = preferences.getInt("selected_profile_id", 0);
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
-        ControlsProfile selectedProfile =
-                selectedProfileId != 0 ? inputControlsManager.getProfile(selectedProfileId) : null;
-
-        if (selectedProfile == null
-                && selectedProfileIndex >= 0
-                && selectedProfileIndex < profiles.size()) {
-            selectedProfile = profiles.get(selectedProfileIndex);
+        if (shortcut == null) return null;
+        String cp = shortcut.getExtra("controlsProfile", "");
+        if (cp.isEmpty()) return null;
+        ControlsProfile selectedProfile;
+        try {
+            selectedProfile = inputControlsManager.getProfile(Integer.parseInt(cp));
+        } catch (NumberFormatException e) {
+            return null;
         }
 
         if (selectedProfile != null) {

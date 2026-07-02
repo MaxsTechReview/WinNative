@@ -588,6 +588,7 @@ Par ex. <b>META</b> pour la <i>touche META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Batt.</string>
     <string name="session_drawer_hud_element_graph">Graphe</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Voulez-vous terminer ce processus ?</string>
@@ -1512,7 +1513,7 @@ Chemin installé :
     <string name="session_drawer_hud_background">Arrière-plan</string>
     <string name="session_drawer_hud_background_alpha">Alpha de l\'arrière-plan</string>
     <string name="session_drawer_hud_background_alpha_input_title">Définir l\'alpha de l\'arrière-plan</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajuster la taille</string>
     <string name="session_task_bring_to_front">Mettre au premier plan</string>
     <string name="session_task_custom_value">Valeur personnalisée</string>
