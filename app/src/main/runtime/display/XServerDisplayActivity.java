@@ -7349,24 +7349,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void persistSelectedProfile(ControlsProfile profile) {
-        SharedPreferences.Editor editor = preferences.edit();
-        if (profile != null) {
-            int selectedProfileIndex = -1;
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-            for (int i = 0; i < profiles.size(); i++) {
-                ControlsProfile storedProfile = profiles.get(i);
-                if (storedProfile != null && storedProfile.id == profile.id) {
-                    selectedProfileIndex = i;
-                    break;
-                }
-            }
-            editor.putInt("selected_profile_id", profile.id);
-            editor.putInt("selected_profile_index", selectedProfileIndex);
-        } else {
-            editor.remove("selected_profile_id");
-            editor.putInt("selected_profile_index", -1);
+        if (shortcut == null) return;
+        String newVal = profile != null ? String.valueOf(profile.id) : "";
+        if (!newVal.equals(shortcut.getExtra("controlsProfile", ""))) {
+            shortcut.putExtra("controlsProfile", newVal.isEmpty() ? null : newVal);
+            shortcut.saveData();
         }
-        editor.apply();
     }
 
     private void pushSelectedGestureConfig() {
@@ -7421,16 +7409,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {
-        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-        int selectedProfileId = preferences.getInt("selected_profile_id", 0);
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
-        ControlsProfile selectedProfile =
-                selectedProfileId != 0 ? inputControlsManager.getProfile(selectedProfileId) : null;
-
-        if (selectedProfile == null
-                && selectedProfileIndex >= 0
-                && selectedProfileIndex < profiles.size()) {
-            selectedProfile = profiles.get(selectedProfileIndex);
+        if (shortcut == null) return null;
+        String cp = shortcut.getExtra("controlsProfile", "");
+        if (cp.isEmpty()) return null;
+        ControlsProfile selectedProfile;
+        try {
+            selectedProfile = inputControlsManager.getProfile(Integer.parseInt(cp));
+        } catch (NumberFormatException e) {
+            return null;
         }
 
         if (selectedProfile != null) {
