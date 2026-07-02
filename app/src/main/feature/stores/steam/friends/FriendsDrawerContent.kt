@@ -274,6 +274,13 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
     var inGame by remember { mutableStateOf(PrefManager.chatInGameEnabled) }
     var stayRunning by remember { mutableStateOf(PrefManager.chatStayRunningOnExit) }
     val registry = remember { PaneNavRegistry() }
+    LaunchedEffect(stayRunning) {
+        if (!stayRunning && heads) {
+            heads = false
+            PrefManager.chatHeadsEnabled = false
+            ChatOverlayService.stop(context)
+        }
+    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -344,6 +351,7 @@ private fun ChatSettingsDialog(onDismiss: () -> Unit) {
                             heads,
                             navRow = 2,
                             navCol = 0,
+                            enabled = stayRunning,
                         ) { v ->
                             if (v) {
                                 if (android.provider.Settings.canDrawOverlays(context)) {
@@ -405,14 +413,16 @@ private fun ChatSettingToggle(
     navRow: Int,
     navCol: Int,
     isEntry: Boolean = false,
+    enabled: Boolean = true,
     onChange: (Boolean) -> Unit,
 ) {
+    val contentAlpha = if (enabled) 1f else 0.4f
     Row(
         Modifier
             .fillMaxWidth()
             .paneNavItem(
                 cornerRadius = 8.dp,
-                onActivate = { onChange(!checked) },
+                onActivate = { if (enabled) onChange(!checked) },
                 tapToSelect = true,
                 navRow = navRow,
                 navCol = navCol,
@@ -422,13 +432,14 @@ private fun ChatSettingToggle(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
-            Text(desc, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+            Text(title, color = TextPrimary.copy(alpha = contentAlpha), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+            Text(desc, color = TextSecondary.copy(alpha = contentAlpha), style = MaterialTheme.typography.labelSmall)
         }
         Spacer(Modifier.width(12.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onChange,
+            onCheckedChange = if (enabled) onChange else null,
+            enabled = enabled,
             colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
         )
     }
