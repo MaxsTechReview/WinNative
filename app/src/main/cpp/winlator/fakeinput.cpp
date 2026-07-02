@@ -442,14 +442,11 @@ capture_keyframe(FakeController &fake, const char *reason, int fd) {
   return fresh;
 }
 
-// Overflow recovery: a fresh keyframe holds the full state so drop the stale window; on a failed read replay the window instead.
+// Overflow recovery: only a freshly captured keyframe is a superset, so drop the window only then; otherwise replay it so a quiet axis' delta is never lost.
 __attribute__((visibility("hidden"))) static void
 handle_overflow(FakeController &fake, uint64_t write_seq, int fd) {
   fake.read_seq = write_seq - FAKE_INPUT_RING_CAPACITY;
-  bool discard = true;
-  if (fake.keyframe_remaining == 0)
-    discard = capture_keyframe(fake, "overflow", fd);
-  if (discard)
+  if (fake.keyframe_remaining == 0 && capture_keyframe(fake, "overflow", fd))
     fake.read_seq = write_seq;
 }
 
