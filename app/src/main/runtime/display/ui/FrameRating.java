@@ -1467,8 +1467,12 @@ public class FrameRating extends LinearLayout implements Runnable {
       SpannableStringBuilder b = new SpannableStringBuilder();
       append(b, "C.TMP ", this.C_CPU_TEMP);
       if (this.cpuSensorTemp >= 0) {
-        append(b, this.cpuSensorTemp + "°", this.C_VALUE);
-        appendSmall(b, "C", this.C_VALUE, 0.7f);
+        int tempColor =
+            this.cpuSensorTemp >= 90
+                ? this.C_HOT
+                : this.cpuSensorTemp >= 80 ? this.C_WARM : this.C_VALUE;
+        append(b, this.cpuSensorTemp + "°", tempColor);
+        appendSmall(b, "C", tempColor, 0.7f);
       } else {
         append(b, "N/A", this.C_VALUE);
       }
