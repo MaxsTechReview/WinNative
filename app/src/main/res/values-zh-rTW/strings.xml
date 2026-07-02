@@ -588,6 +588,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">電量</string>
     <string name="session_drawer_hud_element_graph">圖表</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要結束此程序嗎？</string>
@@ -1511,7 +1512,7 @@
     <string name="session_drawer_hud_background">背景</string>
     <string name="session_drawer_hud_background_alpha">背景透明度</string>
     <string name="session_drawer_hud_background_alpha_input_title">設定背景透明度</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">調整大小</string>
     <string name="session_task_bring_to_front">置於最上層</string>
     <string name="session_task_custom_value">自訂值</string>

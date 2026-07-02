@@ -610,6 +610,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Батарея</string>
     <string name="session_drawer_hud_element_graph">График</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>
@@ -1418,7 +1419,7 @@
     <string name="session_drawer_hud_background">Фон</string>
     <string name="session_drawer_hud_background_alpha">Альфа фона</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задать альфу фона</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Изменить размер</string>
     <string name="session_task_bring_to_front">На передний план</string>
     <string name="session_task_custom_value">Своё значение</string>
