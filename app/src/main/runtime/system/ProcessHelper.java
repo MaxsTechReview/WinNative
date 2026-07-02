@@ -655,7 +655,7 @@ public abstract class ProcessHelper {
   private static String readProcCmdline(File proc, String pid) {
     try (FileInputStream fr = new FileInputStream(proc + "/" + pid + "/cmdline")) {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-      byte[] data = new byte[4096];
+      byte[] data = new byte[8192];
       int nRead;
       while ((nRead = fr.read(data)) != -1) buffer.write(data, 0, nRead);
       byte[] bytes = buffer.toByteArray();
