@@ -547,18 +547,51 @@ public class WinHandler {
     if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
   }
 
+  // Hand the socket/threads to a replacement handler while keeping the fake-input writers/rings the running guest is mapped to (unlike stop()).
+  public void stopForReattach() {
+    synchronized (this.actions) {
+      this.running = false;
+      this.actions.clear();
+      this.actions.notifyAll();
+    }
+    this.vibrationRunning = false;
+    if (this.socket != null) {
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.vibrationServer != null) {
+      try {
+        this.vibrationServer.close();
+      } catch (IOException ignored) {
+      }
+      this.vibrationServer = null;
+    }
+    if (this.sendExecutor != null) this.sendExecutor.shutdownNow();
+    if (this.receiveExecutor != null) this.receiveExecutor.shutdownNow();
+    if (this.vibrationExecutor != null) this.vibrationExecutor.shutdownNow();
+  }
+
+  private void applyInitHandshake() {
+    this.initReceived = true;
+    this.preferences =
+        PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
+    if (!this.xinputDisabledInitialized) {
+      this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
+    }
+    synchronized (this.actions) {
+      this.actions.notifyAll();
+    }
+  }
+
+  // Reused session: the guest already handshook and won't repeat it, so adopt init state or mouse/keyboard input stays gated off.
+  public void markSessionInitialized() {
+    applyInitHandshake();
+  }
+
   private void handleRequest(byte requestCode, int port) {
     switch (requestCode) {
       case 1:
-        this.initReceived = true;
-        this.preferences =
-            PreferenceManager.getDefaultSharedPreferences(this.activity.getBaseContext());
-        if (!this.xinputDisabledInitialized) {
-          this.xinputDisabled = this.preferences.getBoolean("xinput_toggle", false);
-        }
-        synchronized (this.actions) {
-          this.actions.notifyAll();
-        }
+        applyInitHandshake();
         return;
       case 5:
         if (this.onGetProcessInfoListener != null) {

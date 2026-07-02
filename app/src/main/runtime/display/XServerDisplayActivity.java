@@ -1075,11 +1075,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libfakeinput.so");
         GuestProgramLauncherComponent.ensureImageFsNativeLibrary(this, imageFs, "libandroid-sysvshm.so");
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
+        boolean reattachingLiveSession = SessionKeepAliveService.isSessionActive()
+                && SessionKeepAliveService.getActiveEnvironment() != null
+                && SessionKeepAliveService.getActiveXServer() != null;
         if (devInputDir.exists() || devInputDir.mkdirs()) {
-            for (int i = 0; i < 4; i++) {
-                File eventFile = new File(devInputDir, "event" + i);
-                if (eventFile.exists()) {
-                    eventFile.delete();
+            // On reattach the running guest still holds these nodes; deleting them breaks its live input mapping.
+            if (!reattachingLiveSession) {
+                for (int i = 0; i < 4; i++) {
+                    File eventFile = new File(devInputDir, "event" + i);
+                    if (eventFile.exists()) {
+                        eventFile.delete();
+                    }
                 }
             }
         }
@@ -6420,8 +6426,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 this.environment.setContext(this);
                 this.reusingSession = true;
 
+                // Free the old handler's socket (keep its writers/rings) and mark the fresh one initialized so the guest's input keeps flowing.
+                WinHandler previousWinHandler = this.xServer.getWinHandler();
+                if (previousWinHandler != null && previousWinHandler != winHandler) {
+                    previousWinHandler.stopForReattach();
+                }
                 this.xServer.setWinHandler(winHandler);
-                
+                winHandler.markSessionInitialized();
+
                 this.guestProgramLauncherComponent = environment.getComponent(GuestProgramLauncherComponent.class);
                 return;
             }
