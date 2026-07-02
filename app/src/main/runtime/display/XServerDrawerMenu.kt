@@ -2364,6 +2364,12 @@ private fun HUDPaneContent(
     listener: XServerDrawerActionListener,
 ) {
     var activeEditor by remember { mutableStateOf<HUDMetricEditor?>(null) }
+    var fpsLimitMemory by remember {
+        mutableStateOf(if (state.fpsLimit > 0) state.fpsLimit else FPS_LIMITER_DEFAULT)
+    }
+    LaunchedEffect(state.fpsLimit) {
+        if (state.fpsLimit > 0) fpsLimitMemory = state.fpsLimit
+    }
     val elementNames =
         listOf(
             stringResource(R.string.session_drawer_hud_element_fps),
@@ -2472,10 +2478,12 @@ private fun HUDPaneContent(
                 Box(
                     Modifier.fillMaxWidth().paneNavItem(
                         cornerRadius = (12f * paneScale).dp,
-                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else state.maxRefreshRate) },
+                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else fpsLimitMemory.coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
                         onAdjust = { dir ->
-                            val base = if (state.fpsLimit > 0) state.fpsLimit else state.maxRefreshRate
-                            listener.onFPSLimitChanged((base + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
+                            val base = if (state.fpsLimit > 0) state.fpsLimit else fpsLimitMemory
+                            val q = base / 5.0
+                            val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
+                            listener.onFPSLimitChanged((units * 5).toInt().coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
                         },
                     ),
                 ) {
@@ -6114,6 +6122,13 @@ private fun FPSLimiterCard(
                 .coerceIn(FPS_LIMITER_MIN, maxFps)
                 .toFloat(),
         )
+    }
+
+    LaunchedEffect(currentLimit) {
+        if (currentLimit > 0) {
+            val target = currentLimit.coerceIn(FPS_LIMITER_MIN, maxFps).toFloat()
+            if (target != sliderValue) sliderValue = target
+        }
     }
 
     val borderColor by animateColorAsState(
