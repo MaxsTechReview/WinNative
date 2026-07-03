@@ -672,7 +672,7 @@ public abstract class WineUtils {
       "dxgi",
       "wined3d"
     };
-    final String[] dinputLibs = {"dinput", "dinput8"};
+    final String[] dinputLibs = {"dinput"};
 
     final String dllOverridesKey = "Software\\Wine\\DllOverrides";
 
