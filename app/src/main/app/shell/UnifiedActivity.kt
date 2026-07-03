@@ -12140,7 +12140,11 @@ class UnifiedActivity :
         }
 
         fun selectExecutable(path: String) {
-            if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
+            val launchable =
+                path.endsWith(".exe", ignoreCase = true) ||
+                    path.endsWith(".bat", ignoreCase = true) ||
+                    path.endsWith(".cmd", ignoreCase = true)
+            if (!launchable || !java.io.File(path).isFile) {
                 com.winlator.cmod.shared.ui.toast.WinToast.show(
                     context,
                     R.string.common_ui_select_valid_exe_file,
@@ -12220,7 +12224,7 @@ class UnifiedActivity :
                                                                     android.os.Environment.DIRECTORY_DOWNLOADS,
                                                                 ).absolutePath,
                                                     title = getString(R.string.common_ui_select_exe),
-                                                    allowedExtensions = setOf("exe"),
+                                                    allowedExtensions = setOf("exe", "bat", "cmd"),
                                                     dimAmount = 0.5f,
                                                     preserveBackdropBlur = true,
                                                     extraRoots = driveRoots(includeInternal = true),

@@ -258,6 +258,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean controllerAutoHidden = false;
     private boolean userOverrodeAutoHide = false;
     private XEnvironment environment;
+    private com.winlator.cmod.runtime.display.environment.AudioFocusHandler audioFocusHandler;
     private ComposeView displayHostComposeView;
     private FrameLayout xServerDisplayFrame;
     private ContainerManager containerManager;
@@ -2341,6 +2342,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         };
     }
 
+    private void ensureAudioFocusHandler() {
+        if (audioFocusHandler != null) return;
+        audioFocusHandler =
+                new com.winlator.cmod.runtime.display.environment.AudioFocusHandler(
+                        this,
+                        () -> { if (environment != null) environment.onPause(); },
+                        () -> { if (environment != null) environment.onResume(); });
+    }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -2353,6 +2363,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (!cleaningUp && environment != null) {
             xServerView.onResume();
             environment.onResume();
+            ensureAudioFocusHandler();
+            if (audioFocusHandler != null) audioFocusHandler.request();
         }
 
         if (inputControlsView != null && touchpadView != null) {
@@ -3747,6 +3759,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (externalDisplayController != null) {
             externalDisplayController.release();
             externalDisplayController = null;
+        }
+        if (audioFocusHandler != null) {
+            audioFocusHandler.release();
+            audioFocusHandler = null;
         }
         if (isDependencyInstall) {
             com.winlator.cmod.runtime.content.component.DependencyInstallBridge.complete(dependencyExitStatus);
