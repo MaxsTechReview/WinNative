@@ -92,6 +92,19 @@ public class NetworkHelper {
         }
     }
 
+    /**
+     * Adapter reported to Wine when Android has no active network. Represents an
+     * up link-local interface so iphlpapi never hands the guest a down, all-zero
+     * adapter (which some games dereference blindly during boot enumeration).
+     */
+    public static IFAddress offlineFallback() {
+        IFAddress ifAddress = new IFAddress();
+        ifAddress.flags = OsConstants.IFF_UP | OsConstants.IFF_RUNNING;
+        ifAddress.address = "169.254.1.2";
+        ifAddress.netmask = "255.255.0.0";
+        return ifAddress;
+    }
+
     public boolean isConnected() {
         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
         if (networkInfo == null) return false;

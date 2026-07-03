@@ -64,7 +64,7 @@ public class NetworkInfoUpdateComponent extends EnvironmentComponent {
                 content.append(ifAddress.toString());
             }
         } else {
-            content.append(new NetworkHelper.IFAddress().toString());
+            content.append(NetworkHelper.offlineFallback().toString());
         }
         FileUtils.writeString(file, content.toString());
     }
