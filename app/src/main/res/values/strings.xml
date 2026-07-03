@@ -737,8 +737,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_cpu">CPU</string>
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>

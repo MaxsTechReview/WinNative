@@ -588,6 +588,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>
@@ -1512,7 +1513,7 @@ Installeret sti:
     <string name="session_drawer_hud_background">Baggrund</string>
     <string name="session_drawer_hud_background_alpha">Baggrundsalfa</string>
     <string name="session_drawer_hud_background_alpha_input_title">Indstil baggrundsalfa</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Tilpas størrelse</string>
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>

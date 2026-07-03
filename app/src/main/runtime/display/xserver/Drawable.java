@@ -21,6 +21,7 @@ public class Drawable extends XResource {
   private short presentedSourceWidth;
   private short presentedSourceHeight;
   private boolean presentedSourceValid = false;
+  private boolean hasContent = false;
   private Runnable onDrawListener;
   private Callback<Drawable> onDestroyListener;
   public final Object renderLock = new Object();
@@ -45,6 +46,7 @@ public class Drawable extends XResource {
   public static Drawable fromBitmap(Bitmap bitmap) {
     Drawable drawable = new Drawable(0, bitmap.getWidth(), bitmap.getHeight(), null);
     fromBitmap(bitmap, drawable.data);
+    drawable.hasContent = true;
     return drawable;
   }
 
@@ -56,6 +58,7 @@ public class Drawable extends XResource {
     if (texture instanceof GPUImage) {
       ByteBuffer virtualData = ((GPUImage) texture).getVirtualData();
       if (virtualData != null) data = virtualData;
+      hasContent = true;
     }
     this.texture = texture;
   }
@@ -111,6 +114,7 @@ public class Drawable extends XResource {
   }
 
   private void markTextureDirty(int x, int y, int width, int height) {
+    hasContent = true;
     if (texture != null) texture.markDirty(x, y, width, height, this.width, this.height);
   }
 
@@ -118,11 +122,16 @@ public class Drawable extends XResource {
     return data;
   }
 
+  public boolean hasContent() {
+    return hasContent;
+  }
+
   public void setData(ByteBuffer data) {
     if (data == null) {
       throw new IllegalArgumentException("Attempting to set Drawable.data to null!");
     }
     this.data = data;
+    hasContent = true;
   }
 
   public void setDirectScanout(boolean value) {

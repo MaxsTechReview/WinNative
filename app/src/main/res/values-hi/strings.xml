@@ -658,6 +658,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
     <string name="session_drawer_hud_element_graph">ग्राफ़</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">HUD को यहाँ ले जाएँ</string>
     <string name="hud_position_top_left">ऊपर बाएँ</string>
     <string name="hud_position_top_center">ऊपर केंद्र</string>
@@ -1448,7 +1449,7 @@
     <string name="session_drawer_hud_background">पृष्ठभूमि</string>
     <string name="session_drawer_hud_background_alpha">पृष्ठभूमि अल्फा</string>
     <string name="session_drawer_hud_background_alpha_input_title">पृष्ठभूमि अल्फा सेट करें</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">आकार समायोजित करें</string>
     <string name="session_task_bring_to_front">सामने लाएँ</string>
     <string name="session_task_custom_value">कस्टम मान</string>

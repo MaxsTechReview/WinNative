@@ -588,6 +588,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Akku</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Möchtest du diesen Prozess beenden?</string>
@@ -1512,7 +1513,7 @@ Installierter Pfad:
     <string name="session_drawer_hud_background">Hintergrund</string>
     <string name="session_drawer_hud_background_alpha">Hintergrund-Alpha</string>
     <string name="session_drawer_hud_background_alpha_input_title">Hintergrund-Alpha festlegen</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Größe anpassen</string>
     <string name="session_task_bring_to_front">In den Vordergrund</string>
     <string name="session_task_custom_value">Benutzerdefinierter Wert</string>

@@ -589,7 +589,7 @@ data class XServerDrawerState(
     val hudBackgroundAlphaEnabled: Boolean = false,
     val hudBackgroundTransparency: Float = 1.0f,
     val hudScale: Float = 1.0f,
-    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
+    val hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true, false),
     val dualSeriesBatteryEnabled: Boolean = false,
     val frametimeNumericEnabled: Boolean = false,
     val hudCardExpanded: Boolean = false,
@@ -1121,7 +1121,7 @@ fun buildXServerDrawerState(
     hudBackgroundAlphaEnabled: Boolean = false,
     hudBackgroundTransparency: Float = 1.0f,
     hudScale: Float = 1.0f,
-    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true),
+    hudElements: BooleanArray = booleanArrayOf(true, true, true, true, true, true, true, true, false),
     dualSeriesBatteryEnabled: Boolean = false,
     frametimeNumericEnabled: Boolean = false,
     hudCardExpanded: Boolean = false,
@@ -2364,6 +2364,12 @@ private fun HUDPaneContent(
     listener: XServerDrawerActionListener,
 ) {
     var activeEditor by remember { mutableStateOf<HUDMetricEditor?>(null) }
+    var fpsLimitMemory by remember {
+        mutableStateOf(if (state.fpsLimit > 0) state.fpsLimit else FPS_LIMITER_DEFAULT)
+    }
+    LaunchedEffect(state.fpsLimit) {
+        if (state.fpsLimit > 0) fpsLimitMemory = state.fpsLimit
+    }
     val elementNames =
         listOf(
             stringResource(R.string.session_drawer_hud_element_fps),
@@ -2374,8 +2380,9 @@ private fun HUDPaneContent(
             stringResource(R.string.session_drawer_hud_element_battery),
             stringResource(R.string.session_drawer_hud_element_temp),
             stringResource(R.string.session_drawer_hud_element_graph),
+            stringResource(R.string.session_drawer_hud_element_cpu_temp),
         )
-    val elementOrder = listOf(1, 2, 3, 4, 5, 6, 0, 7)
+    val elementOrder = listOf(1, 2, 3, 8, 4, 5, 6, 0, 7)
     val active =
         state.items.firstOrNull { it.itemId == R.id.main_menu_fps_monitor }?.active ?: false
 
@@ -2472,10 +2479,12 @@ private fun HUDPaneContent(
                 Box(
                     Modifier.fillMaxWidth().paneNavItem(
                         cornerRadius = (12f * paneScale).dp,
-                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else state.maxRefreshRate) },
+                        onActivate = { listener.onFPSLimitChanged(if (state.fpsLimit > 0) 0 else fpsLimitMemory.coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate)) },
                         onAdjust = { dir ->
-                            val base = if (state.fpsLimit > 0) state.fpsLimit else state.maxRefreshRate
-                            listener.onFPSLimitChanged((base + dir).coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
+                            val base = if (state.fpsLimit > 0) state.fpsLimit else fpsLimitMemory
+                            val q = base / 5.0
+                            val units = if (dir > 0) Math.floor(q + 1e-4) + 1 else Math.ceil(q - 1e-4) - 1
+                            listener.onFPSLimitChanged((units * 5).toInt().coerceIn(FPS_LIMITER_MIN, state.maxRefreshRate))
                         },
                     ),
                 ) {
@@ -6114,6 +6123,13 @@ private fun FPSLimiterCard(
                 .coerceIn(FPS_LIMITER_MIN, maxFps)
                 .toFloat(),
         )
+    }
+
+    LaunchedEffect(currentLimit) {
+        if (currentLimit > 0) {
+            val target = currentLimit.coerceIn(FPS_LIMITER_MIN, maxFps).toFloat()
+            if (target != sliderValue) sliderValue = target
+        }
     }
 
     val borderColor by animateColorAsState(

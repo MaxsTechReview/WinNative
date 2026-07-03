@@ -50,6 +50,7 @@ public class XServer {
   public final CursorLocker cursorLocker;
   private SHMSegmentManager shmSegmentManager;
   private VulkanRenderer renderer;
+  private final FramePaceClock framePaceClock = new FramePaceClock();
   private WinHandler winHandler;
   private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
   private boolean relativeMouseMovement = false;
@@ -114,6 +115,10 @@ public class XServer {
 
   public VulkanRenderer getRenderer() {
     return renderer;
+  }
+
+  public FramePaceClock getFramePaceClock() {
+    return framePaceClock;
   }
 
   public GrabManager getGrabManager() {
