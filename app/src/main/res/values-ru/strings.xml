@@ -513,6 +513,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Пресет FEXCore</string>
     <string name="container_fexcore_version">Версия FEXCore</string>
+    <string name="use_unix_libs">Использовать UnixLibs</string>
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графический драйвер</string>
     <string name="container_graphics_configuration">Конфигурация графического драйвера</string>

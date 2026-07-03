@@ -559,6 +559,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore प्रीसेट</string>
     <string name="container_fexcore_version">FEXCore संस्करण</string>
+    <string name="use_unix_libs">UnixLibs का उपयोग करें</string>
     <string name="container_graphics_driver">ग्राफ़िक्स ड्राइवर</string>
     <string name="container_graphics_configuration">ग्राफ़िक्स ड्राइवर कॉन्फ़िगरेशन</string>
     <string name="container_graphics_version">ग्राफ़िक्स ड्राइवर संस्करण</string>

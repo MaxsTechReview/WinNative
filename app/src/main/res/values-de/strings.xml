@@ -505,6 +505,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore-Voreinstellung</string>
     <string name="container_fexcore_version">FEXCore-Version</string>
+    <string name="use_unix_libs">UnixLibs verwenden</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiktreiber</string>

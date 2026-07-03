@@ -505,6 +505,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Préréglage FEXCore</string>
     <string name="container_fexcore_version">Version de FEXCore</string>
+    <string name="use_unix_libs">Utiliser les UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Pilote graphique</string>

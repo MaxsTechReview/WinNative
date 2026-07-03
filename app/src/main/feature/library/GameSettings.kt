@@ -507,6 +507,9 @@ class GameSettingsStateHolder {
     val selectedFexcoreVersion = mutableIntStateOf(0)
     val fexcorePresetEntries = mutableStateOf<List<String>>(emptyList())
     val selectedFexcorePreset = mutableIntStateOf(0)
+    // Per-version flag: true when that FEX version ships native .so UnixLibs.
+    val fexcoreUnixLibsFlags = mutableStateOf<List<Boolean>>(emptyList())
+    val useUnixLibs = mutableStateOf(true)
 
     // Advanced - System
     val startupSelectionEntries = mutableStateOf<List<String>>(emptyList())
@@ -3554,6 +3557,18 @@ private fun AdvancedSection(
 
     // FEXCore — hidden when FEXCore isn't explicitly in either slot.
     if (state.showFexcoreFrame.value) {
+        val fexUnixCapable = state.fexcoreUnixLibsFlags.value
+            .getOrNull(state.selectedFexcoreVersion.intValue) ?: false
+        SettingGroup {
+            SettingSwitch(
+                label = stringResource(R.string.use_unix_libs),
+                checked = state.useUnixLibs.value && fexUnixCapable,
+                onCheckedChange = { state.useUnixLibs.value = it },
+                enabled = fexUnixCapable
+            )
+        }
+        Spacer(Modifier.height(SettingSectionGap))
+
         val fexcoreUsage = emulatorUsageLabel(state, setOf("fexcore"))
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))

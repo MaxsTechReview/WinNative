@@ -51,6 +51,7 @@ public class Container {
     private String drives = DEFAULT_DRIVES;
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
     private boolean fullscreenStretched;
+    private boolean useUnixLibs = true;
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
     private String cpuList;
     private String cpuListWoW64;
@@ -206,6 +207,10 @@ public class Container {
     public boolean isFullscreenStretched() { return fullscreenStretched; }
 
     public void setFullscreenStretched(boolean fullscreenStretched) { this.fullscreenStretched = fullscreenStretched; }
+
+    public boolean isUseUnixLibs() { return useUnixLibs; }
+
+    public void setUseUnixLibs(boolean useUnixLibs) { this.useUnixLibs = useUnixLibs; }
 
     public byte getStartupSelection() {
         return startupSelection;
@@ -424,6 +429,7 @@ public class Container {
             data.put("wincomponents", wincomponents);
             data.put("drives", drives);
             data.put("fullscreenStretched", fullscreenStretched);
+            data.put("useUnixLibs", useUnixLibs);
             data.put("inputType", inputType);
             data.put("exclusiveXInput", exclusiveXInput);
             data.put("startupSelection", startupSelection);
@@ -507,6 +513,9 @@ public class Container {
                     break;
                 case "fullscreenStretched" :
                     setFullscreenStretched(data.getBoolean(key));
+                    break;
+                case "useUnixLibs" :
+                    setUseUnixLibs(data.getBoolean(key));
                     break;
                 case "inputType" :
                     setInputType(data.getInt(key));

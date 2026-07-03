@@ -414,6 +414,10 @@ class ShortcutSettingsComposeDialog private constructor(
             if (container.isFullscreenStretched) "1" else "0"
         )
         state.fullscreenStretched.value = fullscreenStretched == "1"
+        state.useUnixLibs.value = getShortcutSetting(
+            "useUnixLibs",
+            if (container.isUseUnixLibs) "1" else "0"
+        ) == "1"
 
         // LC_ALL
         state.lcAll.value = getShortcutSetting("lc_all", container.getLC_ALL())
@@ -824,6 +828,7 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         state.fexcoreVersionEntries.value = items
+        state.fexcoreUnixLibsFlags.value = items.map { contentsManager.fexcoreVersionHasUnixLibs(it) }
         val savedVersion = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
         else
@@ -1069,6 +1074,13 @@ class ShortcutSettingsComposeDialog private constructor(
                 "fullscreenStretched",
                 if (state.fullscreenStretched.value) "1" else "0",
                 if (container.isFullscreenStretched) "1" else "0"
+            )
+
+            // Use UnixLibs
+            hasContainerOverride = hasContainerOverride or saveOverride(
+                "useUnixLibs",
+                if (state.useUnixLibs.value) "1" else "0",
+                if (container.isUseUnixLibs) "1" else "0"
             )
 
             // Win components
@@ -2160,6 +2172,7 @@ class ShortcutSettingsComposeDialog private constructor(
 
         state.lcAll.value = container.getLC_ALL()
         state.fullscreenStretched.value = container.isFullscreenStretched
+        state.useUnixLibs.value = container.isUseUnixLibs
 
         val startupEntries = state.startupSelectionEntries.value
         state.selectedStartupSelection.intValue = container.getStartupSelection().toInt()
