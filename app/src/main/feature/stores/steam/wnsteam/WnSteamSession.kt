@@ -68,8 +68,7 @@ class WnSteamSession : AutoCloseable {
             authenticator, callback)
     }
 
-    // [resultCallback] may receive a remote-approval update before the final
-    // token-bearing success result when the Steam Guard app approves the QR.
+    // [resultCallback] may get a remote-approval update before the final token-bearing success when Steam Guard approves the QR.
     fun startLoginWithQr(
         qrCallback: WnQrCallback,
         resultCallback: WnAuthCallback,
@@ -83,8 +82,7 @@ class WnSteamSession : AutoCloseable {
         nativeCancelLogin(h)
     }
 
-    // Log on with a refresh token. [accountName] is preferred when Steam provides it,
-    // but auth polling can omit it after device confirmation.
+    // Log on with refresh token; [accountName] preferred when Steam provides it but auth polling can omit it after device confirmation.
     fun logonWithRefreshToken(refreshToken: String, accountName: String, steamId: Long = 0L): Boolean {
         val h = nativeHandle.get(); if (h == 0L) return false
         return nativeLogonWithRefreshToken(h, refreshToken, accountName, steamId)
@@ -557,6 +555,34 @@ class WnSteamSession : AutoCloseable {
                catch (_: UnsatisfiedLinkError) { "[]" }
     }
 
+    // Blocking: send a 1-to-1 friend message; returns response JSON or null.
+    fun sendFriendMessage(steamId: Long, message: String): String? {
+        val h = nativeHandle.get(); if (h == 0L) return null
+        return try { nativeSendFriendMessage(h, steamId, message) }
+               catch (_: UnsatisfiedLinkError) { null }
+    }
+
+    // Blocking: recent message history for a conversation; JSON array.
+    fun getRecentMessages(steamId: Long, count: Int = 50): String {
+        val h = nativeHandle.get(); if (h == 0L) return "[]"
+        return try { nativeGetRecentMessages(h, steamId, count) ?: "[]" }
+               catch (_: UnsatisfiedLinkError) { "[]" }
+    }
+
+    // Drains queued incoming-message notifications; JSON array.
+    fun drainFriendMessages(): String {
+        val h = nativeHandle.get(); if (h == 0L) return "[]"
+        return try { nativeDrainFriendMessages(h) ?: "[]" }
+               catch (_: UnsatisfiedLinkError) { "[]" }
+    }
+
+    // Blocking: upload an image to Steam chat UGC and send it to a friend; returns the URL or null.
+    fun sendChatImage(steamId: Long, refreshToken: String, bytes: ByteArray, fileName: String): String? {
+        val h = nativeHandle.get(); if (h == 0L) return null
+        return try { nativeSendChatImage(h, steamId, refreshToken, bytes, fileName) }
+               catch (_: UnsatisfiedLinkError) { null }
+    }
+
     fun getOwnedGames(steamId: Long): String? {
         val h = nativeHandle.get(); if (h == 0L) return null
         return nativeGetOwnedGames(h, steamId)
@@ -744,6 +770,10 @@ class WnSteamSession : AutoCloseable {
         @JvmStatic private external fun nativeGetLicenseList(handle: Long): String?
         @JvmStatic private external fun nativeGetFriendsList(handle: Long): LongArray
         @JvmStatic private external fun nativeGetFriendPersonas(handle: Long): String?
+        @JvmStatic private external fun nativeSendFriendMessage(handle: Long, steamId: Long, message: String): String?
+        @JvmStatic private external fun nativeGetRecentMessages(handle: Long, steamId: Long, count: Int): String?
+        @JvmStatic private external fun nativeDrainFriendMessages(handle: Long): String?
+        @JvmStatic private external fun nativeSendChatImage(handle: Long, steamId: Long, refreshToken: String, image: ByteArray, fileName: String): String?
         @JvmStatic private external fun nativeGetOwnedGames(
             handle: Long, steamId: Long): String?
         @JvmStatic private external fun nativeSignalAppLaunchIntent(handle: Long, appId: Int, clientId: Long, machineName: String, ignorePending: Boolean, osType: Int): String?

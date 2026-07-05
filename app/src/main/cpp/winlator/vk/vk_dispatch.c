@@ -150,6 +150,7 @@ bool vkd_load_instance(VkInstance instance) {
     LOAD(CmdDraw);
     LOAD(CmdPipelineBarrier);
     LOAD(CmdCopyBufferToImage);
+    LOAD(CmdBlitImage);
 
     // Queue
     LOAD(QueueSubmit);

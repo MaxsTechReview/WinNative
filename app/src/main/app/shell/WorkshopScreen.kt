@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -21,13 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Construction
@@ -45,6 +46,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +72,10 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.io.StorageUtils
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import org.json.JSONArray
 
 /** A single Steam Workshop / UGC item surfaced in the Workshop browser. */
@@ -120,6 +127,9 @@ internal fun StoreWorkshopScreen(
     onRetry: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val registry = remember { PaneNavRegistry() }
+    CompositionLocalProvider(LocalPaneNav provides registry) {
+    DialogPaneNav(registry, onDismiss = onClose)
     BoxWithConstraints(
         modifier =
             Modifier
@@ -161,14 +171,14 @@ internal fun StoreWorkshopScreen(
                             WorkshopStatus(
                                 icon = null,
                                 title = stringResource(R.string.workshop_loading_items),
-                                subtitle = "Fetching your subscribed items from Steam.",
+                                subtitle = stringResource(R.string.workshop_loading_subtitle),
                             )
                         WorkshopLoadState.ERROR ->
                             WorkshopStatus(
                                 icon = Icons.Outlined.Refresh,
-                                title = "Couldn't load Workshop items",
-                                subtitle = errorMessage ?: "Something went wrong. Try again.",
-                                actionLabel = "Retry",
+                                title = stringResource(R.string.workshop_error_title),
+                                subtitle = errorMessage ?: stringResource(R.string.workshop_error_subtitle),
+                                actionLabel = stringResource(R.string.session_drawer_retry),
                                 onAction = onRetry,
                             )
                         WorkshopLoadState.READY ->
@@ -177,15 +187,15 @@ internal fun StoreWorkshopScreen(
                                     icon = if (query.isBlank()) Icons.Outlined.Inventory2 else Icons.Outlined.SearchOff,
                                     title =
                                         if (query.isBlank()) {
-                                            "No subscribed Workshop items"
+                                            stringResource(R.string.workshop_empty_title)
                                         } else {
-                                            "No items match \"$query\""
+                                            stringResource(R.string.workshop_search_empty_title, query)
                                         },
                                     subtitle =
                                         if (query.isBlank()) {
-                                            "Subscribe to items on the Steam Workshop, then reopen this window."
+                                            stringResource(R.string.workshop_empty_subtitle)
                                         } else {
-                                            "Try a different search term."
+                                            stringResource(R.string.workshop_search_empty_subtitle)
                                         },
                                 )
                             } else {
@@ -200,6 +210,7 @@ internal fun StoreWorkshopScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -230,7 +241,7 @@ private fun WorkshopHeader(
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
-                "STEAM WORKSHOP",
+                stringResource(R.string.workshop_title),
                 color = WsTextSecondary,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -263,10 +274,10 @@ private fun WorkshopHeader(
                 )
             }
         }
-        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onClose, modifier = Modifier.size(36.dp).paneNavItem(onActivate = onClose)) {
             Icon(
                 Icons.Outlined.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.common_ui_close),
                 tint = WsTextSecondary,
                 modifier = Modifier.size(20.dp),
             )
@@ -281,11 +292,13 @@ private fun WorkshopSearchBar(
     onQueryChange: (String) -> Unit,
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
+    val fieldFocus = remember { FocusRequester() }
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
+                .paneNavItem(cornerRadius = 9.dp, onActivate = { runCatching { fieldFocus.requestFocus() } })
                 .clip(RoundedCornerShape(9.dp))
                 .background(WsInputBg)
                 .border(1.dp, WsBorder, RoundedCornerShape(9.dp))
@@ -316,7 +329,7 @@ private fun WorkshopSearchBar(
                 cursorBrush = Brush.verticalGradient(listOf(WsAccent, WsAccentGlow)),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
             )
         }
         if (query.isNotEmpty()) {
@@ -330,7 +343,7 @@ private fun WorkshopSearchBar(
             ) {
                 Icon(
                     Icons.Outlined.Close,
-                    contentDescription = "Clear search",
+                    contentDescription = stringResource(R.string.workshop_clear_search),
                     tint = WsTextSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -346,11 +359,14 @@ private fun WorkshopList(
     onInstall: (Long) -> Unit,
     onUninstall: (Long) -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 4.dp),
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 4.dp),
     ) {
-        items(items, key = { it.publishedFileId }) { item ->
+        items.forEach { item ->
             WorkshopItemRow(
                 item = item,
                 busy = item.publishedFileId in busyIds,
@@ -420,6 +436,7 @@ private fun WorkshopItemRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            val itemFallback = stringResource(R.string.workshop_item_fallback)
             Text(
                 buildString {
                     if (item.author.isNotBlank()) append(item.author)
@@ -427,7 +444,7 @@ private fun WorkshopItemRow(
                         if (isNotEmpty()) append("  ·  ")
                         append(StorageUtils.formatBinarySize(item.fileSizeBytes))
                     }
-                    if (isEmpty()) append("Workshop item")
+                    if (isEmpty()) append(itemFallback)
                 },
                 color = WsTextSecondary,
                 fontSize = 11.sp,
@@ -461,14 +478,14 @@ private fun WorkshopRowAction(
         isInstalled ->
             WorkshopActionPill(
                 icon = Icons.Outlined.Delete,
-                label = "Uninstall",
+                label = stringResource(R.string.common_ui_uninstall),
                 tint = WsDanger,
                 onClick = onUninstall,
             )
         else ->
             WorkshopActionPill(
                 icon = Icons.Outlined.Download,
-                label = "Install",
+                label = stringResource(R.string.common_ui_install),
                 tint = WsAccentGlow,
                 onClick = onInstall,
             )
@@ -488,6 +505,7 @@ private fun WorkshopActionPill(
         modifier =
             Modifier
                 .heightIn(min = 44.dp)
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, tapToSelect = true)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -599,7 +617,7 @@ private fun WorkshopStatus(
         if (actionLabel != null && onAction != null) {
             Spacer(Modifier.height(2.dp))
             Surface(
-                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onAction),
+                modifier = Modifier.paneNavItem(onActivate = onAction, tapToSelect = true).clip(RoundedCornerShape(8.dp)).clickable(onClick = onAction),
                 color = WsAccent.copy(alpha = 0.16f),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, WsAccentGlow.copy(alpha = 0.4f)),

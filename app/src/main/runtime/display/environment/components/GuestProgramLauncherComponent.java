@@ -843,8 +843,11 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     File rootDir = imageFs.getRootDir();
 
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-    boolean enableBox64Logs = preferences.getBoolean("enable_box64_logs", false);
-    boolean enableFexcoreLogs = preferences.getBoolean("enable_fexcore_logs", false);
+    boolean emulatorLogs = preferences.getBoolean("enable_emulator_logs", false);
+    boolean fexLogActive = wineInfo != null && wineInfo.isArm64EC()
+        && (container == null || !"wowbox64".equalsIgnoreCase(container.getEmulator()));
+    boolean enableBox64Logs = emulatorLogs && !fexLogActive;
+    boolean enableFexcoreLogs = emulatorLogs && fexLogActive;
     boolean openWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
     boolean shareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
 

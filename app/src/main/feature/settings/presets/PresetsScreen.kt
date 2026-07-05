@@ -1,5 +1,3 @@
-/* Settings > Presets screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content. */
 package com.winlator.cmod.feature.settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -21,13 +19,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -67,7 +62,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -77,6 +74,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -95,6 +94,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 private val BgDark = Color(0xFF11111C)
@@ -102,6 +106,7 @@ private val CardDark = Color(0xFF1C1C2A)
 private val CardDarker = Color(0xFF15151E)
 private val CardBorder = Color(0xFF2A2A3A)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val DangerRed = Color(0xFFFF7A88)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
@@ -188,6 +193,7 @@ fun PresetsScreen(
     onImportPreset: () -> Unit,
     onRemovePreset: () -> Unit,
     suggestedNewPresetName: () -> String,
+    bridge: SettingsNavBridge? = null,
 ) {
     var showNewDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -289,22 +295,23 @@ fun PresetsScreen(
     }
 
     val currentData = state.current
+    val contentNav = rememberSettingsContentNav(bridge)
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "selector_card") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                        bottom = 4.dp + navBarBottomPadding,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             // Combined engine-tabs + preset selector card. The tabs themselves stay
             // static; only the preset dropdown / badge / menu / hint are inside
             // AnimatedContent below, so tapping a tab doesn't make the tab flicker.
@@ -320,41 +327,27 @@ fun PresetsScreen(
                 onImport = onImportPreset,
                 onRemove = { showRemoveConfirm = true },
             )
-        }
 
-        item(key = "env_vars_section") {
             SectionLabel(
                 text = stringResource(R.string.container_config_env_vars),
                 modifier = Modifier.padding(top = 6.dp),
             )
-        }
 
-        if (currentData.envVarDefinitions.isEmpty()) {
-            item(key = "env_var_empty_${state.currentEngine}") {
+            if (currentData.envVarDefinitions.isEmpty()) {
                 EmptyEnvVarsCard()
+            } else {
+                currentData.envVarDefinitions.forEach { def ->
+                    key("${state.currentEngine.name}:${def.name}") {
+                        EnvVarCard(
+                            definition = def,
+                            value = currentData.currentValues[def.name] ?: def.defaultValue,
+                            editable = currentData.editable,
+                            onValueChanged = { onEnvVarValueChanged(def.name, it) },
+                        )
+                    }
+                }
             }
-        } else {
-            items(
-                items = currentData.envVarDefinitions,
-                key = { def -> "${state.currentEngine.name}:${def.name}" },
-                contentType = { def -> def.controlType },
-            ) { def ->
-                EnvVarCard(
-                    definition = def,
-                    value = currentData.currentValues[def.name] ?: def.defaultValue,
-                    editable = currentData.editable,
-                    modifier =
-                        Modifier.animateItem(
-                            fadeInSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-                            fadeOutSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
-                            placementSpec = null,
-                        ),
-                    onValueChanged = { onEnvVarValueChanged(def.name, it) },
-                )
-            }
-        }
 
-        item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -418,7 +411,12 @@ private fun PresetActionButton(
                 .clip(RoundedCornerShape(7.dp))
                 .background(Accent.copy(alpha = 0.12f))
                 .border(1.dp, Accent.copy(alpha = 0.32f), RoundedCornerShape(7.dp))
-                .noRippleClickable(onClick = onClick)
+                .paneNavItem(
+                    cornerRadius = 7.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -448,7 +446,9 @@ private fun PresetSelectorHeader(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val actions: @Composable () -> Unit = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 PresetActionButton(
                     label = stringResource(R.string.container_presets_new),
                     icon = Icons.Outlined.Add,
@@ -541,7 +541,12 @@ private fun EngineTab(
                 .clip(RoundedCornerShape(6.dp))
                 .background(bg)
                 .border(1.dp, borderColor, RoundedCornerShape(6.dp))
-                .noRippleClickable(onClick = onClick)
+                .paneNavItem(
+                    cornerRadius = 6.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 14.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -648,7 +653,20 @@ private fun PresetSelectorRowContent(
                         .clip(RoundedCornerShape(8.dp))
                         .background(CardDarker)
                         .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                        .noRippleClickable(enabled = data.presets.isNotEmpty()) { dropdownOpen = true }
+                        .paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { if (data.presets.isNotEmpty()) dropdownOpen = true },
+                            onAdjust = { dir ->
+                                if (data.presets.isNotEmpty()) {
+                                    val idx = data.presets.indexOfFirst { it.id == data.selectedPresetId }.coerceAtLeast(0)
+                                    val next = ((idx + dir) % data.presets.size + data.presets.size) % data.presets.size
+                                    val nextId = data.presets[next].id
+                                    if (nextId != data.selectedPresetId) onPresetSelected(nextId)
+                                }
+                            },
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
                         .padding(horizontal = 11.dp, vertical = 7.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -867,7 +885,6 @@ private fun EnvVarCard(
     definition: EnvVarDefinition,
     value: String,
     editable: Boolean,
-    modifier: Modifier = Modifier,
     onValueChanged: (String) -> Unit,
 ) {
     var expanded by remember(definition.name) { mutableStateOf(false) }
@@ -886,7 +903,7 @@ private fun EnvVarCard(
 
     Box(
         modifier =
-            modifier
+            Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
@@ -897,7 +914,12 @@ private fun EnvVarCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .noRippleClickable { expanded = !expanded }
+                        .paneNavItem(
+                            cornerRadius = 8.dp,
+                            onActivate = { expanded = !expanded },
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1026,9 +1048,12 @@ private fun EnvVarToggleControl(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .noRippleClickable {
-                    if (editable) onValueChanged(if (checked) "0" else "1")
-                }
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (editable) onValueChanged(if (checked) "0" else "1") },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(start = 10.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
     ) {
         Row(
@@ -1075,7 +1100,19 @@ private fun EnvVarDropdownControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                .noRippleClickable(enabled = editable && values.isNotEmpty()) { open = true }
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (editable && values.isNotEmpty()) open = true },
+                    onAdjust = { dir ->
+                        if (editable && values.isNotEmpty()) {
+                            val idx = values.indexOf(value).coerceAtLeast(0)
+                            val next = ((idx + dir) % values.size + values.size) % values.size
+                            if (values[next] != value) onValueChanged(values[next])
+                        }
+                    },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1128,6 +1165,7 @@ private fun EnvVarTextControl(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val focusRequester = remember { FocusRequester() }
     val borderColor = if (isFocused) Accent else CardBorder
     val borderWidth = if (isFocused) 1.5.dp else 1.dp
     Box(
@@ -1138,6 +1176,12 @@ private fun EnvVarTextControl(
                 .clip(RoundedCornerShape(8.dp))
                 .background(CardDarker)
                 .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (editable) runCatching { focusRequester.requestFocus() } },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
                 .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -1154,7 +1198,7 @@ private fun EnvVarTextControl(
                     imeAction = ImeAction.Done,
                 ),
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
         )
     }
 }
@@ -1195,7 +1239,12 @@ private fun IconTapButton(
                 .width(34.dp)
                 .height(38.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .noRippleClickable(onClick = onClick),
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -1212,11 +1261,13 @@ private fun DialogActionButton(
     label: String,
     textColor: Color,
     onClick: () -> Unit,
+    isEntry: Boolean = false,
 ) {
     Box(
         modifier =
             Modifier
                 .clip(RoundedCornerShape(8.dp))
+                .paneNavItem(cornerRadius = 8.dp, onActivate = onClick, isEntry = isEntry)
                 .background(CardDarker)
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
                 .noRippleClickable(onClick = onClick)
@@ -1244,6 +1295,14 @@ private fun PromptDialog(
 ) {
     var text by remember { mutableStateOf(initialValue) }
     val focusManager = LocalFocusManager.current
+    val registry = remember { PaneNavRegistry() }
+    val doConfirm = {
+        val trimmed = text.trim()
+        if (trimmed.isNotEmpty()) {
+            focusManager.clearFocus()
+            onConfirm(trimmed)
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1253,6 +1312,8 @@ private fun PromptDialog(
                 decorFitsSystemWindows = false,
             ),
     ) {
+        CompositionLocalProvider(LocalPaneNav provides registry) {
+        DialogPaneNav(registry, onDismiss = onDismiss, onStart = doConfirm)
         BoxWithConstraints(
             modifier =
                 Modifier
@@ -1337,17 +1398,13 @@ private fun PromptDialog(
                         DialogActionButton(
                             label = confirmLabel,
                             textColor = Accent,
-                            onClick = {
-                                val trimmed = text.trim()
-                                if (trimmed.isNotEmpty()) {
-                                    focusManager.clearFocus()
-                                    onConfirm(trimmed)
-                                }
-                            },
+                            onClick = doConfirm,
+                            isEntry = true,
                         )
                     }
                 }
             }
+        }
         }
     }
 }

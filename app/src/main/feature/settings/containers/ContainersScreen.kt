@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,9 +24,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +64,12 @@ import com.winlator.cmod.R
 import com.winlator.cmod.runtime.container.Container
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
 import com.winlator.cmod.shared.ui.dialog.PopupTextAction
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.runtime.CompositionLocalProvider
 import java.util.Locale
 
 private val ContainersBg = Color(0xFF11111C)
@@ -75,6 +78,7 @@ private val ContainersSubcard = Color(0xFF161622)
 private val ContainersOutline = Color(0xFF2A2A3A)
 private val ContainersIconBox = Color(0xFF242434)
 private val ContainersAccent = Color(0xFF1A9FFF)
+private val ContainersNavHighlight = Color(0xFF4FC3F7)
 private val ContainersTextPrimary = Color(0xFFF0F4FF)
 private val ContainersTextSecondary = Color(0xFF7A8FA8)
 private val ContainersDanger = Color(0xFFFF7A88)
@@ -132,50 +136,85 @@ fun ContainersScreen(
     onConfirmDuplicateDialog: (Container) -> Unit,
     onConfirmRemoveDialog: (Container) -> Unit,
     onClearCacheDialog: (Container) -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(ContainersBg)
-                .padding(
-                    start = 16.dp + navBarStartPadding,
-                    top = 16.dp,
-                    end = 16.dp + navBarEndPadding,
-                ),
-    ) {
-        SectionLabel(text = stringResource(R.string.common_ui_containers))
-        Spacer(Modifier.height(6.dp))
-
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(160.dp),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 4.dp + navBarBottomPadding),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(ContainersBg)
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        top = 16.dp,
+                        end = 16.dp + navBarEndPadding,
+                    ),
         ) {
-            item(key = "add") {
-                AddContainerCard(onClick = onAddContainer)
-            }
-            items(
-                items = state.containers,
-                key = { container -> container.id },
-            ) { container ->
-                ContainerCard(
-                    container = container,
-                    onRun = { onRunContainer(container) },
-                    onEdit = { onEditContainer(container) },
-                    onDuplicate = { onDuplicateContainer(container) },
-                    onInstallComponents = { onInstallComponents(container) },
-                    onRemove = { onRemoveContainer(container) },
-                    onShowInfo = { onShowInfo(container) },
-                )
+            SectionLabel(text = stringResource(R.string.common_ui_containers))
+            Spacer(Modifier.height(6.dp))
+
+            val cardSpacing = 8.dp
+            val minCardWidth = 160.dp
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val columns =
+                    maxOf(1, ((maxWidth + cardSpacing) / (minCardWidth + cardSpacing)).toInt())
+                val totalCells = state.containers.size + 1
+                val rowCount = (totalCells + columns - 1) / columns
+
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(cardSpacing),
+                ) {
+                    for (rowIndex in 0 until rowCount) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(cardSpacing),
+                        ) {
+                            for (colIndex in 0 until columns) {
+                                val cellIndex = rowIndex * columns + colIndex
+                                val gxBase = colIndex * 2
+                                val gyBase = rowIndex * 2
+                                Box(modifier = Modifier.weight(1f)) {
+                                    when {
+                                        cellIndex == 0 ->
+                                            AddContainerCard(
+                                                onClick = onAddContainer,
+                                                navRow = gyBase,
+                                                navCol = gxBase,
+                                            )
+                                        cellIndex <= state.containers.size -> {
+                                            val container = state.containers[cellIndex - 1]
+                                            key(container.id) {
+                                                ContainerCard(
+                                                    container = container,
+                                                    navRow = gyBase,
+                                                    navCol = gxBase,
+                                                    onRun = { onRunContainer(container) },
+                                                    onEdit = { onEditContainer(container) },
+                                                    onDuplicate = { onDuplicateContainer(container) },
+                                                    onInstallComponents = { onInstallComponents(container) },
+                                                    onRemove = { onRemoveContainer(container) },
+                                                    onShowInfo = { onShowInfo(container) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp + navBarBottomPadding))
+                }
             }
         }
     }
@@ -186,53 +225,71 @@ fun ContainersScreen(
         }
 
         is ContainersDialogUiState.ConfirmDuplicate -> {
+            val nav = remember { PaneNavRegistry() }
             Dialog(
                 onDismissRequest = onDismissDialog,
                 properties = DialogProperties(usePlatformDefaultWidth = false),
             ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .safeDrawingPadding()
-                            .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PopupDialog(
-                        title = stringResource(R.string.containers_list_duplicate_title),
-                        message = stringResource(R.string.containers_list_confirm_duplicate),
-                        confirmLabel = stringResource(R.string.common_ui_duplicate),
-                        onConfirm = { onConfirmDuplicateDialog(dialog.container) },
-                        onCancel = onDismissDialog,
-                        accentColor = ContainersAccent,
-                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                    )
+                DialogPaneNav(nav, onDismiss = onDismissDialog)
+                CompositionLocalProvider(LocalPaneNav provides nav) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .safeDrawingPadding()
+                                .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PopupDialog(
+                            title = stringResource(R.string.containers_list_duplicate_title),
+                            message = stringResource(R.string.containers_list_confirm_duplicate),
+                            accentColor = ContainersAccent,
+                            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                            footer = {
+                                ConfirmDialogFooter(
+                                    confirmLabel = stringResource(R.string.common_ui_duplicate),
+                                    confirmColor = ContainersAccent,
+                                    onConfirm = { onConfirmDuplicateDialog(dialog.container) },
+                                    onCancel = onDismissDialog,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
 
         is ContainersDialogUiState.ConfirmRemove -> {
+            val nav = remember { PaneNavRegistry() }
             Dialog(
                 onDismissRequest = onDismissDialog,
                 properties = DialogProperties(usePlatformDefaultWidth = false),
             ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .safeDrawingPadding()
-                            .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PopupDialog(
-                        title = stringResource(R.string.containers_list_remove_title),
-                        message = stringResource(R.string.containers_list_confirm_remove),
-                        confirmLabel = stringResource(R.string.common_ui_remove),
-                        onConfirm = { onConfirmRemoveDialog(dialog.container) },
-                        onCancel = onDismissDialog,
-                        accentColor = ContainersDanger,
-                        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-                    )
+                DialogPaneNav(nav, onDismiss = onDismissDialog)
+                CompositionLocalProvider(LocalPaneNav provides nav) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .safeDrawingPadding()
+                                .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PopupDialog(
+                            title = stringResource(R.string.containers_list_remove_title),
+                            message = stringResource(R.string.containers_list_confirm_remove),
+                            accentColor = ContainersDanger,
+                            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+                            footer = {
+                                ConfirmDialogFooter(
+                                    confirmLabel = stringResource(R.string.common_ui_remove),
+                                    confirmColor = ContainersDanger,
+                                    onConfirm = { onConfirmRemoveDialog(dialog.container) },
+                                    onCancel = onDismissDialog,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -275,7 +332,11 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun AddContainerCard(onClick: () -> Unit) {
+private fun AddContainerCard(
+    onClick: () -> Unit,
+    navRow: Int,
+    navCol: Int,
+) {
     Column(
         modifier =
             Modifier
@@ -297,7 +358,16 @@ private fun AddContainerCard(onClick: () -> Unit) {
                 Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(ContainersIconBox),
+                    .background(ContainersIconBox)
+                    .paneNavItem(
+                        cornerRadius = 28.dp,
+                        onActivate = onClick,
+                        highlightColor = ContainersNavHighlight,
+                        tapToSelect = true,
+                        isEntry = true,
+                        navRow = navRow,
+                        navCol = navCol,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -321,6 +391,8 @@ private fun AddContainerCard(onClick: () -> Unit) {
 @Composable
 private fun ContainerCard(
     container: Container,
+    navRow: Int,
+    navCol: Int,
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
@@ -361,6 +433,8 @@ private fun ContainerCard(
                 contentDescription = "Install components",
                 tint = ContainersAccent,
                 onClick = onInstallComponents,
+                navRow = navRow,
+                navCol = navCol,
             )
             Spacer(Modifier.width(8.dp))
             Box {
@@ -369,6 +443,8 @@ private fun ContainerCard(
                     contentDescription = stringResource(R.string.common_ui_edit),
                     tint = ContainersTextSecondary,
                     onClick = { menuExpanded = true },
+                    navRow = navRow,
+                    navCol = navCol + 1,
                 )
                 DropdownMenu(
                     expanded = menuExpanded,
@@ -430,6 +506,8 @@ private fun ContainerCard(
                 contentDescription = stringResource(R.string.common_ui_run),
                 tint = ContainersAccent,
                 onClick = onRun,
+                navRow = navRow + 1,
+                navCol = navCol,
             )
             ActionButton(
                 modifier = Modifier.weight(1f),
@@ -437,6 +515,8 @@ private fun ContainerCard(
                 contentDescription = stringResource(R.string.common_ui_edit),
                 tint = ContainersAccent,
                 onClick = onEdit,
+                navRow = navRow + 1,
+                navCol = navCol + 1,
             )
         }
     }
@@ -576,6 +656,62 @@ private fun ContainersDialogButton(
             color = textColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun ConfirmDialogFooter(
+    confirmLabel: String,
+    confirmColor: Color,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ConfirmFooterAction(
+            label = stringResource(R.string.common_ui_cancel),
+            textColor = ContainersTextSecondary,
+            onClick = onCancel,
+            isEntry = true,
+        )
+        ConfirmFooterAction(
+            label = confirmLabel,
+            textColor = confirmColor,
+            onClick = onConfirm,
+        )
+    }
+}
+
+@Composable
+private fun ConfirmFooterAction(
+    label: String,
+    textColor: Color,
+    onClick: () -> Unit,
+    isEntry: Boolean = false,
+) {
+    Box(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = ContainersNavHighlight,
+                    tapToSelect = true,
+                    isEntry = isEntry,
+                ).padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
         )
     }
 }
@@ -762,6 +898,8 @@ private fun SmallVectorIconButton(
     contentDescription: String,
     tint: Color,
     onClick: () -> Unit,
+    navRow: Int? = null,
+    navCol: Int? = null,
 ) {
     Box(
         modifier =
@@ -770,10 +908,13 @@ private fun SmallVectorIconButton(
                 .clip(RoundedCornerShape(8.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(8.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = ContainersNavHighlight,
+                    tapToSelect = true,
+                    navRow = navRow,
+                    navCol = navCol,
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -793,6 +934,8 @@ private fun ActionButton(
     contentDescription: String,
     tint: Color,
     onClick: () -> Unit,
+    navRow: Int? = null,
+    navCol: Int? = null,
 ) {
     Box(
         modifier =
@@ -801,10 +944,13 @@ private fun ActionButton(
                 .clip(RoundedCornerShape(9.dp))
                 .background(ContainersSubcard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(9.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
+                .paneNavItem(
+                    cornerRadius = 9.dp,
+                    onActivate = onClick,
+                    highlightColor = ContainersNavHighlight,
+                    tapToSelect = true,
+                    navRow = navRow,
+                    navCol = navCol,
                 ),
         contentAlignment = Alignment.Center,
     ) {

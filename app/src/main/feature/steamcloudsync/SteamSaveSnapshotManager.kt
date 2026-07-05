@@ -41,28 +41,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-/**
- * Local rolling-snapshot history for Steam Cloud saves.
- *
- * Steam Cloud does not store a server-side version history — `CCloud_EnumerateUserFiles`
- * returns exactly one record per logical filename. This object compensates by capturing
- * a local zip snapshot of the live save directories after each successful sync, keyed by
- * appid. Snapshots are surfaced through the same `BackupHistoryEntry` shape used for the
- * Google Play Saved Games backend (with `storage = STEAM_LOCAL`) so the existing
- * `SaveHistorySection` UI can render them.
- *
- * Storage layout:
- *
- *     <context.filesDir>/save_history/steam/<appId>/<entryId>/
- *         save.zip          — zipped save sources (atomic move from .tmp on commit)
- *         metadata.json     — { schema, entryId, appId, timestampMs, origin, sizeBytes,
- *                               sha256, label, sources[], storage }
- *
- * `entryId` is `<yyyyMMddTHHmmss>_<rand6>` so directory order = chronological order.
- * `metadata.json` is the commit marker — the save.zip is written first, atomically moved
- * into place, then metadata.json is written. Entries whose metadata.json fails to parse
- * are skipped at list-time.
- */
+/** Local rolling-snapshot history for Steam Cloud saves (which has no server-side version history): a zip of the live save dirs per sync, keyed by appId under filesDir/save_history/steam. metadata.json is the commit marker, written after save.zip; entries with unparseable metadata are skipped. */
 object SteamSaveSnapshotManager {
     private const val TAG = "SteamSaveSnapshot"
     private const val ROOT_DIR_NAME = "save_history"
@@ -86,15 +65,7 @@ object SteamSaveSnapshotManager {
 
     private fun entryDir(context: Context, appId: Int, entryId: String): File = File(appDir(context, appId), entryId)
 
-    /**
-     * Snapshot the current on-disk save state for [appId] into a new history entry.
-     *
-     * SHA-256-deduped against the most recent existing snapshot: if the live content
-     * hash matches, the write is skipped to avoid burning slots on idempotent re-syncs
-     * (e.g. cold-launch re-downloads that produce identical bytes).
-     *
-     * Best-effort: never throws to the caller. Returns true on a successful write.
-     */
+    /** Snapshot the on-disk save for [appId] into a new history entry. SHA-256-deduped against the newest snapshot to skip idempotent re-syncs. Best-effort; returns true on a successful write. */
     suspend fun recordSnapshot(
         context: Context,
         appId: Int,
@@ -112,10 +83,118 @@ object SteamSaveSnapshotManager {
             }
         }
 
-    /**
-     * Capture-snapshot core; caller MUST already hold `mutexFor(appId)`. Returns true on a
-     * successful write; false on dedup-skip or write failure.
-     */
+    /** Capture the current Steam Cloud save into a local snapshot WITHOUT touching the live save dir — non-destructive, used before "Use Local" overwrites the cloud. Commits only a COMPLETE snapshot (partial download aborts). Best-effort. */
+    suspend fun captureCloudSnapshot(
+        context: Context,
+        appId: Int,
+        containerHint: Container? = null,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                mutexFor(appId).withLock {
+                    captureCloudSnapshotLocked(context, appId, containerHint)
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "captureCloudSnapshot: outer failure for appId=%d", appId)
+                false
+            }
+        }
+
+    /** Cloud-capture core; caller MUST already hold `mutexFor(appId)`. */
+    private suspend fun captureCloudSnapshotLocked(
+        context: Context,
+        appId: Int,
+        containerHint: Container?,
+    ): Boolean {
+        if (resolveAccountId() == 0L) {
+            Timber.tag(TAG).w("captureCloudSnapshot: not signed in to Steam; skipping appId=%d", appId)
+            return false
+        }
+        val appInfo = SteamService.getAppInfoOf(appId)
+        if (appInfo == null) {
+            Timber.tag(TAG).w("captureCloudSnapshot: no app info for appId=%d", appId)
+            return false
+        }
+        val fileList = SteamService.fetchCloudFileList(appId)
+        if (fileList == null) {
+            Timber.tag(TAG).w("captureCloudSnapshot: cloud file list unavailable for appId=%d", appId)
+            return false
+        }
+
+        // MD-5: abort if the container can't be activated — path resolution below would target the wrong game's wineprefix.
+        if (!activateContainerForCloudOp(context, appId, containerHint)) {
+            Timber.tag(TAG).e("captureCloudSnapshot: container activation failed for appId=%d; aborting", appId)
+            return false
+        }
+        // Resolve cloud files to canonical local paths + (zipRoot -> live dir) sources so the snapshot is restorable through restoreFromEntry.
+        val prefixResolver = steamPrefixResolver(context, appId, containerHint)
+        val targets = SteamAutoCloud.resolvePersistedCloudFiles(appInfo, fileList, prefixResolver)
+        if (targets.isEmpty()) {
+            Timber.tag(TAG).i("captureCloudSnapshot: no persisted cloud files for appId=%d", appId)
+            return false
+        }
+        val saveSources = enumerateSaveSources(context, appId, forRestore = true, containerHint = containerHint)
+        if (saveSources.isEmpty()) {
+            Timber.tag(TAG).w("captureCloudSnapshot: cannot resolve save dirs for appId=%d", appId)
+            return false
+        }
+        // Match most-specific (longest) dir first so a file under a nested source isn't mis-attributed to a parent source.
+        val sourceRoots =
+            saveSources
+                .map { it.zipRoot to it.localDir.toPath().toAbsolutePath().normalize() }
+                .sortedByDescending { it.second.toString().length }
+
+        cleanupPartialEntries(context, appId)
+        val staging = File(context.cacheDir, "wn_cloud_capture_${appId}_${buildEntryId(System.currentTimeMillis())}")
+        if (!staging.mkdirs() && !staging.isDirectory) {
+            Timber.tag(TAG).e("captureCloudSnapshot: failed to create staging dir for appId=%d", appId)
+            return false
+        }
+        try {
+            val usedZipRoots = linkedSetOf<String>()
+            var captured = 0
+            for (target in targets) {
+                val localNorm = target.localPath.toAbsolutePath().normalize()
+                val match = sourceRoots.firstOrNull { (_, dir) -> localNorm.startsWith(dir) } ?: continue
+                val (zipRoot, dir) = match
+                val rel = dir.relativize(localNorm).toString()
+                if (rel.isEmpty() || rel.startsWith("..")) continue
+
+                val bytes = SteamService.downloadCloudFileBytes(appId, target.downloadName)
+                if (bytes == null) {
+                    // A persisted, in-scope cloud file we couldn't download — refuse to commit a partial backup that would look complete.
+                    Timber.tag(TAG).e(
+                        "captureCloudSnapshot: download failed for %s (appId=%d); aborting capture",
+                        target.downloadName,
+                        appId,
+                    )
+                    return false
+                }
+
+                val zipRootDir = File(staging, zipRoot)
+                val outFile = File(zipRootDir, rel)
+                // Defensive containment — never write outside staging/<zipRoot>.
+                if (!outFile.canonicalPath.startsWith(zipRootDir.canonicalPath + File.separator)) {
+                    Timber.tag(TAG).w("captureCloudSnapshot: skipping out-of-bounds entry %s", rel)
+                    continue
+                }
+                outFile.parentFile?.mkdirs()
+                FileOutputStream(outFile).use { it.write(bytes) }
+                usedZipRoots += zipRoot
+                captured++
+            }
+            if (captured == 0) {
+                Timber.tag(TAG).i("captureCloudSnapshot: no in-scope cloud files captured for appId=%d", appId)
+                return false
+            }
+            val stagingSources = usedZipRoots.map { SaveSource(it, File(staging, it)) }
+            return writeSnapshotEntry(context, appId, stagingSources, BackupOrigin.CLOUD, dedup = false)
+        } finally {
+            runCatching { staging.deleteRecursively() }
+        }
+    }
+
+    /** Capture-snapshot core; caller MUST already hold `mutexFor(appId)`. Returns true on a successful write; false on dedup-skip or write failure. */
     private fun captureSnapshotLocked(
         context: Context,
         appId: Int,
@@ -129,22 +208,34 @@ object SteamSaveSnapshotManager {
             return false
         }
 
+        return writeSnapshotEntry(context, appId, sources, origin)
+    }
+
+    /** Commit a snapshot entry from resolved [sources] (zipRoot -> dir). [dedup]=true skips a snapshot matching the newest entry's hash; cloud pre-capture passes false so a cloud backup is always materialized. */
+    private fun writeSnapshotEntry(
+        context: Context,
+        appId: Int,
+        sources: List<SaveSource>,
+        origin: BackupOrigin,
+        dedup: Boolean = true,
+    ): Boolean {
         val liveHash = sha256OfSources(sources)
-        val existing = listEntriesInternal(context, appId)
-        val newest = existing.firstOrNull()
-        if (newest != null && newest.sha256 == liveHash) {
-            Timber.tag(TAG).d(
-                "captureSnapshotLocked: live SHA matches newest (entry=%s); skipping",
-                newest.entryId,
-            )
-            return false
+        if (dedup) {
+            val newest = listEntriesInternal(context, appId).firstOrNull()
+            if (newest != null && newest.sha256 == liveHash) {
+                Timber.tag(TAG).d(
+                    "writeSnapshotEntry: content SHA matches newest (entry=%s); skipping",
+                    newest.entryId,
+                )
+                return false
+            }
         }
 
         val createdAtMs = System.currentTimeMillis()
         val entryId = buildEntryId(createdAtMs)
         val target = entryDir(context, appId, entryId)
         if (!target.mkdirs() && !target.isDirectory) {
-            Timber.tag(TAG).e("captureSnapshotLocked: failed to create %s", target)
+            Timber.tag(TAG).e("writeSnapshotEntry: failed to create %s", target)
             return false
         }
 
@@ -176,15 +267,16 @@ object SteamSaveSnapshotManager {
                 )
             writeMetadataAtomic(metaFile, meta)
             Timber.tag(TAG).i(
-                "captureSnapshotLocked: wrote %s (%d bytes compressed) for appId=%d",
+                "writeSnapshotEntry: wrote %s (%d bytes compressed, origin=%s) for appId=%d",
                 entryId,
                 compressed,
+                origin.tag,
                 appId,
             )
             pruneSnapshotsInternal(context, appId, pinEntryId = entryId)
             true
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "captureSnapshotLocked: write failed; cleaning up partial entry")
+            Timber.tag(TAG).e(e, "writeSnapshotEntry: write failed; cleaning up partial entry")
             runCatching { target.deleteRecursively() }
             false
         }
@@ -205,12 +297,7 @@ object SteamSaveSnapshotManager {
             }
         }
 
-    /**
-     * Restore [entryId] for [appId]: unzip the save.zip into the live save dirs, then
-     * fire a Steam Cloud upload so the rolled-back state becomes the canonical cloud
-     * copy. Caller should ensure the game is NOT currently running for [appId] — we
-     * surface a warning but don't block.
-     */
+    /** Restore [entryId]: unzip into the live save dirs, then upload to Steam Cloud so the rolled-back state becomes canonical. Caller should ensure the game is NOT running (warn-only). */
     suspend fun restoreFromEntry(
         activity: Activity,
         appId: Int,
@@ -229,27 +316,100 @@ object SteamSaveSnapshotManager {
                     }
                     val meta = readMetadata(metaFile)
                         ?: return@withLock BackupResult(false, "Snapshot metadata is unreadable.")
-                    if (meta.sha256.isNotEmpty()) {
-                        val actual = sha256OfFile(zipFile)
-                        // The stored sha256 is over the SOURCE FILES, not the zip — we compare
-                        // post-extract below. Here we just sanity-check the zip is non-empty.
-                        if (actual.isEmpty()) {
-                            Timber.tag(TAG).w("restoreFromEntry: snapshot file hash empty")
-                        }
-                    }
-
                     if (resolveAccountId() == 0L) {
                         return@withLock BackupResult(false, "Sign in to Steam before restoring.")
                     }
-                    // forRestore=true so we get the resolved target paths even when the live
-                    // save dir is empty / missing — restore must mkdir + extract into those.
+                    // MD-5: abort if the container can't be activated — restore writes into the resolved dirs and re-uploads, so a wrong prefix would corrupt another game's saves.
+                    if (!activateContainerForCloudOp(context, appId, containerHint)) {
+                        return@withLock BackupResult(
+                            false,
+                            "Could not prepare this game's container; restore aborted to avoid writing to the wrong save directory.",
+                        )
+                    }
+                    // forRestore=true so we get resolved target paths even when the live dir is empty/missing — restore must mkdir + extract into those.
                     val sources = enumerateSaveSources(context, appId, forRestore = true, containerHint = containerHint)
                     if (sources.isEmpty()) {
                         return@withLock BackupResult(false, "Cannot determine save directory for this game.")
                     }
-                    // Make sure all target dirs exist before extraction.
-                    sources.forEach { it.localDir.mkdirs() }
-                    extractZipToSources(zipFile, sources)
+                    // Restrict the destructive restore to exactly the sources this snapshot captured, so we never clear unrelated save dirs.
+                    val snapshotRoots = meta.sources.toSet()
+                    val targetSources =
+                        if (snapshotRoots.isEmpty()) sources else sources.filter { it.zipRoot in snapshotRoots }
+                    if (targetSources.isEmpty()) {
+                        return@withLock BackupResult(false, "Snapshot does not match this game's save layout.")
+                    }
+
+                    // M-3: verify snapshot integrity BEFORE touching the live save — sha256 is over the source FILES, so extract to a temp tree and recompute; a corrupt snapshot is rejected with the live save untouched.
+                    if (meta.sha256.isNotEmpty()) {
+                        val verifyDir = File(context.cacheDir, "wn_restore_verify_${appId}_$entryId")
+                        val integrityOk =
+                            try {
+                                verifyDir.deleteRecursively()
+                                verifyDir.mkdirs()
+                                val verifySources =
+                                    targetSources.map { SaveSource(it.zipRoot, File(verifyDir, it.zipRoot)) }
+                                verifySources.forEach { it.localDir.mkdirs() }
+                                extractZipToSources(zipFile, verifySources)
+                                sha256OfSources(verifySources) == meta.sha256
+                            } catch (e: Exception) {
+                                Timber.tag(TAG).e(e, "restoreFromEntry: integrity verify threw for entry=%s", entryId)
+                                false
+                            } finally {
+                                runCatching { verifyDir.deleteRecursively() }
+                            }
+                        if (!integrityOk) {
+                            Timber.tag(TAG).e(
+                                "restoreFromEntry: integrity check FAILED for entry=%s; refusing restore",
+                                entryId,
+                            )
+                            return@withLock BackupResult(
+                                false,
+                                "Snapshot failed its integrity check and was not restored.",
+                            )
+                        }
+                    }
+
+                    // Rollback safety: snapshot the current live save before overwriting it, so a regretted/failed restore is recoverable.
+                    runCatching { captureSnapshotLocked(context, appId, BackupOrigin.AUTO, containerHint) }
+                        .onFailure { Timber.tag(TAG).w(it, "restoreFromEntry: pre-restore snapshot failed") }
+
+                    // M-4: move each target dir aside, extract into a fresh dir, delete the aside-backup only on full success; on failure restore the aside dirs (the real rollback guarantee). Fresh dir keeps the restore an exact mirror.
+                    val asideDirs = mutableListOf<Triple<File, File?, Boolean>>() // (live, bak, hadLive)
+                    fun rollbackAside() {
+                        for ((live, bak, hadLive) in asideDirs.asReversed()) {
+                            runCatching { live.deleteRecursively() }
+                            if (hadLive && bak != null) runCatching { bak.renameTo(live) }
+                        }
+                    }
+                    try {
+                        for (src in targetSources) {
+                            val live = src.localDir
+                            val parent = live.parentFile
+                            if (parent == null || (!parent.exists() && !parent.mkdirs())) {
+                                rollbackAside()
+                                return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                            }
+                            val hadLive = live.exists()
+                            var bak: File? = null
+                            if (hadLive) {
+                                bak = File(parent, "${live.name}.wnrestorebak")
+                                runCatching { bak.deleteRecursively() }
+                                if (!live.renameTo(bak)) { // same-parent rename = atomic move-aside
+                                    rollbackAside()
+                                    return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                                }
+                            }
+                            live.mkdirs()
+                            asideDirs += Triple(live, bak, hadLive)
+                        }
+                        extractZipToSources(zipFile, sources)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "restoreFromEntry: extraction failed; rolling back")
+                        rollbackAside()
+                        return@withLock BackupResult(false, "Restore failed; your existing save was left unchanged.")
+                    }
+                    // Extraction succeeded — drop the move-aside backups (commit).
+                    asideDirs.forEach { (_, bak, _) -> bak?.let { runCatching { it.deleteRecursively() } } }
 
                     // Push the restored state to Steam Cloud so the next launch is consistent.
                     val uploadOk = uploadLocalToSteam(context, appId)
@@ -265,22 +425,7 @@ object SteamSaveSnapshotManager {
             }
         }
 
-    /**
-     * Import user-supplied save files into the live Steam save directory for [appId].
-     *
-     * Steam's `store.steampowered.com/account/remotestorageapp` serves individual files with
-     * `Content-Disposition: attachment; filename="<basename>"` — the browser strips the
-     * relative path, so a file logically at `saves/slot1.dat` lands on disk as `slot1.dat`.
-     * Multi-file games (Stardew Valley, RimWorld, etc.) need the subdirectory restored or
-     * the game won't load the save.
-     *
-     * Strategy: query Steam's current cloud file list via [SteamService.getTrackedCloudSaveFiles]
-     * and match each imported file's basename against the listing. Unique match → reconstruct
-     * the canonical path (PathType.root + relative subdir + filename). No match → fall back to
-     * SteamUserData/<basename>. Ambiguous match → skip with a warning.
-     *
-     * After all files are placed, take a snapshot for history and push to Steam Cloud.
-     */
+    /** Import user-supplied save files into the live Steam save dir. Downloaded files lose their relative path (browser strips it), so match each basename against the cloud file list to reconstruct the canonical subdir; no match → SteamUserData root, ambiguous → skip. Then snapshot and push to cloud. */
     suspend fun importSnapshotFromFiles(
         activity: Activity,
         appId: Int,
@@ -299,10 +444,7 @@ object SteamSaveSnapshotManager {
                     val resolver = context.contentResolver
                     val prefixResolver = steamPrefixResolver(context, appId, containerHint)
 
-                    // Cloud listing for basename → canonical-path reconstruction. If the local
-                    // cache is empty (user never ran a Sync), we can't restore subdirectories for
-                    // multi-file games. Refuse rather than silently flatten — putting Stardew /
-                    // RimWorld save files at the SteamUserData root would corrupt them.
+                    // Cloud listing for basename → path reconstruction. If empty (never synced), refuse rather than flatten multi-file saves to the SteamUserData root, which would corrupt them.
                     val cloudFiles = SteamService.getTrackedCloudSaveFiles(appId).orEmpty()
                     if (cloudFiles.isEmpty()) {
                         return@withLock BackupResult(
@@ -314,9 +456,7 @@ object SteamSaveSnapshotManager {
 
                     val fallbackDir = File(PathType.SteamUserData.toAbsPath(context, appId, accountId))
                     fallbackDir.mkdirs()
-                    // Build a "containment root" so reconstructed target paths can be sanity-checked.
-                    // SteamUserData lives under the wine prefix's drive_c; that's the tightest bound
-                    // we can express without knowing every game's possible UFS paths in advance.
+                    // Containment root to sanity-check reconstructed paths — SteamUserData's drive_c parent is the tightest bound without knowing every game's UFS paths.
                     val containmentRoot = runCatching {
                         File(prefixResolver("SteamUserData")).canonicalFile.parentFile?.parentFile?.canonicalPath
                             ?: File(prefixResolver("SteamUserData")).canonicalPath
@@ -358,8 +498,7 @@ object SteamSaveSnapshotManager {
                                 isReconstructed = false
                             }
                         }
-                        // Defensive path-containment check — refuse to write outside the wine prefix
-                        // even if the cloud listing is somehow malformed.
+                        // Defensive containment — refuse to write outside the wine prefix even if the cloud listing is malformed.
                         val canonicalTarget = runCatching { targetFile.canonicalPath }.getOrNull()
                         if (containmentRoot != null && canonicalTarget != null &&
                             !canonicalTarget.startsWith(containmentRoot + File.separator) &&
@@ -400,9 +539,7 @@ object SteamSaveSnapshotManager {
                     }
 
                     captureSnapshotLocked(context, appId, BackupOrigin.MANUAL, containerHint)
-                    // Try the upload up to 2x — if Steam reports `InProgress` we retry once after
-                    // a short delay so a concurrent background sync doesn't silently strand the
-                    // imported state out of cloud.
+                    // Retry the upload once after a delay so a concurrent background sync doesn't strand the imported state out of cloud.
                     var uploadOk = uploadLocalToSteam(context, appId)
                     if (!uploadOk) {
                         kotlinx.coroutines.delay(1_500)
@@ -464,27 +601,14 @@ object SteamSaveSnapshotManager {
 
     // ── Internal: enumeration / metadata ──
 
-    /**
-     * Live snapshot sources for [appId] — SteamUserData plus any UFS-declared Windows patterns.
-     *
-     * [forRestore]=false: only include sources that currently exist and are non-empty (capture mode).
-     * [forRestore]=true:  return all resolved target paths regardless of existence/emptiness, so
-     * a restore can mkdir + extract into a wiped save directory.
-     */
+    /** Live snapshot sources for [appId] — SteamUserData plus UFS Windows patterns. [forRestore]=false includes only existing non-empty dirs (capture); true returns all resolved paths so restore can mkdir+extract. */
     private fun enumerateSaveSources(
         context: Context,
         appId: Int,
         forRestore: Boolean = false,
         containerHint: Container? = null,
     ): List<SaveSource> {
-        // Match SteamCloudSyncHelper.steamPrefixResolver — every PathType.toAbsPath call
-        // for Steam reads/writes resolves through the global `home/xuser` symlink, so we
-        // must point it at this game's container before reading local sources or
-        // writing restored files. Without this, a snapshot-restore would write into the
-        // last-active container's wineprefix instead of the target Steam game's.
-        // Prefer the caller-provided container; appId-based fallback isn't appId-aware
-        // when a default x86 container preference is set (returns the default for every
-        // Steam game).
+        // PathType.toAbsPath resolves through the `home/xuser` symlink, so activate this game's container first or a restore writes into the last-active container's prefix. Prefer the caller's container; the appId fallback returns the default when an x86 default is set.
         activateContainerForCloudOp(context, appId, containerHint)
 
         val accountId = resolveAccountId()
@@ -530,10 +654,7 @@ object SteamSaveSnapshotManager {
             ?: PrefManager.steamUserAccountId.takeIf { it != 0 }?.toLong()
             ?: 0L
 
-    /**
-     * Push the local save state up to Steam Cloud. Forces overwrite via
-     * `overrideLocalChangeNumber = -1` so Steam doesn't reject the rollback as stale.
-     */
+    /** Push the local save up to Steam Cloud; forces overwrite (overrideLocalChangeNumber = -1) so the rollback isn't rejected as stale. */
     private suspend fun uploadLocalToSteam(context: Context, appId: Int): Boolean {
         return try {
             val resolver = steamPrefixResolver(context, appId)
@@ -559,9 +680,7 @@ object SteamSaveSnapshotManager {
         appId: Int,
         containerHint: Container? = null,
     ): (String) -> String {
-        // See enumerateSaveSources — `home/xuser` symlink must point at this game's
-        // container before paths resolve, otherwise upload/download lands in the wrong
-        // wineprefix.
+        // See enumerateSaveSources — activate this game's container before paths resolve or upload/download lands in the wrong wineprefix.
         activateContainerForCloudOp(context, appId, containerHint)
 
         val accountId = resolveAccountId()
@@ -575,14 +694,24 @@ object SteamSaveSnapshotManager {
         context: Context,
         appId: Int,
         containerHint: Container?,
-    ) {
+    ): Boolean {
         val target =
             containerHint
                 ?: ContainerUtils.getUsableContainerOrNull(context, appId.toString())
-                ?: return
-        runCatching {
-            ContainerManager(context).activateContainer(target)
-        }.onFailure { Timber.tag(TAG).w(it, "Failed to activate container id=%d", target.id) }
+                ?: return true // no container to activate — nothing to point at the wrong prefix
+        // MD-5: honor activateContainer's boolean — a swallowed false (symlink not re-pointed) left snapshot reads/writes on the wrong game's wineprefix.
+        val ok =
+            runCatching {
+                ContainerManager(context).activateContainer(target)
+            }.onFailure { Timber.tag(TAG).e(it, "Failed to activate container id=%d (threw)", target.id) }
+                .getOrDefault(false)
+        if (!ok) {
+            Timber.tag(TAG).e(
+                "activateContainerForCloudOp: container id=%d not activated; xuser may point at the wrong wineprefix",
+                target.id,
+            )
+        }
+        return ok
     }
 
     private fun listEntriesInternal(context: Context, appId: Int): List<SnapshotMeta> {
@@ -825,17 +954,6 @@ object SteamSaveSnapshotManager {
         }
     }
 
-    private fun sha256OfFile(file: File): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        FileInputStream(file).use { fis ->
-            val buf = ByteArray(8192)
-            var len: Int
-            while (fis.read(buf).also { len = it } > 0) {
-                md.update(buf, 0, len)
-            }
-        }
-        return md.digest().joinToString("") { "%02x".format(it) }
-    }
 
     // ── Naming ──
 
