@@ -507,7 +507,6 @@ class GameSettingsStateHolder {
     val selectedFexcoreVersion = mutableIntStateOf(0)
     val fexcorePresetEntries = mutableStateOf<List<String>>(emptyList())
     val selectedFexcorePreset = mutableIntStateOf(0)
-    // Per-version flag: true when that FEX version ships native .so UnixLibs.
     val fexcoreUnixLibsFlags = mutableStateOf<List<Boolean>>(emptyList())
     val useUnixLibs = mutableStateOf(true)
 

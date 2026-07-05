@@ -478,7 +478,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             "FEXCore already loaded for launch: version=" + fexcoreVersion + " mode=" + wantMode);
       }
 
-      // Sync the native .so with the active wine runtime's so_dir per the toggle.
       if (profile != null) {
         File wineUnixDir = new File(environment.getImageFs().getWinePath(), "lib/wine/aarch64-unix");
         if (fexUnixLibsActive) contentsManager.copyUnixLibsToDir(profile, wineUnixDir);

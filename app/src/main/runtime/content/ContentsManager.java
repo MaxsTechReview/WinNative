@@ -751,7 +751,6 @@ public class ContentsManager {
     return null;
   }
 
-  // A FEX version exposes native UnixLibs when its install dir ships any .so payload.
   public boolean profileHasUnixLibs(ContentProfile profile) {
     if (profile == null) return false;
     return dirContainsSharedObject(getInstallDir(context, profile));
@@ -781,7 +780,6 @@ public class ContentsManager {
     return lower.endsWith(".so") || lower.contains(".so.");
   }
 
-  // Delete the .so payload a profile installs (its PE dlls are left in place).
   public void removeAppliedUnixLibs(ContentProfile profile) {
     if (profile == null || profile.fileList == null) return;
     for (ContentProfile.ContentFile contentFile : profile.fileList) {
@@ -793,7 +791,6 @@ public class ContentsManager {
     }
   }
 
-  // Copy a profile's .so payload into destDir (the active wine runtime's so_dir).
   public void copyUnixLibsToDir(ContentProfile profile, File destDir) {
     if (profile == null || profile.fileList == null) return;
     for (ContentProfile.ContentFile contentFile : profile.fileList) {
