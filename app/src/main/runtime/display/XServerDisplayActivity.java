@@ -292,6 +292,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final EnvVars envVars = new EnvVars();
     // True when the chosen launch exe differs from Steam's configured entry: launcher skips Steam LaunchApp and CreateProcess'es the selected exe directly. Recomputed per launch.
     private boolean wnSteamDirectExeOverride = false;
+    private String wnSteamPlanWGameExe = null;
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
@@ -6736,6 +6737,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         envVars.put("WN_STEAM_STEAMID", planWSid);
                         envVars.put("WN_STEAM_TOKEN", planWTok);
                         envVars.put("WN_STEAM_APPID", String.valueOf(bsAppId));
+                        if (wnSteamPlanWGameExe != null && !wnSteamPlanWGameExe.isEmpty()) {
+                            envVars.put("WN_STEAM_GAME_EXE", wnSteamPlanWGameExe);
+                        }
                         if (wnSteamDirectExeOverride) {
                             envVars.put("WN_STEAM_DIRECT_EXE", "1");
                             Log.i("XServerDisplayActivity",
@@ -8171,6 +8175,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
+                wnSteamPlanWGameExe = null;
                 String steamExtraArgs = appendSteamJoinConnect(
                         com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions
                                 .gameArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs())));
@@ -8254,8 +8259,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     .PrefManager.INSTANCE.getWnPlanW();
                             String wrapperExe = planW
                                     ? "steam.exe" : "wn-steam-helper.exe";
-                            args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
-                                    + "\" \"" + steamGameExe + "\"" + steamExtraArgs;
+                            if (planW) {
+                                wnSteamPlanWGameExe = steamGameExe;
+                                args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
+                                        + "\"" + steamExtraArgs;
+                            } else {
+                                args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
+                                        + "\" \"" + steamGameExe + "\"" + steamExtraArgs;
+                            }
                             Log.d("XServerDisplayActivity",
                                     "Bionic Steam launch via " + wrapperExe
                                     + " (planW=" + planW + "): " + steamGameExe);
