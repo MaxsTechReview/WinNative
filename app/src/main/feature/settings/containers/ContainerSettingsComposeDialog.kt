@@ -992,7 +992,6 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             if (firstDash >= 0) items.add(entryName.substring(firstDash + 1))
         }
         state.fexcoreVersionEntries.value = items
-        state.fexcoreUnixLibsFlags.value = items.map { contentsManager.fexcoreVersionHasUnixLibs(it) }
         val saved = container?.getFEXCoreVersion() ?: ""
         selectByValue(items, saved, state.selectedFexcoreVersion)
     }

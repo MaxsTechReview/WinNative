@@ -828,7 +828,6 @@ class ShortcutSettingsComposeDialog private constructor(
         }
 
         state.fexcoreVersionEntries.value = items
-        state.fexcoreUnixLibsFlags.value = items.map { contentsManager.fexcoreVersionHasUnixLibs(it) }
         val savedVersion = if (shouldUseShortcutOverrides(container))
             getShortcutSetting("fexcoreVersion", container.getFEXCoreVersion())
         else
