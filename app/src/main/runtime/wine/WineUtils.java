@@ -890,6 +890,8 @@ public abstract class WineUtils {
         String dlname = dlnames.getString(i);
         if (useNative) {
           registryEditor.setStringValue(dllOverridesKey, dlname, "native,builtin");
+        } else if (identifier.equals("dinput8")) {
+          registryEditor.setStringValue(dllOverridesKey, dlname, "builtin");
         } else registryEditor.removeValue(dllOverridesKey, dlname);
       }
     } catch (JSONException e) {
