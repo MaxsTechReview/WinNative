@@ -4869,6 +4869,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         @Override
                         public void onDrawerOpened() {
                             releasePointerCapture();
+                            if (winHandler != null) {
+                                winHandler.neutralizeControllers();
+                            }
                             renderDrawerMenu();
                             if (drawerStateHolder != null) {
                                 drawerStateHolder.resetMenuNav();

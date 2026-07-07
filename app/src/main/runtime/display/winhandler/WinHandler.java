@@ -731,6 +731,35 @@ public class WinHandler {
     if (xServer != null && xServer.getRenderer() != null) xServer.getRenderer().requestRenderCoalesced();
   }
 
+  // Menu owns the controller while open; zero tracked state and push it once so nothing stays held in the guest.
+  public void neutralizeControllers() {
+    for (ExternalController controller : this.controllers.values()) {
+      if (controller == null) {
+        continue;
+      }
+      clearGamepadState(controller.state);
+      clearGamepadState(controller.remappedState);
+      int slot = assignSlot(controller.getDeviceId());
+      if (slot >= 0 && this.writers[slot] != null) {
+        try {
+          this.writers[slot].writeGamepadState(controller.state);
+        } catch (IOException ignored) {
+        }
+      }
+    }
+  }
+
+  private static void clearGamepadState(GamepadState state) {
+    state.thumbLX = 0;
+    state.thumbLY = 0;
+    state.thumbRX = 0;
+    state.thumbRY = 0;
+    state.triggerL = 0;
+    state.triggerR = 0;
+    state.buttons = 0;
+    state.dpad[0] = state.dpad[1] = state.dpad[2] = state.dpad[3] = false;
+  }
+
   private void writeControllerGamepadState(
       ExternalController controller, boolean applyGyroOverlay) {
     ExternalController profileController;
