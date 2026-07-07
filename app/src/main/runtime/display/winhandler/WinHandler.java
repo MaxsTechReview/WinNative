@@ -462,6 +462,8 @@ public class WinHandler {
   }
 
   public void bringToFront(final String processName, final long handle) {
+    XServer xServer = activity.getXServer();
+    if (xServer != null) xServer.raiseWindowByProcessName(processName);
     addAction(
         () -> {
           try {

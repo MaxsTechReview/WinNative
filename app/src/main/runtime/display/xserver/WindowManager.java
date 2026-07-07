@@ -335,6 +335,10 @@ public class WindowManager extends XResourceManager {
     }
   }
 
+  public void raiseWindowToTop(Window window) {
+    changeWindowZOrder(Window.StackMode.ABOVE, window, null);
+  }
+
   private void changeWindowZOrder(Window.StackMode stackMode, Window window, Window sibling) {
     Window parent = window.getParent();
     switch (stackMode) {

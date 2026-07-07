@@ -7219,6 +7219,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 }
             }
         }
+
+        File idleExe = new File(containerWindowsDir, "wn-idle.exe");
+        if (!idleExe.exists()) {
+            FileUtils.copy(this, "wn-idle.exe", idleExe);
+            Log.d("ContainerLaunch", "wn-idle.exe staged: " + idleExe.exists());
+        }
     }
 
     private boolean ensureRequestedWineVersionInstalled() {

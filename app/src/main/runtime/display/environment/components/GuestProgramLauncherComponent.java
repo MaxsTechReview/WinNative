@@ -1162,8 +1162,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
     String winhandlerCmd =
         wineInfo.isArm64EC()
-            ? winePath + "/wine winhandler.exe"
-            : imageFs.getBinDir() + "/box64 wine winhandler.exe";
+            ? winePath + "/wine winhandler.exe wn-idle.exe"
+            : imageFs.getBinDir() + "/box64 wine winhandler.exe wn-idle.exe";
     ProcessHelper.exec(winhandlerCmd, envVars.toStringArray(), rootDir, null);
 
     return ProcessHelper.exec(

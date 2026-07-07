@@ -313,6 +313,48 @@ public class XServer {
     }
   }
 
+  // Raises the top-level window of the named process directly in the X server,
+  // so bring-to-front works no matter which guest process asks for it.
+  public boolean raiseWindowByProcessName(String processName) {
+    if (processName == null || processName.isEmpty()) return false;
+    String wanted = stripExeSuffix(processName);
+    Window target = null;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER)) {
+      for (Window window : windowManager.getWindows()) {
+        if (window == null || window == windowManager.rootWindow) continue;
+        if (!window.attributes.isMapped()) continue;
+        if (!matchesProcessName(window, wanted)) continue;
+        Window toplevel = window;
+        while (toplevel.getParent() != null
+            && toplevel.getParent() != windowManager.rootWindow) {
+          toplevel = toplevel.getParent();
+        }
+        if (toplevel.getParent() == windowManager.rootWindow
+            && toplevel.attributes.isMapped()) {
+          target = toplevel;
+          break;
+        }
+      }
+      if (target != null) windowManager.raiseWindowToTop(target);
+    }
+    if (target != null && renderer != null) renderer.requestRenderCoalesced();
+    return target != null;
+  }
+
+  private static boolean matchesProcessName(Window window, String wanted) {
+    String className = window.getClassName();
+    if (className != null && stripExeSuffix(className).equalsIgnoreCase(wanted)) return true;
+    String name = window.getName();
+    return name != null && stripExeSuffix(name).equalsIgnoreCase(wanted);
+  }
+
+  private static String stripExeSuffix(String value) {
+    String trimmed = value.trim();
+    return trimmed.regionMatches(true, Math.max(0, trimmed.length() - 4), ".exe", 0, 4)
+        ? trimmed.substring(0, trimmed.length() - 4)
+        : trimmed;
+  }
+
   public void injectKeyPress(XKeycode xKeycode) {
     injectKeyPress(xKeycode, 0);
   }
