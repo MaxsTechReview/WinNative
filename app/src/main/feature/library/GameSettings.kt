@@ -398,6 +398,10 @@ class GameSettingsStateHolder {
     val gfxSelectedBcnEmulationType = mutableIntStateOf(0)
     val gfxBcnEmulationCacheEntries = mutableStateOf<List<String>>(emptyList())
     val gfxSelectedBcnEmulationCache = mutableIntStateOf(0)
+    val gfxTranscoderEntries = mutableStateOf<List<String>>(emptyList())
+    val gfxSelectedTranscoder = mutableIntStateOf(0)
+    val gfxQualityEntries = mutableStateOf<List<String>>(emptyList())
+    val gfxSelectedQuality = mutableIntStateOf(0)
     val gfxSyncFrame = mutableStateOf(false)
     val gfxDisablePresentWait = mutableStateOf(false)
 
@@ -1666,6 +1670,32 @@ private fun GraphicsDriverConfigCard(
                                 entries = state.gfxBcnEmulationCacheEntries.value,
                                 selectedIndex = state.gfxSelectedBcnEmulationCache.intValue,
                                 onSelected = { state.gfxSelectedBcnEmulationCache.intValue = it }
+                            )
+                        }
+                    }
+                }
+
+                val gamenativeWrapperActive = state.graphicsDriverEntries.value
+                    .getOrElse(state.selectedGraphicsDriver.intValue) { "" }
+                    .equals("Wrapper-Gamenative", ignoreCase = true)
+                if (gamenativeWrapperActive) {
+                    Spacer(Modifier.height(SettingItemGap))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(SettingItemGap)) {
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_transcoder),
+                                entries = state.gfxTranscoderEntries.value,
+                                selectedIndex = state.gfxSelectedTranscoder.intValue,
+                                onSelected = { state.gfxSelectedTranscoder.intValue = it }
+                            )
+                        }
+                        Box(Modifier.weight(1f)) {
+                            SettingDropdown(
+                                label = stringResource(R.string.container_graphics_quality),
+                                entries = state.gfxQualityEntries.value,
+                                selectedIndex = state.gfxSelectedQuality.intValue,
+                                onSelected = { state.gfxSelectedQuality.intValue = it }
                             )
                         }
                     }

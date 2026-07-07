@@ -7574,14 +7574,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         boolean wantLeegao = "wrapper-leegao".equals(graphicsDriver);
+        boolean wantGamenative = "wrapper-gamenative".equals(graphicsDriver);
         File leegaoMarker = new File(rootDir, "usr/lib/.wrapper_leegao");
+        File gamenativeMarker = new File(rootDir, "usr/lib/.wrapper_gamenative");
         if (wantLeegao) {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper-leegao.tzst", rootDir);
             try { leegaoMarker.createNewFile(); } catch (IOException ignored) {}
-        } else if (leegaoMarker.exists()) {
+            gamenativeMarker.delete();
+        } else if (wantGamenative) {
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper-gamenative.tzst", rootDir);
+            try { gamenativeMarker.createNewFile(); } catch (IOException ignored) {}
+            leegaoMarker.delete();
+        } else if (leegaoMarker.exists() || gamenativeMarker.exists()) {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst", rootDir);
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
             leegaoMarker.delete();
+            gamenativeMarker.delete();
         }
 
         if (adrenoToolsDriverId != null && !adrenoToolsDriverId.isEmpty()
@@ -7664,16 +7672,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
         String bcnEmulationType = graphicsDriverConfig.get("bcnEmulationType");
 
+        int gpuVendorId = GPUInformation.getVendorID(null, null);
+        // BCn compute shaders are unsupported on Adreno and crash on Xclipse with this wrapper
+        boolean excludeBcnCompute = gpuVendorId == 20803 || (wantGamenative && gpuVendorId == 0x144D);
+
         switch (bcnEmulation) {
             case "auto" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && !excludeBcnCompute) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "1");
                 }
                 envVars.put("WRAPPER_EMULATE_BCN", "3");
             }
             case "full" -> {
-                if ("compute".equals(bcnEmulationType) && GPUInformation.getVendorID(null, null) != 20803) {
+                if ("compute".equals(bcnEmulationType) && !excludeBcnCompute) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "0");
                 }
@@ -7681,6 +7693,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
             case "none" -> envVars.put("WRAPPER_EMULATE_BCN", "0");
             default -> envVars.put("WRAPPER_EMULATE_BCN", "1");
+        }
+
+        if (wantGamenative) {
+            String transcoder = graphicsDriverConfig.get("transcoder");
+            envVars.put("WRAPPER_BCN_GPU", "gpu".equalsIgnoreCase(transcoder) ? "1" : "0");
+            String wrapperQuality = graphicsDriverConfig.get("quality");
+            envVars.put("WRAPPER_ASTC_BLOCK", "high".equalsIgnoreCase(wrapperQuality) ? "4x4" : "8x8");
         }
 
         String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
