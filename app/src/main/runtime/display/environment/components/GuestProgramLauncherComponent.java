@@ -1007,20 +1007,20 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     Log.d("GuestLauncher", "nativeLibDir: " + nativeLibDir);
     Log.d("GuestLauncher", "fakeinputSrc exists: " + fakeinputSrc.exists());
     Log.d("GuestLauncher", "fakeinputDest: " + fakeinputDest.getAbsolutePath());
-    if (!fakeinputDest.exists()) {
-      try {
-        if (fakeinputSrc.exists()) {
-          FileUtils.copy(fakeinputSrc, fakeinputDest);
-          Log.d("GuestLauncher", "Copied libfakeinput.so to imagefs");
-        } else {
-          Log.e(
-              "GuestLauncher",
-              "libfakeinput.so NOT FOUND in APK: " + fakeinputSrc.getAbsolutePath());
-        }
-      } catch (Exception e) {
-        Log.e("GuestLauncher", "Failed to copy libfakeinput.so: " + e.getMessage());
-        e.printStackTrace();
+    try {
+      if (fakeinputSrc.exists()) {
+        // Refresh every launch so the guest reader can never skew from the
+        // app-side ring writer (a same-size rebuild defeats length checks).
+        FileUtils.copy(fakeinputSrc, fakeinputDest);
+        Log.d("GuestLauncher", "Copied libfakeinput.so to imagefs");
+      } else if (!fakeinputDest.exists()) {
+        Log.e(
+            "GuestLauncher",
+            "libfakeinput.so NOT FOUND in APK: " + fakeinputSrc.getAbsolutePath());
       }
+    } catch (Exception e) {
+      Log.e("GuestLauncher", "Failed to copy libfakeinput.so: " + e.getMessage());
+      e.printStackTrace();
     }
     Log.d("GuestLauncher", "fakeinputDest exists after copy: " + fakeinputDest.exists());
 
