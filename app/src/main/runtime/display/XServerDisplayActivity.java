@@ -247,6 +247,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "rundll32",
             "cmd"
     ));
+
+    // Session plumbing the task manager itself rides on; ending any of these from
+    // our task manager tears down the session (e.g. start.exe hosts winhandler).
+    private static final HashSet<String> TASK_MANAGER_PROTECTED_PROCESSES = new HashSet<>(Arrays.asList(
+            "winhandler",
+            "wn-launcher",
+            "start",
+            "wineserver",
+            "winedevice",
+            "services",
+            "svchost",
+            "rpcss",
+            "plugplay",
+            "wineboot",
+            "winemenubuilder",
+            "conhost",
+            "explorer"
+    ));
+
+    private static boolean isTaskManagerProtectedProcess(String name) {
+        if (name == null) return false;
+        String base = name.trim().toLowerCase(java.util.Locale.ROOT);
+        if (base.endsWith(".exe")) base = base.substring(0, base.length() - 4);
+        return TASK_MANAGER_PROTECTED_PROCESSES.contains(base);
+    }
+
     private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
     private boolean inputControlsRevealAllowed = false;
@@ -4804,6 +4830,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onTaskManagerEndProcess(String name) {
+                        if (isTaskManagerProtectedProcess(name)) {
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    "Can't end " + name + " — required system process",
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                         if (winHandler != null) winHandler.killProcess(name);
                     }
 
@@ -7220,10 +7252,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
-        File idleExe = new File(containerWindowsDir, "wn-idle.exe");
-        if (!idleExe.exists()) {
-            FileUtils.copy(this, "wn-idle.exe", idleExe);
-            Log.d("ContainerLaunch", "wn-idle.exe staged: " + idleExe.exists());
+        File launcherExe = new File(containerWindowsDir, "WN-launcher.exe");
+        if (!launcherExe.exists()) {
+            FileUtils.copy(this, "WN-launcher.exe", launcherExe);
+            Log.d("ContainerLaunch", "WN-launcher.exe staged: " + launcherExe.exists());
         }
     }
 
@@ -8417,13 +8449,13 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         if (!args.isEmpty()
                 && !args.startsWith("winhandler.exe")
-                && !args.startsWith("winlauncher.exe")
+                && !args.startsWith("WN-launcher.exe")
                 && !args.startsWith("explorer")) {
             String affinityArg =
                 taskAffinityMask != 0
                     ? "/affinity " + Integer.toHexString(taskAffinityMask & 0xFFFF) + " "
                     : "";
-            return "winlauncher.exe " + affinityArg + args;
+            return "WN-launcher.exe " + affinityArg + args;
         } else {
             return args;
         }
