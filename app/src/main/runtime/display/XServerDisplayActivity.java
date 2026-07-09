@@ -7573,6 +7573,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
+        // FFmpeg 8 libs for Wine's winedmo media path (arm64ec native Wine only; these
+        // aarch64 libs are inert under x86_64/box64). Extract into usr/lib when absent
+        // so existing containers get it without a full imagefs reinstall.
+        if (wineInfo != null && wineInfo.isArm64EC()
+                && !new File(rootDir, "usr/lib/libavcodec.so.62").exists()) {
+            try {
+                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ffmpeg8.tzst", rootDir);
+            } catch (Exception e) {
+                Log.w("XServerDisplayActivity", "ffmpeg8.tzst extraction failed", e);
+            }
+        }
+
         boolean wantLeegao = "wrapper-leegao".equals(graphicsDriver);
         File leegaoMarker = new File(rootDir, "usr/lib/.wrapper_leegao");
         if (wantLeegao) {
