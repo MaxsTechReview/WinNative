@@ -313,12 +313,12 @@ public class XServer {
     }
   }
 
-  // Raises the top-level window of the named process directly in the X server,
-  // so bring-to-front works no matter which guest process asks for it.
-  public boolean raiseWindowByProcessName(String processName) {
-    if (processName == null || processName.isEmpty()) return false;
+  // Raises the named process's top-level window and returns its HWND (0 if none found).
+  public long raiseWindowByProcessName(String processName) {
+    if (processName == null || processName.isEmpty()) return 0;
     String wanted = stripExeSuffix(processName);
-    Window target = null;
+    long handle = 0;
+    boolean raised = false;
     try (XLock lock = lock(Lockable.WINDOW_MANAGER)) {
       for (Window window : windowManager.getWindows()) {
         if (window == null || window == windowManager.rootWindow) continue;
@@ -331,19 +331,35 @@ public class XServer {
         }
         if (toplevel.getParent() == windowManager.rootWindow
             && toplevel.attributes.isMapped()) {
-          target = toplevel;
+          windowManager.raiseWindowToTop(toplevel);
+          // Take focus too (like the taskbar path) or the game stays active and re-raises over it.
+          windowManager.setFocus(toplevel, WindowManager.FocusRevertTo.POINTER_ROOT);
+          handle = toplevel.getHandle();
+          raised = true;
           break;
         }
       }
-      if (target != null) windowManager.raiseWindowToTop(target);
     }
-    if (target != null && renderer != null) renderer.requestRenderCoalesced();
-    return target != null;
+    if (raised && renderer != null) renderer.requestRenderCoalesced();
+    return handle;
+  }
+
+  // True if the given guest process still owns a mapped application window.
+  public boolean processHasApplicationWindow(int processId) {
+    if (processId <= 0) return false;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER)) {
+      for (Window window : windowManager.getWindows()) {
+        if (window == null || window == windowManager.rootWindow) continue;
+        if (window.isApplicationWindow() && window.getProcessId() == processId) return true;
+      }
+    }
+    return false;
   }
 
   private static boolean matchesProcessName(Window window, String wanted) {
-    String className = window.getClassName();
-    if (className != null && stripExeSuffix(className).equalsIgnoreCase(wanted)) return true;
+    for (String className : window.getClassNames()) {
+      if (className != null && stripExeSuffix(className).equalsIgnoreCase(wanted)) return true;
+    }
     String name = window.getName();
     return name != null && stripExeSuffix(name).equalsIgnoreCase(wanted);
   }

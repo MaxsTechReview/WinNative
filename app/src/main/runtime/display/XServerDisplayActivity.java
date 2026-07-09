@@ -1639,6 +1639,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onDestroyWindow(Window window) {
                 changeFrameRatingVisibility(window, null);
+                scheduleCloseKill(window);
             }
         });
 
@@ -7195,6 +7196,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         } else {
             Log.e("XServerDisplayActivity", "Wine prefix repair failed for container " + container.id);
         }
+    }
+
+    // A closed window whose process has no windows left after a grace period is a
+    // leftover (e.g. iexplore); terminate it. The delay keeps splash->main transitions safe.
+    private void scheduleCloseKill(Window window) {
+        if (window == null || xServer == null) return;
+        final int pid = window.getProcessId();
+        if (pid <= 0) return;
+        timeoutHandler.postDelayed(() -> {
+            if (activityDestroyed.get() || xServer == null) return;
+            if (xServer.processHasApplicationWindow(pid)) return;
+            ProcessHelper.terminateProcess(pid);
+            Log.d("XServerDisplayActivity", "close-kill: SIGTERM pid " + pid + " (no windows left)");
+            // Some processes trap SIGTERM or hang mid-shutdown; force-kill if it's still alive.
+            timeoutHandler.postDelayed(() -> {
+                if (activityDestroyed.get() || xServer == null) return;
+                if (isProcessAlive(pid) && !xServer.processHasApplicationWindow(pid)) {
+                    ProcessHelper.killProcess(pid);
+                    Log.d("XServerDisplayActivity", "close-kill: SIGKILL pid " + pid + " (survived SIGTERM)");
+                }
+            }, 2000);
+        }, 2000);
+    }
+
+    private static boolean isProcessAlive(int pid) {
+        return pid > 0 && new File("/proc/" + pid).exists();
     }
 
     private void ensureWinePrefixEssentialFiles() {

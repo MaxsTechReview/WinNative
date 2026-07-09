@@ -5,6 +5,40 @@
 #include <string.h>
 #include <stdio.h>
 
+// Counts real (visible, non-trivial) top-level windows on our desktop.
+static BOOL CALLBACK countVisibleProc(HWND hwnd, LPARAM lparam) {
+  if (IsWindowVisible(hwnd)) {
+    RECT r;
+    if (GetWindowRect(hwnd, &r) && (r.right - r.left) > 1 && (r.bottom - r.top) > 1) {
+      (*(int *)lparam)++;
+    }
+  }
+  return TRUE;
+}
+
+static int visibleWindowCount(void) {
+  int count = 0;
+  EnumWindows(countVisibleProc, (LPARAM)&count);
+  return count;
+}
+
+// Waits for the game to exit, force-killing a leftover process once every window is gone.
+static void waitForGame(HANDLE hProc) {
+  int sawWindow = 0;
+  int emptyTicks = 0;
+  for (;;) {
+    if (WaitForSingleObject(hProc, 1000) == WAIT_OBJECT_0) return;
+    if (visibleWindowCount() > 0) {
+      sawWindow = 1;
+      emptyTicks = 0;
+    } else if (sawWindow && ++emptyTicks >= 4) {
+      TerminateProcess(hProc, 0);
+      WaitForSingleObject(hProc, 5000);
+      return;
+    }
+  }
+}
+
 // Continuously pins every later-spawned process to the given affinity mask.
 static DWORD WINAPI affinityWatcherThread(LPVOID param) {
   DWORD_PTR mask = (DWORD_PTR)param;
@@ -32,7 +66,10 @@ static DWORD WINAPI affinityWatcherThread(LPVOID param) {
   return 0;
 }
 
-// Start winhandler as a child so it inherits the game's desktop.
+static HANDLE g_serviceJob = NULL;
+static DWORD g_servicePid = 0;
+
+// Starts winhandler in a kill-on-close job so its whole tree dies the instant we exit.
 static void startInputService(void) {
   char cmd[] = "winhandler.exe WN-launcher.exe /idle";
   STARTUPINFOA si;
@@ -40,9 +77,57 @@ static void startInputService(void) {
   si.cb = sizeof(si);
   PROCESS_INFORMATION pi;
   ZeroMemory(&pi, sizeof(pi));
-  if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+
+  HANDLE job = CreateJobObjectA(NULL, NULL);
+  if (job) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
+    ZeroMemory(&jeli, sizeof(jeli));
+    jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(job, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli));
+  }
+
+  if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
+    if (job) AssignProcessToJobObject(job, pi.hProcess);
+    ResumeThread(pi.hThread);
+    g_serviceJob = job;
+    g_servicePid = pi.dwProcessId;
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
+  } else if (job) {
+    CloseHandle(job);
+  }
+}
+
+// Tears down the input service: closing the job kills winhandler; Toolhelp is the fallback.
+static void stopInputService(void) {
+  if (g_serviceJob) {
+    CloseHandle(g_serviceJob);
+    g_serviceJob = NULL;
+  }
+  if (!g_servicePid) return;
+  DWORD pid = g_servicePid;
+  g_servicePid = 0;
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap != INVALID_HANDLE_VALUE) {
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(pe);
+    if (Process32First(snap, &pe)) {
+      do {
+        if (pe.th32ParentProcessID == pid) {
+          HANDLE c = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
+          if (c) {
+            TerminateProcess(c, 0);
+            CloseHandle(c);
+          }
+        }
+      } while (Process32Next(snap, &pe));
+    }
+    CloseHandle(snap);
+  }
+  HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+  if (h) {
+    TerminateProcess(h, 0);
+    CloseHandle(h);
   }
 }
 
@@ -133,6 +218,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     strcat(params, "\" ");
   }
 
+  HANDLE gameJob = CreateJobObjectA(NULL, NULL);
+  if (gameJob) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
+    ZeroMemory(&jeli, sizeof(jeli));
+    jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(gameJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli));
+  }
+
   HANDLE hProc = NULL;
   if (dir && (strchr(dir, '[') || strchr(dir, ']'))) {
     char appPath[268];
@@ -170,6 +263,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     hProc = sei.hProcess;
   }
 
+  // Put the game (and everything it spawns) in the job so closing it kills the whole tree.
+  if (gameJob && hProc) AssignProcessToJobObject(gameJob, hProc);
+
   if (affinity > 0) {
     HANDLE t = CreateThread(NULL, 0, affinityWatcherThread,
                             (LPVOID)(LONG_PTR)affinity, 0, NULL);
@@ -177,8 +273,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   }
 
   if (hProc) {
-    WaitForSingleObject(hProc, INFINITE);
+    waitForGame(hProc);
     CloseHandle(hProc);
   }
+  if (gameJob) CloseHandle(gameJob);
+  stopInputService();
   return 0;
 }

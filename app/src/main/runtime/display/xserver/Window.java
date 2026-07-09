@@ -174,6 +174,13 @@ public class Window extends XResource {
     return property != null ? property.toString() : "";
   }
 
+  // WM_CLASS holds instance + class as NUL-separated tokens; getClassName only returns the first.
+  public String[] getClassNames() {
+    Property property = getProperty(Atom.getId("WM_CLASS"));
+    if (property == null) return new String[0];
+    return new String(property.data.array(), XServer.LATIN1_CHARSET).split("\0");
+  }
+
   public int getWMHintsValue(WMHints wmHints) {
     Property property = getProperty(Atom.getId("WM_HINTS"));
     return property != null ? property.getInt(wmHints.ordinal()) : 0;
