@@ -910,6 +910,7 @@ class UnifiedActivity :
         chasingBordersPaused.value = false
         if (hasCompletedInitialResume) {
             libraryPlaytimeRefreshSignal++
+            SteamService.ensureHealthySession()
         } else {
             hasCompletedInitialResume = true
         }
