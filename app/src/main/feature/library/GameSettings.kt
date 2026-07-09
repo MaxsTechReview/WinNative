@@ -507,6 +507,7 @@ class GameSettingsStateHolder {
     val selectedFexcoreVersion = mutableIntStateOf(0)
     val fexcorePresetEntries = mutableStateOf<List<String>>(emptyList())
     val selectedFexcorePreset = mutableIntStateOf(0)
+    val useUnixLibs = mutableStateOf(true)
 
     // Advanced - System
     val startupSelectionEntries = mutableStateOf<List<String>>(emptyList())
@@ -3554,6 +3555,14 @@ private fun AdvancedSection(
 
     // FEXCore — hidden when FEXCore isn't explicitly in either slot.
     if (state.showFexcoreFrame.value) {
+        val fexVersionUnix = state.fexcoreVersionEntries.value
+            .getOrNull(state.selectedFexcoreVersion.intValue)
+            ?.contains("unix", ignoreCase = true) == true
+        val protonUnix = state.wineVersionDisplay.value.contains("unix", ignoreCase = true) ||
+            state.wineVersionEntries.value.getOrNull(state.selectedWineVersion.intValue)
+                ?.contains("unix", ignoreCase = true) == true
+        val unixCompatible = fexVersionUnix && protonUnix
+
         val fexcoreUsage = emulatorUsageLabel(state, setOf("fexcore"))
         EmulatorSectionHeader(stringResource(R.string.container_fexcore_config), fexcoreUsage)
         Spacer(Modifier.height(8.dp))
@@ -3564,7 +3573,14 @@ private fun AdvancedSection(
                         label = stringResource(R.string.container_fexcore_version),
                         entries = state.fexcoreVersionEntries.value,
                         selectedIndex = state.selectedFexcoreVersion.intValue,
-                        onSelected = { state.selectedFexcoreVersion.intValue = it }
+                        onSelected = { state.selectedFexcoreVersion.intValue = it },
+                        labelTrailing = {
+                            UnixLibsChip(
+                                compatible = unixCompatible,
+                                on = state.useUnixLibs.value,
+                                onClick = { state.useUnixLibs.value = !state.useUnixLibs.value }
+                            )
+                        }
                     )
                 }
                 Box(Modifier.weight(1f)) {
@@ -3825,6 +3841,48 @@ private fun CpuChip(
     }
 }
 
+@Composable
+private fun UnixLibsChip(
+    compatible: Boolean,
+    on: Boolean,
+    onClick: () -> Unit
+) {
+    val active = compatible && on
+    val bgColor = if (active) AccentBlue.copy(alpha = 0.15f) else ChipSurface
+    val borderColor = if (active) AccentBlue.copy(alpha = 0.4f) else ChipBorder
+    val textColor = if (active) AccentBlue else TextDim
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(6.dp))
+            .then(
+                if (compatible) {
+                    Modifier
+                        .clickable(onClick = onClick)
+                        .paneNavItem(
+                            cornerRadius = 6.dp,
+                            onActivate = onClick,
+                            highlightColor = NavHighlight,
+                            tapToSelect = true,
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 10.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "UnixLibs",
+            color = textColor,
+            fontSize = SettingLabelSize,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
 
 @Composable
 private fun HtmlText(
@@ -3957,7 +4015,8 @@ private fun SettingDropdown(
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
     enabled: Boolean = true,
-    disabledAlpha: Float = 0.4f
+    disabledAlpha: Float = 0.4f,
+    labelTrailing: (@Composable () -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     val menuOffset = rememberSmartDropdownOffset()
@@ -3978,14 +4037,31 @@ private fun SettingDropdown(
     }
 
     Column(modifier = Modifier.fillMaxWidth().alpha(alpha)) {
-        Text(
-            label,
-            color = TextSecondary,
-            fontSize = SettingLabelSize,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp,
-            modifier = Modifier.padding(bottom = SettingTightGap)
-        )
+        if (labelTrailing != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = SettingTightGap),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    label,
+                    color = TextSecondary,
+                    fontSize = SettingLabelSize,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.3.sp
+                )
+                Spacer(Modifier.weight(1f))
+                labelTrailing()
+            }
+        } else {
+            Text(
+                label,
+                color = TextSecondary,
+                fontSize = SettingLabelSize,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.3.sp,
+                modifier = Modifier.padding(bottom = SettingTightGap)
+            )
+        }
         Box {
             Row(
                 modifier = Modifier

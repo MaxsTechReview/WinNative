@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -750,6 +751,69 @@ public class ContentsManager {
     return null;
   }
 
+  public boolean profileHasUnixLibs(ContentProfile profile) {
+    if (profile == null) return false;
+    return dirContainsSharedObject(getInstallDir(context, profile));
+  }
+
+  public boolean fexcoreVersionHasUnixLibs(String fexcoreVersion) {
+    if (fexcoreVersion == null || fexcoreVersion.isEmpty()) return false;
+    return profileHasUnixLibs(getProfileByEntryName("fexcore-" + fexcoreVersion));
+  }
+
+  private static boolean dirContainsSharedObject(File dir) {
+    if (dir == null) return false;
+    File[] files = dir.listFiles();
+    if (files == null) return false;
+    for (File file : files) {
+      if (file.isDirectory()) {
+        if (dirContainsSharedObject(file)) return true;
+      } else if (isSharedObject(file.getName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isSharedObject(String name) {
+    String lower = name.toLowerCase(Locale.ROOT);
+    return lower.endsWith(".so") || lower.contains(".so.");
+  }
+
+  public void removeAppliedUnixLibs(ContentProfile profile) {
+    if (profile == null || profile.fileList == null) return;
+    for (ContentProfile.ContentFile contentFile : profile.fileList) {
+      if (!isSharedObject(new File(contentFile.target).getName())) continue;
+      File targetFile = new File(getPathFromTemplate(contentFile.target));
+      if (targetFile.exists() && targetFile.delete()) {
+        Log.i("ContentsManager", "UnixLibs: removed " + targetFile.getName());
+      }
+    }
+  }
+
+  public void copyUnixLibsToDir(ContentProfile profile, File destDir) {
+    if (profile == null || profile.fileList == null) return;
+    for (ContentProfile.ContentFile contentFile : profile.fileList) {
+      String name = new File(contentFile.target).getName();
+      if (!isSharedObject(name)) continue;
+      File sourceFile = new File(getInstallDir(context, profile), contentFile.source);
+      if (!sourceFile.exists()) continue;
+      File destFile = new File(destDir, name);
+      FileUtils.copy(sourceFile, destFile);
+      FileUtils.chmod(destFile, 0771);
+    }
+  }
+
+  public void deleteUnixLibsFromDir(ContentProfile profile, File destDir) {
+    if (profile == null || profile.fileList == null) return;
+    for (ContentProfile.ContentFile contentFile : profile.fileList) {
+      String name = new File(contentFile.target).getName();
+      if (!isSharedObject(name)) continue;
+      File destFile = new File(destDir, name);
+      if (destFile.exists()) destFile.delete();
+    }
+  }
+
   public boolean applyContent(ContentProfile profile) {
     if (profile.type != ContentProfile.ContentType.CONTENT_TYPE_WINE
         && profile.type != ContentProfile.ContentType.CONTENT_TYPE_PROTON) {
@@ -760,7 +824,8 @@ public class ContentsManager {
         targetFile.delete();
         FileUtils.copy(sourceFile, targetFile);
 
-        if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_BOX64) {
+        if (profile.type == ContentProfile.ContentType.CONTENT_TYPE_BOX64
+            || isSharedObject(targetFile.getName())) {
           FileUtils.chmod(targetFile, 0771);
         }
       }

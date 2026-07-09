@@ -55,6 +55,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
   private final Shortcut shortcut;
   private File workingDir;
   private Runnable preUnpackCallback;
+  private boolean fexUnixLibsActive = false;
 
   public static File ensureImageFsNativeLibrary(
       Context context, ImageFs imageFs, String libraryName) {
@@ -371,11 +372,13 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
     if (wowbox64Version == null) wowbox64Version = "";
     if (fexcoreVersion == null) fexcoreVersion = "";
 
+    boolean unixLibsPref = container.isUseUnixLibs();
     if (shortcut != null) {
       emulator = shortcut.getSettingExtra("emulator", emulator);
       emulator64 = shortcut.getSettingExtra("emulator64", emulator64);
       wowbox64Version = shortcut.getSettingExtra("box64Version", wowbox64Version);
       fexcoreVersion = shortcut.getSettingExtra("fexcoreVersion", fexcoreVersion);
+      unixLibsPref = "1".equals(shortcut.getSettingExtra("useUnixLibs", unixLibsPref ? "1" : "0"));
     }
 
     boolean usesWowbox64 = emulator.equalsIgnoreCase("wowbox64");
@@ -383,6 +386,9 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         emulator.equalsIgnoreCase("fexcore")
             || emulator64.equalsIgnoreCase("fexcore")
             || !usesWowbox64;
+
+    fexUnixLibsActive =
+        usesFexcore && unixLibsPref && contentsManager.fexcoreVersionHasUnixLibs(fexcoreVersion);
 
     Log.i(
         "GuestProgramLauncherComponent",
@@ -439,30 +445,44 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
           "WowBox64 already loaded for launch: version=" + wowbox64Version);
     }
 
-    if (usesFexcore
-        && (fexcoreDllsMissing || !fexcoreVersion.equals(container.getExtra("fexcoreVersion")))) {
-      if (fexcoreVersion.isEmpty()) {
-        Log.w("GuestProgramLauncherComponent", "No FEXCore version selected; skipping content extraction");
-      } else {
-        ContentProfile profile = contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
-        if (profile != null) {
+    if (usesFexcore) {
+      ContentProfile profile =
+          fexcoreVersion.isEmpty() ? null : contentsManager.getProfileByEntryName("fexcore-" + fexcoreVersion);
+      String wantMode = fexUnixLibsActive ? "unixlibs" : "dll";
+      boolean modeChanged = !wantMode.equals(container.getExtra("fexcoreMode"));
+      boolean versionChanged = !fexcoreVersion.equals(container.getExtra("fexcoreVersion"));
+      boolean needsExtraction =
+          versionChanged || modeChanged || (!fexUnixLibsActive && fexcoreDllsMissing);
+
+      if (needsExtraction) {
+        if (fexcoreVersion.isEmpty()) {
+          Log.w("GuestProgramLauncherComponent", "No FEXCore version selected; skipping content extraction");
+        } else if (profile != null) {
           Log.i(
               "GuestProgramLauncherComponent",
-              "Loading FEXCore content profile: version=" + fexcoreVersion);
+              "Loading FEXCore content profile: version=" + fexcoreVersion + " mode=" + wantMode);
           contentsManager.applyContent(profile);
+          if (!fexUnixLibsActive) contentsManager.removeAppliedUnixLibs(profile);
         } else {
           Log.w(
               "GuestProgramLauncherComponent",
               "FEXCore content profile not installed; no bundled FEXCore archive will be loaded: version="
                   + fexcoreVersion);
         }
+        container.putExtra("fexcoreVersion", fexcoreVersion);
+        container.putExtra("fexcoreMode", wantMode);
+        containerDataChanged = true;
+      } else {
+        Log.i(
+            "GuestProgramLauncherComponent",
+            "FEXCore already loaded for launch: version=" + fexcoreVersion + " mode=" + wantMode);
       }
-      container.putExtra("fexcoreVersion", fexcoreVersion);
-      containerDataChanged = true;
-    } else if (usesFexcore) {
-      Log.i(
-          "GuestProgramLauncherComponent",
-          "FEXCore already loaded for launch: version=" + fexcoreVersion);
+
+      if (profile != null) {
+        File wineUnixDir = new File(environment.getImageFs().getWinePath(), "lib/wine/aarch64-unix");
+        if (fexUnixLibsActive) contentsManager.copyUnixLibsToDir(profile, wineUnixDir);
+        else contentsManager.deleteUnixLibsFromDir(profile, wineUnixDir);
+      }
     }
     if (containerDataChanged) container.saveData();
   }
