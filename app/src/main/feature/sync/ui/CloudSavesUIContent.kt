@@ -1124,9 +1124,16 @@ private fun SaveHistorySection(
                 }
 
                 else -> {
+                    // Steam Cloud stores only the current version of each file, so only the newest group actually matches what a restore downloads; older groups stay read-only.
+                    val newestCloudGroupId =
+                        entries
+                            .filter { it.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD }
+                            .maxByOrNull { it.timestampMs }
+                            ?.fileId
                     entries.forEachIndexed { index, entry ->
                         SaveHistoryRow(
                             entry = entry,
+                            cloudRestorable = entry.fileId == newestCloudGroupId,
                             onRestore = { onRestore(entry) },
                             onRename = { onRename(entry) },
                         )
@@ -1146,6 +1153,7 @@ private fun SaveHistorySection(
 @Composable
 private fun SaveHistoryRow(
     entry: GameSaveBackupManager.BackupHistoryEntry,
+    cloudRestorable: Boolean = false,
     onRestore: () -> Unit,
     onRename: () -> Unit,
 ) {
@@ -1168,11 +1176,15 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    // STEAM_CLOUD "groups" view the CURRENT cloud file list (no server-side version history), so they're read-only history like GOG_CLOUD — per-entry rollback lives in STEAM_LOCAL snapshots.
+    // STEAM_CLOUD "groups" view the CURRENT cloud file list (no server-side version history); only the newest group is restorable (downloads the current cloud state) — per-entry rollback lives in STEAM_LOCAL snapshots.
     val canRestore =
-        entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
-            entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
-    val isReadOnlyCloudGroup = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+        when (entry.storage) {
+            GameSaveBackupManager.BackupStorage.GOG_CLOUD -> false
+            GameSaveBackupManager.BackupStorage.STEAM_CLOUD -> cloudRestorable
+            else -> true
+        }
+    val isReadOnlyCloudGroup =
+        entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD && !cloudRestorable
     Row(
         modifier =
             Modifier
