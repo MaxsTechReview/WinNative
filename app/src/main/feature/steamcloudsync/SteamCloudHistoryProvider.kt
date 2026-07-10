@@ -11,18 +11,16 @@ import com.winlator.cmod.runtime.container.Container
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.security.MessageDigest
 
 /**
  * Provides Steam Cloud entries for the save-history UI.
  *
- * Steam Cloud stores the current version of each filename, not a server-side version history.
- * To approximate recent save events, files modified within [GROUP_WINDOW_MS] are grouped
- * together. This mirrors games that update several save files during one save action.
+ * Steam Cloud stores only the current version of each filename — no server-side version
+ * history — so, like Steam's own remote-storage website, this lists one entry per file
+ * currently in the cloud, each individually downloadable.
  *
- * Restoring any group syncs the full current cloud state through
- * [SteamCloudSyncHelper.forceDownloadById]. Groups only describe what changed together; they
- * are not independently restorable snapshots.
+ * Restoring syncs the full current cloud state through
+ * [SteamCloudSyncHelper.forceDownloadById].
  *
  * Labels are stored locally in SharedPrefs. Delete is unsupported because Steam manages cloud
  * retention.
@@ -33,11 +31,10 @@ import java.security.MessageDigest
 object SteamCloudHistoryProvider {
     private const val TAG = "SteamCloudHistory"
 
-    /** Time window for grouping files into one save event. */
-    private const val GROUP_WINDOW_MS = 120_000L
+    /** Maximum number of files shown in the history UI. */
+    private const val MAX_FILES = 200
 
-    /** Maximum number of groups shown in the history UI. */
-    private const val MAX_GROUPS = 30
+    private const val FILE_ID_SEPARATOR = ":file:"
 
     /** SharedPrefs file for user-set group labels. */
     private const val LABEL_PREFS = "steam_cloud_history_labels"
@@ -85,6 +82,23 @@ object SteamCloudHistoryProvider {
         return if (ms > 4_102_444_800_000L) 0L else ms
     }
 
+    /** The prefixed path used to download [file] from Steam Cloud (pathPrefix/filename). */
+    private fun downloadPathFor(
+        file: SteamAutoCloud.CloudFileInfo,
+        response: SteamAutoCloud.CloudFileChangeList,
+    ): String {
+        val prefix = response.pathPrefixes.getOrNull(file.pathPrefixIndex).orEmpty()
+        return if (prefix.isEmpty()) file.filename else "${prefix.trimEnd('/', '\\')}/${file.filename}"
+    }
+
+    /** Human-readable file path: root placeholders stripped, separators normalized. */
+    private fun displayNameFor(downloadPath: String): String =
+        downloadPath
+            .replace(Regex("%\\w+%"), "")
+            .replace('\\', '/')
+            .trimStart('/')
+            .ifEmpty { downloadPath }
+
     private fun buildEntries(
         context: Context,
         appId: Int,
@@ -97,57 +111,39 @@ object SteamCloudHistoryProvider {
 
         if (persistedFiles.isEmpty()) return emptyList()
 
-        class FileCluster {
-            val files = mutableListOf<SteamAutoCloud.CloudFileInfo>()
-            val timestamps = mutableListOf<Long>()
-            fun representativeTs(): Long = timestamps.maxOrNull() ?: 0L
-            fun earliestTs(): Long = timestamps.minOrNull() ?: 0L
-        }
-
-        val clusters = mutableListOf<FileCluster>()
-        for (file in persistedFiles) {
-            val ts: Long = toMillis(file.timestamp).takeIf { it > 0L } ?: continue
-            val current: FileCluster? = clusters.lastOrNull()
-            val joinsCurrent: Boolean =
-                current != null && (current.representativeTs() - ts) <= GROUP_WINDOW_MS
-            val target: FileCluster =
-                if (joinsCurrent) {
-                    current!!
-                } else {
-                    FileCluster().also { clusters += it }
-                }
-            target.files += file
-            target.timestamps += ts
-        }
-
         val labelPrefs = context.getSharedPreferences(LABEL_PREFS, Context.MODE_PRIVATE)
 
-        return clusters
-            .take(MAX_GROUPS)
-            .map { cluster ->
-                val sortedFilenames = cluster.files.map { it.filename }.sorted()
-                val groupId = buildGroupId(sortedFilenames, cluster.earliestTs())
-                val totalSize = cluster.files.sumOf { it.rawFileSize }
-                val timestampMs = cluster.representativeTs()
-                val label = labelPrefs.getString("$appId:$groupId", null)
-                val firstFile = cluster.files.first().filename
-                val fileName =
-                    if (cluster.files.size == 1) {
-                        firstFile
-                    } else {
-                        "$firstFile (+${cluster.files.size - 1} more)"
-                    }
+        return persistedFiles
+            .take(MAX_FILES)
+            .map { file ->
+                val downloadPath = downloadPathFor(file, response)
+                val fileId = "$appId$FILE_ID_SEPARATOR$downloadPath"
                 BackupHistoryEntry(
-                    fileId = "$appId:$groupId",
-                    fileName = fileName,
-                    timestampMs = timestampMs,
+                    fileId = fileId,
+                    fileName = displayNameFor(downloadPath),
+                    timestampMs = toMillis(file.timestamp),
                     origin = BackupOrigin.CLOUD,
-                    sizeBytes = totalSize,
-                    label = label,
+                    sizeBytes = file.rawFileSize,
+                    label = labelPrefs.getString(fileId, null),
                     storage = BackupStorage.STEAM_CLOUD,
                 )
             }
     }
+
+    /** Fetch the current cloud bytes for a [BackupHistoryEntry.fileId] produced by [buildEntries]. Null on failure. */
+    suspend fun downloadFileBytes(
+        appId: Int,
+        fileId: String,
+    ): ByteArray? =
+        withContext(Dispatchers.IO) {
+            val downloadPath = fileId.substringAfter(FILE_ID_SEPARATOR, "").ifEmpty { return@withContext null }
+            try {
+                SteamService.downloadCloudFileBytes(appId, downloadPath)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "downloadFileBytes failed for appId=%d path=%s", appId, downloadPath)
+                null
+            }
+        }
 
     /**
      * Restores by syncing the full current Steam Cloud file set to local.
@@ -181,19 +177,5 @@ object SteamCloudHistoryProvider {
         val edit = prefs.edit()
         if (label.isNullOrEmpty()) edit.remove(groupFileId) else edit.putString(groupFileId, label)
         edit.apply()
-    }
-
-    /**
-     * Builds a stable ID from the cluster's sorted filenames and earliest timestamp.
-     */
-    private fun buildGroupId(sortedFilenames: List<String>, earliestTs: Long): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        md.update(earliestTs.toString().toByteArray(Charsets.UTF_8))
-        md.update(0)
-        sortedFilenames.forEach {
-            md.update(it.toByteArray(Charsets.UTF_8))
-            md.update(0)
-        }
-        return md.digest().copyOfRange(0, 8).joinToString("") { "%02x".format(it) }
     }
 }

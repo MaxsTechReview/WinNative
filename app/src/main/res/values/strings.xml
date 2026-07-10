@@ -1366,6 +1366,9 @@ Installed path:
     <string name="cloud_saves_history_storage_epic">Epic</string>
     <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Restore</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">File downloaded.</string>
+    <string name="cloud_saves_history_download_failed">Download failed.</string>
     <string name="cloud_saves_history_cloud_readonly">Read-only</string>
     <string name="cloud_saves_history_restore_confirm_title">Restore this backup?</string>
     <string name="cloud_saves_history_restore_confirm_body">This will replace your current local save with the backup from %1$s.</string>
