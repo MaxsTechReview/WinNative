@@ -51,7 +51,7 @@ object GameSaveBackupManager {
     private const val AUTH_SESSION_RETRY_DELAY_MS = 750L
 
     /** Maximum number of history entries retained (and shown) per game. */
-    const val MAX_HISTORY_ENTRIES = 30
+    const val MAX_HISTORY_ENTRIES = 100
 
     /** Entries older than this are pruned whenever history is listed or written. */
     const val HISTORY_MAX_AGE_DAYS = 30

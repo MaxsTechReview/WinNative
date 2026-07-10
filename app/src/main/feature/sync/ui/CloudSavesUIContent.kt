@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -1166,18 +1169,27 @@ private fun SaveHistorySection(
                 }
 
                 else -> {
-                    entries.forEachIndexed { index, entry ->
-                        SaveHistoryRow(
-                            entry = entry,
-                            onRestore = { onRestore(entry) },
-                            onRename = { onRename(entry) },
-                            onDownload = { onDownload(entry) },
-                        )
-                        if (index < entries.lastIndex) {
-                            HorizontalDivider(
-                                color = CloudBorder.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 10.dp),
+                    // Scrolls within a bounded panel so long histories aren't cut off on hosts without their own scrolling.
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        entries.forEachIndexed { index, entry ->
+                            SaveHistoryRow(
+                                entry = entry,
+                                onRestore = { onRestore(entry) },
+                                onRename = { onRename(entry) },
+                                onDownload = { onDownload(entry) },
                             )
+                            if (index < entries.lastIndex) {
+                                HorizontalDivider(
+                                    color = CloudBorder.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                )
+                            }
                         }
                     }
                 }

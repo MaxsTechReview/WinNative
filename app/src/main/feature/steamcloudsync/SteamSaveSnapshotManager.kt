@@ -286,7 +286,7 @@ object SteamSaveSnapshotManager {
         }
     }
 
-    /** Return the up-to-30 newest snapshots for [appId], newest-first. */
+    /** Return the up-to-[MAX_HISTORY_ENTRIES] newest snapshots for [appId], newest-first. */
     suspend fun listHistory(context: Context, appId: Int): List<BackupHistoryEntry> =
         withContext(Dispatchers.IO) {
             try {
