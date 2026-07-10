@@ -6082,12 +6082,12 @@ class SteamService : Service() {
         ): CloudSyncOutcome =
             withContext(Dispatchers.IO) {
                 async {
+                    // In-Wine Steam owns cloud saves during a hand-off; syncing here too would race it as a second writer.
+                    if (isBionicHandoffActive()) {
+                        Timber.i("closeApp: Bionic hand-off active for app %d — deferring exit cloud sync to in-Wine Steam", appId)
+                        return@async CloudSyncOutcome(true, "Steam Launcher handles cloud saves directly.")
+                    }
                     if (isOffline || !isConnected) {
-                        // Steam Launcher mode hands the CM session to the in-Wine Steam, which owns cloud saves during play; don't report its intentional offline as a failure.
-                        if (isBionicHandoffActive()) {
-                            Timber.i("closeApp: Bionic hand-off active for app %d — deferring exit cloud sync to in-Wine Steam", appId)
-                            return@async CloudSyncOutcome(true, "Steam Launcher handles cloud saves directly.")
-                        }
                         return@async CloudSyncOutcome(false, "Steam is offline.")
                     }
 
@@ -6117,13 +6117,14 @@ class SteamService : Service() {
 
                                 if (steamInstance != null && appInfo != null) {
                                     progressWrapper("Checking Local Saves", 0f)
+                                    // SaveLocation.None: unchanged content never uploads, and both-sides-changed surfaces as a Conflict instead of overwriting the newer cloud copy.
                                     val postSyncInfo =
                                         SteamAutoCloud
                                             .syncUserFiles(
                                                 appInfo = appInfo,
                                                 clientId = clientId,
                                                 steamInstance = steamInstance,
-                                                preferredSave = SaveLocation.Local,
+                                                preferredSave = SaveLocation.None,
                                                 parentScope = this@async,
                                                 prefixToPath = prefixToPath,
                                                 onProgress = progressWrapper,

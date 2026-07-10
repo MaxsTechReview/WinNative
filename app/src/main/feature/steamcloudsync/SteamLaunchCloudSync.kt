@@ -172,6 +172,7 @@ object SteamLaunchCloudSync {
                         gameName = gameName,
                         origin = origin,
                         authMode = GoogleAuthMode.RESUME,
+                        containerHint = SteamCloudSyncHelper.resolveShortcutContainer(activity, shortcut),
                     )
                 }
             Timber.tag("SteamLaunchCloudSync").i("Discarded Steam save backup: %s", result.message)
