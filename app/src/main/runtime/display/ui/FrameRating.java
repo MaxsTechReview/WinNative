@@ -95,6 +95,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean canReadGpu;
   private Context context;
   private int cpuFailCount;
+  private CPUStatus.CpuSample prevCpuSample;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
   private volatile int cpuSensorTemp;
@@ -210,6 +211,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.enableTemp = true;
     this.enableRenderer = true;
     this.cpuPercent = -1;
+    this.prevCpuSample = null;
     this.gpuLoad = -1;
     this.batteryWatts = -1.0f;
     this.cpuTemp = -1;
@@ -1304,7 +1306,8 @@ public class FrameRating extends LinearLayout implements Runnable {
     File[] gpuFiles = {
       new File("/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage"),
       new File("/sys/class/kgsl/kgsl-3d0/devfreq/gpu_load"),
-      new File("/sys/class/misc/mali0/device/utilisation")
+      new File("/sys/class/misc/mali0/device/utilisation"),
+      new File("/sys/kernel/gpu/gpu_busy")
     };
 
     for (File f : gpuFiles) {
@@ -1316,6 +1319,24 @@ public class FrameRating extends LinearLayout implements Runnable {
           }
         } catch (Exception ignored) {
         }
+      }
+    }
+
+    File mtkMali = new File("/proc/mtk_mali/utilization");
+    if (mtkMali.exists() && mtkMali.canRead()) {
+      try (BufferedReader reader = new BufferedReader(new FileReader(mtkMali))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          int idx = line.indexOf("ACTIVE=");
+          if (idx >= 0) {
+            int start = idx + 7;
+            int end = line.indexOf(' ', start);
+            String num = (end > start ? line.substring(start, end) : line.substring(start))
+                .replaceAll("[^0-9]", "");
+            if (!num.isEmpty()) return Integer.parseInt(num);
+          }
+        }
+      } catch (Exception ignored) {
       }
     }
 
@@ -1358,18 +1379,13 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
     if (this.enableCpu && this.canReadCpu) {
       try {
-        short[] clocks = CPUStatus.getCurrentClockSpeeds();
-        if (clocks != null && clocks.length > 0) {
-          long cur = 0;
-          long max = 0;
-          for (int i = 0; i < clocks.length; i++) {
-            cur += clocks[i];
-            max += CPUStatus.getMaxClockSpeed(i);
-          }
-          if (max > 0) {
-            this.cpuPercent = (int) ((cur * 100) / max);
+        CPUStatus.CpuSample sample = CPUStatus.readCpuSample();
+        if (sample != null) {
+          if (this.prevCpuSample != null) {
+            this.cpuPercent = sample.percentSince(this.prevCpuSample);
             this.cpuFailCount = 0;
           }
+          this.prevCpuSample = sample;
         }
       } catch (Exception e) {
         this.cpuPercent = -1;
