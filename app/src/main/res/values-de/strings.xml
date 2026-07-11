@@ -505,6 +505,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore-Voreinstellung</string>
     <string name="container_fexcore_version">FEXCore-Version</string>
+    <string name="use_unix_libs">UnixLibs verwenden</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiktreiber</string>
@@ -588,6 +589,7 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Akku</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Möchtest du diesen Prozess beenden?</string>
@@ -781,10 +783,14 @@ Z. B. <b>META</b> für <i>Meta-Taste</i>, \n
     <string name="settings_debug_box_logs_subtitle">Box86- &amp; Box64-Debug-Ausgabe in Datei schreiben</string>
     <string name="settings_debug_fex_logs_title">FEXCore-Protokolle aktivieren</string>
     <string name="settings_debug_fex_logs_subtitle">FEXCore-Debug-Ausgabe in Datei schreiben</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-Emulationsprotokolle</string>
+    <string name="settings_debug_emulator_logs_subtitle">Protokolliert den Emulator, den dein Container verwendet, in eine Datei.</string>
     <string name="settings_debug_steam_logs_title">Steam-Protokolle aktivieren</string>
     <string name="settings_debug_steam_logs_subtitle">Steam-Authentifizierungs- und Sitzungsereignisse zum Debuggen protokollieren.</string>
     <string name="settings_debug_wine_channels_title">Wine-Debug-Kanäle</string>
     <string name="settings_debug_wine_channels_summary">Wähle, welche Wine-Kanäle einbezogen werden, wenn die Wine-Debug-Protokollierung aktiviert ist.</string>
+    <string name="settings_debug_wine_classes_title">Wine-Protokollebenen</string>
+    <string name="settings_debug_wine_classes_summary">Wählen Sie aus, welche Meldungstypen protokolliert werden. Trace ist extrem ausführlich.</string>
     <string name="settings_debug_input_logs">Eingabe-Protokolle</string>
     <string name="settings_debug_input_logs_description">Gamepad-, Touch- und Tastatur-Eingabeereignisse protokollieren</string>
     <string name="settings_debug_download_logs">Download-Protokolle</string>
@@ -1309,7 +1315,7 @@ Installierter Pfad:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud ist derzeit nicht erreichbar. Verbindung wird im Hintergrund wiederhergestellt tippe auf Aktualisieren, sobald du wieder online bist.</string>
     <string name="steam_session_refused_event">Steam hat die zwischengespeicherte Sitzung abgelehnt (EResult=%1$d). Bitte melde dich erneut an.</string>
     <string name="settings_hud_record_to_file_title">Leistung in Datei aufzeichnen</string>
-    <string name="settings_hud_record_to_file_summary">Schreibt während des Spielens sekündliche FPS-, CPU-, GPU-, Temperatur- und Akkumetriken nach /WinNative/logs/.</string>
+    <string name="settings_hud_record_to_file_summary">Exportiert während des Spielens sekündliche FPS-, CPU-, GPU-, Temperatur- und Akkumetriken nach /WinNative/logs/.</string>
     <string name="settings_leaderboard_category">Leistung</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Steam-Umgebung wird vorbereitet</string>
@@ -1336,6 +1342,16 @@ Installierter Pfad:
     <!-- Workshop -->
     <string name="workshop_loading_items">Workshop-Elemente werden geladen</string>
     <string name="workshop_search_items">Workshop-Elemente suchen</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Deine abonnierten Objekte werden von Steam abgerufen.</string>
+    <string name="workshop_error_title">Workshop-Objekte konnten nicht geladen werden</string>
+    <string name="workshop_error_subtitle">Etwas ist schiefgelaufen. Versuche es erneut.</string>
+    <string name="workshop_empty_title">Keine abonnierten Workshop-Objekte</string>
+    <string name="workshop_empty_subtitle">Abonniere Objekte im Steam Workshop und öffne dieses Fenster dann erneut.</string>
+    <string name="workshop_search_empty_title">Keine Objekte stimmen mit \"%1$s\" überein</string>
+    <string name="workshop_search_empty_subtitle">Versuche einen anderen Suchbegriff.</string>
+    <string name="workshop_clear_search">Suche löschen</string>
+    <string name="workshop_item_fallback">Workshop-Objekt</string>
     <string name="common_ui_failed">Fehlgeschlagen</string>
     <string name="steam_presence_snooze">Schlummern</string>
     <string name="steam_presence_busy">Beschäftigt</string>
@@ -1500,7 +1516,7 @@ Installierter Pfad:
     <string name="session_drawer_hud_background">Hintergrund</string>
     <string name="session_drawer_hud_background_alpha">Hintergrund-Alpha</string>
     <string name="session_drawer_hud_background_alpha_input_title">Hintergrund-Alpha festlegen</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Größe anpassen</string>
     <string name="session_task_bring_to_front">In den Vordergrund</string>
     <string name="session_task_custom_value">Benutzerdefinierter Wert</string>

@@ -29,10 +29,10 @@ public class Container {
     public static final String DEFAULT_DXWRAPPER = "dxvk+vkd3d";
     public static final String DEFAULT_DXWRAPPERCONFIG = "version=,async=1,asyncCache=1" + ",vkd3dVersion=None,vkd3dLevel=12_1" + ",ddrawrapper=" + Container.DEFAULT_DDRAWRAPPER + ",csmt=3" + ",gpuName=NVIDIA GeForce GTX 480" + ",videoMemorySize=4096" + ",strict_shader_math=1" + ",OffscreenRenderingMode=fbo" + ",renderer=gl";
     public static final String DEFAULT_GRAPHICSDRIVERCONFIG =
-            "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=1" + ";resourceType=auto" + ";bcnEmulation=auto" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device";
+            "vulkanVersion=1.3" + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=1" + ";resourceType=auto" + ";bcnEmulation=auto" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device" + ";transcoder=cpu" + ";quality=low";
     public static final String DEFAULT_DDRAWRAPPER = "none";
-    public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2010=1";
-    public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1";
+    public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,dinput8=1,vcrun2010=1";
+    public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,dinput8=1,vcrun2010=1";
     public static final String DEFAULT_DRIVES = "D:" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + "F:" + Environment.getExternalStorageDirectory().getAbsolutePath();
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
@@ -51,6 +51,7 @@ public class Container {
     private String drives = DEFAULT_DRIVES;
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
     private boolean fullscreenStretched;
+    private boolean useUnixLibs = true;
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
     private String cpuList;
     private String cpuListWoW64;
@@ -206,6 +207,10 @@ public class Container {
     public boolean isFullscreenStretched() { return fullscreenStretched; }
 
     public void setFullscreenStretched(boolean fullscreenStretched) { this.fullscreenStretched = fullscreenStretched; }
+
+    public boolean isUseUnixLibs() { return useUnixLibs; }
+
+    public void setUseUnixLibs(boolean useUnixLibs) { this.useUnixLibs = useUnixLibs; }
 
     public byte getStartupSelection() {
         return startupSelection;
@@ -424,6 +429,7 @@ public class Container {
             data.put("wincomponents", wincomponents);
             data.put("drives", drives);
             data.put("fullscreenStretched", fullscreenStretched);
+            data.put("useUnixLibs", useUnixLibs);
             data.put("inputType", inputType);
             data.put("exclusiveXInput", exclusiveXInput);
             data.put("startupSelection", startupSelection);
@@ -507,6 +513,9 @@ public class Container {
                     break;
                 case "fullscreenStretched" :
                     setFullscreenStretched(data.getBoolean(key));
+                    break;
+                case "useUnixLibs" :
+                    setUseUnixLibs(data.getBoolean(key));
                     break;
                 case "inputType" :
                     setInputType(data.getInt(key));

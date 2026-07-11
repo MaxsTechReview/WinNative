@@ -87,6 +87,8 @@ interface XServerDisplayHostCallbacks {
     fun onDrawerGestureClaimed()
 
     fun onDialogVisibilityChanged(visible: Boolean)
+
+    fun isControllerConnected(): Boolean
 }
 
 fun setupXServerDisplayHost(
@@ -127,11 +129,12 @@ private fun XServerDisplayHost(
             closedFallbackPx
         }
     val drawerOpenOffset = 0f
-    // The sheet is "engaged" whenever it is on (or sliding onto) the screen. Used
-    // to trigger the card-reveal animation; the content itself is always composed.
+    // "Engaged" = on or sliding onto the screen; drives the card-reveal animation (the content itself is always composed).
     val drawerEngaged = drawerWidthPx <= 0f ||
         drawerOffsetPx > drawerClosedOffset + 1f ||
         stateHolder.isDrawerOpen
+    val drawerContentComposed = stateHolder.isDrawerOpen ||
+        (drawerWidthPx > 0f && drawerOffsetPx > drawerClosedOffset + 1f)
     val dialogVisible = false
 
     DisposableEffect(stateHolder) {
@@ -197,7 +200,8 @@ private fun XServerDisplayHost(
                                     down.position.x <= edgeWidthPx
                                 }
                             if (!canStartFromHere) {
-                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx) {
+                                if (stateHolder.isDrawerOpen && down.position.x > drawerWidthPx
+                                    && !callbacks.isControllerConnected()) {
                                     stateHolder.closeDrawer()
                                 }
                                 return@awaitEachGesture
@@ -306,8 +310,7 @@ private fun XServerDisplayHost(
                 )
             }
 
-            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own
-            // touches so the rest stays a trackpad. Rendered in the host (not a nested ComposeView).
+            // Performance HUD: half the screen (left in landscape, top in portrait), consuming its own touches so the rest stays a trackpad. Hosted here, not a nested ComposeView.
             val perfHudVisible by PerformanceHudState.visible.collectAsState()
             if (perfHudVisible) {
                 val landscape =
@@ -357,20 +360,30 @@ private fun XServerDisplayHost(
                             )
                         },
             ) {
-                // Keep the drawer content composed at all times. When closed the sheet
-                // is fully translated off-screen (drawerOffsetPx), so nothing is drawn,
-                // but the composition stays warm — opening becomes a cheap slide instead
-                // of rebuilding the whole tree on the first animation frame.
-                XServerDrawerContent(
-                    state = stateHolder.state,
-                    taskManagerState = stateHolder.taskManagerState,
-                    logsState = stateHolder.logsState,
-                    openPane = stateHolder.openPane,
-                    onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
-                    listener = listener,
-                    onDismiss = { stateHolder.closeDrawer() },
-                    revealCards = drawerEngaged,
-                )
+                // Compose the heavy drawer tree only while open or sliding; a settled-closed drawer is disposed so it can't contend with the game surface.
+                if (drawerContentComposed) {
+                    XServerDrawerContent(
+                        state = stateHolder.state,
+                        taskManagerState = stateHolder.taskManagerState,
+                        logsState = stateHolder.logsState,
+                        openPane = stateHolder.openPane,
+                        onOpenPaneChange = { stateHolder.setOpenPaneAndNotify(it) },
+                        listener = listener,
+                        onDismiss = { stateHolder.closeDrawer() },
+                        revealCards = drawerEngaged,
+                        menuNavRegion = stateHolder.menuNavRegion,
+                        menuNavIndex = stateHolder.menuNavIndex,
+                        menuActivateSignal = stateHolder.menuActivateSignal,
+                        onSetTabCount = { stateHolder.setMenuTabCount(it) },
+                        onSetCardLayout = { c, cols -> stateHolder.setMenuCardLayout(c, cols) },
+                        onSetBottomCount = { stateHolder.setMenuBottomCount(it) },
+                        onCursor = { r, i -> stateHolder.setMenuNav(r, i) },
+                        paneNavSignal = stateHolder.paneNavSignal,
+                        paneNavDir = stateHolder.paneNavDir,
+                        controllerActive = stateHolder.controllerConnected,
+                        onOverlayCloserChange = { stateHolder.paneOverlayCloser = it },
+                    )
+                }
             }
         }
     }

@@ -509,6 +509,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Preset FEXCore</string>
     <string name="container_fexcore_version">Wersja FEXCore</string>
+    <string name="use_unix_libs">Użyj UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Sterownik grafiki</string>
@@ -592,6 +593,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Wykr.</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Czy chcesz zakończyć ten proces?</string>
@@ -787,10 +789,14 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="settings_debug_box_logs_subtitle">Zapisuj dane debugowania Box86 i Box64 do pliku</string>
     <string name="settings_debug_fex_logs_title">Włącz logi FEXCore</string>
     <string name="settings_debug_fex_logs_subtitle">Zapisuj dane debugowania FEXCore do pliku</string>
+    <string name="settings_debug_emulator_logs_title">Dzienniki emulacji Box64/FEX</string>
+    <string name="settings_debug_emulator_logs_subtitle">Zapisuje do pliku emulator używany przez twój kontener.</string>
     <string name="settings_debug_steam_logs_title">Włącz logi Steam</string>
     <string name="settings_debug_steam_logs_subtitle">Loguj zdarzenia uwierzytelniania i sesji Steam do celów debugowania.</string>
     <string name="settings_debug_wine_channels_title">Kanały debugowania Wine</string>
     <string name="settings_debug_wine_channels_summary">Wybierz, które kanały Wine są uwzględniane przy włączonym logowaniu debugowania Wine.</string>
+    <string name="settings_debug_wine_classes_title">Poziomy logów Wine</string>
+    <string name="settings_debug_wine_classes_summary">Wybierz, które typy komunikatów są rejestrowane. Trace jest wyjątkowo szczegółowy.</string>
     <string name="settings_debug_input_logs">Logi wejścia</string>
     <string name="settings_debug_input_logs_description">Loguj zdarzenia gamepada, dotyku i klawiatury</string>
     <string name="settings_debug_download_logs">Logi pobierania</string>
@@ -1315,7 +1321,7 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud jest teraz niedostępny. Ponowne łączenie w tle dotknij odśwież, gdy wrócisz online.</string>
     <string name="steam_session_refused_event">Steam odrzucił zapisaną w pamięci podręcznej sesję (EResult=%1$d). Zaloguj się ponownie.</string>
     <string name="settings_hud_record_to_file_title">Rejestruj wydajność do pliku</string>
-    <string name="settings_hud_record_to_file_summary">Zapisuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
+    <string name="settings_hud_record_to_file_summary">Eksportuje co sekundę metryki FPS, CPU, GPU, temperatury i baterii do /WinNative/logs/ podczas gry.</string>
     <string name="settings_leaderboard_category">Wydajność</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Przygotowywanie środowiska Steam</string>
@@ -1342,6 +1348,16 @@ Zainstalowana ścieżka:
     <!-- Workshop -->
     <string name="workshop_loading_items">Ładowanie elementów Workshop</string>
     <string name="workshop_search_items">Szukaj elementów Workshop</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Pobieranie subskrybowanych elementów ze Steam.</string>
+    <string name="workshop_error_title">Nie udało się załadować elementów Workshop</string>
+    <string name="workshop_error_subtitle">Coś poszło nie tak. Spróbuj ponownie.</string>
+    <string name="workshop_empty_title">Brak subskrybowanych elementów Workshop</string>
+    <string name="workshop_empty_subtitle">Subskrybuj elementy w Steam Workshop, a następnie ponownie otwórz to okno.</string>
+    <string name="workshop_search_empty_title">Żaden element nie pasuje do \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Spróbuj innego wyszukiwanego hasła.</string>
+    <string name="workshop_clear_search">Wyczyść wyszukiwanie</string>
+    <string name="workshop_item_fallback">Element Workshop</string>
     <string name="common_ui_failed">Niepowodzenie</string>
     <string name="steam_presence_snooze">Drzemka</string>
     <string name="steam_presence_busy">Zajęty</string>
@@ -1506,7 +1522,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_hud_background">Tło</string>
     <string name="session_drawer_hud_background_alpha">Alfa tła</string>
     <string name="session_drawer_hud_background_alpha_input_title">Ustaw alfę tła</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Dopasuj rozmiar</string>
     <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_custom_value">Wartość niestandardowa</string>

@@ -12,6 +12,9 @@ import androidx.appcompat.app.AppCompatDialog
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
+import com.winlator.cmod.shared.ui.nav.bindPaneNav
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -28,8 +31,10 @@ import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
+import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
+import com.winlator.cmod.feature.library.parseEnvVarItems
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -89,6 +94,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     private val context = activity
     private val dialog: Dialog
+    private val nav = GameSettingsNav()
+    private var restorePaneNav: (() -> Unit)? = null
     private val state = GameSettingsStateHolder()
     private val manager = ContainerManager(context)
     private val contentsManager = ContentsManager(context)
@@ -134,6 +141,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             // path as Save/Cancel and still fires onFinished (important for
             // the setup wizard launcher that blocks on UnifiedActivity finishing).
             setOnDismissListener {
+                restorePaneNav?.invoke()
+                restorePaneNav = null
                 AppUtils.hideKeyboard(activity)
                 scope.cancel()
                 onFinished?.run()
@@ -159,7 +168,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                     CompositionLocalProvider(
                         LocalDensity provides Density(defaultDensity.density, fontScale = 1f)
                     ) {
-                        GameSettingsContent(state = state, callbacks = createCallbacks())
+                        val callbacks = createCallbacks()
+                        GameSettingsContent(state = state, callbacks = callbacks, nav = nav)
                     }
                 }
             }
@@ -354,11 +364,24 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val idx = pendingDriveIndex
         if (idx !in drivesWorking.indices) return
 
+        val imagefsRoot = ImageFs.find(context).getRootDir()
+        val driveRoots =
+            listOf(
+                DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                DirectoryPickerDialog.ManagedRoot(
+                    "D:",
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                ),
+                DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+            )
+
         DirectoryPickerDialog.show(
             activity = activity,
             initialPath = drivesWorking[idx].path.ifBlank { null },
             dimAmount = 0.5f,
             preserveBackdropBlur = true,
+            extraRoots = driveRoots,
         ) { path ->
             val currentIndex = pendingDriveIndex
             if (currentIndex in drivesWorking.indices) {
@@ -400,6 +423,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         }
 
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
+        state.useUnixLibs.value = c?.isUseUnixLibs() ?: true
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
         // state on the container untouched — saveSettings() skips them.
@@ -429,10 +453,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.generalComponents.value = general
 
         val envVarsStr = c?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
-        val envVars = EnvVars(envVarsStr)
-        val items = mutableListOf<EnvVarItem>()
-        for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
-        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        val items = parseEnvVarItems(envVarsStr)
+        state.sdl2Compatibility.value = EnvVars(envVarsStr).get("SDL_XINPUT_ENABLED") == "1"
         state.envVars.value = if (state.sdl2Compatibility.value) {
             items.filterNot { it.key in SDL2_KEYS }
         } else items
@@ -777,6 +799,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setWinComponents(wincomponents)
             c.setDrives(drivesString)
             c.setFullscreenStretched(state.fullscreenStretched.value)
+            c.setUseUnixLibs(state.useUnixLibs.value)
             c.setInputType(finalInputType)
             c.setExclusiveXInput(state.containerExclusiveInput.value)
             c.setStartupSelection(startupSelection)
@@ -817,6 +840,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 data.put("wincomponents", wincomponents)
                 data.put("drives", drivesString)
                 data.put("fullscreenStretched", state.fullscreenStretched.value)
+                data.put("useUnixLibs", state.useUnixLibs.value)
                 data.put("inputType", finalInputType)
                 data.put("exclusiveXInput", state.containerExclusiveInput.value)
                 data.put("startupSelection", startupSelection.toInt())
@@ -1077,6 +1101,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             context.resources.getStringArray(R.array.bcn_emulation_type_entries).toList()
         state.gfxBcnEmulationCacheEntries.value =
             context.resources.getStringArray(R.array.bcn_emulation_cache_entries).toList()
+        state.gfxTranscoderEntries.value =
+            context.resources.getStringArray(R.array.wrapper_transcoder_entries).toList()
+        state.gfxQualityEntries.value =
+            context.resources.getStringArray(R.array.wrapper_quality_entries).toList()
 
         val gpuNames = mutableListOf("Device")
         try {
@@ -1103,6 +1131,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         selectByValue(state.gfxBcnEmulationEntries.value, config.get("bcnEmulation") ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config.get("bcnEmulationType") ?: "compute", state.gfxSelectedBcnEmulationType)
         selectByValue(state.gfxBcnEmulationCacheEntries.value, config.get("bcnEmulationCache") ?: "0", state.gfxSelectedBcnEmulationCache)
+        selectByValue(state.gfxTranscoderEntries.value, config.get("transcoder") ?: "cpu", state.gfxSelectedTranscoder)
+        selectByValue(state.gfxQualityEntries.value, config.get("quality") ?: "low", state.gfxSelectedQuality)
         state.gfxSyncFrame.value = config.get("syncFrame") == "1"
         state.gfxDisablePresentWait.value = config.get("disablePresentWait") == "1"
         state.graphicsDriverVersion.value = config.get("version") ?: ""
@@ -1264,12 +1294,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val bcnEmulation = state.gfxBcnEmulationEntries.value.getOrElse(state.gfxSelectedBcnEmulation.intValue) { "none" }
         val bcnEmulationType = state.gfxBcnEmulationTypeEntries.value.getOrElse(state.gfxSelectedBcnEmulationType.intValue) { "compute" }
         val bcnEmulationCache = state.gfxBcnEmulationCacheEntries.value.getOrElse(state.gfxSelectedBcnEmulationCache.intValue) { "0" }
+        val transcoder = state.gfxTranscoderEntries.value.getOrElse(state.gfxSelectedTranscoder.intValue) { "cpu" }
+        val quality = state.gfxQualityEntries.value.getOrElse(state.gfxSelectedQuality.intValue) { "low" }
         return "vulkanVersion=$vulkanVersion;version=$version;blacklistedExtensions=$blacklisted;" +
             "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
             "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
             "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
             "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName;" +
-            "compositorPresentMode=$compositorPresentMode"
+            "compositorPresentMode=$compositorPresentMode;" +
+            "transcoder=$transcoder;quality=$quality"
     }
 
     private fun buildDxvkConfigFromState(): String {
@@ -1478,6 +1511,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
     fun show() {
         dialog.show()
+        restorePaneNav?.invoke()
+        restorePaneNav = dialog.window?.bindPaneNav(
+            PaneNavWindowHandlers(
+                onDir = { nav.dpad(it) },
+                onActivate = { nav.dpad(PANE_DIR_ACTIVATE) },
+                onDismiss = { if (nav.onContentBack?.invoke() != true) dialog.dismiss() },
+                onStart = { if (state.isLoaded.value) saveSettings() },
+            )
+        )
         dialog.window?.apply {
             applyDialogLayout()
             decorView.post { applyDialogLayout() }
@@ -1649,10 +1691,22 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             confirmLabel = context.getString(R.string.common_ui_import),
         ) { dismiss ->
             dismiss()
+            val imagefsRoot = ImageFs.find(context).getRootDir()
+            val driveRoots =
+                listOf(
+                    DirectoryPickerDialog.ManagedRoot("C:", File(imagefsRoot, "home").absolutePath),
+                    DirectoryPickerDialog.ManagedRoot("Z:", imagefsRoot.absolutePath),
+                    DirectoryPickerDialog.ManagedRoot(
+                        "D:",
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath,
+                    ),
+                    DirectoryPickerDialog.ManagedRoot("Internal", Environment.getExternalStorageDirectory().absolutePath),
+                )
             DirectoryPickerDialog.showFile(
                 activity,
                 title = context.getString(R.string.common_ui_import),
                 allowedExtensions = setOf("zip"),
+                extraRoots = driveRoots,
             ) { pickedPath ->
                 importSaves(File(pickedPath))
             }

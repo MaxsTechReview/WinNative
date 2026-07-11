@@ -114,6 +114,25 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlin.math.hypot
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.inputmethod.InputMethodManager
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_ACTIVATE
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_DOWN
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_LEFT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_RIGHT
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_SECONDARY
+import com.winlator.cmod.shared.ui.nav.PANE_DIR_UP
+import com.winlator.cmod.shared.ui.nav.paneNavItem
 
 private val IMG_BBCODE = Regex("\\[img\\](.*?)\\[/img\\]", RegexOption.IGNORE_CASE)
 private val IMG_SRC = Regex("\\[img\\s+src=[\"']?(.*?)[\"']?\\s*\\]", RegexOption.IGNORE_CASE)
@@ -134,21 +153,22 @@ private fun overlayImage(data: Any?): ImageRequest {
     return remember(data) { ImageRequest.Builder(ctx).data(data).allowHardware(false).build() }
 }
 
-private val BgDark = Color(0xFF18181D)
-private val SurfaceDark = Color(0xFF1E252E)
+private val WsBg = Color(0xFF12121B)
+private val BgDark = Color(0xFF171722)
+private val SurfaceDark = Color(0xFF1B1B27)
 private val CardBorder = Color(0xFF2A2A3A)
 private val Accent = Color(0xFF1A9FFF)
 private val TextPrimary = Color(0xFFF0F4FF)
-private val TextSecondary = Color(0xFF7A8FA8)
+private val TextSecondary = Color(0xFF93A6BC)
 private val Danger = Color(0xFFFF5A5A)
 
-/** Facebook-Messenger-style floating chat heads rendered as a system overlay so they work over games. */
+/** Floating chat heads rendered as a system overlay so they work over games. */
 class ChatOverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private val lifecycleOwner = OverlayLifecycleOwner()
 
     private var bubbleView: View? = null
-    private var panelView: ComposeView? = null
+    private var panelView: View? = null
     private var targetView: ComposeView? = null
 
     private val bubbleParams by lazy { buildBubbleParams() }
@@ -160,6 +180,9 @@ class ChatOverlayService : Service() {
     private val conversationId = mutableLongStateOf(0L)
     private val dragging = mutableStateOf(false)
     private val bubbleDimmed = mutableStateOf(false)
+
+    private val panelNav = PaneNavRegistry()
+    private var panelStickEngaged = 0
 
     private val bubbleX = mutableIntStateOf(0)
     private val bubbleY = mutableIntStateOf(0)
@@ -299,16 +322,90 @@ class ChatOverlayService : Service() {
 
     private fun showPanel() {
         if (panelView?.parent != null) return
-        val view = ComposeView(this).apply {
+        val compose = ComposeView(this).apply {
             setContent {
                 WinNativeTheme {
                     PanelContent()
                 }
             }
         }
-        prepare(view)
-        panelView = view
-        runCatching { windowManager.addView(view, panelParams) }
+        val container = object : FrameLayout(this) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+                if (handlePanelKey(event)) true else super.dispatchKeyEvent(event)
+
+            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+                if (handlePanelMotion(event)) true else super.dispatchGenericMotionEvent(event)
+        }
+        container.addView(compose)
+        prepare(container)
+        panelView = container
+        runCatching { windowManager.addView(container, panelParams) }
+    }
+
+    private fun handlePanelKey(event: KeyEvent): Boolean {
+        if (!expanded.value) return false
+        val owned = when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+            -> true
+            else -> false
+        }
+        if (!owned) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return true
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> panelNav.navDir(PANE_DIR_LEFT)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> panelNav.navDir(PANE_DIR_RIGHT)
+            KeyEvent.KEYCODE_DPAD_UP -> panelNav.navDir(PANE_DIR_UP)
+            KeyEvent.KEYCODE_DPAD_DOWN -> panelNav.navDir(PANE_DIR_DOWN)
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A -> panelNav.navDir(PANE_DIR_ACTIVATE)
+            KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y -> panelNav.navDir(PANE_DIR_SECONDARY)
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK -> if (!hidePanelImeIfVisible()) collapse()
+        }
+        return true
+    }
+
+    private fun handlePanelMotion(event: MotionEvent): Boolean {
+        if (!expanded.value) return false
+        if ((event.source and InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK ||
+            event.action != MotionEvent.ACTION_MOVE
+        ) {
+            return false
+        }
+        val sx = event.getAxisValue(MotionEvent.AXIS_X)
+        val sy = event.getAxisValue(MotionEvent.AXIS_Y)
+        val hx = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        val dir = when {
+            sx < -0.5f || hx < -0.5f -> PANE_DIR_LEFT
+            sx > 0.5f || hx > 0.5f -> PANE_DIR_RIGHT
+            sy < -0.5f || hy < -0.5f -> PANE_DIR_UP
+            sy > 0.5f || hy > 0.5f -> PANE_DIR_DOWN
+            else -> 0
+        }
+        if (dir != 0) {
+            if (panelStickEngaged == 0) {
+                panelStickEngaged = dir
+                panelNav.navDir(dir)
+            }
+            return true
+        }
+        if (kotlin.math.abs(sx) < 0.35f && kotlin.math.abs(sy) < 0.35f &&
+            kotlin.math.abs(hx) < 0.35f && kotlin.math.abs(hy) < 0.35f
+        ) {
+            panelStickEngaged = 0
+        }
+        return true
+    }
+
+    private fun hidePanelImeIfVisible(): Boolean {
+        val view = panelView ?: return false
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(view) ?: return false
+        if (!insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) return false
+        getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(view.windowToken, 0)
+        return true
     }
 
     private fun hidePanel() {
@@ -528,6 +625,8 @@ class ChatOverlayService : Service() {
         val originY = if (panelHpx > 0) ((bubbleY.intValue - panelYpx).toFloat() / panelHpx).coerceIn(0f, 1f) else 0f
         val origin = TransformOrigin(if (rightSide) 1f else 0f, originY)
 
+        LaunchedEffect(convId) { panelNav.reset() }
+        CompositionLocalProvider(LocalPaneNav provides panelNav) {
         Box(Modifier.fillMaxSize()) {
             Box(
                 Modifier.fillMaxSize().clickable(
@@ -541,7 +640,7 @@ class ChatOverlayService : Service() {
                 modifier = Modifier.offset { IntOffset(panelXpx, panelYpx) },
             ) {
                 Surface(
-                    color = BgDark,
+                    color = WsBg,
                     shape = RoundedCornerShape(18.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
                     shadowElevation = 12.dp,
@@ -564,11 +663,27 @@ class ChatOverlayService : Service() {
                                 modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 96.dp),
                             )
                             if (convId != 0L) {
-                                IconButton(onClick = { conversationId.longValue = 0L }, modifier = Modifier.align(Alignment.CenterStart)) {
+                                IconButton(
+                                    onClick = { conversationId.longValue = 0L },
+                                    modifier = Modifier.align(Alignment.CenterStart).paneNavItem(
+                                        onActivate = { conversationId.longValue = 0L },
+                                        tapToSelect = true,
+                                        navRow = 0,
+                                        navCol = 0,
+                                    ),
+                                ) {
                                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.steam_common_back), tint = TextPrimary)
                                 }
                             }
-                            IconButton(onClick = { collapse() }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                            IconButton(
+                                onClick = { collapse() },
+                                modifier = Modifier.align(Alignment.CenterEnd).paneNavItem(
+                                    onActivate = { collapse() },
+                                    tapToSelect = true,
+                                    navRow = 0,
+                                    navCol = if (convId != 0L) 1 else 0,
+                                ),
+                            ) {
                                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.steam_common_back), tint = TextSecondary)
                             }
                         }
@@ -593,6 +708,7 @@ class ChatOverlayService : Service() {
                 BubbleContent(head, unread.values.sum())
             }
         }
+        }
     }
 
     @Composable
@@ -602,21 +718,27 @@ class ChatOverlayService : Service() {
         modifier: Modifier,
         onPick: (Long) -> Unit,
     ) {
+        val nav = LocalPaneNav.current
+        SideEffect { nav?.onEdgeUp = null; nav?.onEdgeDown = null }
         if (list.isEmpty()) {
             Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.steam_friends_none_loaded), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             }
             return
         }
-        LazyColumn(modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp)) {
-            items(list, key = { it.steamId }) { f -> FriendRow(f, unread[f.steamId] ?: 0) { onPick(f.steamId) } }
+        Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 6.dp)) {
+            list.forEachIndexed { i, f ->
+                FriendRow(f, unread[f.steamId] ?: 0, navRow = i + 1, isEntry = i == 0) { onPick(f.steamId) }
+            }
         }
     }
 
     @Composable
-    private fun FriendRow(f: SteamFriendEntry, unread: Int, onClick: () -> Unit) {
+    private fun FriendRow(f: SteamFriendEntry, unread: Int, navRow: Int, isEntry: Boolean, onClick: () -> Unit) {
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth()
+                .paneNavItem(onActivate = onClick, tapToSelect = true, navRow = navRow, navCol = 0, isEntry = isEntry)
+                .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(SurfaceDark), contentAlignment = Alignment.Center) {
@@ -668,6 +790,24 @@ class ChatOverlayService : Service() {
         var sending by remember(friend.steamId) { mutableStateOf(false) }
         val listState = rememberLazyListState()
         val scope = androidx.compose.runtime.rememberCoroutineScope()
+        val fieldFocus = remember { FocusRequester() }
+        val nav = LocalPaneNav.current
+        SideEffect {
+            nav?.onEdgeUp = { scope.launch { runCatching { listState.animateScrollBy(-280f) } } }
+            nav?.onEdgeDown = { scope.launch { runCatching { listState.animateScrollBy(280f) } } }
+        }
+        val openImagePicker = {
+            headFriendId.longValue = friend.steamId
+            collapse()
+            runCatching {
+                startActivity(
+                    Intent(this@ChatOverlayService, ChatImagePickerActivity::class.java)
+                        .putExtra(ChatImagePickerActivity.EXTRA_FRIEND_ID, friend.steamId)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            Unit
+        }
 
         DisposableEffect(friend.steamId) {
             SteamService.instance?.setActiveConversation(friend.steamId)
@@ -720,17 +860,10 @@ class ChatOverlayService : Service() {
                 Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = {
-                    headFriendId.longValue = friend.steamId
-                    collapse()
-                    runCatching {
-                        startActivity(
-                            Intent(this@ChatOverlayService, ChatImagePickerActivity::class.java)
-                                .putExtra(ChatImagePickerActivity.EXTRA_FRIEND_ID, friend.steamId)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
-                    }
-                }) {
+                IconButton(
+                    onClick = openImagePicker,
+                    modifier = Modifier.paneNavItem(onActivate = openImagePicker, tapToSelect = true, navRow = 1, navCol = 0),
+                ) {
                     Icon(Icons.Outlined.Image, contentDescription = stringResource(R.string.steam_chat_send_image), tint = Accent)
                 }
                 OutlinedTextField(
@@ -738,7 +871,10 @@ class ChatOverlayService : Service() {
                     onValueChange = { input = it },
                     placeholder = { Text(stringResource(R.string.steam_chat_message_hint), color = TextSecondary) },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(fieldFocus)
+                        .paneNavItem(onActivate = { runCatching { fieldFocus.requestFocus() } }, navRow = 1, navCol = 1, isEntry = true),
                     keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
                     colors = TextFieldDefaults.colors(
@@ -752,7 +888,11 @@ class ChatOverlayService : Service() {
                     ),
                 )
                 Spacer(Modifier.width(6.dp))
-                IconButton(onClick = { send() }, enabled = input.isNotBlank() && !sending) {
+                IconButton(
+                    onClick = { send() },
+                    enabled = input.isNotBlank() && !sending,
+                    modifier = Modifier.paneNavItem(onActivate = { send() }, tapToSelect = true, navRow = 1, navCol = 2),
+                ) {
                     Icon(
                         Icons.AutoMirrored.Outlined.Send,
                         contentDescription = stringResource(R.string.steam_chat_send),
@@ -858,6 +998,12 @@ class ChatOverlayService : Service() {
         fun start(context: Context) {
             if (!PrefManager.chatHeadsEnabled || !Settings.canDrawOverlays(context)) return
             runCatching { context.startService(Intent(context, ChatOverlayService::class.java)) }
+        }
+
+        fun openHead(context: Context, friendId: Long) {
+            if (!PrefManager.chatHeadsEnabled || !Settings.canDrawOverlays(context)) return
+            val intent = Intent(context, ChatOverlayService::class.java).putExtra(EXTRA_FRIEND_ID, friendId)
+            runCatching { context.startService(intent) }
         }
 
         fun stop(context: Context) {

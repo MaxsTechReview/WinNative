@@ -53,3 +53,6 @@ signing.properties
 References/
 *.hprof
 android_sysvshm/build64/
+
+# local build artifacts (FEX/Proton wcp)
+dist/

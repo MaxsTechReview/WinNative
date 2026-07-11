@@ -19,11 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Records the game's composited output to an MP4 (H.264 video + AAC audio). Video frames come from
- * the native Vulkan renderer (mirror-presented into {@link #getInputSurface()}); game audio is teed
- * in via {@link #onPcm}. A background thread drains both encoders into the muxer.
- */
+/** Records the game's composited output to MP4 (H.264 + AAC). Video frames mirror-present into {@link #getInputSurface()}; audio is teed in via {@link #onPcm}. A background thread drains both encoders into the muxer. */
 public final class GameRecorder {
     private static final String TAG = "GameRecorder";
 

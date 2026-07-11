@@ -505,6 +505,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore-forudindstilling</string>
     <string name="container_fexcore_version">FEXCore-version</string>
+    <string name="use_unix_libs">Brug UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdriver</string>
@@ -588,6 +589,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>
@@ -781,10 +783,14 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="settings_debug_box_logs_subtitle">Skriv Box86 &amp; Box64-fejloutput til fil</string>
     <string name="settings_debug_fex_logs_title">Aktiver FEXCore-logfiler</string>
     <string name="settings_debug_fex_logs_subtitle">Skriv FEXCore-fejloutput til fil</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-emuleringslogfiler</string>
+    <string name="settings_debug_emulator_logs_subtitle">Logfører den emulator din container bruger, til fil.</string>
     <string name="settings_debug_steam_logs_title">Aktiver Steam-logfiler</string>
     <string name="settings_debug_steam_logs_subtitle">Log Steam-godkendelses- og sessionshændelser til fejlfinding.</string>
     <string name="settings_debug_wine_channels_title">Wine Debug-kanaler</string>
     <string name="settings_debug_wine_channels_summary">Vælg hvilke Wine-kanaler der medtages når Wine-fejllogning er aktiveret.</string>
+    <string name="settings_debug_wine_classes_title">Wine-logniveauer</string>
+    <string name="settings_debug_wine_classes_summary">Vælg hvilke beskedtyper der logges. Trace er ekstremt omfattende.</string>
     <string name="settings_debug_input_logs">Input-logfiler</string>
     <string name="settings_debug_input_logs_description">Log gamepad-, touch- og tastaturinputhændelser</string>
     <string name="settings_debug_download_logs">Download-logfiler</string>
@@ -1309,7 +1315,7 @@ Installeret sti:
     <string name="cloud_saves_history_steam_unreachable">Steam Cloud er utilgængelig lige nu. Genopretter forbindelsen i baggrunden tryk opdater, når du er online igen.</string>
     <string name="steam_session_refused_event">Steam afviste den cachede session (EResult=%1$d). Log ind igen.</string>
     <string name="settings_hud_record_to_file_title">Optag ydeevne til fil</string>
-    <string name="settings_hud_record_to_file_summary">Skriv FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
+    <string name="settings_hud_record_to_file_summary">Eksporterer FPS-, CPU-, GPU-, temperatur- og batterimålinger pr. sekund til /WinNative/logs/ under spil.</string>
     <string name="settings_leaderboard_category">Ydeevne</string>
     <!-- Preloader > Launch Screen -->
     <string name="preloader_preparing_steam_environment">Forbereder Steam-miljø</string>
@@ -1336,6 +1342,16 @@ Installeret sti:
     <!-- Workshop -->
     <string name="workshop_loading_items">Indlæser Workshop-elementer</string>
     <string name="workshop_search_items">Søg i Workshop-elementer</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Henter dine abonnerede emner fra Steam.</string>
+    <string name="workshop_error_title">Kunne ikke indlæse Workshop-emner</string>
+    <string name="workshop_error_subtitle">Noget gik galt. Prøv igen.</string>
+    <string name="workshop_empty_title">Ingen abonnerede Workshop-emner</string>
+    <string name="workshop_empty_subtitle">Abonnér på emner i Steam Workshop, og åbn derefter dette vindue igen.</string>
+    <string name="workshop_search_empty_title">Ingen emner matcher \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prøv et andet søgeord.</string>
+    <string name="workshop_clear_search">Ryd søgning</string>
+    <string name="workshop_item_fallback">Workshop-emne</string>
     <string name="common_ui_failed">Mislykket</string>
     <string name="steam_presence_snooze">Snooze</string>
     <string name="steam_presence_busy">Optaget</string>
@@ -1500,7 +1516,7 @@ Installeret sti:
     <string name="session_drawer_hud_background">Baggrund</string>
     <string name="session_drawer_hud_background_alpha">Baggrundsalfa</string>
     <string name="session_drawer_hud_background_alpha_input_title">Indstil baggrundsalfa</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Tilpas størrelse</string>
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>

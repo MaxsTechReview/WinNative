@@ -1,20 +1,12 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-/* Settings > Other screen — Jetpack Compose / Material3.
- * Uses a LazyColumn for the main content so the screen scrolls natively in Compose. */
 package com.winlator.cmod.feature.settings
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -69,7 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +71,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.winlator.cmod.R
 import com.winlator.cmod.shared.ui.dialog.PopupDialog
+import com.winlator.cmod.shared.ui.focus.rememberSettingsContentNav
+import com.winlator.cmod.shared.ui.nav.DialogPaneNav
+import com.winlator.cmod.shared.ui.nav.LocalPaneNav
+import com.winlator.cmod.shared.ui.nav.PaneNavRegistry
+import com.winlator.cmod.shared.ui.nav.paneNavItem
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.focus.focusProperties
 import com.winlator.cmod.shared.ui.outlinedSwitchColors
 
 // Palette (mirrors DebugScreen / StoresScreen)
@@ -89,6 +87,7 @@ private val CardBorder = Color(0xFF2A2A3A)
 private val IconBoxBg = Color(0xFF242434)
 private val SurfaceDark = Color(0xFF21212A)
 private val Accent = Color(0xFF1A9FFF)
+private val NavHighlight = Color(0xFF4FC3F7)
 private val TextPrimary = Color(0xFFF0F4FF)
 private val TextSecondary = Color(0xFF7A8FA8)
 private val SettingsSliderHeight = 24.dp
@@ -111,7 +110,6 @@ data class OtherSettingsState(
     val enableFileProvider: Boolean = true,
     val openInBrowser: Boolean = false,
     val shareClipboard: Boolean = false,
-    val recordPerformanceToFile: Boolean = false,
     val enableBackgroundSession: Boolean = false,
     val externalDisplayOutput: Boolean = false,
     val imagefsInstallProgress: Int? = null,
@@ -156,11 +154,11 @@ fun OtherSettingsScreen(
     onEnableFileProviderChanged: (Boolean) -> Unit,
     onOpenInBrowserChanged: (Boolean) -> Unit,
     onShareClipboardChanged: (Boolean) -> Unit,
-    onRecordPerformanceToFileChanged: (Boolean) -> Unit,
     onEnableBackgroundSessionChanged: (Boolean) -> Unit,
     onExternalDisplayOutputChanged: (Boolean) -> Unit,
     onRunSetupWizard: () -> Unit,
     onReinstallImagefs: () -> Unit,
+    bridge: SettingsNavBridge? = null,
 ) {
     var showReinstallDialog by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
@@ -168,6 +166,7 @@ fun OtherSettingsScreen(
     val navBarStartPadding = navBarPadding.calculateStartPadding(layoutDirection)
     val navBarEndPadding = navBarPadding.calculateEndPadding(layoutDirection)
     val navBarBottomPadding = navBarPadding.calculateBottomPadding()
+    val contentNav = rememberSettingsContentNav(bridge)
 
     if (showReinstallDialog) {
         ReinstallImagefsConfirmDialog(
@@ -183,33 +182,28 @@ fun OtherSettingsScreen(
         ImagefsInstallProgressDialog(percent = percent)
     }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(BgDark),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp + navBarStartPadding,
-                end = 16.dp + navBarEndPadding,
-                top = 16.dp,
-                bottom = 4.dp + navBarBottomPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "application_section") {
+    CompositionLocalProvider(LocalPaneNav provides contentNav) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(BgDark)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 16.dp + navBarStartPadding,
+                        end = 16.dp + navBarEndPadding,
+                        top = 16.dp,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             SectionLabel(stringResource(R.string.common_ui_application))
-        }
 
-        item(key = "updates_card") {
             UpdatesCard(
                 checked = state.checkForUpdates,
                 onCheckedChange = onCheckForUpdatesChanged,
                 onCheckNow = onCheckForUpdatesNow,
             )
-        }
 
-        item(key = "language_card") {
             SettingsDropdownCard(
                 title = stringResource(R.string.settings_other_language_title),
                 subtitle = stringResource(R.string.settings_other_language_summary),
@@ -218,9 +212,8 @@ fun OtherSettingsScreen(
                 selectedIndex = state.languageIndex,
                 onOptionSelected = onLanguageSelected,
             )
-        }
 
-        item(key = "game_language_card") {
+
             SettingsDropdownCard(
                 title = stringResource(R.string.settings_other_game_language_title),
                 subtitle = stringResource(R.string.settings_other_game_language_summary),
@@ -229,13 +222,10 @@ fun OtherSettingsScreen(
                 selectedIndex = state.containerLanguageIndex,
                 onOptionSelected = onContainerLanguageSelected,
             )
-        }
+        
 
-        item(key = "audio_section") {
-            SectionLabel(stringResource(R.string.settings_audio_sound), modifier = Modifier.padding(top = 8.dp))
-        }
+            
 
-        item(key = "sound_font_card") {
             SoundFontCard(
                 files = state.soundFontFiles,
                 selectedIndex = state.soundFontIndex,
@@ -243,21 +233,15 @@ fun OtherSettingsScreen(
                 onInstall = onInstallSoundFont,
                 onRemove = onRemoveSoundFont,
             )
-        }
 
-        item(key = "paths_section") {
             SectionLabel(stringResource(R.string.settings_general_paths_title), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "winlator_path_card") {
             FolderPathCard(
                 label = stringResource(R.string.settings_general_winlator_path_title),
                 path = state.winlatorPath,
                 onBrowse = onPickWinlatorPath,
             )
-        }
 
-        item(key = "shortcut_export_path_card") {
             FolderPathCard(
                 label = stringResource(R.string.settings_general_shortcut_export_path_title),
                 path = state.shortcutExportPath,
@@ -265,20 +249,14 @@ fun OtherSettingsScreen(
                 secondaryLabel = stringResource(R.string.shortcuts_export_all),
                 onSecondary = onExportAll,
             )
-        }
 
-        item(key = "xserver_section") {
             SectionLabel(stringResource(R.string.session_xserver_title), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "cursor_speed_card") {
             CursorSpeedCard(
                 percent = state.cursorSpeedPercent,
                 onPercentChanged = onCursorSpeedChanged,
             )
-        }
 
-        item(key = "cursor_lock_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_cursor_lock_title),
                 subtitle = stringResource(R.string.settings_general_cursor_lock_summary),
@@ -286,9 +264,7 @@ fun OtherSettingsScreen(
                 checked = state.cursorLock,
                 onCheckedChange = onCursorLockChanged,
             )
-        }
 
-        item(key = "xinput_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_xinput_toggle_title),
                 subtitle = stringResource(R.string.settings_general_xinput_toggle_summary),
@@ -296,9 +272,7 @@ fun OtherSettingsScreen(
                 checked = state.xinputDisabled,
                 onCheckedChange = onXinputDisabledChanged,
             )
-        }
 
-        item(key = "external_display_output_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.session_drawer_output_to_display),
                 subtitle = stringResource(R.string.settings_external_display_output_summary),
@@ -306,13 +280,9 @@ fun OtherSettingsScreen(
                 checked = state.externalDisplayOutput,
                 onCheckedChange = onExternalDisplayOutputChanged,
             )
-        }
 
-        item(key = "integration_section") {
             SectionLabel(stringResource(R.string.settings_other_section_integration), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "background_session_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_background),
                 subtitle = "Keep session alive while in background",
@@ -320,9 +290,7 @@ fun OtherSettingsScreen(
                 checked = state.enableBackgroundSession,
                 onCheckedChange = onEnableBackgroundSessionChanged,
             )
-        }
 
-        item(key = "file_provider_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_enable_file_provider),
                 subtitle = stringResource(R.string.settings_general_file_provider_summary),
@@ -330,9 +298,7 @@ fun OtherSettingsScreen(
                 checked = state.enableFileProvider,
                 onCheckedChange = onEnableFileProviderChanged,
             )
-        }
 
-        item(key = "browser_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_open_with_android_browser),
                 subtitle = stringResource(R.string.settings_general_open_browser_summary),
@@ -340,9 +306,7 @@ fun OtherSettingsScreen(
                 checked = state.openInBrowser,
                 onCheckedChange = onOpenInBrowserChanged,
             )
-        }
 
-        item(key = "clipboard_card") {
             SettingsToggleCard(
                 title = stringResource(R.string.settings_general_share_android_clipboard),
                 subtitle = stringResource(R.string.settings_general_clipboard_summary),
@@ -350,39 +314,14 @@ fun OtherSettingsScreen(
                 checked = state.shareClipboard,
                 onCheckedChange = onShareClipboardChanged,
             )
-        }
 
-        item(key = "perf_leaderboard_section") {
-            SectionLabel(
-                stringResource(R.string.settings_leaderboard_category),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-
-        item(key = "record_perf_to_file_card") {
-            SettingsToggleCard(
-                title = stringResource(R.string.settings_hud_record_to_file_title),
-                subtitle = stringResource(R.string.settings_hud_record_to_file_summary),
-                icon = Icons.Outlined.Speed,
-                checked = state.recordPerformanceToFile,
-                onCheckedChange = onRecordPerformanceToFileChanged,
-            )
-        }
-
-        item(key = "imagefs_section") {
             SectionLabel(stringResource(R.string.settings_general_imagefs), modifier = Modifier.padding(top = 8.dp))
-        }
 
-        item(key = "reinstall_imagefs_card") {
             ReinstallImagefsCard(onClick = { showReinstallDialog = true })
-        }
 
-        item(key = "setup_wizard_card") {
             SetupWizardCard(onClick = onRunSetupWizard)
-        }
 
-        item(key = "bottom_spacer") {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp + navBarBottomPadding))
         }
     }
 }
@@ -419,7 +358,13 @@ private fun SettingsToggleCard(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .paneNavItem(
+                    cornerRadius = 12.dp,
+                    onActivate = { onCheckedChange(!checked) },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ),
     ) {
         Row(
             modifier =
@@ -452,7 +397,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                modifier = Modifier.scale(0.78f),
+                modifier = Modifier.scale(0.78f).focusProperties { canFocus = false },
                 colors =
                     outlinedSwitchColors(
                         accentColor = accentColor,
@@ -475,7 +420,13 @@ private fun UpdatesCard(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .paneNavItem(
+                    cornerRadius = 12.dp,
+                    onActivate = { onCheckedChange(!checked) },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ),
     ) {
         Row(
             modifier =
@@ -582,29 +533,18 @@ private fun SettingsDropdownCard(
             }
             Spacer(Modifier.width(8.dp))
             Box {
-                var isPressed by remember { mutableStateOf(false) }
-                val btnScale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.93f else 1f,
-                    animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                    label = "otherDropdownScale",
-                )
                 Row(
                     modifier =
                         Modifier
-                            .scale(btnScale)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF222232))
                             .border(1.dp, accentColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                            .pointerInput(options) {
-                                detectTapGestures(
-                                    onPress = {
-                                        isPressed = true
-                                        tryAwaitRelease()
-                                        isPressed = false
-                                    },
-                                    onTap = { if (options.isNotEmpty()) expanded = true },
-                                )
-                            }.padding(horizontal = 10.dp, vertical = 7.dp)
+                            .paneNavItem(
+                                cornerRadius = 8.dp,
+                                onActivate = { if (options.isNotEmpty()) expanded = true },
+                                highlightColor = NavHighlight,
+                                tapToSelect = true,
+                            ).padding(horizontal = 10.dp, vertical = 7.dp)
                             .widthIn(max = 180.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -726,32 +666,23 @@ private fun SoundFontCard(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    var isPressed by remember { mutableStateOf(false) }
-                    val btnScale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.97f else 1f,
-                        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                        label = "sfDropdownScale",
-                    )
                     Row(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .scale(btnScale)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0xFF222232))
                                 .border(1.dp, Accent.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                                .pointerInput(files) {
-                                    detectTapGestures(
-                                        onPress = {
-                                            isPressed = true
-                                            tryAwaitRelease()
-                                            isPressed = false
-                                        },
-                                        onTap = { if (files.isNotEmpty()) expanded = true },
-                                    )
-                                }.padding(horizontal = 10.dp, vertical = 8.dp),
+                                .paneNavItem(
+                                    cornerRadius = 8.dp,
+                                    onActivate = { if (files.isNotEmpty()) expanded = true },
+                                    highlightColor = NavHighlight,
+                                    tapToSelect = true,
+                                ).padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
@@ -956,7 +887,14 @@ private fun CursorSpeedCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(SettingsSliderHeight),
+                        .height(SettingsSliderHeight)
+                        .paneNavItem(
+                            cornerRadius = 12.dp,
+                            onAdjust = { dir ->
+                                onPercentChanged((percent + dir * 5).coerceIn(10, 300))
+                            },
+                            highlightColor = NavHighlight,
+                        ),
             )
         }
     }
@@ -967,17 +905,21 @@ private fun ReinstallImagefsConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val nav = remember { PaneNavRegistry() }
     Dialog(onDismissRequest = onDismiss) {
-        PopupDialog(
-            title = stringResource(R.string.settings_general_reinstall_imagefs),
-            message = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
-            icon = Icons.Outlined.Autorenew,
-            confirmLabel = stringResource(R.string.common_ui_reinstall),
-            onConfirm = onConfirm,
-            onCancel = onDismiss,
-            accentColor = Accent,
-            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-        )
+        DialogPaneNav(nav, onDismiss = onDismiss)
+        CompositionLocalProvider(LocalPaneNav provides nav) {
+            PopupDialog(
+                title = stringResource(R.string.settings_general_reinstall_imagefs),
+                message = stringResource(R.string.settings_general_confirm_reinstall_imagefs),
+                icon = Icons.Outlined.Autorenew,
+                confirmLabel = stringResource(R.string.common_ui_reinstall),
+                onConfirm = onConfirm,
+                onCancel = onDismiss,
+                accentColor = Accent,
+                modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            )
+        }
     }
 }
 
@@ -1094,30 +1036,19 @@ private fun SmallActionButton(
     textColor: Color,
     onClick: () -> Unit,
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "otherBtnScale",
-    )
     Box(
         modifier =
             Modifier
-                .scale(scale)
                 .width(104.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFF222232))
                 .border(1.dp, textColor.copy(alpha = 0.30f), RoundedCornerShape(8.dp))
-                .pointerInput(onClick) {
-                    detectTapGestures(
-                        onPress = {
-                            isPressed = true
-                            tryAwaitRelease()
-                            isPressed = false
-                        },
-                        onTap = { onClick() },
-                    )
-                }.padding(horizontal = 11.dp, vertical = 6.dp),
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = onClick,
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                ).padding(horizontal = 11.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

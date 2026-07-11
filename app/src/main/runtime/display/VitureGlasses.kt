@@ -14,9 +14,7 @@ import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
 
-// Controls Viture XR glasses over their USB MCU interface (protocol RE'd from SpaceWalker's
-// libglasses-internal.so): force panel refresh/3D and set brightness/electrochromic shade. Active
-// only when real Viture glasses (vendor 0x35CA) are connected; TVs/monitors use the Android path.
+// Controls Viture XR glasses over their USB MCU interface: force panel refresh/3D, set brightness/electrochromic shade. Active only for real Viture glasses (vendor 0x35CA); TVs/monitors use the Android path.
 class VitureGlasses(private val context: Context) {
 
     fun interface ConnectionListener {
@@ -28,7 +26,7 @@ class VitureGlasses(private val context: Context) {
         const val VENDOR_ID = 0x35CA
         private const val ACTION_PERMISSION = "com.winlator.cmod.USB_PERMISSION_VITURE"
 
-        // Product ids grouped by the command dialect the firmware speaks (from the decompiled tables).
+        // Product ids grouped by the command dialect the firmware speaks.
         private val PID_ONE = intArrayOf(0x1011, 0x1013, 0x1015, 0x1017, 0x101b)
         private val PID_BEAST = intArrayOf(0x1201, 0x1211)
 
@@ -50,7 +48,7 @@ class VitureGlasses(private val context: Context) {
 
         private const val PACKET_SIZE = 64
 
-        // CRC-16/XMODEM table (poly 0x1021, init 0) — matches the table at 0x1273f2 in the binary.
+        // CRC-16/XMODEM table (poly 0x1021, init 0).
         private val CRC_TABLE = IntArray(256).also { t ->
             for (i in 0 until 256) {
                 var c = i shl 8
@@ -230,8 +228,7 @@ class VitureGlasses(private val context: Context) {
             Log.w(TAG, "claimInterface ${cmd.first.id} failed")
             return
         }
-        // CDC-Data (class 10) command channels usually need the paired CDC control interface claimed
-        // and DTR/RTS asserted (SET_CONTROL_LINE_STATE) before the bulk pipe carries data.
+        // CDC-Data (class 10) usually needs the paired CDC control interface claimed and DTR/RTS asserted (SET_CONTROL_LINE_STATE) before the bulk pipe carries data.
         var ctrl: UsbInterface? = null
         if (cmd.first.interfaceClass == 10) {
             ctrl = findInterfaceByClass(device, 2)
@@ -250,8 +247,7 @@ class VitureGlasses(private val context: Context) {
         listener?.onVitureConnectionChanged(true)
     }
 
-    // Commands go to the MCU, which is the highest-numbered HID interface with an interrupt-OUT
-    // endpoint (the lower-numbered HID interface is the IMU). Falls back to bulk/any OUT otherwise.
+    // The MCU is the highest-numbered HID interface with an interrupt-OUT endpoint (the lower one is the IMU); falls back to bulk/any OUT.
     private fun findCommandInterface(device: UsbDevice): Pair<UsbInterface, UsbEndpoint>? {
         var hidMcu: Pair<UsbInterface, UsbEndpoint>? = null
         var bulk: Pair<UsbInterface, UsbEndpoint>? = null
