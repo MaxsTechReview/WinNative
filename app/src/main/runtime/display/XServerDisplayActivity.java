@@ -1540,7 +1540,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         cachedPreloaderSubtitle = container != null ? container.getName() : "";
         showLaunchPreloader(getString(R.string.preloader_initializing));
 
-        if (preferences.getBoolean("enable_background_session", false)) {
+        // Dependency-install sessions must not become background/reattachable sessions.
+        if (!isDependencyInstall && preferences.getBoolean("enable_background_session", false)) {
             SessionKeepAliveService.startSession(this);
         }
 
@@ -6447,7 +6448,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
-        if (SessionKeepAliveService.isSessionActive()) {
+        // Never reattach for a dependency install: the boot exe must run in a fresh
+        // environment, and a stale activeEnvironment from a just-closed session would
+        // swallow the launch (black screen, bridge never completes).
+        if (!isDependencyInstall && SessionKeepAliveService.isSessionActive()) {
             XEnvironment existingEnv = SessionKeepAliveService.getActiveEnvironment();
             XServer existingXServer = SessionKeepAliveService.getActiveXServer();
             if (existingEnv != null && existingXServer != null) {
@@ -6572,7 +6576,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             guestProgramLauncherComponent.setFEXCorePreset(effectiveFEXCorePreset);
 
                 // Steam preUnpack installs prerequisites before game launch.
-                boolean isSteamGameForUnpack = shortcut != null && "STEAM".equals(shortcut.getExtra("game_source"));
+                String prereqGameSource = shortcut != null ? shortcut.getExtra("game_source") : null;
+                boolean isSteamGameForUnpack = "STEAM".equals(prereqGameSource);
                 if (isSteamGameForUnpack) {
                     guestProgramLauncherComponent.setPreUnpack(() -> {
                         try {
@@ -6587,6 +6592,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     guestProgramLauncherComponent,
                                     container.isNeedsUnpacking(),
                                     currentUnpackFiles);
+                        } catch (Exception e) {
+                            Log.e("XServerDisplayActivity", "preUnpack failed", e);
+                        }
+                    });
+                } else if ("GOG".equals(prereqGameSource) || "EPIC".equals(prereqGameSource)) {
+                    guestProgramLauncherComponent.setPreUnpack(() -> {
+                        try {
+                            installMonoIfNeeded(guestProgramLauncherComponent);
+                            installGeckoIfNeeded(guestProgramLauncherComponent);
                         } catch (Exception e) {
                             Log.e("XServerDisplayActivity", "preUnpack failed", e);
                         }
@@ -6917,8 +6931,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 preloaderDialog.setStepOnUiThread(R.string.preloader_starting_wine);
             }
             environment.startEnvironmentComponents();
-            SessionKeepAliveService.setActiveEnvironment(environment);
-            SessionKeepAliveService.setActiveXServer(xServer);
+            if (!isDependencyInstall) {
+                SessionKeepAliveService.setActiveEnvironment(environment);
+                SessionKeepAliveService.setActiveXServer(xServer);
+            }
         }
 
         winHandler.start();
@@ -9363,6 +9379,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                   boolean needsUnpacking, boolean unpackFiles) {
         boolean monoReady = installMonoIfNeeded(launcher);
 
+        installGeckoIfNeeded(launcher);
+
         installRedistributablesIfNeeded(launcher);
 
         if (!unpackFiles) {
@@ -9516,6 +9534,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean installMonoIfNeeded(GuestProgramLauncherComponent launcher) {
+        // Any installed Mono is kept as-is; prefix repair clears the marker to force a reinstall.
+        String installedVersion = container.getExtra("mono_version", null);
+        if (installedVersion != null) {
+            Log.d("XServerDisplayActivity", "Mono v" + installedVersion + " already installed in container " + container.id + ", skipping");
+            return true;
+        }
+        if (hasInstalledComponentPrefix("mono")) {
+            Log.d("XServerDisplayActivity", "Mono already installed via components in container " + container.id + ", skipping");
+            return true;
+        }
+
         String winePath = wineInfo != null ? wineInfo.path : null;
 
         String requiredVersion = SteamClientManager.detectRequiredMonoVersion(this, winePath);
@@ -9524,36 +9553,81 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             return false;
         }
 
-        String installedVersion = container.getExtra("mono_version", null);
-        if (requiredVersion.equals(installedVersion)) {
-            Log.d("XServerDisplayActivity", "Mono v" + installedVersion + " already installed in container " + container.id + ", skipping");
-            return true;
-        }
-
-        if (installedVersion != null) {
-            Log.w("XServerDisplayActivity", "Mono version mismatch in container " + container.id
-                    + ": installed v" + installedVersion + " but need v" + requiredVersion + " — reinstalling");
-        }
-
         String monoWinePath = SteamClientManager.getMonoMsiWinePath(this, winePath);
         if (monoWinePath == null) {
             Log.w("XServerDisplayActivity", "Mono MSI not available (no internet?), will retry next launch");
             return false;
         }
 
+        // The MSI actually resolved may be a fallback version; record what really got installed.
+        String actualVersion = requiredVersion;
+        java.util.regex.Matcher monoMsiMatcher =
+                java.util.regex.Pattern.compile("wine-mono-(\\d+\\.\\d+\\.\\d+)").matcher(monoWinePath);
+        if (monoMsiMatcher.find()) actualVersion = monoMsiMatcher.group(1);
+        if (!actualVersion.equals(requiredVersion)) {
+            Log.w("XServerDisplayActivity", "Mono fallback: required v" + requiredVersion
+                    + " but installing v" + actualVersion + " (" + monoWinePath + ")");
+        }
+
         try {
-            Log.d("XServerDisplayActivity", "Installing Wine Mono v" + requiredVersion
+            Log.d("XServerDisplayActivity", "Installing Wine Mono v" + actualVersion
                     + " (" + monoWinePath + ") in container " + container.id + "...");
             String monoCmd = "wine msiexec /i " + monoWinePath + " && wineserver -k";
             launcher.execShellCommand(monoCmd);
             container.putExtra("mono_installed", "true");
-            container.putExtra("mono_version", requiredVersion);
+            container.putExtra("mono_version", actualVersion);
             container.saveData();
-            Log.d("XServerDisplayActivity", "Mono v" + requiredVersion + " installed in container " + container.id);
+            Log.d("XServerDisplayActivity", "Mono v" + actualVersion + " installed in container " + container.id);
             return true;
         } catch (Exception e) {
             Log.w("XServerDisplayActivity", "Mono msiexec failed, will retry next launch", e);
             return false;
+        }
+    }
+
+    private boolean hasInstalledComponentPrefix(String prefix) {
+        for (String name : com.winlator.cmod.runtime.content.component.ComponentInstaller
+                .installedComponents(container)) {
+            if (name.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    private void installGeckoIfNeeded(GuestProgramLauncherComponent launcher) {
+        String installedGecko = container.getExtra("gecko_version", null);
+        if (installedGecko != null) {
+            Log.d("XServerDisplayActivity", "Gecko v" + installedGecko + " already installed in container "
+                    + container.id + ", skipping");
+            return;
+        }
+        if (hasInstalledComponentPrefix("gecko")) {
+            Log.d("XServerDisplayActivity", "Gecko already installed via components in container "
+                    + container.id + ", skipping");
+            return;
+        }
+        String geckoVersion = SteamClientManager.GECKO_VERSION;
+
+        java.util.List<String> geckoWinePaths = SteamClientManager.getGeckoMsiWinePaths(this);
+        if (geckoWinePaths.size() < 2) {
+            Log.w("XServerDisplayActivity", "Gecko MSIs not available (no internet?), will retry next launch");
+            return;
+        }
+
+        try {
+            Log.d("XServerDisplayActivity", "Installing Wine Gecko v" + geckoVersion
+                    + " in container " + container.id + "...");
+            StringBuilder geckoCmd = new StringBuilder();
+            for (String p : geckoWinePaths) {
+                if (geckoCmd.length() > 0) geckoCmd.append(" && ");
+                geckoCmd.append("wine msiexec /i ").append(p);
+            }
+            geckoCmd.append(" && wineserver -k");
+            launcher.execShellCommand(geckoCmd.toString());
+            container.putExtra("gecko_version", geckoVersion);
+            container.saveData();
+            Log.d("XServerDisplayActivity", "Gecko v" + geckoVersion + " installed in container " + container.id);
+        } catch (Exception e) {
+            Log.w("XServerDisplayActivity", "Gecko msiexec failed, will retry next launch", e);
         }
     }
 
