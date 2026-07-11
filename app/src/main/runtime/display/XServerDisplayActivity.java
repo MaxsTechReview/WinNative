@@ -624,7 +624,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return Math.max(0, preferences.getInt("refresh_rate_override", 0));
     }
 
-    // Refresh-rate override caps frames via the vsync-aligned pacer; an explicit FPS-limit slider value wins.
+    // FPS-limit slider takes priority over the refresh-rate override.
     private int getEffectiveFpsLimit() {
         return runtimeFpsLimit > 0 ? runtimeFpsLimit : getRefreshRateOverride();
     }
@@ -2327,8 +2327,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private int[] getCapturedPointerDelta(MotionEvent event) {
-        // Motion events are batched per vsync; at low refresh rates each event
-        // carries multiple samples and skipping the history drops movement.
+        // Sum batched samples; skipping history drops movement at low refresh rates.
         final int historySize = event.getHistorySize();
         float dx = 0.0f;
         float dy = 0.0f;
