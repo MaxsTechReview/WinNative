@@ -302,7 +302,8 @@ public final class RefreshRateUtils {
     int modeId = resolvePreferredDisplayModeId(activity, effectiveRequestedHz);
     float refreshRate = resolvePreferredRefreshRate(activity, effectiveRequestedHz);
     params.preferredDisplayModeId = modeId;
-    params.preferredRefreshRate = refreshRate;
+    // Must be 0 when a modeId is set.
+    params.preferredRefreshRate = modeId != 0 ? 0f : refreshRate;
     activity.getWindow().setAttributes(params);
     Log.d(
         TAG,
