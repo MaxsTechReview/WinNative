@@ -2334,11 +2334,24 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private int[] getCapturedPointerDelta(MotionEvent event) {
-        float dx = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float dy = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        // Motion events are batched per vsync; at low refresh rates each event
+        // carries multiple samples and skipping the history drops movement.
+        final int historySize = event.getHistorySize();
+        float dx = 0.0f;
+        float dy = 0.0f;
+        for (int i = 0; i < historySize; i++) {
+            dx += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+            dy += event.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+        }
+        dx += event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        dy += event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
         if (dx == 0.0f && dy == 0.0f) {
-            dx = event.getX();
-            dy = event.getY();
+            for (int i = 0; i < historySize; i++) {
+                dx += event.getHistoricalX(i);
+                dy += event.getHistoricalY(i);
+            }
+            dx += event.getX();
+            dy += event.getY();
         }
         dx *= globalCursorSpeed;
         dy *= globalCursorSpeed;
