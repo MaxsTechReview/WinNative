@@ -327,6 +327,13 @@ private fun Modifier.smartDropdownAnchor(
 
 data class WinComponentItem(val key: String, val label: String, val selectedIndex: Int)
 data class EnvVarItem(val key: String, val value: String)
+
+// Row-preserving parse: duplicate names stay as separate rows (EnvVars would collapse them into a map).
+fun parseEnvVarItems(envVarsStr: String?): List<EnvVarItem> =
+    envVarsStr.orEmpty().split(" ").mapNotNull { part ->
+        val index = part.indexOf('=')
+        if (index <= 0) null else EnvVarItem(part.substring(0, index), part.substring(index + 1))
+    }
 data class ExtraArgGroup(val header: String, val args: List<String>)
 data class DriveItem(
     val letter: String,
@@ -2572,16 +2579,10 @@ private fun VariablesSection(
                 EnvVarRow(
                     name = envVar.key,
                     value = envVar.value,
-                    excludeOtherNames = state.envVars.value
-                        .filterIndexed { i, _ -> i != index }
-                        .map { it.key }
-                        .toSet(),
                     onNameChange = { newKey ->
                         val normalizedKey = newKey.trim()
                         val list = state.envVars.value.toMutableList()
-                        val isUnique = normalizedKey.isEmpty() ||
-                            state.envVars.value.none { it.key == normalizedKey }
-                        if (index in list.indices && isUnique) {
+                        if (index in list.indices) {
                             list[index] = EnvVarItem(normalizedKey, envVar.value)
                             state.envVars.value = list
                         }
@@ -2850,7 +2851,6 @@ private fun DriveLetterSelector(
 private fun EnvVarRow(
     name: String,
     value: String,
-    excludeOtherNames: Set<String>,
     onNameChange: (String) -> Unit,
     onValueChange: (String) -> Unit,
     onRemove: (() -> Unit)?,
@@ -2964,33 +2964,22 @@ private fun EnvVarRow(
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
 
-                val allKnown = EnvVarsView.knownEnvVars.map { it[0] }
-                val unselected = allKnown
-                    .filter { it !in excludeOtherNames && it != name }
+                EnvVarsView.knownEnvVars
+                    .map { it[0] }
                     .sortedBy { it.uppercase() }
-                val selected = allKnown
-                    .filter { it in excludeOtherNames }
-                    .sortedBy { it.uppercase() }
-
-                (unselected + selected).forEach { knownName ->
-                    val disabled = knownName != name && knownName in excludeOtherNames
-                    DropdownMenuItem(
-                        enabled = !disabled,
-                        text = {
-                            Text(
-                                knownName,
-                                color = if (disabled) TextDim else TextPrimary,
-                                fontSize = SettingValueSize
-                            )
-                        },
-                        onClick = {
-                            isCustomMode = false
-                            customText = ""
-                            onNameChange(knownName)
-                            nameMenuExpanded = false
-                        }
-                    )
-                }
+                    .forEach { knownName ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(knownName, color = TextPrimary, fontSize = SettingValueSize)
+                            },
+                            onClick = {
+                                isCustomMode = false
+                                customText = ""
+                                onNameChange(knownName)
+                                nameMenuExpanded = false
+                            }
+                        )
+                    }
             }
         }
         Spacer(Modifier.width(6.dp))

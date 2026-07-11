@@ -32,6 +32,7 @@ import com.winlator.cmod.R
 import com.winlator.cmod.app.PluviaApp
 import com.winlator.cmod.feature.library.DriveItem
 import com.winlator.cmod.feature.library.EnvVarItem
+import com.winlator.cmod.feature.library.parseEnvVarItems
 import androidx.compose.runtime.getValue
 import com.winlator.cmod.feature.library.GameSettingsCallbacks
 import com.winlator.cmod.feature.library.GameSettingsContent
@@ -943,15 +944,11 @@ class ShortcutSettingsComposeDialog private constructor(
             "envVars",
             container?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
         )
-        val envVars = EnvVars(envVarsStr)
-        val items = mutableListOf<EnvVarItem>()
-        for (key in envVars) {
-            items.add(EnvVarItem(key, envVars.get(key)))
-        }
+        val items = parseEnvVarItems(envVarsStr)
         state.envVars.value = items
 
         // Hide SDL2 keys from the user-visible list when the toggle is on.
-        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        state.sdl2Compatibility.value = EnvVars(envVarsStr).get("SDL_XINPUT_ENABLED") == "1"
         if (state.sdl2Compatibility.value) {
             state.envVars.value = items.filterNot { item ->
                 sdl2EnvVars.any { it.first == item.key }
@@ -2205,10 +2202,9 @@ class ShortcutSettingsComposeDialog private constructor(
         state.directXComponents.value = directX
         state.generalComponents.value = general
 
-        val envVars = EnvVars(container.getEnvVars() ?: Container.DEFAULT_ENV_VARS)
-        val items = mutableListOf<EnvVarItem>()
-        for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
-        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        val containerEnvVarsStr = container.getEnvVars() ?: Container.DEFAULT_ENV_VARS
+        val items = parseEnvVarItems(containerEnvVarsStr)
+        state.sdl2Compatibility.value = EnvVars(containerEnvVarsStr).get("SDL_XINPUT_ENABLED") == "1"
         state.envVars.value = if (state.sdl2Compatibility.value) {
             items.filterNot { item -> sdl2EnvVars.any { it.first == item.key } }
         } else items

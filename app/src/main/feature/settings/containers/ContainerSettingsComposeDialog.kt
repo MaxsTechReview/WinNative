@@ -34,6 +34,7 @@ import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
+import com.winlator.cmod.feature.library.parseEnvVarItems
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -452,10 +453,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.generalComponents.value = general
 
         val envVarsStr = c?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
-        val envVars = EnvVars(envVarsStr)
-        val items = mutableListOf<EnvVarItem>()
-        for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
-        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        val items = parseEnvVarItems(envVarsStr)
+        state.sdl2Compatibility.value = EnvVars(envVarsStr).get("SDL_XINPUT_ENABLED") == "1"
         state.envVars.value = if (state.sdl2Compatibility.value) {
             items.filterNot { it.key in SDL2_KEYS }
         } else items
