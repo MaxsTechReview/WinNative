@@ -1258,7 +1258,11 @@ class SteamService : Service() {
                 )
             }
 
-        fun getAppInfoOf(appId: Int): SteamApp? = runBlocking(Dispatchers.IO) { instance?.appDao?.findApp(appId) }
+        fun getAppInfoOf(appId: Int): SteamApp? =
+            runBlocking(Dispatchers.IO) {
+                val dao = instance?.appDao ?: runCatching { PluviaDatabase.getInstance().steamAppDao() }.getOrNull()
+                dao?.findApp(appId)
+            }
 
         fun getDownloadingAppInfoOf(appId: Int): DownloadingAppInfo? =
             runBlocking(Dispatchers.IO) {
@@ -1316,7 +1320,11 @@ class SteamService : Service() {
 
         fun getHiddenDlcAppsOf(appId: Int): List<SteamApp>? = runBlocking(Dispatchers.IO) { instance?.appDao?.findHiddenDLCApps(appId) }
 
-        fun getInstalledApp(appId: Int): AppInfo? = runBlocking(Dispatchers.IO) { instance?.appInfoDao?.getInstalledApp(appId) }
+        fun getInstalledApp(appId: Int): AppInfo? =
+            runBlocking(Dispatchers.IO) {
+                val dao = instance?.appInfoDao ?: runCatching { PluviaDatabase.getInstance().appInfoDao() }.getOrNull()
+                dao?.getInstalledApp(appId)
+            }
 
         fun getInstalledDepotsOf(appId: Int): List<Int>? = getTrustedInstalledAppInfo(appId)?.downloadedDepots
 
