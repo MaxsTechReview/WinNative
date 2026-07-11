@@ -222,10 +222,10 @@ fun OtherSettingsScreen(
                 selectedIndex = state.containerLanguageIndex,
                 onOptionSelected = onContainerLanguageSelected,
             )
-        
 
-            
 
+
+            SectionLabel(stringResource(R.string.settings_audio_sound), modifier = Modifier.padding(top = 8.dp))
             SoundFontCard(
                 files = state.soundFontFiles,
                 selectedIndex = state.soundFontIndex,
