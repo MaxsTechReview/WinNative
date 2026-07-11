@@ -98,6 +98,7 @@ public class EnvVarsView extends FrameLayout {
       "samplers"
     },
     {"DXVK_DISABLE_TIMELINE_SEMAPHORES", "CHECKBOX", "0", "1"},
+    {"VKD3D_SHADER_MODEL", "SELECT_CUSTOM", "6_9", "6_6", "6_0", "5_0"},
     {"MESA_EXTENSION_MAX_YEAR", "TEXT"},
     {"WRAPPER_MAX_IMAGE_COUNT", "TEXT"},
     {"MESA_GL_VERSION_OVERRIDE", "TEXT"},

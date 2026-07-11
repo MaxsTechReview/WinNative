@@ -3065,6 +3065,14 @@ private fun EnvVarValueEditor(
                 onSelected = onValueChange
             )
         }
+        "SELECT_CUSTOM" -> {
+            val options = known!!.drop(2)
+            EnvValueDropdownWithCustom(
+                current = value,
+                options = options,
+                onChanged = onValueChange
+            )
+        }
         "SELECT_MULTIPLE" -> {
             val options = known!!.drop(2)
             EnvValueMultiDropdown(
@@ -3136,6 +3144,109 @@ private fun EnvValueDropdown(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EnvValueDropdownWithCustom(
+    current: String,
+    options: List<String>,
+    onChanged: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val menuOffset = rememberSmartDropdownOffset()
+    var customMode by remember { mutableStateOf(current.isNotEmpty() && current !in options) }
+    Box {
+        if (customMode) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    EnvValueTextField(current, onChanged)
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(EnvVarControlHeight)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(InputSurface)
+                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
+                        .smartDropdownAnchor(offset = menuOffset) { expanded = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(EnvVarControlHeight)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(InputSurface)
+                    .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .paneNavItem(cornerRadius = 8.dp, onActivate = { expanded = true }, highlightColor = NavHighlight)
+                    .smartDropdownAnchor(offset = menuOffset) { expanded = true }
+                    .padding(horizontal = SettingFieldHorizontalPadding),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (current.isEmpty()) options.firstOrNull().orEmpty() else current,
+                        color = TextPrimary,
+                        fontSize = SettingValueSize,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            offset = menuOffset.value,
+            shape = RoundedCornerShape(8.dp),
+            containerColor = CardSurface,
+            modifier = Modifier.width(220.dp)
+        ) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt, color = TextPrimary, fontSize = SettingValueSize) },
+                    onClick = {
+                        customMode = false
+                        onChanged(opt)
+                        expanded = false
+                    }
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(R.string.common_ui_custom),
+                        color = AccentBlue,
+                        fontSize = SettingValueSize,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                onClick = {
+                    customMode = true
+                    onChanged("")
+                    expanded = false
+                }
+            )
         }
     }
 }
