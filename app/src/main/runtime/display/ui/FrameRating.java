@@ -1355,7 +1355,7 @@ public class FrameRating extends LinearLayout implements Runnable {
           if (parts.length >= 2) {
             long busy = Long.parseLong(parts[0]);
             long total = Long.parseLong(parts[1]);
-            if (total != 0) return (int) ((100 * busy) / total);
+            return total != 0 ? (int) ((100 * busy) / total) : 0;
           }
         }
       } catch (Exception ignored) {
