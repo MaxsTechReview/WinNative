@@ -7656,7 +7656,9 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = installed || totalInstallSize == 0L || availableBytes >= totalInstallSize
+        // Installed game: base content is on disk, so only gate on the newly-selected DLC bytes.
+        val requiredBytes = if (installed) selectedDlcInstallBytes else totalInstallSize
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installActionEnabled = isInstallEnabled && !hasBlockingEpicDownload
         val installPathDisplay = if (installed) app.installPath else (customPath ?: EpicConstants.defaultEpicGamesPath(context))
 
@@ -9927,6 +9929,7 @@ class UnifiedActivity :
         val context = LocalContext.current
         var isLoading by remember { mutableStateOf(true) }
         var selectedManifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
+        var baseInstallSize by remember(app.id) { mutableStateOf(0L) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var dlcSizes by remember { mutableStateOf<Map<Int, SteamService.ManifestSizes>>(emptyMap()) }
         var installedDlcIds by remember(app.id) { mutableStateOf<Set<Int>>(emptySet()) }
@@ -9992,6 +9995,7 @@ class UnifiedActivity :
             installedDlcIds = loadData.installedDlcIds
             selectedDlcIds.removeAll(loadData.installedDlcIds)
             selectedManifestSizes = loadData.baseManifestSizes
+            baseInstallSize = loadData.baseManifestSizes.installSize
             installed = loadData.installed
             isLoading = false
         }
@@ -10019,7 +10023,11 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = installed == true || totalInstallSize == 0L || availableBytes >= totalInstallSize
+        // For an already-installed game the base content is on disk, so only require free
+        // space for the newly-selected DLC (already-installed DLC is excluded from selection).
+        val requiredBytes =
+            if (installed == true) (totalInstallSize - baseInstallSize).coerceAtLeast(0L) else totalInstallSize
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
 
         val dlcItems =

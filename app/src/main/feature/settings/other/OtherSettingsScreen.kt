@@ -98,7 +98,6 @@ data class OtherSettingsState(
     val checkForUpdates: Boolean = true,
     val languageLabels: List<String> = emptyList(),
     val languageIndex: Int = 0,
-
     val soundFontFiles: List<String> = emptyList(),
     val soundFontIndex: Int = 0,
     val winlatorPath: String = "",
@@ -212,6 +211,7 @@ fun OtherSettingsScreen(
             )
 
             SectionLabel(stringResource(R.string.settings_audio_sound), modifier = Modifier.padding(top = 8.dp))
+
             SoundFontCard(
                 files = state.soundFontFiles,
                 selectedIndex = state.soundFontIndex,

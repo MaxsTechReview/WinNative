@@ -815,10 +815,11 @@ object SteamUtils {
         branch: String,
         installedDepotIds: Set<Int>,
         installedDlcAppIds: Set<Int>,
+        language: String,
     ): LinkedHashMap<Int, ManifestInfo> {
         val allKnownDepots = linkedMapOf<Int, DepotInfo>()
         appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
-        SteamService.getDownloadableDepots(steamAppId).forEach { (depotId, depot) ->
+        SteamService.getDownloadableDepots(steamAppId, language).forEach { (depotId, depot) ->
             allKnownDepots[depotId] = depot
         }
 
@@ -910,6 +911,7 @@ object SteamUtils {
                     branch = selectedBranch,
                     installedDepotIds = installedDepotIds,
                     installedDlcAppIds = installedDlcAppIds,
+                    language = language,
                 )
 
             // Compute total download and stage sizes from resolved depots
@@ -919,7 +921,7 @@ object SteamUtils {
             // Collect dlcAppId mapping for InstalledDepots entries
             val allKnownDepots = linkedMapOf<Int, com.winlator.cmod.feature.stores.steam.data.DepotInfo>()
             appInfo.depots.forEach { (depotId, depot) -> allKnownDepots[depotId] = depot }
-            SteamService.getDownloadableDepots(steamAppId).forEach { (depotId, depot) ->
+            SteamService.getDownloadableDepots(steamAppId, language).forEach { (depotId, depot) ->
                 allKnownDepots[depotId] = depot
             }
 
@@ -934,8 +936,9 @@ object SteamUtils {
             // Collect install scripts for InstallScripts section
             val installScripts = linkedMapOf<Int, String>()
             if (appInfo.installScript.isNotBlank()) {
-                // Map the base game depot(s) to the install script
-                allKnownDepots.forEach { (depotId, depotInfo) ->
+                // Map the base game depot(s) to the install script (base app's own depots only,
+                // matching the native launcher env-var path in XServerDisplayActivity).
+                appInfo.depots.forEach { (depotId, depotInfo) ->
                     if (depotInfo.dlcAppId == SteamService.INVALID_APP_ID &&
                         depotInfo.depotFromApp == SteamService.INVALID_APP_ID
                     ) {

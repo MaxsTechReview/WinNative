@@ -6916,6 +6916,10 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                         int dlcAppId = di.getDlcAppId();
                                         if (dlcAppId != com.winlator.cmod.feature.stores.steam.service.SteamService.INVALID_APP_ID) {
                                             depotSb.append(":").append(dlcAppId);
+                                        } else if (installedDlcAppIds.contains(depotId)) {
+                                            // Mirror Kotlin createAppManifest: fall back to depotId as the dlcappid
+                                            // when the depot carries no dlcAppId but is itself a tracked DLC.
+                                            depotSb.append(":").append(depotId);
                                         }
                                         totalBytesToDownload += manifest.getDownload();
                                         totalBytesToStage += manifest.getSize();
@@ -10576,11 +10580,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             File defaultAcf = new File(imageFs.getRootDir(),
                     ImageFs.WINEPREFIX + "/drive_c/Program Files (x86)/Steam/steamapps/appmanifest_" + appId + ".acf");
             File containerAcf = new File(steamappsDir, "appmanifest_" + appId + ".acf");
-            // Only sync if the container doesn't already have a manifest — the user may
-            // have custom depot config that must not be clobbered.
-            if (defaultAcf.exists() && !containerAcf.exists()) {
+            // Refresh the container manifest from the freshly generated one on every launch so
+            // newly installed DLC / language changes propagate. The generated manifest is the
+            // source of truth (the native launcher rewrites this same file too), so a stale
+            // container copy must not be left in place.
+            if (defaultAcf.exists()) {
                 try {
-                    java.nio.file.Files.copy(defaultAcf.toPath(), containerAcf.toPath());
+                    java.nio.file.Files.copy(defaultAcf.toPath(), containerAcf.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     Log.d("XServerDisplayActivity", "Synced ACF manifest to container steamapps dir");
                 } catch (Exception e) {
                     Log.w("XServerDisplayActivity", "Failed to copy ACF to container steamapps", e);
@@ -10594,7 +10601,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 String steamworksAcfContent = "\"AppState\"\n" +
                         "{\n" +
                         "\t\"appid\"\t\t\"228980\"\n" +
-                        "\t\"Universe\"\t\t\"1\"\n" +
+                        "\t\"universe\"\t\t\"1\"\n" +
                         "\t\"name\"\t\t\"Steamworks Common Redistributables\"\n" +
                         "\t\"StateFlags\"\t\t\"4\"\n" +
                         "\t\"installdir\"\t\t\"Steamworks Shared\"\n" +
