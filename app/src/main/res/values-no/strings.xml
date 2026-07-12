@@ -70,7 +70,7 @@
     <string name="common_ui_enable_all">Aktiver alle</string>
     <string name="common_ui_disable_all">Deaktiver alle</string>
     <string name="common_ui_select_all">Velg alle</string>
-    <string name="common_ui_deselect_all">Fjern alle</string>
+    <string name="common_ui_deselect_all">Fjern alle valg</string>
     <string name="common_ui_on">På</string>
     <string name="common_ui_off">Av</string>
     <string name="common_ui_already_set">Allerede angitt</string>
@@ -399,7 +399,7 @@
     <string name="container_config_audio_driver">Lyddriver</string>
     <string name="container_config_win_components">Win-komponenter</string>
     <string name="container_config_drives">Stasjoner</string>
-    <string name="container_config_arch">Ark</string>
+    <string name="container_config_arch">Arkitektur</string>
     <string name="container_config_storage_info">Lagringsinfo</string>
     <string name="container_config_drive_c">Stasjon C:</string>
     <string name="container_config_cache">Buffer</string>
@@ -1308,8 +1308,8 @@ Installert bane:
     <string name="google_cloud_logins_synced">Butikkinnlogginger er synkronisert med Google Play Games.</string>
     <string name="google_cloud_sync_problem">Synkronisering av butikkinnlogging støtte på et problem.</string>
     <string name="google_cloud_error_auth_needed">Google Play Games må fullføre autentiseringen før skysynkronisering kan få tilgang til Lagrede spill. Åpne Play Games-profilforespørselen hvis den vises, og prøv igjen.</string>
-    <string name="google_cloud_error_developer">Google Play Games Lagrede spill avviste denne bygningen. Kontroller Play Games-app-ID-en, koblet pakkenavn og signeringssertifikat i Play Console.</string>
-    <string name="google_cloud_error_build_rejected">Google-kontoen er tilkoblet, men Google Play Games Lagrede spill avviste denne bygningen. Kontroller Play Games-app-ID-en, koblet pakke og signeringssertifikat.</string>
+    <string name="google_cloud_error_developer">Google Play Games Lagrede spill avviste denne appversjonen. Kontroller Play Games-app-ID-en, koblet pakkenavn og signeringssertifikat i Play Console.</string>
+    <string name="google_cloud_error_build_rejected">Google-kontoen er tilkoblet, men Google Play Games Lagrede spill avviste denne appversjonen. Kontroller Play Games-app-ID-en, koblet pakke og signeringssertifikat.</string>
     <string name="google_cloud_error_network">Google skysynkronisering mislyktes fordi nettverksforespørselen ikke ble fullført, eller Google Play-tjenester trenger tilsyn.</string>
     <string name="google_cloud_error_no_snapshot">Ingen lagrede butikkinnlogginger ble funnet i Google skysynkronisering ennå.</string>
     <string name="google_cloud_error_generic">Google skysynkronisering mislyktes: %1$s</string>

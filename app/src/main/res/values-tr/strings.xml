@@ -194,7 +194,7 @@
     <string name="library_games_immersive_blur_description">Sürükleyici arka plana bulanıklık efekti uygula</string>
     <string name="library_games_custom_game">Özel Oyun</string>
     <string name="library_games_play">Oyna</string>
-    <string name="hero_boot_to_desktop_title">Masaüstüne Aç</string>
+    <string name="hero_boot_to_desktop_title">Masaüstünü Başlat</string>
     <string name="hero_graphics_tests_title">Grafik Testleri</string>
     <string name="hero_graphics_test_32">32-bit</string>
     <string name="hero_graphics_test_64">64-bit</string>
@@ -899,7 +899,7 @@ E.g. <b>META</b> için <i>META tuşu</i>, \n
     <string name="session_display_title">Ekran</string>
     <string name="session_display_fullscreen_stretched">Tam Ekranı Etkinleştir (Uzatılmış)</string>
     <string name="session_display_fps_label">FPS:</string>
-    <string name="session_display_renderer_label">İşleyici:</string>
+    <string name="session_display_renderer_label">Oluşturucu:</string>
     <string name="session_display_gpu_label">GPU:</string>
     <string name="session_display_ram_label">RAM:</string>
     <string name="session_display_ram_usage_format">%1$s GB Kullanılan / %2$s Toplam</string>

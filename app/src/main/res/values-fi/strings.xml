@@ -354,8 +354,8 @@
     <string name="input_controls_editor_binding_right">Sidonta oikealle</string>
     <string name="input_controls_editor_binding_down">Sidonta alas</string>
     <string name="input_controls_editor_binding_left">Sidonta vasemmalle</string>
-    <string name="input_controls_editor_overlay_opacity">Peittokuvan läpinäkyvyys</string>
-    <string name="input_controls_editor_opacity">Läpinäkyvyys</string>
+    <string name="input_controls_editor_overlay_opacity">Peittokuvan peittävyys</string>
+    <string name="input_controls_editor_opacity">Peittävyys</string>
     <string name="input_controls_editor_radial_menu">Säteittäinen valikko</string>
     <string name="input_controls_editor_radial_menu_options">Säteittäisen valikon asetukset</string>
     <string name="input_controls_editor_number_of_bindings">Sidontojen määrä</string>
@@ -830,7 +830,7 @@ E.g. <b>META</b> for <i>META-näppäin</i>, \n
     <string name="session_drawer_output_display">Näyttö</string>
     <string name="session_drawer_output_glasses">Lasit</string>
     <string name="session_drawer_output_brightness">Kirkkaus</string>
-    <string name="session_drawer_output_shade">Sävy (himmennys)</string>
+    <string name="session_drawer_output_shade">Tummennus (himmennys)</string>
     <string name="session_drawer_output_3d">3D (rinnakkain)</string>
     <string name="glasses_panel_refresh">Virkistystaajuus</string>
     <string name="glasses_panel_sunblock">Auringonsuoja</string>
@@ -1426,7 +1426,7 @@ Asennuspolku:
     <string name="saves_export_warning_title">Käytä tätä vain mukautettujen pelien kanssa</string>
     <string name="saves_export_warning_body">Vienti voi sisältää tallennuksia kaupasta asennetuista tai pilvisynkronoiduista peleistä.</string>
     <string name="saves_import_warning_title">Tämä korvaa tämän säilön olemassa olevat tallennukset</string>
-    <string name="saves_import_warning_body">Kun palautat vanhempaa varmuuskopiota, jossa on useita pelejä, kopioi ensin uudemmat tallennukset zip-tiedostoon tiedostonhallinnallasi. Vain zip-tiedostossa olevat tallennukset vaikuttuvat. Hallitse tallennuksia viisaasti.</string>
+    <string name="saves_import_warning_body">Kun palautat vanhempaa varmuuskopiota, jossa on useita pelejä, kopioi ensin uudemmat tallennukset zip-tiedostoon tiedostonhallinnallasi. Muutos koskee vain zip-tiedostossa olevia tallennuksia. Hallitse tallennuksia viisaasti.</string>
 
     <!-- Preloader > Launch Screen -->
     <string name="preloader_default_name">Säilö</string>

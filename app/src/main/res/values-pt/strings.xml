@@ -765,7 +765,7 @@ Por ex. <b>META</b> para <i>tecla META</i>, \n
     <string name="session_drawer_color_profile_hdr">HDR</string>
     <string name="session_drawer_color_profile_natural">Natural</string>
     <string name="session_drawer_color_profile_crt">Efeito CRT</string>
-    <string name="session_drawer_color_profile_toon">Cartoon</string>
+    <string name="session_drawer_color_profile_toon">Toon</string>
     <string name="session_drawer_color_profile_ntsc">Ntsc</string>
     <string name="session_drawer_color_profile_ntsc2">Ntsc2</string>
     <string name="session_drawer_brightness">Brilho</string>
@@ -1265,7 +1265,7 @@ Caminho instalado:
     <string name="google_cloud_google">Google</string>
     <string name="google_cloud_services">Serviços Google</string>
     <string name="google_auto_signin_title">Iniciar sessão no Google ao arrancar</string>
-    <string name="google_auto_signin_summary">Ligar automaticamente ao Google Play Games quando a aplicação arranca para que as cópias de segurança de saves e a sincronização estejam sempre prontas. Quando desativado, a aplicação nunca inicia sessão por conta própria.</string>
+    <string name="google_auto_signin_summary">Ligar automaticamente ao Google Play Games quando a aplicação arranca para que as cópias de segurança dos jogos guardados e a sincronização estejam sempre prontas. Quando desativado, a aplicação nunca inicia sessão por conta própria.</string>
     <string name="google_auto_signin_section">Ao Arrancar</string>
     <string name="google_cloud_play_games">Google Play Games</string>
     <string name="google_cloud_status_syncing">A sincronizar</string>

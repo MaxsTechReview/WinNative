@@ -937,7 +937,7 @@
     <string name="session_gamepad_player_4">プレイヤー 4</string>
     <string name="session_gamepad_not_assigned">未割り当て</string>
     <string name="session_gamepad_assign">割り当て</string>
-    <string name="session_gamepad_press_any_button_for_player">次のプレイヤーのコントローラーでいずれかのボタンを押してください</string>
+    <string name="session_gamepad_press_any_button_for_player">次のプレイヤーのコントローラーでいずれかのボタンを押してください：</string>
     <string name="session_gamepad_vibrate">振動</string>
     <string name="session_gamepad_macros_hint">ボタンを切り替えて連射を有効にします。</string>
     <string name="session_gamepad_macros">マクロ</string>
