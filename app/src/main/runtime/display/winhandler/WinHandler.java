@@ -462,6 +462,13 @@ public class WinHandler {
   }
 
   public void bringToFront(final String processName, final long handle) {
+    long resolved = handle;
+    XServer xServer = activity.getXServer();
+    if (xServer != null) {
+      long found = xServer.raiseWindowByProcessName(processName);
+      if (resolved == 0L) resolved = found;
+    }
+    final long targetHandle = resolved;
     addAction(
         () -> {
           try {
@@ -470,7 +477,7 @@ public class WinHandler {
             byte[] bytes = processName.getBytes();
             this.sendData.putInt(bytes.length);
             this.sendData.put(bytes);
-            this.sendData.putLong(handle);
+            this.sendData.putLong(targetHandle);
             sendPacket(CLIENT_PORT);
           } catch (BufferOverflowException e) {
             e.printStackTrace();

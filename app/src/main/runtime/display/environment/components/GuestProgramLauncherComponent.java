@@ -1180,6 +1180,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
             + "MESA_VK_WSI_DEBUG="
             + envVars.get("MESA_VK_WSI_DEBUG"));
 
+    // WN-launcher starts winhandler as a child so it shares the game's desktop.
     return ProcessHelper.exec(
         command,
         envVars.toStringArray(),

@@ -757,7 +757,8 @@ int main(int argc, char** argv) {
     const char* user     = getenv("WN_STEAM_USERNAME");
     const char* token    = getenv("WN_STEAM_TOKEN");
     uint64_t    steamId  = env_u64("WN_STEAM_STEAMID");
-    const char* gameExe  = (argc > 1) ? argv[1] : NULL;
+    const char* gameExe  = getenv("WN_STEAM_GAME_EXE");
+    if (!gameExe || !*gameExe) gameExe = (argc > 1) ? argv[1] : NULL;
     uint32_t    appId    = appIdStr ? (uint32_t) strtoul(appIdStr, NULL, 10) : 0;
 
     log_line("[wn-launcher] env appId=%u steamId=%llu user=%s exe=%s",
@@ -775,8 +776,8 @@ int main(int argc, char** argv) {
     } else {
         log_line("[wn-launcher] token missing");
     }
-    if (argc <= 1 || !gameExe || !*gameExe) {
-        log_line("[wn-launcher] no game exe passed on argv[1]");
+    if (!gameExe || !*gameExe) {
+        log_line("[wn-launcher] no game exe passed (env WN_STEAM_GAME_EXE or argv[1])");
         return 1;
     }
 

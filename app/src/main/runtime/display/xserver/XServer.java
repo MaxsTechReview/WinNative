@@ -313,6 +313,64 @@ public class XServer {
     }
   }
 
+  // Raises the named process's top-level window and returns its HWND (0 if none found).
+  public long raiseWindowByProcessName(String processName) {
+    if (processName == null || processName.isEmpty()) return 0;
+    String wanted = stripExeSuffix(processName);
+    long handle = 0;
+    boolean raised = false;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER)) {
+      for (Window window : windowManager.getWindows()) {
+        if (window == null || window == windowManager.rootWindow) continue;
+        if (!window.attributes.isMapped()) continue;
+        if (!matchesProcessName(window, wanted)) continue;
+        Window toplevel = window;
+        while (toplevel.getParent() != null
+            && toplevel.getParent() != windowManager.rootWindow) {
+          toplevel = toplevel.getParent();
+        }
+        if (toplevel.getParent() == windowManager.rootWindow
+            && toplevel.attributes.isMapped()) {
+          windowManager.raiseWindowToTop(toplevel);
+          // Take focus too (like the taskbar path) or the game stays active and re-raises over it.
+          windowManager.setFocus(toplevel, WindowManager.FocusRevertTo.POINTER_ROOT);
+          handle = toplevel.getHandle();
+          raised = true;
+          break;
+        }
+      }
+    }
+    if (raised && renderer != null) renderer.requestRenderCoalesced();
+    return handle;
+  }
+
+  // True if the given guest process still owns a mapped application window.
+  public boolean processHasApplicationWindow(int processId) {
+    if (processId <= 0) return false;
+    try (XLock lock = lock(Lockable.WINDOW_MANAGER)) {
+      for (Window window : windowManager.getWindows()) {
+        if (window == null || window == windowManager.rootWindow) continue;
+        if (window.isApplicationWindow() && window.getProcessId() == processId) return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean matchesProcessName(Window window, String wanted) {
+    for (String className : window.getClassNames()) {
+      if (className != null && stripExeSuffix(className).equalsIgnoreCase(wanted)) return true;
+    }
+    String name = window.getName();
+    return name != null && stripExeSuffix(name).equalsIgnoreCase(wanted);
+  }
+
+  private static String stripExeSuffix(String value) {
+    String trimmed = value.trim();
+    return trimmed.regionMatches(true, Math.max(0, trimmed.length() - 4), ".exe", 0, 4)
+        ? trimmed.substring(0, trimmed.length() - 4)
+        : trimmed;
+  }
+
   public void injectKeyPress(XKeycode xKeycode) {
     injectKeyPress(xKeycode, 0);
   }

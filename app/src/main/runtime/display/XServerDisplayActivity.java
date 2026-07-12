@@ -247,6 +247,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             "rundll32",
             "cmd"
     ));
+
+    // Session plumbing the task manager itself rides on; ending any of these from
+    // our task manager tears down the session (e.g. start.exe hosts winhandler).
+    private static final HashSet<String> TASK_MANAGER_PROTECTED_PROCESSES = new HashSet<>(Arrays.asList(
+            "winhandler",
+            "wn-launcher",
+            "start",
+            "wineserver",
+            "winedevice",
+            "services",
+            "svchost",
+            "rpcss",
+            "plugplay",
+            "wineboot",
+            "winemenubuilder",
+            "conhost",
+            "explorer"
+    ));
+
+    private static boolean isTaskManagerProtectedProcess(String name) {
+        if (name == null) return false;
+        String base = name.trim().toLowerCase(java.util.Locale.ROOT);
+        if (base.endsWith(".exe")) base = base.substring(0, base.length() - 4);
+        return TASK_MANAGER_PROTECTED_PROCESSES.contains(base);
+    }
+
     private XServerSurfaceView xServerView;
     private InputControlsView inputControlsView;
     private boolean inputControlsRevealAllowed = false;
@@ -292,6 +318,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final EnvVars envVars = new EnvVars();
     // True when the chosen launch exe differs from Steam's configured entry: launcher skips Steam LaunchApp and CreateProcess'es the selected exe directly. Recomputed per launch.
     private boolean wnSteamDirectExeOverride = false;
+    private String wnSteamPlanWGameExe = null;
     private boolean firstTimeBoot = false;
     private SharedPreferences preferences;
     private boolean isMouseDisabled = false;
@@ -1612,6 +1639,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             @Override
             public void onDestroyWindow(Window window) {
                 changeFrameRatingVisibility(window, null);
+                scheduleCloseKill(window);
             }
         });
 
@@ -4816,6 +4844,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
                     @Override
                     public void onTaskManagerEndProcess(String name) {
+                        if (isTaskManagerProtectedProcess(name)) {
+                            android.widget.Toast.makeText(XServerDisplayActivity.this,
+                                    "Can't end " + name + " — required system process",
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                         if (winHandler != null) winHandler.killProcess(name);
                     }
 
@@ -6771,6 +6805,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         envVars.put("WN_STEAM_STEAMID", planWSid);
                         envVars.put("WN_STEAM_TOKEN", planWTok);
                         envVars.put("WN_STEAM_APPID", String.valueOf(bsAppId));
+                        if (wnSteamPlanWGameExe != null && !wnSteamPlanWGameExe.isEmpty()) {
+                            envVars.put("WN_STEAM_GAME_EXE", wnSteamPlanWGameExe);
+                        }
                         if (wnSteamDirectExeOverride) {
                             envVars.put("WN_STEAM_DIRECT_EXE", "1");
                             Log.i("XServerDisplayActivity",
@@ -7198,6 +7235,32 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    // A closed window whose process has no windows left after a grace period is a
+    // leftover (e.g. iexplore); terminate it. The delay keeps splash->main transitions safe.
+    private void scheduleCloseKill(Window window) {
+        if (window == null || xServer == null) return;
+        final int pid = window.getProcessId();
+        if (pid <= 0) return;
+        timeoutHandler.postDelayed(() -> {
+            if (activityDestroyed.get() || xServer == null) return;
+            if (xServer.processHasApplicationWindow(pid)) return;
+            ProcessHelper.terminateProcess(pid);
+            Log.d("XServerDisplayActivity", "close-kill: SIGTERM pid " + pid + " (no windows left)");
+            // Some processes trap SIGTERM or hang mid-shutdown; force-kill if it's still alive.
+            timeoutHandler.postDelayed(() -> {
+                if (activityDestroyed.get() || xServer == null) return;
+                if (isProcessAlive(pid) && !xServer.processHasApplicationWindow(pid)) {
+                    ProcessHelper.killProcess(pid);
+                    Log.d("XServerDisplayActivity", "close-kill: SIGKILL pid " + pid + " (survived SIGTERM)");
+                }
+            }, 2000);
+        }, 2000);
+    }
+
+    private static boolean isProcessAlive(int pid) {
+        return pid > 0 && new File("/proc/" + pid).exists();
+    }
+
     private void ensureWinePrefixEssentialFiles() {
         if (container == null) return;
         File containerWindowsDir = new File(container.getRootDir(), ".wine/drive_c/windows");
@@ -7251,6 +7314,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     Log.d("ContainerLaunch", filename + " exists after extraction: " + new File(containerWindowsDir, filename).exists());
                 }
             }
+        }
+
+        File launcherExe = new File(containerWindowsDir, "WN-launcher.exe");
+        if (!launcherExe.exists()) {
+            FileUtils.copy(this, "WN-launcher.exe", launcherExe);
+            Log.d("ContainerLaunch", "WN-launcher.exe staged: " + launcherExe.exists());
         }
     }
 
@@ -8238,6 +8307,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 int appId = Integer.parseInt(shortcut.getExtra("app_id"));
                 // Reset per launch; set below once the launch exe is resolved.
                 wnSteamDirectExeOverride = false;
+                wnSteamPlanWGameExe = null;
                 String steamExtraArgs = appendSteamJoinConnect(
                         com.winlator.cmod.feature.stores.steam.utils.SteamLaunchOptions
                                 .gameArgs(shortcut.getSettingExtra("execArgs", container.getExecArgs())));
@@ -8321,8 +8391,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                                     .PrefManager.INSTANCE.getWnPlanW();
                             String wrapperExe = planW
                                     ? "steam.exe" : "wn-steam-helper.exe";
-                            args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
-                                    + "\" \"" + steamGameExe + "\"" + steamExtraArgs;
+                            if (planW) {
+                                wnSteamPlanWGameExe = steamGameExe;
+                                args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
+                                        + "\"" + steamExtraArgs;
+                            } else {
+                                args = "\"C:\\Program Files (x86)\\Steam\\" + wrapperExe
+                                        + "\" \"" + steamGameExe + "\"" + steamExtraArgs;
+                            }
                             Log.d("XServerDisplayActivity",
                                     "Bionic Steam launch via " + wrapperExe
                                     + " (planW=" + planW + "): " + steamGameExe);
@@ -8465,8 +8541,15 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
 
-        if (!args.isEmpty() && !args.startsWith("winhandler.exe") && !args.startsWith("explorer")) {
-            return "winhandler.exe " + args;
+        if (!args.isEmpty()
+                && !args.startsWith("winhandler.exe")
+                && !args.startsWith("WN-launcher.exe")
+                && !args.startsWith("explorer")) {
+            String affinityArg =
+                taskAffinityMask != 0
+                    ? "/affinity " + Integer.toHexString(taskAffinityMask & 0xFFFF) + " "
+                    : "";
+            return "WN-launcher.exe " + affinityArg + args;
         } else {
             return args;
         }

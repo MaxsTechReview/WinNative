@@ -294,9 +294,7 @@ public class PresentExtension
     return pixmap.isDirectScanout()
         && texture != null
         && xOff <= 0
-        && yOff <= 0
-        && pixmap.width + xOff >= content.width
-        && pixmap.height + yOff >= content.height;
+        && yOff <= 0;
   }
 
   private static void copyPresentedRegion(
