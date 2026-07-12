@@ -96,6 +96,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private Context context;
   private int cpuFailCount;
   private CPUStatus.CpuSample prevCpuSample;
+  private boolean cpuWarmedUp;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
   private volatile int cpuSensorTemp;
@@ -164,6 +165,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final long FALLBACK_SUPPRESSION_NS = 2000000000L;
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
   private static final long HUD_REFRESH_MS = 1000L;
+  private static final long CPU_WARMUP_POLL_MS = 500L;
   private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
@@ -212,6 +214,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     this.enableRenderer = true;
     this.cpuPercent = -1;
     this.prevCpuSample = null;
+    this.cpuWarmedUp = false;
     this.gpuLoad = -1;
     this.batteryWatts = -1.0f;
     this.cpuTemp = -1;
@@ -301,7 +304,8 @@ public class FrameRating extends LinearLayout implements Runnable {
             if (isStatsRunning) {
               calculateStats();
               if (statsHandler != null) {
-                statsHandler.postDelayed(this, 1000L);
+                long next = (prevCpuSample != null && !cpuWarmedUp) ? CPU_WARMUP_POLL_MS : 1000L;
+                statsHandler.postDelayed(this, next);
               }
             }
           }
@@ -313,6 +317,8 @@ public class FrameRating extends LinearLayout implements Runnable {
       return;
     }
     this.isStatsRunning = true;
+    this.prevCpuSample = null;
+    this.cpuWarmedUp = false;
     this.statsThread = new HandlerThread("HardwareStatsThread");
     this.statsThread.start();
     this.statsHandler = new Handler(this.statsThread.getLooper());
@@ -1384,6 +1390,11 @@ public class FrameRating extends LinearLayout implements Runnable {
           if (this.prevCpuSample != null) {
             this.cpuPercent = sample.percentSince(this.prevCpuSample);
             this.cpuFailCount = 0;
+            if (!this.cpuWarmedUp) {
+              this.cpuWarmedUp = true;
+              Handler refresh = this.uiRefreshHandler;
+              if (refresh != null) refresh.post(this);
+            }
           }
           this.prevCpuSample = sample;
         }
