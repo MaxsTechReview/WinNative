@@ -2760,6 +2760,16 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                             fontSize = 9.sp,
                             letterSpacing = 0.5.sp,
                         )
+                        sizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = formatSizeMb(bytes),
+                                color = Color(0xFF8B949E),
+                                fontFamily = InterFont,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(3.dp))
                 }
@@ -2769,18 +2779,21 @@ class SetupWizardActivity : FixedFontScaleFragmentActivity() {
                     fontFamily = InterFont,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
+                    lineHeight = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                sizeBytes?.takeIf { it > 0L }?.let { bytes ->
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = formatSizeMb(bytes),
-                        color = Color(0xFF8B949E),
-                        fontFamily = InterFont,
-                        fontSize = 9.sp,
-                        maxLines = 1,
-                    )
+                if (!recommended) {
+                    sizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                        Text(
+                            text = formatSizeMb(bytes),
+                            color = Color(0xFF8B949E),
+                            fontFamily = InterFont,
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(8.dp))
