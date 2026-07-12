@@ -1753,42 +1753,38 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_loading))
             }
             try {
-                zipFile.inputStream().use { isStream ->
-                    java.util.zip.ZipInputStream(java.io.BufferedInputStream(isStream)).use { zis ->
-                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
-                        val xuserDir = File(usersDir, "xuser")
+                java.util.zip.ZipFile(zipFile).use { zf ->
+                    val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                    val xuserDir = File(usersDir, "xuser")
 
-                        var ze: java.util.zip.ZipEntry?
-                        while (zis.nextEntry.also { ze = it } != null) {
-                            val entry = ze!!
-                            val name = entry.name
+                    val entries = zf.entries()
+                    while (entries.hasMoreElements()) {
+                        val entry = entries.nextElement()
+                        val name = entry.name
 
-                            if (isPathExcluded(name)) {
-                                zis.closeEntry()
-                                continue
-                            }
+                        if (isPathExcluded(name)) continue
 
-                            var destFile: File? = null
+                        var destFile: File? = null
 
-                            if (name.startsWith("users/")) {
-                                destFile = File(usersDir.parentFile, name)
-                            } else if (name.startsWith("ProgramData/")) {
-                                destFile = File(usersDir.parentFile, name)
-                            } else if (name.startsWith("xuser/")) {
-                                destFile = File(usersDir, name)
-                            } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
-                                destFile = File(xuserDir, name)
-                            }
+                        if (name.startsWith("users/")) {
+                            destFile = File(usersDir.parentFile, name)
+                        } else if (name.startsWith("ProgramData/")) {
+                            destFile = File(usersDir.parentFile, name)
+                        } else if (name.startsWith("xuser/")) {
+                            destFile = File(usersDir, name)
+                        } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
+                            destFile = File(xuserDir, name)
+                        }
 
-                            if (destFile != null) {
-                                if (entry.isDirectory) {
-                                    destFile.mkdirs()
-                                } else {
-                                    destFile.parentFile?.mkdirs()
-                                    destFile.outputStream().use { zis.copyTo(it) }
+                        if (destFile != null) {
+                            if (entry.isDirectory) {
+                                destFile.mkdirs()
+                            } else {
+                                destFile.parentFile?.mkdirs()
+                                zf.getInputStream(entry).use { input ->
+                                    destFile.outputStream().use { input.copyTo(it) }
                                 }
                             }
-                            zis.closeEntry()
                         }
                     }
                 }
