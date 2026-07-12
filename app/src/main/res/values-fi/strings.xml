@@ -1561,4 +1561,5 @@ Asennuspolku:
     <string name="file_manager_rename_failed">Uudelleennimeäminen epäonnistui</string>
     <string name="file_manager_create_folder_failed">Kansion luonti epäonnistui</string>
 
+    <string name="settings_content_refresh">Päivitä</string>
 </resources>

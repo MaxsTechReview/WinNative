@@ -1565,4 +1565,5 @@ Installeret sti:
     <string name="session_record_started">Optagelse startet</string>
     <string name="steam_chat_setting_stay_running">Kør i baggrunden</string>
     <string name="steam_chat_setting_stay_running_desc">Hold chatten kørende, efter du afslutter WinNative</string>
+    <string name="settings_content_refresh">Opdater</string>
 </resources>

@@ -1564,5 +1564,6 @@
     <string name="session_record_started">已开始录制</string>
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
+    <string name="settings_content_refresh">刷新</string>
 </resources>
 

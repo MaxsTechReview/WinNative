@@ -1564,5 +1564,6 @@ Caminho instalado:
     <string name="session_record_started">Gravação iniciada</string>
     <string name="steam_chat_setting_stay_running">Executar em segundo plano</string>
     <string name="steam_chat_setting_stay_running_desc">Manter o chat ativo após sair do WinNative</string>
+    <string name="settings_content_refresh">Atualizar</string>
 </resources>
 

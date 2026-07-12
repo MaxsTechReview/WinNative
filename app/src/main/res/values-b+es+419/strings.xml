@@ -1561,4 +1561,5 @@ Ruta instalada:
     <string name="file_manager_rename_failed">El cambio de nombre falló</string>
     <string name="file_manager_create_folder_failed">La creación de la carpeta falló</string>
 
+    <string name="settings_content_refresh">Actualizar</string>
 </resources>

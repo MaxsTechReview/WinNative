@@ -1564,5 +1564,6 @@ Percorso installato:
     <string name="session_record_started">Registrazione avviata</string>
     <string name="steam_chat_setting_stay_running">Esegui in background</string>
     <string name="steam_chat_setting_stay_running_desc">Mantieni la chat attiva dopo aver chiuso WinNative</string>
+    <string name="settings_content_refresh">Aggiorna</string>
 </resources>
 

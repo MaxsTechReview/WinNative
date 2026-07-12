@@ -1561,4 +1561,5 @@
     <string name="file_manager_rename_failed">เปลี่ยนชื่อล้มเหลว</string>
     <string name="file_manager_create_folder_failed">สร้างโฟลเดอร์ล้มเหลว</string>
 
+    <string name="settings_content_refresh">รีเฟรช</string>
 </resources>
