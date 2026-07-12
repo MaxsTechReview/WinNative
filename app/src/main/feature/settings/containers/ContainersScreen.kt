@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -82,6 +83,9 @@ private val ContainersNavHighlight = Color(0xFF4FC3F7)
 private val ContainersTextPrimary = Color(0xFFF0F4FF)
 private val ContainersTextSecondary = Color(0xFF7A8FA8)
 private val ContainersDanger = Color(0xFFFF7A88)
+
+// Card shape knob: width : height. Lower = squarer (1f = perfect square), higher = wider/shorter.
+private const val ContainerCardAspect = 1.2f
 
 data class ContainersScreenState(
     val containers: List<Container> = emptyList(),
@@ -161,7 +165,7 @@ fun ContainersScreen(
             Spacer(Modifier.height(6.dp))
 
             val cardSpacing = 8.dp
-            val minCardWidth = 160.dp
+            val minCardWidth = 140.dp
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val columns =
                     maxOf(1, ((maxWidth + cardSpacing) / (minCardWidth + cardSpacing)).toInt())
@@ -341,7 +345,7 @@ private fun AddContainerCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(138.dp)
+                .aspectRatio(ContainerCardAspect)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
@@ -413,7 +417,7 @@ private fun ContainerCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(138.dp)
+                .aspectRatio(ContainerCardAspect)
                 .clip(RoundedCornerShape(12.dp))
                 .background(ContainersCard)
                 .border(1.dp, ContainersOutline, RoundedCornerShape(12.dp))
