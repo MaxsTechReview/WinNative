@@ -321,19 +321,26 @@ object SteamClientManager {
 
         val candidates = mutableListOf<File>()
 
+        // Proton-style trees nest the wine root under files/.
+        val mscoreeSubPaths =
+            listOf(
+                "lib/wine/aarch64-windows/mscoree.dll",
+                "lib/wine/x86_64-windows/mscoree.dll",
+                "lib/wine/i386-windows/mscoree.dll",
+                "files/lib/wine/aarch64-windows/mscoree.dll",
+                "files/lib/wine/x86_64-windows/mscoree.dll",
+                "files/lib/wine/i386-windows/mscoree.dll",
+            )
+
         if (containerWinePath != null) {
             val wineDir = File(containerWinePath)
-            candidates.add(File(wineDir, "lib/wine/aarch64-windows/mscoree.dll"))
-            candidates.add(File(wineDir, "lib/wine/x86_64-windows/mscoree.dll"))
-            candidates.add(File(wineDir, "lib/wine/i386-windows/mscoree.dll"))
+            mscoreeSubPaths.forEach { candidates.add(File(wineDir, it)) }
             Log.d(TAG, "Mono detection: prioritizing container Wine path: $containerWinePath")
         }
 
         for (typeDir in listOf(File(contentsDir, "Wine"), File(contentsDir, "Proton"))) {
             typeDir.listFiles()?.forEach { buildDir ->
-                candidates.add(File(buildDir, "lib/wine/aarch64-windows/mscoree.dll"))
-                candidates.add(File(buildDir, "lib/wine/x86_64-windows/mscoree.dll"))
-                candidates.add(File(buildDir, "lib/wine/i386-windows/mscoree.dll"))
+                mscoreeSubPaths.forEach { candidates.add(File(buildDir, it)) }
             }
         }
 
@@ -527,6 +534,52 @@ object SteamClientManager {
     ): String? {
         val msiFile = ensureMonoMsi(context, containerWinePath) ?: return null
         return "Z:\\opt\\mono-gecko-offline\\${msiFile.name}"
+    }
+
+    const val GECKO_VERSION = "2.47.4"
+
+    // Return the Wine Z:\ paths to the Gecko MSIs (x86 + x86_64), downloading them if needed.
+    @JvmStatic
+    fun getGeckoMsiWinePaths(context: Context): List<String> {
+        val geckoDir = File(ImageFs.find(context).rootDir, "opt/mono-gecko-offline")
+        geckoDir.mkdirs()
+        val out = mutableListOf<String>()
+        for (name in listOf("wine_gecko-$GECKO_VERSION-x86.msi", "wine_gecko-$GECKO_VERSION-x86_64.msi")) {
+            val msiFile = File(geckoDir, name)
+            if (!msiFile.exists() || msiFile.length() == 0L) {
+                val downloadUrl = "https://dl.winehq.org/wine/wine-gecko/$GECKO_VERSION/$name"
+                Log.i(TAG, "Downloading Gecko from $downloadUrl")
+                try {
+                    val tmpFile = File(geckoDir, "$name.tmp")
+                    val connection = URL(downloadUrl).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 30_000
+                    connection.readTimeout = 60_000
+                    connection.instanceFollowRedirects = true
+                    val code = connection.responseCode
+                    if (code != 200) {
+                        Log.w(TAG, "Gecko $name -> HTTP $code")
+                        connection.disconnect()
+                        continue
+                    }
+                    connection.inputStream.use { input ->
+                        FileOutputStream(tmpFile).use { output -> input.copyTo(output, bufferSize = 65536) }
+                    }
+                    connection.disconnect()
+                    if (!tmpFile.renameTo(msiFile)) {
+                        Log.e(TAG, "Rename failed for $name.tmp")
+                        tmpFile.delete()
+                        continue
+                    }
+                    Log.i(TAG, "Gecko $name downloaded (${msiFile.length()} B)")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Gecko $name download error: ${e.message}")
+                    continue
+                }
+            }
+            chmodIfExists(msiFile)
+            out.add("Z:\\opt\\mono-gecko-offline\\$name")
+        }
+        return out
     }
 
     // Blocking Java wrapper for encrypted app tickets.

@@ -91,7 +91,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -2365,12 +2364,22 @@ class UnifiedActivity :
                 if (immersiveMode && currentTabKeyForImmersive == "library") {
                     val immersiveModel by immersiveBackgroundRef.collectAsState()
                     val immersiveRequest =
-                        remember(immersiveModel, context) {
+                        remember(immersiveModel, immersiveBlur, context) {
                             val builder = ImageRequest.Builder(context).data(immersiveModel)
                             (immersiveModel as? java.io.File)?.takeIf { it.isFile }?.let { file ->
                                 // Custom uploads can be overwritten in place.
                                 val key = "library_immersive_bg:${file.absolutePath}:${file.lastModified()}"
-                                builder.memoryCacheKey(key).diskCacheKey(key)
+                                builder.memoryCacheKey(if (immersiveBlur) "$key:blur" else key).diskCacheKey(key)
+                            }
+                            if (immersiveBlur) {
+                                // Blur is baked into the bitmap once at decode, so drawing it
+                                // costs the same as a plain image every frame. Quarter-res
+                                // decode + radius 2 ≈ an 8px blur at screen size.
+                                val dm = context.resources.displayMetrics
+                                builder
+                                    .size(dm.widthPixels / 4, dm.heightPixels / 4)
+                                    .scale(coil.size.Scale.FILL)
+                                    .transformations(BoxBlurTransformation(radius = 2))
                             }
                             builder.crossfade(400).build()
                         }
@@ -2381,13 +2390,10 @@ class UnifiedActivity :
                         modifier = Modifier.matchParentSize(),
                     ) {
                         Box(Modifier.matchParentSize()) {
-                            val immersiveBlurRadius = with(LocalDensity.current) { 8f.toDp() }
-                            val blurModifier =
-                                if (immersiveBlur) Modifier.blur(immersiveBlurRadius) else Modifier
                             AsyncImage(
                                 model = immersiveRequest,
                                 contentDescription = null,
-                                modifier = Modifier.matchParentSize().then(blurModifier),
+                                modifier = Modifier.matchParentSize(),
                                 contentScale = ContentScale.Crop,
                             )
                             Box(
@@ -3970,36 +3976,39 @@ class UnifiedActivity :
         // Publish the focused game's hero artwork to drive the immersive background.
         // Prefers a custom Game Card upload (LibraryArtworkSlot.GAME_CARD), then the
         // store-supplied hero, then the regular grid capsule as a last resort.
-        // Reloads shortcuts via IO on every refresh signal so freshly uploaded artwork
-        // shows up immediately, mirroring LibraryGameLaunchScreen's lookup pattern.
-        LaunchedEffect(
-            focusIndex,
-            displayedApps,
-            shortcutRefreshKey,
-            libraryRefreshKey,
-            artworkCacheRefreshKey,
-        ) {
+        // Shortcuts are loaded via IO once per refresh signal (not per focus move) so
+        // freshly uploaded artwork still shows up immediately.
+        var immersiveShortcuts by remember { mutableStateOf<List<Shortcut>?>(null) }
+        LaunchedEffect(shortcutRefreshKey, libraryRefreshKey, artworkCacheRefreshKey) {
+            immersiveShortcuts =
+                withContext(Dispatchers.IO) { ContainerManager(context).loadShortcuts() }
+        }
+
+        LaunchedEffect(focusIndex, displayedApps, immersiveShortcuts) {
+            val shortcuts = immersiveShortcuts ?: return@LaunchedEffect
             val app = displayedApps.getOrNull(focusIndex) ?: displayedApps.firstOrNull()
             if (app == null) {
                 activity?.immersiveBackgroundRef?.value = null
                 return@LaunchedEffect
             }
+            // Debounce so scrubbing the grid doesn't decode every intermediate hero.
+            delay(200)
             val gogGame = visibleGogByPseudoId[app.id]
             val epicGame = visibleEpicByPseudoId[app.id]
             val isCustom = app.id < 0
             val isEpic = app.id >= 2000000000
             val epicId = if (isEpic) app.id - 2000000000 else 0
 
+            val shortcut =
+                when {
+                    gogGame != null ->
+                        shortcuts.find {
+                            it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
+                        }
+                    else -> findShortcutForGame(shortcuts, app, isCustom, isEpic, epicId)
+                }
             val customHeroFile =
                 withContext(Dispatchers.IO) {
-                    val shortcut =
-                        when {
-                            gogGame != null ->
-                                ContainerManager(context).loadShortcuts().find {
-                                    it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
-                                }
-                            else -> findLibraryShortcutForGame(ContainerManager(context), app, isCustom, isEpic, epicId)
-                        }
                     shortcut
                         ?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey)
                         ?.takeIf { it.isNotBlank() }

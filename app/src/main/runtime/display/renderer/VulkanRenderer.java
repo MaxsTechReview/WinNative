@@ -130,6 +130,10 @@ public class VulkanRenderer
         this.xServer = xServer;
         this.effectComposer = new EffectComposer(this);
         this.rootCursorDrawable = createRootCursorDrawable();
+        this.coalescedRenderCallback = frameTimeNanos -> {
+            renderRequested.set(false);
+            xServerView.requestRender();
+        };
     }
 
     public void destroy() {
@@ -163,13 +167,21 @@ public class VulkanRenderer
         }
     }
 
+    private volatile Choreographer mainChoreographer;
+    private final Choreographer.FrameCallback coalescedRenderCallback;
+
     public void requestRenderCoalesced() {
         if (renderRequested.compareAndSet(false, true)) {
-            mainHandler.post(() ->
-                    Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
-                        renderRequested.set(false);
-                        xServerView.requestRender();
-                    }));
+            // Post directly (thread-safe): a handler hop arms past the next doFrame and halves the visible cursor rate.
+            Choreographer choreographer = mainChoreographer;
+            if (choreographer != null) {
+                choreographer.postFrameCallback(coalescedRenderCallback);
+            } else {
+                mainHandler.post(() -> {
+                    mainChoreographer = Choreographer.getInstance();
+                    mainChoreographer.postFrameCallback(coalescedRenderCallback);
+                });
+            }
         }
     }
 
