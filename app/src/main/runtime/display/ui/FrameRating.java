@@ -166,7 +166,6 @@ public class FrameRating extends LinearLayout implements Runnable {
   private static final long FPS_CALC_INTERVAL_NS = 1000000000L;
   private static final long HUD_REFRESH_MS = 1000L;
   private static final long CPU_WARMUP_POLL_MS = 500L;
-  private static final long MIN_FRAME_INTERVAL_NS = 1000000L;
   private static final int MAX_FRAME_SAMPLES = 1024;
 
   // ── Tap-cycle display modes ──────────────────────────────────────
@@ -1192,9 +1191,6 @@ public class FrameRating extends LinearLayout implements Runnable {
         return;
       }
 
-      if (this.lastFrameNano > 0 && nowNano - this.lastFrameNano < MIN_FRAME_INTERVAL_NS) {
-        return;
-      }
       if (this.lastFrameNano == 0) {
         this.lastFrameNano = nowNano;
       }
