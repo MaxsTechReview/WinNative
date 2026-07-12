@@ -2526,6 +2526,11 @@ private fun ComponentsSection(
 private fun findKnownEnvVar(name: String): Array<String>? =
     EnvVarsView.knownEnvVars.firstOrNull { it[0] == name }
 
+private fun defaultValueForEnvVar(name: String): String? {
+    val known = findKnownEnvVar(name) ?: return null
+    return if (known.getOrNull(1) == "TEXT") known.getOrNull(2) else null
+}
+
 @Composable
 private fun VariablesSection(
     state: GameSettingsStateHolder,
@@ -2583,7 +2588,10 @@ private fun VariablesSection(
                         val normalizedKey = newKey.trim()
                         val list = state.envVars.value.toMutableList()
                         if (index in list.indices) {
-                            list[index] = EnvVarItem(normalizedKey, envVar.value)
+                            val newValue = envVar.value.ifBlank {
+                                defaultValueForEnvVar(normalizedKey) ?: ""
+                            }
+                            list[index] = EnvVarItem(normalizedKey, newValue)
                             state.envVars.value = list
                         }
                     },
