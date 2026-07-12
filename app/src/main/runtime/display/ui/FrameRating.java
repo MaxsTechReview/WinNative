@@ -1488,7 +1488,7 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (this.enableCpu && this.tvCpu != null) {
       SpannableStringBuilder b = new SpannableStringBuilder();
       append(b, "CPU ", this.C_CPU);
-      append(b, this.cpuPercent >= 0 ? this.cpuPercent + "%" : "N/A", this.C_VALUE);
+      append(b, Math.max(this.cpuPercent, 0) + "%", this.C_VALUE);
       this.tvCpu.setText(b);
       this.tvCpu.setVisibility(View.VISIBLE);
     } else if (this.tvCpu != null) {
