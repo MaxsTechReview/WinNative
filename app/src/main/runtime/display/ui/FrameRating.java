@@ -95,7 +95,7 @@ public class FrameRating extends LinearLayout implements Runnable {
   private boolean canReadGpu;
   private Context context;
   private int cpuFailCount;
-  private CPUStatus.CpuSample prevCpuSample;
+  private CPUStatus.AppCpuSample prevCpuSample;
   private boolean cpuWarmedUp;
   private volatile int cpuPercent;
   private volatile int cpuTemp;
@@ -1385,13 +1385,11 @@ public class FrameRating extends LinearLayout implements Runnable {
     }
     if (this.enableCpu && this.canReadCpu) {
       try {
-        CPUStatus.CpuSample sample = CPUStatus.readCpuSample();
+        CPUStatus.AppCpuSample sample = CPUStatus.readAppCpuSample();
         int pct = -1;
         if (sample != null) {
           if (this.prevCpuSample != null) pct = sample.percentSince(this.prevCpuSample);
           this.prevCpuSample = sample;
-        } else {
-          pct = CPUStatus.getClockFreqLoadPercent();
         }
         if (pct >= 0) {
           this.cpuPercent = pct;
@@ -1401,6 +1399,9 @@ public class FrameRating extends LinearLayout implements Runnable {
             Handler refresh = this.uiRefreshHandler;
             if (refresh != null) refresh.post(this);
           }
+        } else if (!this.cpuWarmedUp) {
+          int freq = CPUStatus.getClockFreqLoadPercent();
+          if (freq >= 0) this.cpuPercent = freq;
         }
       } catch (Exception e) {
         this.cpuPercent = -1;

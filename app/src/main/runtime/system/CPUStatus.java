@@ -1,12 +1,18 @@
 package com.winlator.cmod.runtime.system;
 
+import android.os.Process;
+import android.os.SystemClock;
+import android.system.Os;
+import android.system.OsConstants;
 import com.winlator.cmod.shared.io.FileUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public abstract class CPUStatus {
   public static short[] getCurrentClockSpeeds() {
@@ -88,98 +94,81 @@ public abstract class CPUStatus {
     return -1;
   }
 
-  public static final class CpuSample {
-    private final long aggBusy;
-    private final long aggIdle;
-    private final long[] coreBusy;
-    private final long[] coreIdle;
+  private static final long CLOCK_TICKS_PER_SEC = Os.sysconf(OsConstants._SC_CLK_TCK);
+  private static final int TOTAL_CORES = readTotalCores();
 
-    private CpuSample(long aggBusy, long aggIdle, long[] coreBusy, long[] coreIdle) {
-      this.aggBusy = aggBusy;
-      this.aggIdle = aggIdle;
-      this.coreBusy = coreBusy;
-      this.coreIdle = coreIdle;
+  public static final class AppCpuSample {
+    private final HashMap<Integer, Long> perPid;
+    private final long nanos;
+
+    private AppCpuSample(HashMap<Integer, Long> perPid, long nanos) {
+      this.perPid = perPid;
+      this.nanos = nanos;
     }
 
-    public int coreCount() {
-      return coreBusy.length;
-    }
-
-    public int percentSince(CpuSample prev) {
+    public int percentSince(AppCpuSample prev) {
       if (prev == null) return -1;
-      return percent(aggBusy - prev.aggBusy, aggIdle - prev.aggIdle);
-    }
-
-    public int corePercentSince(CpuSample prev, int core) {
-      if (prev == null || core < 0 || core >= coreBusy.length || core >= prev.coreBusy.length)
-        return 0;
-      return percent(coreBusy[core] - prev.coreBusy[core], coreIdle[core] - prev.coreIdle[core]);
-    }
-
-    private static int percent(long busyDelta, long idleDelta) {
-      long total = busyDelta + idleDelta;
-      if (total <= 0) return 0;
-      long p = (100 * busyDelta) / total;
-      if (p < 0) return 0;
-      if (p > 100) return 100;
-      return (int) p;
-    }
-  }
-
-  public static CpuSample readCpuSample() {
-    int numProcessors = Runtime.getRuntime().availableProcessors();
-    long[] coreBusy = new long[numProcessors];
-    long[] coreIdle = new long[numProcessors];
-    long aggBusy = 0;
-    long aggIdle = 0;
-    try (BufferedReader reader = new BufferedReader(new FileReader("/proc/stat"))) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        if (!line.startsWith("cpu")) break;
-        String[] f = line.trim().split("\\s+");
-        if (f.length < 5) continue;
-        long user = parseTick(f, 1);
-        long nice = parseTick(f, 2);
-        long system = parseTick(f, 3);
-        long idle = parseTick(f, 4);
-        long iowait = parseTick(f, 5);
-        long irq = parseTick(f, 6);
-        long softirq = parseTick(f, 7);
-        long steal = parseTick(f, 8);
-        long idleAll = idle + iowait;
-        long busy = user + nice + system + irq + softirq + steal;
-        if (f[0].equals("cpu")) {
-          aggBusy = busy;
-          aggIdle = idleAll;
-        } else {
-          int idx = parseCoreIndex(f[0]);
-          if (idx >= 0 && idx < numProcessors) {
-            coreBusy[idx] = busy;
-            coreIdle[idx] = idleAll;
-          }
-        }
+      long deltaTicks = 0;
+      for (Map.Entry<Integer, Long> e : perPid.entrySet()) {
+        Long old = prev.perPid.get(e.getKey());
+        if (old != null && e.getValue() >= old) deltaTicks += e.getValue() - old;
       }
-    } catch (Exception e) {
-      return null;
-    }
-    return new CpuSample(aggBusy, aggIdle, coreBusy, coreIdle);
-  }
-
-  private static long parseTick(String[] fields, int index) {
-    if (index >= fields.length) return 0;
-    try {
-      return Long.parseLong(fields[index]);
-    } catch (NumberFormatException e) {
-      return 0;
+      double deltaSec = (nanos - prev.nanos) / 1e9;
+      if (deltaSec <= 0) return -1;
+      double pct = 100.0 * deltaTicks / (deltaSec * CLOCK_TICKS_PER_SEC * TOTAL_CORES);
+      if (pct < 0) return 0;
+      if (pct > 100) return 100;
+      return (int) Math.round(pct);
     }
   }
 
-  private static int parseCoreIndex(String label) {
-    try {
-      return Integer.parseInt(label.substring(3));
-    } catch (Exception e) {
-      return -1;
+  public static AppCpuSample readAppCpuSample() {
+    String[] names = new File("/proc").list();
+    if (names == null) return null;
+    int myUid = Process.myUid();
+    HashMap<Integer, Long> cur = new HashMap<>();
+    for (String name : names) {
+      if (name.isEmpty() || !Character.isDigit(name.charAt(0))) continue;
+      int pid;
+      try {
+        pid = Integer.parseInt(name);
+      } catch (NumberFormatException e) {
+        continue;
+      }
+      String dir = "/proc/" + name;
+      try {
+        if (Os.stat(dir).st_uid != myUid) continue;
+      } catch (Exception e) {
+        continue;
+      }
+      try (BufferedReader reader = new BufferedReader(new FileReader(dir + "/stat"))) {
+        String line = reader.readLine();
+        if (line == null) continue;
+        int close = line.lastIndexOf(')');
+        if (close < 0) continue;
+        String[] f = line.substring(close + 2).trim().split("\\s+");
+        if (f.length < 13) continue;
+        cur.put(pid, Long.parseLong(f[11]) + Long.parseLong(f[12]));
+      } catch (Exception ignored) {
+      }
     }
+    return new AppCpuSample(cur, SystemClock.elapsedRealtimeNanos());
+  }
+
+  private static int readTotalCores() {
+    try (BufferedReader reader =
+        new BufferedReader(new FileReader("/sys/devices/system/cpu/possible"))) {
+      String s = reader.readLine();
+      if (s != null) {
+        s = s.trim();
+        int dash = s.indexOf('-');
+        int n = dash >= 0 ? Integer.parseInt(s.substring(dash + 1)) + 1 : Integer.parseInt(s) + 1;
+        if (n > 0) return n;
+      }
+    } catch (Exception ignored) {
+    }
+    int n = Runtime.getRuntime().availableProcessors();
+    return n > 0 ? n : 1;
   }
 
   public static int getClockFreqLoadPercent() {

@@ -440,7 +440,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private final ArrayList<TaskManagerProcess> taskManagerAccum = new ArrayList<>();
     private boolean taskManagerCpuExpanded = false;
     private boolean taskManagerPaneVisible = false;
-    private CPUStatus.CpuSample prevTaskCpuSample;
+    private CPUStatus.AppCpuSample prevTaskCpuSample;
     private boolean drawerEdgeGesturePossible = false;
     private float drawerEdgeGestureStartX = 0f;
     private float drawerEdgeGestureStartY = 0f;
@@ -5012,32 +5012,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private void pushTaskManagerSystemStats() {
         if (drawerStateHolder == null) return;
 
-        CPUStatus.CpuSample cpuSample = CPUStatus.readCpuSample();
-        int coreCount;
-        int cpuPercent = 0;
-        ArrayList<Integer> corePercents = new ArrayList<>();
+        CPUStatus.AppCpuSample cpuSample = CPUStatus.readAppCpuSample();
+        int cpuPercent = -1;
         if (cpuSample != null) {
-            coreCount = cpuSample.coreCount();
-            if (prevTaskCpuSample != null) {
-                int agg = cpuSample.percentSince(prevTaskCpuSample);
-                if (agg >= 0) cpuPercent = agg;
-                if (taskManagerCpuExpanded) {
-                    for (int i = 0; i < coreCount; i++) {
-                        corePercents.add(cpuSample.corePercentSince(prevTaskCpuSample, i));
-                    }
-                }
-            }
+            if (prevTaskCpuSample != null) cpuPercent = cpuSample.percentSince(prevTaskCpuSample);
             prevTaskCpuSample = cpuSample;
         } else {
             prevTaskCpuSample = null;
-            short[] clocks = CPUStatus.getCurrentClockSpeeds();
-            coreCount = clocks != null ? clocks.length : 0;
-            int agg = CPUStatus.getClockFreqLoadPercent();
-            cpuPercent = agg >= 0 ? agg : 0;
-            if (taskManagerCpuExpanded) {
-                for (int i = 0; i < coreCount; i++) {
-                    corePercents.add(CPUStatus.getClockFreqCorePercent(i));
-                }
+        }
+        if (cpuPercent < 0) cpuPercent = CPUStatus.getClockFreqLoadPercent();
+        if (cpuPercent < 0) cpuPercent = 0;
+
+        short[] clocks = CPUStatus.getCurrentClockSpeeds();
+        int coreCount = clocks != null ? clocks.length : 0;
+        ArrayList<Integer> corePercents = new ArrayList<>();
+        if (taskManagerCpuExpanded) {
+            for (int i = 0; i < coreCount; i++) {
+                corePercents.add(CPUStatus.getClockFreqCorePercent(i));
             }
         }
 
