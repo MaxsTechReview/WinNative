@@ -33,6 +33,8 @@ import com.winlator.cmod.shared.io.StorageUtils
 import com.winlator.cmod.shared.ui.dialog.ContentDialog
 import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -279,16 +281,16 @@ class ContentsFragment : Fragment() {
         remoteSizeFetchesInFlight.addAll(urlsToFetch)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            urlsToFetch.forEach { url ->
-                val size =
-                    withContext(Dispatchers.IO) {
-                        Downloader.fetchContentLength(url)
-                    }
-                if (!isAdded || view == null) return@launch
+            val sizes =
+                urlsToFetch
+                    .map { url -> async(Dispatchers.IO) { url to Downloader.fetchContentLength(url) } }
+                    .awaitAll()
+            if (!isAdded || view == null) return@launch
+            sizes.forEach { (url, size) ->
                 remoteSizeCache[url] = size
                 remoteSizeFetchesInFlight.remove(url)
             }
-            if (isAdded && view != null) publishState()
+            publishState()
         }
     }
 
@@ -305,16 +307,16 @@ class ContentsFragment : Fragment() {
         installedSizeFetchesInFlight.addAll(installDirsToFetch)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            installDirsToFetch.forEach { installDir ->
-                val size =
-                    withContext(Dispatchers.IO) {
-                        StorageUtils.getFolderSize(installDir)
-                    }
-                if (!isAdded || view == null) return@launch
+            val sizes =
+                installDirsToFetch
+                    .map { installDir -> async(Dispatchers.IO) { installDir to StorageUtils.getFolderSize(installDir) } }
+                    .awaitAll()
+            if (!isAdded || view == null) return@launch
+            sizes.forEach { (installDir, size) ->
                 installedSizeCache[installDir] = size
                 installedSizeFetchesInFlight.remove(installDir)
             }
-            if (isAdded && view != null) publishState()
+            publishState()
         }
     }
 
