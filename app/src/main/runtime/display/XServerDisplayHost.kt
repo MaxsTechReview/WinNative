@@ -65,7 +65,7 @@ const val XSERVER_DRAWER_OPEN_TRIGGER_DP = 32
 // Open only on a clearly rightward swipe: dx must exceed this * |dy| (~27deg of horizontal).
 const val XSERVER_DRAWER_OPEN_HORIZONTAL_RATIO = 2f
 
-private val DrawerWidth = 290.dp
+private val DrawerWidth = 305.dp
 private val DrawerStartPadding = 6.dp
 private val DrawerVerticalPadding = 6.dp
 private const val DrawerSettleAnimationMs = 200
