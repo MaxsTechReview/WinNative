@@ -555,7 +555,7 @@ private val TopRailTileMinWidth = 60.dp
 private val TopRailTileHorizontalPadding = 10.dp
 private val TopRailTileTopPadding = 10.dp
 private val TopRailTileBottomPadding = 7.dp
-private val TopRailTileSpacing = 6.dp
+private val TopRailTileSpacing = 10.dp
 
 private const val ActionCardColumns = 3
 private val ActionCardMinHeight = 72.dp
