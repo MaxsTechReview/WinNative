@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_graphics_transcoder">BCn 转码器</string>
+    <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
     <string name="container_graphics_version">图形驱动版本</string>
     <string name="container_graphics_available_extensions">可用扩展</string>
@@ -1175,6 +1177,9 @@
     <string name="cloud_saves_history_restore_success">已从备份还原存档。</string>
     <string name="cloud_saves_history_sign_in">登录 Google 以查看存档历史。</string>
     <string name="cloud_saves_history_title">存档历史</string>
+    <string name="cloud_saves_history_download">下载</string>
+    <string name="cloud_saves_history_download_success">文件已下载。</string>
+    <string name="cloud_saves_history_download_failed">下载失败。</string>
     <string name="cloud_saves_keep_replaced_backup">保留被替换存档的备份</string>
     <string name="cloud_saves_keep_replaced_backup_summary">如果您改变主意，可从存档历史中还原。</string>
     <string name="cloud_saves_no_backups">此游戏暂无备份。</string>

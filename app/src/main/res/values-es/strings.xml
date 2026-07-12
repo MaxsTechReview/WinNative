@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Controlador gráfico</string>
+    <string name="container_graphics_transcoder">Transcodificador BCn</string>
+    <string name="container_graphics_quality">Calidad BCn</string>
     <string name="container_graphics_configuration">Configuración del controlador gráfico</string>
     <string name="container_graphics_version">Versión del controlador gráfico</string>
     <string name="container_graphics_available_extensions">Extensiones disponibles</string>
@@ -1175,6 +1177,9 @@ Ruta instalada:
     <string name="cloud_saves_history_restore_success">Partida restaurada desde la copia de seguridad.</string>
     <string name="cloud_saves_history_sign_in">Inicia sesión en Google para ver tu historial de partidas.</string>
     <string name="cloud_saves_history_title">Historial de partidas</string>
+    <string name="cloud_saves_history_download">Descargar</string>
+    <string name="cloud_saves_history_download_success">Archivo descargado.</string>
+    <string name="cloud_saves_history_download_failed">Error al descargar.</string>
     <string name="cloud_saves_keep_replaced_backup">Guardar una copia de seguridad de la partida reemplazada</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Si cambias de opinión, puedes restaurarla desde el Historial de partidas.</string>
     <string name="cloud_saves_no_backups">Aún no hay copias de seguridad para este juego.</string>

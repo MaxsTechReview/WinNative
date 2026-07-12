@@ -513,6 +513,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Sterownik grafiki</string>
+    <string name="container_graphics_transcoder">Transkoder BCn</string>
+    <string name="container_graphics_quality">Jakość BCn</string>
     <string name="container_graphics_configuration">Konfiguracja sterownika grafiki</string>
     <string name="container_graphics_version">Wersja sterownika grafiki</string>
     <string name="container_graphics_available_extensions">Dostępne rozszerzenia</string>
@@ -1181,6 +1183,9 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_restore_success">Zapis przywrócony z kopii zapasowej.</string>
     <string name="cloud_saves_history_sign_in">Zaloguj się do Google, aby wyświetlić historię zapisów.</string>
     <string name="cloud_saves_history_title">Historia zapisów</string>
+    <string name="cloud_saves_history_download">Pobierz</string>
+    <string name="cloud_saves_history_download_success">Plik pobrany.</string>
+    <string name="cloud_saves_history_download_failed">Pobieranie nie powiodło się.</string>
     <string name="cloud_saves_keep_replaced_backup">Zachowaj kopię zapasową zastąpionego zapisu</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Jeśli zmienisz zdanie, możesz ją przywrócić z Historii zapisów.</string>
     <string name="cloud_saves_no_backups">Brak kopii zapasowych dla tej gry.</string>

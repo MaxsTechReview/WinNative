@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver Grafico</string>
+    <string name="container_graphics_transcoder">Transcodificador BCn</string>
+    <string name="container_graphics_quality">Qualidade BCn</string>
     <string name="container_graphics_configuration">Configuracao do Driver Grafico</string>
     <string name="container_graphics_version">Versao do Driver Grafico</string>
     <string name="container_graphics_available_extensions">Extensoes Disponiveis</string>
@@ -1175,6 +1177,9 @@ Caminho instalado:
     <string name="cloud_saves_history_restore_success">Save restaurado do backup.</string>
     <string name="cloud_saves_history_sign_in">Faça login no Google para ver seu histórico de saves.</string>
     <string name="cloud_saves_history_title">Histórico de Saves</string>
+    <string name="cloud_saves_history_download">Baixar</string>
+    <string name="cloud_saves_history_download_success">Arquivo baixado.</string>
+    <string name="cloud_saves_history_download_failed">Falha no download.</string>
     <string name="cloud_saves_keep_replaced_backup">Manter backup do save substituído</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Se mudar de ideia, você pode restaurá-lo pelo Histórico de Saves.</string>
     <string name="cloud_saves_no_backups">Nenhum backup ainda para este jogo.</string>

@@ -1162,12 +1162,7 @@ int main(int argc, char** argv) {
     bool launchedViaFallback = false;
     const char* launchFailureReason = "LaunchApp path unavailable";
 
-    // When the user overrides the launch target (picks their own exe instead of the
-    // app's Steam-configured launch entry), Steam's LaunchApp would still spawn the
-    // configured entry (e.g. a pre-launcher), not the chosen exe — so skip LaunchApp
-    // entirely and start the selected exe directly via CreateProcess. The Steam session
-    // (login/steamservice/cloud) is already established above, and the game's
-    // SteamAPI_Init attaches to it through the inherited SteamAppId env.
+    // User override: skip LaunchApp (it would spawn the app's configured entry, not the chosen exe) and CreateProcess the selected exe directly; the Steam session is already up.
     const char* directExeEnv = getenv("WN_STEAM_DIRECT_EXE");
     const bool directExe = directExeEnv && directExeEnv[0] != '\0';
 
@@ -1380,10 +1375,7 @@ int main(int argc, char** argv) {
         launchFailureReason = engine ? "appId was 0" : "IClientEngine was null";
     }
 
-    // LaunchApp didn't bring the game up — start it directly (clean-shutdown arm
-    // still reaps the session on exit, avoiding next-launch AlreadyRunning). The
-    // "LaunchApp dispatched … never appeared … falling back to CreateProcess"
-    // markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
+    // LaunchApp didn't bring the game up — start it directly; the "dispatched/never appeared/falling back" log markers disarm WnLauncherStatusTailer's post-dispatch watchdog.
     if (!launchedViaApp) {
         if (directExe) {
             log_line("[wn-launcher] direct-exe mode: launching user-selected \"%s\" via "

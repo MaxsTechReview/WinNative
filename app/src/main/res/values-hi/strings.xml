@@ -561,6 +561,8 @@
     <string name="container_fexcore_version">FEXCore संस्करण</string>
     <string name="use_unix_libs">UnixLibs का उपयोग करें</string>
     <string name="container_graphics_driver">ग्राफ़िक्स ड्राइवर</string>
+    <string name="container_graphics_transcoder">BCn ट्रांसकोडर</string>
+    <string name="container_graphics_quality">BCn गुणवत्ता</string>
     <string name="container_graphics_configuration">ग्राफ़िक्स ड्राइवर कॉन्फ़िगरेशन</string>
     <string name="container_graphics_version">ग्राफ़िक्स ड्राइवर संस्करण</string>
     <string name="container_graphics_available_extensions">उपलब्ध एक्सटेंशन</string>
@@ -1152,6 +1154,9 @@
     <string name="cloud_saves_gog_zip_failed">GOG क्लाउड सेव ZIP सहेजी नहीं जा सकी।</string>
     <string name="cloud_saves_gog_zip_empty">कोई GOG क्लाउड सेव फ़ाइलें नहीं मिलीं।</string>
     <string name="cloud_saves_history_title">सेव इतिहास</string>
+    <string name="cloud_saves_history_download">डाउनलोड करें</string>
+    <string name="cloud_saves_history_download_success">फ़ाइल डाउनलोड हो गई।</string>
+    <string name="cloud_saves_history_download_failed">डाउनलोड विफल रहा।</string>
     <string name="cloud_saves_history_empty">अभी तक किसी पिछली सेव का बैकअप नहीं है। बदली गई सेव और मैन्युअल बैकअप यहाँ 30 दिनों तक दिखेंगे।</string>
     <string name="cloud_saves_history_loading">सेव इतिहास लोड हो रहा है\u2026</string>
     <string name="cloud_saves_history_sign_in">अपना सेव इतिहास देखने के लिए Google में साइन इन करें।</string>

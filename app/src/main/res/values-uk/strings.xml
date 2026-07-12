@@ -513,6 +513,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графічний драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Якість BCn</string>
     <string name="container_graphics_configuration">Конфігурація графічного драйвера</string>
     <string name="container_graphics_version">Версія графічного драйвера</string>
     <string name="container_graphics_available_extensions">Доступні розширення</string>
@@ -1181,6 +1183,9 @@
     <string name="cloud_saves_history_restore_success">Збереження відновлено з резервної копії.</string>
     <string name="cloud_saves_history_sign_in">Увійдіть у Google, щоб переглянути історію збережень.</string>
     <string name="cloud_saves_history_title">Історія збережень</string>
+    <string name="cloud_saves_history_download">Завантажити</string>
+    <string name="cloud_saves_history_download_success">Файл завантажено.</string>
+    <string name="cloud_saves_history_download_failed">Не вдалося завантажити.</string>
     <string name="cloud_saves_keep_replaced_backup">Зберігати резервну копію замінених збережень</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Якщо передумаєте, можна відновити їх з Історії збережень.</string>
     <string name="cloud_saves_no_backups">Для цієї гри ще немає резервних копій.</string>

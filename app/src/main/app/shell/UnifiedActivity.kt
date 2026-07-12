@@ -2372,9 +2372,7 @@ class UnifiedActivity :
                                 builder.memoryCacheKey(if (immersiveBlur) "$key:blur" else key).diskCacheKey(key)
                             }
                             if (immersiveBlur) {
-                                // Blur is baked into the bitmap once at decode, so drawing it
-                                // costs the same as a plain image every frame. Quarter-res
-                                // decode + radius 2 ≈ an 8px blur at screen size.
+                                // Blur baked into the bitmap at decode (quarter-res + radius 2 ≈ 8px on screen), so drawing costs the same as a plain image.
                                 val dm = context.resources.displayMetrics
                                 builder
                                     .size(dm.widthPixels / 4, dm.heightPixels / 4)
@@ -3973,11 +3971,7 @@ class UnifiedActivity :
             }
         }
 
-        // Publish the focused game's hero artwork to drive the immersive background.
-        // Prefers a custom Game Card upload (LibraryArtworkSlot.GAME_CARD), then the
-        // store-supplied hero, then the regular grid capsule as a last resort.
-        // Shortcuts are loaded via IO once per refresh signal (not per focus move) so
-        // freshly uploaded artwork still shows up immediately.
+        // Publish the focused game's hero art (custom card > store hero > grid capsule) for the immersive background; shortcuts load once per refresh signal, not per focus move.
         var immersiveShortcuts by remember { mutableStateOf<List<Shortcut>?>(null) }
         LaunchedEffect(shortcutRefreshKey, libraryRefreshKey, artworkCacheRefreshKey) {
             immersiveShortcuts =

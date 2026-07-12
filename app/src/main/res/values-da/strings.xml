@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdriver</string>
+    <string name="container_graphics_transcoder">BCn-transkoder</string>
+    <string name="container_graphics_quality">BCn-kvalitet</string>
     <string name="container_graphics_configuration">Grafikdriver-konfiguration</string>
     <string name="container_graphics_version">Grafikdriver-version</string>
     <string name="container_graphics_available_extensions">Tilgængelige udvidelser</string>
@@ -1175,6 +1177,9 @@ Installeret sti:
     <string name="cloud_saves_history_restore_success">Save gendannet fra sikkerhedskopi.</string>
     <string name="cloud_saves_history_sign_in">Log ind på Google for at se din save-historik.</string>
     <string name="cloud_saves_history_title">Save-historik</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">Filen er downloadet.</string>
+    <string name="cloud_saves_history_download_failed">Download mislykkedes.</string>
     <string name="cloud_saves_keep_replaced_backup">Behold en sikkerhedskopi af det erstattede save</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Hvis du fortryder, kan du gendanne det fra Save-historik.</string>
     <string name="cloud_saves_no_backups">Ingen sikkerhedskopier endnu for dette spil.</string>

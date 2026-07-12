@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafic</string>
+    <string name="container_graphics_transcoder">Transcodor BCn</string>
+    <string name="container_graphics_quality">Calitate BCn</string>
     <string name="container_graphics_configuration">Configurare driver grafic</string>
     <string name="container_graphics_version">Versiune driver grafic</string>
     <string name="container_graphics_available_extensions">Extensii disponibile</string>
@@ -1175,6 +1177,9 @@ Cale instalata:
     <string name="cloud_saves_history_restore_success">Salvare restaurată din copia de siguranță.</string>
     <string name="cloud_saves_history_sign_in">Autentifică-te la Google pentru a vedea istoricul salvărilor.</string>
     <string name="cloud_saves_history_title">Istoric salvări</string>
+    <string name="cloud_saves_history_download">Descarcă</string>
+    <string name="cloud_saves_history_download_success">Fișier descărcat.</string>
+    <string name="cloud_saves_history_download_failed">Descărcarea a eșuat.</string>
     <string name="cloud_saves_keep_replaced_backup">Păstrează o copie de siguranță a salvării înlocuite</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Dacă te răzgândești, o poți restaura din Istoricul salvărilor.</string>
     <string name="cloud_saves_no_backups">Nicio copie de siguranță pentru acest joc încă.</string>

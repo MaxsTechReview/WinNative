@@ -516,6 +516,8 @@
     <string name="use_unix_libs">Использовать UnixLibs</string>
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графический драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Качество BCn</string>
     <string name="container_graphics_configuration">Конфигурация графического драйвера</string>
     <string name="container_graphics_version">Версия графического драйвера</string>
     <string name="container_graphics_available_extensions">Доступные расширения</string>
@@ -1115,6 +1117,9 @@
     <string name="cloud_saves_gog_zip_failed">Не удалось сохранить ZIP облачных сохранений GOG.</string>
     <string name="cloud_saves_gog_zip_empty">Файлы облачного сохранения GOG не найдены.</string>
     <string name="cloud_saves_history_title">История сохранений</string>
+    <string name="cloud_saves_history_download">Скачать</string>
+    <string name="cloud_saves_history_download_success">Файл скачан.</string>
+    <string name="cloud_saves_history_download_failed">Не удалось скачать.</string>
     <string name="cloud_saves_history_empty">Предыдущие сохранения еще не сохранены. Замененные сохранения и ручные резервные копии будут появляться здесь в течение 30 дней.</string>
     <string name="cloud_saves_history_loading">Загрузка истории сохранений\u2026</string>
     <string name="cloud_saves_history_sign_in">Войдите в Google, чтобы просмотреть историю сохранений.</string>

@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">그래픽 드라이버</string>
+    <string name="container_graphics_transcoder">BCn 트랜스코더</string>
+    <string name="container_graphics_quality">BCn 품질</string>
     <string name="container_graphics_configuration">그래픽 드라이버 구성</string>
     <string name="container_graphics_version">그래픽 드라이버 버전</string>
     <string name="container_graphics_available_extensions">사용 가능한 확장</string>
@@ -1176,6 +1178,9 @@
     <string name="cloud_saves_history_restore_success">백업에서 저장 파일을 복원했습니다.</string>
     <string name="cloud_saves_history_sign_in">Google에 로그인하여 저장 기록을 확인하세요.</string>
     <string name="cloud_saves_history_title">저장 기록</string>
+    <string name="cloud_saves_history_download">다운로드</string>
+    <string name="cloud_saves_history_download_success">파일을 다운로드했습니다.</string>
+    <string name="cloud_saves_history_download_failed">다운로드 실패.</string>
     <string name="cloud_saves_keep_replaced_backup">교체된 저장 파일의 백업 유지</string>
     <string name="cloud_saves_keep_replaced_backup_summary">마음이 바뀌면 저장 기록에서 복원할 수 있습니다.</string>
     <string name="cloud_saves_no_backups">이 게임의 백업이 아직 없습니다.</string>

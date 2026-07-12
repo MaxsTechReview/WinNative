@@ -509,6 +509,8 @@
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafiktreiber</string>
+    <string name="container_graphics_transcoder">BCn-Transcoder</string>
+    <string name="container_graphics_quality">BCn-Qualität</string>
     <string name="container_graphics_configuration">Grafiktreiber-Konfiguration</string>
     <string name="container_graphics_version">Grafiktreiber-Version</string>
     <string name="container_graphics_available_extensions">Verfügbare Erweiterungen</string>
@@ -1175,6 +1177,9 @@ Installierter Pfad:
     <string name="cloud_saves_history_restore_success">Spielstand aus Backup wiederhergestellt.</string>
     <string name="cloud_saves_history_sign_in">Melde dich bei Google an, um deinen Speicherverlauf anzuzeigen.</string>
     <string name="cloud_saves_history_title">Speicherverlauf</string>
+    <string name="cloud_saves_history_download">Herunterladen</string>
+    <string name="cloud_saves_history_download_success">Datei heruntergeladen.</string>
+    <string name="cloud_saves_history_download_failed">Download fehlgeschlagen.</string>
     <string name="cloud_saves_keep_replaced_backup">Backup des ersetzten Spielstands behalten</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Falls du es dir anders überlegst, kannst du ihn aus dem Speicherverlauf wiederherstellen.</string>
     <string name="cloud_saves_no_backups">Noch keine Backups für dieses Spiel vorhanden.</string>
