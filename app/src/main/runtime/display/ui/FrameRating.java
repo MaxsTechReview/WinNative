@@ -1386,17 +1386,21 @@ public class FrameRating extends LinearLayout implements Runnable {
     if (this.enableCpu && this.canReadCpu) {
       try {
         CPUStatus.CpuSample sample = CPUStatus.readCpuSample();
+        int pct = -1;
         if (sample != null) {
-          if (this.prevCpuSample != null) {
-            this.cpuPercent = sample.percentSince(this.prevCpuSample);
-            this.cpuFailCount = 0;
-            if (!this.cpuWarmedUp) {
-              this.cpuWarmedUp = true;
-              Handler refresh = this.uiRefreshHandler;
-              if (refresh != null) refresh.post(this);
-            }
-          }
+          if (this.prevCpuSample != null) pct = sample.percentSince(this.prevCpuSample);
           this.prevCpuSample = sample;
+        } else {
+          pct = CPUStatus.getClockFreqLoadPercent();
+        }
+        if (pct >= 0) {
+          this.cpuPercent = pct;
+          this.cpuFailCount = 0;
+          if (!this.cpuWarmedUp) {
+            this.cpuWarmedUp = true;
+            Handler refresh = this.uiRefreshHandler;
+            if (refresh != null) refresh.post(this);
+          }
         }
       } catch (Exception e) {
         this.cpuPercent = -1;

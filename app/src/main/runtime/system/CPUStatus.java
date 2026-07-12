@@ -181,4 +181,31 @@ public abstract class CPUStatus {
       return -1;
     }
   }
+
+  public static int getClockFreqLoadPercent() {
+    short[] clocks = getCurrentClockSpeeds();
+    if (clocks == null || clocks.length == 0) return -1;
+    long cur = 0;
+    long max = 0;
+    for (int i = 0; i < clocks.length; i++) {
+      cur += clocks[i];
+      max += getMaxClockSpeed(i);
+    }
+    if (max <= 0) return -1;
+    return clampPercent((int) ((cur * 100) / max));
+  }
+
+  public static int getClockFreqCorePercent(int core) {
+    short[] clocks = getCurrentClockSpeeds();
+    if (clocks == null || core < 0 || core >= clocks.length) return 0;
+    int max = getMaxClockSpeed(core);
+    if (max <= 0) return 0;
+    return clampPercent((int) (((float) clocks[core] / max) * 100.0f));
+  }
+
+  private static int clampPercent(int p) {
+    if (p < 0) return 0;
+    if (p > 100) return 100;
+    return p;
+  }
 }

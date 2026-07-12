@@ -5013,19 +5013,33 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         if (drawerStateHolder == null) return;
 
         CPUStatus.CpuSample cpuSample = CPUStatus.readCpuSample();
-        int coreCount = cpuSample != null ? cpuSample.coreCount() : 0;
+        int coreCount;
         int cpuPercent = 0;
         ArrayList<Integer> corePercents = new ArrayList<>();
-        if (cpuSample != null && prevTaskCpuSample != null) {
-            int agg = cpuSample.percentSince(prevTaskCpuSample);
-            if (agg >= 0) cpuPercent = agg;
+        if (cpuSample != null) {
+            coreCount = cpuSample.coreCount();
+            if (prevTaskCpuSample != null) {
+                int agg = cpuSample.percentSince(prevTaskCpuSample);
+                if (agg >= 0) cpuPercent = agg;
+                if (taskManagerCpuExpanded) {
+                    for (int i = 0; i < coreCount; i++) {
+                        corePercents.add(cpuSample.corePercentSince(prevTaskCpuSample, i));
+                    }
+                }
+            }
+            prevTaskCpuSample = cpuSample;
+        } else {
+            prevTaskCpuSample = null;
+            short[] clocks = CPUStatus.getCurrentClockSpeeds();
+            coreCount = clocks != null ? clocks.length : 0;
+            int agg = CPUStatus.getClockFreqLoadPercent();
+            cpuPercent = agg >= 0 ? agg : 0;
             if (taskManagerCpuExpanded) {
                 for (int i = 0; i < coreCount; i++) {
-                    corePercents.add(cpuSample.corePercentSince(prevTaskCpuSample, i));
+                    corePercents.add(CPUStatus.getClockFreqCorePercent(i));
                 }
             }
         }
-        if (cpuSample != null) prevTaskCpuSample = cpuSample;
 
         ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
