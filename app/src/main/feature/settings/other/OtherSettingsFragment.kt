@@ -30,8 +30,6 @@ import com.winlator.cmod.app.shell.UnifiedActivity
 import com.winlator.cmod.app.update.UpdateChecker
 import com.winlator.cmod.feature.shortcuts.FrontendExporter
 import com.winlator.cmod.feature.setup.SetupWizardActivity
-import com.winlator.cmod.feature.stores.steam.enums.Language
-import com.winlator.cmod.feature.stores.steam.utils.PrefManager
 import com.winlator.cmod.runtime.audio.midi.MidiManager
 import com.winlator.cmod.runtime.display.environment.ImageFsInstaller
 import com.winlator.cmod.shared.ui.toast.WinToast
@@ -119,11 +117,6 @@ class OtherSettingsFragment : Fragment() {
                                 LocaleHelper.applyLanguageTag(LocaleHelper.tagForIndex(index))
                                 // AppCompatDelegate recreates attached activities automatically.
                             }
-                        },
-                        onContainerLanguageSelected = { index ->
-                            val langName = Language.containerLangForIndex(index)
-                            PrefManager.containerLanguage = langName
-                            refresh()
                         },
                         onSoundFontSelected = { index ->
                             // Selection is display-only; no persistence in legacy code.
@@ -224,17 +217,11 @@ class OtherSettingsFragment : Fragment() {
                 ctx,
             )
 
-        // Game container language
-        val containerLanguageLabels = Language.displayLabels()
-        val containerLanguageIndex = Language.indexForContainerLang(PrefManager.containerLanguage)
-
         uiState =
             OtherSettingsState(
                 checkForUpdates = preferences.getBoolean("check_for_updates", false),
                 languageLabels = languageLabels,
                 languageIndex = languageIndex,
-                containerLanguageLabels = containerLanguageLabels,
-                containerLanguageIndex = containerLanguageIndex,
                 soundFontFiles = soundFontFiles,
                 soundFontIndex = soundFontIndex,
                 winlatorPath = winlatorPath,
