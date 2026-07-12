@@ -1226,7 +1226,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         boolean recordToFile = preferences.getBoolean("hud_record_to_file", false);
         perfController = new SessionRecordingController(this);
-        perfController.start(shortcut, container, recordToFile);
+        // Only sample per-frame stats when recording to file is on; nothing else consumes them.
+        if (recordToFile) perfController.start(shortcut, container, recordToFile);
 
         int numControllers = 1;
         if (shortcut != null) {
