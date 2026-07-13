@@ -2850,7 +2850,7 @@ private fun InputControlsPaneContent(
                         valueText = "${(state.inputControlsOverlayOpacity * 100).toInt()}%",
                         value = state.inputControlsOverlayOpacity,
                         valueRange = 0.1f..1.0f,
-                        steps = 8,
+                        steps = 17,
                         onValueChange = listener::onInputControlsOverlayOpacityChanged,
                     )
                     Spacer(Modifier.height(4.dp))

@@ -679,7 +679,9 @@ return boundingBox;
           }
 
           if (iconId > 0) {
-            drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
+            drawIcon(
+                canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId, true,
+                accent != -1 ? accentFilter(accent) : inputControlsView.getColorFilter());
           } else {
             String text = getDisplayText();
             paint.setTextSize(
@@ -749,11 +751,10 @@ return boundingBox;
                   : primaryColor);
           canvas.drawCircle(cx, cy, radius, paint);
 
-          if (iconId > 0) {
-            drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
-          } else {
-            drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), 34);
-          }
+          drawIcon(
+              canvas, cx, cy, boundingBox.width(), boundingBox.height(),
+              iconId > 0 ? iconId : 34, true,
+              accent != -1 ? accentFilter(accent) : inputControlsView.getColorFilter());
           break;
         }
       case D_PAD:
@@ -1078,6 +1079,11 @@ return boundingBox;
         paint.setColor(bodyColor);
         drawCleanBody(canvas, paint, boundingBox, 0f);
         if (engaged) {
+          if (!halo && !glint) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (105 * a)));
+            drawCleanBody(canvas, paint, boundingBox, 0f);
+          }
           float bloomRadius = Math.min(boundingBox.width(), boundingBox.height()) * 0.52f;
           beginBloom(paint, cx, cy, bloomRadius, accent, a * 0.9f);
           drawCleanBody(canvas, paint, boundingBox, 0f);
@@ -1952,7 +1958,9 @@ return boundingBox;
         }
 
         if (iconId > 0) {
-          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
+          drawIcon(
+              canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId, true,
+              hasAccent ? accentFilter(accent) : inputControlsView.getColorFilter());
         } else {
           String label = getDisplayText();
           paint.setStyle(Paint.Style.FILL);
@@ -2115,11 +2123,10 @@ return boundingBox;
         paint.setColor(engaged ? pressedStrokeColor : strokeColor);
         drawGameHubShape(canvas, paint, boundingBox, 0, false);
 
-        if (iconId > 0) {
-          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId);
-        } else {
-          drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), 34);
-        }
+        drawIcon(
+            canvas, cx, cy, boundingBox.width(), boundingBox.height(),
+            iconId > 0 ? iconId : 34, true,
+            hasAccent ? accentFilter(accent) : inputControlsView.getColorFilter());
         break;
       }
       case RANGE_BUTTON: {

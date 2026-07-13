@@ -3971,12 +3971,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         ArrayList<String> styleNames = new ArrayList<>();
-        styleNames.add(getString(R.string.input_controls_style_slate));
-        styleNames.add(getString(R.string.input_controls_style_gamehub));
-        styleNames.add(getString(R.string.input_controls_style_halo));
-        styleNames.add(getString(R.string.input_controls_style_glint));
-        styleNames.add(getString(R.string.input_controls_style_shadow));
-        styleNames.add(getString(R.string.input_controls_style_original));
+        if (activeProfile != null) {
+            styleNames.add(getString(R.string.input_controls_style_slate));
+            styleNames.add(getString(R.string.input_controls_style_gamehub));
+            styleNames.add(getString(R.string.input_controls_style_halo));
+            styleNames.add(getString(R.string.input_controls_style_glint));
+            styleNames.add(getString(R.string.input_controls_style_shadow));
+            styleNames.add(getString(R.string.input_controls_style_original));
+        }
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
                 ? inputControlsView.getVisualStyle() : VisualStyle.SLATE;
         int selectedStyleIndex = currentStyle.ordinal();
