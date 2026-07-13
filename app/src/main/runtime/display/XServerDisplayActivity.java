@@ -11202,7 +11202,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     }
 
     private boolean shouldRecordFpsFrame(Window window, WindowManager.FrameSource source) {
-        if ((!effectiveShowFPS && !controllerHudMode) || frameRating == null || window == null) return false;
+        // Perf recording is driven solely by the record-to-file toggle, independent of HUD/controller.
+        boolean recording = perfController != null && perfController.isActive();
+        if ((!effectiveShowFPS && !controllerHudMode && !recording) || frameRating == null || window == null) return false;
         if (source == WindowManager.FrameSource.UNKNOWN) return false;
         if (frameRatingWindowId == window.id) return true;
         if (isRelatedToFrameRatingWindow(window)) return true;
