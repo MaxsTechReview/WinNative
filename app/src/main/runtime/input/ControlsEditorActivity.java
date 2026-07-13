@@ -21,6 +21,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -277,6 +278,8 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     AccentTheme[] themes = AccentTheme.values();
     int swatchSize = (int) UnitUtils.dpToPx(14);
     int rowPadding = (int) UnitUtils.dpToPx(6);
+    LinearLayout rows = new LinearLayout(this);
+    rows.setOrientation(LinearLayout.VERTICAL);
     for (int i = 0; i < themes.length; i++) {
       final AccentTheme theme = themes[i];
       LinearLayout row = new LinearLayout(this);
@@ -308,8 +311,17 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
             inputControlsView.invalidate();
             if (popup[0] != null) popup[0].dismiss();
           });
-      view.addView(row);
+      rows.addView(row);
     }
+
+    ScrollView scroller = new ScrollView(this);
+    scroller.setVerticalScrollBarEnabled(true);
+    scroller.addView(rows);
+    int maxListHeight =
+        (int) Math.min(UnitUtils.dpToPx(250), getResources().getDisplayMetrics().heightPixels * 0.5f);
+    view.addView(
+        scroller,
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxListHeight));
 
     popup[0] = AppUtils.showPopupWindow(anchorView, view, 220, 0);
     popup[0].setFocusable(true);

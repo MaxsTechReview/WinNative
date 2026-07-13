@@ -565,6 +565,10 @@ return boundingBox;
     Paint paint = inputControlsView.getPaint();
     float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
     int accent = resolveAccentColor();
+    if (accent == -1) {
+      AccentTheme theme = inputControlsView.getAccentTheme();
+      if (theme != AccentTheme.MONO) accent = theme.accent;
+    }
     int primaryColor = accent != -1
         ? ColorUtils.setAlphaComponent(accent, (int) (Math.min(1.0f,
             inputControlsView.getOverlayOpacity() * 2.0f) * 255))
