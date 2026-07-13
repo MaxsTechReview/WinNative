@@ -412,6 +412,21 @@ class DebugFragment : Fragment() {
         }
     }
 
+    /** Application logs carry their capture time in the saved name so re-saving after a new
+     *  session doesn't overwrite the previous copy. */
+    private fun exportFileName(file: File): String {
+        if (!file.name.startsWith("application")) return file.name
+        val stamp =
+            java.text.SimpleDateFormat("MMdd_HHmmss", java.util.Locale.US)
+                .format(java.util.Date(file.lastModified()))
+        val dot = file.name.lastIndexOf('.')
+        return if (dot <= 0) {
+            "${file.name}_$stamp"
+        } else {
+            "${file.name.substring(0, dot)}_$stamp${file.name.substring(dot)}"
+        }
+    }
+
     private fun downloadLogFile(entry: LogFileEntry): String? {
         val ctx = requireContext()
         val file = File(entry.absolutePath)
@@ -420,7 +435,7 @@ class DebugFragment : Fragment() {
             return null
         }
         return try {
-            val dest = File(logsDownloadDir(), file.name)
+            val dest = File(logsDownloadDir(), exportFileName(file))
             file.inputStream().use { input -> FileOutputStream(dest).use { input.copyTo(it) } }
             markLogDownloaded(file)
             "/WinNative/logs/${dest.name}"
