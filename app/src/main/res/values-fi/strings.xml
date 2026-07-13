@@ -363,6 +363,11 @@
     <string name="input_controls_select_style">Valitse tyyli</string>
     <string name="input_controls_style_original">Alkuperäinen</string>
     <string name="input_controls_style_gamehub">Lasi</string>
+    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Glint</string>
+    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_accent_theme">Väriteema</string>
     <string name="input_controls_edit_duplicating_builtin">Sisäänrakennettu profiili – luotiin kopio, jota voit muokata.</string>
     <string name="input_controls_editor_profile_name">Profiilin nimi</string>
     <string name="input_controls_editor_no_profile_selected">Ei valittua profiilia</string>

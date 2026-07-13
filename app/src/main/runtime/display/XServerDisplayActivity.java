@@ -3975,6 +3975,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         styleNames.add(getString(R.string.input_controls_style_gamehub));
         styleNames.add(getString(R.string.input_controls_style_halo));
         styleNames.add(getString(R.string.input_controls_style_glint));
+        styleNames.add(getString(R.string.input_controls_style_shadow));
         styleNames.add(getString(R.string.input_controls_style_original));
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
                 ? inputControlsView.getVisualStyle() : VisualStyle.SLATE;
@@ -3982,11 +3983,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         ArrayList<String> accentThemeNames = new ArrayList<>();
         int selectedAccentThemeIndex = 0;
-        if (activeProfile != null) {
+        if (activeProfile != null && inputControlsView != null) {
             accentThemeNames.addAll(Arrays.asList(AccentTheme.displayNames()));
-            AccentTheme currentAccent = activeProfile.getAccentTheme() != null
-                    ? activeProfile.getAccentTheme() : AccentTheme.MONO;
-            selectedAccentThemeIndex = currentAccent.ordinal();
+            selectedAccentThemeIndex = inputControlsView.getAccentTheme().ordinal();
         }
 
         List<String> gestureProfileNames = new ArrayList<>();
@@ -4592,7 +4591,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index < 0 || index >= all.length) return;
                         VisualStyle chosen = all[index];
                         if (inputControlsView != null) inputControlsView.setVisualStyle(chosen);
-                        preferences.edit().putString("input_visual_style", chosen.name()).apply();
+                        persistSelectedStyle(chosen);
                         renderDrawerMenu();
                     }
 
@@ -4600,11 +4599,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onInputControlsAccentThemeSelected(int index) {
                         AccentTheme[] all = AccentTheme.values();
                         if (index < 0 || index >= all.length) return;
-                        ControlsProfile profile = inputControlsView != null ? inputControlsView.getProfile() : null;
-                        if (profile == null) return;
-                        profile.setAccentTheme(all[index]);
-                        profile.save();
-                        inputControlsView.invalidate();
+                        AccentTheme chosen = all[index];
+                        if (inputControlsView != null) inputControlsView.setAccentTheme(chosen);
+                        persistSelectedAccentTheme(chosen);
                         renderDrawerMenu();
                     }
 
@@ -7570,6 +7567,30 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    // Style/theme picks follow the controlsProfile pattern: remembered on the shortcut when the
+    // session was launched from one, otherwise as the global default.
+    private void persistSelectedStyle(VisualStyle style) {
+        if (shortcut != null) {
+            if (!style.name().equals(shortcut.getExtra("controlsStyle", ""))) {
+                shortcut.putExtra("controlsStyle", style.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_visual_style", style.name()).apply();
+        }
+    }
+
+    private void persistSelectedAccentTheme(AccentTheme theme) {
+        if (shortcut != null) {
+            if (!theme.name().equals(shortcut.getExtra("controlsAccentTheme", ""))) {
+                shortcut.putExtra("controlsAccentTheme", theme.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_accent_theme", theme.name()).apply();
+        }
+    }
+
     private void pushSelectedGestureConfig() {
         try {
             int gid = selectedGestureProfileId();
@@ -7604,8 +7625,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
     private void applyInputVisualStylePreferences() {
         if (inputControlsView == null || preferences == null) return;
-        inputControlsView.setVisualStyle(
-                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.SLATE.name())));
+        String style = shortcut != null ? shortcut.getExtra("controlsStyle", "") : "";
+        if (style.isEmpty()) style = preferences.getString("input_visual_style", VisualStyle.SLATE.name());
+        inputControlsView.setVisualStyle(VisualStyle.fromPreference(style));
+        String theme = shortcut != null ? shortcut.getExtra("controlsAccentTheme", "") : "";
+        if (theme.isEmpty()) theme = preferences.getString("input_accent_theme", AccentTheme.CYAN.name());
+        inputControlsView.setAccentTheme(AccentTheme.fromPreference(theme));
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {

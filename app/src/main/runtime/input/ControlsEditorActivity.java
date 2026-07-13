@@ -65,6 +65,10 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
         VisualStyle.fromPreference(
             PreferenceManager.getDefaultSharedPreferences(this)
                 .getString("input_visual_style", null)));
+    inputControlsView.setAccentTheme(
+        AccentTheme.fromPreference(
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .getString("input_accent_theme", null)));
 
     profile =
         InputControlsManager.loadProfile(
@@ -161,7 +165,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
       label.setPadding(rowPadding, rowPadding, rowPadding, rowPadding);
       label.setOnClickListener(
           v -> {
-            androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            PreferenceManager.getDefaultSharedPreferences(this)
                 .edit()
                 .putString("input_visual_style", style.name())
                 .apply();
@@ -272,7 +276,7 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     title.setPadding(0, 0, 0, (int) UnitUtils.dpToPx(8));
     view.addView(title);
 
-    AccentTheme current = profile.getAccentTheme() != null ? profile.getAccentTheme() : AccentTheme.MONO;
+    AccentTheme current = inputControlsView.getAccentTheme();
     final PopupWindow[] popup = new PopupWindow[1];
     String[] names = AccentTheme.displayNames();
     AccentTheme[] themes = AccentTheme.values();
@@ -306,9 +310,11 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
 
       row.setOnClickListener(
           v -> {
-            profile.setAccentTheme(theme);
-            profile.save();
-            inputControlsView.invalidate();
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .edit()
+                .putString("input_accent_theme", theme.name())
+                .apply();
+            inputControlsView.setAccentTheme(theme);
             if (popup[0] != null) popup[0].dismiss();
           });
       rows.addView(row);

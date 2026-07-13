@@ -76,6 +76,7 @@ public class InputControlsView extends View {
   private volatile float mouseMoveOffsetY = 0f;
   private boolean showTouchscreenControls = false;
   private VisualStyle visualStyle = VisualStyle.SLATE;
+  private AccentTheme accentTheme = AccentTheme.CYAN;
   private InputControlsManager inputControlsManager;
 
   private Handler timeoutHandler; // Reference to the activity's timeout handler
@@ -190,16 +191,13 @@ public class InputControlsView extends View {
     invalidate();
   }
 
-  /** Same as {@link #setVisualStyle} but without {@link #invalidate()}, for internal draw-time
-   * fallbacks where requesting another redraw would loop. */
-  public void setVisualStyleSilent(VisualStyle style) {
-    this.visualStyle = style != null ? style : VisualStyle.SLATE;
+  public AccentTheme getAccentTheme() {
+    return accentTheme;
   }
 
-  public AccentTheme getAccentTheme() {
-    ControlsProfile p = profile;
-    AccentTheme t = p != null ? p.getAccentTheme() : null;
-    return t != null ? t : AccentTheme.MONO;
+  public void setAccentTheme(AccentTheme theme) {
+    this.accentTheme = theme != null ? theme : AccentTheme.CYAN;
+    invalidate();
   }
 
   public InputControlsManager getInputControlsManager() {

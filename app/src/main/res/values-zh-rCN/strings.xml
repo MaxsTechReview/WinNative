@@ -1303,6 +1303,11 @@
     <string name="input_controls_select_style">选择样式</string>
     <string name="input_controls_style_original">原版</string>
     <string name="input_controls_style_gamehub">Glass</string>
+    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Glint</string>
+    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_accent_theme">颜色主题</string>
     <string name="input_controls_edit_duplicating_builtin">内置配置文件 - 已创建可编辑副本。</string>
     <string name="input_controls_editor_confirm_reset_profile">将此配置文件重置为原始布局？你所做的任何更改都会丢失。</string>
     <string name="input_controls_editor_profile_reset">配置文件已重置为原始布局。</string>

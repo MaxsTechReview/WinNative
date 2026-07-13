@@ -312,7 +312,6 @@ public class InputControlsManager {
       int profileId = 0;
       String profileName = null;
       float cursorSpeed = Float.NaN;
-      String accentTheme = null;
       int fieldsRead = 0;
 
       reader.beginObject();
@@ -328,8 +327,6 @@ public class InputControlsManager {
         } else if (name.equals("cursorSpeed")) {
           cursorSpeed = (float) reader.nextDouble();
           fieldsRead++;
-        } else if (name.equals("accentTheme")) {
-          accentTheme = reader.nextString();
         } else {
           if (fieldsRead == 3) break;
           reader.skipValue();
@@ -340,12 +337,6 @@ public class InputControlsManager {
       if (profileName != null) {
         profile.setName(profileName);
         profile.setCursorSpeed(cursorSpeed);
-        if (accentTheme != null) {
-          try {
-            profile.setAccentTheme(AccentTheme.valueOf(accentTheme));
-          } catch (IllegalArgumentException ignored) {
-          }
-        }
         reader.close();
         return profile;
       }

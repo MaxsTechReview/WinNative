@@ -1303,6 +1303,11 @@ Ruta instalada:
     <string name="input_controls_select_style">Seleccionar estilo</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
+    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Glint</string>
+    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_accent_theme">Tema de color</string>
     <string name="input_controls_edit_duplicating_builtin">Perfil integrado: se creó una copia que puedes editar.</string>
     <string name="input_controls_editor_confirm_reset_profile">¿Restablecer este perfil a su diseño original? Se perderán todos los cambios que hayas hecho.</string>
     <string name="input_controls_editor_profile_reset">Perfil restablecido a su diseño original.</string>

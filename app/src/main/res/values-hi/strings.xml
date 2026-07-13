@@ -341,6 +341,11 @@
     <string name="input_controls_select_style">शैली चुनें</string>
     <string name="input_controls_style_original">मूल</string>
     <string name="input_controls_style_gamehub">Glass</string>
+    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_halo">Halo</string>
+    <string name="input_controls_style_glint">Glint</string>
+    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_accent_theme">रंग थीम</string>
     <string name="input_controls_edit_duplicating_builtin">अंतर्निहित प्रोफ़ाइल - एक प्रति बनाई गई जिसे आप संपादित कर सकते हैं।</string>
     <string name="input_controls_editor_profile_name">प्रोफ़ाइल नाम</string>
     <string name="input_controls_editor_no_profile_selected">कोई प्रोफ़ाइल चयनित नहीं</string>

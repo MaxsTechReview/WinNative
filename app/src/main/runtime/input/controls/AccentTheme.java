@@ -23,11 +23,11 @@ public enum AccentTheme {
   }
 
   public static AccentTheme fromPreference(String name) {
-    if (name == null) return MONO;
+    if (name == null) return CYAN;
     try {
       return AccentTheme.valueOf(name);
     } catch (IllegalArgumentException e) {
-      return MONO;
+      return CYAN;
     }
   }
 
