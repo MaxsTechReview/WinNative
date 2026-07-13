@@ -1561,4 +1561,5 @@ Installert bane:
     <string name="file_manager_rename_failed">Endring av navn mislyktes</string>
     <string name="file_manager_create_folder_failed">Oppretting av mappe mislyktes</string>
 
+    <string name="settings_content_refresh">Oppdater</string>
 </resources>

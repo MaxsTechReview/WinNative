@@ -1561,4 +1561,5 @@
     <string name="file_manager_rename_failed">名前の変更に失敗しました</string>
     <string name="file_manager_create_folder_failed">フォルダの作成に失敗しました</string>
 
+    <string name="settings_content_refresh">更新</string>
 </resources>

@@ -1570,5 +1570,6 @@ Zainstalowana ścieżka:
     <string name="session_record_started">Rozpoczęto nagrywanie</string>
     <string name="steam_chat_setting_stay_running">Uruchom w tle</string>
     <string name="steam_chat_setting_stay_running_desc">Pozostaw czat aktywny po zamknięciu WinNative</string>
+    <string name="settings_content_refresh">Odśwież</string>
 </resources>
 

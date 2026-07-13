@@ -1563,4 +1563,5 @@ Installed path:
     <string name="file_manager_delete_failed">Delete failed</string>
     <string name="file_manager_rename_failed">Rename failed</string>
     <string name="file_manager_create_folder_failed">Create folder failed</string>
+    <string name="settings_content_refresh">Refresh</string>
 </resources>

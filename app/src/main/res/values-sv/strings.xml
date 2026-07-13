@@ -1561,4 +1561,5 @@ Installerad sökväg:
     <string name="file_manager_rename_failed">Namnbyte misslyckades</string>
     <string name="file_manager_create_folder_failed">Det gick inte att skapa mappen</string>
 
+    <string name="settings_content_refresh">Uppdatera</string>
 </resources>

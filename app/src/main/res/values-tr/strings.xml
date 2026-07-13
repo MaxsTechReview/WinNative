@@ -1561,4 +1561,5 @@ Yüklü konum:
     <string name="file_manager_rename_failed">Yeniden adlandırma başarısız oldu</string>
     <string name="file_manager_create_folder_failed">Klasör oluşturma başarısız oldu</string>
 
+    <string name="settings_content_refresh">Yenile</string>
 </resources>

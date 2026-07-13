@@ -1565,5 +1565,6 @@
     <string name="session_record_started">녹화 시작됨</string>
     <string name="steam_chat_setting_stay_running">백그라운드에서 실행</string>
     <string name="steam_chat_setting_stay_running_desc">WinNative를 종료한 후에도 채팅 유지</string>
+    <string name="settings_content_refresh">새로고침</string>
 </resources>
 

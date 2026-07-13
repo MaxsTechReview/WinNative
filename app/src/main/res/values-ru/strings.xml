@@ -1470,4 +1470,5 @@
     <string name="session_record_started">Запись начата</string>
     <string name="steam_chat_setting_stay_running">Работать в фоне</string>
     <string name="steam_chat_setting_stay_running_desc">Оставлять чат активным после выхода из WinNative</string>
+    <string name="settings_content_refresh">Обновить</string>
 </resources>

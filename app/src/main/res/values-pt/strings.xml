@@ -1561,4 +1561,5 @@ Caminho instalado:
     <string name="file_manager_rename_failed">A mudança de nome falhou</string>
     <string name="file_manager_create_folder_failed">A criação da pasta falhou</string>
 
+    <string name="settings_content_refresh">Atualizar</string>
 </resources>

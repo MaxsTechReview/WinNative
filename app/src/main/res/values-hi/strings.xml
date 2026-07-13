@@ -1500,4 +1500,5 @@
     <string name="session_record_started">रिकॉर्डिंग शुरू हुई</string>
     <string name="steam_chat_setting_stay_running">बैकग्राउंड में चलाएँ</string>
     <string name="steam_chat_setting_stay_running_desc">WinNative से बाहर निकलने के बाद चैट चालू रखें</string>
+    <string name="settings_content_refresh">रीफ़्रेश</string>
 </resources>

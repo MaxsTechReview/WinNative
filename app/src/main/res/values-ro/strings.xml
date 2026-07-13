@@ -1563,5 +1563,6 @@ Cale instalata:
     <string name="session_record_started">Înregistrare pornită</string>
     <string name="steam_chat_setting_stay_running">Rulează în fundal</string>
     <string name="steam_chat_setting_stay_running_desc">Menține chatul activ după ce ieși din WinNative</string>
+    <string name="settings_content_refresh">Reîmprospătează</string>
 </resources>
 

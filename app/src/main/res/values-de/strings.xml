@@ -1565,4 +1565,5 @@ Installierter Pfad:
     <string name="session_record_started">Aufnahme gestartet</string>
     <string name="steam_chat_setting_stay_running">Im Hintergrund ausführen</string>
     <string name="steam_chat_setting_stay_running_desc">Chat nach dem Beenden von WinNative weiterlaufen lassen</string>
+    <string name="settings_content_refresh">Aktualisieren</string>
 </resources>
