@@ -351,12 +351,8 @@
     <string name="input_controls_editor_number_of_bindings">Количество привязок</string>
     <string name="input_controls_editor_select_profile">Выберите профиль</string>
     <string name="input_controls_select_style">Выберите стиль</string>
-    <string name="input_controls_select_label_theme">Метки кнопок</string>
     <string name="input_controls_style_original">Оригинал</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_label_theme_default">Оригинал</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
     <string name="input_controls_edit_duplicating_builtin">Встроенный профиль — созданную копию можно редактировать.</string>
     <string name="input_controls_editor_profile_name">Имя профиля</string>
     <string name="input_controls_editor_no_profile_selected">Профиль не выбран</string>

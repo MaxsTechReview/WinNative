@@ -126,7 +126,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.GestureProfile;
 import com.winlator.cmod.runtime.input.controls.GestureProfileManager;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
-import com.winlator.cmod.runtime.input.controls.LabelTheme;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
@@ -3971,19 +3971,23 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         ArrayList<String> styleNames = new ArrayList<>();
-        styleNames.add(getString(R.string.input_controls_style_original));
+        styleNames.add(getString(R.string.input_controls_style_slate));
         styleNames.add(getString(R.string.input_controls_style_gamehub));
+        styleNames.add(getString(R.string.input_controls_style_halo));
+        styleNames.add(getString(R.string.input_controls_style_glint));
+        styleNames.add(getString(R.string.input_controls_style_original));
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
-                ? inputControlsView.getVisualStyle() : VisualStyle.ORIGINAL;
+                ? inputControlsView.getVisualStyle() : VisualStyle.SLATE;
         int selectedStyleIndex = currentStyle.ordinal();
 
-        ArrayList<String> labelThemeNames = new ArrayList<>();
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_default));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_xbox));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_playstation));
-        LabelTheme currentLabelTheme = inputControlsView != null && inputControlsView.getLabelTheme() != null
-                ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
-        int selectedLabelThemeIndex = currentLabelTheme.ordinal();
+        ArrayList<String> accentThemeNames = new ArrayList<>();
+        int selectedAccentThemeIndex = 0;
+        if (activeProfile != null) {
+            accentThemeNames.addAll(Arrays.asList(AccentTheme.displayNames()));
+            AccentTheme currentAccent = activeProfile.getAccentTheme() != null
+                    ? activeProfile.getAccentTheme() : AccentTheme.MONO;
+            selectedAccentThemeIndex = currentAccent.ordinal();
+        }
 
         List<String> gestureProfileNames = new ArrayList<>();
         int gestureSelectedIndex = 0;
@@ -4050,8 +4054,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 inputSelectedIndex,
                 styleNames,
                 selectedStyleIndex,
-                labelThemeNames,
-                selectedLabelThemeIndex,
+                accentThemeNames,
+                selectedAccentThemeIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
@@ -4578,13 +4582,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             if (index - 1 < profiles.size()) {
                                 ControlsProfile profile = profiles.get(index - 1);
                                 showInputControls(profile);
-
-                                if (profile.id != InputControlsManager.LEGACY_XBOX_PROFILE_ID &&
-                                    profile.id != InputControlsManager.LEGACY_PS_PROFILE_ID &&
-                                    profile.id != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                                    if (inputControlsView != null) inputControlsView.setLabelTheme(LabelTheme.DEFAULT);
-                                    preferences.edit().putString("input_label_theme", LabelTheme.DEFAULT.name()).apply();
-                                }                            }
+                            }
                         }
                         renderDrawerMenu();
                     }
@@ -4599,29 +4597,14 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     }
 
                     @Override
-                    public void onInputControlsLabelThemeSelected(int index) {
-                        LabelTheme[] all = LabelTheme.values();
+                    public void onInputControlsAccentThemeSelected(int index) {
+                        AccentTheme[] all = AccentTheme.values();
                         if (index < 0 || index >= all.length) return;
-                        LabelTheme chosen = all[index];
-
-                        ControlsProfile currentProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
-                        int currentId = currentProfile != null ? currentProfile.id : -1;
-
-                        if (currentId != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                            if (chosen == LabelTheme.XBOX) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.PLAYSTATION) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.DEFAULT) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-                                if (p != null) showInputControls(p);
-                            }
-                        }
-
-                        if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
-                        preferences.edit().putString("input_label_theme", chosen.name()).apply();
+                        ControlsProfile profile = inputControlsView != null ? inputControlsView.getProfile() : null;
+                        if (profile == null) return;
+                        profile.setAccentTheme(all[index]);
+                        profile.save();
+                        inputControlsView.invalidate();
                         renderDrawerMenu();
                     }
 
@@ -7613,29 +7596,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return def != null ? def.id : 0;
     }
 
-    // Hide legacy label-only profiles unless one is already active.
     private ArrayList<ControlsProfile> getVisibleControlsProfiles() {
-        ArrayList<ControlsProfile> all = inputControlsManager != null
+        return inputControlsManager != null
                 ? inputControlsManager.getProfiles(true)
                 : new ArrayList<>();
-        ControlsProfile active = inputControlsView != null ? inputControlsView.getProfile() : null;
-        ArrayList<ControlsProfile> visible = new ArrayList<>(all.size());
-        for (ControlsProfile p : all) {
-            if (InputControlsManager.isLegacyLabelOnlyProfile(p)
-                    && (active == null || active.id != p.id)) {
-                continue;
-            }
-            visible.add(p);
-        }
-        return visible;
     }
 
     private void applyInputVisualStylePreferences() {
         if (inputControlsView == null || preferences == null) return;
         inputControlsView.setVisualStyle(
-                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.ORIGINAL.name())));
-        inputControlsView.setLabelTheme(
-                LabelTheme.fromPreference(preferences.getString("input_label_theme", LabelTheme.DEFAULT.name())));
+                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.SLATE.name())));
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {

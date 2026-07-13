@@ -361,12 +361,8 @@
     <string name="input_controls_editor_number_of_bindings">จำนวนการผูกปุ่ม</string>
     <string name="input_controls_editor_select_profile">เลือกโปรไฟล์</string>
     <string name="input_controls_select_style">เลือกสไตล์</string>
-    <string name="input_controls_select_label_theme">ป้ายกำกับปุ่ม</string>
     <string name="input_controls_style_original">ต้นฉบับ</string>
     <string name="input_controls_style_gamehub">กระจก</string>
-    <string name="input_controls_label_theme_default">ต้นฉบับ</string>
-    <string name="input_controls_label_theme_xbox">Xbox</string>
-    <string name="input_controls_label_theme_playstation">PlayStation</string>
     <string name="input_controls_edit_duplicating_builtin">โปรไฟล์ในตัว — สร้างสำเนาที่คุณสามารถแก้ไขได้แล้ว</string>
     <string name="input_controls_editor_profile_name">ชื่อโปรไฟล์</string>
     <string name="input_controls_editor_no_profile_selected">ไม่ได้เลือกโปรไฟล์</string>

@@ -17,6 +17,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
   public final int id;
   private String name;
   private float cursorSpeed = 1.0f;
+  private AccentTheme accentTheme;
   private volatile List<ControlElement> elements = new ArrayList<>();
   private final ArrayList<ExternalController> controllers = new ArrayList<>();
   private boolean elementsLoaded = false;
@@ -44,6 +45,14 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
   public void setCursorSpeed(float cursorSpeed) {
     this.cursorSpeed = cursorSpeed;
+  }
+
+  public AccentTheme getAccentTheme() {
+    return accentTheme;
+  }
+
+  public void setAccentTheme(AccentTheme accentTheme) {
+    this.accentTheme = accentTheme;
   }
 
   public boolean isVirtualGamepad() {
@@ -161,6 +170,7 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
       data.put("id", id);
       data.put("name", name);
       data.put("cursorSpeed", Float.valueOf(cursorSpeed));
+      if (accentTheme != null) data.put("accentTheme", accentTheme.name());
 
       JSONArray elementsJSONArray = new JSONArray();
       if (!elementsLoaded && file.isFile()) {
@@ -203,16 +213,6 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
 
   public List<ControlElement> getElements() {
     return Collections.unmodifiableList(elements);
-  }
-
-  public int findColorForBinding(Binding binding) {
-    if (binding == null || binding == Binding.NONE) return -1;
-    for (ControlElement element : elements) {
-      for (Binding b : element.getBindings()) {
-        if (b == binding) return element.getCustomColor();
-      }
-    }
-    return -1;
   }
 
   public int getElementCountFromFile() {
