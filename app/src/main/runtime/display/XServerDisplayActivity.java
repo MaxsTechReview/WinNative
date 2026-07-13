@@ -208,6 +208,22 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String PREVIOUS_STEAM_CLIENT_STORE_RELATIVE_PATH = ".steam-client-store";
     private static final String PREVIOUS_CONTAINER_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/.steam-client-store";
     private static final String LEGACY_STEAM_CLIENT_STORE_RELATIVE_PATH = ".wine/drive_c/WinNative/SteamClient";
+
+    // --- Ubisoft Connect shared-login store (mirrors the Steam client store above) ---
+    // Ubisoft Connect keeps its session token as files under two per-prefix directories, so a
+    // sign-in in one container is invisible to the others. We point both directories at a single
+    // backing store shared by every container. It lives under "home/" because ImageFS reinstalls
+    // preserve only the "home" dir (see ImageFsInstaller.clearRootDir), so the login survives updates.
+    private static final String UBISOFT_STORE_RELATIVE_PATH = "home/.ubisoft-store";
+    private static final String UBISOFT_LAUNCHER_STORE_NAME = "launcher";
+    private static final String UBISOFT_LOCALAPPDATA_STORE_NAME = "localappdata";
+    private static final String UBISOFT_LAUNCHER_PREFIX_PATH =
+            ".wine/drive_c/Program Files (x86)/Ubisoft/Ubisoft Game Launcher";
+    private static final String UBISOFT_LOCALAPPDATA_PREFIX_PATH =
+            ".wine/drive_c/users/" + ImageFs.USER + "/AppData/Local/Ubisoft Game Launcher";
+    private static final String UBISOFT_LAUNCHER_WINDOWS_PATH =
+            "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\";
+
     public static final String EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT = "launched_from_pinned_shortcut";
 
     // CEF GPU flags avoid steamwebhelper taking DXVK's dxgi path in FEX.
@@ -6221,6 +6237,12 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             setSteamClientVisibility(false);
         }
 
+        // Redirect this container's Ubisoft Connect data dirs to one shared backing store so a
+        // single sign-in persists across every container. Applied unconditionally (and idempotently)
+        // because a Ubisoft title can arrive via Steam, GOG, or a custom shortcut. See
+        // shareUbisoftConnectLogin().
+        shareUbisoftConnectLogin();
+
         boolean steamLauncherActive = com.winlator.cmod.feature.stores.steam.utils
                 .PrefManager.INSTANCE.getWnPlanW();
         if (isSteamGame && !steamLauncherActive) {
@@ -10228,6 +10250,126 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             Log.d("XServerDisplayActivity", "Collapsed visible Steam directory into backing store");
         } else {
             Log.w("XServerDisplayActivity", "Failed to remove visible Steam directory after backing-store copy");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Ubisoft Connect shared login
+    //
+    // Ubisoft Connect stores its login as a session/refresh token in file form under two per-prefix
+    // directories (the launcher install dir and %LOCALAPPDATA%). Because every WinNative container is
+    // a separate Wine prefix, that login would otherwise have to be repeated per container. We instead
+    // point both directories at a single backing store (getSharedUbisoftStore) via symlinks, so one
+    // sign-in — including later token refreshes and launcher self-updates — is seen by all containers.
+    // This mirrors updateSteamDirectoryVisibility()/moveSteamDirectoryIntoBackingStore() above.
+    // ---------------------------------------------------------------------------------------------
+
+    private void shareUbisoftConnectLogin() {
+        if (container == null) return;
+        try {
+            File storeRoot = getSharedUbisoftStore();
+            redirectUbisoftDir(new File(container.getRootDir(), UBISOFT_LAUNCHER_PREFIX_PATH),
+                    new File(storeRoot, UBISOFT_LAUNCHER_STORE_NAME));
+            redirectUbisoftDir(new File(container.getRootDir(), UBISOFT_LOCALAPPDATA_PREFIX_PATH),
+                    new File(storeRoot, UBISOFT_LOCALAPPDATA_STORE_NAME));
+            seedUbisoftLauncherRegistry();
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Error sharing Ubisoft Connect login", e);
+        }
+    }
+
+    private File getSharedUbisoftStore() {
+        if (imageFs != null) {
+            return new File(imageFs.getRootDir(), UBISOFT_STORE_RELATIVE_PATH);
+        }
+        return new File(getFilesDir(), "imagefs/" + UBISOFT_STORE_RELATIVE_PATH);
+    }
+
+    /**
+     * Replaces {@code prefixDir} with a symlink to {@code store}. A pre-existing real directory is
+     * migrated into the store first (see {@link #migrateUbisoftDirIntoStore}); an already-correct
+     * symlink is simply refreshed. Safe to call on every launch.
+     */
+    private void redirectUbisoftDir(File prefixDir, File store) {
+        try {
+            if (prefixDir.exists() && !FileUtils.isSymlink(prefixDir)) {
+                migrateUbisoftDirIntoStore(prefixDir, store);
+            }
+
+            if (!store.exists()) store.mkdirs();
+
+            File parent = prefixDir.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+
+            // FileUtils.delete() on a symlink removes only the link, never the store contents.
+            if (prefixDir.exists()) FileUtils.delete(prefixDir);
+            FileUtils.symlink(store, prefixDir);
+            Log.d("XServerDisplayActivity", "Ubisoft symlink → " + store.getAbsolutePath()
+                    + " at " + prefixDir.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Error redirecting Ubisoft dir " + prefixDir, e);
+        }
+    }
+
+    /**
+     * Migrates a container-local Ubisoft directory into the shared store. If the store is empty it is
+     * seeded from this container's existing install/login. If the store already holds a login it is
+     * authoritative and never overwritten — the stray local copy is set aside (not deleted) so no data
+     * is lost.
+     */
+    private void migrateUbisoftDirIntoStore(File prefixDir, File store) {
+        File parent = store.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+
+        if (!isNonEmptyDir(store)) {
+            if (!store.exists() && prefixDir.renameTo(store)) {
+                Log.d("XServerDisplayActivity", "Seeded shared Ubisoft store from " + prefixDir.getAbsolutePath());
+                return;
+            }
+            if (!store.exists() && !store.mkdirs()) {
+                Log.w("XServerDisplayActivity", "Unable to create shared Ubisoft store: " + store.getAbsolutePath());
+                return;
+            }
+            if (FileUtils.copy(prefixDir, store)) {
+                FileUtils.delete(prefixDir);
+                Log.d("XServerDisplayActivity", "Copied existing Ubisoft data into shared store");
+            } else {
+                Log.w("XServerDisplayActivity", "Failed to seed shared Ubisoft store from " + prefixDir.getAbsolutePath());
+            }
+            return;
+        }
+
+        File backup = new File(prefixDir.getParentFile(),
+                prefixDir.getName() + ".local-" + System.currentTimeMillis());
+        if (prefixDir.renameTo(backup)) {
+            Log.d("XServerDisplayActivity", "Preserved stray local Ubisoft data at " + backup.getAbsolutePath());
+        } else {
+            FileUtils.delete(prefixDir);
+            Log.d("XServerDisplayActivity", "Discarded stray local Ubisoft data (shared store is authoritative)");
+        }
+    }
+
+    private static boolean isNonEmptyDir(File dir) {
+        if (dir == null || !dir.isDirectory()) return false;
+        String[] entries = dir.list();
+        return entries != null && entries.length > 0;
+    }
+
+    /**
+     * Writes the launcher InstallDir into this container's registry so Ubisoft games can locate
+     * upc.exe even when Ubisoft Connect was installed from a different container (the registry is
+     * per-prefix and is not covered by the shared store).
+     */
+    private void seedUbisoftLauncherRegistry() {
+        if (container == null) return;
+        File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
+        if (!systemRegFile.isFile()) return;
+        try (WineRegistryEditor reg = new WineRegistryEditor(systemRegFile)) {
+            // WineRegistryEditor creates missing keys by default; matches seedVcRedistWithEditor.
+            reg.setStringValue("Software\\Wow6432Node\\Ubisoft\\Launcher", "InstallDir", UBISOFT_LAUNCHER_WINDOWS_PATH);
+            reg.setStringValue("Software\\Ubisoft\\Launcher", "InstallDir", UBISOFT_LAUNCHER_WINDOWS_PATH);
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Error seeding Ubisoft launcher registry", e);
         }
     }
 
