@@ -4063,7 +4063,13 @@ class SteamService : Service() {
                                 throw e
                             } catch (e: Exception) {
                                 Timber.e(e, "Download failed for app $appId")
-                                clearFailedResumeState(appId)
+                                // Transient failures keep resume state so Retry continues from the same offset.
+                                val isTransientFailure = e is WnDownloadTransientException
+                                if (isTransientFailure) {
+                                    runCatching { di.persistProgressSnapshot(force = true) }
+                                } else {
+                                    clearFailedResumeState(appId)
+                                }
 
                                 val errorMsg =
                                     when (e) {
@@ -4078,9 +4084,11 @@ class SteamService : Service() {
                                 if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
                                     MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                                 }
-                                runBlocking {
-                                    instance?.downloadingAppInfoDao?.deleteApp(appId)
-                                    Unit
+                                if (!isTransientFailure) {
+                                    runBlocking {
+                                        instance?.downloadingAppInfoDao?.deleteApp(appId)
+                                        Unit
+                                    }
                                 }
                                 runBlocking {
                                     DownloadCoordinator.notifyFinished(
@@ -7467,7 +7475,26 @@ class SteamService : Service() {
     private val coordinatorDispatcher =
         object : DownloadCoordinator.Dispatcher {
             override fun startQueued(record: DownloadRecord) {
-                val appId = record.storeGameId.toIntOrNull() ?: return
+                val appId = record.storeGameId.toIntOrNull()
+                if (appId == null) {
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_FAILED,
+                            "Invalid Steam app id '${record.storeGameId}'",
+                        )
+                    }
+                    return
+                }
+                // No AppInfo yet (pre-login dispatch): requeue; the post-logon tick retries it.
+                if (getAppInfoOf(appId) == null) {
+                    Timber.w("startQueued: no AppInfo yet for appId=$appId — requeueing until Steam data is ready")
+                    runBlocking {
+                        DownloadCoordinator.requeue(DownloadRecord.STORE_STEAM, record.storeGameId)
+                    }
+                    return
+                }
                 // Drop any stale queued/paused DownloadInfo BEFORE downloadApp(), else it finds the inactive entry and calls removeDownloadJob() (firing the legacy checkQueue() + an extra notify) before building a fresh one.
                 downloadJobs.remove(appId)
                 // selectedDlcs carries authoritative DLC app IDs for installs; for updates it carries the changed depot IDs from checkForAppUpdate() so queued updates keep the narrowed scope.
@@ -7475,13 +7502,31 @@ class SteamService : Service() {
                     record.selectedDlcs
                         .split(',')
                         .mapNotNull { it.trim().toIntOrNull() }
-                if (record.taskType == DownloadRecord.TASK_UPDATE) {
-                    downloadAppForUpdate(appId, persistedIds)
-                } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
-                    downloadAppForVerify(appId)
-                } else {
-                    downloadApp(appId, persistedIds)
+                val started =
+                    if (record.taskType == DownloadRecord.TASK_UPDATE) {
+                        downloadAppForUpdate(appId, persistedIds)
+                    } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
+                        downloadAppForVerify(appId)
+                    } else {
+                        downloadApp(appId, persistedIds)
+                    }
+                if (started == null) {
+                    // Mark FAILED so the slot frees and Retry stays functional.
+                    Timber.e("startQueued: downloadApp returned null for appId=$appId (task=${record.taskType}) — marking record FAILED")
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_FAILED,
+                            "Could not start download — retry after Steam finishes loading",
+                        )
+                    }
                 }
+            }
+
+            override fun isTransferActive(record: DownloadRecord): Boolean {
+                val appId = record.storeGameId.toIntOrNull() ?: return false
+                return downloadJobs[appId]?.isActive() == true
             }
 
             override fun pauseRunning(record: DownloadRecord) {
@@ -8132,6 +8177,9 @@ class SteamService : Service() {
         com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
             .setCloudEnabledForAccount(true)
 
+
+        // Start downloads that were requeued while AppInfo wasn't loaded yet.
+        DownloadCoordinator.blockingTick()
 
         // retrieve persona data of logged in user
         scope.launch { requestUserPersona() }
