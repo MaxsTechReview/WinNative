@@ -6,6 +6,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.StateListDrawable
 import android.os.Handler
 import android.os.Looper
+import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.PointerIcon
 import android.view.View
@@ -42,6 +43,10 @@ class TouchpadView(
         const val MODE_MAP_TO_RIGHT_STICK = 2
         private const val TOUCHSCREEN_DOUBLE_TAP_MS = 500L
         private const val TOUCHSCREEN_DOUBLE_TAP_DISTANCE = 100f
+        private const val PENDING_MOVE_NONE = 0
+        private const val PENDING_MOVE_ABSOLUTE = 1
+        private const val PENDING_MOVE_DELTA = 2
+        private const val PENDING_MOVE_RELATIVE = 3
     }
 
     private var continueClick = true
@@ -77,10 +82,22 @@ class TouchpadView(
         if (tapToClickEnabled && numFingers.toInt() == 1 && fingers[0] != null && fingers[0]!!.travelDistance() < MAX_TAP_TRAVEL_DISTANCE) {
             longPressActive = true
             if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                injectButtonRelease(Pointer.Button.BUTTON_LEFT)
             }
-            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            injectButtonPress(Pointer.Button.BUTTON_RIGHT)
+            injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
+        }
+    }
+
+    private var pendingMoveType = PENDING_MOVE_NONE
+    private var pendingMoveX = 0
+    private var pendingMoveY = 0
+    private var moveFrameScheduled = false
+    private val moveFrameCallback = Choreographer.FrameCallback {
+        moveFrameScheduled = false
+        if (pendingMoveType != PENDING_MOVE_NONE) {
+            flushPendingMove()
+            scheduleMoveFrame()
         }
     }
 
@@ -108,6 +125,7 @@ class TouchpadView(
         super.onDetachedFromWindow()
         rtsGestureEngine.releaseAll()
         screenTouchStick.releaseAll()
+        cancelPendingMove()
     }
 
     private fun updateXform(outerWidth: Int, outerHeight: Int, innerWidth: Int, innerHeight: Int) {
@@ -124,6 +142,70 @@ class TouchpadView(
 
     fun updateVisibleRelativeCursor(x: Int, y: Int) {
         xServer.renderer?.updateVisualCursorPosition(x, y)
+    }
+
+    // Touch motion coalescing: the first sample of a burst injects immediately,
+    // later samples accumulate and flush once per display frame. Pending motion
+    // must always flush before a button event so clicks land at the current position.
+    private fun submitPointerMove(type: Int, x: Int, y: Int) {
+        if (pendingMoveType != PENDING_MOVE_NONE && pendingMoveType != type) flushPendingMove()
+        if (!moveFrameScheduled) {
+            scheduleMoveFrame()
+            injectPointerMoveNow(type, x, y)
+        } else if (type == PENDING_MOVE_ABSOLUTE) {
+            pendingMoveType = type
+            pendingMoveX = x
+            pendingMoveY = y
+        } else {
+            if (pendingMoveType == PENDING_MOVE_NONE) {
+                pendingMoveX = 0
+                pendingMoveY = 0
+            }
+            pendingMoveType = type
+            pendingMoveX += x
+            pendingMoveY += y
+        }
+    }
+
+    private fun injectPointerMoveNow(type: Int, x: Int, y: Int) {
+        when (type) {
+            PENDING_MOVE_ABSOLUTE -> xServer.injectPointerMove(x, y)
+            PENDING_MOVE_DELTA -> xServer.injectPointerMoveDelta(x, y)
+            PENDING_MOVE_RELATIVE -> {
+                xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, x, y, 0)
+                updateVisibleRelativeCursor(xServer.pointer.x + x, xServer.pointer.y + y)
+            }
+        }
+    }
+
+    private fun flushPendingMove() {
+        if (pendingMoveType == PENDING_MOVE_NONE) return
+        val type = pendingMoveType
+        pendingMoveType = PENDING_MOVE_NONE
+        injectPointerMoveNow(type, pendingMoveX, pendingMoveY)
+    }
+
+    private fun cancelPendingMove() {
+        pendingMoveType = PENDING_MOVE_NONE
+        if (moveFrameScheduled) {
+            moveFrameScheduled = false
+            Choreographer.getInstance().removeFrameCallback(moveFrameCallback)
+        }
+    }
+
+    private fun scheduleMoveFrame() {
+        moveFrameScheduled = true
+        Choreographer.getInstance().postFrameCallback(moveFrameCallback)
+    }
+
+    private fun injectButtonPress(button: Pointer.Button) {
+        flushPendingMove()
+        xServer.injectPointerButtonPress(button)
+    }
+
+    private fun injectButtonRelease(button: Pointer.Button) {
+        flushPendingMove()
+        xServer.injectPointerButtonRelease(button)
     }
 
     private inner class Finger(x: Float, y: Float) {
@@ -225,15 +307,17 @@ class TouchpadView(
     }
 
     private fun handleStylusLeftClick(event: MotionEvent) {
+        flushPendingMove()
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+        injectButtonPress(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleStylusRightClick(event: MotionEvent) {
+        flushPendingMove()
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
         xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
-        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+        injectButtonPress(Pointer.Button.BUTTON_RIGHT)
     }
 
     private fun handleStylusMove(event: MotionEvent) {
@@ -242,8 +326,8 @@ class TouchpadView(
     }
 
     private fun handleStylusUp() {
-        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
-        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+        injectButtonRelease(Pointer.Button.BUTTON_LEFT)
+        injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
     }
 
     private fun handleTouchpadEvent(event: MotionEvent): Boolean {
@@ -269,8 +353,9 @@ class TouchpadView(
                 }
                 if (simTouchScreen) {
                     val clickDelay = Runnable { if (continueClick) {
+                        flushPendingMove()
                         xServer.injectPointerMove(lastTouchedPosX, lastTouchedPosY)
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                        injectButtonPress(Pointer.Button.BUTTON_LEFT)
                     } }
                     if (pointerId == 0) {
                         continueClick = true
@@ -352,8 +437,8 @@ class TouchpadView(
             1, 6 -> { if (event.pointerCount == 2) handleTwoFingerTap(event) else handleTouchUp(event); return true }
             2 -> { if (event.pointerCount == 2) handleTwoFingerScroll(event) else handleTouchMove(event); return true }
             3 -> {
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+                injectButtonRelease(Pointer.Button.BUTTON_LEFT)
+                injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 return true
             }
         }
@@ -361,6 +446,7 @@ class TouchpadView(
     }
 
     private fun handleTouchDown(event: MotionEvent) {
+        flushPendingMove()
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
         var tx = transformedPoint[0].toInt()
         var ty = transformedPoint[1].toInt()
@@ -378,16 +464,16 @@ class TouchpadView(
             lastTapTransY = ty
         }
         xServer.injectPointerMove(tx, ty)
-        if (event.pointerCount == 1) xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+        if (event.pointerCount == 1) injectButtonPress(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleTouchMove(event: MotionEvent) {
         val transformedPoint = XForm.transformPoint(xform, event.x, event.y)
-        xServer.injectPointerMove(transformedPoint[0].toInt(), transformedPoint[1].toInt())
+        submitPointerMove(PENDING_MOVE_ABSOLUTE, transformedPoint[0].toInt(), transformedPoint[1].toInt())
     }
 
     private fun handleTouchUp(event: MotionEvent) {
-        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        injectButtonRelease(Pointer.Button.BUTTON_LEFT)
     }
 
     private fun handleTwoFingerScroll(event: MotionEvent) {
@@ -398,18 +484,18 @@ class TouchpadView(
         val scrollDistance = finger1.y - finger2.y
         if (Math.abs(scrollDistance) > 10) {
             val button = if (scrollDistance > 0) Pointer.Button.BUTTON_SCROLL_UP else Pointer.Button.BUTTON_SCROLL_DOWN
-            xServer.injectPointerButtonPress(button)
-            xServer.injectPointerButtonRelease(button)
+            injectButtonPress(button)
+            injectButtonRelease(button)
         }
     }
 
     private fun handleTwoFingerTap(event: MotionEvent) {
         if (event.pointerCount == 2) {
             if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                injectButtonRelease(Pointer.Button.BUTTON_LEFT)
             }
-            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            injectButtonPress(Pointer.Button.BUTTON_RIGHT)
+            injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
         }
     }
 
@@ -418,7 +504,7 @@ class TouchpadView(
             when (numFingers.toInt()) {
                 1 -> {
                     if (simTouchScreen) {
-                        postDelayed({ if (continueClick) xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_DELAYED_TIME.toLong())
+                        postDelayed({ if (continueClick) injectButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_DELAYED_TIME.toLong())
                     } else if (finger1.isTap()) {
                         pressPointerButtonLeft(finger1)
                     }
@@ -451,12 +537,12 @@ class TouchpadView(
             if (currDistance < 350.0f) {
                 scrollAccumY += (finger1.y + finger2.y) * 0.5f - (finger1.lastY + finger2.lastY) * 0.5f
                 if (scrollAccumY < -100.0f) {
-                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN)
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN)
+                    injectButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN)
+                    injectButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN)
                     scrollAccumY = 0.0f
                 } else if (scrollAccumY > 100.0f) {
-                    xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_UP)
-                    xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_UP)
+                    injectButtonPress(Pointer.Button.BUTTON_SCROLL_UP)
+                    injectButtonRelease(Pointer.Button.BUTTON_SCROLL_UP)
                     scrollAccumY = 0.0f
                 }
                 scrolling = true
@@ -471,14 +557,13 @@ class TouchpadView(
             val dx = drivingFinger.deltaX()
             val dy = drivingFinger.deltaY()
             if (simTouchScreen) {
-                if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME.toLong()) xServer.injectPointerMove(finger1.x, finger1.y)
+                if (System.currentTimeMillis() - finger1.touchTime > CLICK_DELAYED_TIME.toLong()) submitPointerMove(PENDING_MOVE_ABSOLUTE, finger1.x, finger1.y)
             } else {
                 if (xServer.isRelativeMouseMovement) {
-                    xServer.winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0)
-                    updateVisibleRelativeCursor(xServer.pointer.x + dx, xServer.pointer.y + dy)
+                    submitPointerMove(PENDING_MOVE_RELATIVE, dx, dy)
                     return
                 }
-                xServer.injectPointerMoveDelta(dx, dy)
+                submitPointerMove(PENDING_MOVE_DELTA, dx, dy)
             }
         }
     }
@@ -490,14 +575,14 @@ class TouchpadView(
 
     private fun pressPointerButtonLeft(finger: Finger) {
         if (pointerButtonLeftEnabled && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+            injectButtonPress(Pointer.Button.BUTTON_LEFT)
             fingerPointerButtonLeft = finger
         }
     }
 
     private fun pressPointerButtonRight(finger: Finger) {
         if (pointerButtonRightEnabled && !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) {
-            xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+            injectButtonPress(Pointer.Button.BUTTON_RIGHT)
             fingerPointerButtonRight = finger
         }
     }
@@ -505,7 +590,7 @@ class TouchpadView(
     private fun releasePointerButtonLeft(finger: Finger) {
         if (pointerButtonLeftEnabled && finger == fingerPointerButtonLeft && xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
             postDelayed({
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                injectButtonRelease(Pointer.Button.BUTTON_LEFT)
                 fingerPointerButtonLeft = null
             }, 30L)
         }
@@ -514,7 +599,7 @@ class TouchpadView(
     private fun releasePointerButtonRight(finger: Finger) {
         if (pointerButtonRightEnabled && finger == fingerPointerButtonRight && xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) {
             postDelayed({
-                xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+                injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 fingerPointerButtonRight = null
             }, 30L)
         }
@@ -556,35 +641,35 @@ class TouchpadView(
                 if (scrollY <= -1.0f) {
                     if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, scrollY.toInt())
                     else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN)
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN)
+                        injectButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN)
+                        injectButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN)
                     }
                 } else if (scrollY >= 1.0f) {
                     if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, scrollY.toInt())
                     else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_UP)
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_UP)
+                        injectButtonPress(Pointer.Button.BUTTON_SCROLL_UP)
+                        injectButtonRelease(Pointer.Button.BUTTON_SCROLL_UP)
                     }
                 }
                 return true
             }
             11 -> {
                 if (actionButton == 1) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0) else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0) else injectButtonPress(Pointer.Button.BUTTON_LEFT)
                 } else if (actionButton == 2) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0) else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0) else injectButtonPress(Pointer.Button.BUTTON_RIGHT)
                 } else if (actionButton == 4) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MIDDLEDOWN, 0, 0, 0) else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MIDDLEDOWN, 0, 0, 0) else injectButtonPress(Pointer.Button.BUTTON_MIDDLE)
                 }
                 return true
             }
             12 -> {
                 if (actionButton == 1) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0) else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0) else injectButtonRelease(Pointer.Button.BUTTON_LEFT)
                 } else if (actionButton == 2) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0) else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0) else injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
                 } else if (actionButton == 4) {
-                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MIDDLEUP, 0, 0, 0) else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE)
+                    if (xServer.isRelativeMouseMovement) xServer.winHandler.mouseEvent(MouseEventFlags.MIDDLEUP, 0, 0, 0) else injectButtonRelease(Pointer.Button.BUTTON_MIDDLE)
                 }
                 return true
             }
@@ -666,6 +751,7 @@ class TouchpadView(
     }
 
     fun resetInputState() {
+        cancelPendingMove()
         screenTouchStick.releaseAll()
         rtsGestureEngine.releaseAll()
         continueClick = false
@@ -679,13 +765,13 @@ class TouchpadView(
         fingerPointerButtonRight = null
 
         if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT)) {
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+            injectButtonRelease(Pointer.Button.BUTTON_LEFT)
         }
         if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_RIGHT)) {
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT)
+            injectButtonRelease(Pointer.Button.BUTTON_RIGHT)
         }
         if (xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_MIDDLE)) {
-            xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE)
+            injectButtonRelease(Pointer.Button.BUTTON_MIDDLE)
         }
     }
 
