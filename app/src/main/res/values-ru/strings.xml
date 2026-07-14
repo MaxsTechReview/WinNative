@@ -353,10 +353,12 @@
     <string name="input_controls_select_style">Выберите стиль</string>
     <string name="input_controls_style_original">Оригинал</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
-    <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_slate">Сланец</string>
+    <string name="input_controls_style_halo">Ореол</string>
+    <string name="input_controls_style_glint">Блик</string>
+    <string name="input_controls_style_shadow">Тень</string>
+    <string name="input_controls_style_reticle">Прицел</string>
+    <string name="input_controls_style_neon">Неон</string>
     <string name="input_controls_accent_theme">Цветовая тема</string>
     <string name="input_controls_edit_duplicating_builtin">Встроенный профиль — созданную копию можно редактировать.</string>
     <string name="input_controls_editor_profile_name">Имя профиля</string>

@@ -1309,10 +1309,12 @@
     <string name="input_controls_select_style">Виберіть стиль</string>
     <string name="input_controls_style_original">Оригінальний</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
-    <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_slate">Сланець</string>
+    <string name="input_controls_style_halo">Ореол</string>
+    <string name="input_controls_style_glint">Відблиск</string>
+    <string name="input_controls_style_shadow">Тінь</string>
+    <string name="input_controls_style_reticle">Приціл</string>
+    <string name="input_controls_style_neon">Неон</string>
     <string name="input_controls_accent_theme">Колірна тема</string>
     <string name="input_controls_edit_duplicating_builtin">Вбудований профіль — створено копію, яку можна редагувати.</string>
     <string name="input_controls_editor_confirm_reset_profile">Скинути цей профіль до початкового макета? Усі внесені зміни буде втрачено.</string>

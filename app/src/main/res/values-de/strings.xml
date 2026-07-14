@@ -1303,10 +1303,12 @@ Installierter Pfad:
     <string name="input_controls_select_style">Stil auswählen</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_slate">Schiefer</string>
     <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_glint">Schimmer</string>
+    <string name="input_controls_style_shadow">Schatten</string>
+    <string name="input_controls_style_reticle">Fadenkreuz</string>
+    <string name="input_controls_style_neon">Neon</string>
     <string name="input_controls_accent_theme">Farbschema</string>
     <string name="input_controls_edit_duplicating_builtin">Integriertes Profil - eine bearbeitbare Kopie wurde erstellt.</string>
     <string name="input_controls_editor_confirm_reset_profile">Dieses Profil auf sein ursprüngliches Layout zurücksetzen? Alle vorgenommenen Änderungen gehen verloren.</string>

@@ -1303,10 +1303,12 @@
     <string name="input_controls_select_style">選擇樣式</string>
     <string name="input_controls_style_original">原版</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
-    <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_slate">石板</string>
+    <string name="input_controls_style_halo">光環</string>
+    <string name="input_controls_style_glint">微光</string>
+    <string name="input_controls_style_shadow">暗影</string>
+    <string name="input_controls_style_reticle">準星</string>
+    <string name="input_controls_style_neon">霓虹</string>
     <string name="input_controls_accent_theme">顏色主題</string>
     <string name="input_controls_edit_duplicating_builtin">內建設定檔 - 已建立可編輯副本。</string>
     <string name="input_controls_editor_confirm_reset_profile">將此設定檔重設為原始版面配置？你所做的任何變更都會遺失。</string>

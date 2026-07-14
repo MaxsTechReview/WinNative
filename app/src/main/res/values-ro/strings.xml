@@ -1303,10 +1303,12 @@ Cale instalata:
     <string name="input_controls_select_style">Selectează stilul</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_slate">Ardezie</string>
     <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_glint">Sclipire</string>
+    <string name="input_controls_style_shadow">Umbră</string>
+    <string name="input_controls_style_reticle">Reticul</string>
+    <string name="input_controls_style_neon">Neon</string>
     <string name="input_controls_accent_theme">Temă de culoare</string>
     <string name="input_controls_edit_duplicating_builtin">Profil integrat - a fost creată o copie editabilă.</string>
     <string name="input_controls_editor_confirm_reset_profile">Resetezi acest profil la aspectul original? Toate modificările făcute se vor pierde.</string>

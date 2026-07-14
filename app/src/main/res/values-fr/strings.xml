@@ -1303,10 +1303,12 @@ Chemin installé :
     <string name="input_controls_select_style">Sélectionner le style</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glass</string>
-    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_slate">Ardoise</string>
     <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_glint">Éclat</string>
+    <string name="input_controls_style_shadow">Ombre</string>
+    <string name="input_controls_style_reticle">Réticule</string>
+    <string name="input_controls_style_neon">Néon</string>
     <string name="input_controls_accent_theme">Thème de couleur</string>
     <string name="input_controls_edit_duplicating_builtin">Profil intégré : une copie modifiable a été créée.</string>
     <string name="input_controls_editor_confirm_reset_profile">Réinitialiser ce profil à sa disposition d\'origine ? Toutes vos modifications seront perdues.</string>

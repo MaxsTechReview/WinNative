@@ -3977,6 +3977,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             styleNames.add(getString(R.string.input_controls_style_halo));
             styleNames.add(getString(R.string.input_controls_style_glint));
             styleNames.add(getString(R.string.input_controls_style_shadow));
+            styleNames.add(getString(R.string.input_controls_style_reticle));
+            styleNames.add(getString(R.string.input_controls_style_neon));
             styleNames.add(getString(R.string.input_controls_style_original));
         }
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
@@ -7569,8 +7571,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    // Style/theme picks follow the controlsProfile pattern: remembered on the shortcut when the
-    // session was launched from one, otherwise as the global default.
+    // Style/theme picks persist like controlsProfile: on the shortcut if present, else globally.
     private void persistSelectedStyle(VisualStyle style) {
         if (shortcut != null) {
             if (!style.name().equals(shortcut.getExtra("controlsStyle", ""))) {

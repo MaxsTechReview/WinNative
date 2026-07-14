@@ -363,10 +363,12 @@
     <string name="input_controls_select_style">Välj stil</string>
     <string name="input_controls_style_original">Original</string>
     <string name="input_controls_style_gamehub">Glas</string>
-    <string name="input_controls_style_slate">Slate</string>
+    <string name="input_controls_style_slate">Skiffer</string>
     <string name="input_controls_style_halo">Halo</string>
-    <string name="input_controls_style_glint">Glint</string>
-    <string name="input_controls_style_shadow">Shadow</string>
+    <string name="input_controls_style_glint">Glimt</string>
+    <string name="input_controls_style_shadow">Skugga</string>
+    <string name="input_controls_style_reticle">Hårkors</string>
+    <string name="input_controls_style_neon">Neon</string>
     <string name="input_controls_accent_theme">Färgtema</string>
     <string name="input_controls_edit_duplicating_builtin">Inbyggd profil — en kopia som du kan redigera har skapats.</string>
     <string name="input_controls_editor_profile_name">Profilnamn</string>

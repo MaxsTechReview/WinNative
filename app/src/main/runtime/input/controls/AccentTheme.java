@@ -1,9 +1,6 @@
 package com.winlator.cmod.runtime.input.controls;
 
-/**
- * Named accent presets for the themed control styles. The preset only supplies the default accent:
- * a per-element custom color always wins, then this accent.
- */
+/** Accent presets for the themed control styles; a per-element custom color always wins. */
 public enum AccentTheme {
   MONO(0xFFE8ECF2),
   AZURE(0xFF4DA3FF),
