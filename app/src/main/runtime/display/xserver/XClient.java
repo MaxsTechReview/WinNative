@@ -4,6 +4,7 @@ import androidx.collection.ArrayMap;
 import com.winlator.cmod.runtime.display.connector.XInputStream;
 import com.winlator.cmod.runtime.display.connector.XOutputStream;
 import com.winlator.cmod.runtime.display.xserver.events.Event;
+import com.winlator.cmod.runtime.display.xserver.extensions.XInput2Extension;
 import com.winlator.cmod.shared.android.RefreshRateUtils;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -91,6 +92,9 @@ public class XClient implements XResourceManager.OnResourceLifecycleListener {
         int i = eventListeners.size() - 1;
         eventListeners.keyAt(i).removeEventListener(eventListeners.removeAt(i));
       }
+
+      XInput2Extension xInput2Extension = xServer.getExtension(XInput2Extension.MAJOR_OPCODE);
+      if (xInput2Extension != null) xInput2Extension.onClientDisconnected(this);
 
       xServer.windowManager.removeOnResourceLifecycleListener(this);
       xServer.pixmapManager.removeOnResourceLifecycleListener(this);

@@ -32,21 +32,25 @@ public class XOutputStream {
   }
 
   public void writeByte(byte value) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(1);
     buffer.put(value);
   }
 
   public void writeShort(short value) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(2);
     buffer.putShort(value);
   }
 
   public void writeInt(int value) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(4);
     buffer.putInt(value);
   }
 
   public void writeLong(long value) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(8);
     buffer.putLong(value);
   }
@@ -57,6 +61,7 @@ public class XOutputStream {
   }
 
   public void writeString8(String str) {
+    if (buffer == null) return;
     byte[] bytes = str.getBytes(XServer.LATIN1_CHARSET);
     int length = -bytes.length & 3;
     ensureSpaceIsAvailable(bytes.length + length);
@@ -69,11 +74,13 @@ public class XOutputStream {
   }
 
   public void write(byte[] data, int offset, int length) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(length);
     buffer.put(data, offset, length);
   }
 
   public void write(ByteBuffer data) {
+    if (buffer == null) return;
     ensureSpaceIsAvailable(data.remaining());
     buffer.put(data);
   }
@@ -83,6 +90,7 @@ public class XOutputStream {
   }
 
   private void flush() throws IOException {
+    if (buffer == null) return;
     if (buffer.position() != 0) {
       buffer.flip();
 
@@ -124,9 +132,19 @@ public class XOutputStream {
     }
   }
 
+  // Writers hold `lock` for the whole event write; releasing under the same lock
+  // means the buffer can never be freed mid-write, and later writes see null and
+  // discard (dead connection).
   public void release() {
-    XInputStream.freeDirectBuffer(buffer);
-    buffer = null;
+    lock.lock();
+    try {
+      if (buffer != null) {
+        XInputStream.freeDirectBuffer(buffer);
+        buffer = null;
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   public void writeSuccessReply(int sequenceNumber, int replyLength) throws IOException {
