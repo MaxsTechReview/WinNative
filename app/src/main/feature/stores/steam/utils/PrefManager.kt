@@ -324,6 +324,12 @@ object PrefManager {
             setString("gog_download_folder", value)
         }
 
+    var chatServiceEnabled: Boolean
+        get() = getBoolean("chat_service_enabled", true)
+        set(value) {
+            setBoolean("chat_service_enabled", value)
+        }
+
     var chatNotificationsEnabled: Boolean
         get() = getBoolean("chat_notifications_enabled", true)
         set(value) {

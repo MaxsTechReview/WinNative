@@ -1940,6 +1940,7 @@ class UnifiedActivity :
             if (!drawerState.isOpen) drawerNavBridge.controllerActive = false
         }
         val isLoggedIn by SteamService.isLoggedInFlow.collectAsState()
+        val chatServiceEnabled by SteamService.chatServiceEnabledFlow.collectAsState()
         val isEpicLoggedIn by EpicAuthManager.isLoggedInFlow.collectAsState()
         val isGogLoggedIn by GOGAuthManager.isLoggedInFlow.collectAsState()
         val steamApps by db.steamAppDao().getAllOwnedApps().collectAsState(initial = emptyList())
@@ -1967,24 +1968,24 @@ class UnifiedActivity :
             installedFriendGameIds =
                 withContext(Dispatchers.IO) { ids.filter { SteamService.isAppInstalled(it) }.toSet() }
         }
-        LaunchedEffect(isLoggedIn) {
-            if (isLoggedIn) {
+        LaunchedEffect(isLoggedIn, chatServiceEnabled) {
+            if (isLoggedIn && chatServiceEnabled) {
                 while (true) {
                     runCatching { SteamService.instance?.refreshFriends() }
                     kotlinx.coroutines.delay(30_000L)
                 }
             }
         }
-        LaunchedEffect(isLoggedIn, friendsDrawerOpen) {
-            if (isLoggedIn && friendsDrawerOpen) {
+        LaunchedEffect(isLoggedIn, friendsDrawerOpen, chatServiceEnabled) {
+            if (isLoggedIn && friendsDrawerOpen && chatServiceEnabled) {
                 while (true) {
                     runCatching { SteamService.instance?.syncFriendsPresence() }
                     kotlinx.coroutines.delay(5_000L)
                 }
             }
         }
-        LaunchedEffect(isLoggedIn) {
-            if (isLoggedIn) {
+        LaunchedEffect(isLoggedIn, chatServiceEnabled) {
+            if (isLoggedIn && chatServiceEnabled) {
                 runCatching { com.winlator.cmod.feature.stores.steam.chat.ChatOverlayService.start(context) }
             }
         }
@@ -2251,6 +2252,7 @@ class UnifiedActivity :
                         self = persona ?: com.winlator.cmod.feature.stores.steam.data.SteamFriend(),
                         friends = friends,
                         installedGameIds = installedFriendGameIds,
+                        chatEnabled = chatServiceEnabled,
                         onSetState = { st -> scope.launch { SteamService.setPersonaState(st) } },
                         onOpenChat = { f -> chatFriend = f; scope.launch { rightDrawerState.close() } },
                         onJoinGame = { f ->
