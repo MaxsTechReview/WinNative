@@ -69,7 +69,7 @@
         <ImageButton
             android:id="@+id/BTAccentTheme"
             style="@style/ToolButton.Dark"
-            android:src="@drawable/pickercolorcontrol"  />
+            android:src="@drawable/pickerthemecontrol"  />
 
         <ImageButton
             android:id="@+id/BTVisualStyle"

@@ -1227,9 +1227,13 @@ return boundingBox;
           float ay = cy + dy * half * 0.62f;
           buildDpadArrowPath(path, ax, ay, base * 0.055f, i);
           paint.setStyle(Paint.Style.FILL);
-          paint.setColor(hot
-              ? ColorUtils.setAlphaComponent(accent, (int) (240 * a))
-              : Color.argb((int) (190 * a), 255, 255, 255));
+          if (halo) {
+            paint.setColor(hot
+                ? ColorUtils.setAlphaComponent(accent, (int) (240 * a))
+                : Color.argb((int) (190 * a), 255, 255, 255));
+          } else {
+            paint.setColor(ColorUtils.setAlphaComponent(accent, (int) ((hot ? 250 : 220) * a)));
+          }
           canvas.drawPath(path, paint);
         }
 
@@ -2582,9 +2586,7 @@ return boundingBox;
               py + piece * 0.5f, piece * 0.28f, hot, accent, a, snappingSize);
           buildDpadArrowPath(path, px, py, piece * 0.22f, i);
           paint.setStyle(Paint.Style.FILL);
-          paint.setColor(hot
-              ? Color.argb((int) (255 * a), 255, 255, 255)
-              : ColorUtils.setAlphaComponent(accent, (int) (220 * a)));
+          paint.setColor(ColorUtils.setAlphaComponent(accent, (int) ((hot ? 250 : 220) * a)));
           canvas.drawPath(path, paint);
         }
         break;
@@ -3352,6 +3354,7 @@ return boundingBox;
           if (trackpadOrigin == null) trackpadOrigin = new PointF();
           trackpadOrigin.set(x, y);
         }
+        inputControlsView.invalidate();
         return handleTouchMove(pointerId, x, y);
       }
     } else return false;
@@ -3541,13 +3544,16 @@ return boundingBox;
           deltaX <= -DPAD_DEAD_ZONE
         };
 
+        boolean statesChanged = false;
         for (byte i = 0; i < 4; i++) {
           float value = i == 1 || i == 3 ? deltaX : deltaY;
           Binding binding = getBindingAt(i);
           boolean state = binding.isMouseMove() ? (states[i] || states[(i + 2) % 4]) : states[i];
           inputControlsView.handleInputEvent(binding, state, value);
+          if (this.states[i] != state) statesChanged = true;
           this.states[i] = state;
         }
+        if (statesChanged) inputControlsView.invalidate();
       }
 
       return true;
