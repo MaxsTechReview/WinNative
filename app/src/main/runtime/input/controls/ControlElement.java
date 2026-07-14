@@ -113,6 +113,8 @@ public class ControlElement {
   private PointF currentPosition;
   private PointF trackpadOrigin;
   private int customColor = -1;
+  private String displayTextCache;
+  private String[] bindingTextCache;
   private RangeScroller scroller;
   private CubicBezierInterpolator interpolator;
   private Object touchTime;
@@ -151,6 +153,7 @@ public class ControlElement {
     boundingBoxNeedsUpdate = true;
     radialMenuExpanded = false;
     paths = null;
+    invalidateLabelCache();
   }
 
   public Type getType() {
@@ -175,6 +178,7 @@ public class ControlElement {
     states = new boolean[bindingCount];
     boundingBoxNeedsUpdate = true;
     paths = null;
+    invalidateLabelCache();
   }
 
   public Shape getShape() {
@@ -255,11 +259,13 @@ public class ControlElement {
     }
     bindings[index] = binding;
     paths = null;
+    invalidateLabelCache();
   }
 
   public void setBinding(Binding binding) {
     Arrays.fill(bindings, binding);
     paths = null;
+    invalidateLabelCache();
   }
 
   public float getScale() {
@@ -310,6 +316,7 @@ public class ControlElement {
 
   public void setText(String text) {
     this.text = text != null ? text : "";
+    invalidateLabelCache();
   }
 
   public byte getIconId() {
@@ -395,20 +402,33 @@ return boundingBox;
 }
 
   private String getDisplayText() {
+    if (displayTextCache != null) return displayTextCache;
+    String result;
     // Per-element text always wins (user explicit override).
     if (text != null && !text.isEmpty()) {
-      return text;
+      result = text;
+    } else {
+      Binding binding = getBindingAt(0);
+      String bumper = bumperTriggerLabel(binding);
+      if (bumper != null) {
+        result = bumper;
+      } else {
+        String s = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
+        if (s.length() > 7) {
+          String[] parts = s.split(" ");
+          StringBuilder sb = new StringBuilder();
+          for (String part : parts) sb.append(part.charAt(0));
+          result = (binding.isMouse() ? "M" : "") + sb;
+        } else result = s;
+      }
     }
-    Binding binding = getBindingAt(0);
-    String bumper = bumperTriggerLabel(binding);
-    if (bumper != null) return bumper;
-    String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
-    if (text.length() > 7) {
-      String[] parts = text.split(" ");
-      StringBuilder sb = new StringBuilder();
-      for (String part : parts) sb.append(part.charAt(0));
-      return (binding.isMouse() ? "M" : "") + sb;
-    } else return text;
+    displayTextCache = result;
+    return result;
+  }
+
+  private void invalidateLabelCache() {
+    displayTextCache = null;
+    bindingTextCache = null;
   }
 
   /** Returns the per-element customColor, or {@code -1} if unset (fall back to theme accent). */
@@ -434,17 +454,30 @@ return boundingBox;
   }
 
   private String getBindingShortText(int index) {
+    String[] cache = bindingTextCache;
+    if (cache != null && index < cache.length && cache[index] != null) return cache[index];
     Binding binding = getBindingAt(index);
     String bumper = bumperTriggerLabel(binding);
-    if (bumper != null) return bumper;
-    String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "").replace("KEY_", "").replace("GAMEPAD_", "");
-    if (text.length() > 6) {
-      String[] parts = text.split("_");
-      StringBuilder sb = new StringBuilder();
-      for (String part : parts) if (!part.isEmpty()) sb.append(part.charAt(0));
-      return (binding.isMouse() ? "M" : "") + sb.toString();
+    String result;
+    if (bumper != null) {
+      result = bumper;
+    } else {
+      String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "").replace("KEY_", "").replace("GAMEPAD_", "");
+      if (text.length() > 6) {
+        String[] parts = text.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) if (!part.isEmpty()) sb.append(part.charAt(0));
+        result = (binding.isMouse() ? "M" : "") + sb;
+      } else {
+        result = text.replace("_", " ");
+      }
     }
-    return text.replace("_", " ");
+    if (cache == null || cache.length != bindings.length) {
+      cache = new String[bindings.length];
+      bindingTextCache = cache;
+    }
+    if (index < cache.length) cache[index] = result;
+    return result;
   }
 
   private static float getTextSizeForWidth(Paint paint, String text, float desiredWidth) {
@@ -453,7 +486,24 @@ return boundingBox;
     return testTextSize * desiredWidth / paint.measureText(text);
   }
 
+  private static final String[][] rangeTextCache = new String[Range.values().length][];
+
   private static String getRangeTextForIndex(Range range, int index) {
+    if (index < 0 || index >= range.max) return computeRangeText(range, index);
+    String[] cache = rangeTextCache[range.ordinal()];
+    if (cache == null) {
+      cache = new String[range.max];
+      rangeTextCache[range.ordinal()] = cache;
+    }
+    String cached = cache[index];
+    if (cached == null) {
+      cached = computeRangeText(range, index);
+      cache[index] = cached;
+    }
+    return cached;
+  }
+
+  private static String computeRangeText(Range range, int index) {
     String text = "";
     switch (range) {
       case FROM_A_TO_Z:
@@ -2059,8 +2109,7 @@ return boundingBox;
         float h = boundingBox.height();
         if (shape == Shape.CIRCLE) {
           float r = w * 0.5f - core;
-          path.reset();
-          path.addCircle(cx, cy, r, Path.Direction.CW);
+          buildChamferRectPath(path, cx - r, cy - r, cx + r, cy + r, r * 0.586f);
         } else {
           float chamfer = shape == Shape.SQUARE
               ? snappingSize * 0.8f * scale
