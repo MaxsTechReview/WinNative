@@ -191,6 +191,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
+import static com.winlator.cmod.runtime.display.XServerDisplayUtils.*;
 
 public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final long STEAM_TERMINATION_GRACE_MS = 10000L;
@@ -3121,30 +3122,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         onComplete.run();
     }
 
-    private interface ExitUploadAction {
-        void start(ExitUploadCallback callback);
-    }
-
-    private interface ExitUploadCallback {
-        void onComplete(ExitUploadResult result);
-    }
-
-    private interface ExitUploadBlockingAction {
-        ExitUploadResult run() throws Exception;
-    }
-
-    private static final class ExitUploadResult {
-        final boolean success;
-        @NonNull final String message;
-        final boolean retryable;
-
-        ExitUploadResult(boolean success, @Nullable String message, boolean retryable) {
-            this.success = success;
-            this.message = message == null ? "" : message;
-            this.retryable = retryable;
-        }
-    }
-
     private void runExitUploadWithRetries(
             String uploadName,
             String retryStatusMessage,
@@ -3564,32 +3541,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    // Builds a WINEDEBUG value enabling only the chosen message classes on the
-    // chosen channels. "-all" first zeroes every class so unchosen ones (notably
-    // trace) stay off, then each "class+channel" turns one class on.
-    private static String buildWineDebug(String classesCsv, String channelsCsv) {
-        java.util.List<String> classes = splitCsv(classesCsv);
-        java.util.List<String> channels = splitCsv(channelsCsv);
-        if (classes.isEmpty() || channels.isEmpty()) return "-all";
-        StringBuilder sb = new StringBuilder("-all");
-        for (String channel : channels) {
-            for (String cls : classes) {
-                sb.append(',').append(cls).append('+').append(channel);
-            }
-        }
-        return sb.toString();
-    }
-
-    private static java.util.List<String> splitCsv(String value) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        if (value == null) return out;
-        for (String part : value.split(",")) {
-            String token = part.trim();
-            if (!token.isEmpty()) out.add(token);
-        }
-        return out;
-    }
-
     private void scrubPlanWBridgeFilesForNextSession() {
         if (container == null) return;
         try {
@@ -3735,25 +3686,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         try {
             if (sentinel.exists()) sentinel.delete();
         } catch (Exception ignored) {}
-    }
-
-    private static boolean isSteamExeRunning() {
-        for (String detail : ProcessHelper.listRunningWineProcessDetails()) {
-            if (detail.toLowerCase().contains("steam.exe")) return true;
-        }
-        return false;
-    }
-
-    private static boolean wnLauncherLogContains(File log, String marker) {
-        if (log == null || !log.isFile()) return false;
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(new java.io.FileInputStream(log)))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains(marker)) return true;
-            }
-        } catch (Exception ignored) {}
-        return false;
     }
 
     @Override
@@ -5050,14 +4982,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 memDetail));
     }
 
-    private static int clampSGSRUpscaleMode(int mode) {
-        return SGSRResolutionUtils.clampUpscaleMode(mode);
-    }
-
-    private static int normalizeSGSRShortcutUpscaleMode(int mode) {
-        return SGSRResolutionUtils.normalizeShortcutUpscaleMode(mode);
-    }
-
     private void saveSGSRShortcutSettings() {
         if (shortcut != null) {
             if (sgsrEnabled) {
@@ -5303,10 +5227,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
-    private static float clampHudAlpha(float v) {
-        return Math.max(0.1f, Math.min(1.0f, v));
-    }
-
     private void loadHUDSettings() {
         if (container == null) return;
         String json = container.getExtra("hudSettings");
@@ -5542,16 +5462,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return out;
     }
 
-    private static String resTierLabel(int shortSide) {
-        switch (shortSide) {
-            case 2160: return "4K";
-            case 1440: return "2K";
-            case 1080: return "1080p";
-            case 720:  return "720p";
-            default:   return shortSide + "p";
-        }
-    }
-
     // Build the popup config with persisted selections mapped to current indices.
     private RecordUiConfig buildRecordConfig() {
         java.util.List<Integer> fps = recordFpsOptions();
@@ -5720,28 +5630,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         recordUiBitmap = null;
         recordUiPixels = null;
         recordUiBuffer = null;
-    }
-
-    private static int tierShortForLabel(String label) {
-        switch (label) {
-            case "4K":    return 2160;
-            case "2K":    return 1440;
-            case "1080p": return 1080;
-            case "720p":  return 720;
-            default:      return 0;
-        }
-    }
-
-    // Quality preset → bits-per-pixel·frame, then bitrate, clamped to a sane window.
-    private static int recordBitrate(int w, int h, int fps, int quality) {
-        double bpp;
-        switch (quality) {
-            case 0:  bpp = 0.035; break; // Performance
-            case 1:  bpp = 0.075; break; // Balance
-            default: bpp = 0.15;  break; // Quality
-        }
-        long bps = (long) (w * (long) h * fps * bpp);
-        return (int) Math.max(2_000_000L, Math.min(bps, 80_000_000L));
     }
 
     private void stopScreenRecording() {
@@ -6434,16 +6322,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             }
         }
         return best != null ? contentVersionIdentifier(best) : "";
-    }
-
-    private static String contentVersionIdentifier(ContentProfile profile) {
-        String entryName = ContentsManager.getEntryName(profile);
-        int firstDash = entryName.indexOf('-');
-        return firstDash >= 0 ? entryName.substring(firstDash + 1) : entryName;
-    }
-
-    private static boolean safeEquals(String a, String b) {
-        return a != null && a.equals(b);
     }
 
     private void setupXEnvironment() throws PackageManager.NameNotFoundException {
@@ -8309,26 +8187,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return null;
     }
 
-    private static String findDelimitedWrapper(String value, String prefix) {
-        if (value == null) return null;
-        for (String part : value.split(";")) {
-            if (part.startsWith(prefix)) return part;
-        }
-        return null;
-    }
-
-    private static boolean hasSelectedVkd3dVersion(String version) {
-        return version != null && !version.isEmpty() && !version.equalsIgnoreCase("None");
-    }
-
-    private static boolean hasSelectedDxvkWrapper(String dxvkWrapper) {
-        if (dxvkWrapper == null) return false;
-        String version = dxvkWrapper.startsWith("dxvk-")
-                ? dxvkWrapper.substring("dxvk-".length())
-                : dxvkWrapper;
-        return !version.trim().isEmpty() && !version.equalsIgnoreCase("None");
-    }
-
     private void extractD8VKIfNeeded(String dxvkWrapper, File windowsDir) {
         if (compareVersion(dxvkWrapper, "2.4") >= 0) return;
 
@@ -8340,49 +8198,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 windowsDir,
                 onExtractFileListener
         );
-    }
-
-    private static int compareVersion(String varA, String varB) {
-        int[] a = parseSemverLoose(varA);
-        int[] b = parseSemverLoose(varB);
-
-        if (a[0] != b[0]) return a[0] - b[0];
-        if (a[1] != b[1]) return a[1] - b[1];
-        return a[2] - b[2];
-    }
-
-    private static final Pattern SEMVER_LOOSE =
-            Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
-
-    private static int[] parseSemverLoose(String s) {
-        if (s == null) return new int[]{0, 0, 0};
-
-        Matcher m = SEMVER_LOOSE.matcher(s);
-
-        String g1 = null, g2 = null, g3 = null;
-        while (m.find()) {
-            g1 = m.group(1);
-            g2 = m.group(2);
-            g3 = m.group(3);
-        }
-
-        if (g1 == null || g2 == null) {
-            return new int[]{0, 0, 0};
-        }
-
-        int major = safeParseInt(g1);
-        int minor = safeParseInt(g2);
-        int patch = safeParseInt(g3);
-        return new int[]{major, minor, patch};
-    }
-
-    private static int safeParseInt(String s) {
-        if (s == null || s.isEmpty()) return 0;
-        try {
-            return Integer.parseInt(s);
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
     }
 
     private String getWineStartCommand(GuestProgramLauncherComponent launcherComponent) {
@@ -8985,15 +8800,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         String configured = exeBaseName(steamDefaultExe);
         return !resolved.isEmpty() && !configured.isEmpty()
                 && !resolved.equalsIgnoreCase(configured);
-    }
-
-    /** Base file name of a Windows/Unix exe path (handles both '\\' and '/' separators). */
-    private static String exeBaseName(String path) {
-        if (path == null) return "";
-        String normalized = path.replace('\\', '/');
-        int slash = normalized.lastIndexOf('/');
-        if (slash >= 0) normalized = normalized.substring(slash + 1);
-        return normalized.trim();
     }
 
     private String resolveRelativeGameExe(int appId, String gameInstPath) {
@@ -9636,16 +9442,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return executableInfo.relativePath + "\n"
                 + executableInfo.file.length() + "\n"
                 + executableInfo.file.lastModified() + "\n";
-    }
-
-    private static class SteamExecutableInfo {
-        final String relativePath;
-        final File file;
-
-        SteamExecutableInfo(String relativePath, File file) {
-            this.relativePath = relativePath;
-            this.file = file;
-        }
     }
 
     private void ensureUnpackedExeActive() {
