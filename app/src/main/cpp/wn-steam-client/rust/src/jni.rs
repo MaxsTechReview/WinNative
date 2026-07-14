@@ -3436,6 +3436,22 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
             dispatch_download_progress(&progress_listener, progress);
         };
         let progress_cb: crate::depot_downloader::DepotProgressCallback = &progress;
+        // Re-resolve manifest request codes right before each depot's manifest fetch.
+        let code_refresher = |depot_id: u32, manifest_id: u64| -> Option<u64> {
+            match resolve_manifest_code_with_retry(
+                &runtime,
+                app_id,
+                depot_id,
+                manifest_id,
+                &branch,
+                timeout,
+                download_cancel.as_ref(),
+            ) {
+                CodeResolution::Code(code) => Some(code),
+                _ => None,
+            }
+        };
+        let code_refresher_cb: crate::depot_downloader::ManifestCodeRefresher = &code_refresher;
         let result =
             crate::depot_downloader::download_resolved_depots_with_cancel_progress(
                 &install_dir,
@@ -3446,6 +3462,7 @@ pub extern "system" fn Java_com_winlator_cmod_feature_stores_steam_wnsteam_WnSte
                 max_workers,
                 Some(download_cancel.as_ref()),
                 Some(progress_cb),
+                Some(code_refresher_cb),
             );
         dispatch_download_complete(listener, result);
     });
