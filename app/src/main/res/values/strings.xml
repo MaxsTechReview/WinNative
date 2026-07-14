@@ -1501,6 +1501,7 @@ Installed path:
     <string name="steam_friends_section_online">Online (%1$d)</string>
     <string name="steam_friends_section_offline">Offline (%1$d)</string>
     <string name="steam_friends_none_loaded">No friends loaded yet.</string>
+    <string name="steam_friends_chat_off">Chat is off. Turn Chat Service back on to see your friends.</string>
     <string name="steam_friends_self_you">You</string>
     <string name="steam_friends_in_game">In game</string>
     <string name="steam_friends_join">Join</string>
@@ -1526,6 +1527,8 @@ Installed path:
     <string name="steam_join_the_game">the game</string>
     <string name="steam_friends_settings">Settings</string>
     <string name="steam_chat_settings_title">Chat Settings</string>
+    <string name="steam_chat_setting_service">Chat Service</string>
+    <string name="steam_chat_setting_service_desc">Sign in to friends and chat; turn off to go offline</string>
     <string name="steam_chat_setting_notifications">Chat Notifications</string>
     <string name="steam_chat_setting_notifications_desc">Show a notification when you receive a message</string>
     <string name="steam_chat_setting_heads">Chat Heads</string>
