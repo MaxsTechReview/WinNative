@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.Choreographer;
 import android.view.Surface;
 import androidx.preference.PreferenceManager;
 import com.winlator.cmod.BuildConfig;
@@ -187,10 +186,6 @@ public class VulkanRenderer
         this.xServer = xServer;
         this.effectComposer = new EffectComposer(this);
         this.rootCursorDrawable = createRootCursorDrawable();
-        this.coalescedRenderCallback = frameTimeNanos -> {
-            renderRequested.set(false);
-            xServerView.requestRender();
-        };
     }
 
     public void destroy() {
@@ -223,9 +218,6 @@ public class VulkanRenderer
             }
         }
     }
-
-    private volatile Choreographer mainChoreographer;
-    private final Choreographer.FrameCallback coalescedRenderCallback;
 
     public void requestRenderCoalesced() {
         xServerView.requestRender();
