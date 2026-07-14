@@ -247,6 +247,13 @@ object PrefManager {
             setInt("download_speed", value)
         }
 
+    // Container the Ubisoft Connect installer / sign-in runs in (0 = fall back to default).
+    var ubisoftContainerId: Int
+        get() = getInt("ubisoft_container_id", 0)
+        set(value) {
+            setInt("ubisoft_container_id", value)
+        }
+
     var clientId: Long
         get() = getLong("client_id", 0L)
         set(value) {

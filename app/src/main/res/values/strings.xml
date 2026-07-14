@@ -208,6 +208,13 @@
     <!-- Stores > Accounts -->
     <string name="stores_accounts_title">Stores</string>
     <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_ubisoft_integration_title">Ubisoft Connect</string>
+    <string name="stores_accounts_ubisoft_installed">Installed</string>
+    <string name="stores_accounts_ubisoft_not_installed">Not installed</string>
+    <string name="stores_accounts_ubisoft_download">Download</string>
+    <string name="stores_accounts_ubisoft_working">Working…</string>
+    <string name="stores_accounts_ubisoft_no_container">No container available — create one first</string>
+    <string name="stores_accounts_ubisoft_install_failed">Ubisoft Connect install failed: %1$s</string>
     <string name="stores_accounts_shared_downloads_folder">Shared Downloads Folder</string>
     <string name="stores_accounts_shared_downloads_subtitle">Use a single folder across all stores</string>
     <string name="stores_accounts_default_downloads_folder">Default Downloads Folder</string>

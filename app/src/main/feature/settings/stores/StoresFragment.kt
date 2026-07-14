@@ -3,6 +3,7 @@ package com.winlator.cmod.feature.settings
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,8 +27,13 @@ import com.winlator.cmod.feature.stores.gog.service.GOGService
 import com.winlator.cmod.feature.stores.gog.ui.auth.GOGOAuthActivity
 import com.winlator.cmod.feature.stores.steam.SteamLoginActivity
 import com.winlator.cmod.feature.stores.steam.enums.Language
+import com.winlator.cmod.feature.setup.SetupWizardActivity
 import com.winlator.cmod.feature.stores.steam.service.SteamService
 import com.winlator.cmod.feature.stores.steam.utils.PrefManager
+import com.winlator.cmod.feature.stores.ubisoft.UbisoftConnect
+import com.winlator.cmod.runtime.container.Container
+import com.winlator.cmod.runtime.container.ContainerManager
+import com.winlator.cmod.runtime.content.component.ComponentInstaller
 import com.winlator.cmod.shared.android.DirectoryPickerDialog
 import com.winlator.cmod.shared.io.AssetPaths
 import com.winlator.cmod.shared.io.FileUtils
@@ -35,6 +41,7 @@ import com.winlator.cmod.shared.theme.WinNativeTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class StoresFragment : Fragment() {
@@ -134,6 +141,7 @@ class StoresFragment : Fragment() {
                                 refresh()
                             }
                         },
+                        onUbisoftInstall = { installUbisoftConnect() },
                         onSharedFolderChanged = {
                             PrefManager.useSingleDownloadFolder = it
                             refresh()
@@ -171,6 +179,7 @@ class StoresFragment : Fragment() {
     // Helpers
     private fun refresh() {
         val ctx = context ?: return
+        val prev = storeState
         val containerLanguageLabels = Language.displayLabels()
         val containerLanguageIndex = Language.indexForContainerLang(PrefManager.containerLanguage)
         storeState =
@@ -188,7 +197,69 @@ class StoresFragment : Fragment() {
                 gogFolder = resolveUri(PrefManager.gogDownloadFolder, ctx),
                 containerLanguageLabels = containerLanguageLabels,
                 containerLanguageIndex = containerLanguageIndex,
+                isUbisoftInstalled = UbisoftConnect.isInstalled(ctx),
+                // Preserve the in-flight download/install state across refreshes.
+                ubisoftBusy = prev.ubisoftBusy,
+                ubisoftStatus = prev.ubisoftStatus,
             )
+    }
+
+    // The installer runs in the user's default container; the install lands in the shared store
+    // (shared by every container), so which container runs it doesn't matter.
+    private fun defaultUbisoftContainer(ctx: android.content.Context): Container? =
+        try {
+            val cm = ContainerManager(ctx)
+            cm.getContainerById(SetupWizardActivity.getDefaultX86ContainerId(ctx))
+                ?: cm.getContainers().firstOrNull()
+        } catch (_: Exception) {
+            null
+        }
+
+    // Download + silently install Ubisoft Connect (lands in the shared store, shared by all containers).
+    private fun installUbisoftConnect() {
+        val ctx = context ?: return
+        if (storeState.ubisoftBusy) return
+        val container = defaultUbisoftContainer(ctx)
+        if (container == null) {
+            Toast.makeText(ctx, R.string.stores_accounts_ubisoft_no_container, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val appCtx = ctx.applicationContext
+        storeState = storeState.copy(ubisoftBusy = true, ubisoftStatus = "")
+        CoroutineScope(Dispatchers.IO).launch {
+            val listener =
+                object : ComponentInstaller.Listener {
+                    override fun onStatus(text: String) = postUbisoftStatus(text)
+
+                    override fun onProgress(fraction: Float) {
+                        if (fraction in 0f..1f) postUbisoftStatus("Downloading ${(fraction * 100).toInt()}%")
+                    }
+                }
+            val error =
+                try {
+                    ComponentInstaller(appCtx, container, "ubisoft-connect", UbisoftConnect.installManifest(), listener).run()
+                    null
+                } catch (e: Exception) {
+                    e.message ?: "error"
+                }
+            withContext(Dispatchers.Main) {
+                storeState = storeState.copy(ubisoftBusy = false, ubisoftStatus = "")
+                if (error != null) {
+                    Toast.makeText(
+                        appCtx,
+                        appCtx.getString(R.string.stores_accounts_ubisoft_install_failed, error),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+                refresh()
+            }
+        }
+    }
+
+    private fun postUbisoftStatus(text: String) {
+        view?.post {
+            if (storeState.ubisoftBusy) storeState = storeState.copy(ubisoftStatus = text)
+        }
     }
 
     private fun loadServerOptions(): List<Pair<Int, String>> =

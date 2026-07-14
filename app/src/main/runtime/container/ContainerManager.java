@@ -405,6 +405,8 @@ public class ContainerManager {
       if (files != null) {
         for (File file : files) {
           String fileName = file.getName();
+          // Hide the Ubisoft Connect launcher from the library — it's pre-installed plumbing, not a game.
+          if (isUbisoftConnectShortcut(fileName)) continue;
           if (fileName.endsWith(".lnk")) {
             String filePath = file.getPath();
             File desktopFile =
@@ -424,6 +426,14 @@ public class ContainerManager {
     return shortcuts;
   }
 
+  // The Ubisoft Connect installer drops a "Ubisoft Connect" desktop shortcut; it's launcher
+  // plumbing (pre-installed via Settings > Stores), not a user game, so keep it out of the library.
+  private static boolean isUbisoftConnectShortcut(String fileName) {
+    if (fileName == null) return false;
+    String lower = fileName.toLowerCase(java.util.Locale.ROOT);
+    return lower.startsWith("ubisoft connect.") || lower.startsWith("uplay.");
+  }
+
   public void upgradeShortcuts(final Runnable onDone) {
     if (!shortcutUpgradeRunning.compareAndSet(false, true)) return;
 
@@ -436,6 +446,7 @@ public class ContainerManager {
                 File[] files = desktopDir.listFiles();
                 if (files == null) continue;
                 for (File file : files) {
+                    if (isUbisoftConnectShortcut(file.getName())) continue;
                     if (file.getName().endsWith(".lnk")) {
                         File desktopFile = new File(file.getPath().substring(0, file.getPath().lastIndexOf(".")) + ".desktop");
                         boolean needsUpgrade = true;

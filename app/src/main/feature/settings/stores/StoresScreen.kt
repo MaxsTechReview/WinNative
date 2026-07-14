@@ -112,6 +112,9 @@ data class StoreState(
     val gogFolder: String = "",
     val containerLanguageLabels: List<String> = emptyList(),
     val containerLanguageIndex: Int = 0,
+    val isUbisoftInstalled: Boolean = false,
+    val ubisoftBusy: Boolean = false,
+    val ubisoftStatus: String = "",
 )
 
 @Composable
@@ -124,6 +127,7 @@ fun StoresScreen(
     onEpicSignOut: () -> Unit,
     onGogSignIn: () -> Unit,
     onGogSignOut: () -> Unit,
+    onUbisoftInstall: () -> Unit,
     onSharedFolderChanged: (Boolean) -> Unit,
     onDownloadSpeedChanged: (Int) -> Unit,
     onDownloadServerChanged: (Int) -> Unit,
@@ -187,6 +191,19 @@ fun StoresScreen(
                 isLoggedIn = state.isGogLoggedIn,
                 onSignIn = onGogSignIn,
                 onSignOut = onGogSignOut,
+            )
+
+            SectionLabel(
+                stringResource(R.string.stores_accounts_ubisoft_integration_title),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            UbisoftStoreCard(
+                name = stringResource(R.string.stores_accounts_ubisoft_integration_title),
+                accentColor = Color(0xFF148EFF),
+                isInstalled = state.isUbisoftInstalled,
+                isBusy = state.ubisoftBusy,
+                statusText = state.ubisoftStatus,
+                onDownload = onUbisoftInstall,
             )
 
             SectionLabel(stringResource(R.string.stores_accounts_download_settings), modifier = Modifier.padding(top = 8.dp))
@@ -479,6 +496,131 @@ private fun StoreCard(
                 textColor = if (isLoggedIn) DangerRed else accentColor,
                 onClick = if (isLoggedIn) ({ showSignOutDialog = true }) else onSignIn,
             )
+        }
+    }
+}
+
+// Ubisoft Connect card: Download when the client isn't installed, Sign In once it is.
+@Composable
+private fun UbisoftStoreCard(
+    name: String,
+    accentColor: Color,
+    isInstalled: Boolean,
+    isBusy: Boolean,
+    statusText: String,
+    onDownload: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(CardDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(IconBoxBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Gamepad,
+                    contentDescription = name,
+                    tint = accentColor,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!isBusy) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isInstalled) StatusGreen else TextSecondary.copy(alpha = 0.4f),
+                                    ),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text =
+                            when {
+                                isBusy -> statusText.ifEmpty { stringResource(R.string.stores_accounts_ubisoft_working) }
+                                isInstalled -> stringResource(R.string.stores_accounts_ubisoft_installed)
+                                else -> stringResource(R.string.stores_accounts_ubisoft_not_installed)
+                            },
+                        color = if (isInstalled && !isBusy) StatusGreen else TextSecondary,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            if (isBusy) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF222232))
+                            .border(1.dp, TextSecondary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.stores_accounts_ubisoft_working),
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else if (isInstalled) {
+                // Already downloaded + installed: grayed-out, non-interactive Download button.
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF1B1B27))
+                            .border(1.dp, TextSecondary.copy(alpha = 0.18f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.stores_accounts_ubisoft_download),
+                        color = TextSecondary.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else {
+                ActionButton(
+                    label = stringResource(R.string.stores_accounts_ubisoft_download),
+                    textColor = accentColor,
+                    onClick = onDownload,
+                )
+            }
         }
     }
 }

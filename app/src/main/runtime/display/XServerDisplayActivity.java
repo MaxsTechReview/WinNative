@@ -224,6 +224,18 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private static final String UBISOFT_LAUNCHER_WINDOWS_PATH =
             "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\";
 
+    // Ubisoft/Uplay helper processes whose embedded Chromium (CEF) renders the launcher/login UI.
+    // GameHub forces these to builtin D3D so CEF renders via WineD3D->GL(Zink)->Vulkan instead of
+    // grabbing the game's DXVK device (which black-screens/crashes CEF). Mirrors GameHub's mk.n()
+    // over hqk.j = {SocialClubHelper, UplayWebCore, upc, UplayService}; UbisoftConnect.exe added
+    // because the modern client hosts the same CEF UI.
+    private static final String[] UBISOFT_HELPER_EXES = {
+            "upc.exe", "UbisoftConnect.exe", "UplayWebCore.exe", "SocialClubHelper.exe", "UplayService.exe",
+    };
+    private static final String[] UBISOFT_HELPER_D3D_DLLS = {
+            "dxgi", "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11",
+    };
+
     public static final String EXTRA_LAUNCHED_FROM_PINNED_SHORTCUT = "launched_from_pinned_shortcut";
 
     // CEF GPU flags avoid steamwebhelper taking DXVK's dxgi path in FEX.
@@ -10273,6 +10285,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             redirectUbisoftDir(new File(container.getRootDir(), UBISOFT_LOCALAPPDATA_PREFIX_PATH),
                     new File(storeRoot, UBISOFT_LOCALAPPDATA_STORE_NAME));
             seedUbisoftLauncherRegistry();
+            seedUbisoftHelperDllOverrides();
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Error sharing Ubisoft Connect login", e);
         }
@@ -10370,6 +10383,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             reg.setStringValue("Software\\Ubisoft\\Launcher", "InstallDir", UBISOFT_LAUNCHER_WINDOWS_PATH);
         } catch (Exception e) {
             Log.e("XServerDisplayActivity", "Error seeding Ubisoft launcher registry", e);
+        }
+    }
+
+    /**
+     * Forces the Ubisoft/Uplay CEF helper processes onto Wine's builtin D3D (WineD3D) via per-exe
+     * AppDefaults DLL overrides, so their embedded Chromium renders through WineD3D -> GL(Zink) ->
+     * Vulkan instead of the game's DXVK device (which black-screens/crashes CEF). This is GameHub's
+     * exact Ubisoft fix: HKCU\Software\Wine\AppDefaults\&lt;exe&gt;\DllOverrides = builtin for the D3D DLLs
+     * (mk.n / hqk.j). Written to user.reg every launch.
+     */
+    private void seedUbisoftHelperDllOverrides() {
+        if (container == null) return;
+        File userRegFile = new File(container.getRootDir(), ".wine/user.reg");
+        if (!userRegFile.isFile()) return;
+        try (WineRegistryEditor reg = new WineRegistryEditor(userRegFile)) {
+            for (String exe : UBISOFT_HELPER_EXES) {
+                String key = "Software\\Wine\\AppDefaults\\" + exe + "\\DllOverrides";
+                for (String dll : UBISOFT_HELPER_D3D_DLLS) {
+                    reg.setStringValue(key, dll, "builtin");
+                }
+            }
+        } catch (Exception e) {
+            Log.e("XServerDisplayActivity", "Error seeding Ubisoft helper DLL overrides", e);
         }
     }
 
