@@ -3980,6 +3980,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             styleNames.add(getString(R.string.input_controls_style_shadow));
             styleNames.add(getString(R.string.input_controls_style_reticle));
             styleNames.add(getString(R.string.input_controls_style_neon));
+            styleNames.add(getString(R.string.input_controls_style_lumina));
             styleNames.add(getString(R.string.input_controls_style_original));
         }
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null

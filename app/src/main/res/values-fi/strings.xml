@@ -369,6 +369,7 @@
     <string name="input_controls_style_shadow">Varjo</string>
     <string name="input_controls_style_reticle">Ristikko</string>
     <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Väriteema</string>
     <string name="input_controls_edit_duplicating_builtin">Sisäänrakennettu profiili – luotiin kopio, jota voit muokata.</string>
     <string name="input_controls_editor_profile_name">Profiilin nimi</string>

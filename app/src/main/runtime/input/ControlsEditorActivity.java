@@ -154,6 +154,8 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
     String[] names = VisualStyle.displayNames();
     VisualStyle[] styles = VisualStyle.values();
     int rowPadding = (int) UnitUtils.dpToPx(6);
+    LinearLayout rows = new LinearLayout(this);
+    rows.setOrientation(LinearLayout.VERTICAL);
     for (int i = 0; i < styles.length; i++) {
       final VisualStyle style = styles[i];
       boolean selected = style == current;
@@ -172,8 +174,17 @@ public class ControlsEditorActivity extends FixedFontScaleAppCompatActivity impl
             inputControlsView.setVisualStyle(style);
             if (popup[0] != null) popup[0].dismiss();
           });
-      view.addView(label);
+      rows.addView(label);
     }
+
+    ScrollView scroller = new ScrollView(this);
+    scroller.setVerticalScrollBarEnabled(true);
+    scroller.addView(rows);
+    int maxListHeight =
+        (int) Math.min(UnitUtils.dpToPx(250), getResources().getDisplayMetrics().heightPixels * 0.5f);
+    view.addView(
+        scroller,
+        new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxListHeight));
 
     popup[0] = AppUtils.showPopupWindow(anchorView, view, 220, 0);
     popup[0].setFocusable(true);

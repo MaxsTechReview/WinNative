@@ -9,6 +9,7 @@ public enum VisualStyle {
   SHADOW,
   RETICLE,
   NEON,
+  LUMINA,
   ORIGINAL;
 
   public static VisualStyle fromPreference(String name) {
@@ -21,6 +22,6 @@ public enum VisualStyle {
   }
 
   public static String[] displayNames() {
-    return new String[] {"Slate", "Glass", "Halo", "Glint", "Shadow", "Reticle", "Neon", "Original"};
+    return new String[] {"Slate", "Glass", "Halo", "Glint", "Shadow", "Reticle", "Neon", "Lumina", "Original"};
   }
 }

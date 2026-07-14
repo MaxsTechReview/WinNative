@@ -1309,6 +1309,7 @@
     <string name="input_controls_style_shadow">暗影</string>
     <string name="input_controls_style_reticle">準星</string>
     <string name="input_controls_style_neon">霓虹</string>
+    <string name="input_controls_style_lumina">流光</string>
     <string name="input_controls_accent_theme">顏色主題</string>
     <string name="input_controls_edit_duplicating_builtin">內建設定檔 - 已建立可編輯副本。</string>
     <string name="input_controls_editor_confirm_reset_profile">將此設定檔重設為原始版面配置？你所做的任何變更都會遺失。</string>

@@ -1309,6 +1309,7 @@ Ruta instalada:
     <string name="input_controls_style_shadow">Sombra</string>
     <string name="input_controls_style_reticle">Retícula</string>
     <string name="input_controls_style_neon">Neón</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Tema de color</string>
     <string name="input_controls_edit_duplicating_builtin">Perfil integrado: se creó una copia que puedes editar.</string>
     <string name="input_controls_editor_confirm_reset_profile">¿Restablecer este perfil a su diseño original? Se perderán todos los cambios que hayas hecho.</string>

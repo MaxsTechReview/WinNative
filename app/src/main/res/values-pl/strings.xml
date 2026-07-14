@@ -1315,6 +1315,7 @@ Zainstalowana ścieżka:
     <string name="input_controls_style_shadow">Cień</string>
     <string name="input_controls_style_reticle">Celownik</string>
     <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Motyw kolorystyczny</string>
     <string name="input_controls_edit_duplicating_builtin">Wbudowany profil — utworzono kopię, którą możesz edytować.</string>
     <string name="input_controls_editor_confirm_reset_profile">Zresetować ten profil do oryginalnego układu? Wszystkie wprowadzone zmiany zostaną utracone.</string>

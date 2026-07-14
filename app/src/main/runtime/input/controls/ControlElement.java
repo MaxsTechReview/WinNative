@@ -616,6 +616,10 @@ return boundingBox;
       drawNeon(canvas);
       return;
     }
+    if (style == VisualStyle.LUMINA) {
+      drawLumina(canvas);
+      return;
+    }
     if (style != VisualStyle.ORIGINAL) {
       drawClean(canvas, style);
       return;
@@ -2049,6 +2053,14 @@ return boundingBox;
   }
 
   private static final int NEON_SCRIM = 0xFF0A0A16;
+  private static final float[] hsvTemp = new float[3];
+
+  /** Contrasting partner color for the neon accent (hue rotated 150 degrees). */
+  private static int neonSecondary(int accent) {
+    Color.colorToHSV(accent, hsvTemp);
+    hsvTemp[0] = (hsvTemp[0] + 150f) % 360f;
+    return Color.HSVToColor(Color.alpha(accent), hsvTemp);
+  }
 
   /** Layered-stroke glow around {@code p}: wide faint halos under a crisp core line. */
   private void neonStrokePath(
@@ -2094,7 +2106,7 @@ return boundingBox;
     if (selected && resolveAccentColor() == -1) {
       accent = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), 255);
     }
-    int secondary = ColorUtils.blendARGB(accent, Color.WHITE, 0.35f);
+    int secondary = neonSecondary(accent);
     float core = Math.max(1.5f, snappingSize * 0.14f * scale);
     int scrimColor = ColorUtils.setAlphaComponent(NEON_SCRIM, (int) (61 * a));
     int washColor = ColorUtils.setAlphaComponent(accent, (int) (33 * a));
@@ -2456,6 +2468,453 @@ return boundingBox;
     }
     paint.setStrokeCap(Paint.Cap.BUTT);
     paint.setStrokeJoin(Paint.Join.MITER);
+  }
+
+  private static final int LUMINA_RIM = 0xFFC7D0DA;
+  private static final int LUMINA_TEXT = 0xFFF4F7FA;
+  private static Shader luminaBodyShader;
+  private static Shader luminaShadeShader;
+  private static Shader luminaSpecularShader;
+  private static Shader luminaDomeShader;
+
+  private static Shader getLuminaBodyShader() {
+    if (luminaBodyShader == null) {
+      luminaBodyShader = new android.graphics.LinearGradient(
+          0f, 0f, 0f, 1f, 0xFF2E343C, 0xB512151A, Shader.TileMode.CLAMP);
+    }
+    return luminaBodyShader;
+  }
+
+  private static Shader getLuminaShadeShader() {
+    if (luminaShadeShader == null) {
+      luminaShadeShader = new android.graphics.LinearGradient(
+          0f, 0f, 0f, 1f,
+          new int[] {0x00000000, 0x00000000, 0x4D000000},
+          new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP);
+    }
+    return luminaShadeShader;
+  }
+
+  private static Shader getLuminaSpecularShader() {
+    if (luminaSpecularShader == null) {
+      luminaSpecularShader = new android.graphics.LinearGradient(
+          0f, 0f, 0f, 1f,
+          new int[] {0xFFFFFFFF, 0x00FFFFFF, 0x00FFFFFF},
+          new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP);
+    }
+    return luminaSpecularShader;
+  }
+
+  private static Shader getLuminaDomeShader() {
+    if (luminaDomeShader == null) {
+      luminaDomeShader = new RadialGradient(
+          0f, 0f, 1f,
+          new int[] {0x64FFFFFF, 0xB92E343C, 0xE112151A},
+          new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP);
+    }
+    return luminaDomeShader;
+  }
+
+  /** Draws the frosted plate passes (body gradient + bottom shade) for the element's shape. */
+  private void luminaGlassBody(Canvas canvas, Paint paint, Rect bb, float a) {
+    paint.setStyle(Paint.Style.FILL);
+    placeShader(getLuminaBodyShader(), bb.left, bb.top, Math.max(1, bb.height()));
+    paint.setShader(getLuminaBodyShader());
+    paint.setAlpha((int) (170 * a));
+    drawCleanBody(canvas, paint, bb, 0f);
+    placeShader(getLuminaShadeShader(), bb.left, bb.top, Math.max(1, bb.height()));
+    paint.setShader(getLuminaShadeShader());
+    paint.setAlpha((int) (255 * a));
+    drawCleanBody(canvas, paint, bb, 0f);
+    paint.setShader(null);
+  }
+
+  /** LUMINA — frosted glass plates: gradient body, silver hairline rim, top specular, accent light on press. */
+  private void drawLumina(Canvas canvas) {
+    int snappingSize = inputControlsView.getSnappingSize();
+    Paint paint = inputControlsView.getPaint();
+    float effectiveOpacity = inputControlsView.isEditMode() ? Math.max(0.15f, opacity) : opacity;
+    float overlayOpacity = inputControlsView.getOverlayOpacity();
+    float dim = overlayOpacity <= 0.4f
+        ? 0.28f + (overlayOpacity - 0.1f) * (0.5f / 0.3f)
+        : 0.78f + (overlayOpacity - 0.4f) * (0.22f / 0.6f);
+    float a = Mathf.clamp(dim, 0f, 1f) * effectiveOpacity;
+    boolean engaged = isEngaged();
+    Rect boundingBox = getBoundingBox();
+    int custom = resolveAccentColor();
+    int accent = resolveThemedAccent();
+    if (selected && custom == -1) {
+      accent = ColorUtils.setAlphaComponent(inputControlsView.getSecondaryColor(), 255);
+    }
+    float hairline = Math.max(1.5f, snappingSize * 0.11f * scale);
+    int rimIdle = custom != -1 ? ColorUtils.blendARGB(LUMINA_RIM, custom, 0.25f) : LUMINA_RIM;
+    int rimColor = engaged
+        ? ColorUtils.setAlphaComponent(accent, (int) (235 * a))
+        : ColorUtils.setAlphaComponent(rimIdle, (int) (150 * a));
+    int labelColor = engaged
+        ? Color.argb((int) (250 * a), 255, 255, 255)
+        : ColorUtils.setAlphaComponent(accent, (int) (230 * a));
+    float minTextSize = snappingSize * 2 * scale;
+
+    switch (type) {
+      case BUTTON: {
+        float cx = boundingBox.exactCenterX();
+        float cy = boundingBox.exactCenterY();
+        luminaGlassBody(canvas, paint, boundingBox, a);
+        if (engaged) {
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (85 * a)));
+          drawCleanBody(canvas, paint, boundingBox, 0f);
+          beginBloom(paint, cx, cy, Math.min(boundingBox.width(), boundingBox.height()) * 0.58f,
+              accent, a);
+          drawCleanBody(canvas, paint, boundingBox, 0f);
+          endBloom(paint);
+        }
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(rimColor);
+        drawCleanBody(canvas, paint, boundingBox, 0f);
+        placeShader(getLuminaSpecularShader(), boundingBox.left, boundingBox.top,
+            Math.max(1, boundingBox.height()));
+        paint.setShader(getLuminaSpecularShader());
+        paint.setStrokeWidth(hairline * 1.3f);
+        paint.setAlpha((int) (150 * a));
+        drawCleanBody(canvas, paint, boundingBox, hairline);
+        paint.setShader(null);
+        if (iconId > 0) {
+          drawIcon(
+              canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId, true,
+              engaged ? inputControlsView.getColorFilter() : accentFilter(accent));
+        } else {
+          String label = getDisplayText();
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(labelColor);
+          paint.setTextSize(
+              Math.min(
+                  getTextSizeForWidth(paint, label, boundingBox.width() - snappingSize * 0.6f),
+                  minTextSize));
+          paint.setTextAlign(Paint.Align.CENTER);
+          canvas.drawText(label, cx, (cy - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
+        }
+        break;
+      }
+      case D_PAD: {
+        float cx = boundingBox.exactCenterX();
+        float cy = boundingBox.exactCenterY();
+        float base = Math.min(boundingBox.width(), boundingBox.height());
+        float half = base * 0.5f;
+        float arm = base * 0.17f;
+        path.reset();
+        path.moveTo(cx - arm, cy - half);
+        path.lineTo(cx + arm, cy - half);
+        path.lineTo(cx + arm, cy - arm);
+        path.lineTo(cx + half, cy - arm);
+        path.lineTo(cx + half, cy + arm);
+        path.lineTo(cx + arm, cy + arm);
+        path.lineTo(cx + arm, cy + half);
+        path.lineTo(cx - arm, cy + half);
+        path.lineTo(cx - arm, cy + arm);
+        path.lineTo(cx - half, cy + arm);
+        path.lineTo(cx - half, cy - arm);
+        path.lineTo(cx - arm, cy - arm);
+        path.close();
+        paint.setPathEffect(cornerEffect(base * 0.09f));
+        paint.setStyle(Paint.Style.FILL);
+        placeShader(getLuminaBodyShader(), boundingBox.left, cy - half, Math.max(1f, base));
+        paint.setShader(getLuminaBodyShader());
+        paint.setAlpha((int) (170 * a));
+        canvas.drawPath(path, paint);
+        placeShader(getLuminaShadeShader(), boundingBox.left, cy - half, Math.max(1f, base));
+        paint.setShader(getLuminaShadeShader());
+        paint.setAlpha((int) (255 * a));
+        canvas.drawPath(path, paint);
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(rimColor);
+        canvas.drawPath(path, paint);
+        paint.setPathEffect(null);
+
+        boolean hasStates = engaged && states.length >= 4;
+        float chev = base * 0.05f;
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        for (int i = 0; i < 4; i++) {
+          boolean hot = hasStates && states[i];
+          int dx = i == 1 ? 1 : i == 3 ? -1 : 0;
+          int dy = i == 2 ? 1 : i == 0 ? -1 : 0;
+          if (hot) {
+            float bx = cx + dx * half * 0.6f;
+            float by = cy + dy * half * 0.6f;
+            beginBloom(paint, bx, by, base * 0.26f, accent, a);
+            canvas.drawCircle(bx, by, base * 0.26f, paint);
+            endBloom(paint);
+          }
+          float ax = cx + dx * half * 0.62f;
+          float ay = cy + dy * half * 0.62f;
+          paint.setStyle(Paint.Style.STROKE);
+          paint.setStrokeWidth(Math.max(2f, snappingSize * 0.16f * scale));
+          paint.setColor(hot
+              ? Color.argb((int) (250 * a), 255, 255, 255)
+              : ColorUtils.setAlphaComponent(accent, (int) (160 * a)));
+          if (dy != 0) {
+            canvas.drawLine(ax - chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
+            canvas.drawLine(ax + chev, ay + dy * chev, ax, ay - dy * chev * 0.4f, paint);
+          } else {
+            canvas.drawLine(ax + dx * chev, ay - chev, ax - dx * chev * 0.4f, ay, paint);
+            canvas.drawLine(ax + dx * chev, ay + chev, ax - dx * chev * 0.4f, ay, paint);
+          }
+        }
+        paint.setStrokeCap(Paint.Cap.BUTT);
+        paint.setStrokeJoin(Paint.Join.MITER);
+        break;
+      }
+      case STICK: {
+        float cx = boundingBox.exactCenterX();
+        float cy = boundingBox.exactCenterY();
+        float r = boundingBox.height() * 0.5f;
+        paint.setStyle(Paint.Style.FILL);
+        placeShader(getLuminaBodyShader(), cx - r, cy - r, Math.max(1f, r * 2f));
+        paint.setShader(getLuminaBodyShader());
+        paint.setAlpha((int) (95 * a));
+        canvas.drawCircle(cx, cy, r, paint);
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        float bezel = Math.max(2f, snappingSize * 0.3f * scale);
+        paint.setStrokeWidth(bezel);
+        paint.setColor(ColorUtils.setAlphaComponent(LUMINA_RIM, (int) (55 * a)));
+        canvas.drawCircle(cx, cy, r * 0.97f, paint);
+        tempRect.set(cx - r * 0.97f, cy - r * 0.97f, cx + r * 0.97f, cy + r * 0.97f);
+        paint.setColor(Color.argb((int) (110 * a), 255, 255, 255));
+        canvas.drawArc(tempRect, 150f, 180f, false, paint);
+        paint.setStrokeWidth(hairline * 1.3f);
+        paint.setColor(ColorUtils.setAlphaComponent(accent, (int) ((engaged ? 210 : 95) * a)));
+        canvas.drawCircle(cx, cy, r * 0.55f, paint);
+        PointF pos = getCurrentPosition();
+        float thumbR = snappingSize * 3.5f * scale;
+        paint.setStyle(Paint.Style.FILL);
+        placeShader(getLuminaDomeShader(),
+            pos.x - thumbR * 0.35f, pos.y - thumbR * 0.38f, Math.max(1f, thumbR * 1.6f));
+        paint.setShader(getLuminaDomeShader());
+        paint.setAlpha((int) (235 * a));
+        canvas.drawCircle(pos.x, pos.y, thumbR, paint);
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(engaged
+            ? ColorUtils.setAlphaComponent(accent, (int) (235 * a))
+            : ColorUtils.setAlphaComponent(rimIdle, (int) (170 * a)));
+        canvas.drawCircle(pos.x, pos.y, thumbR, paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.argb((int) (128 * a), 255, 255, 255));
+        canvas.drawCircle(pos.x - thumbR * 0.35f, pos.y - thumbR * 0.38f, thumbR * 0.14f, paint);
+        break;
+      }
+      case TRACKPAD: {
+        luminaGlassBody(canvas, paint, boundingBox, a);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(rimColor);
+        drawCleanBody(canvas, paint, boundingBox, 0f);
+        float len = Math.min(boundingBox.width(), boundingBox.height()) * 0.08f;
+        float ins = Math.min(boundingBox.width(), boundingBox.height()) * 0.06f;
+        paint.setStrokeWidth(hairline);
+        paint.setColor(engaged
+            ? ColorUtils.setAlphaComponent(accent, (int) (200 * a))
+            : ColorUtils.setAlphaComponent(LUMINA_RIM, (int) (90 * a)));
+        canvas.drawLine(boundingBox.left + ins, boundingBox.top + ins, boundingBox.left + ins + len, boundingBox.top + ins, paint);
+        canvas.drawLine(boundingBox.left + ins, boundingBox.top + ins, boundingBox.left + ins, boundingBox.top + ins + len, paint);
+        canvas.drawLine(boundingBox.right - ins, boundingBox.top + ins, boundingBox.right - ins - len, boundingBox.top + ins, paint);
+        canvas.drawLine(boundingBox.right - ins, boundingBox.top + ins, boundingBox.right - ins, boundingBox.top + ins + len, paint);
+        canvas.drawLine(boundingBox.left + ins, boundingBox.bottom - ins, boundingBox.left + ins + len, boundingBox.bottom - ins, paint);
+        canvas.drawLine(boundingBox.left + ins, boundingBox.bottom - ins, boundingBox.left + ins, boundingBox.bottom - ins - len, paint);
+        canvas.drawLine(boundingBox.right - ins, boundingBox.bottom - ins, boundingBox.right - ins - len, boundingBox.bottom - ins, paint);
+        canvas.drawLine(boundingBox.right - ins, boundingBox.bottom - ins, boundingBox.right - ins, boundingBox.bottom - ins - len, paint);
+        break;
+      }
+      case RANGE_BUTTON: {
+        Range range = getRange();
+        float rr = (orientation == 0 ? boundingBox.height() : boundingBox.width()) * 0.45f;
+        float elementSize = scroller.getElementSize();
+        float scrollOffset = scroller.getScrollOffset();
+        byte[] rangeIndex = scroller.getRangeIndex();
+        luminaGlassBody(canvas, paint, boundingBox, a);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(rimColor);
+        drawCleanBody(canvas, paint, boundingBox, 0f);
+
+        canvas.save();
+        path.reset();
+        path.addRoundRect(
+            boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom,
+            rr, rr, Path.Direction.CW);
+        canvas.clipPath(path);
+        int pressedIndex =
+            currentPointerId != -1 && !scroller.isScrolling() ? scroller.getBindingIndex() : -1;
+        int dividerColor = ColorUtils.setAlphaComponent(LUMINA_RIM, (int) (60 * a));
+        float dividerWidth = Math.max(1f, snappingSize * 0.06f);
+        int hotTextColor = Color.argb((int) (250 * a), 255, 255, 255);
+        int cellTextColor = ColorUtils.setAlphaComponent(LUMINA_TEXT, (int) (205 * a));
+
+        if (orientation == 0) {
+          float lineTop = boundingBox.top + boundingBox.height() * 0.25f;
+          float lineBottom = boundingBox.bottom - boundingBox.height() * 0.25f;
+          float startX = boundingBox.left - (scrollOffset % elementSize);
+          for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
+            int index = i % range.max;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dividerWidth);
+            paint.setColor(dividerColor);
+            if (startX > boundingBox.left && startX < boundingBox.right)
+              canvas.drawLine(startX, lineTop, startX, lineBottom, paint);
+            if (startX < boundingBox.right && startX + elementSize > boundingBox.left) {
+              boolean hot = index == pressedIndex;
+              if (hot) {
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (240 * a)));
+                float uy = boundingBox.bottom - boundingBox.height() * 0.16f;
+                tempRect.set(
+                    startX + elementSize * 0.225f, uy,
+                    startX + elementSize * 0.775f, uy + hairline * 2.2f);
+                canvas.drawRoundRect(tempRect, hairline, hairline, paint);
+              }
+              String cellText = getRangeTextForIndex(range, index);
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(hot ? hotTextColor : cellTextColor);
+              paint.setTextSize(
+                  Math.min(
+                      getTextSizeForWidth(paint, cellText, elementSize - snappingSize * 0.5f),
+                      minTextSize));
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(
+                  cellText,
+                  startX + elementSize * 0.5f,
+                  (y - ((paint.descent() + paint.ascent()) * 0.5f)),
+                  paint);
+            }
+            startX += elementSize;
+          }
+        } else {
+          float lineLeft = boundingBox.left + boundingBox.width() * 0.25f;
+          float lineRight = boundingBox.right - boundingBox.width() * 0.25f;
+          float startY = boundingBox.top - (scrollOffset % elementSize);
+          for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
+            int index = i % range.max;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dividerWidth);
+            paint.setColor(dividerColor);
+            if (startY > boundingBox.top && startY < boundingBox.bottom)
+              canvas.drawLine(lineLeft, startY, lineRight, startY, paint);
+            if (startY < boundingBox.bottom && startY + elementSize > boundingBox.top) {
+              boolean hot = index == pressedIndex;
+              if (hot) {
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (240 * a)));
+                float ux = boundingBox.right - boundingBox.width() * 0.16f;
+                tempRect.set(
+                    ux, startY + elementSize * 0.225f,
+                    ux + hairline * 2.2f, startY + elementSize * 0.775f);
+                canvas.drawRoundRect(tempRect, hairline, hairline, paint);
+              }
+              String cellText = getRangeTextForIndex(range, index);
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(hot ? hotTextColor : cellTextColor);
+              paint.setTextSize(
+                  Math.min(
+                      getTextSizeForWidth(paint, cellText, boundingBox.width() - snappingSize * 0.5f),
+                      minTextSize));
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(
+                  cellText,
+                  x,
+                  startY + elementSize * 0.5f - ((paint.descent() + paint.ascent()) * 0.5f),
+                  paint);
+            }
+            startY += elementSize;
+          }
+        }
+        canvas.restore();
+        break;
+      }
+      case RADIAL_MENU: {
+        float cx = boundingBox.exactCenterX();
+        float cy = boundingBox.exactCenterY();
+        float radius = boundingBox.width() * 0.5f;
+
+        if (radialMenuExpanded && bindings.length > 0 && radius > 0) {
+          float innerRadius = radius + snappingSize * 0.5f;
+          float outerRadius = boundingBox.width() + (snappingSize * scale);
+          float angleStep = 360.0f / bindings.length;
+
+          if (paths == null || paths.length != bindings.length) {
+            paths = new Path[bindings.length];
+            RectF outerRect = new RectF(cx - outerRadius, cy - outerRadius, cx + outerRadius, cy + outerRadius);
+            RectF innerRect = new RectF(cx - innerRadius, cy - innerRadius, cx + innerRadius, cy + innerRadius);
+            for (int i = 0; i < bindings.length; i++) {
+              float startAngle = -90.0f + i * angleStep;
+              paths[i] = new Path();
+              paths[i].arcTo(outerRect, startAngle, angleStep, true);
+              paths[i].arcTo(innerRect, startAngle + angleStep, -angleStep, false);
+              paths[i].close();
+            }
+          }
+
+          if (paths != null && paths.length == bindings.length) {
+            for (int i = 0; i < bindings.length; i++) {
+              boolean active = i == activeRadialBindingIndex;
+              paint.setStyle(Paint.Style.FILL);
+              if (active) {
+                paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (90 * a)));
+              } else {
+                placeShader(getLuminaBodyShader(), cx - outerRadius, cy - outerRadius,
+                    Math.max(1f, outerRadius * 2f));
+                paint.setShader(getLuminaBodyShader());
+                paint.setAlpha((int) (150 * a));
+              }
+              canvas.drawPath(paths[i], paint);
+              paint.setShader(null);
+              paint.setStyle(Paint.Style.STROKE);
+              paint.setStrokeWidth(hairline);
+              paint.setColor(ColorUtils.setAlphaComponent(LUMINA_RIM, (int) (80 * a)));
+              canvas.drawPath(paths[i], paint);
+
+              float middleAngle = (float) Math.toRadians(-90.0f + i * angleStep + angleStep * 0.5f);
+              float labelRadius = (innerRadius + outerRadius) * 0.5f;
+              float labelX = (float) (cx + Math.cos(middleAngle) * labelRadius);
+              float labelY = (float) (cy + Math.sin(middleAngle) * labelRadius);
+              String label = getBindingShortText(i);
+              paint.setStyle(Paint.Style.FILL);
+              paint.setColor(active
+                  ? Color.argb((int) (250 * a), 255, 255, 255)
+                  : ColorUtils.setAlphaComponent(LUMINA_TEXT, (int) (205 * a)));
+              paint.setTextSize(snappingSize * 1.2f * scale);
+              paint.setTextAlign(Paint.Align.CENTER);
+              canvas.drawText(label, labelX, labelY - ((paint.descent() + paint.ascent()) * 0.5f), paint);
+            }
+          }
+        }
+
+        luminaGlassBody(canvas, paint, boundingBox, a);
+        if (engaged) {
+          paint.setStyle(Paint.Style.FILL);
+          paint.setColor(ColorUtils.setAlphaComponent(accent, (int) (85 * a)));
+          canvas.drawCircle(cx, cy, radius, paint);
+          beginBloom(paint, cx, cy, radius, accent, a);
+          canvas.drawCircle(cx, cy, radius, paint);
+          endBloom(paint);
+        }
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(hairline * 1.2f);
+        paint.setColor(rimColor);
+        canvas.drawCircle(cx, cy, radius, paint);
+        drawIcon(
+            canvas, cx, cy, boundingBox.width(), boundingBox.height(),
+            iconId > 0 ? iconId : 34, true,
+            engaged ? inputControlsView.getColorFilter() : accentFilter(accent));
+        break;
+      }
+    }
   }
 
   private static final int SHADOW_BODY = 0xFF0A1422;

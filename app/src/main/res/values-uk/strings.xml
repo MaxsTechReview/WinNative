@@ -1315,6 +1315,7 @@
     <string name="input_controls_style_shadow">Тінь</string>
     <string name="input_controls_style_reticle">Приціл</string>
     <string name="input_controls_style_neon">Неон</string>
+    <string name="input_controls_style_lumina">Люміна</string>
     <string name="input_controls_accent_theme">Колірна тема</string>
     <string name="input_controls_edit_duplicating_builtin">Вбудований профіль — створено копію, яку можна редагувати.</string>
     <string name="input_controls_editor_confirm_reset_profile">Скинути цей профіль до початкового макета? Усі внесені зміни буде втрачено.</string>

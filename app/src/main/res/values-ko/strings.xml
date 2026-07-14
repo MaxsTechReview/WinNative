@@ -1310,6 +1310,7 @@
     <string name="input_controls_style_shadow">섀도우</string>
     <string name="input_controls_style_reticle">레티클</string>
     <string name="input_controls_style_neon">네온</string>
+    <string name="input_controls_style_lumina">루미나</string>
     <string name="input_controls_accent_theme">색상 테마</string>
     <string name="input_controls_edit_duplicating_builtin">기본 제공 프로필입니다. 편집할 수 있는 복사본을 만들었습니다.</string>
     <string name="input_controls_editor_confirm_reset_profile">이 프로필을 원래 레이아웃으로 초기화할까요? 변경 사항이 모두 손실됩니다.</string>

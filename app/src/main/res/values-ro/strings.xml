@@ -1309,6 +1309,7 @@ Cale instalata:
     <string name="input_controls_style_shadow">Umbră</string>
     <string name="input_controls_style_reticle">Reticul</string>
     <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Temă de culoare</string>
     <string name="input_controls_edit_duplicating_builtin">Profil integrat - a fost creată o copie editabilă.</string>
     <string name="input_controls_editor_confirm_reset_profile">Resetezi acest profil la aspectul original? Toate modificările făcute se vor pierde.</string>

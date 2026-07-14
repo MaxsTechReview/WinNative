@@ -1309,6 +1309,7 @@ Chemin installé :
     <string name="input_controls_style_shadow">Ombre</string>
     <string name="input_controls_style_reticle">Réticule</string>
     <string name="input_controls_style_neon">Néon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Thème de couleur</string>
     <string name="input_controls_edit_duplicating_builtin">Profil intégré : une copie modifiable a été créée.</string>
     <string name="input_controls_editor_confirm_reset_profile">Réinitialiser ce profil à sa disposition d\'origine ? Toutes vos modifications seront perdues.</string>

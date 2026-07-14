@@ -1309,6 +1309,7 @@ Percorso installato:
     <string name="input_controls_style_shadow">Ombra</string>
     <string name="input_controls_style_reticle">Reticolo</string>
     <string name="input_controls_style_neon">Neon</string>
+    <string name="input_controls_style_lumina">Lumina</string>
     <string name="input_controls_accent_theme">Tema colore</string>
     <string name="input_controls_edit_duplicating_builtin">Profilo integrato: è stata creata una copia modificabile.</string>
     <string name="input_controls_editor_confirm_reset_profile">Ripristinare questo profilo al layout originale? Tutte le modifiche apportate andranno perse.</string>
