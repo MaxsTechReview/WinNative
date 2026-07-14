@@ -503,6 +503,12 @@ Java_com_winlator_cmod_runtime_display_composition_DirectCompositionLayer_native
         if (acquire_fence_fd >= 0) close(acquire_fence_fd);
         return JNI_FALSE;
     }
+    if (!(desc.usage & AHARDWAREBUFFER_USAGE_COMPOSER_OVERLAY)) {
+        LOGW("pushBuffer: AHB usage 0x%llx lacks COMPOSER_OVERLAY, rejecting",
+             (unsigned long long)desc.usage);
+        if (acquire_fence_fd >= 0) close(acquire_fence_fd);
+        return JNI_FALSE;
+    }
 
     struct ASurfaceTransaction* tx = g_tx_create();
     if (tx == NULL) {
