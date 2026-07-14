@@ -1258,7 +1258,11 @@ class SteamService : Service() {
                 )
             }
 
-        fun getAppInfoOf(appId: Int): SteamApp? = runBlocking(Dispatchers.IO) { instance?.appDao?.findApp(appId) }
+        fun getAppInfoOf(appId: Int): SteamApp? =
+            runBlocking(Dispatchers.IO) {
+                val dao = instance?.appDao ?: runCatching { PluviaDatabase.getInstance().steamAppDao() }.getOrNull()
+                dao?.findApp(appId)
+            }
 
         fun getDownloadingAppInfoOf(appId: Int): DownloadingAppInfo? =
             runBlocking(Dispatchers.IO) {
@@ -1316,7 +1320,11 @@ class SteamService : Service() {
 
         fun getHiddenDlcAppsOf(appId: Int): List<SteamApp>? = runBlocking(Dispatchers.IO) { instance?.appDao?.findHiddenDLCApps(appId) }
 
-        fun getInstalledApp(appId: Int): AppInfo? = runBlocking(Dispatchers.IO) { instance?.appInfoDao?.getInstalledApp(appId) }
+        fun getInstalledApp(appId: Int): AppInfo? =
+            runBlocking(Dispatchers.IO) {
+                val dao = instance?.appInfoDao ?: runCatching { PluviaDatabase.getInstance().appInfoDao() }.getOrNull()
+                dao?.getInstalledApp(appId)
+            }
 
         fun getInstalledDepotsOf(appId: Int): List<Int>? = getTrustedInstalledAppInfo(appId)?.downloadedDepots
 
@@ -1355,6 +1363,7 @@ class SteamService : Service() {
 
         private fun tryRecoverInstalledAppInfo(appId: Int): AppInfo? {
             val dirPath = getAppDirPath(appId)
+            if (dirPath.isBlank()) return null
             val hasCompleteMarker = MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
             val hasInProgressMarker = MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
             if (!hasCompleteMarker || hasInProgressMarker) return null
@@ -2143,6 +2152,12 @@ class SteamService : Service() {
                     if (appName.isNotEmpty()) add(appName)
                     if (oldName.isNotEmpty() && oldName != appName) add(oldName)
                 }
+
+            // No resolvable folder name (metadata unavailable) — never fall back to a shared root.
+            if (candidateNames.isEmpty()) {
+                Timber.w("getAppDirPath: no metadata to resolve install dir for appId=%d", gameId)
+                return ""
+            }
 
             // Respect user-selected default download folder
             val context = PluviaApp.instance.applicationContext
@@ -4048,7 +4063,13 @@ class SteamService : Service() {
                                 throw e
                             } catch (e: Exception) {
                                 Timber.e(e, "Download failed for app $appId")
-                                clearFailedResumeState(appId)
+                                // Transient failures keep resume state so Retry continues from the same offset.
+                                val isTransientFailure = e is WnDownloadTransientException
+                                if (isTransientFailure) {
+                                    runCatching { di.persistProgressSnapshot(force = true) }
+                                } else {
+                                    clearFailedResumeState(appId)
+                                }
 
                                 val errorMsg =
                                     when (e) {
@@ -4063,9 +4084,11 @@ class SteamService : Service() {
                                 if (downloadTaskType == DownloadRecord.TASK_UPDATE) {
                                     MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_COMPLETE_MARKER)
                                 }
-                                runBlocking {
-                                    instance?.downloadingAppInfoDao?.deleteApp(appId)
-                                    Unit
+                                if (!isTransientFailure) {
+                                    runBlocking {
+                                        instance?.downloadingAppInfoDao?.deleteApp(appId)
+                                        Unit
+                                    }
                                 }
                                 runBlocking {
                                     DownloadCoordinator.notifyFinished(
@@ -4173,6 +4196,7 @@ class SteamService : Service() {
                         .distinct(),
                 )
             }
+            mainAppDlcIds.addAll(calculatedDlcAppIds.filter { it !in mainAppDlcIds })
 
             runBlocking(Dispatchers.IO) {
                 if (mainAppDepots.isNotEmpty()) {
@@ -6082,12 +6106,12 @@ class SteamService : Service() {
         ): CloudSyncOutcome =
             withContext(Dispatchers.IO) {
                 async {
+                    // In-Wine Steam owns cloud saves during a hand-off; syncing here too would race it as a second writer.
+                    if (isBionicHandoffActive()) {
+                        Timber.i("closeApp: Bionic hand-off active for app %d — deferring exit cloud sync to in-Wine Steam", appId)
+                        return@async CloudSyncOutcome(true, "Steam Launcher handles cloud saves directly.")
+                    }
                     if (isOffline || !isConnected) {
-                        // Steam Launcher mode hands the CM session to the in-Wine Steam, which owns cloud saves during play; don't report its intentional offline as a failure.
-                        if (isBionicHandoffActive()) {
-                            Timber.i("closeApp: Bionic hand-off active for app %d — deferring exit cloud sync to in-Wine Steam", appId)
-                            return@async CloudSyncOutcome(true, "Steam Launcher handles cloud saves directly.")
-                        }
                         return@async CloudSyncOutcome(false, "Steam is offline.")
                     }
 
@@ -6117,13 +6141,14 @@ class SteamService : Service() {
 
                                 if (steamInstance != null && appInfo != null) {
                                     progressWrapper("Checking Local Saves", 0f)
+                                    // SaveLocation.None: unchanged content never uploads, and both-sides-changed surfaces as a Conflict instead of overwriting the newer cloud copy.
                                     val postSyncInfo =
                                         SteamAutoCloud
                                             .syncUserFiles(
                                                 appInfo = appInfo,
                                                 clientId = clientId,
                                                 steamInstance = steamInstance,
-                                                preferredSave = SaveLocation.Local,
+                                                preferredSave = SaveLocation.None,
                                                 parentScope = this@async,
                                                 prefixToPath = prefixToPath,
                                                 onProgress = progressWrapper,
@@ -6950,6 +6975,11 @@ class SteamService : Service() {
             instance?.handleAppBackgrounded()
         }
 
+        @JvmStatic
+        fun ensureHealthySession() {
+            instance?.ensureHealthySessionImpl()
+        }
+
         fun stop() {
             instance?.let { steamInstance ->
                 if (!isStopping) {
@@ -7445,7 +7475,26 @@ class SteamService : Service() {
     private val coordinatorDispatcher =
         object : DownloadCoordinator.Dispatcher {
             override fun startQueued(record: DownloadRecord) {
-                val appId = record.storeGameId.toIntOrNull() ?: return
+                val appId = record.storeGameId.toIntOrNull()
+                if (appId == null) {
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_FAILED,
+                            "Invalid Steam app id '${record.storeGameId}'",
+                        )
+                    }
+                    return
+                }
+                // No AppInfo yet (pre-login dispatch): requeue; the post-logon tick retries it.
+                if (getAppInfoOf(appId) == null) {
+                    Timber.w("startQueued: no AppInfo yet for appId=$appId — requeueing until Steam data is ready")
+                    runBlocking {
+                        DownloadCoordinator.requeue(DownloadRecord.STORE_STEAM, record.storeGameId)
+                    }
+                    return
+                }
                 // Drop any stale queued/paused DownloadInfo BEFORE downloadApp(), else it finds the inactive entry and calls removeDownloadJob() (firing the legacy checkQueue() + an extra notify) before building a fresh one.
                 downloadJobs.remove(appId)
                 // selectedDlcs carries authoritative DLC app IDs for installs; for updates it carries the changed depot IDs from checkForAppUpdate() so queued updates keep the narrowed scope.
@@ -7453,13 +7502,31 @@ class SteamService : Service() {
                     record.selectedDlcs
                         .split(',')
                         .mapNotNull { it.trim().toIntOrNull() }
-                if (record.taskType == DownloadRecord.TASK_UPDATE) {
-                    downloadAppForUpdate(appId, persistedIds)
-                } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
-                    downloadAppForVerify(appId)
-                } else {
-                    downloadApp(appId, persistedIds)
+                val started =
+                    if (record.taskType == DownloadRecord.TASK_UPDATE) {
+                        downloadAppForUpdate(appId, persistedIds)
+                    } else if (record.taskType == DownloadRecord.TASK_VERIFY) {
+                        downloadAppForVerify(appId)
+                    } else {
+                        downloadApp(appId, persistedIds)
+                    }
+                if (started == null) {
+                    // Mark FAILED so the slot frees and Retry stays functional.
+                    Timber.e("startQueued: downloadApp returned null for appId=$appId (task=${record.taskType}) — marking record FAILED")
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_FAILED,
+                            "Could not start download — retry after Steam finishes loading",
+                        )
+                    }
                 }
+            }
+
+            override fun isTransferActive(record: DownloadRecord): Boolean {
+                val appId = record.storeGameId.toIntOrNull() ?: return false
+                return downloadJobs[appId]?.isActive() == true
             }
 
             override fun pauseRunning(record: DownloadRecord) {
@@ -7704,7 +7771,21 @@ class SteamService : Service() {
             }
     }
 
-    /** App returned to the foreground: wake the Steam session if suspended for background — reconnect and let the logon observer restart the PICS loops via onWnLoggedOn. */
+    private fun ensureHealthySessionImpl() {
+        if (!isRunning || isStopping || isLoggingOut) return
+        if (PrefManager.refreshToken.isBlank()) return
+        if (PluviaApp.isGameSessionActive()) return
+        if (suspendedForBionic) {
+            Timber.w("ensureHealthySession: clearing stale Bionic hand-off (no game running)")
+            bionicHandoffReleaseImpl()
+            return
+        }
+        if (wnSession?.state() == 3) return
+        Timber.i("ensureHealthySession: session not logged on — re-driving connectAndLogon")
+        retryAttempt = 0
+        connectAndLogon()
+    }
+
     private fun handleAppForegrounded() {
         appInForeground = true
         // Cancel any pending suspend timer — the app is back, so the session must stay up regardless of how long it was minimized.
@@ -8096,6 +8177,9 @@ class SteamService : Service() {
         com.winlator.cmod.feature.stores.steam.wnsteam.WnLibSteamClient
             .setCloudEnabledForAccount(true)
 
+
+        // Start downloads that were requeued while AppInfo wasn't loaded yet.
+        DownloadCoordinator.blockingTick()
 
         // retrieve persona data of logged in user
         scope.launch { requestUserPersona() }
@@ -8610,10 +8694,8 @@ class SteamService : Service() {
     private fun continuousPICSChangesChecker(): Job =
         scope.launch {
             while (isActive && isLoggedIn) {
-                // Initial delay before each check
-                delay(60.seconds)
-
                 PICSChangesCheck()
+                delay(60.seconds)
             }
         }
 

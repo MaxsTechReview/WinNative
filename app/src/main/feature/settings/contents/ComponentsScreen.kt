@@ -44,9 +44,11 @@ import androidx.compose.material.icons.outlined.DeveloperBoard
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -126,6 +128,8 @@ data class ComponentsState(
     val downloadProgress: ComponentsDownloadProgress? = null,
     val conflict: ComponentsConflict? = null,
     val autoCreateContainer: Boolean = true,
+    val isRefreshing: Boolean = false,
+    val loadFailed: Boolean = false,
 )
 
 // Root
@@ -140,6 +144,7 @@ fun ComponentsScreen(
     onRemoveItem: (ComponentItem) -> Unit,
     onDismissConflict: () -> Unit,
     onToggleAutoCreateContainer: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     var itemPendingRemoval by remember { mutableStateOf<ComponentItem?>(null) }
     val layoutDirection = LocalLayoutDirection.current
@@ -228,12 +233,15 @@ fun ComponentsScreen(
                 availableCount = state.available.size,
                 currentType = state.currentType,
                 autoCreateContainer = state.autoCreateContainer,
+                isRefreshing = state.isRefreshing,
+                loadFailed = state.loadFailed,
                 onTypeSelected = onTypeSelected,
                 onInstallFromFile = onInstallFromFile,
                 onToggleAutoCreateContainer = onToggleAutoCreateContainer,
+                onRefresh = onRefresh,
             )
 
-            if (state.installed.isEmpty() && state.available.isEmpty()) {
+            if (state.installed.isEmpty() && state.available.isEmpty() && !state.isRefreshing) {
                 EmptyState()
             }
 
@@ -282,9 +290,12 @@ private fun HeroHeader(
     availableCount: Int,
     currentType: ContentProfile.ContentType,
     autoCreateContainer: Boolean,
+    isRefreshing: Boolean,
+    loadFailed: Boolean,
     onTypeSelected: (ContentProfile.ContentType) -> Unit,
     onInstallFromFile: () -> Unit,
     onToggleAutoCreateContainer: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     Box(
         modifier =
@@ -314,6 +325,12 @@ private fun HeroHeader(
                     enabled = autoCreateContainer,
                     compact = true,
                     onToggle = { onToggleAutoCreateContainer(!autoCreateContainer) },
+                )
+                Spacer(Modifier.width(6.dp))
+                RefreshChip(
+                    isRefreshing = isRefreshing,
+                    loadFailed = loadFailed,
+                    onRefresh = onRefresh,
                 )
                 Spacer(Modifier.width(8.dp))
                 SmallPillButton(
@@ -377,6 +394,52 @@ private fun ToggleChip(
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
         )
+    }
+}
+
+@Composable
+private fun RefreshChip(
+    isRefreshing: Boolean,
+    loadFailed: Boolean,
+    onRefresh: () -> Unit,
+) {
+    val tint = if (loadFailed) WarningAmber else Accent
+    Row(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(tint.copy(alpha = 0.14f))
+                .border(1.dp, tint.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                .paneNavItem(
+                    cornerRadius = 8.dp,
+                    onActivate = { if (!isRefreshing) onRefresh() },
+                    highlightColor = NavHighlight,
+                    tapToSelect = true,
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isRefreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(11.dp),
+                strokeWidth = 1.5.dp,
+                color = tint,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(11.dp),
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = stringResource(R.string.settings_content_refresh),
+                color = tint,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 

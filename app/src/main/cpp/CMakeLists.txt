@@ -139,6 +139,7 @@ add_library(winlator SHARED
         winlator/native_content_io.cpp
         winlator/gpu_image.c
         winlator/surface_compositor.c
+        winlator/ring_fence.c
         winlator/sync_fence.c
         winlator/sysvshared_memory.c
         winlator/xconnector_epoll.c

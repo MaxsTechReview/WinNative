@@ -37,13 +37,15 @@ object WinComponentSetup {
             val wincomponentsStr = FileUtils.readString(context, "wincomponents/wincomponents.json")
             val wincomponentsJson = JSONObject(wincomponentsStr ?: "{}")
             val dlls = ArrayList<String>()
-            val oldWinComponentsIter =
-                KeyValueSet(previousWincomponents.ifEmpty { Container.FALLBACK_WINCOMPONENTS }).iterator()
+            val oldValues = HashMap<String, String>()
+            for (old in KeyValueSet(previousWincomponents.ifEmpty { Container.FALLBACK_WINCOMPONENTS })) {
+                oldValues[old[0]] = old[1]
+            }
 
             for (wincomponent in KeyValueSet(wincomponents)) {
                 val identifier = wincomponent[0]
                 val useNative = wincomponent[1] == "1"
-                val oldValue = oldWinComponentsIter.next()[1]
+                val oldValue = oldValues[identifier]
                 if (wincomponent[1] == oldValue && !firstTimeBoot) continue
 
                 if (useNative) {

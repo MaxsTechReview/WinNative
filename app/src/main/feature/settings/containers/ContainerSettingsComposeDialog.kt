@@ -34,6 +34,7 @@ import com.winlator.cmod.feature.library.GameSettingsContent
 import com.winlator.cmod.feature.library.GameSettingsNav
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
+import com.winlator.cmod.feature.library.parseEnvVarItems
 import com.winlator.cmod.runtime.compat.box64.Box64Preset
 import com.winlator.cmod.runtime.compat.box64.Box64PresetManager
 import com.winlator.cmod.runtime.container.Container
@@ -423,6 +424,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
 
         state.fullscreenStretched.value = c?.isFullscreenStretched() ?: false
         state.directComposition.value = c?.isDirectCompositionEnabled() ?: false
+        state.useUnixLibs.value = c?.isUseUnixLibs() ?: true
 
         // Steam fields are shortcut-only in the UI; leave any existing steam
         // state on the container untouched — saveSettings() skips them.
@@ -452,10 +454,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         state.generalComponents.value = general
 
         val envVarsStr = c?.getEnvVars() ?: Container.DEFAULT_ENV_VARS
-        val envVars = EnvVars(envVarsStr)
-        val items = mutableListOf<EnvVarItem>()
-        for (key in envVars) items.add(EnvVarItem(key, envVars.get(key)))
-        state.sdl2Compatibility.value = envVars.get("SDL_XINPUT_ENABLED") == "1"
+        val items = parseEnvVarItems(envVarsStr)
+        state.sdl2Compatibility.value = EnvVars(envVarsStr).get("SDL_XINPUT_ENABLED") == "1"
         state.envVars.value = if (state.sdl2Compatibility.value) {
             items.filterNot { it.key in SDL2_KEYS }
         } else items
@@ -801,6 +801,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             c.setDrives(drivesString)
             c.setFullscreenStretched(state.fullscreenStretched.value)
             c.setDirectCompositionEnabled(state.directComposition.value)
+            c.setUseUnixLibs(state.useUnixLibs.value)
             c.setInputType(finalInputType)
             c.setExclusiveXInput(state.containerExclusiveInput.value)
             c.setStartupSelection(startupSelection)
@@ -845,6 +846,7 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 extraDataObj.put(Container.EXTRA_DIRECT_COMPOSITION, if (state.directComposition.value) "1" else "0")
                 extraDataObj.put("swapRB", if (state.selectedSurfaceEffect.intValue == 1) "1" else "0")
                 data.put("extraData", extraDataObj)
+                data.put("useUnixLibs", state.useUnixLibs.value)
                 data.put("inputType", finalInputType)
                 data.put("exclusiveXInput", state.containerExclusiveInput.value)
                 data.put("startupSelection", startupSelection.toInt())
@@ -1104,6 +1106,10 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
             context.resources.getStringArray(R.array.bcn_emulation_type_entries).toList()
         state.gfxBcnEmulationCacheEntries.value =
             context.resources.getStringArray(R.array.bcn_emulation_cache_entries).toList()
+        state.gfxTranscoderEntries.value =
+            context.resources.getStringArray(R.array.wrapper_transcoder_entries).toList()
+        state.gfxQualityEntries.value =
+            context.resources.getStringArray(R.array.wrapper_quality_entries).toList()
 
         val gpuNames = mutableListOf("Device")
         try {
@@ -1130,6 +1136,8 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         selectByValue(state.gfxBcnEmulationEntries.value, config.get("bcnEmulation") ?: "none", state.gfxSelectedBcnEmulation)
         selectByValue(state.gfxBcnEmulationTypeEntries.value, config.get("bcnEmulationType") ?: "compute", state.gfxSelectedBcnEmulationType)
         selectByValue(state.gfxBcnEmulationCacheEntries.value, config.get("bcnEmulationCache") ?: "0", state.gfxSelectedBcnEmulationCache)
+        selectByValue(state.gfxTranscoderEntries.value, config.get("transcoder") ?: "cpu", state.gfxSelectedTranscoder)
+        selectByValue(state.gfxQualityEntries.value, config.get("quality") ?: "low", state.gfxSelectedQuality)
         state.gfxSyncFrame.value = config.get("syncFrame") == "1"
         state.gfxDisablePresentWait.value = config.get("disablePresentWait") == "1"
         state.graphicsDriverVersion.value = config.get("version") ?: ""
@@ -1291,12 +1299,15 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
         val bcnEmulation = state.gfxBcnEmulationEntries.value.getOrElse(state.gfxSelectedBcnEmulation.intValue) { "none" }
         val bcnEmulationType = state.gfxBcnEmulationTypeEntries.value.getOrElse(state.gfxSelectedBcnEmulationType.intValue) { "compute" }
         val bcnEmulationCache = state.gfxBcnEmulationCacheEntries.value.getOrElse(state.gfxSelectedBcnEmulationCache.intValue) { "0" }
+        val transcoder = state.gfxTranscoderEntries.value.getOrElse(state.gfxSelectedTranscoder.intValue) { "cpu" }
+        val quality = state.gfxQualityEntries.value.getOrElse(state.gfxSelectedQuality.intValue) { "low" }
         return "vulkanVersion=$vulkanVersion;version=$version;blacklistedExtensions=$blacklisted;" +
             "maxDeviceMemory=$maxDeviceMemory;presentMode=$presentMode;syncFrame=$syncFrame;" +
             "disablePresentWait=$disablePresentWait;resourceType=$resourceType;" +
             "bcnEmulation=$bcnEmulation;bcnEmulationType=$bcnEmulationType;" +
             "bcnEmulationCache=$bcnEmulationCache;gpuName=$gpuName;" +
-            "compositorPresentMode=$compositorPresentMode"
+            "compositorPresentMode=$compositorPresentMode;" +
+            "transcoder=$transcoder;quality=$quality"
     }
 
     private fun buildDxvkConfigFromState(): String {
@@ -1747,42 +1758,38 @@ class ContainerSettingsComposeDialog @JvmOverloads constructor(
                 WinNativeComposeDialogs.showLoading(context, context.getString(R.string.common_ui_loading))
             }
             try {
-                zipFile.inputStream().use { isStream ->
-                    java.util.zip.ZipInputStream(java.io.BufferedInputStream(isStream)).use { zis ->
-                        val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
-                        val xuserDir = File(usersDir, "xuser")
+                java.util.zip.ZipFile(zipFile).use { zf ->
+                    val usersDir = File(container.getRootDir(), ".wine/drive_c/users")
+                    val xuserDir = File(usersDir, "xuser")
 
-                        var ze: java.util.zip.ZipEntry?
-                        while (zis.nextEntry.also { ze = it } != null) {
-                            val entry = ze!!
-                            val name = entry.name
+                    val entries = zf.entries()
+                    while (entries.hasMoreElements()) {
+                        val entry = entries.nextElement()
+                        val name = entry.name
 
-                            if (isPathExcluded(name)) {
-                                zis.closeEntry()
-                                continue
-                            }
+                        if (isPathExcluded(name)) continue
 
-                            var destFile: File? = null
+                        var destFile: File? = null
 
-                            if (name.startsWith("users/")) {
-                                destFile = File(usersDir.parentFile, name)
-                            } else if (name.startsWith("ProgramData/")) {
-                                destFile = File(usersDir.parentFile, name)
-                            } else if (name.startsWith("xuser/")) {
-                                destFile = File(usersDir, name)
-                            } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
-                                destFile = File(xuserDir, name)
-                            }
+                        if (name.startsWith("users/")) {
+                            destFile = File(usersDir.parentFile, name)
+                        } else if (name.startsWith("ProgramData/")) {
+                            destFile = File(usersDir.parentFile, name)
+                        } else if (name.startsWith("xuser/")) {
+                            destFile = File(usersDir, name)
+                        } else if (name.startsWith("Documents/") || name.startsWith("Saved Games/") || name.startsWith("AppData/")) {
+                            destFile = File(xuserDir, name)
+                        }
 
-                            if (destFile != null) {
-                                if (entry.isDirectory) {
-                                    destFile.mkdirs()
-                                } else {
-                                    destFile.parentFile?.mkdirs()
-                                    destFile.outputStream().use { zis.copyTo(it) }
+                        if (destFile != null) {
+                            if (entry.isDirectory) {
+                                destFile.mkdirs()
+                            } else {
+                                destFile.parentFile?.mkdirs()
+                                zf.getInputStream(entry).use { input ->
+                                    destFile.outputStream().use { input.copyTo(it) }
                                 }
                             }
-                            zis.closeEntry()
                         }
                     }
                 }

@@ -59,25 +59,36 @@ public class ALSAClient {
 
       options.latencyMillis =
           parseInt(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_LATENCY_MS"), envVars.get("WINNATIVE_ALSA_LATENCY_MS")),
+              firstNonEmpty(
+                  envVars.get("ALSA_LATENCY_MS"),
+                  envVars.get("ANDROID_ALSA_LATENCY_MS"),
+                  envVars.get("WINNATIVE_ALSA_LATENCY_MS")),
               DEFAULT_LATENCY_MILLIS);
       options.latencyMillis = Math.max(0, options.latencyMillis);
 
       options.volume =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_VOLUME"), envVars.get("WINNATIVE_ALSA_VOLUME")),
+              firstNonEmpty(
+                  envVars.get("ALSA_VOLUME"),
+                  envVars.get("ANDROID_ALSA_VOLUME"),
+                  envVars.get("WINNATIVE_ALSA_VOLUME")),
               DEFAULT_VOLUME);
       options.volume = Math.max(0.0f, Math.min(options.volume, MAX_VOLUME));
 
       options.bassBoost =
           parseFloat(
-              firstNonEmpty(envVars.get("ANDROID_ALSA_BASS_BOOST"), envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
+              firstNonEmpty(
+                  envVars.get("ALSA_BASS_BOOST"),
+                  envVars.get("ANDROID_ALSA_BASS_BOOST"),
+                  envVars.get("WINNATIVE_ALSA_BASS_BOOST")),
               DEFAULT_BASS_BOOST);
       options.bassBoost = Math.max(0.0f, Math.min(options.bassBoost, MAX_BASS_BOOST));
 
       String performanceMode =
           firstNonEmpty(
-              envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"), envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
+              envVars.get("ALSA_PERFORMANCE_MODE"),
+              envVars.get("ANDROID_ALSA_PERFORMANCE_MODE"),
+              envVars.get("WINNATIVE_ALSA_PERFORMANCE_MODE"));
       if (performanceMode.equalsIgnoreCase("low_latency") || performanceMode.equals("1")) {
         options.performanceMode = AudioTrack.PERFORMANCE_MODE_LOW_LATENCY;
       } else if (performanceMode.equalsIgnoreCase("power_saving") || performanceMode.equals("2")) {
@@ -89,8 +100,11 @@ public class ALSAClient {
       return options;
     }
 
-    private static String firstNonEmpty(String first, String second) {
-      return first != null && !first.isEmpty() ? first : (second != null ? second : "");
+    private static String firstNonEmpty(String... values) {
+      for (String value : values) {
+        if (value != null && !value.isEmpty()) return value;
+      }
+      return "";
     }
 
     private static int parseInt(String value, int fallback) {

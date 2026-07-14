@@ -505,9 +505,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore 预设</string>
     <string name="container_fexcore_version">FEXCore 版本</string>
+    <string name="use_unix_libs">使用 UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">图形驱动</string>
+    <string name="container_graphics_transcoder">BCn 转码器</string>
+    <string name="container_graphics_quality">BCn 质量</string>
     <string name="container_graphics_configuration">图形驱动配置</string>
     <string name="container_graphics_version">图形驱动版本</string>
     <string name="container_graphics_available_extensions">可用扩展</string>
@@ -588,6 +591,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">电量</string>
     <string name="session_drawer_hud_element_graph">图表</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">您要结束此进程吗？</string>
@@ -823,6 +827,8 @@
 
     <string name="settings_other_language_title">语言</string>
     <string name="settings_other_language_summary">选择显示语言</string>
+    <string name="settings_other_game_language_title">游戏语言</string>
+    <string name="settings_other_game_language_summary">Steam/Epic/GOG 下载的首选语言</string>
     <string name="settings_other_language_system_default">系统默认</string>
 
     <string name="settings_other_section_integration">集成</string>
@@ -1174,6 +1180,9 @@
     <string name="cloud_saves_history_restore_success">已从备份还原存档。</string>
     <string name="cloud_saves_history_sign_in">登录 Google 以查看存档历史。</string>
     <string name="cloud_saves_history_title">存档历史</string>
+    <string name="cloud_saves_history_download">下载</string>
+    <string name="cloud_saves_history_download_success">文件已下载。</string>
+    <string name="cloud_saves_history_download_failed">下载失败。</string>
     <string name="cloud_saves_keep_replaced_backup">保留被替换存档的备份</string>
     <string name="cloud_saves_keep_replaced_backup_summary">如果您改变主意，可从存档历史中还原。</string>
     <string name="cloud_saves_no_backups">此游戏暂无备份。</string>
@@ -1513,7 +1522,7 @@
     <string name="session_drawer_hud_background">背景</string>
     <string name="session_drawer_hud_background_alpha">背景透明度</string>
     <string name="session_drawer_hud_background_alpha_input_title">设置背景透明度</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">调整大小</string>
     <string name="session_task_bring_to_front">置于顶层</string>
     <string name="session_task_custom_value">自定义值</string>
@@ -1556,5 +1565,6 @@
     <string name="session_record_started">已开始录制</string>
     <string name="steam_chat_setting_stay_running">在后台运行</string>
     <string name="steam_chat_setting_stay_running_desc">退出 WinNative 后保持聊天运行</string>
+    <string name="settings_content_refresh">刷新</string>
 </resources>
 

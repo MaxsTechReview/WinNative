@@ -1,0 +1,1565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common > UI Labels -->
+    <string name="common_ui_app_name">WinNative</string>
+    <string name="common_ui_run">Çalıştır</string>
+    <string name="common_ui_edit">Düzenle</string>
+    <string name="common_ui_remove">Kaldır</string>
+    <string name="common_ui_add">Ekle</string>
+    <string name="common_ui_shortcuts">Kısayollar</string>
+    <string name="common_ui_containers">Konteynerler</string>
+    <string name="common_ui_input_controls">Giriş Kontrolleri</string>
+    <string name="common_ui_no_items_to_display">Görüntülenecek öğe yok</string>
+    <string name="common_ui_select_icon">Simge Seç</string>
+    <string name="common_ui_revert_icon">Simgeyi Geri Al</string>
+    <string name="common_ui_select_exe">EXE Seç</string>
+    <string name="common_ui_select_folder">Klasör Seç</string>
+    <string name="common_ui_current_folder">Geçerli Klasör</string>
+    <string name="common_ui_select_valid_exe_file">Lütfen geçerli bir .exe dosyası seçin</string>
+    <string name="common_ui_select_valid_icon_file">Lütfen geçerli bir .ico veya .png dosyası seçin.</string>
+    <string name="common_ui_exit">Çıkış</string>
+    <string name="common_ui_exit_app">Uygulamadan Çık</string>
+    <string name="common_ui_profile">Profil</string>
+    <string name="common_ui_name">Ad</string>
+    <string name="common_ui_ok">Tamam</string>
+    <string name="common_ui_cancel">İptal</string>
+    <string name="common_ui_untitled">Adsız</string>
+    <string name="common_ui_disabled">Devre dışı</string>
+    <string name="common_ui_container">Konteyner</string>
+    <string name="common_ui_value">Değer</string>
+    <string name="common_ui_none">Yok</string>
+    <string name="common_ui_custom_text">Özel Metin</string>
+    <string name="common_ui_icon">Simge</string>
+    <string name="common_ui_duplicate">Çoğalt</string>
+    <string name="common_ui_credits_and_third_party_apps">Katkıda bulunanlar ve Üçüncü taraf uygulamalar</string>
+    <string name="common_ui_loading">Yükleniyor</string>
+    <string name="common_ui_exporting">Dışa aktarılıyor</string>
+    <string name="common_ui_enable">Etkinleştir</string>
+    <string name="common_ui_disable">Devre dışı bırak</string>
+    <string name="common_ui_force">Zorla</string>
+    <string name="common_ui_version">Sürüm</string>
+    <string name="common_ui_advanced">Gelişmiş</string>
+    <string name="common_ui_graphics">Grafik</string>
+    <string name="common_ui_system">Sistem</string>
+    <string name="common_ui_width">Genişlik</string>
+    <string name="common_ui_height">Yükseklik</string>
+    <string name="common_ui_open_file">Dosya Aç</string>
+    <string name="common_ui_download_file">Dosya İndir</string>
+    <string name="common_ui_downloading_file">Dosya İndiriliyor</string>
+    <string name="common_ui_browse">Gözat</string>
+    <string name="common_ui_options">Seçenekler</string>
+    <string name="common_ui_export">Dışa Aktar</string>
+    <string name="common_ui_new_file">Yeni Dosya</string>
+    <string name="common_ui_description">Açıklama</string>
+    <string name="common_ui_continue">Devam Et</string>
+    <string name="common_ui_warning">Uyarı</string>
+    <string name="common_ui_copy">kopyala</string>
+    <string name="common_ui_reset">Sıfırla</string>
+    <string name="common_ui_close">Kapat</string>
+    <string name="common_ui_confirm">Onayla</string>
+    <string name="common_ui_unnamed">İsimsiz</string>
+    <string name="common_ui_download">İndir</string>
+    <string name="common_ui_uninstall">Kaldır</string>
+    <string name="common_ui_other">Diğer</string>
+    <string name="common_ui_status">Durum</string>
+    <string name="common_ui_size">Boyut</string>
+    <string name="common_ui_release_date">Çıkış Tarihi</string>
+    <string name="common_ui_installed">Yüklü</string>
+    <string name="common_ui_available">Mevcut</string>
+    <string name="common_ui_settings">Ayarlar</string>
+    <string name="common_ui_enable_all">Tümünü etkinleştir</string>
+    <string name="common_ui_disable_all">Tümünü devre dışı bırak</string>
+    <string name="common_ui_select_all">Tümünü seç</string>
+    <string name="common_ui_deselect_all">Tüm seçimi kaldır</string>
+    <string name="common_ui_on">Açık</string>
+    <string name="common_ui_off">Kapalı</string>
+    <string name="common_ui_already_set">Zaten Ayarlı</string>
+    <string name="common_ui_shortcut">Kısayol</string>
+    <string name="common_ui_custom">Özel</string>
+    <string name="common_ui_about">Hakkında</string>
+    <string name="common_ui_back">Geri</string>
+    <string name="common_ui_apply">Uygula</string>
+    <string name="common_ui_save">Kaydet</string>
+    <string name="common_ui_clone">Klonla</string>
+    <string name="common_ui_properties">Özellikler</string>
+    <string name="common_ui_store">Mağaza</string>
+    <string name="common_ui_library">Kütüphane</string>
+    <string name="common_ui_downloads">İndirilenler</string>
+    <string name="common_ui_import">İçe Aktar</string>
+    <string name="common_ui_sync">Eşitle</string>
+    <string name="common_ui_sign_in">Giriş Yap</string>
+    <string name="common_ui_submit">Gönder</string>
+    <string name="common_ui_coming_soon">Yakında</string>
+    <string name="common_ui_signed_in">Giriş Yapıldı</string>
+    <string name="common_ui_required">Gerekli</string>
+    <string name="common_ui_optional">İsteğe Bağlı</string>
+    <string name="common_ui_notifications">Bildirimler</string>
+    <string name="common_ui_mode">Mod</string>
+    <string name="common_ui_experimental">(Deneysel)</string>
+    <string name="common_ui_current_version_label">Geçerli Sürüm:</string>
+    <string name="common_ui_cannot_write_folder">Seçilen klasöre yazılamıyor</string>
+    <string name="common_ui_failed_create_directory">Varsayılan dizin oluşturulamadı</string>
+    <string name="common_ui_device_not_supported">Üzgünüz, cihazınız desteklenmiyor olabilir</string>
+    <string name="common_ui_please_wait">Lütfen bekleyin…</string>
+    <string name="common_ui_done">Tamamlandı</string>
+    <string name="common_ui_open">Aç</string>
+    <string name="common_ui_connected">Bağlı</string>
+    <string name="common_ui_install">Yükle</string>
+    <string name="common_ui_application">Uygulama</string>
+    <string name="common_ui_check">Kontrol Et</string>
+    <string name="store_game_check_for_update">Güncelleme Denetle</string>
+    <string name="store_game_checking_for_update">Denetleniyor</string>
+    <string name="store_game_download_update">Güncellemeyi İndir</string>
+    <string name="store_game_no_update_available">Güncelleme mevcut değil</string>
+    <string name="store_game_update_available">Güncelleme mevcut</string>
+    <string name="store_game_update_check_failed">Güncelleme denetimi başarısız</string>
+    <string name="store_game_update">Güncelle</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Dosyaları Doğrula</string>
+    <string name="store_game_verify_started">%1$s doğrulanıyor — İndirilenler sekmesini denetleyin</string>
+    <string name="store_game_steam_options">Steam seçenekleri</string>
+    <string name="store_game_verify_complete">Dosya Doğrulama Tamamlandı</string>
+    <string name="store_game_verify_failed_notice">Dosya Doğrulama Başarısız</string>
+    <string name="store_game_progress_background_hint">Bunu kapatabilirsiniz — çalışmaya devam eder. İstediğiniz zaman İndirilenler sekmesini denetleyin.</string>
+    <string name="store_game_checking_updates">Güncellemeler denetleniyor</string>
+    <string name="store_game_no_updates_notice">Güncelleme Mevcut Değil</string>
+    <string name="store_game_update_complete">Güncelleme Tamamlandı</string>
+    <string name="store_game_update_failed_notice">Güncelleme Başarısız</string>
+    <string name="store_game_update_check_failed_notice">Güncelleme Denetimi Başarısız</string>
+    <string name="store_game_download_already_active">Bu oyun zaten indiriliyor. DLC eklemeden önce geçerli indirmeyi iptal edin.</string>
+    <string name="common_ui_select">Seç</string>
+    <string name="common_ui_storage_roots">Depolama Kökleri</string>
+    <string name="common_ui_browse_local_folders_directly">Yerel klasörlere doğrudan gözat</string>
+    <string name="common_ui_no_folders_available_here">Burada mevcut klasör yok</string>
+    <string name="common_ui_grant_all_files_access_browse">Klasörlere doğrudan gözatmak için tüm dosyalara erişim izni verin.</string>
+    <string name="common_ui_not_configured">Yapılandırılmadı</string>
+    <string name="common_ui_reinstall">Yeniden Yükle</string>
+    <string name="common_ui_exit_app_confirm">WinNative uygulamasından çıkılsın mı?</string>
+    <string name="common_ui_elements_count">%1$d öğe</string>
+    <string name="common_ui_disabled_placeholder">-- Devre dışı --</string>
+    <string name="common_ui_enabled">Etkin</string>
+    <string name="common_ui_unknown_error">Bilinmeyen hata</string>
+    <string name="common_ui_auto_detected">Otomatik algılandı</string>
+    <string name="common_ui_change">Değiştir</string>
+    <string name="common_ui_proceed">Devam Et</string>
+    <string name="common_ui_sign_out">Çıkış Yap</string>
+    <string name="common_ui_name_cannot_be_empty">Ad boş olamaz</string>
+    <string name="common_ui_error_with_message">Hata: %1$s</string>
+    <string name="common_ui_64_bit">64-BİT</string>
+    <string name="common_ui_32_bit">32-BİT</string>
+    <string name="common_ui_64_bit_and_32_bit">64-BİT &amp; 32-BİT</string>
+    <plurals name="common_ui_folder_count">
+        <item quantity="one">%d klasör</item>
+        <item quantity="other">%d klasör</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d dosya</item>
+        <item quantity="other">%d dosya</item>
+    </plurals>
+
+    <!-- Library > Games -->
+    <string name="library_games_shortcut_created">Kısayol oluşturuldu</string>
+    <string name="library_games_failed_to_create_shortcut">Kısayol oluşturulamadı: %s</string>
+    <string name="library_games_install_path">Yükleme Yolu</string>
+    <string name="library_games_not_enough_space">%1$s daha fazla alan gerekli</string>
+    <string name="library_games_download_slash_install">İndir / Yükle</string>
+    <string name="library_games_save_management">KAYIT YÖNETİMİ</string>
+    <string name="library_games_download_install_available">%1$s / %2$s • Mevcut: %3$s</string>
+    <string name="library_games_last_played">Son Oynanma</string>
+    <string name="library_games_playtime">Oynanma Süresi</string>
+    <string name="library_games_plays">Oynanma</string>
+    <string name="library_games_dlcs">DLC\'ler</string>
+    <string name="library_games_uninstall_game">OYUNU KALDIR</string>
+    <string name="library_games_remove_game">OYUNU ÇIKAR</string>
+    <string name="library_games_uninstall_confirm">%1$s kaldırılsın ve yüklü oyun klasörü kalıcı olarak silinsin mi?</string>
+    <string name="library_games_remove_confirm">%1$s kütüphanenizden çıkarılsın. Diskteki oyun dosyalarına dokunulmayacak mı?</string>
+    <string name="library_games_game_uninstalled">%1$s kaldırıldı.</string>
+    <string name="library_games_game_removed">%1$s çıkarıldı.</string>
+    <string name="library_games_failed_to_uninstall">Kaldırma başarısız.</string>
+    <string name="library_games_failed_to_uninstall_reason">Kaldırma başarısız: %1$s</string>
+    <string name="library_games_loading">Kütüphane yükleniyor…</string>
+    <string name="library_games_no_games_installed">Yüklü oyun yok. Oyun eklemek için bir Mağaza sekmesini veya + düğmesini kullanın.</string>
+    <string name="library_games_times_played_label">Oynanma sayısı: </string>
+    <string name="library_games_playtime_label">Oynanma süresi: </string>
+    <string name="library_games_no_games_hub">Yüklü Oyun Yok\nWinlator Arka Ucunu açmak için tıklayın</string>
+    <string name="library_games_installed_badge">YÜKLÜ</string>
+    <string name="library_games_unknown_game">Bilinmeyen Oyun</string>
+    <string name="library_games_layouts_header">KÜTÜPHANE DÜZENLERİ</string>
+    <string name="library_games_layout_carousel">Atlıkarınca</string>
+    <string name="library_games_layout_list">Liste</string>
+    <string name="library_games_view_options_header">GÖRÜNÜM SEÇENEKLERİ</string>
+    <string name="library_games_immersive_mode">Sürükleyici Mod</string>
+    <string name="library_games_immersive_mode_description">Odaklanılan oyun görselini arka plan olarak kullan</string>
+    <string name="library_games_immersive_blur">Arka Planı Bulanıklaştır</string>
+    <string name="library_games_immersive_blur_description">Sürükleyici arka plana bulanıklık efekti uygula</string>
+    <string name="library_games_custom_game">Özel Oyun</string>
+    <string name="library_games_play">Oyna</string>
+    <string name="hero_boot_to_desktop_title">Masaüstünü Başlat</string>
+    <string name="hero_graphics_tests_title">Grafik Testleri</string>
+    <string name="hero_graphics_test_32">32-bit</string>
+    <string name="hero_graphics_test_64">64-bit</string>
+    <string name="library_games_add_custom_game">Özel Oyun Ekle</string>
+    <string name="library_games_game_name">Oyun Adı</string>
+    <string name="library_games_game_folder_mapped_drive">Oyun Klasörü (Eşlenmiş Oyun Sürücüsü)</string>
+    <string name="library_games_select_exe_provide_name">Bir exe seçin ve bir ad girin</string>
+    <string name="library_games_sign_in_prompt">Kütüphanenizi oluşturmak için bir mağazaya giriş yapın veya özel bir oyun ekleyin.</string>
+
+    <!-- Stores > Accounts -->
+    <string name="stores_accounts_title">Mağazalar</string>
+    <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_shared_downloads_folder">Paylaşılan İndirilenler Klasörü</string>
+    <string name="stores_accounts_shared_downloads_subtitle">Tüm mağazalarda tek bir klasör kullan</string>
+    <string name="stores_accounts_default_downloads_folder">Varsayılan İndirilenler Klasörü</string>
+    <string name="stores_accounts_steam_downloads">Steam İndirilenleri</string>
+    <string name="stores_accounts_epic_downloads">Epic İndirilenleri</string>
+    <string name="stores_accounts_gog_downloads">GOG İndirilenleri</string>
+    <string name="stores_accounts_download_speed">İndirme Hızı</string>
+    <string name="stores_accounts_download_speed_subtitle">Steam indirme iş parçacığı eşzamanlılığını denetler</string>
+    <string name="stores_accounts_download_server">İndirme Sunucusu</string>
+    <string name="stores_accounts_connected_stores">Bağlı Mağazalar</string>
+    <string name="stores_accounts_download_settings">İndirme Ayarları</string>
+    <string name="stores_accounts_download_speed_conservative">Tutumlu</string>
+    <string name="stores_accounts_download_speed_balanced">Dengeli</string>
+    <string name="stores_accounts_download_speed_standard">Standart</string>
+    <string name="stores_accounts_download_speed_performance">Performans</string>
+    <string name="stores_accounts_download_server_auto_detected">Otomatik algılandı: %1$s</string>
+    <string name="stores_accounts_download_server_subtitle">Oyun indirmeleri için Steam CDN bölgesi</string>
+    <string name="stores_accounts_sign_out_confirm">%1$s hesabından çıkış yapılsın mı?</string>
+    <string name="stores_accounts_sign_out_message">Kütüphanenize erişmek için yeniden giriş yapmanız gerekecek.</string>
+    <string name="stores_accounts_logged_in_epic">Epic Games hesabına giriş yapıldı!</string>
+    <string name="stores_accounts_epic_login_failed">Epic Girişi başarısız: %1$s</string>
+    <string name="stores_accounts_logged_in_gog">GOG hesabına giriş yapıldı!</string>
+    <string name="stores_accounts_gog_login_failed">GOG Girişi başarısız: %1$s</string>
+    <string name="stores_accounts_custom_download_path">Özel İndirme Yolu</string>
+    <string name="stores_accounts_custom_download_path_description">Ayarlar &gt; Mağazalar bölümünde varsayılan bir indirme yolu zaten yapılandırıldı. Bu belirli yükleme için benzersiz bir özel yol ayarlamak istiyorsanız Devam Et\'e tıklayın.</string>
+    <string name="stores_accounts_not_signed_in">Giriş yapılmadı</string>
+    <string name="stores_accounts_status_online">Çevrimiçi</string>
+    <string name="stores_accounts_status_away">Uzakta</string>
+    <string name="stores_accounts_status_offline">Çevrimdışı</string>
+    <string name="stores_accounts_status_invisible">Görünmez</string>
+    <string name="stores_accounts_status_header">DURUM</string>
+    <string name="stores_accounts_stores_header">MAĞAZALAR</string>
+    <string name="stores_accounts_sign_in_store_prompt">%1$s mağazasına erişmek için lütfen giriş yapın.</string>
+    <string name="stores_accounts_manage">Mağaza Hesaplarını Yönet</string>
+    <string name="stores_accounts_sign_into_store">%1$s hesabına giriş yap</string>
+
+    <!-- Downloads > Queue -->
+    <string name="downloads_queue_cancel_all">Tümünü İptal Et</string>
+    <string name="downloads_queue_preparing_download">İndirme hazırlanıyor</string>
+    <string name="downloads_queue_installing_package">Paket yükleniyor</string>
+    <string name="downloads_queue_resume_all">Tümünü Sürdür</string>
+    <string name="downloads_queue_pause_all">Tümünü Duraklat</string>
+    <string name="downloads_queue_clear">Temizle</string>
+    <string name="downloads_queue_status_label">Durum:</string>
+    <string name="downloads_queue_phase_downloading">İndiriliyor</string>
+    <string name="downloads_queue_phase_downloading_file">İndiriliyor [%1$s]</string>
+    <string name="downloads_queue_phase_queued">Sıraya Alındı</string>
+    <string name="downloads_queue_phase_paused">Duraklatıldı</string>
+    <string name="downloads_queue_phase_preparing">Hazırlanıyor</string>
+    <string name="downloads_queue_phase_verifying">Doğrulanıyor</string>
+    <string name="downloads_queue_phase_verifying_file">Doğrulanıyor [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Yama uygulanıyor</string>
+    <string name="downloads_queue_phase_applying_data">Veriler uygulanıyor</string>
+    <string name="downloads_queue_phase_finalizing">Tamamlanıyor</string>
+    <string name="downloads_queue_phase_unpacking">Ayıklanıyor</string>
+    <string name="downloads_queue_phase_updating">Güncelleniyor</string>
+    <string name="downloads_queue_phase_complete">Tamamlandı</string>
+    <string name="downloads_queue_phase_cancelled">İptal edildi</string>
+    <string name="downloads_queue_phase_failed">Başarısız: %1$s</string>
+    <string name="downloads_queue_phase_unknown">Bilinmiyor</string>
+    <string name="downloads_queue_paused_resume_hint">Duraklatıldı - devam etmek için Devam Et\'e dokunun</string>
+    <string name="downloads_queue_cancel_download">İndirmeyi İptal Et</string>
+    <string name="downloads_queue_cancel_download_title">İndirme İptal Edilsin mi?</string>
+    <string name="downloads_queue_cancel_download_confirm">%1$s indirmesi iptal edilip indirilen tüm dosyalar silinsin mi?</string>
+    <string name="downloads_queue_cancel_download_warning">Bir DLC, Oyun veya Güncelleme indirmesini iptal etmek oyun kurulumunuzu bozabilir.\n\nBu indirmeyi iptal edip şimdiye kadar indirilen dosyaları silmek istediğinizden emin misiniz?</string>
+    <string name="downloads_queue_cancel_all_title">Tüm İndirmeler İptal Edilsin mi?</string>
+    <string name="downloads_queue_cancel_all_warning">DLC, Oyun veya Güncelleme indirmelerini iptal etmek oyun kurulumlarınızı bozabilir.\n\nTüm indirmeleri iptal edip şimdiye kadar indirilen dosyaları silmek istediğinizden emin misiniz?</string>
+    <string name="downloads_queue_this_game">bu oyun</string>
+    <string name="downloads_queue_empty">Etkin indirme yok.</string>
+
+    <!-- Containers > List -->
+    <string name="containers_list_new">Yeni Konteyner</string>
+    <string name="containers_list_edit">Konteyneri Düzenle</string>
+    <string name="containers_list_creating">Konteyner Oluşturuluyor</string>
+    <string name="containers_list_removing">Konteyner Kaldırılıyor</string>
+    <string name="containers_list_duplicating">Konteyner Çoğaltılıyor</string>
+    <string name="containers_list_remove_title">Konteyneri kaldır</string>
+    <string name="containers_list_duplicate_title">Konteyneri çoğalt</string>
+    <string name="containers_list_confirm_remove">Bu konteyner kaldırılsın mı? İçinde saklanan tüm oyun kayıtları kalıcı olarak silinecek. Buluta eşitlenmiş kayıtlar bulutta kalır, ancak henüz eşitlenmemiş yerel değişiklikler kaybolur — korumak istiyorsanız önce bu oyunun bulut kayıtlarını eşitleyin.</string>
+    <string name="containers_list_confirm_duplicate">Bu konteyneri çoğaltmak istiyor musunuz?</string>
+
+    <!-- Shortcuts > List -->
+    <string name="shortcuts_list_confirm_remove">Bu kısayolu kaldırmak istiyor musunuz?</string>
+    <string name="shortcuts_list_add_to_home_screen">Ana Ekrana Ekle</string>
+    <string name="shortcuts_library_artwork_title">Kütüphane Görseli</string>
+    <string name="shortcuts_library_artwork_game_card_title">Oyun Kartı Görseli</string>
+    <string name="shortcuts_library_artwork_grid_title">Izgara Görseli</string>
+    <string name="shortcuts_library_artwork_carousel_title">Atlıkarınca Görseli</string>
+    <string name="shortcuts_library_artwork_list_title">Liste Görseli</string>
+    <string name="shortcuts_library_artwork_selected">Seçili: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Görseli ayarla</string>
+    <string name="shortcuts_library_artwork_change">Görseli değiştir</string>
+    <string name="shortcuts_library_artwork_failed">Seçilen görsel yüklenemedi.</string>
+    <string name="shortcuts_library_artwork_open_source">SteamGridDB\'yi Aç</string>
+    <string name="shortcuts_list_not_available">Bu kısayol artık kullanılamıyor. Lütfen silin veya yeniden oluşturun.</string>
+    <string name="shortcuts_list_select_a_container">Bir konteyner seçin</string>
+    <string name="shortcuts_list_error_opening_settings">Kısayol ayarları açılırken hata oluştu</string>
+    <string name="shortcuts_list_removed">Kısayol başarıyla kaldırıldı.</string>
+    <string name="shortcuts_list_remove_failed">Kısayol kaldırılamadı. Lütfen tekrar deneyin.</string>
+    <string name="shortcuts_list_remove_game_shortcut_message">Kısayolu kaldır\n%1$s</string>
+    <string name="shortcuts_list_cloned">Kısayol başarıyla kopyalandı.</string>
+    <string name="shortcuts_list_clone_failed">Kısayol kopyalanamadı.</string>
+    <string name="shortcuts_list_exported_to">Kısayol %1$s Konumuna Dışa Aktarıldı</string>
+    <string name="shortcuts_list_failed_export">Kısayol dışa aktarılamadı</string>
+    <string name="shortcuts_export_all">Tümünü Dışa Aktar</string>
+    <string name="shortcuts_export_to_frontend">Ön Uça Dışa Aktar</string>
+    <string name="shortcuts_export_all_done">%1$d oyun %2$s konumuna dışa aktarıldı</string>
+    <string name="shortcuts_export_all_none">Dışa aktarılacak oyun yok</string>
+    <string name="shortcuts_list_added">Kısayol başarıyla eklendi.</string>
+    <string name="shortcuts_list_readded_existing">Mevcut kısayol yeniden eklendi</string>
+    <string name="shortcuts_list_failed_add">Kısayol eklenemedi.</string>
+
+    <!-- Shortcuts > Properties -->
+    <string name="shortcuts_properties_exec_arguments">Çalıştırma Argümanları</string>
+    <string name="shortcuts_properties_target_path">Hedef Yol</string>
+    <string name="shortcuts_properties_disable_xinput">Xinput\'u Devre Dışı Bırak (Özel M/KB Kontrolü İçin)</string>
+    <string name="num_controllers">Kontrolcü Sayısı</string>
+    <string name="shortcuts_properties_exclusive_input">Özel Giriş</string>
+    <string name="shortcuts_properties_custom_game_settings">Özel Oyun Ayarları</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Eski Başlatıcıyı Kullan</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Eski Steam emülasyonu: oyunu ColdClient başlatıcısı üzerinden çalıştırır ve exe\'den SteamStub DRM\'yi kaldırır. Yalnızca Steam Başlatıcısıyla çalışmayan eski oyunlar için kullanın.</string>
+    <string name="shortcuts_properties_runtime_patcher">Çalışma Zamanı DRM Yamalayıcısı</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Başlatma sırasında bir DRM yamalayıcı DLL\'i enjekte eder. FPS\'yi düşürür — yalnızca Eski Başlatıcı tek başına başarısız olursa kullanın.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="steam_section_real_client">WinNative Gerçek Steam İstemcisi</string>
+    <string name="steam_section_emulator">Eski Steam Emülatörü</string>
+    <string name="shortcuts_properties_use_steam_input">Steam Input\'u Kullan</string>
+    <string name="shortcuts_properties_steam_offline_mode">Steam Çevrimdışı Modu</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Emüle edilen Steam istemcisinin çevrimdışı olarak görünmesini sağlar, böylece oyun çevrimiçi bağlantı denemez. Steam\'in ağ kontrolünde takılan oyunlar için kullanın.</string>
+    <string name="shortcuts_properties_reset">Özellikleri Sıfırla</string>
+    <string name="shortcuts_properties_updated_at">Kısayol %1$s Tarihinde Güncellendi</string>
+    <string name="shortcuts_properties_properties_reset">Özellikler başarıyla sıfırlandı.</string>
+    <string name="shortcuts_properties_reset_per_game">Oyuna Özel Ayarları Sıfırla</string>
+    <string name="shortcuts_properties_reset_per_game_message">Bu oyun, seçili konteyner varsayılanlarını kullanacak şekilde sıfırlansın mı?</string>
+    <string name="shortcuts_properties_per_game_reset">Oyuna özel ayarlar seçili konteyner varsayılanlarına sıfırlandı</string>
+
+    <!-- Input Controls > Editor -->
+    <string name="input_controls_editor_no_element_selected">Seçili kontrol öğesi yok</string>
+    <string name="input_controls_editor_scale">Ölçek</string>
+    <string name="input_controls_editor_shape">Şekil</string>
+    <string name="input_controls_editor_type">Tür</string>
+    <string name="input_controls_editor_binding">Bağlama</string>
+    <string name="binding_secondary">İkincil bağlama</string>
+    <string name="input_controls_editor_binding_up">Bağlama Yukarı</string>
+    <string name="input_controls_editor_binding_right">Bağlama Sağ</string>
+    <string name="input_controls_editor_binding_down">Bağlama Aşağı</string>
+    <string name="input_controls_editor_binding_left">Bağlama Sol</string>
+    <string name="input_controls_editor_overlay_opacity">Kaplama Opaklığı</string>
+    <string name="input_controls_editor_opacity">Opaklık</string>
+    <string name="input_controls_editor_radial_menu">Dairesel Menü</string>
+    <string name="input_controls_editor_radial_menu_options">Dairesel Menü Seçenekleri</string>
+    <string name="input_controls_editor_number_of_bindings">Bağlama Sayısı</string>
+    <string name="input_controls_editor_select_profile">Profil Seç</string>
+    <string name="input_controls_select_style">Stil Seç</string>
+    <string name="input_controls_select_label_theme">Düğme Etiketleri</string>
+    <string name="input_controls_style_original">Orijinal</string>
+    <string name="input_controls_style_gamehub">Cam</string>
+    <string name="input_controls_label_theme_default">Orijinal</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Yerleşik profil — düzenleyebileceğiniz bir kopya oluşturuldu.</string>
+    <string name="input_controls_editor_profile_name">Profil Adı</string>
+    <string name="input_controls_editor_no_profile_selected">Seçili profil yok</string>
+    <string name="input_controls_editor_no_profile_found">Profil bulunamadı</string>
+    <string name="input_controls_editor_tap_to_switch">Değiştirmek için dokunun</string>
+    <string name="input_controls_editor_confirm_remove_profile">Bu profili kaldırmak istiyor musunuz?</string>
+    <string name="input_controls_editor_confirm_duplicate_profile">Bu profili çoğaltmak istiyor musunuz?</string>
+    <string name="input_controls_editor_confirm_reset_profile">Bu profil orijinal düzenine sıfırlansın mı? Yaptığınız tüm değişiklikler kaybolacak.</string>
+    <string name="input_controls_editor_profile_reset">Profil orijinal düzenine sıfırlandı.</string>
+    <string name="input_controls_editor_reset_unavailable">Bu profil için orijinal anlık görüntü mevcut değil.</string>
+    <string name="input_controls_editor_title">Kontrol Düzenleyicisi</string>
+    <string name="input_controls_editor_toggle_switch">Açma/Kapama Anahtarı</string>
+    <string name="input_controls_editor_profile_exported_to">Profil şuraya dışa aktarıldı</string>
+    <string name="input_controls_editor_unable_to_import">Profil içe aktarılamıyor</string>
+    <string name="input_controls_editor_import_profile">Profili İçe Aktar</string>
+    <string name="input_controls_editor_download_profile">Profili İndir</string>
+    <string name="input_controls_editor_export_profile">Profili Dışa Aktar</string>
+    <string name="input_controls_editor_range">Aralık</string>
+    <string name="input_controls_editor_confirm_download_profiles">Seçili profilleri indirmek istiyor musunuz?</string>
+    <string name="input_controls_editor_unable_to_load_list">Profil listesi yüklenemiyor</string>
+    <string name="input_controls_editor_osc_transparency">Ekran Üstü Kontrollerin Şeffaflığı</string>
+    <string name="input_controls_editor_osc_transparency_description">Ekran üstü kontrollerin şeffaflığını ayarlayın.</string>
+
+    <!-- Container > Configuration -->
+    <string name="container_config_screen_size">Ekran Boyutu</string>
+    <string name="container_config_new_env_var">Yeni Ortam Değişkeni</string>
+    <string name="container_config_env_vars">Ortam Değişkenleri</string>
+    <string name="container_config_processor_affinity">İşlemci Benzeşimi</string>
+    <string name="container_config_processor_affinity_32bit">İşlemci Benzeşimi (32-bit uygulamalar)</string>
+    <string name="container_config_audio_driver">Ses Sürücüsü</string>
+    <string name="container_config_win_components">Win Bileşenleri</string>
+    <string name="container_config_drives">Sürücüler</string>
+    <string name="container_config_arch">Mimari</string>
+    <string name="container_config_storage_info">Depolama Bilgisi</string>
+    <string name="container_config_drive_c">C: Sürücüsü</string>
+    <string name="container_config_cache">Önbellek</string>
+    <string name="container_config_total">Toplam</string>
+    <string name="container_config_clear_cache">Önbelleği Temizle</string>
+    <string name="container_config_estimated_used_space">Tahmini Kullanılan Alan</string>
+    <string name="settings_containers_error_saving_wallpaper">Duvar kağıdı kaydedilirken hata oluştu</string>
+    <string name="container_config_directinput_mapper_type">DirectInput Eşleyici Türü</string>
+    <string name="container_config_title">Yapılandırma</string>
+    <string name="container_config_startup_selection">Başlangıç Seçimi</string>
+    <string name="container_config_glibc_exp_edition">Temel Alınan</string>
+    <string name="container_config_refresh_rate_default_global">Varsayılan (Genel)</string>
+    <string name="container_config_enable_dinput">Wine\'daki Oyunlar İçin DInput\'u Etkinleştir</string>
+    <string name="container_config_enable_xinput">Wine\'daki Oyunlar İçin XInput\'u Etkinleştir</string>
+    <string name="container_config_dinput_legacy">Eski (Eski Gamepad\'ler)</string>
+    <string name="container_config_dinput_modern">Modern (Xinput benzeri)</string>
+    <string name="container_config_help_xinput">
+        Oyununuz oyun kumandası desteği için &lt;i&gt;&lt;b&gt;XInput API&lt;/b&gt;&lt;/i&gt; kullanıyorsa lütfen bu seçeneği etkinleştirin.&lt;br/&gt;&lt;br/&gt;
+        Bu seçenek hem &lt;i&gt;&lt;b&gt;sanal&lt;/b&gt;&lt;/i&gt; (Giriş Kontrolleri tarafından sağlanan) hem de &lt;i&gt;&lt;b&gt;fiziksel&lt;/b&gt;&lt;/i&gt; oyun kumandalarını etkiler.
+    </string>
+    <string name="container_config_help_dinput">
+        Oyununuz oyun kumandası desteği için &lt;i&gt;&lt;b&gt;DInput API&lt;/b&gt;&lt;/i&gt; kullanıyorsa lütfen bu seçeneği etkinleştirin.&lt;br/&gt;&lt;br/&gt;
+        Bu seçenek hem &lt;i&gt;&lt;b&gt;sanal&lt;/b&gt;&lt;/i&gt; (Giriş Kontrolleri tarafından sağlanan) hem de &lt;i&gt;&lt;b&gt;fiziksel&lt;/b&gt;&lt;/i&gt; oyun kumandalarını etkiler.
+    </string>
+    <string name="container_config_xinput_dinput_warning">Bazı oyunlar her iki API\'yi de destekleyebilir. Bu tür oyunlarda XInput ve DInput\'u aynı anda etkinleştirmek, The Binding of Isaac ve Resident Evil serisi gibi oyunlarda görüldüğü üzere kontrol sorunlarına neden olabilir.</string>
+    <string name="container_config_lc_all" translatable="false">LC_ALL</string>
+    <string name="container_config_dll_emulator">32bit Emülatör</string>
+    <string name="container_config_emulator_wine_hint">Emülatör wine sürümüne göre belirlenir. ARM64EC, FEXCore kullanır; x86_64, Box64 kullanır.</string>
+    <string name="container_config_label">Yapılandırma</string>
+    <string name="container_config_restart_required">Değişikliklerin geçerli olması için konteyneri yeniden başlatın</string>
+    <string name="container_config_renderer">Oluşturucu</string>
+    <string name="container_config_variables">Değişkenler</string>
+    <string name="container_config_windows">Windows</string>
+    <string name="container_config_inputs">Girişler</string>
+    <string name="container_config_tab">Yapılandırma</string>
+    <string name="container_config_av_tab">A/V</string>
+    <string name="container_config_emulator_64bit">64bit Emülatör</string>
+    <string name="container_config_emulator_section">Emülatör</string>
+    <string name="container_config_sdl2_compatibility">SDL2 Uyumluluğunu Etkinleştir</string>
+
+    <!-- Container > Wine and DirectX -->
+    <string name="container_wine_configuration">Wine Yapılandırması</string>
+    <string name="container_wine_csmt">CSMT (Command Stream Multi-Thread)</string>
+    <string name="container_wine_gpu_name">GPU Adı</string>
+    <string name="container_wine_offscreen_rendering_mode">Ekran Dışı Oluşturma Modu</string>
+    <string name="container_wine_strict_shader_math">Katı Shader Matematiği</string>
+    <string name="container_wine_video_memory_size">Video Bellek Boyutu</string>
+    <string name="container_wine_dxwrapper">DX Sarmalayıcı</string>
+    <string name="container_wine_mouse_warp_override">Fare Işınlama Geçersiz Kılma</string>
+    <string name="container_wine_directx">DirectX</string>
+    <string name="container_wine_dxvk_version">DXVK Sürümü</string>
+    <string name="container_wine_dxvk_config_title">DXVK Yapılandırması</string>
+    <string name="container_wine_wined3d_config_title">WineD3D Yapılandırması</string>
+    <string name="container_wine_vkd3d_version">VKD3D Sürümü</string>
+    <string name="container_wine_version">Wine Sürümü</string>
+    <string name="container_wine_dxwrapper_help_content">
+        &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; DirectX 1-11\'i OpenGL\'e çeviren bir çeviri katmanıdır.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;DXVK&lt;/b&gt;&lt;/i&gt; Direct3D 9-11\'i Vulkan\'a çeviren bir çeviri katmanıdır.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; Direct3D 12 API\'sini Vulkan\'a çeviren bir çeviri katmanıdır.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; klasik oyunlarla daha iyi uyumluluk için bir DirectDraw uygulamasıdır.
+    </string>
+    <string name="container_wine_enabled_async">Async\'i Etkinleştir</string>
+    <string name="container_wine_enabled_async_cache">Async Önbelleğini Etkinleştir</string>
+    <string name="container_wine_vkd3d_feature_level">VKD3D Özellik Düzeyi</string>
+    <string name="container_wine_ddraw_wrapper">DDraw Sarmalayıcı</string>
+    <string name="container_wine_error_not_installed">Wine/Proton paketi \'%1$s\' kurulu değil ve indirilemedi.</string>
+    <string name="container_no_wine_installed">Kurulu Wine veya Proton yok. Önce birini kurun.</string>
+    <string name="container_wine_title">Wine</string>
+    <string name="container_wine_opengl">OpenGL</string>
+    <string name="container_surface_effect">Yüzey Efekti</string>
+
+    <!-- Container > Box64 -->
+    <string name="container_box64_title">Box64</string>
+    <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>
+    <string name="container_wowbox64_title">Wowbox64</string>
+    <string name="container_box64_preset">Box64 Ön Ayarı</string>
+    <string name="container_box64_version">Box64 Sürümü</string>
+    <string name="container_box64_stability">Kararlılık</string>
+    <string name="container_box64_compatibility">Uyumluluk</string>
+    <string name="container_box64_intermediate">Orta</string>
+    <string name="container_box64_performance">Performans</string>
+    <string name="box64_env_var_help__dynarec">Box64 dinamik yeniden derleyicisini etkinleştirir veya devre dışı bırakır.</string>
+    <string name="box64_env_var_help__dynarec_safeflags">
+        CALL/RET opcode\'larında bayrakların işlenmesi&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : CALL/RET\'i hiç bayrağa ihtiyaç duymamış gibi işler (daha hızlı, kararsız)&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Çoğu RET bayrağa ihtiyaç duyar, çoğu CALL duymaz&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Tüm CALL/RET bayrağa ihtiyaç duyar (daha yavaş)
+    </string>
+    <string name="box64_env_var_help__dynarec_fastnan">x86\'daki gibi -NAN üretimi</string>
+    <string name="box64_env_var_help__dynarec_fastround">Hassas x86 yuvarlama üretimi</string>
+    <string name="box64_env_var_help__dynarec_x87double">x87 emülasyonu için Float/Double kullanımı</string>
+    <string name="box64_env_var_help__dynarec_bigblock">
+        Dynarec BigBlock oluşturma&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Bloğu mümkün olduğunca büyük oluşturmaya çalışma&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Dynarec bloğunu mümkün olduğunca büyük oluştur&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Dynarec bloğunu daha büyük oluştur (blok çakıştığında devam et, ancak yalnızca elf belleğindeki bloklar için)&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Dynarec bloğunu daha büyük oluştur (blok çakıştığında devam et, tüm bellek türleri için)
+    </string>
+    <string name="box64_env_var_help__dynarec_strongmem">
+        Güçlü Bellek modeli simülasyonu&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Özel bir şey deneme&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Belleğe yazarken bazı Bellek Bariyerlerini etkinleştir (bazı MOV opcode\'larında)&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Tüm 1 artı MOV kullanarak belleğe her yazışta bir Bellek Bariyeri&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Tüm 2 artı bellekten okurken ve bazı SSE/SSE2 opcode\'larında Bellek Bariyeri&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : QEMU\'ya benzer şekilde x86 TSO\'yu taklit eder.
+    </string>
+    <string name="box64_env_var_help__dynarec_forward">Blok oluştururken izin verilen maksimum ileri değeri tanımlar</string>
+    <string name="box64_env_var_help__dynarec_callret">CALL/RET opcode\'larının optimizasyonu</string>
+    <string name="box64_env_var_help__dynarec_sep">CALLRET etkinken CALL/RET\'i optimize etmek için ikincil giriş noktaları ekler.</string>
+    <string name="box64_env_var_help__dynarec_wait">Dynarec\'in FillBlock\'un hazır olmasını bekleyip beklemeyeceğini tanımlar</string>
+    <string name="box64_env_var_help__dynarec_weakbarrier">
+        Güçlü bellek emülasyonunun performans etkisini azaltmak için bellek bariyerlerini ayarlar&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Normal güvenli bariyerleri kullan&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Hafif performans artışı için zayıf bariyerleri kullan&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Zayıf bariyerleri kullan, ayrıca son yazma bariyerlerini devre dışı bırak</string>
+    <string name="box64_env_var_help__dynarec_aligned_atomics">
+        Yalnızca hizalanmış atomikler üret (şimdilik yalnızca Arm64\'te kullanılabilir).&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Hizalanmamış atomik işleme kodu üret.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Yalnızca hizalanmış atomikler üret; bu daha hızlı ve daha küçük kod boyutu sağlar, ancak hizalanmış veri adreslerinde çalışan LOCK önekli opcode\'lar için SIGBUS\'a neden olur.</string>
+    <string name="box64_env_var_help__dynarec_df">
+        Ertelenmiş bayrakların kullanımını etkinleştirin veya devre dışı bırakın.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Ertelenmiş bayrakların kullanımını devre dışı bırakır.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Ertelenmiş bayrakların kullanımını etkinleştirir.</string>
+    <string name="box64_env_var_help__dynarec_dirty">
+        Korumasız ve olası kirli bir bloğun çalışmaya devam etmesine izin verir.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Korumasız ve olası kirli bir bloğun çalışmaya devam etmesine izin vermez.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Koduyla aynı sayfaya veri yazan bir dynablock\'un çalışmaya devam etmesine izin verir. Bazı oyunların yükleme süresini hızlandırabilir ancak beklenmedik çökmelere de yol açabilir.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Ayrıca bir HotPage algıladığında o sayfayı NEVERCLEAN olarak işaretler, böylece yazmaya karşı korunmaz ancak o sayfadan oluşturulan bloklar her zaman test edilir. Bu şekilde daha hızlı olabilir (ancak bazı SMC durumları yakalanmayabilir).</string>
+    <string name="box64_env_var_help__dynarec_nativeflags">
+        Yerel bayrakların kullanımını etkinleştirin veya devre dışı bırakın.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Yerel bayrakları kullanmaz.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Mümkün olduğunda yerel bayrakları kullanır.</string>
+    <string name="box64_env_var_help__dynarec_pause">
+        x86 PAUSE öykünmesini etkinleştirir, spinlock\'ların performansına yardımcı olabilir.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : x86 PAUSE komutunu yok sayar.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : x86 PAUSE komutuna öykünmek için YIELD kullanır.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : x86 PAUSE komutuna öykünmek için WFI kullanır.&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : x86 PAUSE komutuna öykünmek için SEVL+WFE kullanır.
+    </string>
+    <string name="box64_env_var_help__dynarec_noarch">Dynarec blok meta verilerini azaltarak bellek tasarrufu sağlar, uyumluluktan ödün verir.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">64 bit Windows oyunları için güçlü bellek öykünmesine yön vermek üzere PE oynak meta verilerini kullanır.</string>
+    <string name="box64_env_var_help__dynacache">Başlatmayı hızlandırmak için çalıştırmalar arasında üretilen dynarec bloklarının önbelleğe alınmasını denetler.</string>
+    <string name="box64_env_var_help__avx">
+        Konuğa AVX yeteneklerini sunar.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : AVX uzantısını devre dışı bırakır&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : AVX, BMI1, F16C ve VAES uzantılarını etkinleştirir.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Tüm 1 ayarlarına ek olarak AVX2, BMI2, FMA, ADX, VPCLMULQDQ ve RDRAND etkinleştirir.&lt;br /&gt;
+    </string>
+    <string name="box64_env_var_help__aes">Konuğa AES CPU yeteneklerini sunar.</string>
+    <string name="box64_env_var_help__pclmulqdq">Konuğa PCLMULQDQ CPU yeteneklerini sunar.</string>
+    <string name="box64_env_var_help__shaext">Konuğa SHA uzantısı CPU yeteneklerini sunar.</string>
+    <string name="box64_env_var_help__sse42">Konuğa SSE4.2 CPU yeteneklerini sunar.</string>
+    <string name="box64_env_var_help__sse_flushto0">SSE sıfıra-boşaltma davranışını ve istisna bayrağı izlemeyi denetler.</string>
+    <string name="box64_env_var_help__x87_no80bits">x87 için 80 bit uzun ondalık yerine 64 bit çift duyarlık kullanır.</string>
+    <string name="box64_env_var_help__cputype">Konuğa sunulan Intel veya AMD CPU modelini seçer.</string>
+    <string name="box64_env_var_help__maxcpu">Box64 tarafından programlara sunulan azami CPU sayısı</string>
+    <string name="box64_env_var_help__unityplayer">UnityPlayer\'ı algılar ve uygulamayı Unity oyunu olarak işaretler.</string>
+    <string name="box64_env_var_help__unity">Uygulamayı Unity oyunu olarak işaretler ve Unity\'ye özgü uyumluluk işlemesini etkinleştirir.</string>
+    <string name="box64_env_var_help__mmap32">Her bellek ayırmayı 32 bit adres alanlarında yapmaya zorlar</string>
+
+    <!-- Container > FEXCore -->
+    <string name="fexcore_env_var_help__tsoenabled">TSO IR işlemlerini etkinleştirir (çok iş parçacıklı uygulamalar için gereklidir).</string>
+    <string name="fexcore_env_var_help__vectortsoenabled">TSO etkinken vektör yükleme/depolama işlemlerini atomik yapar.</string>
+    <string name="fexcore_env_var_help__halfbarriertsoenabled">TSO altında hizalanmamış yükleme/depolama işlemleri için yarı bariyer atomikleri kullanır.</string>
+    <string name="fexcore_env_var_help__memcpysettsoenabled">TSO altında REP MOVS / REP STOS işlemlerini atomik yapar.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Bölünmüş hizalanmamış atomik erişimler için işlem genelinde katı bir kilit kullanır.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Çekirdek bağlam değiştirmelerini azaltmak için çekirdek tarafından işlenen hizalanmamış atomikleri geri yamalar.</string>
+    <string name="fexcore_env_var_help__multiblock">Çok bloklu kod derlemesini etkinleştirir. Daha uzun JIT derlemesine ve takılmaya yol açabilir.</string>
+    <string name="fexcore_env_var_help__maxinst">Derlenmiş bir blokta saklanan azami komut sayısı.</string>
+    <string name="fexcore_env_var_help__hostfeatures">CPU özelliği zorlamasını denetler.</string>
+    <string name="fexcore_env_var_help__smalltscscale">Düşük frekanslı sistemlerde TSC\'yi ölçekler.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Hibrit CPU çekirdek düzenini konuktan gizler.</string>
+    <string name="fexcore_env_var_help__smc_checks">Kodu yürütmeden önce değişikliğe karşı denetler.</string>
+    <string name="fexcore_env_var_help__volatilemetadata">Mevcut olduğunda TSO için PE dosyalarından oynak meta verileri kullanır.</string>
+    <string name="fexcore_env_var_help__monohacks">Mono algılaması için özel SMC + JIT blok hilesi.</string>
+    <string name="fexcore_env_var_help__hidehypervisorbit">CPUID hipervizör bitini gizler (bununla çöken uygulamalar için yararlıdır).</string>
+    <string name="fexcore_env_var_help__disablel2cache">FEXCore JIT L2 önbellek aramasını devre dışı bırakır, bellek tasarrufu sağlar ancak takılmalara neden olur.</string>
+    <string name="fexcore_env_var_help__dynamicl1cache">FEXCore JIT L1 önbelleğini dinamik boyutlu hale getirir, bellek tasarrufu sağlar ancak takılmalara neden olur.</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">Dinamik L1 önbelleğini büyütmek için saniye başına arama eşiği.</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">Dinamik L1 önbelleğini küçültmek için saniye başına arama eşiği.</string>
+    <string name="fexcore_env_var_help__x87reducedprecision">X87 kayan noktaya 64 bit duyarlık kullanarak öykünür. Bu, öykünme doğruluğunu azaltır ve işleme hatalarına yol açabilir.</string>
+    <string name="container_fexcore_config">FEXCore</string>
+    <string name="container_fexcore_preset">FEXCore Ön Ayarı</string>
+    <string name="container_fexcore_version">FEXCore Sürümü</string>
+    <string name="use_unix_libs">UnixLibs Kullan</string>
+
+    <!-- Container > Graphics Driver -->
+    <string name="container_graphics_driver">Grafik Sürücüsü</string>
+    <string name="container_graphics_configuration">Grafik Sürücüsü Yapılandırması</string>
+    <string name="container_graphics_version">Grafik Sürücüsü Sürümü</string>
+    <string name="container_graphics_available_extensions">Kullanılabilir Uzantılar</string>
+    <string name="container_graphics_extensions_enabled_summary">%1$d / %2$d etkin</string>
+    <string name="container_graphics_max_device_memory">Azami Aygıt Belleği</string>
+    <string name="container_graphics_sync_frame">Her Kareyi Eşitle</string>
+    <string name="container_graphics_disable_present_wait">KHR_present_wait\'i Devre Dışı Bırak</string>
+    <string name="container_graphics_present_modes">Sunum Modları</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan Ekran Eşitleme</string>
+    <string name="container_graphics_resource_type">Bellek Kaynağı Türü</string>
+    <string name="container_graphics_vulkan_version">Vulkan Sürümü</string>
+    <string name="container_graphics_bcn_emulation">BCn Öykünmesi</string>
+    <string name="container_graphics_bcn_emulation_type">BCn Öykünme Türü</string>
+    <string name="container_graphics_bcn_emulation_cache">BCn Öykünme Önbelleği</string>
+    <string name="container_graphics_transcoder">BCn Kod Dönüştürücü</string>
+    <string name="container_graphics_quality">BCn Kalitesi</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <!-- Container > Presets -->
+    <string name="container_presets_confirm_duplicate">Bu ön ayarı çoğaltmak istiyor musunuz?</string>
+    <string name="container_presets_confirm_remove">Bu ön ayarı kaldırmak istiyor musunuz?</string>
+    <string name="container_presets_title">Ön Ayarlar</string>
+    <string name="container_presets_preset">Ön Ayar</string>
+    <string name="container_presets_new">Yeni Ön Ayar</string>
+    <string name="container_presets_rename">Ön Ayarı Yeniden Adlandır</string>
+    <string name="container_presets_import">Ön Ayarı İçe Aktar</string>
+    <string name="container_presets_custom">Özel</string>
+    <string name="container_presets_built_in">Varsayılan</string>
+    <string name="container_presets_changes_auto_saved">Bu özel ön ayarı düzenlerken değişiklikler otomatik olarak kaydedilir.</string>
+    <string name="container_presets_cannot_rename">Yerleşik ön ayarlar yeniden adlandırılamaz</string>
+    <string name="container_presets_unable_to_import">Ön ayar içe aktarılamıyor</string>
+    <string name="container_presets_no_description">Açıklama mevcut değil</string>
+    <string name="container_presets_cannot_remove">Bu ön ayarı kaldıramazsınız</string>
+    <string name="container_presets_cannot_export">Bu ön ayar dışa aktarılamıyor</string>
+
+    <!-- Session > XServer -->
+    <string name="session_xserver_title">XServer</string>
+    <string name="session_xserver_simulate_touch_screen">Dokunmatik ekranı simüle et</string>
+    <string name="session_xserver_preferences_button_text">   TERCİHLER   </string>
+    <string name="session_xserver_extra_keys_config_desc">Burada Termux uygulamasındaki gibi extra-keys değişkeninin değerini ayarlayabilirsiniz (<a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">bunu</a> okuyun) ve daha fazlası \n
+E.g. <b>META</b> için <i>META tuşu</i>, \n
+<b>KEYBOARD</b> için <i>sanal klavye açma/kapama tuşu</i>, \n
+<b>PREFERENCES</b> için <i>tercihleri açma tuşu</i>, \n
+<b>MOUSE_HELPER</b> için <i>fare yardımcısı açma/kapama tuşu</i>, \n
+<b>STYLUS_HELPER</b> için <i>kalem tıklaması geçersiz kılma katmanı açma/kapama tuşu</i>, \n
+<b>EXIT</b> için <i>uygulama çıkış tuşu</i>.</string>
+    <string name="session_xserver_pref_main">Tercihler</string>
+    <string name="session_xserver_pref_output">Çıkış</string>
+    <string name="session_xserver_pref_pointer">İşaretçi</string>
+    <string name="session_xserver_pref_kbd">Klavye</string>
+    <string name="session_xserver_pref_other">Diğer</string>
+    <string name="session_xserver_pref_version">Sürüm</string>
+    <string name="session_xserver_notification_description">WinNative XServer Mesajları</string>
+    <string name="session_xserver_notification_content">WinNative çalışıyor, bu bildirimi kapatmayın veya kaydırmayın</string>
+
+    <!-- Session > Drawer Menu -->
+    <string name="session_drawer_keyboard">Klavye</string>
+    <string name="session_drawer_fps_monitor">FPS İzleyici</string>
+    <string name="session_drawer_fps_monitor_subtitle">Gerçek zamanlı performans istatistiklerini göster</string>
+    <string name="session_drawer_dual_series_battery">Çift Seri Pil</string>
+    <string name="session_drawer_hud_frametime_numeric">Kare Süresini Sayı Olarak Göster</string>
+    <string name="session_drawer_toggle_fullscreen">Tam Ekranı Aç/Kapat</string>
+    <string name="session_drawer_refactor_size">Boyutu Yeniden Düzenle</string>
+    <string name="session_drawer_show_touchscreen_controls">Dokunmatik Ekran Denetimlerini Göster</string>
+    <string name="session_drawer_magnifier">Büyüteç</string>
+    <string name="session_drawer_logs">Günlükler</string>
+    <string name="session_drawer_pip_mode">PiP Modu</string>
+    <string name="session_drawer_toggle_relative_mouse">Göreli Fare Hareketini Aç/Kapat</string>
+    <string name="session_drawer_toggle_mouse">Fareyi Aç/Kapat</string>
+    <string name="session_drawer_pause_resume">Duraklat/Devam Et</string>
+    <string name="session_drawer_relative_mouse_movement">Göreli Fare Hareketi</string>
+    <string name="session_drawer_mouse_input">Fare Girişi</string>
+    <string name="session_drawer_touch">Dokunma</string>
+    <string name="session_drawer_touch_trackpad">Dokunmatik Yüzey</string>
+    <string name="session_drawer_touch_touchscreen">Dokunmatik Ekran Modu</string>
+    <string name="session_drawer_touch_map_right_stick">Sağ Çubuğa Eşle</string>
+    <string name="session_drawer_rts_gestures">RTS Hareketleri</string>
+    <string name="session_drawer_rts_gestures_edit">Düzenle</string>
+    <string name="session_drawer_right_stick_sensitivity">Sağ çubuk hassasiyeti</string>
+    <string name="session_rts_action">Eylem</string>
+    <string name="session_rts_behavior">Davranış</string>
+    <string name="session_rts_tap1">1 parmakla dokunma</string>
+    <string name="session_rts_tap2">2 parmakla dokunma</string>
+    <string name="session_rts_tap3">3 parmakla dokunma</string>
+    <string name="session_rts_tap4">4 parmakla dokunma</string>
+    <string name="session_rts_double_tap">Çift dokunma (çift sol tıklama)</string>
+    <string name="session_rts_long_press">Uzun basma</string>
+    <string name="session_rts_hold2">2 parmakla tutma</string>
+    <string name="session_rts_hold3">3 parmakla tutma</string>
+    <string name="session_rts_hold4">4 parmakla tutma</string>
+    <string name="session_rts_swipe3">3 parmakla kaydırma</string>
+    <string name="session_rts_swipe4">4 parmakla kaydırma</string>
+    <string name="session_rts_up">Yukarı</string>
+    <string name="session_rts_down">Aşağı</string>
+    <string name="session_rts_left">Sol</string>
+    <string name="session_rts_right">Sağ</string>
+    <string name="session_rts_pan">2 parmakla kaydırma</string>
+    <string name="session_rts_pan1">1 parmakla kaydırma</string>
+    <string name="session_rts_zoom">Kıstırarak yakınlaştırma</string>
+    <string name="session_rts_drag">1 parmakla sürükleme</string>
+    <string name="session_rts_drag2">2 parmakla sürükleme</string>
+    <string name="session_rts_long_press_delay">Uzun basma gecikmesi (ms)</string>
+    <string name="session_rts_hold_delay">Tutma gecikmesi (ms)</string>
+    <string name="session_rts_swipe_threshold">Kaydırma eşiği (px)</string>
+    <string name="session_rts_gesture_threshold">Hareket eşiği (px)</string>
+    <string name="session_rts_double_tap_delay">Çift dokunma gecikmesi (ms)</string>
+    <string name="session_rts_drag_threshold">Sürükleme eşiği (px)</string>
+    <string name="session_rts_pan_threshold">Kaydırma/kıstırma başlangıcı (px)</string>
+    <string name="common_ui_rename">Yeniden Adlandır</string>
+    <string name="common_ui_new">Yeni</string>
+    <string name="input_controls_editor_input_profiles_section">Giriş Profilleri</string>
+    <string name="session_gesture_profile_section">Hareket Profili</string>
+    <string name="gesture_profile_new">Yeni Hareket Profili</string>
+    <string name="gesture_profile_import">Hareket Profilini İçe Aktar</string>
+    <string name="gesture_profile_export">Hareket Profilini Dışa Aktar</string>
+    <string name="gesture_profile_none">Hareket profili yok</string>
+    <string name="session_drawer_screen_effects">Ekran Efektleri</string>
+    <string name="session_drawer_screen_effects_subtitle">Ölçek büyütme ve renk efektleri</string>
+    <string name="session_drawer_super_resolution">Süper Çözünürlük</string>
+    <string name="session_drawer_upscaler_mode">Ölçek Büyütücü</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Kenar Keskinliği</string>
+    <string name="session_drawer_vivid">Canlı</string>
+    <string name="session_drawer_vivid_strength">Canlılık Gücü</string>
+    <string name="session_drawer_color_profile">Renk Efekti</string>
+    <string name="session_drawer_picture_in_picture">Resim İçinde Resim</string>
+    <string name="session_drawer_exit_subtitle">Çalışan oturumu kapat</string>
+    <string name="session_drawer_touchscreen_overlay">Dokunmatik Ekran Katmanı</string>
+    <string name="session_drawer_resume">Devam Et</string>
+    <string name="session_drawer_retry">Yeniden Dene</string>
+    <string name="downloads_no_internet">İnternet bağlantısı yok</string>
+    <string name="session_drawer_pause">Duraklat</string>
+    <string name="session_drawer_wine_processes_paused">Wine işlemleri duraklatıldı</string>
+    <string name="session_drawer_pause_all_wine_processes">Tüm Wine işlemlerini duraklat</string>
+    <string name="session_drawer_controls_section">Denetimler</string>
+    <string name="session_drawer_session_section">Oturum</string>
+    <string name="session_drawer_header_subtitle">Denetimlere, katmanlara ve oturum araçlarına hızlı erişim</string>
+    <string name="session_drawer_swipe_hint">Oyuna geri dönmek için kaydırıp kapatın</string>
+    <string name="session_drawer_main_menu_title">Menü</string>
+    <string name="session_drawer_hud_summary">Katman görünürlüğünü ve veri noktalarını ayarlayın</string>
+    <string name="session_drawer_hud_disabled_hint">Özelleştirmek için katmanı açın</string>
+    <string name="session_drawer_hud_alpha">Alfa</string>
+    <string name="session_drawer_hud_background_alpha">Arka Plan Alfası</string>
+    <string name="session_drawer_hud_background">Arka Plan</string>
+    <string name="session_drawer_hud_scale">Ölçek</string>
+    <string name="session_drawer_hud_elements">HUD Öğeleri</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
+    <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_temp">B.SIC</string>
+    <string name="session_drawer_hud_element_graph">Grafik</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.SIC</string>
+    <string name="hud_position_menu_title">HUD\'u şuraya taşı</string>
+    <string name="hud_position_top_left">Sol Üst</string>
+    <string name="hud_position_top_center">Üst Orta</string>
+    <string name="hud_position_top_right">Sağ Üst</string>
+    <string name="hud_position_left_center">Sol Orta</string>
+    <string name="hud_position_right_center">Sağ Orta</string>
+    <string name="hud_position_bottom_left">Sol Alt</string>
+    <string name="hud_position_bottom_center">Alt Orta</string>
+    <string name="hud_position_bottom_right">Sağ Alt</string>
+    <string name="session_drawer_hud_alpha_input_title">Alfayı Ayarla</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Arka Plan Alfasını Ayarla</string>
+    <string name="session_drawer_hud_scale_input_title">Ölçeği Ayarla</string>
+    <string name="session_drawer_hud_input_hint">%1$d ile %2$d arasında bir değer girin. Sınırın üstündeki değerler kırpılır.</string>
+    <string name="session_drawer_command_center">Komuta Merkezi</string>
+    <string name="session_drawer_command_center_input">Giriş</string>
+    <string name="session_drawer_command_center_display">Ekran</string>
+    <string name="session_drawer_command_center_system">Sistem</string>
+    <string name="session_drawer_fps_limiter">FPS Sınırlayıcı</string>
+    <string name="session_drawer_fps_limiter_off">Kapalı</string>
+    <string name="session_drawer_color_profile_disabled">Devre dışı</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Doğal</string>
+    <string name="session_drawer_color_profile_crt">CRT Efekti</string>
+    <string name="session_drawer_color_profile_toon">Çizgi Film</string>
+    <string name="session_drawer_color_profile_ntsc">Ntsc</string>
+    <string name="session_drawer_color_profile_ntsc2">Ntsc2</string>
+    <string name="session_drawer_brightness">Parlaklık</string>
+    <string name="session_drawer_contrast">Karşıtlık</string>
+    <string name="session_drawer_gamma">Gama</string>
+    <string name="session_drawer_scale">Ölçek</string>
+    <string name="session_drawer_scale_nearest">En Yakın</string>
+    <string name="session_drawer_scale_linear">Doğrusal</string>
+    <string name="session_drawer_scale_bicubic">Çift Kübik</string>
+    <string name="session_drawer_saturation">Doygunluk</string>
+    <string name="session_drawer_temperature">Sıcaklık</string>
+    <string name="session_drawer_tint">Ton</string>
+    <string name="session_drawer_sharpen">Keskinleştir</string>
+    <string name="session_drawer_scanlines">Tarama Çizgileri</string>
+    <string name="session_drawer_pixelate">Pikselleştir</string>
+    <string name="session_drawer_block_size">Blok boyutu</string>
+    <string name="session_drawer_strength">Güç</string>
+    <string name="session_drawer_intensity">Yoğunluk</string>
+    <string name="session_drawer_color_blind">Renk Körlüğü</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Efektleri sıfırla</string>
+    <string name="session_drawer_calibrate_advanced">Gelişmiş kalibrasyon</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Jiro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_output">Çıkış</string>
+    <string name="session_drawer_rail_label_apps">Daha Fazla</string>
+    <!-- External display / video-out (USB-C, HDMI, DisplayPort) -->
+    <string name="display_output_prompt_title">Harici ekran algılandı</string>
+    <string name="display_output_prompt_message">Oyun bağlı ekrana gönderilsin mi? Ekran denetimleriniz ve menünüz bu telefonda kalır.</string>
+    <string name="display_output_prompt_swap">Ekranları Değiştir</string>
+    <string name="display_output_prompt_mirror">Yansıt</string>
+    <string name="display_output_swapped_toast">Oyun harici ekrana taşındı. Denetimler telefonunuzda kalır.</string>
+    <string name="display_output_cast_unavailable">Kablosuz ekran ayarları bu cihazda kullanılamıyor.</string>
+    <string name="display_output_restored_toast">Harici ekran bağlantısı kesildi — oyun telefona döndü.</string>
+    <string name="session_drawer_output_title">Ekran Çıkışı</string>
+    <string name="session_drawer_output_subtitle">Oyun harici ekranda gösteriliyor.</string>
+    <string name="session_drawer_output_device">Bağlı ekran</string>
+    <string name="session_drawer_output_resolution">Çözünürlük</string>
+    <string name="session_drawer_output_refresh_rate">Yenileme Hızı</string>
+    <string name="session_drawer_output_aspect_ratio">En Boy Oranı</string>
+    <string name="session_drawer_output_aspect_fit">Sığdır (En Boy)</string>
+    <string name="session_drawer_output_aspect_stretch">Uzat (Doldur)</string>
+    <string name="session_drawer_output_aspect_zoom">Yakınlaştır (Kırp)</string>
+    <string name="session_drawer_output_return_to_phone">Telefona dön</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Bir TV\'ye Yayınla</string>
+    <string name="session_drawer_output_cast_body">Bir USB-C / HDMI adaptörü bağlayın veya kablosuz bir ekran (Miracast / Wi-Fi Direct) bağlamak için aşağıya dokunun. Bu denetimler telefonunuzda kalırken oyun TV\'de gösterilir.</string>
+    <string name="session_drawer_output_cast_button">Kablosuz Ekran Bağla</string>
+    <string name="session_drawer_output_cast_note">Yalnızca Chromecast destekli TV\'ler özel denetimlerle canlı oyunu gösteremez — en iyi sonuç için kablosuz bir ekran ya da USB‑C/HDMI adaptörü kullanın.</string>
+    <string name="session_drawer_output_render_note">Ekranınızın bildirdiği modlar gerçek çıkışını değiştirir (yeniden başlatılırken kısa süre siyah olabilir). Diğer çözünürlükler o boyutta işlenir ve panele donanımsal olarak ölçeklenir — yerelden yüksek olması keskinleştirir (süper örnekleme), düşük olması daha hızlı çalışır.</string>
+    <string name="session_drawer_output_scaling_note">Bu telefon ekranı kendi yerel %1$s değerinde çıkarır ve modunu değiştirmez, bu nedenle bu ayar işleme çözünürlüğünü belirler — panele donanımsal olarak ölçeklenir (yerelden yüksek keskinleştirir, düşük daha hızlı çalışır).</string>
+    <string name="session_drawer_output_game_mode">Oyun Modu (Düşük Gecikme)</string>
+    <string name="session_drawer_output_game_mode_on">Açık</string>
+    <string name="session_drawer_output_game_mode_off">Kapalı</string>
+    <string name="session_drawer_output_game_mode_note">Giriş gecikmesini en aza indirmek için TV\'nin düşük gecikme / oyun modunu (HDMI ALLM) ister. Yalnızca bağlı ekran bunu desteklediğinde gösterilir.</string>
+    <string name="session_drawer_output_send_to_display">Oyunu ekrana gönder</string>
+    <string name="session_drawer_output_to_display">Harici Ekrana Çıkış</string>
+    <string name="session_drawer_output_send_note">Bir ekran bağlı. Oyunu ona gönderin — denetimleriniz ve menünüz bu telefonda kalır. İstediğiniz zaman buraya geri getirebilirsiniz.</string>
+    <string name="session_drawer_output_display">Ekran</string>
+    <string name="session_drawer_output_glasses">Gözlük</string>
+    <string name="session_drawer_output_brightness">Parlaklık</string>
+    <string name="session_drawer_output_shade">Gölge (karartma)</string>
+    <string name="session_drawer_output_3d">3D (yan yana)</string>
+    <string name="glasses_panel_refresh">Yenileme Hızı</string>
+    <string name="glasses_panel_sunblock">Güneş Koruması</string>
+    <string name="session_drawer_output_volume">Ses</string>
+    <string name="session_drawer_output_glasses_note">Viture gözlüğünüze USB üzerinden doğrudan gönderilir.</string>
+    <string name="session_drawer_rail_label_keyboard">Klavye</string>
+    <string name="session_drawer_rail_label_input_controls">Denetimler</string>
+    <string name="session_drawer_rail_label_relative_mouse">GörFare</string>
+    <string name="session_drawer_rail_label_mouse">Fare</string>
+    <string name="session_drawer_rail_label_fullscreen">Tam Ekran</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_magnifier">Yakınlaştır</string>
+    <string name="session_drawer_rail_label_task_manager">Görevler</string>
+    <string name="session_drawer_rail_label_record">Kaydet</string>
+    <string name="session_drawer_rail_label_logs">Günlükler</string>
+    <string name="session_record_started">Kayıt başladı</string>
+    <string name="session_record_saved">Kayıt WinNative/Recordings konumuna kaydedildi</string>
+    <string name="session_record_failed">Kayıt başlatılamadı</string>
+    <string name="session_record_settings_title">Kayıt Ayarları</string>
+    <string name="session_record_fps">Kare Hızı</string>
+    <string name="session_record_resolution">Çözünürlük</string>
+    <string name="session_record_quality">Kalite</string>
+    <string name="session_record_include_ui">Arayüzü Kaydet</string>
+    <string name="session_record_include_ui_subtitle">HUD ve ekran denetimlerini dahil et</string>
+    <string name="session_record_now">Şimdi Kaydet</string>
+    <string name="session_drawer_logs_clear">Temizle</string>
+    <string name="session_drawer_logs_pause">Duraklat</string>
+    <string name="session_drawer_logs_resume">Sürdür</string>
+    <string name="session_drawer_logs_paused_indicator">Duraklatıldı</string>
+    <string name="session_drawer_logs_line_count">%1$d satır</string>
+    <string name="session_drawer_logs_share">Paylaş</string>
+    <string name="session_drawer_logs_share_subject">Oturum günlükleri</string>
+    <string name="session_drawer_logs_share_chooser">Oturum günlüklerini paylaş</string>
+    <string name="session_drawer_logs_share_failed">Günlükler paylaşılamadı</string>
+    <string name="session_drawer_logs_share_empty">Paylaşılacak günlük satırı yok</string>
+    <string name="session_gyroscope_activator">Etkinleştirici</string>
+
+    <!-- Session > Task Manager -->
+    <string name="session_task_confirm_end_process">Bu işlemi sonlandırmak istiyor musunuz?</string>
+    <string name="session_task_title">Görev Yöneticisi</string>
+    <string name="session_task_process_name">İşlem Adı</string>
+    <string name="session_task_pid">PID</string>
+    <string name="session_task_memory">Bellek</string>
+    <string name="session_task_end_process">İşlemi Sonlandır</string>
+    <string name="session_task_set_affinity">Benzeşim Ayarla</string>
+    <string name="session_task_affinity_title">İşlemci Benzeşimi</string>
+    <string name="session_task_affinity_all_cores">Tüm çekirdekler</string>
+    <string name="session_task_new_task">Yeni Görev</string>
+    <string name="session_task_bring_to_front">Öne Getir</string>
+    <string name="session_task_custom_value">Özel Değer</string>
+    <string name="session_task_processes">İşlemler</string>
+    <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Çekirdek başına kullanım</string>
+    <string name="session_task_core_label">Çekirdek %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d çekirdek</item>
+        <item quantity="other">%d çekirdek</item>
+    </plurals>
+
+    <!-- Session > Display -->
+    <string name="session_display_orientation">Yönlendirme</string>
+    <string name="session_display_horizontal">Yatay</string>
+    <string name="session_display_vertical">Dikey</string>
+    <string name="session_display_columns">Sütunlar</string>
+    <string name="session_display_frame_rate">Kare Hızı</string>
+    <string name="session_display_title">Ekran</string>
+    <string name="session_display_fullscreen_stretched">Tam Ekranı Etkinleştir (Uzatılmış)</string>
+    <string name="session_display_fps_label">FPS:</string>
+    <string name="session_display_renderer_label">Oluşturucu:</string>
+    <string name="session_display_gpu_label">GPU:</string>
+    <string name="session_display_ram_label">RAM:</string>
+    <string name="session_display_ram_usage_format">%1$s GB Kullanılan / %2$s Toplam</string>
+
+    <!-- Session > Gamepad -->
+    <string name="session_gamepad_confirm_remove_controller">Bu kumandayı kaldırmak istiyor musunuz?</string>
+    <string name="session_gamepad_external_controllers">Harici Kumandalar</string>
+    <string name="session_gamepad_press_any_button">Kumandanızda herhangi bir düğmeye basın</string>
+    <string name="session_gamepad_bindings">bağlamalar</string>
+    <string name="session_gamepad_control_bindings">Denetim Bağlamaları</string>
+    <string name="session_gamepad_game_controller">Oyun Kumandası</string>
+    <string name="session_gamepad_as_button">Düğmedir</string>
+    <string name="session_gamepad_as_axis">Eksendir</string>
+    <string name="session_gamepad_trigger_type">Tür</string>
+    <string name="session_gamepad_help_trigger_mode">&lt;b&gt;Fiziksel Kumandanıza&lt;/b&gt; bağlıdır:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;Eksendir&lt;/b&gt; — tetik doğrusal bir hareket aralığına sahiptir&lt;br/&gt;&#x2022; &lt;b&gt;Düğmedir&lt;/b&gt; — tetik basit bir anahtar gibi çalışır&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Not: doğrusal bir tetikte Düğmedir seçeneğini kullanmak analog veriyi kaybeder.&lt;/i&gt;
+    </string>
+    <string name="session_gamepad_button_a">A Düğmesi</string>
+    <string name="session_gamepad_button_b">B Düğmesi</string>
+    <string name="session_gamepad_button_x">X Düğmesi</string>
+    <string name="session_gamepad_button_y">Y Düğmesi</string>
+    <string name="session_gamepad_button_grip">Kavrama düğmesi</string>
+    <string name="session_gamepad_button_trigger">Tetik düğmesi</string>
+    <string name="session_gamepad_thumbstick_left">Çubuk sol</string>
+    <string name="session_gamepad_thumbstick_right">Çubuk sağ</string>
+    <string name="session_gamepad_thumbstick_up">Çubuk yukarı</string>
+    <string name="session_gamepad_thumbstick_down">Çubuk aşağı</string>
+    <string name="session_gamepad_configure_analog_sticks">Analog Çubukları Yapılandır</string>
+    <string name="session_gamepad_left_stick">Sol Çubuk</string>
+    <string name="session_gamepad_right_stick">Sağ Çubuk</string>
+    <string name="session_gamepad_controller_manager">Kumanda Yöneticisi</string>
+    <string name="session_gamepad_enable_vibration">Titreşimi Etkinleştir</string>
+    <string name="session_gamepad_player_1">1. Oyuncu</string>
+    <string name="session_gamepad_player_2">2. Oyuncu</string>
+    <string name="session_gamepad_player_3">3. Oyuncu</string>
+    <string name="session_gamepad_player_4">4. Oyuncu</string>
+    <string name="session_gamepad_not_assigned">Atanmadı</string>
+    <string name="session_gamepad_assign">Ata</string>
+    <string name="session_gamepad_press_any_button_for_player">Şunun için kumandada herhangi bir düğmeye basın:</string>
+    <string name="session_gamepad_vibrate">Titreşim</string>
+    <string name="session_gamepad_macros_hint">Otomatik ateşlemeyi etkinleştirmek için düğmeleri açın.</string>
+    <string name="session_gamepad_macros">Makrolar</string>
+    <string name="session_gamepad_include_triggers_note">Turboyu dijital basış olarak L2/R2\'ye de uygula</string>
+    <string name="session_gamepad_square_deadzone">Kare Ölü Bölge</string>
+    <string name="session_gamepad_invert_x">X\'i Ters Çevir</string>
+    <string name="session_gamepad_invert_y">Y\'yi Ters Çevir</string>
+    <string name="session_gamepad_save_profile">Profili Kaydet</string>
+    <string name="session_gamepad_load_profile">Profil Yükle</string>
+    <string name="session_gamepad_button_start">Start Düğmesi</string>
+    <string name="session_gamepad_button_select">Select Düğmesi</string>
+    <string name="session_gamepad_button_l1">L1 Düğmesi</string>
+    <string name="session_gamepad_button_r1">R1 Düğmesi</string>
+    <string name="session_gamepad_button_l2">L2 Düğmesi</string>
+    <string name="session_gamepad_button_r2">R2 Düğmesi</string>
+    <string name="session_gamepad_button_l3">L3 Düğmesi</string>
+    <string name="session_gamepad_button_r3">R3 Düğmesi</string>
+    <string name="session_gamepad_dpad_up">Yön Tuşu Yukarı</string>
+    <string name="session_gamepad_dpad_down">Yön Tuşu Aşağı</string>
+    <string name="session_gamepad_dpad_left">Yön Tuşu Sol</string>
+    <string name="session_gamepad_dpad_right">Yön Tuşu Sağ</string>
+    <string name="session_gamepad_overwrite">Üzerine Yaz</string>
+    <string name="session_gamepad_save_as_new">Yeni Olarak Kaydet</string>
+    <string name="session_gamepad_overwrite_profile_message">Geçerli profilin üzerine mi yazmak yoksa yeni bir profil olarak mı kaydetmek istiyorsunuz?</string>
+    <string name="session_gamepad_enter_profile_name">Profil Adı Girin</string>
+    <string name="session_gamepad_mappings_saved">Eşlemeler kaydedildi!</string>
+    <string name="session_gamepad_profile_saved">Profil kaydedildi!</string>
+    <string name="session_gamepad_profile_saved_as_new">Profil yeni olarak kaydedildi!</string>
+    <string name="session_gamepad_profile_loaded">Profil yüklendi!</string>
+    <string name="session_gamepad_profile_name_empty">Profil adı boş olamaz</string>
+    <string name="session_gamepad_no_profiles">-- Profil Yok --</string>
+    <string name="session_gamepad_error_loading_profile">Profil yüklenirken hata</string>
+
+    <!-- Input controls > Auto-hide on controller -->
+    <string name="input_controls_auto_hide_section">Dokunmatik Ekran Denetimleri</string>
+    <string name="input_controls_auto_hide_on_controller_title">Kumandada Otomatik Gizle</string>
+    <string name="input_controls_auto_hide_on_controller_summary">Bir kumanda bağlıyken dokunmatik ekran denetimlerini gizle</string>
+
+    <!-- Session > Gyroscope -->
+    <string name="session_gyroscope_title">Jiroskop</string>
+    <string name="session_gyroscope_calibrate">Jiroskopu Kalibre Et</string>
+    <string name="session_gyroscope_enable_right_stick">Sağ Çubuk Jiroskopik Hareketi Etkinleştir</string>
+    <string name="session_gyroscope_activator_button">Jiroskop Etkinleştirme Düğmesi</string>
+    <string name="session_gyroscope_hold">Basılı Tut</string>
+    <string name="session_gyroscope_toggle">Aç/Kapat</string>
+    <string name="session_gyroscope_orientation_mode">Nişan Almak İçin Eğ (Yönlendirme)</string>
+    <string name="session_gyroscope_x_sensitivity">X Ekseni Hassasiyeti</string>
+    <string name="session_gyroscope_y_sensitivity">Y Ekseni Hassasiyeti</string>
+    <string name="session_gyroscope_smoothing">Yumuşatma</string>
+    <string name="session_gyroscope_invert_x">X Eksenini Ters Çevir</string>
+    <string name="session_gyroscope_invert_y">Y Eksenini Ters Çevir</string>
+    <string name="session_gyroscope_filtering">Filtreleme</string>
+    <string name="session_gyroscope_deadzone">Ölü Bölge</string>
+    <string name="session_gyroscope_sensitivity">Hassasiyet</string>
+    <string name="session_gyroscope_direction">Yön</string>
+    <string name="session_gyroscope_mode">Jiroskop Etkinleştirme Modu</string>
+    <string name="session_gyroscope_target_stick">Jiroyu şuna uygula</string>
+    <string name="session_gyroscope_enable_stick">Analog Çubuk Jiroskopik Hareketi Etkinleştir</string>
+    <string name="session_gyroscope_reset_stick">Çubuğu Sıfırla</string>
+    <string name="session_gyroscope_reset_stick_to_center">Çubuğu Merkeze Sıfırla</string>
+    <string name="session_gyroscope_configuration">Jiroskop Yapılandırması</string>
+    <string name="session_gyroscope_experimental_mouse_movement">Deneysel Fare Hareketi</string>
+    <string name="session_gyroscope_x_sensitivity_format">X Hassasiyeti: %1$d%%</string>
+    <string name="session_gyroscope_y_sensitivity_format">Y Hassasiyeti: %1$d%%</string>
+    <string name="session_gyroscope_smoothing_format">Yumuşatma: %1$d%%</string>
+    <string name="session_gyroscope_deadzone_format">Ölü Bölge: %1$d%%</string>
+    <string name="session_gyroscope_sensitivity_format">Hassasiyet: %1$d%%</string>
+    <string name="session_gyroscope_mouse_scale">Fare Ölçeği</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">Fare Ölçeği: %1$d%%</string>
+
+    <!-- Settings > General -->
+    <string name="settings_general_cursor_speed">İmleç Hızı</string>
+    <string name="settings_general_theme">Tema</string>
+    <string name="settings_general_background">Arka Plan</string>
+    <string name="settings_general_background_color_hex">Renk (hex)</string>
+    <string name="settings_general_wallpaper_selected">Duvar kağıdı seçildi</string>
+    <string name="settings_general_select_wallpaper">Duvar kağıdı seç</string>
+    <string name="settings_general_title">Genel</string>
+    <string name="settings_general_enable_file_provider">Dosya Sağlayıcısını Etkinleştir</string>
+    <string name="settings_general_take_effect_next_startup">Bu seçenek bir sonraki başlatmada etkin olacaktır.</string>
+    <string name="settings_general_imagefs">Imagefs</string>
+    <string name="settings_general_reinstall_imagefs">Imagefs\'i Yeniden Kur</string>
+    <string name="settings_general_confirm_reinstall_imagefs">Imagefs\'i yeniden kurmak istiyor musunuz? Bu işlem sistem dosyalarını geri yükler, kapsayıcılarınız değişmez.</string>
+    <string name="settings_general_refresh_rate">Yenileme Hızı</string>
+    <string name="settings_general_refresh_rate_auto_max">Maks</string>
+    <string name="settings_general_refresh_rate_summary">Ekran yenileme hızını ve DXVK kare sınırını ayarla</string>
+    <string name="settings_general_touchscreen_timeout">Dokunmatik Ekran Zaman Aşımı (Yeniden Başlatma Gerektirir)</string>
+    <string name="settings_general_touchscreen_haptics">Dokunmatik Ekran Dokunsal Geri Bildirimini Etkinleştir</string>
+    <string name="settings_general_open_with_android_browser">Android Tarayıcısını Wine\'da Aç</string>
+    <string name="settings_general_share_android_clipboard">Android Panosunu Wine ile Paylaş</string>
+    <string name="settings_general_paths_title">Yol Ayarları</string>
+    <string name="settings_general_paths_summary">Winlator\'ın çalışma verilerini nerede sakladığını ve dışa aktarılan kısayolların nereye yazıldığını yönetin.</string>
+    <string name="settings_general_winlator_path_title">Depolama Yolu</string>
+    <string name="settings_general_shortcut_export_path_title">Kısayol Dışa Aktarma Yolu</string>
+    <string name="settings_general_choose_path">Yol Seç</string>
+    <string name="settings_general_xserver_cursor_summary">XServer oturumu içinde dokunmatik, izleme dörtgeni ve fare girişi için işaretçi hızını ayarlayın.</string>
+    <string name="settings_general_cursor_lock_title">Gerçek Fare Denetimi</string>
+    <string name="settings_general_cursor_lock_summary">Ham işaretçi girişine ihtiyaç duyan oyunlar için doğrudan fare yakalamayı etkin tutar. Ses Kısma ile devre dışı bırakın.</string>
+    <string name="settings_general_xinput_toggle_title">XInput\'u Devre Dışı Bırak</string>
+    <string name="settings_general_xinput_toggle_summary">Özel fare ve klavye denetimi istediğinizde XInput işlemeyi kapatır.</string>
+    <string name="settings_external_display_output_summary">Bu ekranı yansıtmak yerine oyunu bağlı bir harici ekrana taşıyın. Gözlükler her zaman kendi ekranlarını kullanır.</string>
+    <string name="settings_general_file_provider_summary">WinNative dosyalarını Android belge seçicilerine ve dosya yöneticilerine açar.</string>
+    <string name="settings_general_open_browser_summary">Desteklenen web bağlantılarını Wine yerine Android tarayıcısında açar.</string>
+    <string name="settings_general_clipboard_summary">Android ile Wine oturumları arasında kopyalama ve yapıştırmaya izin verir.</string>
+    <string name="settings_general_imagefs_summary">Mevcut kapsayıcılarınızı kaldırmadan paket sistem dosyalarını geri yükler.</string>
+    <string name="settings_general_check_for_updates">Güncellemeleri Denetle</string>
+    <string name="settings_general_check_for_updates_summary">Başlangıçta ve düzenli aralıklarla yeni uygulama sürümlerini otomatik denetler.</string>
+
+    <!-- Settings > Audio -->
+    <string name="settings_audio_midi_sound_font">MIDI SoundFont</string>
+    <string name="settings_audio_sound">Ses</string>
+    <string name="settings_audio_confirm_remove_sound_font">Bu soundfont\'u kaldırmak istiyor musunuz?</string>
+    <string name="settings_audio_sound_font_removed_success">Soundfont başarıyla kaldırıldı!</string>
+    <string name="settings_audio_sound_font_removed_failed">Soundfont kaldırılamadı!</string>
+    <string name="settings_audio_sound_font_installed_success">Soundfont başarıyla yüklendi!</string>
+    <string name="settings_audio_sound_font_installed_failed">Soundfont yüklenemedi!</string>
+    <string name="settings_audio_sound_font_already_exist">Yüklemek istediğiniz soundfont zaten mevcut.</string>
+    <string name="settings_audio_unable_to_install_soundfont">Soundfont yüklenemiyor</string>
+    <string name="settings_audio_installing_soundfont">SoundFont yükleniyor</string>
+    <string name="settings_audio_sound_font_bad_format">Hatalı SoundFont Biçimi.</string>
+    <string name="settings_audio_cannot_remove_default">Varsayılan soundfont kaldırılamaz</string>
+    <string name="settings_audio_summary">MIDI oynatımı için kullanılan SoundFont\'u yükleyin, kaldırın ve seçin.</string>
+
+    <!-- Settings > Debug -->
+    <string name="settings_debug_wine_debug_channel">Wine Hata Ayıklama Kanalı</string>
+    <string name="settings_debug_title">Hata Ayıklama</string>
+    <string name="settings_debug_wine_logs_title">Wine Hata Ayıklama Günlüklerini Etkinleştir</string>
+    <string name="settings_debug_wine_logs_subtitle">Wine hata ayıklama çıktısını dosyaya yaz</string>
+    <string name="settings_debug_box_logs_title">Box86/64 Günlüklerini Etkinleştir</string>
+    <string name="settings_debug_box_logs_subtitle">Box86 &amp; Box64 hata ayıklama çıktısını dosyaya yaz</string>
+    <string name="settings_debug_fex_logs_title">FEXCore Günlüklerini Etkinleştir</string>
+    <string name="settings_debug_fex_logs_subtitle">FEXCore hata ayıklama çıktısını dosyaya yaz</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX Öykünme günlükleri</string>
+    <string name="settings_debug_emulator_logs_subtitle">Kapsayıcınızın kullandığı öykünücüyü dosyaya kaydeder.</string>
+    <string name="settings_debug_steam_logs_title">Steam Günlüklerini Etkinleştir</string>
+    <string name="settings_debug_steam_logs_subtitle">Hata ayıklama için Steam kimlik doğrulama ve oturum olaylarını kaydet.</string>
+    <string name="settings_debug_wine_channels_title">Wine Hata Ayıklama Kanalları</string>
+    <string name="settings_debug_wine_channels_summary">Wine hata ayıklama günlüğü etkinken hangi Wine kanallarının dahil edileceğini seçin.</string>
+    <string name="settings_debug_wine_classes_title">Wine Günlük Düzeyleri</string>
+    <string name="settings_debug_wine_classes_summary">Hangi ileti türlerinin kaydedileceğini seçin. Trace son derece ayrıntılıdır.</string>
+    <string name="settings_debug_input_logs">Giriş Günlükleri</string>
+    <string name="settings_debug_input_logs_description">Oyun kumandası, dokunma ve klavye giriş olaylarını kaydet</string>
+    <string name="settings_debug_download_logs">İndirme Günlükleri</string>
+    <string name="settings_debug_download_logs_description">İndirme çözümleyici ve WinNative geri dönüş olaylarını kaydet</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan Doğrulama Katmanları</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Uygulamak için ekranı yeniden başlatın.</string>
+    <string name="settings_debug_share_logs">Günlükleri Paylaş</string>
+    <string name="settings_debug_delete_logs">Günlükleri Sil</string>
+    <string name="settings_debug_share_all_logs_short">Tümünü paylaş</string>
+    <string name="settings_debug_download_all_logs_short">Tümünü indir</string>
+    <string name="settings_debug_logs_saved">%1$s konumuna kaydedildi</string>
+    <string name="settings_debug_delete_logs_short">Sil</string>
+    <string name="settings_debug_delete_all_logs_short">Tümünü sil</string>
+    <string name="settings_debug_open_logs_folder_short">Günlük Yöneticisini Aç</string>
+    <string name="settings_debug_logs_deleted">Günlükler silindi</string>
+    <string name="settings_debug_delete_logs_confirm_title">Günlükler Silinsin mi?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Bu işlem, kaydedilen tüm günlük dosyalarını (%1$s) kalıcı olarak siler. Bu geri alınamaz.</string>
+    <string name="settings_debug_logs_browser_title">Günlükler</string>
+    <string name="settings_debug_log_truncated">Bu günlüğün son %1$s kısmı gösteriliyor</string>
+    <string name="settings_debug_logs_subject">WinNative Günlükleri (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Kullanılabilir hata ayıklama günlüğü yok. Önce hata ayıklama seçeneklerini etkinleştirin ve bir oyun başlatın.</string>
+    <string name="settings_debug_capture_failed">Günlükler yakalanamadı: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">WinNative işlem hatalarını, uyarılarını ve çökmelerini dosyaya kaydet</string>
+    <string name="settings_debug_section_emulation">Öykünme</string>
+    <string name="settings_debug_section_subsystems">Alt Sistemler</string>
+    <string name="settings_debug_section_tools">Araçlar</string>
+    <string name="settings_debug_no_channels_selected">Kanal seçilmedi</string>
+    <string name="settings_debug_no_channels_available">Kullanılabilir kanal yok</string>
+    <string name="settings_debug_channel_toggle_hint">Kanalları açıp kapatmak için dokunun. Etkin kanallar Wine hata ayıklama çıktısına dahil edilir.</string>
+    <string name="settings_debug_remove_channel_desc">%1$s öğesini kaldır</string>
+
+    <string name="settings_other_language_title">Dil</string>
+    <string name="settings_other_language_summary">Görüntüleme dilini seçin</string>
+    <string name="settings_other_language_system_default">Sistem varsayılanı</string>
+
+    <string name="settings_other_section_integration">Entegrasyon</string>
+    <string name="settings_other_setup_wizard_title">Kurulum Sihirbazı</string>
+    <string name="settings_other_setup_wizard_summary">İzinleri, sistem dosyalarını ve varsayılan kapsayıcıları gözden geçirmek için kurulum sihirbazını yeniden açın.</string>
+    <string name="settings_other_checking_for_updates">Güncellemeler denetleniyor…</string>
+    <string name="settings_other_update_check_cooldown">Tekrar denetlemeden önce lütfen %1$d sn bekleyin</string>
+    <string name="settings_other_persistable_permission_failed">Kalıcı izinler alınamadı: %1$s</string>
+    <string name="settings_other_keep_app_open">Bu işlem bitene kadar lütfen uygulamayı açık tutun.</string>
+
+    <!-- Settings > Content Packages -->
+    <string name="settings_content_install">İçerik Yükle</string>
+    <string name="settings_content_type">Kategori</string>
+    <string name="settings_content_components">Bileşenler</string>
+    <string name="settings_content_auto_create_container">Kapsayıcıyı otomatik oluştur</string>
+    <string name="settings_content_remove_title">Bileşen kaldırılsın mı?</string>
+    <string name="settings_content_empty_subtitle">Başlamak için bir paket yükleyin veya türü değiştirin.</string>
+    <string name="settings_content_container_created">Kapsayıcı oluşturuldu: %1$s</string>
+    <string name="settings_content_download_failed">İndirme başarısız.</string>
+    <string name="common_ui_working">Çalışıyor</string>
+    <string name="settings_content_desc_wine">Wine projesi tarafından yapıldı; Win32 çağrılarını yerel Linux/Android hizmetlerine çevirir.</string>
+    <string name="settings_content_desc_proton">Valve tarafından yapıldı; Windows oyunları için oyun yamaları içeren Wine tabanlı bir çalışma zamanı.</string>
+    <string name="settings_content_desc_dxvk">Direct3D 9, 10 ve 11 grafik çağrılarını Vulkan\'a çevirir.</string>
+    <string name="settings_content_desc_vkd3d">Direct3D 12 grafik çağrılarını Vulkan\'a çevirir.</string>
+    <string name="settings_content_desc_box64">x86_64 Linux kodunu ARM64 cihazlarda çalışabilmesi için çevirir.</string>
+    <string name="settings_content_desc_wowbox64">32 bit Windows uygulamalarını 64 bit Wine içinde çalıştırmak üzere WoW64 tarafından kullanılan Box64 yapısı.</string>
+    <string name="settings_content_desc_fexcore">x86 ve x86_64 kodunu ARM64 cihazlarda çalışabilmesi için çevirir.</string>
+    <string name="settings_content_desc_d7vk">DirectDraw (Direct3D 7 ve öncesi) grafik çağrılarını Vulkan\'a çevirir.</string>
+    <string name="settings_content_unable_to_install">İçerik yüklenemiyor.</string>
+    <string name="settings_content_install_failed">Yükleme Başarısız</string>
+    <string name="settings_content_file_cannot_be_recognized">Dosya tanınamıyor.</string>
+    <string name="settings_content_profile_not_found">Profil içerikte bulunamadı.</string>
+    <string name="settings_content_profile_cannot_be_recognized">Profil tanınamıyor</string>
+    <string name="settings_content_file_list">Dosya Listesi</string>
+    <string name="settings_content_install_directory">Yükleme Dizini</string>
+    <string name="settings_content_installed_success">İçerik başarıyla yüklendi!</string>
+    <string name="settings_content_downloading_title">İçerik İndiriliyor</string>
+    <string name="settings_content_installing_title">İçerik Yükleniyor</string>
+    <string name="settings_content_extracting_title">İçerik Çıkarılıyor</string>
+    <string name="settings_content_extracting_detail">Çıkarılıyor (%1$d dosya)</string>
+    <string name="settings_content_preparing_package">Paket hazırlanıyor</string>
+    <string name="settings_content_download_complete">İndirme tamamlandı</string>
+    <string name="settings_content_already_installed_title">Bileşen Zaten Yüklü</string>
+    <string name="settings_content_already_installed_message">Bu bileşen zaten yüklü. Tekrar indirmeden önce yüklü kopyayı kaldırın.
+
+Yüklü konum:
+%1$s</string>
+    <string name="settings_content_conflicting_title">Çakışan İçerik Yüklü</string>
+    <string name="settings_content_conflicting_message">Bu paketi indirmeden önce lütfen çakışan içeriği kaldırın.
+
+Yüklü konum:
+%1$s</string>
+    <string name="settings_content_cannot_be_trusted">İçeriğe güvenilemiyor.</string>
+    <string name="settings_content_is_incomplete">İçerik eksik.</string>
+    <string name="settings_content_untrusted_files_warning">Uyarı: Ek içerik güvenilmeyen dosyalar içeriyor. Genellikle aşağıdaki dosyaların değiştirilmemesi gerekir. Lütfen yüklemeye devam edip etmeyeceğinize karar verin.</string>
+    <string name="settings_content_confirm_remove">Bu işlem, bileşeni cihazınızdan siler.</string>
+    <string name="settings_content_unable_to_remove_in_use">Bir kapsayıcı şu anda bu Wine\'ı kullandığından bu içerik kaldırılamıyor.</string>
+    <string name="settings_content_download_in_components">Hiçbiri indirilmedi. Lütfen Bileşenler\'den bir tane indirin.</string>
+    <string name="settings_content_types_header">İÇERİK TÜRLERİ</string>
+
+    <!-- Settings > Drivers -->
+    <string name="settings_drivers_title">Sürücüler</string>
+    <string name="settings_drivers_manager_header">Sürücü Yöneticisi</string>
+    <string name="settings_drivers_github_repos">GitHub Depoları</string>
+    <string name="settings_drivers_install">Sürücü Yükle</string>
+    <string name="settings_drivers_installed_success">Sürücü başarıyla yüklendi.</string>
+    <string name="settings_drivers_install_failed">Sürücü yüklenemedi.</string>
+    <string name="settings_drivers_remove_title">Sürücü kaldırılsın mı?</string>
+    <string name="settings_drivers_confirm_remove">Bu işlem, sürücüyü cihazınızdan siler.</string>
+    <string name="settings_drivers_remove_repo_title">Depo kaldırılsın mı?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s depo listenizden kaldırılacak.</string>
+    <string name="settings_drivers_repo_tap_to_load">Sürümleri yüklemek için dokunun</string>
+    <string name="settings_drivers_repo_loading_releases">Sürümler yükleniyor</string>
+    <string name="settings_drivers_repo_release_count">%1$d sürüm yüklendi</string>
+    <string name="settings_drivers_repo_no_release_assets">Alınan sürümlerde indirilebilir ZIP dosyası bulunamadı.</string>
+    <string name="settings_drivers_repo_fetch_failed">GitHub sürümleri yüklenemedi.</string>
+    <string name="settings_drivers_repo_download_failed">İndirme başarısız.</string>
+    <string name="settings_drivers_repo_no_version">Sürüm kullanılamıyor</string>
+    <string name="settings_drivers_repo_unknown_size">Bilinmeyen boyut</string>
+    <string name="settings_drivers_manager">Sürücü Yöneticisi</string>
+
+    <!-- Setup > Wizard -->
+    <string name="setup_wizard_installing_system_files">Sistem Dosyaları Yükleniyor</string>
+    <string name="setup_wizard_unable_to_install_system_files">Sistem dosyaları yüklenemiyor</string>
+    <string name="setup_wizard_system_image_not_installed">Sistem görüntüsü yüklü değil. Lütfen önce bileşenleri yükleyin.</string>
+    <string name="setup_wizard_recommended_components">Önerilen Bileşenler</string>
+    <string name="setup_wizard_step_format">Adım %1$d / %2$d</string>
+    <string name="setup_wizard_allow_file_access">Tüm dosya erişimine izin ver</string>
+    <string name="setup_wizard_install_system_files">Sistem Dosyalarını Yükle</string>
+    <string name="setup_wizard_recommended_components_description">Önerilen Bileşenler, desteklenen DXVK, VKD3D, FEX, Box64 ve Wowbox64 paketlerini otomatik olarak indirir ve yükler.</string>
+    <string name="setup_wizard_each_button_downloads_description">Her düğme paketi indirir, yükler ve varsayılan kapsayıcısını otomatik olarak oluşturur.</string>
+    <string name="setup_wizard_recommended_x86_64">Önerilen x86-64</string>
+    <string name="setup_wizard_recommended_arm64ec">Önerilen ARM64EC</string>
+    <string name="setup_wizard_choose_components_description">Hangi bileşenlerin yükleneceğini seçin. Wine/Proton otomatik olarak bir kapsayıcı oluşturur.</string>
+    <string name="setup_wizard_loading_components">Bileşenler yükleniyor…</string>
+    <string name="setup_wizard_no_components_available">Bu kategori için kullanılabilir bileşen yok.</string>
+    <string name="setup_wizard_default_settings">Varsayılan Ayarlar</string>
+    <string name="setup_wizard_containers">Kapsayıcı Kurulumu</string>
+    <string name="setup_wizard_containers_description">Her kapsayıcıyı açın ve her yeni oyunun devralmasını istediğiniz varsayılanları ayarlayın. Yeni oyunlar varsayılan olarak x86-64 kapsayıcısını hedefler.</string>
+    <string name="setup_wizard_store_sign_in_optional">Mağaza girişi isteğe bağlıdır. Her giriş, tamamlandığında buraya döner.</string>
+    <string name="setup_wizard_granted">Verildi</string>
+    <string name="setup_wizard_grant">Ver</string>
+    <string name="setup_wizard_denied">Reddedildi</string>
+    <string name="setup_wizard_allow">İzin Ver</string>
+    <string name="setup_wizard_installing">Yükleniyor</string>
+    <string name="setup_wizard_install_failed_reason">Yükleme başarısız: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
+    <string name="setup_wizard_required_access">Gerekli Erişim</string>
+    <string name="setup_wizard_select_components">Bileşenleri Seç</string>
+    <string name="setup_wizard_recommended_wine_proton">Önerilen Wine / Proton</string>
+    <string name="setup_wizard_advanced_setup">Gelişmiş Kurulum</string>
+    <string name="setup_wizard_title">Kurulum Sihirbazı</string>
+    <string name="setup_wizard_advanced_user">Gelişmiş Kullanıcı</string>
+    <string name="setup_wizard_next">İleri</string>
+    <string name="setup_wizard_finish">Bitir</string>
+    <string name="setup_wizard_download_and_install">İndir + Yükle</string>
+    <string name="setup_wizard_open_drivers">Sürücüleri Aç</string>
+    <string name="setup_wizard_ready">Hazır</string>
+    <string name="setup_wizard_download_and_create">İndir + Oluştur</string>
+    <string name="setup_wizard_configured">Yapılandırıldı</string>
+    <string name="setup_wizard_downloading">%1$s indiriliyor</string>
+    <string name="setup_wizard_installing_package">%1$s yükleniyor</string>
+    <string name="setup_wizard_no_runtime_installed">Henüz yüklü Wine veya Proton paketi yok.</string>
+    <string name="setup_wizard_no_runtime_hint">Önceki adımdan bir Wine veya Proton paketi yükleyin ya da şimdilik bunu atlayın.</string>
+    <string name="setup_wizard_recommended_label">Önerilen</string>
+    <string name="setup_wizard_install_all_recommended">Tüm Önerilenleri Yükle</string>
+    <string name="setup_wizard_create_container">Kapsayıcı Oluştur</string>
+    <string name="setup_wizard_creating_container">Oluşturuluyor…</string>
+
+    <string name="input_controls_tap_to_click">Tıklamak İçin Dokun</string>
+    <!-- Steam > Login -->
+    <string name="steam_login_auth_webview_title">Yetkilendirme</string>
+    <string name="steam_login_sign_in_to_your_account">Hesabınızda oturum açın</string>
+    <string name="steam_login_username">Kullanıcı Adı</string>
+    <string name="steam_login_password">Parola</string>
+    <string name="steam_login_invalid_username_or_password">Geçersiz kullanıcı adı veya parola</string>
+    <string name="steam_login_remember_me">Beni Hatırla</string>
+    <string name="steam_login_sign_in_with_qr_code">QR Kodu ile oturum aç</string>
+    <string name="steam_login_open_steam_app_qr_hint">Steam uygulamasını açın → QR simgesine dokunun</string>
+    <string name="steam_login_failed_to_load_qr_code">QR kodu yüklenemedi</string>
+    <string name="steam_login_retry">Yeniden Dene</string>
+    <string name="steam_login_generating_code">Kod oluşturuluyor…</string>
+    <string name="steam_login_two_factor_auth">İki Aşamalı Kimlik Doğrulama</string>
+    <string name="steam_login_approve_login_steam_app">Bu oturum açmayı\nSteam mobil uygulamanızdan onaylayın</string>
+    <string name="steam_login_enter_code_sent_to">%1$s adresine gönderilen\nkodu girin</string>
+    <string name="steam_login_enter_steam_guard_code">Steam Guard kodunuzu girin</string>
+    <string name="steam_login_code">Kod</string>
+
+    <!-- Google > Cloud Sync -->
+    <string name="google_cloud_title">Bulut Eşitleme</string>
+    <string name="google_cloud_sync_started">Bulut eşitleme başladı.</string>
+    <string name="google_cloud_google">Google</string>
+    <string name="google_cloud_services">Google Hizmetleri</string>
+    <string name="google_auto_signin_title">Başlangıçta Google\'da oturum aç</string>
+    <string name="google_auto_signin_summary">Kayıt yedekleri ve eşitleme her zaman hazır olsun diye uygulama başladığında Google Play Games\'e otomatik bağlanır. Kapalıyken uygulama kendi başına asla oturum açmaz.</string>
+    <string name="google_auto_signin_section">Başlangıçta</string>
+    <string name="google_cloud_play_games">Google Play Games</string>
+    <string name="google_cloud_status_syncing">Eşitleniyor</string>
+    <string name="google_cloud_status_connected">Bağlı</string>
+    <string name="google_cloud_status_not_signed_in">Oturum Açılmadı</string>
+    <string name="google_cloud_working">Çalışıyor…</string>
+    <string name="google_cloud_sign_in">Oturum Aç</string>
+    <string name="google_cloud_disable_sync">Eşitlemeyi Devre Dışı Bırak</string>
+    <string name="google_cloud_store_logins">Mağaza Girişleri</string>
+    <string name="google_cloud_store_login_sync_busy">Mağaza girişi eşitlemeniz üzerinde çalışılıyor…</string>
+    <string name="google_cloud_saved_games_unavailable">Google Kayıtlı Oyunlar kullanılamıyor</string>
+    <string name="google_cloud_snapshot_ready">Bulut anlık görüntüsü hazır</string>
+    <string name="google_cloud_waiting_first_backup">İlk yedekleme bekleniyor</string>
+    <string name="google_cloud_no_store_logins_detected">Mağaza girişi algılanmadı</string>
+    <string name="google_cloud_last_synced">Son eşitleme: %1$s</string>
+    <string name="google_cloud_backup">Yedekle</string>
+    <string name="google_cloud_restore">Geri Yükle</string>
+    <string name="google_cloud_sign_in_to_sync">Mağaza girişlerini eşitlemek için Google Play Games\'te oturum açın.</string>
+    <string name="google_cloud_sign_in_failed">Google Play Games oturum açma başarısız.</string>
+    <string name="google_cloud_sign_in_finishing">Google Play Games oturum açma hâlâ tamamlanıyor. Bir an bekleyip bulut eşitlemeyi tekrar deneyin.</string>
+    <string name="google_cloud_connected_restore_available">Google Play Games bağlandı. %1$s için geri yükleme kullanılabilir.</string>
+    <string name="google_cloud_connected_tap_backup">Google Play Games bağlandı. %1$s girişlerini kaydetmek için Yedekle\'ye dokunun.</string>
+    <string name="google_cloud_connected_ready">Google Play Games bağlandı. Yedekleme ve Geri Yükleme hazır.</string>
+    <string name="google_cloud_sync_disabled">Bu uygulama için Google Play Games eşitlemesi devre dışı.</string>
+    <string name="google_cloud_sign_in_first">Önce Google Play Games\'te oturum açın.</string>
+    <string name="google_cloud_no_saved_logins_found">Google bulut eşitlemesinde kayıtlı mağaza girişi bulunamadı.</string>
+    <string name="google_cloud_backup_already_matches">Bulut yedeği zaten mevcut mağaza girişleriyle eşleşiyor.</string>
+    <string name="google_cloud_no_local_logins">Yedeklenecek yerel mağaza girişi yok.</string>
+    <string name="google_cloud_logins_restored_and_synced">%1$s için mağaza girişleri geri yüklendi ve eşitlendi.</string>
+    <string name="google_cloud_logins_restored">%1$s için mağaza girişleri geri yüklendi.</string>
+    <string name="google_cloud_logins_backed_up">%1$s için mağaza girişleri yedeklendi.</string>
+    <string name="google_cloud_sync_ready">Mağaza girişi eşitlemesi hazır.</string>
+    <string name="google_cloud_no_logins_to_sync">Henüz eşitlenecek mağaza girişi yok.</string>
+    <string name="google_cloud_sign_in_to_backup">%1$s giriş jetonlarını yedeklemek için oturum açın.</string>
+    <string name="google_cloud_no_backed_up_logins">Henüz yedeklenmiş mağaza girişi bulunamadı.</string>
+    <string name="google_cloud_local_cloud_differ">Yerel ve bulut mağaza girişleri farklı. Bulut verilerinin üzerine yazmak için Yedekle\'yi, kayıtlı jetonları çekmek için Geri Yükle\'yi kullanın.</string>
+    <string name="google_cloud_local_ready_to_backup">Yerel mağaza girişleri %1$s için yedeklenmeye hazır.</string>
+    <string name="google_cloud_backup_ready">Mağaza girişi yedeği hazır.</string>
+    <string name="google_cloud_restore_available">%1$s için bulut girişi geri yükleme mevcut.</string>
+    <string name="google_cloud_logins_synced">Mağaza girişleri Google Play Games ile eşitlendi.</string>
+    <string name="google_cloud_sync_problem">Mağaza girişi eşitlemesinde bir sorun oluştu.</string>
+    <string name="google_cloud_error_auth_needed">Bulut eşitlemesinin Kayıtlı Oyunlar\'a erişebilmesi için Google Play Games\'in kimlik doğrulamasını tamamlaması gerekiyor. Görünürse Play Games profil istemini açın, ardından tekrar deneyin.</string>
+    <string name="google_cloud_error_developer">Google Play Games Kayıtlı Oyunlar bu derlemeyi reddetti. Play Console\'da Play Games uygulama kimliğini, bağlı paket adını ve imzalama sertifikasını kontrol edin.</string>
+    <string name="google_cloud_error_build_rejected">Google hesabı bağlı, ancak Google Play Games Kayıtlı Oyunlar bu derlemeyi reddetti. Play Games uygulama kimliğini, bağlı paketi ve imzalama sertifikasını kontrol edin.</string>
+    <string name="google_cloud_error_network">Ağ isteği tamamlanmadığı veya Google Play services ilgi gerektirdiği için Google bulut eşitlemesi başarısız oldu.</string>
+    <string name="google_cloud_error_no_snapshot">Google bulut eşitlemesinde henüz kayıtlı mağaza girişi bulunamadı.</string>
+    <string name="google_cloud_error_generic">Google bulut eşitlemesi başarısız oldu: %1$s</string>
+    <string name="google_cloud_error_before_open">Google bulut eşitlemesi, Google Kayıtlı Oyunlar açılamadan başarısız oldu.</string>
+    <string name="cloud_saves_title">Bulut Kayıtları</string>
+    <string name="cloud_saves_title_for_provider">%1$s Bulut Kayıtları - %2$s</string>
+    <string name="cloud_saves_sync_summary">%1$s uygulamasının şu anki sürümünü çekin.</string>
+    <string name="cloud_saves_sync_summary_generic">Geçerli bulut sürümünü çekin.</string>
+    <string name="cloud_saves_no_backups">Bu oyun için henüz yedek yok.</string>
+    <string name="cloud_sync_title">Bulut Kayıtları</string>
+    <string name="cloud_sync_disable_title">Bulut Kayıtlarını Devre Dışı Bırak</string>
+    <string name="cloud_saves_steam_push_label">Steam Cloud\'a Gönder</string>
+    <string name="cloud_saves_steam_push_helper">Yerel kaydı zorla yükle</string>
+    <string name="cloud_saves_steam_push_success">Kayıt Steam Cloud\'a gönderildi.</string>
+    <string name="cloud_saves_steam_push_failed">Kayıt Steam Cloud\'a gönderilemedi.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud şu anda erişilemiyor. Arka planda yeniden bağlanılıyor; çevrimiçi olunca yenilemeye dokunun.</string>
+    <string name="steam_session_refused_event">Steam önbelleğe alınmış oturumu reddetti (EResult=%1$d). Lütfen tekrar oturum açın.</string>
+    <string name="cloud_sync_enabled_summary">Başlatıldığında indir, çıkışta gönder.</string>
+    <string name="cloud_sync_disabled_summary">Bulut kaydı indirmeden veya çıkış eşitlemesi olmadan başlat.</string>
+    <string name="cloud_saves_offline_mode">Bulut Eşitlemesini Devre Dışı Bırak</string>
+    <string name="cloud_saves_offline_mode_summary">Bu oyun için tüm otomatik bulut etkinliğini durdurur.</string>
+    <string name="cloud_saves_backing_up">Bulut kaydı yedekleniyor…</string>
+    <string name="cloud_saves_restoring">Bulut kaydı geri yükleniyor…</string>
+
+    <!-- Cloud Saves > Provider sync & backup history -->
+    <string name="cloud_saves_sync_from_provider">%1$s Cloud\'dan eşitle</string>
+    <string name="cloud_saves_sync_from_provider_generic">Bulut\'tan eşitle</string>
+    <string name="cloud_saves_syncing_from_provider">%1$s uygulamasından kayıt indiriliyor…</string>
+    <string name="cloud_saves_sync_from_provider_success">%1$s bulut kaydı indirildi.</string>
+    <string name="cloud_saves_sync_from_provider_failed">%1$s uygulamasından kayıt indirilemedi.</string>
+    <string name="cloud_saves_gog_manage_label">GOG Bulut Kayıtlarını Yönet</string>
+    <string name="cloud_saves_gog_manage_helper">Resmi GOG Web Sitesini açar</string>
+    <string name="cloud_saves_gog_manage_no_browser">GOG bulut kayıtları sayfasını açacak tarayıcı yok</string>
+    <string name="cloud_saves_gog_zip_label">GOG Bulut Zip\'i İndir</string>
+    <string name="cloud_saves_gog_zip_helper">Geçerli bulut dosyalarını kaydet</string>
+    <string name="cloud_saves_gog_zip_success">GOG bulut kayıtları zip\'i kaydedildi.</string>
+    <string name="cloud_saves_gog_zip_failed">GOG bulut kayıtları zip\'i kaydedilemedi.</string>
+    <string name="cloud_saves_gog_zip_empty">GOG bulut kaydı dosyası bulunamadı.</string>
+    <string name="cloud_saves_google_backup_label">Google\'a Yedekle</string>
+    <string name="cloud_saves_google_backup_helper">Google Play Games\'e bir kopya kaydet</string>
+    <string name="cloud_saves_google_backup_no_save">Yedeklenecek kayıt dosyası bulunamadı.</string>
+    <string name="cloud_saves_history_title">Kayıt Geçmişi</string>
+    <string name="cloud_saves_history_empty">Henüz yedeklenmiş önceki kayıt yok. Değiştirilen kayıtlar ve manuel yedekler burada 30 gün boyunca görünür.</string>
+    <string name="cloud_saves_history_loading">Kayıt geçmişi yükleniyor…</string>
+    <string name="cloud_saves_history_sign_in">Kayıt geçmişinizi görüntülemek için Google\'da oturum açın.</string>
+    <string name="cloud_saves_history_origin_local">yerel</string>
+    <string name="cloud_saves_history_origin_cloud">bulut</string>
+    <string name="cloud_saves_history_origin_manual">manuel</string>
+    <string name="cloud_saves_history_origin_auto">otomatik</string>
+    <!-- Save History badge: where the backup is stored. -->
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_restore">Geri Yükle</string>
+    <string name="cloud_saves_history_download">İndir</string>
+    <string name="cloud_saves_history_download_success">Dosya indirildi.</string>
+    <string name="cloud_saves_history_download_failed">İndirme başarısız oldu.</string>
+    <string name="cloud_saves_history_cloud_readonly">Salt okunur</string>
+    <string name="cloud_saves_history_restore_confirm_title">Bu yedek geri yüklensin mi?</string>
+    <string name="cloud_saves_history_restore_confirm_body">Bu, mevcut yerel kaydınızı %1$s tarihli yedekle değiştirir.</string>
+    <string name="cloud_saves_history_restore_success">Kayıt yedekten geri yüklendi.</string>
+    <string name="cloud_saves_history_restore_failed">Bu yedek geri yüklenemedi.</string>
+    <string name="cloud_saves_keep_replaced_backup">Değiştirilen kaydın bir yedeğini tut</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">Fikrinizi değiştirirseniz, Kayıt Geçmişi\'nden geri yükleyebilirsiniz.</string>
+    <string name="cloud_saves_history_refresh">Yenile</string>
+    <string name="cloud_saves_history_rename">Yeniden Adlandır</string>
+    <string name="cloud_saves_history_rename_title">Bu yedeği adlandırın</string>
+    <string name="cloud_saves_history_rename_hint">örn. Boss savaşı, Bitiş öncesi</string>
+    <string name="cloud_saves_history_rename_save">Kaydet</string>
+    <string name="cloud_saves_history_rename_clear">Temizle</string>
+    <string name="cloud_saves_history_rename_success">Yedek yeniden adlandırıldı.</string>
+    <string name="cloud_saves_history_rename_failed">Yedek yeniden adlandırılamadı.</string>
+
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Kayıt Klasörü Seç</string>
+    <string name="cloud_saves_custom_folder_label">Kayıt Klasörü</string>
+    <string name="cloud_saves_custom_select_folder_summary">Kapsayıcı içindeki kayıt dizinini işaret edin</string>
+    <string name="cloud_saves_custom_no_container">Bu kısayol için kapsayıcı mevcut değil</string>
+    <string name="cloud_saves_custom_picker_title">Kayıt klasörünü seç</string>
+    <string name="cloud_saves_custom_outside_drive_c">Seçilen klasör, kapsayıcının C: sürücüsünün içinde olmalıdır</string>
+    <string name="cloud_saves_custom_path_map_failed">Seçilen klasör bir Windows yoluna eşlenemedi.</string>
+    <string name="cloud_saves_custom_folder_set">Kayıt klasörü %1$s olarak ayarlandı</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Steam Cloud\'dan eşitle</string>
+    <string name="cloud_saves_steam_sync_helper">En son kaydı indir</string>
+    <string name="cloud_saves_steam_sync_success">Steam Cloud\'dan eşitlendi</string>
+    <string name="cloud_saves_steam_sync_failed">Steam Cloud eşitlemesi başarısız oldu</string>
+    <string name="cloud_saves_steam_browse_label">Steam Cloud Kayıtlarını Görüntüle</string>
+    <string name="cloud_saves_steam_browse_helper">Bulut depolamasını aç</string>
+    <string name="cloud_saves_steam_browse_no_browser">Steam sayfasını açacak tarayıcı yok</string>
+    <string name="cloud_saves_steam_import_label">Dosyaları İçe Aktar</string>
+    <string name="cloud_saves_steam_import_helper">İndirilen dosyaları geri yükle</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Dosya seçici kullanılamıyor</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Bu, Steam Cloud\'un geçerli kayıt dosyalarını indirir ve mevcut kayıt dosyalarının üzerine yazar.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Geçersiz uygulama kimliği</string>
+    <string name="cloud_saves_label_saved">Etiket kaydedildi</string>
+
+    <!-- Saves > Import and Export -->
+    <string name="saves_import_export_title">Kayıtlar</string>
+    <string name="saves_import_export_confirm_selection">Seçimi Onayla</string>
+    <string name="saves_import_export_select_directory">Kayıt dizininizi seçin</string>
+    <string name="saves_import_export_up_directory">Üst Dizin</string>
+    <string name="saves_import_export_select_container">Hedef Kapsayıcı:</string>
+    <string name="saves_import_export_exported">Kayıtlar başarıyla dışa aktarıldı</string>
+    <string name="saves_import_export_exported_failed">Kayıtlar dışa aktarılamadı: %1$s</string>
+    <string name="saves_import_export_imported">Kayıtlar başarıyla içe aktarıldı</string>
+    <string name="saves_import_export_imported_failed">Kayıtlar içe aktarılamadı: %1$s</string>
+    <string name="saves_export_path_summary">Kayıtlar /WinNative/saves konumuna dışa aktarılacak</string>
+    <string name="saves_export_success_path">%1$s konumuna dışa aktarıldı</string>
+    <string name="saves_export_warning_title">Bunu yalnızca özel oyunlarla kullanın</string>
+    <string name="saves_export_warning_body">Dışa aktarma, mağazadan yüklenen veya bulut eşitlemeli oyunların kayıtlarını içerebilir.</string>
+    <string name="saves_import_warning_title">Bu, bu kapsayıcıdaki mevcut kayıtların üzerine yazar</string>
+    <string name="saves_import_warning_body">Birden fazla oyun içeren eski bir yedeği geri yüklerken, önce dosya yöneticinizle daha yeni kayıtları zip\'e kopyalayın. Yalnızca .zip içinde bulunan Kayıtlar etkilenir. Kayıtları akıllıca yönetin.</string>
+
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Kapsayıcı</string>
+    <string name="preloader_initializing">Başlatılıyor</string>
+    <string name="preloader_launching">Başlatılıyor</string>
+    <string name="preloader_closing">%1$s kapatılıyor</string>
+    <string name="preloader_preparing_steam_environment">Steam ortamı hazırlanıyor</string>
+    <string name="preloader_starting_wine">Wine başlatılıyor</string>
+    <string name="preloader_starting_steam_launcher">Steam Launcher başlatılıyor</string>
+    <string name="preloader_loading_steam_client">Steam istemcisi yükleniyor</string>
+    <string name="preloader_connecting_to_steam">Steam\'e bağlanılıyor</string>
+    <string name="preloader_signing_in_to_steam">Steam\'de oturum açılıyor</string>
+    <string name="preloader_fetching_game_info">Oturum açıldı — oyun bilgisi alınıyor</string>
+    <string name="preloader_steam_ready">Steam hazır</string>
+    <string name="preloader_updating_game_info">Oyun bilgisi güncelleniyor</string>
+    <string name="preloader_verifying_install">Kurulum doğrulanıyor</string>
+    <string name="preloader_scanning_redists">Yeniden dağıtılabilir bileşenler taranıyor</string>
+    <string name="preloader_installing_redist_single">Yeniden dağıtılabilir bileşen yükleniyor</string>
+    <string name="preloader_installing_named_redist">%1$s yükleniyor</string>
+    <string name="preloader_installing_named_redist_progress">%1$s yükleniyor (%2$s)</string>
+    <string name="preloader_redists_ready">Yeniden dağıtılabilir bileşenler hazır</string>
+    <string name="preloader_no_redists">Yüklenecek yeniden dağıtılabilir bileşen yok</string>
+    <string name="preloader_steam_service_running">Steam hizmeti çalışıyor</string>
+    <string name="preloader_launching_game">%1$s başlatılıyor</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher başarısız oldu — varlıklar yeniden hazırlanıyor</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher başlatılamadı. Yeniden hazırlanıyor — lütfen yeniden başlatın</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher oyuna ulaştı ancak oyun hiç başlamadı</string>
+    <string name="preloader_setup_environment">Ortam kuruluyor</string>
+    <string name="preloader_retrying_steam_client_download">Steam istemcisi indirmesi yeniden deneniyor</string>
+    <string name="preloader_installing_mono">Wine Mono v%1$s yükleniyor</string>
+    <string name="preloader_installing_redist">Yeniden dağıtılabilir bileşenler yükleniyor</string>
+    <string name="preloader_unpacking_exe">Oyun yürütülebilir dosyası açılıyor</string>
+    <string name="preloader_downloading_cloud">Bulut kayıtları indiriliyor</string>
+    <string name="preloader_syncing_cloud">Bulut kayıtları eşitleniyor</string>
+    <string name="preloader_uploading_cloud">Bulut kayıtları yükleniyor</string>
+    <string name="preloader_checking_cloud">Bulut kayıtları kontrol ediliyor</string>
+    <string name="preloader_cloud_sync_retry">%1$s Yeniden deneme %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Bulut Eşitlemesi İndiriliyor</string>
+    <string name="cloud_sync_failed_provider">%1$s bulut kaydı eşitlemesi başarısız oldu.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Özel Oyun</string>
+
+    <!-- Performance recording settings -->
+    <string name="settings_hud_record_to_file_title">Performansı dosyaya kaydet</string>
+    <string name="settings_hud_record_to_file_summary">Oyun sırasında saniye başına FPS, CPU, GPU, sıcaklık ve pil ölçümlerini /WinNative/logs/ konumuna dışa aktarır.</string>
+    <string name="settings_leaderboard_category">Performans</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Workshop öğeleri yükleniyor</string>
+    <string name="workshop_search_items">Workshop öğelerinde ara</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Abone olduğunuz öğeler Steam\'den alınıyor.</string>
+    <string name="workshop_error_title">Workshop öğeleri yüklenemedi</string>
+    <string name="workshop_error_subtitle">Bir şeyler ters gitti. Tekrar deneyin.</string>
+    <string name="workshop_empty_title">Abone olunmuş Workshop öğesi yok</string>
+    <string name="workshop_empty_subtitle">Steam Workshop\'ta öğelere abone olun, ardından bu pencereyi yeniden açın.</string>
+    <string name="workshop_search_empty_title">\"%1$s\" ile eşleşen öğe yok</string>
+    <string name="workshop_search_empty_subtitle">Farklı bir arama terimi deneyin.</string>
+    <string name="workshop_clear_search">Aramayı temizle</string>
+    <string name="workshop_item_fallback">Workshop öğesi</string>
+    <string name="common_ui_failed">Başarısız</string>
+    <string name="steam_presence_snooze">Ertele</string>
+    <string name="steam_presence_busy">Meşgul</string>
+    <string name="steam_presence_looking_to_trade">Takas Arıyor</string>
+    <string name="steam_presence_looking_to_play">Oynamak İstiyor</string>
+    <string name="steam_friends_count">Arkadaşlar — %1$d çevrimiçi</string>
+    <string name="steam_friends_section_in_game">Oyunda (%1$d)</string>
+    <string name="steam_friends_section_online">Çevrimiçi (%1$d)</string>
+    <string name="steam_friends_section_offline">Çevrimdışı (%1$d)</string>
+    <string name="steam_friends_none_loaded">Henüz arkadaş yüklenmedi.</string>
+    <string name="steam_friends_self_you">Sen</string>
+    <string name="steam_friends_in_game">Oyunda</string>
+    <string name="steam_friends_join">Katıl</string>
+    <string name="steam_friends_play">Oyna</string>
+    <string name="steam_chat_image_failed">(resim gönderilemedi)</string>
+    <string name="steam_chat_empty">Henüz mesaj yok. Merhaba deyin!</string>
+    <string name="steam_chat_uploading_image">Resim yükleniyor…</string>
+    <string name="steam_chat_send_image">Resim gönder</string>
+    <string name="steam_chat_message_hint">Mesaj…</string>
+    <string name="steam_chat_send">Gönder</string>
+    <string name="steam_chat_image">Resim</string>
+    <string name="steam_common_back">Geri</string>
+    <string name="steam_achievements_title">Başarımlar</string>
+    <string name="steam_achievements_empty">Bu oyun için başarım bulunamadı,\nveya yüklemek için Steam\'de oturum açın.</string>
+    <string name="steam_achievements_hidden">Gizli başarım</string>
+    <string name="steam_achievements_hidden_desc">Bu başarımı açığa çıkarmak için oynamaya devam edin.</string>
+    <string name="steam_achievements_unlocked_on">%1$s tarihinde açıldı</string>
+    <string name="steam_achievements_unlocked">Açıldı</string>
+    <string name="steam_join_joining">%2$s içinde %1$s oyununa katılınıyor…</string>
+    <string name="steam_join_install">%2$s oyununa katılmak için %1$s yükleyin</string>
+    <string name="steam_join_not_owned">%1$s size ait değil</string>
+    <string name="steam_chat_not_sent">(gönderilmedi)</string>
+    <string name="steam_join_the_game">oyun</string>
+    <string name="steam_friends_settings">Ayarlar</string>
+    <string name="steam_chat_settings_title">Sohbet Ayarları</string>
+    <string name="steam_chat_setting_notifications">Sohbet Bildirimleri</string>
+    <string name="steam_chat_setting_notifications_desc">Bir mesaj aldığınızda bildirim göster</string>
+    <string name="steam_chat_setting_heads">Sohbet Balonları</string>
+    <string name="steam_chat_setting_heads_desc">Mesajları okumak ve yanıtlamak için kayan balonlar</string>
+    <string name="steam_chat_setting_ingame">Oyunda Sohbeti Etkinleştir</string>
+    <string name="steam_chat_setting_ingame_desc">Oynarken mesaj alın ve gönderin</string>
+    <string name="steam_chat_setting_stay_running">Arka Planda Çalıştır</string>
+    <string name="steam_chat_setting_stay_running_desc">WinNative\'den çıktıktan sonra sohbeti çalışır durumda tut</string>
+    <string name="steam_chat_settings_overlay_needed">Sohbet balonlarını kullanmak için diğer uygulamaların üzerinde göstermeye izin verin</string>
+    <string name="steam_chat_heads_title">Mesajlar</string>
+    <string name="steam_chat_heads_recent_title">Son</string>
+    <string name="steam_chat_heads_online_title">Çevrimiçi</string>
+    <string name="steam_chat_heads_new_chat">Yeni mesaj</string>
+    <string name="steam_chat_setting_autohide">Otomatik Gizle</string>
+    <string name="steam_chat_setting_autohide_desc">10 sn hareketsizlikten sonra sohbet balonunu soldur</string>
+    <string name="steam_chat_heads_friends_title">Arkadaşlar</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Dosyalar</string>
+    <string name="file_manager_copy">Kopyala</string>
+    <string name="file_manager_cut">Kes</string>
+    <string name="file_manager_paste">Yapıştır</string>
+    <string name="file_manager_paste_here">Buraya yapıştır</string>
+    <string name="file_manager_new_folder">Yeni Klasör</string>
+    <string name="file_manager_create">Oluştur</string>
+    <string name="file_manager_delete">Sil</string>
+    <string name="file_manager_run_boot">Çalıştır / Başlat</string>
+    <string name="file_manager_create_shortcut">Kısayol Oluştur</string>
+    <string name="file_manager_run_in_container">Kapsayıcıda çalıştır</string>
+    <string name="file_manager_no_containers">Kullanılabilir kapsayıcı yok</string>
+    <string name="file_manager_delete_confirm">\"%1$s\" silinsin mi? Bu geri alınamaz.</string>
+    <string name="file_manager_copying">%1$s kopyalanıyor</string>
+    <string name="file_manager_moving">%1$s taşınıyor</string>
+    <string name="file_manager_paste_into_itself">Bir klasör kendi içine yapıştırılamaz</string>
+    <string name="file_manager_operation_failed">İşlem başarısız oldu</string>
+    <string name="file_manager_delete_failed">Silme başarısız oldu</string>
+    <string name="file_manager_rename_failed">Yeniden adlandırma başarısız oldu</string>
+    <string name="file_manager_create_folder_failed">Klasör oluşturma başarısız oldu</string>
+
+    <string name="settings_content_refresh">Yenile</string>
+</resources>

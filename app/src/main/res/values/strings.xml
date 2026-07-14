@@ -585,6 +585,7 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore Preset</string>
     <string name="container_fexcore_version">FEXCore Version</string>
+    <string name="use_unix_libs">Use UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Graphics Driver</string>
@@ -602,6 +603,8 @@
     <string name="container_graphics_bcn_emulation">BCn Emulation</string>
     <string name="container_graphics_bcn_emulation_type">BCn Emulation Type</string>
     <string name="container_graphics_bcn_emulation_cache">BCn Emulation Cache</string>
+    <string name="container_graphics_transcoder">BCn Transcoder</string>
+    <string name="container_graphics_quality">BCn Quality</string>
     <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
     <!-- Container > Presets -->
     <string name="container_presets_confirm_duplicate">Do you want to duplicate this preset?</string>
@@ -737,8 +740,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="session_drawer_hud_element_cpu">CPU</string>
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">BAT</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_hud_element_graph">Graph</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">Move HUD to</string>
     <string name="hud_position_top_left">Top Left</string>
     <string name="hud_position_top_center">Top Center</string>
@@ -1110,6 +1114,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="settings_other_language_title">Language</string>
     <string name="settings_other_language_summary">Choose the display language</string>
     <string name="settings_other_language_system_default">System default</string>
+    <string name="settings_other_game_language_title">Game Language</string>
+    <string name="settings_other_game_language_summary">Preferred language for Steam/Epic/GOG downloads</string>
 
     <string name="settings_other_section_integration">Integration</string>
     <string name="settings_other_setup_wizard_title">Setup Wizard</string>
@@ -1363,6 +1369,9 @@ Installed path:
     <string name="cloud_saves_history_storage_epic">Epic</string>
     <string name="cloud_saves_history_storage_gog">GOG</string>
     <string name="cloud_saves_history_restore">Restore</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">File downloaded.</string>
+    <string name="cloud_saves_history_download_failed">Download failed.</string>
     <string name="cloud_saves_history_cloud_readonly">Read-only</string>
     <string name="cloud_saves_history_restore_confirm_title">Restore this backup?</string>
     <string name="cloud_saves_history_restore_confirm_body">This will replace your current local save with the backup from %1$s.</string>
@@ -1555,4 +1564,5 @@ Installed path:
     <string name="file_manager_delete_failed">Delete failed</string>
     <string name="file_manager_rename_failed">Rename failed</string>
     <string name="file_manager_create_folder_failed">Create folder failed</string>
+    <string name="settings_content_refresh">Refresh</string>
 </resources>

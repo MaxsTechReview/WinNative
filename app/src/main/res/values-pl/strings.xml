@@ -509,9 +509,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Preset FEXCore</string>
     <string name="container_fexcore_version">Wersja FEXCore</string>
+    <string name="use_unix_libs">Użyj UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Sterownik grafiki</string>
+    <string name="container_graphics_transcoder">Transkoder BCn</string>
+    <string name="container_graphics_quality">Jakość BCn</string>
     <string name="container_graphics_configuration">Konfiguracja sterownika grafiki</string>
     <string name="container_graphics_version">Wersja sterownika grafiki</string>
     <string name="container_graphics_available_extensions">Dostępne rozszerzenia</string>
@@ -592,6 +595,7 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Wykr.</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Czy chcesz zakończyć ten proces?</string>
@@ -829,6 +833,8 @@ Np. <b>META</b> dla <i>klawisza META</i>, \n
 
     <string name="settings_other_language_title">Język</string>
     <string name="settings_other_language_summary">Wybierz język wyświetlania</string>
+    <string name="settings_other_game_language_title">Język gry</string>
+    <string name="settings_other_game_language_summary">Preferowany język pobierania ze Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Domyślny systemu</string>
 
     <string name="settings_other_section_integration">Integracja</string>
@@ -1180,6 +1186,9 @@ Zainstalowana ścieżka:
     <string name="cloud_saves_history_restore_success">Zapis przywrócony z kopii zapasowej.</string>
     <string name="cloud_saves_history_sign_in">Zaloguj się do Google, aby wyświetlić historię zapisów.</string>
     <string name="cloud_saves_history_title">Historia zapisów</string>
+    <string name="cloud_saves_history_download">Pobierz</string>
+    <string name="cloud_saves_history_download_success">Plik pobrany.</string>
+    <string name="cloud_saves_history_download_failed">Pobieranie nie powiodło się.</string>
     <string name="cloud_saves_keep_replaced_backup">Zachowaj kopię zapasową zastąpionego zapisu</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Jeśli zmienisz zdanie, możesz ją przywrócić z Historii zapisów.</string>
     <string name="cloud_saves_no_backups">Brak kopii zapasowych dla tej gry.</string>
@@ -1519,7 +1528,7 @@ Zainstalowana ścieżka:
     <string name="session_drawer_hud_background">Tło</string>
     <string name="session_drawer_hud_background_alpha">Alfa tła</string>
     <string name="session_drawer_hud_background_alpha_input_title">Ustaw alfę tła</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Dopasuj rozmiar</string>
     <string name="session_task_bring_to_front">Przenieś na wierzch</string>
     <string name="session_task_custom_value">Wartość niestandardowa</string>
@@ -1562,5 +1571,6 @@ Zainstalowana ścieżka:
     <string name="session_record_started">Rozpoczęto nagrywanie</string>
     <string name="steam_chat_setting_stay_running">Uruchom w tle</string>
     <string name="steam_chat_setting_stay_running_desc">Pozostaw czat aktywny po zamknięciu WinNative</string>
+    <string name="settings_content_refresh">Odśwież</string>
 </resources>
 

@@ -509,9 +509,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Пресет FEXCore</string>
     <string name="container_fexcore_version">Версія FEXCore</string>
+    <string name="use_unix_libs">Використовувати UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графічний драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Якість BCn</string>
     <string name="container_graphics_configuration">Конфігурація графічного драйвера</string>
     <string name="container_graphics_version">Версія графічного драйвера</string>
     <string name="container_graphics_available_extensions">Доступні розширення</string>
@@ -592,6 +595,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Бат.</string>
     <string name="session_drawer_hud_element_graph">Графік</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Ви хочете завершити цей процес?</string>
@@ -829,6 +833,8 @@
 
     <string name="settings_other_language_title">Мова</string>
     <string name="settings_other_language_summary">Виберіть мову інтерфейсу</string>
+    <string name="settings_other_game_language_title">Мова гри</string>
+    <string name="settings_other_game_language_summary">Бажана мова для завантажень Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">За замовчуванням системи</string>
 
     <string name="settings_other_section_integration">Інтеграція</string>
@@ -1180,6 +1186,9 @@
     <string name="cloud_saves_history_restore_success">Збереження відновлено з резервної копії.</string>
     <string name="cloud_saves_history_sign_in">Увійдіть у Google, щоб переглянути історію збережень.</string>
     <string name="cloud_saves_history_title">Історія збережень</string>
+    <string name="cloud_saves_history_download">Завантажити</string>
+    <string name="cloud_saves_history_download_success">Файл завантажено.</string>
+    <string name="cloud_saves_history_download_failed">Не вдалося завантажити.</string>
     <string name="cloud_saves_keep_replaced_backup">Зберігати резервну копію замінених збережень</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Якщо передумаєте, можна відновити їх з Історії збережень.</string>
     <string name="cloud_saves_no_backups">Для цієї гри ще немає резервних копій.</string>
@@ -1519,7 +1528,7 @@
     <string name="session_drawer_hud_background">Фон</string>
     <string name="session_drawer_hud_background_alpha">Альфа фону</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задати альфу фону</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Змінити розмір</string>
     <string name="session_task_bring_to_front">На передній план</string>
     <string name="session_task_custom_value">Власне значення</string>
@@ -1562,5 +1571,6 @@
     <string name="session_record_started">Запис розпочато</string>
     <string name="steam_chat_setting_stay_running">Працювати у фоні</string>
     <string name="steam_chat_setting_stay_running_desc">Залишати чат активним після виходу з WinNative</string>
+    <string name="settings_content_refresh">Оновити</string>
 </resources>
 

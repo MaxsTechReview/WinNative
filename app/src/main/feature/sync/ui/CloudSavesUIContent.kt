@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -166,6 +169,38 @@ internal fun CloudSavesContent(
         }
     var gogZipBusy by remember { mutableStateOf(false) }
     var googleBackupBusy by remember { mutableStateOf(false) }
+    var pendingCloudFileDownload by remember {
+        mutableStateOf<GameSaveBackupManager.BackupHistoryEntry?>(null)
+    }
+    val cloudFileDownloadLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            val entry = pendingCloudFileDownload
+            pendingCloudFileDownload = null
+            if (uri == null || entry == null) return@rememberLauncherForActivityResult
+            val appId = gameId.toIntOrNull() ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val bytes = SteamCloudHistoryProvider.downloadFileBytes(appId, entry.fileId)
+                            if (bytes == null) {
+                                false
+                            } else {
+                                context.contentResolver.openOutputStream(uri)?.use { output ->
+                                    output.write(bytes)
+                                    true
+                                } ?: false
+                            }
+                        }.getOrDefault(false)
+                    }
+                notify(
+                    context.getString(
+                        if (ok) R.string.cloud_saves_history_download_success else R.string.cloud_saves_history_download_failed,
+                    ),
+                    Toast.LENGTH_SHORT,
+                )
+            }
+        }
     val gogZipLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -732,6 +767,15 @@ internal fun CloudSavesContent(
             },
             onRestore = { entry -> entryPendingRestore = entry },
             onRename = { entry -> entryPendingRename = entry },
+            onDownload = { entry ->
+                pendingCloudFileDownload = entry
+                runCatching {
+                    cloudFileDownloadLauncher.launch(entry.fileName.substringAfterLast('/'))
+                }.onFailure {
+                    pendingCloudFileDownload = null
+                    notify(context.getString(R.string.cloud_saves_history_download_failed), Toast.LENGTH_SHORT)
+                }
+            },
         )
 
         if (showBottomBack) {
@@ -1062,6 +1106,7 @@ private fun SaveHistorySection(
     onRefresh: () -> Unit,
     onRestore: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
     onRename: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
+    onDownload: (GameSaveBackupManager.BackupHistoryEntry) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
@@ -1124,17 +1169,27 @@ private fun SaveHistorySection(
                 }
 
                 else -> {
-                    entries.forEachIndexed { index, entry ->
-                        SaveHistoryRow(
-                            entry = entry,
-                            onRestore = { onRestore(entry) },
-                            onRename = { onRename(entry) },
-                        )
-                        if (index < entries.lastIndex) {
-                            HorizontalDivider(
-                                color = CloudBorder.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 10.dp),
+                    // Scrolls within a bounded panel so long histories aren't cut off on hosts without their own scrolling.
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                    ) {
+                        entries.forEachIndexed { index, entry ->
+                            SaveHistoryRow(
+                                entry = entry,
+                                onRestore = { onRestore(entry) },
+                                onRename = { onRename(entry) },
+                                onDownload = { onDownload(entry) },
                             )
+                            if (index < entries.lastIndex) {
+                                HorizontalDivider(
+                                    color = CloudBorder.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -1148,6 +1203,7 @@ private fun SaveHistoryRow(
     entry: GameSaveBackupManager.BackupHistoryEntry,
     onRestore: () -> Unit,
     onRename: () -> Unit,
+    onDownload: () -> Unit,
 ) {
     val whenLabel =
         remember(entry.timestampMs) {
@@ -1168,11 +1224,11 @@ private fun SaveHistoryRow(
             GameSaveBackupManager.BackupStorage.EPIC_CLOUD -> stringResource(R.string.cloud_saves_history_storage_epic)
             GameSaveBackupManager.BackupStorage.GOG_CLOUD -> stringResource(R.string.cloud_saves_history_storage_gog)
         }
-    // STEAM_CLOUD "groups" view the CURRENT cloud file list (no server-side version history), so they're read-only history like GOG_CLOUD — per-entry rollback lives in STEAM_LOCAL snapshots.
+    // STEAM_CLOUD entries mirror Steam's remote-storage website: one row per current cloud file, downloadable — no fake version history. Per-entry rollback lives in STEAM_LOCAL snapshots.
     val canRestore =
         entry.storage != GameSaveBackupManager.BackupStorage.GOG_CLOUD &&
             entry.storage != GameSaveBackupManager.BackupStorage.STEAM_CLOUD
-    val isReadOnlyCloudGroup = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
+    val canDownload = entry.storage == GameSaveBackupManager.BackupStorage.STEAM_CLOUD
     Row(
         modifier =
             Modifier
@@ -1261,13 +1317,12 @@ private fun SaveHistoryRow(
                     onClick = onRestore,
                 )
                 Spacer(Modifier.width(6.dp))
-            } else if (isReadOnlyCloudGroup) {
-                Text(
-                    text = stringResource(R.string.cloud_saves_history_cloud_readonly),
-                    color = TextSecondary,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp,
+            } else if (canDownload) {
+                HistoryActionChip(
+                    icon = Icons.Outlined.Download,
+                    label = stringResource(R.string.cloud_saves_history_download),
+                    tint = CloudAccent,
+                    onClick = onDownload,
                 )
                 Spacer(Modifier.width(6.dp))
             }

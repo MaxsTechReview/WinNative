@@ -82,6 +82,7 @@ import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -91,7 +92,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -279,7 +279,7 @@ private val DownloadChaseGradientStops =
     )
 private val TabScreenHorizontalPadding = 16.dp
 private val TabScreenBottomPadding = 8.dp
-private val UnifiedTopBarHorizontalPadding = 8.dp
+private val UnifiedTopBarHorizontalPadding = 12.dp
 private val UnifiedTopBarTopPadding = 4.dp
 private val UnifiedTopBarHeight = 56.dp
 private val TabListContentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
@@ -910,6 +910,7 @@ class UnifiedActivity :
         chasingBordersPaused.value = false
         if (hasCompletedInitialResume) {
             libraryPlaytimeRefreshSignal++
+            SteamService.ensureHealthySession()
         } else {
             hasCompletedInitialResume = true
         }
@@ -2364,12 +2365,20 @@ class UnifiedActivity :
                 if (immersiveMode && currentTabKeyForImmersive == "library") {
                     val immersiveModel by immersiveBackgroundRef.collectAsState()
                     val immersiveRequest =
-                        remember(immersiveModel, context) {
+                        remember(immersiveModel, immersiveBlur, context) {
                             val builder = ImageRequest.Builder(context).data(immersiveModel)
                             (immersiveModel as? java.io.File)?.takeIf { it.isFile }?.let { file ->
                                 // Custom uploads can be overwritten in place.
                                 val key = "library_immersive_bg:${file.absolutePath}:${file.lastModified()}"
-                                builder.memoryCacheKey(key).diskCacheKey(key)
+                                builder.memoryCacheKey(if (immersiveBlur) "$key:blur" else key).diskCacheKey(key)
+                            }
+                            if (immersiveBlur) {
+                                // Blur baked into the bitmap at decode (quarter-res + radius 2 ≈ 8px on screen), so drawing costs the same as a plain image.
+                                val dm = context.resources.displayMetrics
+                                builder
+                                    .size(dm.widthPixels / 4, dm.heightPixels / 4)
+                                    .scale(coil.size.Scale.FILL)
+                                    .transformations(BoxBlurTransformation(radius = 2))
                             }
                             builder.crossfade(400).build()
                         }
@@ -2380,13 +2389,10 @@ class UnifiedActivity :
                         modifier = Modifier.matchParentSize(),
                     ) {
                         Box(Modifier.matchParentSize()) {
-                            val immersiveBlurRadius = with(LocalDensity.current) { 8f.toDp() }
-                            val blurModifier =
-                                if (immersiveBlur) Modifier.blur(immersiveBlurRadius) else Modifier
                             AsyncImage(
                                 model = immersiveRequest,
                                 contentDescription = null,
-                                modifier = Modifier.matchParentSize().then(blurModifier),
+                                modifier = Modifier.matchParentSize(),
                                 contentScale = ContentScale.Crop,
                             )
                             Box(
@@ -3448,6 +3454,7 @@ class UnifiedActivity :
         var customApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var localLibraryRefreshKey by remember { mutableIntStateOf(0) }
         var shortcutsLoaded by remember { mutableStateOf(false) }
+        var pullRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(shortcutRefreshKey, localLibraryRefreshKey) {
             shortcutsLoaded = false
 
@@ -3524,7 +3531,7 @@ class UnifiedActivity :
         var libraryLoaded by remember { mutableStateOf(false) }
         // Suppress transient empty states before background recomputation starts.
         val scanInputToken =
-            remember(steamApps, epicApps, gogApps, customApps, libraryRefreshKey) { Any() }
+            remember(steamApps, epicApps, gogApps, customApps, libraryRefreshKey, localLibraryRefreshKey) { Any() }
         var processedScanToken by remember { mutableStateOf<Any?>(null) }
 
         LaunchedEffect(scanInputToken) {
@@ -3583,6 +3590,7 @@ class UnifiedActivity :
                     }
                     libraryLoaded = true
                     processedScanToken = scanInputToken
+                    pullRefreshing = false
                 }
             }
         }
@@ -3876,8 +3884,20 @@ class UnifiedActivity :
                     navigateToSettings(SettingsNavItem.STORES)
                 }
             } else if (anyLoggedIn) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    EmptyStateMessage(stringResource(R.string.library_games_no_games_installed))
+                PullToRefreshBox(
+                    isRefreshing = pullRefreshing,
+                    onRefresh = {
+                        pullRefreshing = true
+                        localLibraryRefreshKey++
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Box(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        EmptyStateMessage(stringResource(R.string.library_games_no_games_installed))
+                    }
                 }
             }
             return
@@ -3966,39 +3986,38 @@ class UnifiedActivity :
             }
         }
 
-        // Publish the focused game's hero artwork to drive the immersive background.
-        // Prefers a custom Game Card upload (LibraryArtworkSlot.GAME_CARD), then the
-        // store-supplied hero, then the regular grid capsule as a last resort.
-        // Reloads shortcuts via IO on every refresh signal so freshly uploaded artwork
-        // shows up immediately, mirroring LibraryGameLaunchScreen's lookup pattern.
-        LaunchedEffect(
-            focusIndex,
-            displayedApps,
-            shortcutRefreshKey,
-            libraryRefreshKey,
-            artworkCacheRefreshKey,
-        ) {
+        // Publish the focused game's hero art (custom card > store hero > grid capsule) for the immersive background; shortcuts load once per refresh signal, not per focus move.
+        var immersiveShortcuts by remember { mutableStateOf<List<Shortcut>?>(null) }
+        LaunchedEffect(shortcutRefreshKey, libraryRefreshKey, artworkCacheRefreshKey) {
+            immersiveShortcuts =
+                withContext(Dispatchers.IO) { ContainerManager(context).loadShortcuts() }
+        }
+
+        LaunchedEffect(focusIndex, displayedApps, immersiveShortcuts) {
+            val shortcuts = immersiveShortcuts ?: return@LaunchedEffect
             val app = displayedApps.getOrNull(focusIndex) ?: displayedApps.firstOrNull()
             if (app == null) {
                 activity?.immersiveBackgroundRef?.value = null
                 return@LaunchedEffect
             }
+            // Debounce so scrubbing the grid doesn't decode every intermediate hero.
+            delay(200)
             val gogGame = visibleGogByPseudoId[app.id]
             val epicGame = visibleEpicByPseudoId[app.id]
             val isCustom = app.id < 0
             val isEpic = app.id >= 2000000000
             val epicId = if (isEpic) app.id - 2000000000 else 0
 
+            val shortcut =
+                when {
+                    gogGame != null ->
+                        shortcuts.find {
+                            it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
+                        }
+                    else -> findShortcutForGame(shortcuts, app, isCustom, isEpic, epicId)
+                }
             val customHeroFile =
                 withContext(Dispatchers.IO) {
-                    val shortcut =
-                        when {
-                            gogGame != null ->
-                                ContainerManager(context).loadShortcuts().find {
-                                    it.getExtra("game_source") == "GOG" && it.getExtra("gog_id") == gogGame.id
-                                }
-                            else -> findLibraryShortcutForGame(ContainerManager(context), app, isCustom, isEpic, epicId)
-                        }
                     shortcut
                         ?.getExtra(LibraryShortcutArtwork.LibraryArtworkSlot.GAME_CARD.extraKey)
                         ?.takeIf { it.isNotBlank() }
@@ -4043,136 +4062,145 @@ class UnifiedActivity :
             }
         }
 
-        when (layoutMode) {
-            LibraryLayoutMode.GRID_4 -> {
-                FourByTwoGridView(
-                    items = displayedApps,
-                    modifier = Modifier.tabScreenPadding(),
-                    gridState = gridState,
-                    contentPadding = TabGridContentPadding,
-                    clipContent = false,
-                    keyOf = { it.id },
-                ) { app, index, rowHeight ->
-                    GameCapsule(
-                        app = app,
-                        gogGame = visibleGogByPseudoId[app.id],
-                        epicGame = visibleEpicByPseudoId[app.id],
-                        iconRefreshKey = iconRefreshKey,
-                        artworkCacheRefreshKey = artworkCacheRefreshKey,
-                        isFocusedOverride = index == focusIndex,
-                        isControllerActive = isControllerConnected,
-                        customArtworkPath = visibleCustomGridArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
-                        customIconPath = visibleCustomIconPathByAppId[app.id],
-                        onClick = {
-                            detailGogGame = visibleGogByPseudoId[app.id]
-                            detailApp = app
-                        },
-                        onLongClick = {
-                            openSettingsForApp(index, app)
-                        },
-                        modifier =
-                            Modifier
-                                .height(rowHeight)
-                                .then(
-                                    if (index in focusRequesters.indices) {
-                                        Modifier.focusRequester(focusRequesters[index])
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
-                    )
+        PullToRefreshBox(
+            isRefreshing = pullRefreshing,
+            onRefresh = {
+                pullRefreshing = true
+                localLibraryRefreshKey++
+            },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when (layoutMode) {
+                LibraryLayoutMode.GRID_4 -> {
+                    FourByTwoGridView(
+                        items = displayedApps,
+                        modifier = Modifier.tabScreenPadding(),
+                        gridState = gridState,
+                        contentPadding = TabGridContentPadding,
+                        clipContent = false,
+                        keyOf = { it.id },
+                    ) { app, index, rowHeight ->
+                        GameCapsule(
+                            app = app,
+                            gogGame = visibleGogByPseudoId[app.id],
+                            epicGame = visibleEpicByPseudoId[app.id],
+                            iconRefreshKey = iconRefreshKey,
+                            artworkCacheRefreshKey = artworkCacheRefreshKey,
+                            isFocusedOverride = index == focusIndex,
+                            isControllerActive = isControllerConnected,
+                            customArtworkPath = visibleCustomGridArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customIconPath = visibleCustomIconPathByAppId[app.id],
+                            onClick = {
+                                detailGogGame = visibleGogByPseudoId[app.id]
+                                detailApp = app
+                            },
+                            onLongClick = {
+                                openSettingsForApp(index, app)
+                            },
+                            modifier =
+                                Modifier
+                                    .height(rowHeight)
+                                    .then(
+                                        if (index in focusRequesters.indices) {
+                                            Modifier.focusRequester(focusRequesters[index])
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                        )
+                    }
                 }
-            }
 
-            LibraryLayoutMode.CAROUSEL -> {
-                CarouselView(
-                    items = displayedApps,
-                    modifier = Modifier.tabScreenPadding(top = TabCarouselTopPadding, bottom = TabCarouselBottomPadding),
-                    listState = carouselState,
-                    selectedIndex = focusIndex,
-                    onCenteredIndexChanged = { centeredIndex ->
-                        if (activity != null && activity.libraryFocusIndex.value != centeredIndex) {
-                            activity.libraryFocusIndex.value = centeredIndex
-                        }
-                    },
-                ) { app, index, isSelected, cardWidth, cardHeight ->
-                    GameCapsule(
-                        app = app,
-                        gogGame = visibleGogByPseudoId[app.id],
-                        epicGame = visibleEpicByPseudoId[app.id],
-                        iconRefreshKey = iconRefreshKey,
-                        artworkCacheRefreshKey = artworkCacheRefreshKey,
-                        isFocusedOverride = isSelected,
-                        isControllerActive = isControllerConnected,
-                        customArtworkPath = visibleCustomCarouselArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
-                        customIconPath = visibleCustomIconPathByAppId[app.id],
-                        onClick = {
-                            detailGogGame = visibleGogByPseudoId[app.id]
-                            detailApp = app
+                LibraryLayoutMode.CAROUSEL -> {
+                    CarouselView(
+                        items = displayedApps,
+                        modifier = Modifier.tabScreenPadding(top = TabCarouselTopPadding, bottom = TabCarouselBottomPadding),
+                        listState = carouselState,
+                        selectedIndex = focusIndex,
+                        onCenteredIndexChanged = { centeredIndex ->
+                            if (activity != null && activity.libraryFocusIndex.value != centeredIndex) {
+                                activity.libraryFocusIndex.value = centeredIndex
+                            }
                         },
-                        onLongClick = { openSettingsForApp(index, app) },
-                        useLibraryCapsule = true,
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .then(
-                                    if (index in focusRequesters.indices) {
-                                        Modifier.focusRequester(focusRequesters[index])
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
-                    )
+                    ) { app, index, isSelected, cardWidth, cardHeight ->
+                        GameCapsule(
+                            app = app,
+                            gogGame = visibleGogByPseudoId[app.id],
+                            epicGame = visibleEpicByPseudoId[app.id],
+                            iconRefreshKey = iconRefreshKey,
+                            artworkCacheRefreshKey = artworkCacheRefreshKey,
+                            isFocusedOverride = isSelected,
+                            isControllerActive = isControllerConnected,
+                            customArtworkPath = visibleCustomCarouselArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customIconPath = visibleCustomIconPathByAppId[app.id],
+                            onClick = {
+                                detailGogGame = visibleGogByPseudoId[app.id]
+                                detailApp = app
+                            },
+                            onLongClick = { openSettingsForApp(index, app) },
+                            useLibraryCapsule = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        if (index in focusRequesters.indices) {
+                                            Modifier.focusRequester(focusRequesters[index])
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                        )
+                    }
                 }
-            }
 
-            LibraryLayoutMode.LIST -> {
-                val listViewState = rememberLazyListState()
-                ListView(
-                    items = displayedApps,
-                    modifier = Modifier.tabScreenPadding(),
-                    listState = listViewState,
-                    contentPadding = TabListContentPadding,
-                    selectedIndex = focusIndex,
-                    onSelectedIndexChanged = { newIdx ->
-                        activity?.libraryFocusIndex?.value = newIdx
-                    },
-                    keyOf = { it.id },
-                ) { app, index, isSelected ->
-                    GameCapsule(
-                        app = app,
-                        gogGame = visibleGogByPseudoId[app.id],
-                        epicGame = visibleEpicByPseudoId[app.id],
-                        iconRefreshKey = iconRefreshKey,
-                        artworkCacheRefreshKey = artworkCacheRefreshKey,
-                        isFocusedOverride = isSelected,
-                        isControllerActive = isControllerConnected,
-                        customArtworkPath = visibleCustomListArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
-                        customIconPath = visibleCustomIconPathByAppId[app.id],
-                        onClick = {
-                            detailGogGame = visibleGogByPseudoId[app.id]
-                            detailApp = app
+                LibraryLayoutMode.LIST -> {
+                    val listViewState = rememberLazyListState()
+                    ListView(
+                        items = displayedApps,
+                        modifier = Modifier.tabScreenPadding(),
+                        listState = listViewState,
+                        contentPadding = TabListContentPadding,
+                        selectedIndex = focusIndex,
+                        onSelectedIndexChanged = { newIdx ->
+                            activity?.libraryFocusIndex?.value = newIdx
                         },
-                        onLongClick = { openSettingsForApp(index, app) },
-                        listMode = true,
-                        modifier =
-                            Modifier
-                                .then(
-                                    if (index in focusRequesters.indices) {
-                                        Modifier.focusRequester(focusRequesters[index])
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
+                        keyOf = { it.id },
+                    ) { app, index, isSelected ->
+                        GameCapsule(
+                            app = app,
+                            gogGame = visibleGogByPseudoId[app.id],
+                            epicGame = visibleEpicByPseudoId[app.id],
+                            iconRefreshKey = iconRefreshKey,
+                            artworkCacheRefreshKey = artworkCacheRefreshKey,
+                            isFocusedOverride = isSelected,
+                            isControllerActive = isControllerConnected,
+                            customArtworkPath = visibleCustomListArtworkPathByAppId[app.id] ?: visibleCustomArtworkPathByAppId[app.id],
+                            customIconPath = visibleCustomIconPathByAppId[app.id],
+                            onClick = {
+                                detailGogGame = visibleGogByPseudoId[app.id]
+                                detailApp = app
+                            },
+                            onLongClick = { openSettingsForApp(index, app) },
+                            listMode = true,
+                            modifier =
+                                Modifier
+                                    .then(
+                                        if (index in focusRequesters.indices) {
+                                            Modifier.focusRequester(focusRequesters[index])
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                        )
+                    }
+                    JoystickListScroll(
+                        listState = listViewState,
+                        stickFlow = activity?.rightStickScrollState,
+                        minSpeed = 2.5f,
+                        maxSpeed = 16f,
+                        quadratic = true,
                     )
                 }
-                JoystickListScroll(
-                    listState = listViewState,
-                    stickFlow = activity?.rightStickScrollState,
-                    minSpeed = 2.5f,
-                    maxSpeed = 16f,
-                    quadratic = true,
-                )
             }
         }
 
@@ -7655,7 +7683,9 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = installed || totalInstallSize == 0L || availableBytes >= totalInstallSize
+        // Installed game: base content is on disk, so only gate on the newly-selected DLC bytes.
+        val requiredBytes = if (installed) selectedDlcInstallBytes else totalInstallSize
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installActionEnabled = isInstallEnabled && !hasBlockingEpicDownload
         val installPathDisplay = if (installed) app.installPath else (customPath ?: EpicConstants.defaultEpicGamesPath(context))
 
@@ -9926,6 +9956,7 @@ class UnifiedActivity :
         val context = LocalContext.current
         var isLoading by remember { mutableStateOf(true) }
         var selectedManifestSizes by remember { mutableStateOf(SteamService.ManifestSizes()) }
+        var baseInstallSize by remember(app.id) { mutableStateOf(0L) }
         var dlcApps by remember { mutableStateOf<List<SteamApp>>(emptyList()) }
         var dlcSizes by remember { mutableStateOf<Map<Int, SteamService.ManifestSizes>>(emptyMap()) }
         var installedDlcIds by remember(app.id) { mutableStateOf<Set<Int>>(emptySet()) }
@@ -9991,6 +10022,7 @@ class UnifiedActivity :
             installedDlcIds = loadData.installedDlcIds
             selectedDlcIds.removeAll(loadData.installedDlcIds)
             selectedManifestSizes = loadData.baseManifestSizes
+            baseInstallSize = loadData.baseManifestSizes.installSize
             installed = loadData.installed
             isLoading = false
         }
@@ -10018,7 +10050,11 @@ class UnifiedActivity :
             } catch (e: Exception) {
                 0L
             }
-        val isInstallEnabled = totalInstallSize == 0L || availableBytes >= totalInstallSize
+        // For an already-installed game the base content is on disk, so only require free
+        // space for the newly-selected DLC (already-installed DLC is excluded from selection).
+        val requiredBytes =
+            if (installed == true) (totalInstallSize - baseInstallSize).coerceAtLeast(0L) else totalInstallSize
+        val isInstallEnabled = requiredBytes == 0L || availableBytes >= requiredBytes
         val installPathDisplay = customPath ?: SteamService.defaultAppInstallPath
 
         val dlcItems =
@@ -12140,7 +12176,11 @@ class UnifiedActivity :
         }
 
         fun selectExecutable(path: String) {
-            if (!path.endsWith(".exe", ignoreCase = true) || !java.io.File(path).isFile) {
+            val launchable =
+                path.endsWith(".exe", ignoreCase = true) ||
+                    path.endsWith(".bat", ignoreCase = true) ||
+                    path.endsWith(".cmd", ignoreCase = true)
+            if (!launchable || !java.io.File(path).isFile) {
                 com.winlator.cmod.shared.ui.toast.WinToast.show(
                     context,
                     R.string.common_ui_select_valid_exe_file,
@@ -12220,7 +12260,7 @@ class UnifiedActivity :
                                                                     android.os.Environment.DIRECTORY_DOWNLOADS,
                                                                 ).absolutePath,
                                                     title = getString(R.string.common_ui_select_exe),
-                                                    allowedExtensions = setOf("exe"),
+                                                    allowedExtensions = setOf("exe", "bat", "cmd"),
                                                     dimAmount = 0.5f,
                                                     preserveBackdropBlur = true,
                                                     extraRoots = driveRoots(includeInternal = true),

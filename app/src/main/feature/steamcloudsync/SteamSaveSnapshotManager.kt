@@ -201,6 +201,10 @@ object SteamSaveSnapshotManager {
         origin: BackupOrigin,
         containerHint: Container? = null,
     ): Boolean {
+        if (!activateContainerForCloudOp(context, appId, containerHint)) {
+            Timber.tag(TAG).e("captureSnapshotLocked: container activation failed for appId=%d; skipping snapshot", appId)
+            return false
+        }
         cleanupPartialEntries(context, appId)
         val sources = enumerateSaveSources(context, appId, containerHint = containerHint)
         if (sources.isEmpty()) {
@@ -282,7 +286,7 @@ object SteamSaveSnapshotManager {
         }
     }
 
-    /** Return the up-to-30 newest snapshots for [appId], newest-first. */
+    /** Return the up-to-[MAX_HISTORY_ENTRIES] newest snapshots for [appId], newest-first. */
     suspend fun listHistory(context: Context, appId: Int): List<BackupHistoryEntry> =
         withContext(Dispatchers.IO) {
             try {
@@ -402,7 +406,7 @@ object SteamSaveSnapshotManager {
                             live.mkdirs()
                             asideDirs += Triple(live, bak, hadLive)
                         }
-                        extractZipToSources(zipFile, sources)
+                        extractZipToSources(zipFile, targetSources)
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "restoreFromEntry: extraction failed; rolling back")
                         rollbackAside()
@@ -412,7 +416,7 @@ object SteamSaveSnapshotManager {
                     asideDirs.forEach { (_, bak, _) -> bak?.let { runCatching { it.deleteRecursively() } } }
 
                     // Push the restored state to Steam Cloud so the next launch is consistent.
-                    val uploadOk = uploadLocalToSteam(context, appId)
+                    val uploadOk = uploadLocalToSteam(context, appId, containerHint)
                     if (uploadOk) {
                         BackupResult(true, "Save restored and pushed to Steam Cloud.")
                     } else {
@@ -540,10 +544,10 @@ object SteamSaveSnapshotManager {
 
                     captureSnapshotLocked(context, appId, BackupOrigin.MANUAL, containerHint)
                     // Retry the upload once after a delay so a concurrent background sync doesn't strand the imported state out of cloud.
-                    var uploadOk = uploadLocalToSteam(context, appId)
+                    var uploadOk = uploadLocalToSteam(context, appId, containerHint)
                     if (!uploadOk) {
                         kotlinx.coroutines.delay(1_500)
-                        uploadOk = uploadLocalToSteam(context, appId)
+                        uploadOk = uploadLocalToSteam(context, appId, containerHint)
                     }
 
                     val parts = mutableListOf("Imported $written file(s)")
@@ -655,9 +659,13 @@ object SteamSaveSnapshotManager {
             ?: 0L
 
     /** Push the local save up to Steam Cloud; forces overwrite (overrideLocalChangeNumber = -1) so the rollback isn't rejected as stale. */
-    private suspend fun uploadLocalToSteam(context: Context, appId: Int): Boolean {
+    private suspend fun uploadLocalToSteam(
+        context: Context,
+        appId: Int,
+        containerHint: Container? = null,
+    ): Boolean {
         return try {
-            val resolver = steamPrefixResolver(context, appId)
+            val resolver = steamPrefixResolver(context, appId, containerHint)
             val info =
                 SteamService
                     .forceSyncUserFiles(

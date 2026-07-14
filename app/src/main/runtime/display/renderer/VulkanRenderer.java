@@ -187,6 +187,10 @@ public class VulkanRenderer
         this.xServer = xServer;
         this.effectComposer = new EffectComposer(this);
         this.rootCursorDrawable = createRootCursorDrawable();
+        this.coalescedRenderCallback = frameTimeNanos -> {
+            renderRequested.set(false);
+            xServerView.requestRender();
+        };
     }
 
     public void destroy() {
@@ -219,6 +223,9 @@ public class VulkanRenderer
             }
         }
     }
+
+    private volatile Choreographer mainChoreographer;
+    private final Choreographer.FrameCallback coalescedRenderCallback;
 
     public void requestRenderCoalesced() {
         xServerView.requestRender();
@@ -521,6 +528,7 @@ public class VulkanRenderer
                         scanoutX = 0;
                         scanoutY = 0;
                     }
+                    if (textureSrc == drawable && !drawable.hasContent()) continue;
                     tex = textureSrc.getTexture();
                     if (tex != null) {
                         tex.appendUploadFromDrawable(textureSrc, textureUploadBatch);

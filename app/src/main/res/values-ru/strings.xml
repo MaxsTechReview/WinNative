@@ -513,8 +513,11 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Пресет FEXCore</string>
     <string name="container_fexcore_version">Версия FEXCore</string>
+    <string name="use_unix_libs">Использовать UnixLibs</string>
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Графический драйвер</string>
+    <string name="container_graphics_transcoder">Транскодер BCn</string>
+    <string name="container_graphics_quality">Качество BCn</string>
     <string name="container_graphics_configuration">Конфигурация графического драйвера</string>
     <string name="container_graphics_version">Версия графического драйвера</string>
     <string name="container_graphics_available_extensions">Доступные расширения</string>
@@ -610,6 +613,7 @@
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Батарея</string>
     <string name="session_drawer_hud_element_graph">График</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
     <string name="hud_position_menu_title">Переместить HUD</string>
     <string name="hud_position_top_left">Вверху слева</string>
     <string name="hud_position_top_center">Вверху по центру</string>
@@ -890,6 +894,8 @@
     <string name="settings_debug_remove_channel_desc">Удалить %1$s</string>
     <string name="settings_other_language_title">Язык</string>
     <string name="settings_other_language_summary">Выберите язык интерфейса</string>
+    <string name="settings_other_game_language_title">Язык игры</string>
+    <string name="settings_other_game_language_summary">Предпочитаемый язык для загрузок Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Системный язык</string>
     <string name="settings_other_section_integration">Интеграция</string>
     <string name="settings_other_setup_wizard_title">Мастер установки</string>
@@ -1114,6 +1120,9 @@
     <string name="cloud_saves_gog_zip_failed">Не удалось сохранить ZIP облачных сохранений GOG.</string>
     <string name="cloud_saves_gog_zip_empty">Файлы облачного сохранения GOG не найдены.</string>
     <string name="cloud_saves_history_title">История сохранений</string>
+    <string name="cloud_saves_history_download">Скачать</string>
+    <string name="cloud_saves_history_download_success">Файл скачан.</string>
+    <string name="cloud_saves_history_download_failed">Не удалось скачать.</string>
     <string name="cloud_saves_history_empty">Предыдущие сохранения еще не сохранены. Замененные сохранения и ручные резервные копии будут появляться здесь в течение 30 дней.</string>
     <string name="cloud_saves_history_loading">Загрузка истории сохранений\u2026</string>
     <string name="cloud_saves_history_sign_in">Войдите в Google, чтобы просмотреть историю сохранений.</string>
@@ -1419,7 +1428,7 @@
     <string name="session_drawer_hud_background">Фон</string>
     <string name="session_drawer_hud_background_alpha">Альфа фона</string>
     <string name="session_drawer_hud_background_alpha_input_title">Задать альфу фона</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Изменить размер</string>
     <string name="session_task_bring_to_front">На передний план</string>
     <string name="session_task_custom_value">Своё значение</string>
@@ -1462,4 +1471,5 @@
     <string name="session_record_started">Запись начата</string>
     <string name="steam_chat_setting_stay_running">Работать в фоне</string>
     <string name="steam_chat_setting_stay_running_desc">Оставлять чат активным после выхода из WinNative</string>
+    <string name="settings_content_refresh">Обновить</string>
 </resources>

@@ -505,9 +505,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">FEXCore-forudindstilling</string>
     <string name="container_fexcore_version">FEXCore-version</string>
+    <string name="use_unix_libs">Brug UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Grafikdriver</string>
+    <string name="container_graphics_transcoder">BCn-transkoder</string>
+    <string name="container_graphics_quality">BCn-kvalitet</string>
     <string name="container_graphics_configuration">Grafikdriver-konfiguration</string>
     <string name="container_graphics_version">Grafikdriver-version</string>
     <string name="container_graphics_available_extensions">Tilgængelige udvidelser</string>
@@ -588,6 +591,7 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Graf</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Vil du afslutte denne proces?</string>
@@ -823,6 +827,8 @@ F.eks. <b>META</b> for <i>META-tast</i>, \n
 
     <string name="settings_other_language_title">Sprog</string>
     <string name="settings_other_language_summary">Vælg visningssprog</string>
+    <string name="settings_other_game_language_title">Spilsprog</string>
+    <string name="settings_other_game_language_summary">Foretrukket sprog til Steam/Epic/GOG-downloads</string>
     <string name="settings_other_language_system_default">Systemstandard</string>
 
     <string name="settings_other_section_integration">Integration</string>
@@ -1174,6 +1180,9 @@ Installeret sti:
     <string name="cloud_saves_history_restore_success">Save gendannet fra sikkerhedskopi.</string>
     <string name="cloud_saves_history_sign_in">Log ind på Google for at se din save-historik.</string>
     <string name="cloud_saves_history_title">Save-historik</string>
+    <string name="cloud_saves_history_download">Download</string>
+    <string name="cloud_saves_history_download_success">Filen er downloadet.</string>
+    <string name="cloud_saves_history_download_failed">Download mislykkedes.</string>
     <string name="cloud_saves_keep_replaced_backup">Behold en sikkerhedskopi af det erstattede save</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Hvis du fortryder, kan du gendanne det fra Save-historik.</string>
     <string name="cloud_saves_no_backups">Ingen sikkerhedskopier endnu for dette spil.</string>
@@ -1513,7 +1522,7 @@ Installeret sti:
     <string name="session_drawer_hud_background">Baggrund</string>
     <string name="session_drawer_hud_background_alpha">Baggrundsalfa</string>
     <string name="session_drawer_hud_background_alpha_input_title">Indstil baggrundsalfa</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Tilpas størrelse</string>
     <string name="session_task_bring_to_front">Flyt til forgrunden</string>
     <string name="session_task_custom_value">Brugerdefineret værdi</string>
@@ -1557,4 +1566,5 @@ Installeret sti:
     <string name="session_record_started">Optagelse startet</string>
     <string name="steam_chat_setting_stay_running">Kør i baggrunden</string>
     <string name="steam_chat_setting_stay_running_desc">Hold chatten kørende, efter du afslutter WinNative</string>
+    <string name="settings_content_refresh">Opdater</string>
 </resources>

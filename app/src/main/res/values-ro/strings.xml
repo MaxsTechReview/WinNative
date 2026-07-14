@@ -505,9 +505,12 @@
     <string name="container_fexcore_config">FEXCore</string>
     <string name="container_fexcore_preset">Preset FEXCore</string>
     <string name="container_fexcore_version">Versiune FEXCore</string>
+    <string name="use_unix_libs">Folosește UnixLibs</string>
 
     <!-- Container > Graphics Driver -->
     <string name="container_graphics_driver">Driver grafic</string>
+    <string name="container_graphics_transcoder">Transcodor BCn</string>
+    <string name="container_graphics_quality">Calitate BCn</string>
     <string name="container_graphics_configuration">Configurare driver grafic</string>
     <string name="container_graphics_version">Versiune driver grafic</string>
     <string name="container_graphics_available_extensions">Extensii disponibile</string>
@@ -588,6 +591,7 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
     <string name="session_drawer_hud_element_ram">RAM</string>
     <string name="session_drawer_hud_element_battery">Bat.</string>
     <string name="session_drawer_hud_element_graph">Grafic</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
 
     <!-- Session > Task Manager -->
     <string name="session_task_confirm_end_process">Doresti sa opresti acest proces?</string>
@@ -823,6 +827,8 @@ De ex. <b>META</b> pentru <i>tasta META</i>, \n
 
     <string name="settings_other_language_title">Limbă</string>
     <string name="settings_other_language_summary">Alege limba de afișare</string>
+    <string name="settings_other_game_language_title">Limba jocului</string>
+    <string name="settings_other_game_language_summary">Limba preferată pentru descărcările Steam/Epic/GOG</string>
     <string name="settings_other_language_system_default">Implicit sistem</string>
 
     <string name="settings_other_section_integration">Integrare</string>
@@ -1174,6 +1180,9 @@ Cale instalata:
     <string name="cloud_saves_history_restore_success">Salvare restaurată din copia de siguranță.</string>
     <string name="cloud_saves_history_sign_in">Autentifică-te la Google pentru a vedea istoricul salvărilor.</string>
     <string name="cloud_saves_history_title">Istoric salvări</string>
+    <string name="cloud_saves_history_download">Descarcă</string>
+    <string name="cloud_saves_history_download_success">Fișier descărcat.</string>
+    <string name="cloud_saves_history_download_failed">Descărcarea a eșuat.</string>
     <string name="cloud_saves_keep_replaced_backup">Păstrează o copie de siguranță a salvării înlocuite</string>
     <string name="cloud_saves_keep_replaced_backup_summary">Dacă te răzgândești, o poți restaura din Istoricul salvărilor.</string>
     <string name="cloud_saves_no_backups">Nicio copie de siguranță pentru acest joc încă.</string>
@@ -1512,7 +1521,7 @@ Cale instalata:
     <string name="session_drawer_hud_background">Fundal</string>
     <string name="session_drawer_hud_background_alpha">Alfa fundal</string>
     <string name="session_drawer_hud_background_alpha_input_title">Setează alfa fundalului</string>
-    <string name="session_drawer_hud_element_temp">TMP</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
     <string name="session_drawer_refactor_size">Ajustează dimensiunea</string>
     <string name="session_task_bring_to_front">Adu în față</string>
     <string name="session_task_custom_value">Valoare personalizată</string>
@@ -1555,5 +1564,6 @@ Cale instalata:
     <string name="session_record_started">Înregistrare pornită</string>
     <string name="steam_chat_setting_stay_running">Rulează în fundal</string>
     <string name="steam_chat_setting_stay_running_desc">Menține chatul activ după ce ieși din WinNative</string>
+    <string name="settings_content_refresh">Reîmprospătează</string>
 </resources>
 

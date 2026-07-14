@@ -1,0 +1,1565 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common > UI Labels -->
+    <string name="common_ui_app_name">WinNative</string>
+    <string name="common_ui_run">Kör</string>
+    <string name="common_ui_edit">Redigera</string>
+    <string name="common_ui_remove">Ta bort</string>
+    <string name="common_ui_add">Lägg till</string>
+    <string name="common_ui_shortcuts">Genvägar</string>
+    <string name="common_ui_containers">Behållare</string>
+    <string name="common_ui_input_controls">Inmatningskontroller</string>
+    <string name="common_ui_no_items_to_display">Inga objekt att visa</string>
+    <string name="common_ui_select_icon">Välj ikon</string>
+    <string name="common_ui_revert_icon">Återställ ikon</string>
+    <string name="common_ui_select_exe">Välj EXE</string>
+    <string name="common_ui_select_folder">Välj mapp</string>
+    <string name="common_ui_current_folder">Aktuell mapp</string>
+    <string name="common_ui_select_valid_exe_file">Välj en giltig .exe-fil</string>
+    <string name="common_ui_select_valid_icon_file">Välj en giltig .ico- eller .png-fil.</string>
+    <string name="common_ui_exit">Avsluta</string>
+    <string name="common_ui_exit_app">Avsluta app</string>
+    <string name="common_ui_profile">Profil</string>
+    <string name="common_ui_name">Namn</string>
+    <string name="common_ui_ok">OK</string>
+    <string name="common_ui_cancel">Avbryt</string>
+    <string name="common_ui_untitled">Namnlös</string>
+    <string name="common_ui_disabled">Inaktiverad</string>
+    <string name="common_ui_container">Behållare</string>
+    <string name="common_ui_value">Värde</string>
+    <string name="common_ui_none">Ingen</string>
+    <string name="common_ui_custom_text">Anpassad text</string>
+    <string name="common_ui_icon">Ikon</string>
+    <string name="common_ui_duplicate">Duplicera</string>
+    <string name="common_ui_credits_and_third_party_apps">Erkännanden och tredjepartsappar</string>
+    <string name="common_ui_loading">Läser in</string>
+    <string name="common_ui_exporting">Exporterar</string>
+    <string name="common_ui_enable">Aktivera</string>
+    <string name="common_ui_disable">Inaktivera</string>
+    <string name="common_ui_force">Tvinga</string>
+    <string name="common_ui_version">Version</string>
+    <string name="common_ui_advanced">Avancerat</string>
+    <string name="common_ui_graphics">Grafik</string>
+    <string name="common_ui_system">System</string>
+    <string name="common_ui_width">Bredd</string>
+    <string name="common_ui_height">Höjd</string>
+    <string name="common_ui_open_file">Öppna fil</string>
+    <string name="common_ui_download_file">Ladda ner fil</string>
+    <string name="common_ui_downloading_file">Laddar ner fil</string>
+    <string name="common_ui_browse">Bläddra</string>
+    <string name="common_ui_options">Alternativ</string>
+    <string name="common_ui_export">Exportera</string>
+    <string name="common_ui_new_file">Ny fil</string>
+    <string name="common_ui_description">Beskrivning</string>
+    <string name="common_ui_continue">Fortsätt</string>
+    <string name="common_ui_warning">Varning</string>
+    <string name="common_ui_copy">kopiera</string>
+    <string name="common_ui_reset">Återställ</string>
+    <string name="common_ui_close">Stäng</string>
+    <string name="common_ui_confirm">Bekräfta</string>
+    <string name="common_ui_unnamed">Namnlös</string>
+    <string name="common_ui_download">Ladda ner</string>
+    <string name="common_ui_uninstall">Avinstallera</string>
+    <string name="common_ui_other">Övrigt</string>
+    <string name="common_ui_status">Status</string>
+    <string name="common_ui_size">Storlek</string>
+    <string name="common_ui_release_date">Utgivningsdatum</string>
+    <string name="common_ui_installed">Installerad</string>
+    <string name="common_ui_available">Tillgänglig</string>
+    <string name="common_ui_settings">Inställningar</string>
+    <string name="common_ui_enable_all">Aktivera alla</string>
+    <string name="common_ui_disable_all">Inaktivera alla</string>
+    <string name="common_ui_select_all">Markera alla</string>
+    <string name="common_ui_deselect_all">Avmarkera alla</string>
+    <string name="common_ui_on">På</string>
+    <string name="common_ui_off">Av</string>
+    <string name="common_ui_already_set">Redan inställd</string>
+    <string name="common_ui_shortcut">Genväg</string>
+    <string name="common_ui_custom">Anpassad</string>
+    <string name="common_ui_about">Om</string>
+    <string name="common_ui_back">Tillbaka</string>
+    <string name="common_ui_apply">Verkställ</string>
+    <string name="common_ui_save">Spara</string>
+    <string name="common_ui_clone">Klona</string>
+    <string name="common_ui_properties">Egenskaper</string>
+    <string name="common_ui_store">Butik</string>
+    <string name="common_ui_library">Bibliotek</string>
+    <string name="common_ui_downloads">Nedladdningar</string>
+    <string name="common_ui_import">Importera</string>
+    <string name="common_ui_sync">Synkronisera</string>
+    <string name="common_ui_sign_in">Logga in</string>
+    <string name="common_ui_submit">Skicka</string>
+    <string name="common_ui_coming_soon">Kommer snart</string>
+    <string name="common_ui_signed_in">Inloggad</string>
+    <string name="common_ui_required">Obligatoriskt</string>
+    <string name="common_ui_optional">Valfritt</string>
+    <string name="common_ui_notifications">Aviseringar</string>
+    <string name="common_ui_mode">Läge</string>
+    <string name="common_ui_experimental">(Experimentell)</string>
+    <string name="common_ui_current_version_label">Aktuell version:</string>
+    <string name="common_ui_cannot_write_folder">Kan inte skriva till den valda mappen</string>
+    <string name="common_ui_failed_create_directory">Det gick inte att skapa standardkatalogen</string>
+    <string name="common_ui_device_not_supported">Tyvärr, din enhet kanske inte stöds</string>
+    <string name="common_ui_please_wait">Vänta\u2026</string>
+    <string name="common_ui_done">Klar</string>
+    <string name="common_ui_open">Öppna</string>
+    <string name="common_ui_connected">Ansluten</string>
+    <string name="common_ui_install">Installera</string>
+    <string name="common_ui_application">Applikation</string>
+    <string name="common_ui_check">Kontrollera</string>
+    <string name="store_game_check_for_update">Sök efter uppdatering</string>
+    <string name="store_game_checking_for_update">Kontrollerar</string>
+    <string name="store_game_download_update">Ladda ner uppdatering</string>
+    <string name="store_game_no_update_available">Ingen uppdatering tillgänglig</string>
+    <string name="store_game_update_available">Uppdatering tillgänglig</string>
+    <string name="store_game_update_check_failed">Uppdateringskontroll misslyckades</string>
+    <string name="store_game_update">Uppdatera</string>
+    <string name="store_game_workshop">Workshop</string>
+    <string name="store_game_verify_files">Verifiera filer</string>
+    <string name="store_game_verify_started">Verifierar %1$s — kontrollera fliken Nedladdningar</string>
+    <string name="store_game_steam_options">Steam-alternativ</string>
+    <string name="store_game_verify_complete">Filverifiering klar</string>
+    <string name="store_game_verify_failed_notice">Filverifiering misslyckades</string>
+    <string name="store_game_progress_background_hint">Du kan stänga detta — det fortsätter köra. Kontrollera fliken Nedladdningar när som helst.</string>
+    <string name="store_game_checking_updates">Söker efter uppdateringar</string>
+    <string name="store_game_no_updates_notice">Inga uppdateringar tillgängliga</string>
+    <string name="store_game_update_complete">Uppdatering klar</string>
+    <string name="store_game_update_failed_notice">Uppdatering misslyckades</string>
+    <string name="store_game_update_check_failed_notice">Uppdateringskontroll misslyckades</string>
+    <string name="store_game_download_already_active">Detta spel laddas redan ner. Avbryt den aktuella nedladdningen innan du lägger till DLC.</string>
+    <string name="common_ui_select">Välj</string>
+    <string name="common_ui_storage_roots">Lagringsrötter</string>
+    <string name="common_ui_browse_local_folders_directly">Bläddra bland lokala mappar direkt</string>
+    <string name="common_ui_no_folders_available_here">Inga mappar tillgängliga här</string>
+    <string name="common_ui_grant_all_files_access_browse">Bevilja åtkomst till alla filer för att bläddra bland mappar direkt.</string>
+    <string name="common_ui_not_configured">Inte konfigurerad</string>
+    <string name="common_ui_reinstall">Installera om</string>
+    <string name="common_ui_exit_app_confirm">Avsluta WinNative?</string>
+    <string name="common_ui_elements_count">%1$d element</string>
+    <string name="common_ui_disabled_placeholder">-- Inaktiverad --</string>
+    <string name="common_ui_enabled">Aktiverad</string>
+    <string name="common_ui_unknown_error">Okänt fel</string>
+    <string name="common_ui_auto_detected">Autodetekterad</string>
+    <string name="common_ui_change">Ändra</string>
+    <string name="common_ui_proceed">Fortsätt</string>
+    <string name="common_ui_sign_out">Logga ut</string>
+    <string name="common_ui_name_cannot_be_empty">Namnet får inte vara tomt</string>
+    <string name="common_ui_error_with_message">Fel: %1$s</string>
+    <string name="common_ui_64_bit">64-BITARS</string>
+    <string name="common_ui_32_bit">32-BITARS</string>
+    <string name="common_ui_64_bit_and_32_bit">64-BITARS &amp; 32-BITARS</string>
+    <plurals name="common_ui_folder_count">
+        <item quantity="one">%d mapp</item>
+        <item quantity="other">%d mappar</item>
+    </plurals>
+    <plurals name="common_ui_file_count">
+        <item quantity="one">%d fil</item>
+        <item quantity="other">%d filer</item>
+    </plurals>
+
+    <!-- Library > Games -->
+    <string name="library_games_shortcut_created">Genväg skapad</string>
+    <string name="library_games_failed_to_create_shortcut">Det gick inte att skapa genväg: %s</string>
+    <string name="library_games_install_path">Installationssökväg</string>
+    <string name="library_games_not_enough_space">Behöver %1$s mer utrymme</string>
+    <string name="library_games_download_slash_install">Ladda ner / Installera</string>
+    <string name="library_games_save_management">SPARHANTERING</string>
+    <string name="library_games_download_install_available">%1$s / %2$s • Tillgängligt: %3$s</string>
+    <string name="library_games_last_played">Senast spelad</string>
+    <string name="library_games_playtime">Speltid</string>
+    <string name="library_games_plays">Spelningar</string>
+    <string name="library_games_dlcs">DLC</string>
+    <string name="library_games_uninstall_game">AVINSTALLERA SPEL</string>
+    <string name="library_games_remove_game">TA BORT SPEL</string>
+    <string name="library_games_uninstall_confirm">Avinstallera %1$s och radera dess installerade spelmapp permanent?</string>
+    <string name="library_games_remove_confirm">Ta bort %1$s från ditt bibliotek. Spelfilerna på disken förblir orörda?</string>
+    <string name="library_games_game_uninstalled">%1$s avinstallerad.</string>
+    <string name="library_games_game_removed">%1$s borttagen.</string>
+    <string name="library_games_failed_to_uninstall">Det gick inte att avinstallera.</string>
+    <string name="library_games_failed_to_uninstall_reason">Det gick inte att avinstallera: %1$s</string>
+    <string name="library_games_loading">Läser in bibliotek\u2026</string>
+    <string name="library_games_no_games_installed">Inga spel installerade. Använd en butiksflik eller +-knappen för att lägga till spel.</string>
+    <string name="library_games_times_played_label">Antal gånger spelad: </string>
+    <string name="library_games_playtime_label">Speltid: </string>
+    <string name="library_games_no_games_hub">Inga spel installerade\nKlicka för att öppna Winlator-backend</string>
+    <string name="library_games_installed_badge">INSTALLERAD</string>
+    <string name="library_games_unknown_game">Okänt spel</string>
+    <string name="library_games_layouts_header">BIBLIOTEKSLAYOUTER</string>
+    <string name="library_games_layout_carousel">Karusell</string>
+    <string name="library_games_layout_list">Lista</string>
+    <string name="library_games_view_options_header">VISNINGSALTERNATIV</string>
+    <string name="library_games_immersive_mode">Uppslukande läge</string>
+    <string name="library_games_immersive_mode_description">Använd fokuserad spelbild som bakgrund</string>
+    <string name="library_games_immersive_blur">Oskarp bakgrund</string>
+    <string name="library_games_immersive_blur_description">Applicera en oskärpeeffekt på den uppslukande bakgrunden</string>
+    <string name="library_games_custom_game">Anpassat spel</string>
+    <string name="library_games_play">Spela</string>
+    <string name="hero_boot_to_desktop_title">Starta till skrivbord</string>
+    <string name="hero_graphics_tests_title">Grafiktester</string>
+    <string name="hero_graphics_test_32">32-bitars</string>
+    <string name="hero_graphics_test_64">64-bitars</string>
+    <string name="library_games_add_custom_game">Lägg till anpassat spel</string>
+    <string name="library_games_game_name">Spelnamn</string>
+    <string name="library_games_game_folder_mapped_drive">Spelmapp (Mappad speldisk)</string>
+    <string name="library_games_select_exe_provide_name">Välj en exe och ange ett namn</string>
+    <string name="library_games_sign_in_prompt">Logga in på en butik eller lägg till ett anpassat spel för att bygga ditt bibliotek.</string>
+
+    <!-- Stores > Accounts -->
+    <string name="stores_accounts_title">Butiker</string>
+    <string name="stores_accounts_steam_integration_title">Steam</string>
+    <string name="stores_accounts_shared_downloads_folder">Delad nedladdningsmapp</string>
+    <string name="stores_accounts_shared_downloads_subtitle">Använd en enda mapp för alla butiker</string>
+    <string name="stores_accounts_default_downloads_folder">Standardnedladdningsmapp</string>
+    <string name="stores_accounts_steam_downloads">Steam-nedladdningar</string>
+    <string name="stores_accounts_epic_downloads">Epic-nedladdningar</string>
+    <string name="stores_accounts_gog_downloads">GOG-nedladdningar</string>
+    <string name="stores_accounts_download_speed">Nedladdningshastighet</string>
+    <string name="stores_accounts_download_speed_subtitle">Styr samtidigheten för Steam-nedladdningstrådar</string>
+    <string name="stores_accounts_download_server">Nedladdningsserver</string>
+    <string name="stores_accounts_connected_stores">Anslutna butiker</string>
+    <string name="stores_accounts_download_settings">Nedladdningsinställningar</string>
+    <string name="stores_accounts_download_speed_conservative">Konservativ</string>
+    <string name="stores_accounts_download_speed_balanced">Balanserad</string>
+    <string name="stores_accounts_download_speed_standard">Standard</string>
+    <string name="stores_accounts_download_speed_performance">Prestanda</string>
+    <string name="stores_accounts_download_server_auto_detected">Autodetekterad: %1$s</string>
+    <string name="stores_accounts_download_server_subtitle">Steam CDN-region för spelnedladdningar</string>
+    <string name="stores_accounts_sign_out_confirm">Logga ut från %1$s?</string>
+    <string name="stores_accounts_sign_out_message">Du måste logga in igen för att komma åt ditt bibliotek.</string>
+    <string name="stores_accounts_logged_in_epic">Inloggad på Epic Games!</string>
+    <string name="stores_accounts_epic_login_failed">Epic-inloggning misslyckades: %1$s</string>
+    <string name="stores_accounts_logged_in_gog">Inloggad på GOG!</string>
+    <string name="stores_accounts_gog_login_failed">GOG-inloggning misslyckades: %1$s</string>
+    <string name="stores_accounts_custom_download_path">Anpassad nedladdningssökväg</string>
+    <string name="stores_accounts_custom_download_path_description">En standardsökväg för nedladdning har redan konfigurerats i Inställningar &gt; Butiker. Om du vill ange en unik anpassad sökväg för just den här installationen, klicka på Fortsätt.</string>
+    <string name="stores_accounts_not_signed_in">Inte inloggad</string>
+    <string name="stores_accounts_status_online">Online</string>
+    <string name="stores_accounts_status_away">Frånvarande</string>
+    <string name="stores_accounts_status_offline">Offline</string>
+    <string name="stores_accounts_status_invisible">Osynlig</string>
+    <string name="stores_accounts_status_header">STATUS</string>
+    <string name="stores_accounts_stores_header">BUTIKER</string>
+    <string name="stores_accounts_sign_in_store_prompt">Logga in för att komma åt butiken %1$s.</string>
+    <string name="stores_accounts_manage">Hantera butikskonton</string>
+    <string name="stores_accounts_sign_into_store">Logga in på %1$s</string>
+
+    <!-- Downloads > Queue -->
+    <string name="downloads_queue_cancel_all">Avbryt alla</string>
+    <string name="downloads_queue_preparing_download">Förbereder nedladdning</string>
+    <string name="downloads_queue_installing_package">Installerar paket</string>
+    <string name="downloads_queue_resume_all">Återuppta alla</string>
+    <string name="downloads_queue_pause_all">Pausa alla</string>
+    <string name="downloads_queue_clear">Rensa</string>
+    <string name="downloads_queue_status_label">Status:</string>
+    <string name="downloads_queue_phase_downloading">Laddar ner</string>
+    <string name="downloads_queue_phase_downloading_file">Laddar ner [%1$s]</string>
+    <string name="downloads_queue_phase_queued">I kö</string>
+    <string name="downloads_queue_phase_paused">Pausad</string>
+    <string name="downloads_queue_phase_preparing">Förbereder</string>
+    <string name="downloads_queue_phase_verifying">Verifierar</string>
+    <string name="downloads_queue_phase_verifying_file">Verifierar [%1$s]</string>
+    <string name="downloads_queue_phase_patching">Patchar</string>
+    <string name="downloads_queue_phase_applying_data">Tillämpar data</string>
+    <string name="downloads_queue_phase_finalizing">Slutför</string>
+    <string name="downloads_queue_phase_unpacking">Packar upp</string>
+    <string name="downloads_queue_phase_updating">Uppdaterar</string>
+    <string name="downloads_queue_phase_complete">Klar</string>
+    <string name="downloads_queue_phase_cancelled">Avbruten</string>
+    <string name="downloads_queue_phase_failed">Misslyckades: %1$s</string>
+    <string name="downloads_queue_phase_unknown">Okänd</string>
+    <string name="downloads_queue_paused_resume_hint">Pausad - tryck på Återuppta för att fortsätta</string>
+    <string name="downloads_queue_cancel_download">Avbryt nedladdning</string>
+    <string name="downloads_queue_cancel_download_title">Avbryt nedladdning?</string>
+    <string name="downloads_queue_cancel_download_confirm">Avbryta nedladdningen av %1$s och radera alla nedladdade filer?</string>
+    <string name="downloads_queue_cancel_download_warning">Att avbryta en nedladdning av DLC, spel eller uppdatering kan potentiellt skada din spelinstallation.\n\nÄr du säker på att du vill avbryta denna nedladdning och radera de filer som hittills laddats ner?</string>
+    <string name="downloads_queue_cancel_all_title">Avbryt alla nedladdningar?</string>
+    <string name="downloads_queue_cancel_all_warning">Att avbryta nedladdningar av DLC, spel eller uppdateringar kan potentiellt skada dina spelinstallationer.\n\nÄr du säker på att du vill avbryta alla nedladdningar och radera de filer som hittills laddats ner?</string>
+    <string name="downloads_queue_this_game">det här spelet</string>
+    <string name="downloads_queue_empty">Inga aktiva nedladdningar.</string>
+
+    <!-- Containers > List -->
+    <string name="containers_list_new">Ny container</string>
+    <string name="containers_list_edit">Redigera container</string>
+    <string name="containers_list_creating">Skapar container</string>
+    <string name="containers_list_removing">Tar bort container</string>
+    <string name="containers_list_duplicating">Duplicerar container</string>
+    <string name="containers_list_remove_title">Ta bort container</string>
+    <string name="containers_list_duplicate_title">Duplicera container</string>
+    <string name="containers_list_confirm_remove">Ta bort den här containern? Alla spelsparningar som lagras i den raderas permanent. Molnsynkade sparningar finns kvar i molnet, men lokala ändringar som ännu inte synkats går förlorade — synka det här spelets molnsparningar först om du vill behålla dem.</string>
+    <string name="containers_list_confirm_duplicate">Vill du duplicera den här containern?</string>
+
+    <!-- Shortcuts > List -->
+    <string name="shortcuts_list_confirm_remove">Vill du ta bort den här genvägen?</string>
+    <string name="shortcuts_list_add_to_home_screen">Lägg till på startskärmen</string>
+    <string name="shortcuts_library_artwork_title">Biblioteksgrafik</string>
+    <string name="shortcuts_library_artwork_game_card_title">Spelkortsbild</string>
+    <string name="shortcuts_library_artwork_grid_title">Rutnätsbild</string>
+    <string name="shortcuts_library_artwork_carousel_title">Karusellbild</string>
+    <string name="shortcuts_library_artwork_list_title">Listbild</string>
+    <string name="shortcuts_library_artwork_selected">Vald: %1$s</string>
+    <string name="shortcuts_library_artwork_set">Ange bild</string>
+    <string name="shortcuts_library_artwork_change">Ändra bild</string>
+    <string name="shortcuts_library_artwork_failed">Det gick inte att läsa in den valda bilden.</string>
+    <string name="shortcuts_library_artwork_open_source">Öppna SteamGridDB</string>
+    <string name="shortcuts_list_not_available">Den här genvägen är inte längre tillgänglig. Radera eller återskapa den.</string>
+    <string name="shortcuts_list_select_a_container">Välj en container</string>
+    <string name="shortcuts_list_error_opening_settings">Fel vid öppning av genvägsinställningar</string>
+    <string name="shortcuts_list_removed">Genvägen togs bort.</string>
+    <string name="shortcuts_list_remove_failed">Det gick inte att ta bort genvägen. Försök igen.</string>
+    <string name="shortcuts_list_remove_game_shortcut_message">Ta bort genväg\n%1$s</string>
+    <string name="shortcuts_list_cloned">Genvägen klonades.</string>
+    <string name="shortcuts_list_clone_failed">Det gick inte att klona genvägen.</string>
+    <string name="shortcuts_list_exported_to">Genväg exporterad till %1$s</string>
+    <string name="shortcuts_list_failed_export">Det gick inte att exportera genvägen</string>
+    <string name="shortcuts_export_all">Exportera alla</string>
+    <string name="shortcuts_export_to_frontend">Exportera till frontend</string>
+    <string name="shortcuts_export_all_done">Exporterade %1$d spel till %2$s</string>
+    <string name="shortcuts_export_all_none">Inga spel att exportera</string>
+    <string name="shortcuts_list_added">Genvägen lades till.</string>
+    <string name="shortcuts_list_readded_existing">Lade till befintlig genväg igen</string>
+    <string name="shortcuts_list_failed_add">Det gick inte att lägga till genvägen.</string>
+
+    <!-- Shortcuts > Properties -->
+    <string name="shortcuts_properties_exec_arguments">Körargument</string>
+    <string name="shortcuts_properties_target_path">Målsökväg</string>
+    <string name="shortcuts_properties_disable_xinput">Inaktivera Xinput (för exklusiv M/tangentbordskontroll)</string>
+    <string name="num_controllers">Antal handkontroller</string>
+    <string name="shortcuts_properties_exclusive_input">Exklusiv inmatning</string>
+    <string name="shortcuts_properties_custom_game_settings">Anpassade spelinställningar</string>
+    <string name="shortcuts_properties_use_legacy_launcher">Använd äldre startprogram</string>
+    <string name="shortcuts_properties_use_legacy_launcher_description">Äldre Steam-emulering: kör spelet via ColdClient-startprogrammet och tar bort SteamStub-DRM från exe-filen. Använd endast för äldre spel som inte fungerar med Steam-startprogrammet.</string>
+    <string name="shortcuts_properties_runtime_patcher">DRM-patchning vid körning</string>
+    <string name="shortcuts_properties_runtime_patcher_description">Injicerar en DRM-patchnings-DLL vid start. Minskar FPS — använd endast om det äldre startprogrammet ensamt misslyckas.</string>
+    <string name="steam_section_title">Steam</string>
+    <string name="steam_section_real_client">WinNative Real Steam Client</string>
+    <string name="steam_section_emulator">Äldre Steam-emulator</string>
+    <string name="shortcuts_properties_use_steam_input">Använd Steam Input</string>
+    <string name="shortcuts_properties_steam_offline_mode">Steam offlineläge</string>
+    <string name="shortcuts_properties_steam_offline_mode_description">Får den emulerade Steam-klienten att rapportera som offline, så att spelet inte försöker upprätta onlineanslutningar. Använd för spel som hänger sig vid Steams nätverkskontroll.</string>
+    <string name="shortcuts_properties_reset">Återställ egenskaper</string>
+    <string name="shortcuts_properties_updated_at">Genväg uppdaterad %1$s</string>
+    <string name="shortcuts_properties_properties_reset">Egenskaperna återställdes.</string>
+    <string name="shortcuts_properties_reset_per_game">Återställ inställningar per spel</string>
+    <string name="shortcuts_properties_reset_per_game_message">Återställa det här spelet till att använda den valda containerns standardinställningar?</string>
+    <string name="shortcuts_properties_per_game_reset">Inställningar per spel återställda till den valda containerns standardvärden</string>
+
+    <!-- Input Controls > Editor -->
+    <string name="input_controls_editor_no_element_selected">Inget kontrollelement valt</string>
+    <string name="input_controls_editor_scale">Skala</string>
+    <string name="input_controls_editor_shape">Form</string>
+    <string name="input_controls_editor_type">Typ</string>
+    <string name="input_controls_editor_binding">Bindning</string>
+    <string name="binding_secondary">Sekundär bindning</string>
+    <string name="input_controls_editor_binding_up">Bindning upp</string>
+    <string name="input_controls_editor_binding_right">Bindning höger</string>
+    <string name="input_controls_editor_binding_down">Bindning ner</string>
+    <string name="input_controls_editor_binding_left">Bindning vänster</string>
+    <string name="input_controls_editor_overlay_opacity">Överläggets opacitet</string>
+    <string name="input_controls_editor_opacity">Opacitet</string>
+    <string name="input_controls_editor_radial_menu">Radiell meny</string>
+    <string name="input_controls_editor_radial_menu_options">Alternativ för radiell meny</string>
+    <string name="input_controls_editor_number_of_bindings">Antal bindningar</string>
+    <string name="input_controls_editor_select_profile">Välj profil</string>
+    <string name="input_controls_select_style">Välj stil</string>
+    <string name="input_controls_select_label_theme">Knappetiketter</string>
+    <string name="input_controls_style_original">Original</string>
+    <string name="input_controls_style_gamehub">Glas</string>
+    <string name="input_controls_label_theme_default">Original</string>
+    <string name="input_controls_label_theme_xbox">Xbox</string>
+    <string name="input_controls_label_theme_playstation">PlayStation</string>
+    <string name="input_controls_edit_duplicating_builtin">Inbyggd profil — en kopia som du kan redigera har skapats.</string>
+    <string name="input_controls_editor_profile_name">Profilnamn</string>
+    <string name="input_controls_editor_no_profile_selected">Ingen profil vald</string>
+    <string name="input_controls_editor_no_profile_found">Ingen profil hittades</string>
+    <string name="input_controls_editor_tap_to_switch">Tryck för att byta</string>
+    <string name="input_controls_editor_confirm_remove_profile">Vill du ta bort den här profilen?</string>
+    <string name="input_controls_editor_confirm_duplicate_profile">Vill du duplicera den här profilen?</string>
+    <string name="input_controls_editor_confirm_reset_profile">Återställa den här profilen till dess ursprungliga layout? Alla ändringar du gjort går förlorade.</string>
+    <string name="input_controls_editor_profile_reset">Profilen återställdes till dess ursprungliga layout.</string>
+    <string name="input_controls_editor_reset_unavailable">Ingen ursprunglig ögonblicksbild finns tillgänglig för den här profilen.</string>
+    <string name="input_controls_editor_title">Kontrollredigerare</string>
+    <string name="input_controls_editor_toggle_switch">Växlingsknapp</string>
+    <string name="input_controls_editor_profile_exported_to">Profil exporterad till</string>
+    <string name="input_controls_editor_unable_to_import">Det gick inte att importera profilen</string>
+    <string name="input_controls_editor_import_profile">Importera profil</string>
+    <string name="input_controls_editor_download_profile">Ladda ner profil</string>
+    <string name="input_controls_editor_export_profile">Exportera profil</string>
+    <string name="input_controls_editor_range">Intervall</string>
+    <string name="input_controls_editor_confirm_download_profiles">Vill du ladda ner de valda profilerna?</string>
+    <string name="input_controls_editor_unable_to_load_list">Det gick inte att läsa in profillistan</string>
+    <string name="input_controls_editor_osc_transparency">Transparens för skärmkontroller</string>
+    <string name="input_controls_editor_osc_transparency_description">Justera transparensen för skärmkontrollerna.</string>
+
+    <!-- Container > Configuration -->
+    <string name="container_config_screen_size">Skärmstorlek</string>
+    <string name="container_config_new_env_var">Ny miljövariabel</string>
+    <string name="container_config_env_vars">Miljövariabler</string>
+    <string name="container_config_processor_affinity">Processoraffinitet</string>
+    <string name="container_config_processor_affinity_32bit">Processoraffinitet (32-bitars appar)</string>
+    <string name="container_config_audio_driver">Ljuddrivrutin</string>
+    <string name="container_config_win_components">Win-komponenter</string>
+    <string name="container_config_drives">Enheter</string>
+    <string name="container_config_arch">Arkitektur</string>
+    <string name="container_config_storage_info">Lagringsinfo</string>
+    <string name="container_config_drive_c">Enhet C:</string>
+    <string name="container_config_cache">Cache</string>
+    <string name="container_config_total">Totalt</string>
+    <string name="container_config_clear_cache">Rensa cache</string>
+    <string name="container_config_estimated_used_space">Uppskattat använt utrymme</string>
+    <string name="settings_containers_error_saving_wallpaper">Fel vid sparande av bakgrundsbild</string>
+    <string name="container_config_directinput_mapper_type">DirectInput-mappartyp</string>
+    <string name="container_config_title">Konfiguration</string>
+    <string name="container_config_startup_selection">Uppstartsval</string>
+    <string name="container_config_glibc_exp_edition">Baserad på</string>
+    <string name="container_config_refresh_rate_default_global">Standard (global)</string>
+    <string name="container_config_enable_dinput">Aktivera DInput för spel i Wine</string>
+    <string name="container_config_enable_xinput">Aktivera XInput för spel i Wine</string>
+    <string name="container_config_dinput_legacy">Äldre (gamla handkontroller)</string>
+    <string name="container_config_dinput_modern">Modern (XInput-liknande)</string>
+    <string name="container_config_help_xinput">
+        Om ditt spel använder &lt;i&gt;&lt;b&gt;XInput-API:et&lt;/b&gt;&lt;/i&gt; för stöd för spelkontroller, aktivera det här alternativet.&lt;br/&gt;&lt;br/&gt;
+        Det här alternativet påverkar både &lt;i&gt;&lt;b&gt;virtuella&lt;/b&gt;&lt;/i&gt; (från Input Controls) och &lt;i&gt;&lt;b&gt;fysiska&lt;/b&gt;&lt;/i&gt; spelkontroller.
+    </string>
+    <string name="container_config_help_dinput">
+        Om ditt spel använder &lt;i&gt;&lt;b&gt;DInput-API:et&lt;/b&gt;&lt;/i&gt; för stöd för spelkontroller, aktivera det här alternativet.&lt;br/&gt;&lt;br/&gt;
+        Det här alternativet påverkar både &lt;i&gt;&lt;b&gt;virtuella&lt;/b&gt;&lt;/i&gt; (från Input Controls) och &lt;i&gt;&lt;b&gt;fysiska&lt;/b&gt;&lt;/i&gt; spelkontroller.
+    </string>
+    <string name="container_config_xinput_dinput_warning">Vissa spel kan ha stöd för båda API:erna. Att aktivera både XInput och DInput samtidigt i sådana spel kan orsaka kontrollproblem, som i titlar som The Binding of Isaac och Resident Evil-serien.</string>
+    <string name="container_config_lc_all" translatable="false">LC_ALL</string>
+    <string name="container_config_dll_emulator">32-bitars emulator</string>
+    <string name="container_config_emulator_wine_hint">Emulatorn bestäms av wine-versionen. ARM64EC använder FEXCore, x86_64 använder Box64.</string>
+    <string name="container_config_label">Konfiguration</string>
+    <string name="container_config_restart_required">Starta om containern för att ändringarna ska träda i kraft</string>
+    <string name="container_config_renderer">Renderare</string>
+    <string name="container_config_variables">Variabler</string>
+    <string name="container_config_windows">Windows</string>
+    <string name="container_config_inputs">Inmatningar</string>
+    <string name="container_config_tab">Konfig</string>
+    <string name="container_config_av_tab">A/V</string>
+    <string name="container_config_emulator_64bit">64-bitars emulator</string>
+    <string name="container_config_emulator_section">Emulator</string>
+    <string name="container_config_sdl2_compatibility">Aktivera SDL2-kompatibilitet</string>
+
+    <!-- Container > Wine and DirectX -->
+    <string name="container_wine_configuration">Wine-konfiguration</string>
+    <string name="container_wine_csmt">CSMT (Command Stream Multi-Thread)</string>
+    <string name="container_wine_gpu_name">GPU-namn</string>
+    <string name="container_wine_offscreen_rendering_mode">Läge för rendering utanför skärmen</string>
+    <string name="container_wine_strict_shader_math">Strikt shader-matematik</string>
+    <string name="container_wine_video_memory_size">Videominnesstorlek</string>
+    <string name="container_wine_dxwrapper">DX-omslag</string>
+    <string name="container_wine_mouse_warp_override">Åsidosättning av musförflyttning</string>
+    <string name="container_wine_directx">DirectX</string>
+    <string name="container_wine_dxvk_version">DXVK-version</string>
+    <string name="container_wine_dxvk_config_title">DXVK-konfiguration</string>
+    <string name="container_wine_wined3d_config_title">WineD3D-konfiguration</string>
+    <string name="container_wine_vkd3d_version">VKD3D-version</string>
+    <string name="container_wine_version">Wine-version</string>
+    <string name="container_wine_dxwrapper_help_content">
+        &lt;i&gt;&lt;b&gt;WineD3D&lt;/b&gt;&lt;/i&gt; är ett översättningslager för DirectX 1-11 till OpenGL.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;DXVK&lt;/b&gt;&lt;/i&gt; är ett översättningslager för Direct3D 9-11 till Vulkan.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;VKD3D&lt;/b&gt;&lt;/i&gt; är ett översättningslager för Direct3D 12-API:et till Vulkan.&lt;br /&gt;&lt;br /&gt;
+        &lt;i&gt;&lt;b&gt;CNC DDraw&lt;/b&gt;&lt;/i&gt; är en implementering av DirectDraw för bättre kompatibilitet med klassiska spel.
+    </string>
+    <string name="container_wine_enabled_async">Aktivera Async</string>
+    <string name="container_wine_enabled_async_cache">Aktivera Async-cache</string>
+    <string name="container_wine_vkd3d_feature_level">VKD3D-funktionsnivå</string>
+    <string name="container_wine_ddraw_wrapper">DDraw-omslag</string>
+    <string name="container_wine_error_not_installed">Wine/Proton-paketet \'%1$s\' är inte installerat och kunde inte laddas ner.</string>
+    <string name="container_no_wine_installed">Ingen Wine eller Proton är installerad. Installera en först.</string>
+    <string name="container_wine_title">Wine</string>
+    <string name="container_wine_opengl">OpenGL</string>
+    <string name="container_surface_effect">Yteffekt</string>
+
+    <!-- Container > Box64 -->
+    <string name="container_box64_title">Box64</string>
+    <string name="container_box64_wowbox64_title">Box64 / Wowbox64</string>
+    <string name="container_wowbox64_title">Wowbox64</string>
+    <string name="container_box64_preset">Box64-förinställning</string>
+    <string name="container_box64_version">Box64-version</string>
+    <string name="container_box64_stability">Stabilitet</string>
+    <string name="container_box64_compatibility">Kompatibilitet</string>
+    <string name="container_box64_intermediate">Mellannivå</string>
+    <string name="container_box64_performance">Prestanda</string>
+    <string name="box64_env_var_help__dynarec">Aktiverar eller inaktiverar Box64:s dynamiska omkompilerare.</string>
+    <string name="box64_env_var_help__dynarec_safeflags">
+        Hantering av flaggor på CALL/RET-opkoder&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Behandlar CALL/RET som om de aldrig behövde flaggor (snabbare, instabilt)&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : De flesta RET behöver flaggor, de flesta CALL gör det inte&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Alla CALL/RET behöver flaggor (långsammare)
+    </string>
+    <string name="box64_env_var_help__dynarec_fastnan">Generering av -NAN som på x86</string>
+    <string name="box64_env_var_help__dynarec_fastround">Generering av precis x86-avrundning</string>
+    <string name="box64_env_var_help__dynarec_x87double">Användning av Float/Double för x87-emulering</string>
+    <string name="box64_env_var_help__dynarec_bigblock">
+        Dynarec bygger BigBlock&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Försök inte bygga blocket så stort som möjligt&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Bygg Dynarec-blocket så stort som möjligt&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Bygg Dynarec-blocket större (fortsätt när blocket överlappar, men endast för block i elf-minne)&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Bygg Dynarec-blocket större (fortsätt när blocket överlappar, för alla typer av minne)
+    </string>
+    <string name="box64_env_var_help__dynarec_strongmem">
+        Simulering av Strong Memory-modell&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Försök inte med något speciellt&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Aktivera vissa Memory Barrier vid skrivning till minne (på vissa MOV-opkoder)&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Allt i 1 plus en Memory Barrier vid varje skrivning till minne med MOV&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Allt i 2 plus Memory Barrier vid läsning från minne och på vissa SSE/SSE2-opkoder&lt;br /&gt;
+        &lt;b&gt;4&lt;/b&gt; : Efterliknar x86 TSO på liknande sätt som QEMU.
+    </string>
+    <string name="box64_env_var_help__dynarec_forward">Definierar det högsta tillåtna framåtvärdet vid byggande av block</string>
+    <string name="box64_env_var_help__dynarec_callret">Optimering av CALL/RET-opkoder</string>
+    <string name="box64_env_var_help__dynarec_sep">Lägger till sekundära ingångspunkter för att optimera CALL/RET när CALLRET är aktiverat.</string>
+    <string name="box64_env_var_help__dynarec_wait">Definierar huruvida Dynarec ska vänta på att FillBlock blir klar</string>
+    <string name="box64_env_var_help__dynarec_weakbarrier">
+        Justera minnesbarriärer för att minska prestandapåverkan av strong memory-emulering&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Använd vanliga säkra barriärer&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Använd svaga barriärer för en mild prestandaökning&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Använd svaga barriärer, inaktivera dessutom barriärer för sista skrivningen</string>
+    <string name="box64_env_var_help__dynarec_aligned_atomics">
+        Generera endast justerade atomics (endast tillgängligt på Arm64 för närvarande).&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Generera kod som hanterar ojusterade atomics.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Generera endast justerade atomics, vilket är snabbare och ger mindre kodstorlek, men orsakar SIGBUS för LOCK-prefixade opkoder som opererar på justerade dataadresser.</string>
+    <string name="box64_env_var_help__dynarec_df">
+        Aktivera eller inaktivera användningen av deferred flags.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Inaktivera användningen av deferred flags.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Aktivera användningen av deferred flags.</string>
+    <string name="box64_env_var_help__dynarec_dirty">
+        Tillåt fortsatt körning av ett block som är oskyddat och potentiellt smutsigt.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Tillåt inte fortsatt körning av ett block som är oskyddat och potentiellt smutsigt.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Tillåt fortsatt körning av ett dynablock som skriver data på samma sida som kod. Det kan snabba upp laddningstiden för vissa spel men kan också orsaka oväntade krascher.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Kommer även, när en HotPage upptäcks, att markera den sidan som NEVERCLEAN, så att den inte skrivskyddas men block som byggs från den sidan alltid testas. Det kan vara snabbare på det sättet (men vissa SMC-fall kanske inte fångas).</string>
+    <string name="box64_env_var_help__dynarec_nativeflags">
+        Aktivera eller inaktivera användningen av native flags.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Använd inte native flags.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Använd native flags när det är möjligt.</string>
+    <string name="box64_env_var_help__dynarec_pause">
+        Aktivera x86 PAUSE-emulering, kan förbättra prestandan för spinlocks.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Ignorera x86 PAUSE-instruktionen.&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : Använd YIELD för att emulera x86 PAUSE-instruktionen.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Använd WFI för att emulera x86 PAUSE-instruktionen.&lt;br /&gt;
+        &lt;b&gt;3&lt;/b&gt; : Använd SEVL+WFE för att emulera x86 PAUSE-instruktionen.
+    </string>
+    <string name="box64_env_var_help__dynarec_noarch">Minskar dynarec-blockmetadata för att spara minne, med kompatibilitetsavvägningar.</string>
+    <string name="box64_env_var_help__dynarec_volatile_metadata">Använder PE volatile-metadata för att styra stark minnesemulering för 64-bitars Windows-spel.</string>
+    <string name="box64_env_var_help__dynacache">Styr cachning av genererade dynarec-block mellan körningar för att snabba upp starten.</string>
+    <string name="box64_env_var_help__avx">
+        Exponerar AVX-funktioner för gästen.&lt;br /&gt;&lt;br /&gt;
+        &lt;b&gt;0&lt;/b&gt; : Inaktivera AVX-tillägg&lt;br /&gt;
+        &lt;b&gt;1&lt;/b&gt; : aktivera AVX-, BMI1-, F16C- och VAES-tillägg.&lt;br /&gt;
+        &lt;b&gt;2&lt;/b&gt; : Allt i 1 plus aktivera AVX2, BMI2, FMA, ADX, VPCLMULQDQ och RDRAND.&lt;br /&gt;
+    </string>
+    <string name="box64_env_var_help__aes">Exponerar AES-processorfunktioner för gästen.</string>
+    <string name="box64_env_var_help__pclmulqdq">Exponerar PCLMULQDQ-processorfunktioner för gästen.</string>
+    <string name="box64_env_var_help__shaext">Exponerar SHA-tilläggets processorfunktioner för gästen.</string>
+    <string name="box64_env_var_help__sse42">Exponerar SSE4.2-processorfunktioner för gästen.</string>
+    <string name="box64_env_var_help__sse_flushto0">Styr SSE flush-to-zero-beteende och spårning av undantagsflaggor.</string>
+    <string name="box64_env_var_help__x87_no80bits">Använder 64-bitars double-precision istället för 80-bitars long double för x87.</string>
+    <string name="box64_env_var_help__cputype">Väljer vilken Intel- eller AMD-processormodell som exponeras för gästen.</string>
+    <string name="box64_env_var_help__maxcpu">Maximalt antal processorer som Box64 presenterar för program</string>
+    <string name="box64_env_var_help__unityplayer">Upptäcker UnityPlayer och markerar appen som ett Unity-spel.</string>
+    <string name="box64_env_var_help__unity">Markerar appen som ett Unity-spel och aktiverar Unity-specifik kompatibilitetshantering.</string>
+    <string name="box64_env_var_help__mmap32">Tvinga all minnesallokering till 32-bitars adressrymder</string>
+
+    <!-- Container > FEXCore -->
+    <string name="fexcore_env_var_help__tsoenabled">Aktiverar TSO IR-operationer (krävs för flertrådade appar).</string>
+    <string name="fexcore_env_var_help__vectortsoenabled">Gör vektorläsningar/-skrivningar atomiska när TSO är aktiverat.</string>
+    <string name="fexcore_env_var_help__halfbarriertsoenabled">Använder half-barrier-atomics för ojusterade läsningar/skrivningar under TSO.</string>
+    <string name="fexcore_env_var_help__memcpysettsoenabled">Gör REP MOVS / REP STOS atomiska under TSO.</string>
+    <string name="fexcore_env_var_help__strictinprocesssplitlocks">Använder ett strikt processomfattande lås för delade ojusterade atomiska åtkomster.</string>
+    <string name="fexcore_env_var_help__kernelunalignedatomicbackpatching">Efterlappar kärnhanterade ojusterade atomics för att minska kontextväxlingar i kärnan.</string>
+    <string name="fexcore_env_var_help__multiblock">Aktiverar multiblock-kodkompilering. Kan orsaka längre JIT-kompilering och hackighet.</string>
+    <string name="fexcore_env_var_help__maxinst">Maximalt antal instruktioner som lagras i ett kompilerat block.</string>
+    <string name="fexcore_env_var_help__hostfeatures">Styr framtvingande av processorfunktioner.</string>
+    <string name="fexcore_env_var_help__smalltscscale">Skalar TSC på lågfrekventa system.</string>
+    <string name="fexcore_env_var_help__hidehybrid">Döljer hybrid-processorkärnlayout för gästen.</string>
+    <string name="fexcore_env_var_help__smc_checks">Kontrollerar om kod har ändrats innan körning.</string>
+    <string name="fexcore_env_var_help__volatilemetadata">Använder volatile-metadata från PE-filer för TSO när det är tillgängligt.</string>
+    <string name="fexcore_env_var_help__monohacks">Speciella SMC- + JIT-blockhack för Mono-detektering.</string>
+    <string name="fexcore_env_var_help__hidehypervisorbit">Döljer CPUID-hypervisorbiten (användbart för appar som kraschar med den).</string>
+    <string name="fexcore_env_var_help__disablel2cache">Inaktiverar FEXCore JIT L2-cacheuppslag, sparar minne men introducerar hackighet.</string>
+    <string name="fexcore_env_var_help__dynamicl1cache">Ändrar FEXCore JIT L1-cache till dynamisk storlek, sparar minne men introducerar hackighet.</string>
+    <string name="fexcore_env_var_help__dynamicl1cacheincreasecountheuristic">Tröskelvärde för uppslag per sekund för att utöka den dynamiska L1-cachen.</string>
+    <string name="fexcore_env_var_help__dynamicl1cachedecreasecountheuristic">Tröskelvärde för uppslag per sekund för att krympa den dynamiska L1-cachen.</string>
+    <string name="fexcore_env_var_help__x87reducedprecision">Emulerar X87-flyttal med 64-bitars precision. Detta minskar emuleringsnoggrannheten och kan orsaka renderingsfel.</string>
+    <string name="container_fexcore_config">FEXCore</string>
+    <string name="container_fexcore_preset">FEXCore-förinställning</string>
+    <string name="container_fexcore_version">FEXCore-version</string>
+    <string name="use_unix_libs">Använd UnixLibs</string>
+
+    <!-- Container > Graphics Driver -->
+    <string name="container_graphics_driver">Grafikdrivrutin</string>
+    <string name="container_graphics_configuration">Grafikdrivrutinskonfiguration</string>
+    <string name="container_graphics_version">Grafikdrivrutinsversion</string>
+    <string name="container_graphics_available_extensions">Tillgängliga tillägg</string>
+    <string name="container_graphics_extensions_enabled_summary">%1$d / %2$d aktiverade</string>
+    <string name="container_graphics_max_device_memory">Max enhetsminne</string>
+    <string name="container_graphics_sync_frame">Synkronisera varje bildruta</string>
+    <string name="container_graphics_disable_present_wait">Inaktivera KHR_present_wait</string>
+    <string name="container_graphics_present_modes">Presentationslägen</string>
+    <string name="container_graphics_compositor_present_mode">Vulkan-skärmsynkronisering</string>
+    <string name="container_graphics_resource_type">Minnesresurstyp</string>
+    <string name="container_graphics_vulkan_version">Vulkan-version</string>
+    <string name="container_graphics_bcn_emulation">BCn-emulering</string>
+    <string name="container_graphics_bcn_emulation_type">BCn-emuleringstyp</string>
+    <string name="container_graphics_bcn_emulation_cache">BCn-emuleringscache</string>
+    <string name="container_graphics_transcoder">BCn-omkodare</string>
+    <string name="container_graphics_quality">BCn-kvalitet</string>
+    <string name="shortcuts_graphics_sgsr_full_title">Snapdragon™ Game Super Resolution 1</string>
+    <!-- Container > Presets -->
+    <string name="container_presets_confirm_duplicate">Vill du duplicera den här förinställningen?</string>
+    <string name="container_presets_confirm_remove">Vill du ta bort den här förinställningen?</string>
+    <string name="container_presets_title">Förinställningar</string>
+    <string name="container_presets_preset">Förinställning</string>
+    <string name="container_presets_new">Ny förinställning</string>
+    <string name="container_presets_rename">Byt namn på förinställning</string>
+    <string name="container_presets_import">Importera förinställning</string>
+    <string name="container_presets_custom">Anpassad</string>
+    <string name="container_presets_built_in">Standard</string>
+    <string name="container_presets_changes_auto_saved">Ändringar sparas automatiskt när du redigerar den här anpassade förinställningen.</string>
+    <string name="container_presets_cannot_rename">Inbyggda förinställningar kan inte byta namn</string>
+    <string name="container_presets_unable_to_import">Det gick inte att importera förinställningen</string>
+    <string name="container_presets_no_description">Ingen beskrivning tillgänglig</string>
+    <string name="container_presets_cannot_remove">Du kan inte ta bort den här förinställningen</string>
+    <string name="container_presets_cannot_export">Det går inte att exportera den här förinställningen</string>
+
+    <!-- Session > XServer -->
+    <string name="session_xserver_title">XServer</string>
+    <string name="session_xserver_simulate_touch_screen">Simulera pekskärm</string>
+    <string name="session_xserver_preferences_button_text">   INSTÄLLNINGAR   </string>
+    <string name="session_xserver_extra_keys_config_desc">Här kan du ange värdet på extra-keys-variabeln som i Termux-appen (läs <a href="http://wiki.termux.com/wiki/Touch_Keyboard#Extra_Keys_Row">detta</a>) och mer \n
+T.ex. <b>META</b> för <i>META-tangent</i>, \n
+<b>KEYBOARD</b> för <i>tangent för att växla mjukt tangentbord</i>, \n
+<b>PREFERENCES</b> för <i>tangent för att öppna inställningar</i>, \n
+<b>MOUSE_HELPER</b> för <i>tangent för att växla mushjälp</i>, \n
+<b>STYLUS_HELPER</b> för <i>tangent för att växla överlägg för penn-klickåsidosättning</i>, \n
+<b>EXIT</b> för <i>tangent för att avsluta applikationen</i>.</string>
+    <string name="session_xserver_pref_main">Inställningar</string>
+    <string name="session_xserver_pref_output">Utdata</string>
+    <string name="session_xserver_pref_pointer">Pekare</string>
+    <string name="session_xserver_pref_kbd">Tangentbord</string>
+    <string name="session_xserver_pref_other">Övrigt</string>
+    <string name="session_xserver_pref_version">Version</string>
+    <string name="session_xserver_notification_description">WinNative XServer-meddelanden</string>
+    <string name="session_xserver_notification_content">WinNative körs, avsluta eller svep inte bort den här aviseringen</string>
+
+    <!-- Session > Drawer Menu -->
+    <string name="session_drawer_keyboard">Tangentbord</string>
+    <string name="session_drawer_fps_monitor">FPS-övervakare</string>
+    <string name="session_drawer_fps_monitor_subtitle">Visa prestandastatistik i realtid</string>
+    <string name="session_drawer_dual_series_battery">Dubbelseriebatteri</string>
+    <string name="session_drawer_hud_frametime_numeric">Visa bildrutetid som siffra</string>
+    <string name="session_drawer_toggle_fullscreen">Växla helskärm</string>
+    <string name="session_drawer_refactor_size">Ändra storlek</string>
+    <string name="session_drawer_show_touchscreen_controls">Visa pekskärmskontroller</string>
+    <string name="session_drawer_magnifier">Förstoringsglas</string>
+    <string name="session_drawer_logs">Loggar</string>
+    <string name="session_drawer_pip_mode">PiP-läge</string>
+    <string name="session_drawer_toggle_relative_mouse">Växla relativ musrörelse</string>
+    <string name="session_drawer_toggle_mouse">Växla mus</string>
+    <string name="session_drawer_pause_resume">Pausa/Återuppta</string>
+    <string name="session_drawer_relative_mouse_movement">Relativ musrörelse</string>
+    <string name="session_drawer_mouse_input">Musinmatning</string>
+    <string name="session_drawer_touch">Touch</string>
+    <string name="session_drawer_touch_trackpad">Styrplatta</string>
+    <string name="session_drawer_touch_touchscreen">Pekskärmsläge</string>
+    <string name="session_drawer_touch_map_right_stick">Mappa till höger spak</string>
+    <string name="session_drawer_rts_gestures">RTS-gester</string>
+    <string name="session_drawer_rts_gestures_edit">Redigera</string>
+    <string name="session_drawer_right_stick_sensitivity">Känslighet för höger spak</string>
+    <string name="session_rts_action">Åtgärd</string>
+    <string name="session_rts_behavior">Beteende</string>
+    <string name="session_rts_tap1">1-fingertryck</string>
+    <string name="session_rts_tap2">2-fingertryck</string>
+    <string name="session_rts_tap3">3-fingertryck</string>
+    <string name="session_rts_tap4">4-fingertryck</string>
+    <string name="session_rts_double_tap">Dubbeltryck (dubbelt vänsterklick)</string>
+    <string name="session_rts_long_press">Långtryck</string>
+    <string name="session_rts_hold2">2-fingerhållning</string>
+    <string name="session_rts_hold3">3-fingerhållning</string>
+    <string name="session_rts_hold4">4-fingerhållning</string>
+    <string name="session_rts_swipe3">3-fingersvep</string>
+    <string name="session_rts_swipe4">4-fingersvep</string>
+    <string name="session_rts_up">Upp</string>
+    <string name="session_rts_down">Ned</string>
+    <string name="session_rts_left">Vänster</string>
+    <string name="session_rts_right">Höger</string>
+    <string name="session_rts_pan">2-fingerpanorering</string>
+    <string name="session_rts_pan1">1-fingerpanorering</string>
+    <string name="session_rts_zoom">Nyp för att zooma</string>
+    <string name="session_rts_drag">1-fingerdragning</string>
+    <string name="session_rts_drag2">2-fingerdragning</string>
+    <string name="session_rts_long_press_delay">Fördröjning för långtryck (ms)</string>
+    <string name="session_rts_hold_delay">Fördröjning för hållning (ms)</string>
+    <string name="session_rts_swipe_threshold">Svepningströskel (px)</string>
+    <string name="session_rts_gesture_threshold">Gesttröskel (px)</string>
+    <string name="session_rts_double_tap_delay">Fördröjning för dubbeltryck (ms)</string>
+    <string name="session_rts_drag_threshold">Dragtröskel (px)</string>
+    <string name="session_rts_pan_threshold">Start för panorering/nyp (px)</string>
+    <string name="common_ui_rename">Byt namn</string>
+    <string name="common_ui_new">Ny</string>
+    <string name="input_controls_editor_input_profiles_section">Inmatningsprofiler</string>
+    <string name="session_gesture_profile_section">Gestprofil</string>
+    <string name="gesture_profile_new">Ny gestprofil</string>
+    <string name="gesture_profile_import">Importera gestprofil</string>
+    <string name="gesture_profile_export">Exportera gestprofil</string>
+    <string name="gesture_profile_none">Inga gestprofiler</string>
+    <string name="session_drawer_screen_effects">Skärmeffekter</string>
+    <string name="session_drawer_screen_effects_subtitle">Uppskalning och färgeffekter</string>
+    <string name="session_drawer_super_resolution">Superupplösning</string>
+    <string name="session_drawer_upscaler_mode">Uppskalare</string>
+    <string name="session_drawer_upscaler_fsr">SGSR 1</string>
+    <string name="session_drawer_sgsr_edge_sharpness">Kantskärpa</string>
+    <string name="session_drawer_vivid">Livfull</string>
+    <string name="session_drawer_vivid_strength">Livfullhetsstyrka</string>
+    <string name="session_drawer_color_profile">Färgeffekt</string>
+    <string name="session_drawer_picture_in_picture">Bild-i-bild</string>
+    <string name="session_drawer_exit_subtitle">Stäng den pågående sessionen</string>
+    <string name="session_drawer_touchscreen_overlay">Pekskärmsöverlägg</string>
+    <string name="session_drawer_resume">Återuppta</string>
+    <string name="session_drawer_retry">Försök igen</string>
+    <string name="downloads_no_internet">Ingen internetanslutning</string>
+    <string name="session_drawer_pause">Pausa</string>
+    <string name="session_drawer_wine_processes_paused">Wine-processer är pausade</string>
+    <string name="session_drawer_pause_all_wine_processes">Pausa alla Wine-processer</string>
+    <string name="session_drawer_controls_section">Kontroller</string>
+    <string name="session_drawer_session_section">Session</string>
+    <string name="session_drawer_header_subtitle">Snabb åtkomst till kontroller, överlägg och sessionsverktyg</string>
+    <string name="session_drawer_swipe_hint">Svep bort för att hoppa tillbaka in i spelet</string>
+    <string name="session_drawer_main_menu_title">Meny</string>
+    <string name="session_drawer_hud_summary">Justera överläggets synlighet och datapunkter</string>
+    <string name="session_drawer_hud_disabled_hint">Slå på överlägget för att anpassa det</string>
+    <string name="session_drawer_hud_alpha">Alfa</string>
+    <string name="session_drawer_hud_background_alpha">Bakgrundsalfa</string>
+    <string name="session_drawer_hud_background">Bakgrund</string>
+    <string name="session_drawer_hud_scale">Skala</string>
+    <string name="session_drawer_hud_elements">HUD-element</string>
+    <string name="session_drawer_hud_element_fps">FPS</string>
+    <string name="session_drawer_hud_element_api">GFX</string>
+    <string name="session_drawer_hud_element_gpu">GPU</string>
+    <string name="session_drawer_hud_element_cpu">CPU</string>
+    <string name="session_drawer_hud_element_ram">RAM</string>
+    <string name="session_drawer_hud_element_battery">BAT</string>
+    <string name="session_drawer_hud_element_temp">B.TMP</string>
+    <string name="session_drawer_hud_element_graph">Graf</string>
+    <string name="session_drawer_hud_element_cpu_temp">C.TMP</string>
+    <string name="hud_position_menu_title">Flytta HUD till</string>
+    <string name="hud_position_top_left">Uppe till vänster</string>
+    <string name="hud_position_top_center">Uppe i mitten</string>
+    <string name="hud_position_top_right">Uppe till höger</string>
+    <string name="hud_position_left_center">Mitten till vänster</string>
+    <string name="hud_position_right_center">Mitten till höger</string>
+    <string name="hud_position_bottom_left">Nere till vänster</string>
+    <string name="hud_position_bottom_center">Nere i mitten</string>
+    <string name="hud_position_bottom_right">Nere till höger</string>
+    <string name="session_drawer_hud_alpha_input_title">Ange alfa</string>
+    <string name="session_drawer_hud_background_alpha_input_title">Ange bakgrundsalfa</string>
+    <string name="session_drawer_hud_scale_input_title">Ange skala</string>
+    <string name="session_drawer_hud_input_hint">Ange ett värde mellan %1$d och %2$d. Värden över gränsen begränsas.</string>
+    <string name="session_drawer_command_center">Kommandocenter</string>
+    <string name="session_drawer_command_center_input">Inmatning</string>
+    <string name="session_drawer_command_center_display">Skärm</string>
+    <string name="session_drawer_command_center_system">System</string>
+    <string name="session_drawer_fps_limiter">FPS-begränsare</string>
+    <string name="session_drawer_fps_limiter_off">Av</string>
+    <string name="session_drawer_color_profile_disabled">Inaktiverad</string>
+    <string name="session_drawer_color_profile_hdr">HDR</string>
+    <string name="session_drawer_color_profile_natural">Naturlig</string>
+    <string name="session_drawer_color_profile_crt">CRT-effekt</string>
+    <string name="session_drawer_color_profile_toon">Tecknad</string>
+    <string name="session_drawer_color_profile_ntsc">Ntsc</string>
+    <string name="session_drawer_color_profile_ntsc2">Ntsc2</string>
+    <string name="session_drawer_brightness">Ljusstyrka</string>
+    <string name="session_drawer_contrast">Kontrast</string>
+    <string name="session_drawer_gamma">Gamma</string>
+    <string name="session_drawer_scale">Skala</string>
+    <string name="session_drawer_scale_nearest">Närmaste</string>
+    <string name="session_drawer_scale_linear">Linjär</string>
+    <string name="session_drawer_scale_bicubic">Bikubisk</string>
+    <string name="session_drawer_saturation">Mättnad</string>
+    <string name="session_drawer_temperature">Temperatur</string>
+    <string name="session_drawer_tint">Nyans</string>
+    <string name="session_drawer_sharpen">Skärpa</string>
+    <string name="session_drawer_scanlines">Scanlinjer</string>
+    <string name="session_drawer_pixelate">Pixelera</string>
+    <string name="session_drawer_block_size">Blockstorlek</string>
+    <string name="session_drawer_strength">Styrka</string>
+    <string name="session_drawer_intensity">Intensitet</string>
+    <string name="session_drawer_color_blind">Färgblind</string>
+    <string name="session_drawer_color_blind_protan">Protan</string>
+    <string name="session_drawer_color_blind_deutan">Deutan</string>
+    <string name="session_drawer_color_blind_tritan">Tritan</string>
+    <string name="session_drawer_reset_effects">Återställ effekter</string>
+    <string name="session_drawer_calibrate_advanced">Avancerad kalibrering</string>
+    <string name="session_drawer_rail_label_hud">HUD</string>
+    <string name="session_drawer_rail_label_gyro">Gyro</string>
+    <string name="session_drawer_rail_label_effects">FX</string>
+    <string name="session_drawer_rail_label_output">Utgång</string>
+    <string name="session_drawer_rail_label_apps">Mer</string>
+    <!-- External display / video-out (USB-C, HDMI, DisplayPort) -->
+    <string name="display_output_prompt_title">Extern skärm upptäckt</string>
+    <string name="display_output_prompt_message">Skicka spelet till den anslutna skärmen? Dina skärmkontroller och din meny stannar på den här telefonen.</string>
+    <string name="display_output_prompt_swap">Byt skärmar</string>
+    <string name="display_output_prompt_mirror">Spegla</string>
+    <string name="display_output_swapped_toast">Spelet flyttat till extern skärm. Kontrollerna stannar på telefonen.</string>
+    <string name="display_output_cast_unavailable">Inställningar för trådlös skärm är inte tillgängliga på den här enheten.</string>
+    <string name="display_output_restored_toast">Extern skärm frånkopplad — spelet återfört till telefonen.</string>
+    <string name="session_drawer_output_title">Skärmutgång</string>
+    <string name="session_drawer_output_subtitle">Spelet visas på den externa skärmen.</string>
+    <string name="session_drawer_output_device">Ansluten skärm</string>
+    <string name="session_drawer_output_resolution">Upplösning</string>
+    <string name="session_drawer_output_refresh_rate">Uppdateringsfrekvens</string>
+    <string name="session_drawer_output_aspect_ratio">Bildförhållande</string>
+    <string name="session_drawer_output_aspect_fit">Anpassa (bildförhållande)</string>
+    <string name="session_drawer_output_aspect_stretch">Sträck ut (fyll)</string>
+    <string name="session_drawer_output_aspect_zoom">Zooma (beskär)</string>
+    <string name="session_drawer_output_return_to_phone">Återför till telefonen</string>
+    <string name="session_drawer_output_refresh_hz">%1$d Hz</string>
+    <string name="session_drawer_output_cast_title">Casta till en TV</string>
+    <string name="session_drawer_output_cast_body">Anslut en USB-C-/HDMI-adapter, eller tryck nedan för att ansluta en trådlös skärm (Miracast / Wi-Fi Direct). Spelet visas på TV:n medan dessa kontroller stannar på telefonen.</string>
+    <string name="session_drawer_output_cast_button">Anslut trådlös skärm</string>
+    <string name="session_drawer_output_cast_note">TV-apparater med endast Chromecast kan inte visa live-spel med privata kontroller — använd en trådlös skärm eller en USB-C-/HDMI-adapter för bästa resultat.</string>
+    <string name="session_drawer_output_render_note">Lägen som din skärm rapporterar byter dess faktiska utsignal (den kan bli svart en kort stund medan den initieras om). Andra upplösningar renderas i den storleken och hårdvaruskalas till panelen — högre än inbyggd upplösning ger skärpa (supersampling), lägre går snabbare.</string>
+    <string name="session_drawer_output_scaling_note">Den här telefonen matar ut skärmen i sin inbyggda %1$s och byter inte läge, så detta ställer in renderingsupplösningen — den hårdvaruskalas till panelen (högre än inbyggd upplösning ger skärpa, lägre går snabbare).</string>
+    <string name="session_drawer_output_game_mode">Spelläge (låg latens)</string>
+    <string name="session_drawer_output_game_mode_on">På</string>
+    <string name="session_drawer_output_game_mode_off">Av</string>
+    <string name="session_drawer_output_game_mode_note">Begär TV:ns läge för låg latens / spelläge (HDMI ALLM) för att minimera inmatningsfördröjning. Visas endast när den anslutna skärmen stöder det.</string>
+    <string name="session_drawer_output_send_to_display">Skicka spelet till skärmen</string>
+    <string name="session_drawer_output_to_display">Mata ut till extern skärm</string>
+    <string name="session_drawer_output_send_note">En skärm är ansluten. Skicka spelet dit — dina kontroller och din meny stannar på den här telefonen. Du kan återföra det hit när som helst.</string>
+    <string name="session_drawer_output_display">Skärm</string>
+    <string name="session_drawer_output_glasses">Glasögon</string>
+    <string name="session_drawer_output_brightness">Ljusstyrka</string>
+    <string name="session_drawer_output_shade">Toning (dämpning)</string>
+    <string name="session_drawer_output_3d">3D (sida vid sida)</string>
+    <string name="glasses_panel_refresh">Uppdateringsfrekvens</string>
+    <string name="glasses_panel_sunblock">Solskydd</string>
+    <string name="session_drawer_output_volume">Volym</string>
+    <string name="session_drawer_output_glasses_note">Skickas direkt till dina Viture-glasögon via USB.</string>
+    <string name="session_drawer_rail_label_keyboard">Tangentbord</string>
+    <string name="session_drawer_rail_label_input_controls">Kontroller</string>
+    <string name="session_drawer_rail_label_relative_mouse">RelMus</string>
+    <string name="session_drawer_rail_label_mouse">Mus</string>
+    <string name="session_drawer_rail_label_fullscreen">Helskärm</string>
+    <string name="session_drawer_rail_label_pip">PiP</string>
+    <string name="session_drawer_rail_label_magnifier">Zoom</string>
+    <string name="session_drawer_rail_label_task_manager">Uppgifter</string>
+    <string name="session_drawer_rail_label_record">Spela in</string>
+    <string name="session_drawer_rail_label_logs">Loggar</string>
+    <string name="session_record_started">Inspelning startad</string>
+    <string name="session_record_saved">Inspelning sparad i WinNative/Recordings</string>
+    <string name="session_record_failed">Kunde inte starta inspelningen</string>
+    <string name="session_record_settings_title">Inspelningsinställningar</string>
+    <string name="session_record_fps">Bildfrekvens</string>
+    <string name="session_record_resolution">Upplösning</string>
+    <string name="session_record_quality">Kvalitet</string>
+    <string name="session_record_include_ui">Spela in gränssnitt</string>
+    <string name="session_record_include_ui_subtitle">Inkludera HUD och skärmkontroller</string>
+    <string name="session_record_now">Spela in nu</string>
+    <string name="session_drawer_logs_clear">Rensa</string>
+    <string name="session_drawer_logs_pause">Pausa</string>
+    <string name="session_drawer_logs_resume">Återuppta</string>
+    <string name="session_drawer_logs_paused_indicator">Pausad</string>
+    <string name="session_drawer_logs_line_count">%1$d rader</string>
+    <string name="session_drawer_logs_share">Dela</string>
+    <string name="session_drawer_logs_share_subject">Sessionsloggar</string>
+    <string name="session_drawer_logs_share_chooser">Dela sessionsloggar</string>
+    <string name="session_drawer_logs_share_failed">Det gick inte att dela loggarna</string>
+    <string name="session_drawer_logs_share_empty">Inga loggrader att dela</string>
+    <string name="session_gyroscope_activator">Aktivator</string>
+
+    <!-- Session > Task Manager -->
+    <string name="session_task_confirm_end_process">Vill du avsluta den här processen?</string>
+    <string name="session_task_title">Aktivitetshanteraren</string>
+    <string name="session_task_process_name">Processnamn</string>
+    <string name="session_task_pid">PID</string>
+    <string name="session_task_memory">Minne</string>
+    <string name="session_task_end_process">Avsluta process</string>
+    <string name="session_task_set_affinity">Ange tillhörighet</string>
+    <string name="session_task_affinity_title">Processortillhörighet</string>
+    <string name="session_task_affinity_all_cores">Alla kärnor</string>
+    <string name="session_task_new_task">Ny aktivitet</string>
+    <string name="session_task_bring_to_front">Ta fram</string>
+    <string name="session_task_custom_value">Anpassat värde</string>
+    <string name="session_task_processes">Processer</string>
+    <string name="session_task_cpu_usage_format">CPU (%1$d%%)</string>
+    <string name="session_task_per_core_usage">Användning per kärna</string>
+    <string name="session_task_core_label">Kärna %1$d</string>
+    <plurals name="session_task_core_count">
+        <item quantity="one">%d kärna</item>
+        <item quantity="other">%d kärnor</item>
+    </plurals>
+
+    <!-- Session > Display -->
+    <string name="session_display_orientation">Orientering</string>
+    <string name="session_display_horizontal">Horisontell</string>
+    <string name="session_display_vertical">Vertikal</string>
+    <string name="session_display_columns">Kolumner</string>
+    <string name="session_display_frame_rate">Bildfrekvens</string>
+    <string name="session_display_title">Skärm</string>
+    <string name="session_display_fullscreen_stretched">Aktivera helskärm (utsträckt)</string>
+    <string name="session_display_fps_label">FPS:</string>
+    <string name="session_display_renderer_label">Renderare:</string>
+    <string name="session_display_gpu_label">GPU:</string>
+    <string name="session_display_ram_label">RAM:</string>
+    <string name="session_display_ram_usage_format">%1$s GB använt / %2$s totalt</string>
+
+    <!-- Session > Gamepad -->
+    <string name="session_gamepad_confirm_remove_controller">Vill du ta bort den här handkontrollen?</string>
+    <string name="session_gamepad_external_controllers">Externa handkontroller</string>
+    <string name="session_gamepad_press_any_button">Tryck på valfri knapp på handkontrollen</string>
+    <string name="session_gamepad_bindings">bindningar</string>
+    <string name="session_gamepad_control_bindings">Kontrollbindningar</string>
+    <string name="session_gamepad_game_controller">Handkontroll</string>
+    <string name="session_gamepad_as_button">Är knapp</string>
+    <string name="session_gamepad_as_axis">Är axel</string>
+    <string name="session_gamepad_trigger_type">Typ</string>
+    <string name="session_gamepad_help_trigger_mode">Beror på din &lt;b&gt;fysiska handkontroll&lt;/b&gt;:&lt;br/&gt;&lt;br/&gt;&#x2022; &lt;b&gt;Är axel&lt;/b&gt; — avtryckaren har ett linjärt rörelseomfång&lt;br/&gt;&#x2022; &lt;b&gt;Är knapp&lt;/b&gt; — avtryckaren fungerar som en enkel omkopplare&lt;br/&gt;&lt;br/&gt;&lt;i&gt;Obs: att använda Är knapp med en linjär avtryckare förlorar analoga data.&lt;/i&gt;
+    </string>
+    <string name="session_gamepad_button_a">Knapp A</string>
+    <string name="session_gamepad_button_b">Knapp B</string>
+    <string name="session_gamepad_button_x">Knapp X</string>
+    <string name="session_gamepad_button_y">Knapp Y</string>
+    <string name="session_gamepad_button_grip">Greppknapp</string>
+    <string name="session_gamepad_button_trigger">Avtryckarknapp</string>
+    <string name="session_gamepad_thumbstick_left">Styrspak vänster</string>
+    <string name="session_gamepad_thumbstick_right">Styrspak höger</string>
+    <string name="session_gamepad_thumbstick_up">Styrspak upp</string>
+    <string name="session_gamepad_thumbstick_down">Styrspak ner</string>
+    <string name="session_gamepad_configure_analog_sticks">Konfigurera analoga spakar</string>
+    <string name="session_gamepad_left_stick">Vänster spak</string>
+    <string name="session_gamepad_right_stick">Höger spak</string>
+    <string name="session_gamepad_controller_manager">Handkontrollhanterare</string>
+    <string name="session_gamepad_enable_vibration">Aktivera vibration</string>
+    <string name="session_gamepad_player_1">Spelare 1</string>
+    <string name="session_gamepad_player_2">Spelare 2</string>
+    <string name="session_gamepad_player_3">Spelare 3</string>
+    <string name="session_gamepad_player_4">Spelare 4</string>
+    <string name="session_gamepad_not_assigned">Ej tilldelad</string>
+    <string name="session_gamepad_assign">Tilldela</string>
+    <string name="session_gamepad_press_any_button_for_player">Tryck på valfri knapp på handkontrollen för</string>
+    <string name="session_gamepad_vibrate">Vibration</string>
+    <string name="session_gamepad_macros_hint">Växla knappar för att aktivera autoeld.</string>
+    <string name="session_gamepad_macros">Makron</string>
+    <string name="session_gamepad_include_triggers_note">Använd även turbo på L2/R2 som digitala tryckningar</string>
+    <string name="session_gamepad_square_deadzone">Fyrkantig dödzon</string>
+    <string name="session_gamepad_invert_x">Invertera X</string>
+    <string name="session_gamepad_invert_y">Invertera Y</string>
+    <string name="session_gamepad_save_profile">Spara profil</string>
+    <string name="session_gamepad_load_profile">Läs in profil</string>
+    <string name="session_gamepad_button_start">Knapp Start</string>
+    <string name="session_gamepad_button_select">Knapp Select</string>
+    <string name="session_gamepad_button_l1">Knapp L1</string>
+    <string name="session_gamepad_button_r1">Knapp R1</string>
+    <string name="session_gamepad_button_l2">Knapp L2</string>
+    <string name="session_gamepad_button_r2">Knapp R2</string>
+    <string name="session_gamepad_button_l3">Knapp L3</string>
+    <string name="session_gamepad_button_r3">Knapp R3</string>
+    <string name="session_gamepad_dpad_up">Styrkors upp</string>
+    <string name="session_gamepad_dpad_down">Styrkors ner</string>
+    <string name="session_gamepad_dpad_left">Styrkors vänster</string>
+    <string name="session_gamepad_dpad_right">Styrkors höger</string>
+    <string name="session_gamepad_overwrite">Skriv över</string>
+    <string name="session_gamepad_save_as_new">Spara som ny</string>
+    <string name="session_gamepad_overwrite_profile_message">Vill du skriva över den aktuella profilen eller spara som en ny profil?</string>
+    <string name="session_gamepad_enter_profile_name">Ange profilnamn</string>
+    <string name="session_gamepad_mappings_saved">Mappningar sparade!</string>
+    <string name="session_gamepad_profile_saved">Profil sparad!</string>
+    <string name="session_gamepad_profile_saved_as_new">Profil sparad som ny!</string>
+    <string name="session_gamepad_profile_loaded">Profil inläst!</string>
+    <string name="session_gamepad_profile_name_empty">Profilnamnet får inte vara tomt</string>
+    <string name="session_gamepad_no_profiles">-- Inga profiler --</string>
+    <string name="session_gamepad_error_loading_profile">Fel vid inläsning av profil</string>
+
+    <!-- Input controls > Auto-hide on controller -->
+    <string name="input_controls_auto_hide_section">Pekskärmskontroller</string>
+    <string name="input_controls_auto_hide_on_controller_title">Dölj automatiskt med handkontroll</string>
+    <string name="input_controls_auto_hide_on_controller_summary">Dölj pekskärmskontroller när en handkontroll är ansluten</string>
+
+    <!-- Session > Gyroscope -->
+    <string name="session_gyroscope_title">Gyroskop</string>
+    <string name="session_gyroscope_calibrate">Kalibrera gyroskop</string>
+    <string name="session_gyroscope_enable_right_stick">Aktivera gyroskopisk rörelse för höger spak</string>
+    <string name="session_gyroscope_activator_button">Aktiveringsknapp för gyroskop</string>
+    <string name="session_gyroscope_hold">Håll</string>
+    <string name="session_gyroscope_toggle">Växla</string>
+    <string name="session_gyroscope_orientation_mode">Luta för att sikta (orientering)</string>
+    <string name="session_gyroscope_x_sensitivity">Känslighet för X-axel</string>
+    <string name="session_gyroscope_y_sensitivity">Känslighet för Y-axel</string>
+    <string name="session_gyroscope_smoothing">Utjämning</string>
+    <string name="session_gyroscope_invert_x">Invertera X-axel</string>
+    <string name="session_gyroscope_invert_y">Invertera Y-axel</string>
+    <string name="session_gyroscope_filtering">Filtrering</string>
+    <string name="session_gyroscope_deadzone">Dödzon</string>
+    <string name="session_gyroscope_sensitivity">Känslighet</string>
+    <string name="session_gyroscope_direction">Riktning</string>
+    <string name="session_gyroscope_mode">Aktiveringsläge för gyroskop</string>
+    <string name="session_gyroscope_target_stick">Använd gyro på</string>
+    <string name="session_gyroscope_enable_stick">Aktivera gyroskopisk rörelse för analog spak</string>
+    <string name="session_gyroscope_reset_stick">Återställ spak</string>
+    <string name="session_gyroscope_reset_stick_to_center">Återställ spak till mitten</string>
+    <string name="session_gyroscope_configuration">Gyroskopkonfiguration</string>
+    <string name="session_gyroscope_experimental_mouse_movement">Experimentell musrörelse</string>
+    <string name="session_gyroscope_x_sensitivity_format">X-känslighet: %1$d%%</string>
+    <string name="session_gyroscope_y_sensitivity_format">Y-känslighet: %1$d%%</string>
+    <string name="session_gyroscope_smoothing_format">Utjämning: %1$d%%</string>
+    <string name="session_gyroscope_deadzone_format">Dödzon: %1$d%%</string>
+    <string name="session_gyroscope_sensitivity_format">Känslighet: %1$d%%</string>
+    <string name="session_gyroscope_mouse_scale">Musskala</string>
+    <string name="session_gyroscope_mouse_sensitivity_format">Musskala: %1$d%%</string>
+
+    <!-- Settings > General -->
+    <string name="settings_general_cursor_speed">Markörhastighet</string>
+    <string name="settings_general_theme">Tema</string>
+    <string name="settings_general_background">Bakgrund</string>
+    <string name="settings_general_background_color_hex">Färg (hex)</string>
+    <string name="settings_general_wallpaper_selected">Bakgrundsbild vald</string>
+    <string name="settings_general_select_wallpaper">Välj bakgrundsbild</string>
+    <string name="settings_general_title">Allmänt</string>
+    <string name="settings_general_enable_file_provider">Aktivera filleverantör</string>
+    <string name="settings_general_take_effect_next_startup">Det här alternativet börjar gälla vid nästa start.</string>
+    <string name="settings_general_imagefs">Imagefs</string>
+    <string name="settings_general_reinstall_imagefs">Installera om Imagefs</string>
+    <string name="settings_general_confirm_reinstall_imagefs">Vill du installera om imagefs? Den här åtgärden återställer systemfiler, dina behållare ändras inte.</string>
+    <string name="settings_general_refresh_rate">Uppdateringsfrekvens</string>
+    <string name="settings_general_refresh_rate_auto_max">Max</string>
+    <string name="settings_general_refresh_rate_summary">Ställ in skärmens uppdateringsfrekvens och DXVK-bildgräns</string>
+    <string name="settings_general_touchscreen_timeout">Pekskärmens tidsgräns (kräver omstart)</string>
+    <string name="settings_general_touchscreen_haptics">Aktivera haptisk återkoppling för pekskärm</string>
+    <string name="settings_general_open_with_android_browser">Öppna Android-webbläsare i Wine</string>
+    <string name="settings_general_share_android_clipboard">Dela Android-urklipp med Wine</string>
+    <string name="settings_general_paths_title">Sökvägsinställningar</string>
+    <string name="settings_general_paths_summary">Hantera var Winlator lagrar sina arbetsdata och var exporterade genvägar skrivs.</string>
+    <string name="settings_general_winlator_path_title">Lagringssökväg</string>
+    <string name="settings_general_shortcut_export_path_title">Exportsökväg för genvägar</string>
+    <string name="settings_general_choose_path">Välj sökväg</string>
+    <string name="settings_general_xserver_cursor_summary">Justera pekarhastigheten för pek-, styrplatte- och musinmatning i XServer-sessionen.</string>
+    <string name="settings_general_cursor_lock_title">Äkta muskontroll</string>
+    <string name="settings_general_cursor_lock_summary">Håller direkt musinfångning aktiverad för spel som behöver rå pekarinmatning. Inaktivera den med Volym ner.</string>
+    <string name="settings_general_xinput_toggle_title">Inaktivera XInput</string>
+    <string name="settings_general_xinput_toggle_summary">Stänger av XInput-hantering när du vill ha exklusiv mus- och tangentbordskontroll.</string>
+    <string name="settings_external_display_output_summary">Flytta spelet till en ansluten extern skärm i stället för att spegla den här skärmen. Glasögon använder alltid sin egen skärm.</string>
+    <string name="settings_general_file_provider_summary">Exponera WinNative-filer för Androids dokumentväljare och filhanterare.</string>
+    <string name="settings_general_open_browser_summary">Öppna webblänkar som stöds i Android-webbläsaren i stället för i Wine.</string>
+    <string name="settings_general_clipboard_summary">Tillåt kopiera och klistra in mellan Android- och Wine-sessioner.</string>
+    <string name="settings_general_imagefs_summary">Återställ medföljande systemfiler utan att ta bort dina befintliga containrar.</string>
+    <string name="settings_general_check_for_updates">Sök efter uppdateringar</string>
+    <string name="settings_general_check_for_updates_summary">Sök automatiskt efter nya appversioner vid start och regelbundet.</string>
+
+    <!-- Settings > Audio -->
+    <string name="settings_audio_midi_sound_font">MIDI-SoundFont</string>
+    <string name="settings_audio_sound">Ljud</string>
+    <string name="settings_audio_confirm_remove_sound_font">Vill du ta bort denna soundfont?</string>
+    <string name="settings_audio_sound_font_removed_success">Soundfont borttagen!</string>
+    <string name="settings_audio_sound_font_removed_failed">Det gick inte att ta bort soundfont!</string>
+    <string name="settings_audio_sound_font_installed_success">Soundfont installerad!</string>
+    <string name="settings_audio_sound_font_installed_failed">Det gick inte att installera soundfont!</string>
+    <string name="settings_audio_sound_font_already_exist">Soundfonten du vill installera finns redan.</string>
+    <string name="settings_audio_unable_to_install_soundfont">Det gick inte att installera soundfont</string>
+    <string name="settings_audio_installing_soundfont">Installerar SoundFont</string>
+    <string name="settings_audio_sound_font_bad_format">Ogiltigt SoundFont-format.</string>
+    <string name="settings_audio_cannot_remove_default">Kan inte ta bort standard-soundfont</string>
+    <string name="settings_audio_summary">Installera, ta bort och välj den SoundFont som används för MIDI-uppspelning.</string>
+
+    <!-- Settings > Debug -->
+    <string name="settings_debug_wine_debug_channel">Wine-felsökningskanal</string>
+    <string name="settings_debug_title">Felsökning</string>
+    <string name="settings_debug_wine_logs_title">Aktivera Wine-felsökningsloggar</string>
+    <string name="settings_debug_wine_logs_subtitle">Skriv Wine-felsökningsutdata till fil</string>
+    <string name="settings_debug_box_logs_title">Aktivera Box86/64-loggar</string>
+    <string name="settings_debug_box_logs_subtitle">Skriv felsökningsutdata för Box86 &amp; Box64 till fil</string>
+    <string name="settings_debug_fex_logs_title">Aktivera FEXCore-loggar</string>
+    <string name="settings_debug_fex_logs_subtitle">Skriv FEXCore-felsökningsutdata till fil</string>
+    <string name="settings_debug_emulator_logs_title">Box64/FEX-emuleringsloggar</string>
+    <string name="settings_debug_emulator_logs_subtitle">Loggar den emulator som din container använder, till fil.</string>
+    <string name="settings_debug_steam_logs_title">Aktivera Steam-loggar</string>
+    <string name="settings_debug_steam_logs_subtitle">Logga Steam-autentiserings- och sessionshändelser för felsökning.</string>
+    <string name="settings_debug_wine_channels_title">Wine-felsökningskanaler</string>
+    <string name="settings_debug_wine_channels_summary">Välj vilka Wine-kanaler som inkluderas när Wine-felsökningsloggning är aktiverad.</string>
+    <string name="settings_debug_wine_classes_title">Wine-loggnivåer</string>
+    <string name="settings_debug_wine_classes_summary">Välj vilka meddelandetyper som loggas. Trace är extremt utförlig.</string>
+    <string name="settings_debug_input_logs">Inmatningsloggar</string>
+    <string name="settings_debug_input_logs_description">Logga inmatningshändelser från gamepad, pekskärm och tangentbord</string>
+    <string name="settings_debug_download_logs">Nedladdningsloggar</string>
+    <string name="settings_debug_download_logs_description">Logga händelser för nedladdningsupplösare och WinNative-reserv</string>
+    <string name="settings_debug_vulkan_validation_layers_title">Vulkan-valideringslager</string>
+    <string name="settings_debug_vulkan_validation_layers_subtitle">Starta om skärmen för att tillämpa.</string>
+    <string name="settings_debug_share_logs">Dela loggar</string>
+    <string name="settings_debug_delete_logs">Ta bort loggar</string>
+    <string name="settings_debug_share_all_logs_short">Dela alla</string>
+    <string name="settings_debug_download_all_logs_short">Ladda ner alla</string>
+    <string name="settings_debug_logs_saved">Sparad till %1$s</string>
+    <string name="settings_debug_delete_logs_short">Ta bort</string>
+    <string name="settings_debug_delete_all_logs_short">Ta bort alla</string>
+    <string name="settings_debug_open_logs_folder_short">Öppna logghanteraren</string>
+    <string name="settings_debug_logs_deleted">Loggar borttagna</string>
+    <string name="settings_debug_delete_logs_confirm_title">Ta bort loggar?</string>
+    <string name="settings_debug_delete_logs_confirm_message">Detta tar permanent bort alla sparade loggfiler (%1$s). Detta kan inte ångras.</string>
+    <string name="settings_debug_logs_browser_title">Loggar</string>
+    <string name="settings_debug_log_truncated">Visar de senaste %1$s av denna logg</string>
+    <string name="settings_debug_logs_subject">WinNative-loggar (%1$s)</string>
+    <string name="settings_debug_no_logs_available">Inga felsökningsloggar tillgängliga. Aktivera felsökningsalternativ först och starta ett spel.</string>
+    <string name="settings_debug_capture_failed">Det gick inte att fånga loggar: %1$s</string>
+    <string name="settings_debug_log_to_file_desc">Logga WinNative-processfel, varningar och krascher till fil</string>
+    <string name="settings_debug_section_emulation">Emulering</string>
+    <string name="settings_debug_section_subsystems">Delsystem</string>
+    <string name="settings_debug_section_tools">Verktyg</string>
+    <string name="settings_debug_no_channels_selected">Inga kanaler valda</string>
+    <string name="settings_debug_no_channels_available">Inga kanaler tillgängliga</string>
+    <string name="settings_debug_channel_toggle_hint">Tryck för att växla kanaler. Aktiverade kanaler inkluderas i Wine-felsökningsutdata.</string>
+    <string name="settings_debug_remove_channel_desc">Ta bort %1$s</string>
+
+    <string name="settings_other_language_title">Språk</string>
+    <string name="settings_other_language_summary">Välj visningsspråk</string>
+    <string name="settings_other_language_system_default">Systemstandard</string>
+
+    <string name="settings_other_section_integration">Integration</string>
+    <string name="settings_other_setup_wizard_title">Installationsguide</string>
+    <string name="settings_other_setup_wizard_summary">Öppna installationsguiden igen för att granska behörigheter, systemfiler och standardcontainrar.</string>
+    <string name="settings_other_checking_for_updates">Söker efter uppdateringar…</string>
+    <string name="settings_other_update_check_cooldown">Vänta %1$ds innan du söker igen</string>
+    <string name="settings_other_persistable_permission_failed">Det gick inte att ta beständiga behörigheter: %1$s</string>
+    <string name="settings_other_keep_app_open">Håll appen öppen medan detta slutförs.</string>
+
+    <!-- Settings > Content Packages -->
+    <string name="settings_content_install">Installera innehåll</string>
+    <string name="settings_content_type">Kategori</string>
+    <string name="settings_content_components">Komponenter</string>
+    <string name="settings_content_auto_create_container">Skapa container automatiskt</string>
+    <string name="settings_content_remove_title">Ta bort komponent?</string>
+    <string name="settings_content_empty_subtitle">Installera ett paket eller byt typ för att komma igång.</string>
+    <string name="settings_content_container_created">Container skapad: %1$s</string>
+    <string name="settings_content_download_failed">Nedladdningen misslyckades.</string>
+    <string name="common_ui_working">Arbetar</string>
+    <string name="settings_content_desc_wine">Skapad av Wine-projektet; översätter Win32-anrop till inbyggda Linux/Android-tjänster.</string>
+    <string name="settings_content_desc_proton">Skapad av Valve; en Wine-baserad körmiljö med spelpatchar för Windows-spel.</string>
+    <string name="settings_content_desc_dxvk">Översätter grafikanrop för Direct3D 9, 10 och 11 till Vulkan.</string>
+    <string name="settings_content_desc_vkd3d">Översätter grafikanrop för Direct3D 12 till Vulkan.</string>
+    <string name="settings_content_desc_box64">Översätter x86_64 Linux-kod så att den kan köras på ARM64-enheter.</string>
+    <string name="settings_content_desc_wowbox64">Box64-bygge som används av WoW64 för att köra 32-bitars Windows-appar i 64-bitars Wine.</string>
+    <string name="settings_content_desc_fexcore">Översätter x86- och x86_64-kod så att den kan köras på ARM64-enheter.</string>
+    <string name="settings_content_desc_d7vk">Översätter grafikanrop för DirectDraw (Direct3D 7 och tidigare) till Vulkan.</string>
+    <string name="settings_content_unable_to_install">Det gick inte att installera innehåll.</string>
+    <string name="settings_content_install_failed">Installationen misslyckades</string>
+    <string name="settings_content_file_cannot_be_recognized">Filen kan inte kännas igen.</string>
+    <string name="settings_content_profile_not_found">Profilen hittades inte i innehållet.</string>
+    <string name="settings_content_profile_cannot_be_recognized">Profilen kan inte kännas igen</string>
+    <string name="settings_content_file_list">Fillista</string>
+    <string name="settings_content_install_directory">Installationskatalog</string>
+    <string name="settings_content_installed_success">Innehåll installerat!</string>
+    <string name="settings_content_downloading_title">Laddar ner innehåll</string>
+    <string name="settings_content_installing_title">Installerar innehåll</string>
+    <string name="settings_content_extracting_title">Extraherar innehåll</string>
+    <string name="settings_content_extracting_detail">Extraherar (%1$d filer)</string>
+    <string name="settings_content_preparing_package">Förbereder paket</string>
+    <string name="settings_content_download_complete">Nedladdning klar</string>
+    <string name="settings_content_already_installed_title">Komponenten är redan installerad</string>
+    <string name="settings_content_already_installed_message">Denna komponent är redan installerad. Ta bort den installerade kopian innan du laddar ner den igen.
+
+Installerad sökväg:
+%1$s</string>
+    <string name="settings_content_conflicting_title">Motstridigt innehåll installerat</string>
+    <string name="settings_content_conflicting_message">Avinstallera det motstridiga innehållet innan du laddar ner detta paket.
+
+Installerad sökväg:
+%1$s</string>
+    <string name="settings_content_cannot_be_trusted">Innehållet kan inte litas på.</string>
+    <string name="settings_content_is_incomplete">Innehållet är ofullständigt.</string>
+    <string name="settings_content_untrusted_files_warning">Varning: Det ytterligare innehållet innehåller filer som inte är betrodda. Vanligtvis bör följande filer inte ändras. Bestäm om du vill fortsätta med installationen.</string>
+    <string name="settings_content_confirm_remove">Detta tar bort komponenten från din enhet.</string>
+    <string name="settings_content_unable_to_remove_in_use">Det gick inte att ta bort detta innehåll eftersom en container just nu använder detta Wine.</string>
+    <string name="settings_content_download_in_components">Ingen nedladdad. Ladda ner en under Komponenter.</string>
+    <string name="settings_content_types_header">INNEHÅLLSTYPER</string>
+
+    <!-- Settings > Drivers -->
+    <string name="settings_drivers_title">Drivrutiner</string>
+    <string name="settings_drivers_manager_header">Drivrutinshanterare</string>
+    <string name="settings_drivers_github_repos">GitHub-repositorier</string>
+    <string name="settings_drivers_install">Installera drivrutiner</string>
+    <string name="settings_drivers_installed_success">Drivrutin installerad.</string>
+    <string name="settings_drivers_install_failed">Det gick inte att installera drivrutinen.</string>
+    <string name="settings_drivers_remove_title">Ta bort drivrutin?</string>
+    <string name="settings_drivers_confirm_remove">Detta tar bort drivrutinen från din enhet.</string>
+    <string name="settings_drivers_remove_repo_title">Ta bort repositorium?</string>
+    <string name="settings_drivers_remove_repo_message">%1$s tas bort från din repositorielista.</string>
+    <string name="settings_drivers_repo_tap_to_load">Tryck för att läsa in utgåvor</string>
+    <string name="settings_drivers_repo_loading_releases">Läser in utgåvor</string>
+    <string name="settings_drivers_repo_release_count">%1$d utgåvor inlästa</string>
+    <string name="settings_drivers_repo_no_release_assets">Inga nedladdningsbara ZIP-resurser hittades i de hämtade utgåvorna.</string>
+    <string name="settings_drivers_repo_fetch_failed">Det gick inte att läsa in GitHub-utgåvor.</string>
+    <string name="settings_drivers_repo_download_failed">Nedladdningen misslyckades.</string>
+    <string name="settings_drivers_repo_no_version">Version otillgänglig</string>
+    <string name="settings_drivers_repo_unknown_size">Okänd storlek</string>
+    <string name="settings_drivers_manager">Drivrutinshanterare</string>
+
+    <!-- Setup > Wizard -->
+    <string name="setup_wizard_installing_system_files">Installerar systemfiler</string>
+    <string name="setup_wizard_unable_to_install_system_files">Det gick inte att installera systemfiler</string>
+    <string name="setup_wizard_system_image_not_installed">Systemavbildning inte installerad. Installera komponenter först.</string>
+    <string name="setup_wizard_recommended_components">Rekommenderade komponenter</string>
+    <string name="setup_wizard_step_format">Steg %1$d av %2$d</string>
+    <string name="setup_wizard_allow_file_access">Tillåt all filåtkomst</string>
+    <string name="setup_wizard_install_system_files">Installera systemfiler</string>
+    <string name="setup_wizard_recommended_components_description">Rekommenderade komponenter laddar ner och installerar de paket som stöds för DXVK, VKD3D, FEX, Box64 och Wowbox64 automatiskt.</string>
+    <string name="setup_wizard_each_button_downloads_description">Varje knapp laddar ner paketet, installerar det och skapar dess standardcontainer automatiskt.</string>
+    <string name="setup_wizard_recommended_x86_64">Rekommenderad x86-64</string>
+    <string name="setup_wizard_recommended_arm64ec">Rekommenderad ARM64EC</string>
+    <string name="setup_wizard_choose_components_description">Välj vilka komponenter som ska installeras. Wine/Proton skapar en container automatiskt.</string>
+    <string name="setup_wizard_loading_components">Läser in komponenter…</string>
+    <string name="setup_wizard_no_components_available">Inga komponenter tillgängliga för denna kategori.</string>
+    <string name="setup_wizard_default_settings">Standardinställningar</string>
+    <string name="setup_wizard_containers">Containerinställning</string>
+    <string name="setup_wizard_containers_description">Öppna varje container och ange de standardvärden du vill att varje nytt spel ska ärva. Nya spel riktas mot x86-64-containern som standard.</string>
+    <string name="setup_wizard_store_sign_in_optional">Inloggning i butiker är valfri. Varje inloggning återvänder hit när den är klar.</string>
+    <string name="setup_wizard_granted">Beviljad</string>
+    <string name="setup_wizard_grant">Bevilja</string>
+    <string name="setup_wizard_denied">Nekad</string>
+    <string name="setup_wizard_allow">Tillåt</string>
+    <string name="setup_wizard_installing">Installerar</string>
+    <string name="setup_wizard_install_failed_reason">Installationen misslyckades: %1$s</string>
+    <string name="setup_wizard_install_failed_detail">%1$s - %2$s</string>
+    <string name="setup_wizard_required_access">Nödvändig åtkomst</string>
+    <string name="setup_wizard_select_components">Välj komponenter</string>
+    <string name="setup_wizard_recommended_wine_proton">Rekommenderad Wine / Proton</string>
+    <string name="setup_wizard_advanced_setup">Avancerad installation</string>
+    <string name="setup_wizard_title">Installationsguide</string>
+    <string name="setup_wizard_advanced_user">Avancerad användare</string>
+    <string name="setup_wizard_next">Nästa</string>
+    <string name="setup_wizard_finish">Slutför</string>
+    <string name="setup_wizard_download_and_install">Ladda ner + installera</string>
+    <string name="setup_wizard_open_drivers">Öppna drivrutiner</string>
+    <string name="setup_wizard_ready">Klar</string>
+    <string name="setup_wizard_download_and_create">Ladda ner + skapa</string>
+    <string name="setup_wizard_configured">Konfigurerad</string>
+    <string name="setup_wizard_downloading">Laddar ner %1$s</string>
+    <string name="setup_wizard_installing_package">Installerar %1$s</string>
+    <string name="setup_wizard_no_runtime_installed">Inga Wine- eller Proton-paket installerade ännu.</string>
+    <string name="setup_wizard_no_runtime_hint">Installera ett Wine- eller Proton-paket från föregående steg, eller hoppa över detta för tillfället.</string>
+    <string name="setup_wizard_recommended_label">Rekommenderad</string>
+    <string name="setup_wizard_install_all_recommended">Installera alla rekommenderade</string>
+    <string name="setup_wizard_create_container">Skapa container</string>
+    <string name="setup_wizard_creating_container">Skapar…</string>
+
+    <string name="input_controls_tap_to_click">Tryck för att klicka</string>
+    <!-- Steam > Login -->
+    <string name="steam_login_auth_webview_title">Auktorisering</string>
+    <string name="steam_login_sign_in_to_your_account">Logga in på ditt konto</string>
+    <string name="steam_login_username">Användarnamn</string>
+    <string name="steam_login_password">Lösenord</string>
+    <string name="steam_login_invalid_username_or_password">Ogiltigt användarnamn eller lösenord</string>
+    <string name="steam_login_remember_me">Kom ihåg mig</string>
+    <string name="steam_login_sign_in_with_qr_code">Logga in med QR-kod</string>
+    <string name="steam_login_open_steam_app_qr_hint">Öppna Steam-appen → tryck på QR-ikonen</string>
+    <string name="steam_login_failed_to_load_qr_code">Det gick inte att läsa in QR-koden</string>
+    <string name="steam_login_retry">Försök igen</string>
+    <string name="steam_login_generating_code">Genererar kod…</string>
+    <string name="steam_login_two_factor_auth">Tvåfaktorsautentisering</string>
+    <string name="steam_login_approve_login_steam_app">Godkänn denna inloggning från\ndin Steam-mobilapp</string>
+    <string name="steam_login_enter_code_sent_to">Ange koden som skickats till\n%1$s</string>
+    <string name="steam_login_enter_steam_guard_code">Ange din Steam Guard-kod</string>
+    <string name="steam_login_code">Kod</string>
+
+    <!-- Google > Cloud Sync -->
+    <string name="google_cloud_title">Molnsynkronisering</string>
+    <string name="google_cloud_sync_started">Molnsynkronisering startad.</string>
+    <string name="google_cloud_google">Google</string>
+    <string name="google_cloud_services">Google-tjänster</string>
+    <string name="google_auto_signin_title">Logga in på Google vid start</string>
+    <string name="google_auto_signin_summary">Anslut automatiskt till Google Play Games när appen startar så att säkerhetskopior och synkronisering alltid är redo. När det är av loggar appen aldrig in på egen hand.</string>
+    <string name="google_auto_signin_section">Vid start</string>
+    <string name="google_cloud_play_games">Google Play Games</string>
+    <string name="google_cloud_status_syncing">Synkroniserar</string>
+    <string name="google_cloud_status_connected">Ansluten</string>
+    <string name="google_cloud_status_not_signed_in">Inte inloggad</string>
+    <string name="google_cloud_working">Arbetar…</string>
+    <string name="google_cloud_sign_in">Logga in</string>
+    <string name="google_cloud_disable_sync">Inaktivera synkronisering</string>
+    <string name="google_cloud_store_logins">Butiksinloggningar</string>
+    <string name="google_cloud_store_login_sync_busy">Arbetar med din synkronisering av butiksinloggningar…</string>
+    <string name="google_cloud_saved_games_unavailable">Google Sparade spel otillgängligt</string>
+    <string name="google_cloud_snapshot_ready">Molnögonblicksbild redo</string>
+    <string name="google_cloud_waiting_first_backup">Väntar på första säkerhetskopian</string>
+    <string name="google_cloud_no_store_logins_detected">Inga butiksinloggningar upptäckta</string>
+    <string name="google_cloud_last_synced">Senast synkroniserad %1$s</string>
+    <string name="google_cloud_backup">Säkerhetskopiera</string>
+    <string name="google_cloud_restore">Återställ</string>
+    <string name="google_cloud_sign_in_to_sync">Logga in på Google Play Games för att synkronisera butiksinloggningar.</string>
+    <string name="google_cloud_sign_in_failed">Inloggning på Google Play Games misslyckades.</string>
+    <string name="google_cloud_sign_in_finishing">Inloggning på Google Play Games slutförs fortfarande. Vänta en stund och försök med molnsynkronisering igen.</string>
+    <string name="google_cloud_connected_restore_available">Google Play Games anslutet. Återställning är tillgänglig för %1$s.</string>
+    <string name="google_cloud_connected_tap_backup">Google Play Games anslutet. Tryck på Säkerhetskopiera för att spara %1$s inloggningar.</string>
+    <string name="google_cloud_connected_ready">Google Play Games anslutet. Säkerhetskopiering och återställning är redo.</string>
+    <string name="google_cloud_sync_disabled">Synkronisering med Google Play Games inaktiverad för denna app.</string>
+    <string name="google_cloud_sign_in_first">Logga in på Google Play Games först.</string>
+    <string name="google_cloud_no_saved_logins_found">Inga sparade butiksinloggningar hittades i Google molnsynkronisering.</string>
+    <string name="google_cloud_backup_already_matches">Molnsäkerhetskopian matchar redan de aktuella butiksinloggningarna.</string>
+    <string name="google_cloud_no_local_logins">Inga lokala butiksinloggningar är tillgängliga att säkerhetskopiera.</string>
+    <string name="google_cloud_logins_restored_and_synced">Butiksinloggningar återställda och synkroniserade för %1$s.</string>
+    <string name="google_cloud_logins_restored">Återställde butiksinloggningar för %1$s.</string>
+    <string name="google_cloud_logins_backed_up">Säkerhetskopierade butiksinloggningar för %1$s.</string>
+    <string name="google_cloud_sync_ready">Synkronisering av butiksinloggningar är redo.</string>
+    <string name="google_cloud_no_logins_to_sync">Inga butiksinloggningar tillgängliga att synkronisera ännu.</string>
+    <string name="google_cloud_sign_in_to_backup">Logga in för att säkerhetskopiera inloggningstoken för %1$s.</string>
+    <string name="google_cloud_no_backed_up_logins">Inga säkerhetskopierade butiksinloggningar hittades ännu.</string>
+    <string name="google_cloud_local_cloud_differ">Lokala och molnbaserade butiksinloggningar skiljer sig åt. Använd Säkerhetskopiera för att skriva över molndata eller Återställ för att hämta de sparade token.</string>
+    <string name="google_cloud_local_ready_to_backup">Lokala butiksinloggningar är redo att säkerhetskopieras för %1$s.</string>
+    <string name="google_cloud_backup_ready">Säkerhetskopian av butiksinloggningen är klar.</string>
+    <string name="google_cloud_restore_available">Molnåterställning av inloggning är tillgänglig för %1$s.</string>
+    <string name="google_cloud_logins_synced">Butiksinloggningar är synkroniserade med Google Play Games.</string>
+    <string name="google_cloud_sync_problem">Ett problem uppstod vid synkronisering av butiksinloggning.</string>
+    <string name="google_cloud_error_auth_needed">Google Play Games måste slutföra autentiseringen innan molnsynkroniseringen kan komma åt Sparade spel. Öppna Play Games-profilprompten om den visas och försök igen.</string>
+    <string name="google_cloud_error_developer">Google Play Games Sparade spel avvisade den här versionen. Kontrollera Play Games app-ID, länkat paketnamn och signeringscertifikat i Play Console.</string>
+    <string name="google_cloud_error_build_rejected">Google-kontot är anslutet, men Google Play Games Sparade spel avvisade den här versionen. Kontrollera Play Games app-ID, länkat paket och signeringscertifikat.</string>
+    <string name="google_cloud_error_network">Google-molnsynkroniseringen misslyckades eftersom nätverksbegäran inte slutfördes eller Google Play-tjänster behöver åtgärdas.</string>
+    <string name="google_cloud_error_no_snapshot">Inga sparade butiksinloggningar hittades ännu i Google-molnsynkroniseringen.</string>
+    <string name="google_cloud_error_generic">Google-molnsynkroniseringen misslyckades: %1$s</string>
+    <string name="google_cloud_error_before_open">Google-molnsynkroniseringen misslyckades innan Google Sparade spel kunde öppnas.</string>
+    <string name="cloud_saves_title">Molnsparningar</string>
+    <string name="cloud_saves_title_for_provider">%1$s Molnsparningar - %2$s</string>
+    <string name="cloud_saves_sync_summary">Hämta den version %1$s har just nu.</string>
+    <string name="cloud_saves_sync_summary_generic">Hämta den aktuella molnversionen.</string>
+    <string name="cloud_saves_no_backups">Inga säkerhetskopior ännu för det här spelet.</string>
+    <string name="cloud_sync_title">Molnsparningar</string>
+    <string name="cloud_sync_disable_title">Inaktivera molnsparningar</string>
+    <string name="cloud_saves_steam_push_label">Skicka till Steam Cloud</string>
+    <string name="cloud_saves_steam_push_helper">Tvinga uppladdning av lokal sparning</string>
+    <string name="cloud_saves_steam_push_success">Sparningen skickades till Steam Cloud.</string>
+    <string name="cloud_saves_steam_push_failed">Det gick inte att skicka sparningen till Steam Cloud.</string>
+    <string name="cloud_saves_history_steam_unreachable">Steam Cloud är inte tillgänglig just nu. Återansluter i bakgrunden – tryck på uppdatera när du är online igen.</string>
+    <string name="steam_session_refused_event">Steam avvisade den cachade sessionen (EResult=%1$d). Logga in igen.</string>
+    <string name="cloud_sync_enabled_summary">Ladda ner vid start, skicka vid avslut.</string>
+    <string name="cloud_sync_disabled_summary">Starta utan nedladdning av molnsparning eller synkronisering vid avslut.</string>
+    <string name="cloud_saves_offline_mode">Inaktivera molnsynkronisering</string>
+    <string name="cloud_saves_offline_mode_summary">Stoppar all automatisk molnaktivitet för det här spelet.</string>
+    <string name="cloud_saves_backing_up">Säkerhetskopierar molnsparning…</string>
+    <string name="cloud_saves_restoring">Återställer molnsparning…</string>
+
+    <!-- Cloud Saves > Provider sync & backup history -->
+    <string name="cloud_saves_sync_from_provider">Synkronisera från %1$s Cloud</string>
+    <string name="cloud_saves_sync_from_provider_generic">Synkronisera från molnet</string>
+    <string name="cloud_saves_syncing_from_provider">Laddar ner sparning från %1$s…</string>
+    <string name="cloud_saves_sync_from_provider_success">%1$s molnsparning nedladdad.</string>
+    <string name="cloud_saves_sync_from_provider_failed">Det gick inte att ladda ner sparning från %1$s.</string>
+    <string name="cloud_saves_gog_manage_label">Hantera GOG-molnsparningar</string>
+    <string name="cloud_saves_gog_manage_helper">Öppnar den officiella GOG-webbplatsen</string>
+    <string name="cloud_saves_gog_manage_no_browser">Ingen webbläsare tillgänglig för att öppna sidan med GOG-molnsparningar</string>
+    <string name="cloud_saves_gog_zip_label">Ladda ner GOG-moln-zip</string>
+    <string name="cloud_saves_gog_zip_helper">Spara aktuella molnfiler</string>
+    <string name="cloud_saves_gog_zip_success">Zip med GOG-molnsparningar sparad.</string>
+    <string name="cloud_saves_gog_zip_failed">Det gick inte att spara zip med GOG-molnsparningar.</string>
+    <string name="cloud_saves_gog_zip_empty">Inga GOG-molnsparningsfiler hittades.</string>
+    <string name="cloud_saves_google_backup_label">Säkerhetskopiera till Google</string>
+    <string name="cloud_saves_google_backup_helper">Spara en kopia till Google Play Games</string>
+    <string name="cloud_saves_google_backup_no_save">Inga sparningsfiler hittades att säkerhetskopiera.</string>
+    <string name="cloud_saves_history_title">Sparningshistorik</string>
+    <string name="cloud_saves_history_empty">Inga tidigare sparningar har säkerhetskopierats ännu. Ersatta sparningar och manuella säkerhetskopior visas här i 30 dagar.</string>
+    <string name="cloud_saves_history_loading">Laddar sparningshistorik…</string>
+    <string name="cloud_saves_history_sign_in">Logga in på Google för att se din sparningshistorik.</string>
+    <string name="cloud_saves_history_origin_local">lokal</string>
+    <string name="cloud_saves_history_origin_cloud">moln</string>
+    <string name="cloud_saves_history_origin_manual">manuell</string>
+    <string name="cloud_saves_history_origin_auto">automatisk</string>
+    <!-- Save History badge: where the backup is stored. -->
+    <string name="cloud_saves_history_storage_steam">Steam</string>
+    <string name="cloud_saves_history_storage_google">Google</string>
+    <string name="cloud_saves_history_storage_epic">Epic</string>
+    <string name="cloud_saves_history_storage_gog">GOG</string>
+    <string name="cloud_saves_history_restore">Återställ</string>
+    <string name="cloud_saves_history_download">Ladda ner</string>
+    <string name="cloud_saves_history_download_success">Filen nedladdad.</string>
+    <string name="cloud_saves_history_download_failed">Nedladdningen misslyckades.</string>
+    <string name="cloud_saves_history_cloud_readonly">Skrivskyddad</string>
+    <string name="cloud_saves_history_restore_confirm_title">Återställa den här säkerhetskopian?</string>
+    <string name="cloud_saves_history_restore_confirm_body">Detta ersätter din nuvarande lokala sparning med säkerhetskopian från %1$s.</string>
+    <string name="cloud_saves_history_restore_success">Sparningen återställdes från säkerhetskopia.</string>
+    <string name="cloud_saves_history_restore_failed">Det gick inte att återställa den här säkerhetskopian.</string>
+    <string name="cloud_saves_keep_replaced_backup">Behåll en säkerhetskopia av den ersatta sparningen</string>
+    <string name="cloud_saves_keep_replaced_backup_summary">Om du ändrar dig kan du återställa den från Sparningshistorik.</string>
+    <string name="cloud_saves_history_refresh">Uppdatera</string>
+    <string name="cloud_saves_history_rename">Byt namn</string>
+    <string name="cloud_saves_history_rename_title">Namnge den här säkerhetskopian</string>
+    <string name="cloud_saves_history_rename_hint">t.ex. Bossstrid, Före slutet</string>
+    <string name="cloud_saves_history_rename_save">Spara</string>
+    <string name="cloud_saves_history_rename_clear">Rensa</string>
+    <string name="cloud_saves_history_rename_success">Säkerhetskopian bytte namn.</string>
+    <string name="cloud_saves_history_rename_failed">Det gick inte att byta namn på säkerhetskopian.</string>
+
+    <!-- Cloud Saves > Custom save folder picker -->
+    <string name="cloud_saves_custom_select_folder">Välj sparningsmapp</string>
+    <string name="cloud_saves_custom_folder_label">Sparningsmapp</string>
+    <string name="cloud_saves_custom_select_folder_summary">Peka på sparningskatalogen i containern</string>
+    <string name="cloud_saves_custom_no_container">Container inte tillgänglig för den här genvägen</string>
+    <string name="cloud_saves_custom_picker_title">Välj sparningsmapp</string>
+    <string name="cloud_saves_custom_outside_drive_c">Den valda mappen måste ligga på containerns C:-enhet</string>
+    <string name="cloud_saves_custom_path_map_failed">Det gick inte att mappa den valda mappen till en Windows-sökväg.</string>
+    <string name="cloud_saves_custom_folder_set">Sparningsmapp inställd på %1$s</string>
+
+    <!-- Cloud Saves > Steam Cloud actions -->
+    <string name="cloud_saves_steam_sync_label">Synkronisera från Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_helper">Ladda ner senaste sparning</string>
+    <string name="cloud_saves_steam_sync_success">Synkroniserat från Steam Cloud</string>
+    <string name="cloud_saves_steam_sync_failed">Synkronisering med Steam Cloud misslyckades</string>
+    <string name="cloud_saves_steam_browse_label">Visa Steam Cloud-sparningar</string>
+    <string name="cloud_saves_steam_browse_helper">Öppna molnlagring</string>
+    <string name="cloud_saves_steam_browse_no_browser">Ingen webbläsare tillgänglig för att öppna Steam-sidan</string>
+    <string name="cloud_saves_steam_import_label">Importera filer</string>
+    <string name="cloud_saves_steam_import_helper">Återställ nedladdade filer</string>
+    <string name="cloud_saves_steam_import_picker_unavailable">Filväljare inte tillgänglig</string>
+    <string name="cloud_saves_steam_restore_overwrite_body">Detta laddar ner Steam Clouds aktuella sparningsfiler och skriver över de nuvarande sparningsfilerna.</string>
+
+    <!-- Cloud Saves > Internal result messages -->
+    <string name="cloud_saves_invalid_app_id">Ogiltigt app-ID</string>
+    <string name="cloud_saves_label_saved">Etikett sparad</string>
+
+    <!-- Saves > Import and Export -->
+    <string name="saves_import_export_title">Sparningar</string>
+    <string name="saves_import_export_confirm_selection">Bekräfta val</string>
+    <string name="saves_import_export_select_directory">Välj din sparningskatalog</string>
+    <string name="saves_import_export_up_directory">Upp en katalog</string>
+    <string name="saves_import_export_select_container">Målcontainer:</string>
+    <string name="saves_import_export_exported">Sparningar exporterades</string>
+    <string name="saves_import_export_exported_failed">Det gick inte att exportera sparningar: %1$s</string>
+    <string name="saves_import_export_imported">Sparningar importerades</string>
+    <string name="saves_import_export_imported_failed">Det gick inte att importera sparningar: %1$s</string>
+    <string name="saves_export_path_summary">Sparningar exporteras till /WinNative/saves</string>
+    <string name="saves_export_success_path">Exporterat till %1$s</string>
+    <string name="saves_export_warning_title">Använd endast detta med anpassade spel</string>
+    <string name="saves_export_warning_body">Exporten kan innehålla sparningar från butiksinstallerade eller molnsynkroniserade spel.</string>
+    <string name="saves_import_warning_title">Detta skriver över befintliga sparningar i den här containern</string>
+    <string name="saves_import_warning_body">När du återställer en äldre säkerhetskopia med flera spel, kopiera först in eventuella nyare sparningar i zip-filen med din filhanterare. Endast sparningar som finns i .zip-filen påverkas. Hantera sparningar klokt.</string>
+
+    <!-- Preloader > Launch Screen -->
+    <string name="preloader_default_name">Container</string>
+    <string name="preloader_initializing">Initierar</string>
+    <string name="preloader_launching">Startar</string>
+    <string name="preloader_closing">Stänger %1$s</string>
+    <string name="preloader_preparing_steam_environment">Förbereder Steam-miljö</string>
+    <string name="preloader_starting_wine">Startar Wine</string>
+    <string name="preloader_starting_steam_launcher">Startar Steam Launcher</string>
+    <string name="preloader_loading_steam_client">Laddar Steam-klient</string>
+    <string name="preloader_connecting_to_steam">Ansluter till Steam</string>
+    <string name="preloader_signing_in_to_steam">Loggar in på Steam</string>
+    <string name="preloader_fetching_game_info">Inloggad – hämtar spelinformation</string>
+    <string name="preloader_steam_ready">Steam redo</string>
+    <string name="preloader_updating_game_info">Uppdaterar spelinformation</string>
+    <string name="preloader_verifying_install">Verifierar installation</string>
+    <string name="preloader_scanning_redists">Söker efter distributionspaket</string>
+    <string name="preloader_installing_redist_single">Installerar distributionspaket</string>
+    <string name="preloader_installing_named_redist">Installerar %1$s</string>
+    <string name="preloader_installing_named_redist_progress">Installerar %1$s (%2$s)</string>
+    <string name="preloader_redists_ready">Distributionspaket redo</string>
+    <string name="preloader_no_redists">Inga distributionspaket att installera</string>
+    <string name="preloader_steam_service_running">Steam-tjänsten körs</string>
+    <string name="preloader_launching_game">Startar %1$s</string>
+    <string name="preloader_steam_launcher_failed_restaging">Steam Launcher misslyckades – förbereder resurser på nytt</string>
+    <string name="preloader_steam_launcher_start_failed">Steam Launcher kunde inte starta. Förbereder på nytt – starta om</string>
+    <string name="preloader_steam_launcher_game_never_started">Steam Launcher nådde spelet men det startade aldrig</string>
+    <string name="preloader_setup_environment">Konfigurerar miljö</string>
+    <string name="preloader_retrying_steam_client_download">Försöker ladda ner Steam-klienten igen</string>
+    <string name="preloader_installing_mono">Installerar Wine Mono v%1$s</string>
+    <string name="preloader_installing_redist">Installerar distributionspaket</string>
+    <string name="preloader_unpacking_exe">Packar upp spelets körbara fil</string>
+    <string name="preloader_downloading_cloud">Laddar ner molnsparningar</string>
+    <string name="preloader_syncing_cloud">Synkroniserar molnsparningar</string>
+    <string name="preloader_uploading_cloud">Laddar upp molnsparningar</string>
+    <string name="preloader_checking_cloud">Kontrollerar molnsparningar</string>
+    <string name="preloader_cloud_sync_retry">%1$s Försök %2$d/%3$d</string>
+    <string name="preloader_cloud_downloading">Molnsynkronisering laddar ner</string>
+    <string name="cloud_sync_failed_provider">%1$s molnsparningssynkronisering misslyckades.</string>
+    <string name="preloader_platform_steam">Steam</string>
+    <string name="preloader_platform_epic">Epic Games</string>
+    <string name="preloader_platform_gog">GOG</string>
+    <string name="preloader_platform_custom">Anpassat spel</string>
+
+    <!-- Performance recording settings -->
+    <string name="settings_hud_record_to_file_title">Spela in prestanda till fil</string>
+    <string name="settings_hud_record_to_file_summary">Exporterar mätvärden per sekund för FPS, CPU, GPU, temperatur och batteri till /WinNative/logs/ under spelandet.</string>
+    <string name="settings_leaderboard_category">Prestanda</string>
+    <!-- Workshop -->
+    <string name="workshop_loading_items">Laddar Workshop-objekt</string>
+    <string name="workshop_search_items">Sök efter Workshop-objekt</string>
+    <string name="workshop_title">STEAM WORKSHOP</string>
+    <string name="workshop_loading_subtitle">Hämtar dina prenumererade objekt från Steam.</string>
+    <string name="workshop_error_title">Det gick inte att ladda Workshop-objekt</string>
+    <string name="workshop_error_subtitle">Något gick fel. Försök igen.</string>
+    <string name="workshop_empty_title">Inga prenumererade Workshop-objekt</string>
+    <string name="workshop_empty_subtitle">Prenumerera på objekt i Steam Workshop och öppna sedan det här fönstret igen.</string>
+    <string name="workshop_search_empty_title">Inga objekt matchar \"%1$s\"</string>
+    <string name="workshop_search_empty_subtitle">Prova en annan sökterm.</string>
+    <string name="workshop_clear_search">Rensa sökning</string>
+    <string name="workshop_item_fallback">Workshop-objekt</string>
+    <string name="common_ui_failed">Misslyckades</string>
+    <string name="steam_presence_snooze">Snooza</string>
+    <string name="steam_presence_busy">Upptagen</string>
+    <string name="steam_presence_looking_to_trade">Vill byta</string>
+    <string name="steam_presence_looking_to_play">Vill spela</string>
+    <string name="steam_friends_count">Vänner — %1$d online</string>
+    <string name="steam_friends_section_in_game">I spel (%1$d)</string>
+    <string name="steam_friends_section_online">Online (%1$d)</string>
+    <string name="steam_friends_section_offline">Offline (%1$d)</string>
+    <string name="steam_friends_none_loaded">Inga vänner har laddats ännu.</string>
+    <string name="steam_friends_self_you">Du</string>
+    <string name="steam_friends_in_game">I spel</string>
+    <string name="steam_friends_join">Anslut</string>
+    <string name="steam_friends_play">Spela</string>
+    <string name="steam_chat_image_failed">(det gick inte att skicka bilden)</string>
+    <string name="steam_chat_empty">Inga meddelanden ännu. Säg hej!</string>
+    <string name="steam_chat_uploading_image">Laddar upp bild…</string>
+    <string name="steam_chat_send_image">Skicka bild</string>
+    <string name="steam_chat_message_hint">Meddelande…</string>
+    <string name="steam_chat_send">Skicka</string>
+    <string name="steam_chat_image">Bild</string>
+    <string name="steam_common_back">Tillbaka</string>
+    <string name="steam_achievements_title">Prestationer</string>
+    <string name="steam_achievements_empty">Inga prestationer hittades för det här spelet,\neller logga in på Steam för att ladda dem.</string>
+    <string name="steam_achievements_hidden">Dold prestation</string>
+    <string name="steam_achievements_hidden_desc">Fortsätt spela för att avslöja den här prestationen.</string>
+    <string name="steam_achievements_unlocked_on">Upplåst %1$s</string>
+    <string name="steam_achievements_unlocked">Upplåst</string>
+    <string name="steam_join_joining">Ansluter till %1$s i %2$s…</string>
+    <string name="steam_join_install">Installera %1$s för att ansluta till %2$s</string>
+    <string name="steam_join_not_owned">Du äger inte %1$s</string>
+    <string name="steam_chat_not_sent">(inte skickat)</string>
+    <string name="steam_join_the_game">spelet</string>
+    <string name="steam_friends_settings">Inställningar</string>
+    <string name="steam_chat_settings_title">Chattinställningar</string>
+    <string name="steam_chat_setting_notifications">Chattaviseringar</string>
+    <string name="steam_chat_setting_notifications_desc">Visa en avisering när du får ett meddelande</string>
+    <string name="steam_chat_setting_heads">Chatthuvuden</string>
+    <string name="steam_chat_setting_heads_desc">Flytande bubblor för att läsa och svara på meddelanden</string>
+    <string name="steam_chat_setting_ingame">Aktivera chatt i spel</string>
+    <string name="steam_chat_setting_ingame_desc">Ta emot och skicka meddelanden medan du spelar</string>
+    <string name="steam_chat_setting_stay_running">Kör i bakgrunden</string>
+    <string name="steam_chat_setting_stay_running_desc">Håll chatten igång efter att du avslutat WinNative</string>
+    <string name="steam_chat_settings_overlay_needed">Tillåt visning över andra appar för att använda chatthuvuden</string>
+    <string name="steam_chat_heads_title">Meddelanden</string>
+    <string name="steam_chat_heads_recent_title">Senaste</string>
+    <string name="steam_chat_heads_online_title">Online</string>
+    <string name="steam_chat_heads_new_chat">Nytt meddelande</string>
+    <string name="steam_chat_setting_autohide">Dölj automatiskt</string>
+    <string name="steam_chat_setting_autohide_desc">Tona bort chatthuvudet efter 10 s inaktivitet</string>
+    <string name="steam_chat_heads_friends_title">Vänner</string>
+    <!-- File manager -->
+    <string name="file_manager_title">Filer</string>
+    <string name="file_manager_copy">Kopiera</string>
+    <string name="file_manager_cut">Klipp ut</string>
+    <string name="file_manager_paste">Klistra in</string>
+    <string name="file_manager_paste_here">Klistra in här</string>
+    <string name="file_manager_new_folder">Ny mapp</string>
+    <string name="file_manager_create">Skapa</string>
+    <string name="file_manager_delete">Ta bort</string>
+    <string name="file_manager_run_boot">Kör / Starta</string>
+    <string name="file_manager_create_shortcut">Skapa genväg</string>
+    <string name="file_manager_run_in_container">Kör i container</string>
+    <string name="file_manager_no_containers">Inga containrar tillgängliga</string>
+    <string name="file_manager_delete_confirm">Ta bort \"%1$s\"? Detta kan inte ångras.</string>
+    <string name="file_manager_copying">Kopierar %1$s</string>
+    <string name="file_manager_moving">Flyttar %1$s</string>
+    <string name="file_manager_paste_into_itself">Det går inte att klistra in en mapp i sig själv</string>
+    <string name="file_manager_operation_failed">Åtgärden misslyckades</string>
+    <string name="file_manager_delete_failed">Borttagning misslyckades</string>
+    <string name="file_manager_rename_failed">Namnbyte misslyckades</string>
+    <string name="file_manager_create_folder_failed">Det gick inte att skapa mappen</string>
+
+    <string name="settings_content_refresh">Uppdatera</string>
+</resources>

@@ -221,7 +221,7 @@ public final class RefreshRateUtils {
     return fpsLimit;
   }
 
-  private static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
+  public static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
     if (refreshRate <= 0f || fpsLimit <= 0 || refreshRate < fpsLimit) {
       return false;
     }
@@ -285,23 +285,25 @@ public final class RefreshRateUtils {
     observer.removeOnWindowFocusChangeListener(listener);
   }
 
-  public static void applyPreferredRefreshRate(Activity activity) {
-    applyPreferredRefreshRate(activity, getSavedGlobalRefreshRateOverride(activity));
+  public static float applyPreferredRefreshRate(Activity activity) {
+    return applyPreferredRefreshRate(activity, getSavedGlobalRefreshRateOverride(activity));
   }
 
-  public static void applyPreferredRefreshRate(Activity activity, int requestedHz) {
-    applyPreferredRefreshRate(activity, requestedHz, 0);
+  public static float applyPreferredRefreshRate(Activity activity, int requestedHz) {
+    return applyPreferredRefreshRate(activity, requestedHz, 0);
   }
 
-  public static void applyPreferredRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
-    if (activity.isFinishing() || activity.isDestroyed()) return;
+  /** Applies the preferred display mode and returns the effective refresh rate in Hz (0 on early-out). */
+  public static float applyPreferredRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
+    if (activity.isFinishing() || activity.isDestroyed()) return 0f;
 
     int effectiveRequestedHz = resolveFramePacedRefreshRate(activity, requestedHz, fpsLimit);
     WindowManager.LayoutParams params = activity.getWindow().getAttributes();
     int modeId = resolvePreferredDisplayModeId(activity, effectiveRequestedHz);
     float refreshRate = resolvePreferredRefreshRate(activity, effectiveRequestedHz);
     params.preferredDisplayModeId = modeId;
-    params.preferredRefreshRate = refreshRate;
+    // Must be 0 when a modeId is set.
+    params.preferredRefreshRate = modeId != 0 ? 0f : refreshRate;
     activity.getWindow().setAttributes(params);
     Log.d(
         TAG,
@@ -316,5 +318,14 @@ public final class RefreshRateUtils {
             + modeId
             + " refreshRate="
             + refreshRate);
+    return refreshRate;
+  }
+
+  /** Current active refresh rate of the activity's display in Hz (0 if unavailable). */
+  public static float getActiveRefreshRate(Activity activity) {
+    Display display = getDisplay(activity);
+    if (display == null) return 0f;
+    Display.Mode mode = display.getMode();
+    return mode != null ? mode.getRefreshRate() : 0f;
   }
 }
