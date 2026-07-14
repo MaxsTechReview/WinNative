@@ -247,6 +247,9 @@ pub fn map_write_progress(
 
 pub type DepotProgressCallback<'a> = &'a (dyn Fn(&DepotDownloadProgress) + Sync);
 
+/// Returns a fresh manifest request code for (depot_id, manifest_id); Steam rotates codes ~every 5 min.
+pub type ManifestCodeRefresher<'a> = &'a (dyn Fn(u32, u64) -> Option<u64> + Sync);
+
 pub fn download_resolved_depots(
     install_dir: &str,
     depots: &[ResolvedDepotSpec],
@@ -262,6 +265,7 @@ pub fn download_resolved_depots(
         ca_bundle_path,
         fresh,
         max_workers,
+        None,
         None,
         None,
     )
@@ -285,6 +289,7 @@ pub fn download_resolved_depots_with_cancel(
         max_workers,
         cancel,
         None,
+        None,
     )
 }
 
@@ -297,6 +302,7 @@ pub fn download_resolved_depots_with_cancel_progress(
     max_workers: u32,
     cancel: Option<&AtomicBool>,
     on_progress: Option<DepotProgressCallback<'_>>,
+    code_refresher: Option<ManifestCodeRefresher<'_>>,
 ) -> DepotDownloadResult {
     if let Err(error) = validate_resolved_download_inputs(install_dir, depots, servers) {
         return error;
@@ -365,15 +371,36 @@ pub fn download_resolved_depots_with_cancel_progress(
                 if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
                     return DepotDownloadResult::fail("cancelled");
                 }
-                let manifest = fetch_manifest_with_retry(
+                // Prefer a code obtained now; the pre-resolved one may have expired.
+                let refreshed_code = code_refresher
+                    .and_then(|refresh| refresh(depot.depot_id, depot.manifest_id));
+                let request_code = refreshed_code.unwrap_or(depot.manifest_request_code);
+                let mut manifest = fetch_manifest_with_retry(
                     &cdn,
                     &usable_servers,
                     depot.depot_id,
                     depot.manifest_id,
-                    depot.manifest_request_code,
+                    request_code,
                     "",
                     CdnClient::default_timeout(),
                 );
+                if !manifest.ok() {
+                    // One more pass with a code obtained after the failed attempts.
+                    if let Some(fresh) = code_refresher
+                        .and_then(|refresh| refresh(depot.depot_id, depot.manifest_id))
+                        .filter(|fresh| *fresh != request_code)
+                    {
+                        manifest = fetch_manifest_with_retry(
+                            &cdn,
+                            &usable_servers,
+                            depot.depot_id,
+                            depot.manifest_id,
+                            fresh,
+                            "",
+                            CdnClient::default_timeout(),
+                        );
+                    }
+                }
                 if !manifest.ok() {
                     return DepotDownloadResult::fail(format!(
                         "download: manifest fetch failed for depot {}: {}",
