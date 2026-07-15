@@ -1376,6 +1376,16 @@ class SteamService : Service() {
             if (!dir.isDirectory) return null
             if (!MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)) return null
 
+            // Backfill the durable install path once (metadata present now) so recognition survives eviction.
+            if (appInfo.installPath.isNullOrEmpty()) {
+                runCatching {
+                    runBlocking(Dispatchers.IO) {
+                        (instance?.appInfoDao ?: PluviaDatabase.getInstance().appInfoDao())
+                            .update(appInfo.copy(installPath = dirPath))
+                    }
+                }
+                return appInfo.copy(installPath = dirPath)
+            }
             return appInfo
         }
 
@@ -1397,6 +1407,7 @@ class SteamService : Service() {
                     isDownloaded = true,
                     downloadedDepots = downloadedDepotIds,
                     dlcDepots = installedDlcAppIds.sorted(),
+                    installPath = dirPath,
                 )
 
             runBlocking(Dispatchers.IO) {
@@ -1427,9 +1438,20 @@ class SteamService : Service() {
             }
         }
 
+        /** The chosen download folder is not a steamapps root, so it never appears in [allInstallPaths] and marker scans miss games installed there. */
+        private fun configuredDownloadRoot(): String? =
+            runCatching {
+                val context = PluviaApp.instance.applicationContext ?: return@runCatching null
+                val storeDefaultUri =
+                    if (PrefManager.useSingleDownloadFolder) PrefManager.defaultDownloadFolder else PrefManager.steamDownloadFolder
+                if (storeDefaultUri.isEmpty()) return@runCatching null
+                com.winlator.cmod.shared.io.FileUtils
+                    .getFilePathFromUri(context, android.net.Uri.parse(storeDefaultUri))
+            }.getOrNull()
+
         private fun countCompletedInstallMarkers(maxCount: Int = Int.MAX_VALUE): Int {
             var count = 0
-            for (basePath in allInstallPaths) {
+            for (basePath in (allInstallPaths + listOfNotNull(configuredDownloadRoot())).distinct()) {
                 val baseDir = File(basePath)
                 val appDirs = baseDir.listFiles() ?: continue
                 for (appDir in appDirs) {
@@ -2013,7 +2035,7 @@ class SteamService : Service() {
 
             return depots.filter { (depotId, depot) ->
                 val isInstalledBaseDepot =
-                    depot.dlcAppId == INVALID_APP_ID ||
+                    depot.dlcAppId == INVALID_APP_ID &&
                         depotId in installedApp.downloadedDepots
                 val isInstalledDlcDepot =
                     depot.dlcAppId != INVALID_APP_ID &&
@@ -2171,8 +2193,15 @@ class SteamService : Service() {
                     if (oldName.isNotEmpty() && oldName != appName) add(oldName)
                 }
 
-            // No resolvable folder name (metadata unavailable) — never fall back to a shared root.
+            // No metadata: fall back to the durably-recorded install path (disk-validated, appId-specific; never a shared root).
             if (candidateNames.isEmpty()) {
+                val recordedPath = getInstalledApp(gameId)?.installPath.orEmpty()
+                if (recordedPath.isNotEmpty()) {
+                    val normalizedRecorded = normalizeInstallPath(recordedPath)
+                    if (File(normalizedRecorded).isDirectory && !isSuspiciousSteamInstallPath(normalizedRecorded)) {
+                        return normalizedRecorded
+                    }
+                }
                 Timber.w("getAppDirPath: no metadata to resolve install dir for appId=%d", gameId)
                 return ""
             }
@@ -3408,7 +3437,18 @@ class SteamService : Service() {
 
             val service =
                 instance ?: run {
+                    // Session gave up reconnecting and stopped the service; revive it and say so instead of failing silently.
                     Timber.e("SteamService instance is null, cannot start download job.")
+                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    runCatching {
+                        val context = PluviaApp.instance.applicationContext ?: return@runCatching
+                        if (PrefManager.refreshToken.isNotBlank()) start(context)
+                        WinToast.show(
+                            context,
+                            "Steam is not connected — reconnecting, try the download again in a moment",
+                            Toast.LENGTH_LONG,
+                        )
+                    }
                     return null
                 }
 
@@ -4490,6 +4530,7 @@ class SteamService : Service() {
                                     mainAppInfo.copy(
                                         isDownloaded = true,
                                         dlcDepots = updatedMainDlcDepots,
+                                        installPath = appDirPath,
                                     ),
                                 )
                                 Timber.i(
@@ -4501,6 +4542,7 @@ class SteamService : Service() {
                                         mainAppId,
                                         isDownloaded = true,
                                         dlcDepots = selectedDlcAppIds.distinct().sorted(),
+                                        installPath = appDirPath,
                                     ),
                                 )
                                 Timber.i(
@@ -6986,7 +7028,15 @@ class SteamService : Service() {
 
         /** App-lifecycle hooks from PluviaApp (last activity stops → onAppBackgrounded, first starts → onAppForegrounded) — let the Steam session sleep while the app is minimized and idle. See [handleAppBackgrounded]. */
         fun onAppForegrounded() {
-            instance?.handleAppForegrounded()
+            val service = instance
+            if (service == null) {
+                // Only activity creation starts the service, so without this a stopped session stays dead for the whole process.
+                if (PrefManager.refreshToken.isNotBlank()) {
+                    runCatching { PluviaApp.instance.applicationContext?.let { start(it) } }
+                }
+                return
+            }
+            service.handleAppForegrounded()
         }
 
         fun onAppBackgrounded() {
@@ -7537,6 +7587,16 @@ class SteamService : Service() {
                             record.storeGameId,
                             DownloadRecord.STATUS_FAILED,
                             "Could not start download — retry after Steam finishes loading",
+                        )
+                    }
+                } else if (started.getStatusFlow().value == DownloadPhase.COMPLETE) {
+                    // No downloader runs, so release the slot here; keyed on COMPLETE because a queued job is also inactive.
+                    Timber.i("startQueued: appId=$appId resolved as already complete — releasing coordinator slot")
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_COMPLETE,
                         )
                     }
                 }

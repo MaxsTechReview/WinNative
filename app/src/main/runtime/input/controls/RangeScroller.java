@@ -14,6 +14,7 @@ public class RangeScroller {
   private float lastPosition;
   private long touchTime;
   private Binding binding = Binding.NONE;
+  private int bindingIndex = -1;
   private boolean isActionDown = false;
   private boolean scrolling = false;
   private Timer timer;
@@ -44,16 +45,15 @@ public class RangeScroller {
     return new byte[] {from, to};
   }
 
-  private Binding getBindingByPosition(float x, float y) {
-    Rect boundingBox = element.getBoundingBox();
-    ControlElement.Range range = element.getRange();
-    float offset =
-        element.getOrientation() == 0
-            ? x - boundingBox.left - currentOffset
-            : y - boundingBox.top - currentOffset;
-    int index = (int) Math.floor((offset / getElementSize()) % range.max);
-    if (index < 0) index = range.max + index;
+  public int getBindingIndex() {
+    return bindingIndex;
+  }
 
+  public boolean isScrolling() {
+    return scrolling;
+  }
+
+  private static Binding bindingForIndex(ControlElement.Range range, int index) {
     switch (range) {
       case FROM_A_TO_Z:
         return Binding.valueOf("KEY_" + ((char) (65 + index)));
@@ -66,6 +66,19 @@ public class RangeScroller {
       default:
         return Binding.NONE;
     }
+  }
+
+  private Binding getBindingByPosition(float x, float y) {
+    Rect boundingBox = element.getBoundingBox();
+    ControlElement.Range range = element.getRange();
+    float offset =
+        element.getOrientation() == 0
+            ? x - boundingBox.left - currentOffset
+            : y - boundingBox.top - currentOffset;
+    int index = (int) Math.floor((offset / getElementSize()) % range.max);
+    if (index < 0) index = range.max + index;
+    bindingIndex = index;
+    return bindingForIndex(range, index);
   }
 
   private boolean isTap() {

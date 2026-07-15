@@ -126,7 +126,7 @@ import com.winlator.cmod.runtime.input.controls.ExternalController;
 import com.winlator.cmod.runtime.input.controls.GestureProfile;
 import com.winlator.cmod.runtime.input.controls.GestureProfileManager;
 import com.winlator.cmod.runtime.input.controls.InputControlsManager;
-import com.winlator.cmod.runtime.input.controls.LabelTheme;
+import com.winlator.cmod.runtime.input.controls.AccentTheme;
 import com.winlator.cmod.runtime.input.controls.VisualStyle;
 import com.winlator.cmod.shared.math.Mathf;
 import com.winlator.cmod.shared.math.XForm;
@@ -624,11 +624,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return Math.max(0, preferences.getInt("refresh_rate_override", 0));
     }
 
-    // FPS-limit slider takes priority over the refresh-rate override.
-    private int getEffectiveFpsLimit() {
-        return runtimeFpsLimit > 0 ? runtimeFpsLimit : getRefreshRateOverride();
-    }
-
     private int parsePositiveInt(String value) {
         if (value == null || value.isEmpty()) return 0;
         try {
@@ -672,12 +667,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            int effectiveFpsLimit = getEffectiveFpsLimit();
-            float hz = RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), effectiveFpsLimit);
-            if (xServer != null) {
-                xServer.getFramePaceClock().setDisplayRefreshHz(hz);
-                xServer.getFramePaceClock().setCapActive(effectiveFpsLimit > 0);
-            }
+            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            // Read the live mode back rather than the requested rate; the mode change lands asynchronously and can be refused.
+            if (xServer != null) xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -727,7 +719,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Keep the pacer's refresh rate current across seamless mode switches that don't cross the limit.
         if (xServer != null) {
-            xServer.getFramePaceClock().setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
+            xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
         }
 
         int maxRate = RefreshRateUtils.getMaxSupportedRefreshRate(this);
@@ -3972,19 +3964,27 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         ArrayList<String> styleNames = new ArrayList<>();
-        styleNames.add(getString(R.string.input_controls_style_original));
-        styleNames.add(getString(R.string.input_controls_style_gamehub));
+        if (activeProfile != null) {
+            styleNames.add(getString(R.string.input_controls_style_slate));
+            styleNames.add(getString(R.string.input_controls_style_gamehub));
+            styleNames.add(getString(R.string.input_controls_style_halo));
+            styleNames.add(getString(R.string.input_controls_style_glint));
+            styleNames.add(getString(R.string.input_controls_style_shadow));
+            styleNames.add(getString(R.string.input_controls_style_reticle));
+            styleNames.add(getString(R.string.input_controls_style_neon));
+            styleNames.add(getString(R.string.input_controls_style_lumina));
+            styleNames.add(getString(R.string.input_controls_style_original));
+        }
         VisualStyle currentStyle = inputControlsView != null && inputControlsView.getVisualStyle() != null
-                ? inputControlsView.getVisualStyle() : VisualStyle.ORIGINAL;
+                ? inputControlsView.getVisualStyle() : VisualStyle.SLATE;
         int selectedStyleIndex = currentStyle.ordinal();
 
-        ArrayList<String> labelThemeNames = new ArrayList<>();
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_default));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_xbox));
-        labelThemeNames.add(getString(R.string.input_controls_label_theme_playstation));
-        LabelTheme currentLabelTheme = inputControlsView != null && inputControlsView.getLabelTheme() != null
-                ? inputControlsView.getLabelTheme() : LabelTheme.DEFAULT;
-        int selectedLabelThemeIndex = currentLabelTheme.ordinal();
+        ArrayList<String> accentThemeNames = new ArrayList<>();
+        int selectedAccentThemeIndex = 0;
+        if (activeProfile != null && inputControlsView != null) {
+            accentThemeNames.addAll(Arrays.asList(AccentTheme.displayNames()));
+            selectedAccentThemeIndex = inputControlsView.getAccentTheme().ordinal();
+        }
 
         List<String> gestureProfileNames = new ArrayList<>();
         int gestureSelectedIndex = 0;
@@ -4051,8 +4051,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 inputSelectedIndex,
                 styleNames,
                 selectedStyleIndex,
-                labelThemeNames,
-                selectedLabelThemeIndex,
+                accentThemeNames,
+                selectedAccentThemeIndex,
                 preferences.getBoolean("show_touchscreen_controls_enabled", false),
                 isTapToClickEnabled,
                 preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY),
@@ -4281,7 +4281,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onFPSLimitChanged(int limit) {
                         runtimeFpsLimit = Math.max(0, limit);
                         if (xServerView != null) {
-                            xServerView.getRenderer().setFpsLimit(getEffectiveFpsLimit());
+                            xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
                         }
                         applyPreferredRefreshRate();
                         if (shortcut != null) {
@@ -4579,13 +4579,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                             if (index - 1 < profiles.size()) {
                                 ControlsProfile profile = profiles.get(index - 1);
                                 showInputControls(profile);
-
-                                if (profile.id != InputControlsManager.LEGACY_XBOX_PROFILE_ID &&
-                                    profile.id != InputControlsManager.LEGACY_PS_PROFILE_ID &&
-                                    profile.id != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                                    if (inputControlsView != null) inputControlsView.setLabelTheme(LabelTheme.DEFAULT);
-                                    preferences.edit().putString("input_label_theme", LabelTheme.DEFAULT.name()).apply();
-                                }                            }
+                            }
                         }
                         renderDrawerMenu();
                     }
@@ -4595,34 +4589,17 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                         if (index < 0 || index >= all.length) return;
                         VisualStyle chosen = all[index];
                         if (inputControlsView != null) inputControlsView.setVisualStyle(chosen);
-                        preferences.edit().putString("input_visual_style", chosen.name()).apply();
+                        persistSelectedStyle(chosen);
                         renderDrawerMenu();
                     }
 
                     @Override
-                    public void onInputControlsLabelThemeSelected(int index) {
-                        LabelTheme[] all = LabelTheme.values();
+                    public void onInputControlsAccentThemeSelected(int index) {
+                        AccentTheme[] all = AccentTheme.values();
                         if (index < 0 || index >= all.length) return;
-                        LabelTheme chosen = all[index];
-
-                        ControlsProfile currentProfile = inputControlsView != null ? inputControlsView.getProfile() : null;
-                        int currentId = currentProfile != null ? currentProfile.id : -1;
-
-                        if (currentId != InputControlsManager.GAMEHUB_LAYOUT_BUILTIN_ID) {
-                            if (chosen == LabelTheme.XBOX) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_XBOX_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.PLAYSTATION) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.LEGACY_PS_PROFILE_ID);
-                                if (p != null) showInputControls(p);
-                            } else if (chosen == LabelTheme.DEFAULT) {
-                                ControlsProfile p = inputControlsManager.getProfile(InputControlsManager.VIRTUAL_GAMEPAD_BUILTIN_ID);
-                                if (p != null) showInputControls(p);
-                            }
-                        }
-
-                        if (inputControlsView != null) inputControlsView.setLabelTheme(chosen);
-                        preferences.edit().putString("input_label_theme", chosen.name()).apply();
+                        AccentTheme chosen = all[index];
+                        if (inputControlsView != null) inputControlsView.setAccentTheme(chosen);
+                        persistSelectedAccentTheme(chosen);
                         renderDrawerMenu();
                     }
 
@@ -7155,7 +7132,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 runtimeFpsLimit = 0;
             }
         }
-        renderer.setFpsLimit(getEffectiveFpsLimit());
+        renderer.setFpsLimit(runtimeFpsLimit);
 
         applyScreenEffects();
         xServer.setRenderer(renderer);
@@ -7588,6 +7565,29 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
     }
 
+    // Style/theme picks persist like controlsProfile: on the shortcut if present, else globally.
+    private void persistSelectedStyle(VisualStyle style) {
+        if (shortcut != null) {
+            if (!style.name().equals(shortcut.getExtra("controlsStyle", ""))) {
+                shortcut.putExtra("controlsStyle", style.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_visual_style", style.name()).apply();
+        }
+    }
+
+    private void persistSelectedAccentTheme(AccentTheme theme) {
+        if (shortcut != null) {
+            if (!theme.name().equals(shortcut.getExtra("controlsAccentTheme", ""))) {
+                shortcut.putExtra("controlsAccentTheme", theme.name());
+                shortcut.saveData();
+            }
+        } else {
+            preferences.edit().putString("input_accent_theme", theme.name()).apply();
+        }
+    }
+
     private void pushSelectedGestureConfig() {
         try {
             int gid = selectedGestureProfileId();
@@ -7614,29 +7614,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return def != null ? def.id : 0;
     }
 
-    // Hide legacy label-only profiles unless one is already active.
     private ArrayList<ControlsProfile> getVisibleControlsProfiles() {
-        ArrayList<ControlsProfile> all = inputControlsManager != null
+        return inputControlsManager != null
                 ? inputControlsManager.getProfiles(true)
                 : new ArrayList<>();
-        ControlsProfile active = inputControlsView != null ? inputControlsView.getProfile() : null;
-        ArrayList<ControlsProfile> visible = new ArrayList<>(all.size());
-        for (ControlsProfile p : all) {
-            if (InputControlsManager.isLegacyLabelOnlyProfile(p)
-                    && (active == null || active.id != p.id)) {
-                continue;
-            }
-            visible.add(p);
-        }
-        return visible;
     }
 
     private void applyInputVisualStylePreferences() {
         if (inputControlsView == null || preferences == null) return;
-        inputControlsView.setVisualStyle(
-                VisualStyle.fromPreference(preferences.getString("input_visual_style", VisualStyle.ORIGINAL.name())));
-        inputControlsView.setLabelTheme(
-                LabelTheme.fromPreference(preferences.getString("input_label_theme", LabelTheme.DEFAULT.name())));
+        String style = shortcut != null ? shortcut.getExtra("controlsStyle", "") : "";
+        if (style.isEmpty()) style = preferences.getString("input_visual_style", VisualStyle.SLATE.name());
+        inputControlsView.setVisualStyle(VisualStyle.fromPreference(style));
+        String theme = shortcut != null ? shortcut.getExtra("controlsAccentTheme", "") : "";
+        if (theme.isEmpty()) theme = preferences.getString("input_accent_theme", AccentTheme.CYAN.name());
+        inputControlsView.setAccentTheme(AccentTheme.fromPreference(theme));
     }
 
     private ControlsProfile resolvePreferredStartupProfile() {
