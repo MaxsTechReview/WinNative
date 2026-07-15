@@ -12,4 +12,7 @@ data class AppInfo(
     val downloadedDepots: List<Int> = emptyList<Int>(),
     @ColumnInfo("dlc_depots")
     val dlcDepots: List<Int> = emptyList<Int>(),
+    // Durable install path so recognition survives PICS metadata eviction; null until known.
+    @ColumnInfo("install_path")
+    val installPath: String? = null,
 )

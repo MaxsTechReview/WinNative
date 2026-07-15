@@ -1376,6 +1376,16 @@ class SteamService : Service() {
             if (!dir.isDirectory) return null
             if (!MarkerUtils.hasMarker(dirPath, Marker.DOWNLOAD_COMPLETE_MARKER)) return null
 
+            // Backfill the durable install path once (metadata present now) so recognition survives eviction.
+            if (appInfo.installPath.isNullOrEmpty()) {
+                runCatching {
+                    runBlocking(Dispatchers.IO) {
+                        (instance?.appInfoDao ?: PluviaDatabase.getInstance().appInfoDao())
+                            .update(appInfo.copy(installPath = dirPath))
+                    }
+                }
+                return appInfo.copy(installPath = dirPath)
+            }
             return appInfo
         }
 
@@ -1397,6 +1407,7 @@ class SteamService : Service() {
                     isDownloaded = true,
                     downloadedDepots = downloadedDepotIds,
                     dlcDepots = installedDlcAppIds.sorted(),
+                    installPath = dirPath,
                 )
 
             runBlocking(Dispatchers.IO) {
@@ -2171,8 +2182,15 @@ class SteamService : Service() {
                     if (oldName.isNotEmpty() && oldName != appName) add(oldName)
                 }
 
-            // No resolvable folder name (metadata unavailable) — never fall back to a shared root.
+            // No metadata: fall back to the durably-recorded install path (disk-validated, appId-specific; never a shared root).
             if (candidateNames.isEmpty()) {
+                val recordedPath = getInstalledApp(gameId)?.installPath.orEmpty()
+                if (recordedPath.isNotEmpty()) {
+                    val normalizedRecorded = normalizeInstallPath(recordedPath)
+                    if (File(normalizedRecorded).isDirectory && !isSuspiciousSteamInstallPath(normalizedRecorded)) {
+                        return normalizedRecorded
+                    }
+                }
                 Timber.w("getAppDirPath: no metadata to resolve install dir for appId=%d", gameId)
                 return ""
             }
@@ -4490,6 +4508,7 @@ class SteamService : Service() {
                                     mainAppInfo.copy(
                                         isDownloaded = true,
                                         dlcDepots = updatedMainDlcDepots,
+                                        installPath = appDirPath,
                                     ),
                                 )
                                 Timber.i(
@@ -4501,6 +4520,7 @@ class SteamService : Service() {
                                         mainAppId,
                                         isDownloaded = true,
                                         dlcDepots = selectedDlcAppIds.distinct().sorted(),
+                                        installPath = appDirPath,
                                     ),
                                 )
                                 Timber.i(
