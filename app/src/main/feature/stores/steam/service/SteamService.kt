@@ -2024,7 +2024,7 @@ class SteamService : Service() {
 
             return depots.filter { (depotId, depot) ->
                 val isInstalledBaseDepot =
-                    depot.dlcAppId == INVALID_APP_ID ||
+                    depot.dlcAppId == INVALID_APP_ID &&
                         depotId in installedApp.downloadedDepots
                 val isInstalledDlcDepot =
                     depot.dlcAppId != INVALID_APP_ID &&
@@ -7557,6 +7557,16 @@ class SteamService : Service() {
                             record.storeGameId,
                             DownloadRecord.STATUS_FAILED,
                             "Could not start download — retry after Steam finishes loading",
+                        )
+                    }
+                } else if (started.getStatusFlow().value == DownloadPhase.COMPLETE) {
+                    // No downloader runs, so release the slot here; keyed on COMPLETE because a queued job is also inactive.
+                    Timber.i("startQueued: appId=$appId resolved as already complete — releasing coordinator slot")
+                    runBlocking {
+                        DownloadCoordinator.notifyFinished(
+                            DownloadRecord.STORE_STEAM,
+                            record.storeGameId,
+                            DownloadRecord.STATUS_COMPLETE,
                         )
                     }
                 }
