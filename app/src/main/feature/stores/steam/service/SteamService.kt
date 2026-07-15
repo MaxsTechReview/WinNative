@@ -571,6 +571,7 @@ class SteamService : Service() {
         }
 
         /** Pure getter over [isLoggedInFlow] — never write the flow from a read (caused UI flicker on transient CM disconnect); only authoritative sources mutate it (initLoginStatus, onLoggedOn/Off, logOut, clearValues). */
+        // Invoked by name via reflection from SteamBridge/SteamClientManager — keep in the companion; do not move to an extension file.
         val isLoggedIn: Boolean
             get() = !isLoggingOut && _isLoggedInFlow.value
 
@@ -1390,6 +1391,7 @@ class SteamService : Service() {
                 ?: app?.name.orEmpty()
         }
 
+        // Invoked by name via reflection from SteamBridge — keep in the companion; do not move to an extension file.
         fun getAppDirPath(gameId: Int): String {
             val info = getAppInfoOf(gameId)
 
@@ -1464,6 +1466,7 @@ class SteamService : Service() {
         }
 
         /** Resolves the executable for an installed Steam app from its appinfo `config.launch` entries — depot manifests store filenames AES-encrypted and are never decrypted, so scanning them is useless. */
+        // Invoked by name via reflection from SteamBridge — keep in the companion; do not move to an extension file.
         fun getInstalledExe(appId: Int): String =
             getWindowsLaunchInfos(appId).firstOrNull()?.executable ?: ""
 
