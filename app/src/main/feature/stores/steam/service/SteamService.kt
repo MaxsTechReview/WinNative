@@ -3426,7 +3426,18 @@ class SteamService : Service() {
 
             val service =
                 instance ?: run {
+                    // Session gave up reconnecting and stopped the service; revive it and say so instead of failing silently.
                     Timber.e("SteamService instance is null, cannot start download job.")
+                    MarkerUtils.removeMarker(appDirPath, Marker.DOWNLOAD_IN_PROGRESS_MARKER)
+                    runCatching {
+                        val context = PluviaApp.instance.applicationContext ?: return@runCatching
+                        if (PrefManager.refreshToken.isNotBlank()) start(context)
+                        WinToast.show(
+                            context,
+                            "Steam is not connected — reconnecting, try the download again in a moment",
+                            Toast.LENGTH_LONG,
+                        )
+                    }
                     return null
                 }
 
@@ -7006,7 +7017,15 @@ class SteamService : Service() {
 
         /** App-lifecycle hooks from PluviaApp (last activity stops → onAppBackgrounded, first starts → onAppForegrounded) — let the Steam session sleep while the app is minimized and idle. See [handleAppBackgrounded]. */
         fun onAppForegrounded() {
-            instance?.handleAppForegrounded()
+            val service = instance
+            if (service == null) {
+                // Only activity creation starts the service, so without this a stopped session stays dead for the whole process.
+                if (PrefManager.refreshToken.isNotBlank()) {
+                    runCatching { PluviaApp.instance.applicationContext?.let { start(it) } }
+                }
+                return
+            }
+            service.handleAppForegrounded()
         }
 
         fun onAppBackgrounded() {
