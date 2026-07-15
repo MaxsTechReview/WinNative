@@ -182,7 +182,8 @@ public final class RefreshRateUtils {
   }
 
   public static int resolveFramePacedRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
-    if (fpsLimit <= 0) {
+    // An explicit rate is the user's choice; only auto is steered to fit the cap's cadence.
+    if (fpsLimit <= 0 || requestedHz > 0) {
       return requestedHz;
     }
 
@@ -221,7 +222,7 @@ public final class RefreshRateUtils {
     return fpsLimit;
   }
 
-  public static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
+  private static boolean isFrameCadenceCompatible(float refreshRate, int fpsLimit) {
     if (refreshRate <= 0f || fpsLimit <= 0 || refreshRate < fpsLimit) {
       return false;
     }
@@ -285,17 +286,16 @@ public final class RefreshRateUtils {
     observer.removeOnWindowFocusChangeListener(listener);
   }
 
-  public static float applyPreferredRefreshRate(Activity activity) {
-    return applyPreferredRefreshRate(activity, getSavedGlobalRefreshRateOverride(activity));
+  public static void applyPreferredRefreshRate(Activity activity) {
+    applyPreferredRefreshRate(activity, getSavedGlobalRefreshRateOverride(activity));
   }
 
-  public static float applyPreferredRefreshRate(Activity activity, int requestedHz) {
-    return applyPreferredRefreshRate(activity, requestedHz, 0);
+  public static void applyPreferredRefreshRate(Activity activity, int requestedHz) {
+    applyPreferredRefreshRate(activity, requestedHz, 0);
   }
 
-  /** Applies the preferred display mode and returns the effective refresh rate in Hz (0 on early-out). */
-  public static float applyPreferredRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
-    if (activity.isFinishing() || activity.isDestroyed()) return 0f;
+  public static void applyPreferredRefreshRate(Activity activity, int requestedHz, int fpsLimit) {
+    if (activity.isFinishing() || activity.isDestroyed()) return;
 
     int effectiveRequestedHz = resolveFramePacedRefreshRate(activity, requestedHz, fpsLimit);
     WindowManager.LayoutParams params = activity.getWindow().getAttributes();
@@ -318,7 +318,6 @@ public final class RefreshRateUtils {
             + modeId
             + " refreshRate="
             + refreshRate);
-    return refreshRate;
   }
 
   /** Current active refresh rate of the activity's display in Hz (0 if unavailable). */

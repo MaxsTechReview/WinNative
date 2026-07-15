@@ -624,11 +624,6 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         return Math.max(0, preferences.getInt("refresh_rate_override", 0));
     }
 
-    // FPS-limit slider takes priority over the refresh-rate override.
-    private int getEffectiveFpsLimit() {
-        return runtimeFpsLimit > 0 ? runtimeFpsLimit : getRefreshRateOverride();
-    }
-
     private int parsePositiveInt(String value) {
         if (value == null || value.isEmpty()) return 0;
         try {
@@ -672,12 +667,9 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         Runnable applyRefresh = () -> {
             if (isFinishing() || isDestroyed()) return;
 
-            int effectiveFpsLimit = getEffectiveFpsLimit();
-            float hz = RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), effectiveFpsLimit);
-            if (xServer != null) {
-                xServer.getFramePaceClock().setDisplayRefreshHz(hz);
-                xServer.getFramePaceClock().setCapActive(effectiveFpsLimit > 0);
-            }
+            RefreshRateUtils.applyPreferredRefreshRate(this, getRefreshRateOverride(), runtimeFpsLimit);
+            // Read the live mode back rather than the requested rate; the mode change lands asynchronously and can be refused.
+            if (xServer != null) xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
         };
 
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -727,7 +719,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
 
         // Keep the pacer's refresh rate current across seamless mode switches that don't cross the limit.
         if (xServer != null) {
-            xServer.getFramePaceClock().setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
+            xServer.setDisplayRefreshHz(RefreshRateUtils.getActiveRefreshRate(this));
         }
 
         int maxRate = RefreshRateUtils.getMaxSupportedRefreshRate(this);
@@ -4281,7 +4273,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                     public void onFPSLimitChanged(int limit) {
                         runtimeFpsLimit = Math.max(0, limit);
                         if (xServerView != null) {
-                            xServerView.getRenderer().setFpsLimit(getEffectiveFpsLimit());
+                            xServerView.getRenderer().setFpsLimit(runtimeFpsLimit);
                         }
                         applyPreferredRefreshRate();
                         if (shortcut != null) {
@@ -7155,7 +7147,7 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
                 runtimeFpsLimit = 0;
             }
         }
-        renderer.setFpsLimit(getEffectiveFpsLimit());
+        renderer.setFpsLimit(runtimeFpsLimit);
 
         applyScreenEffects();
         xServer.setRenderer(renderer);
