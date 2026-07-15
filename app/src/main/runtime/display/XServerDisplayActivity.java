@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -299,6 +300,20 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
     private boolean isPointerCaptureForcedOff = false;
     private boolean isVolumeUpPressed = false;
     private boolean isVolumeDownPressed = false;
+    private boolean guideHoldPending = false;
+    private long guideMenuOpenedAt = 0L;
+    private static final long GUIDE_HOLD_OPEN_MS = 450L;
+    private static final long GUIDE_HOLD_TAIL_MS = 1200L;
+    private final Runnable guideHoldOpenRunnable = new Runnable() {
+        @Override
+        public void run() {
+            guideHoldPending = false;
+            if (drawerStateHolder == null || !drawerStateHolder.isDrawerOpen()) {
+                guideMenuOpenedAt = SystemClock.uptimeMillis();
+                openDrawerMenu();
+            }
+        }
+    };
     private OnExtractFileListener onExtractFileListener;
     private WinHandler winHandler;
     private WineRequestHandler wineRequestHandler;
@@ -2409,6 +2424,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         super.onPause();
         isVolumeUpPressed = false;
         isVolumeDownPressed = false;
+        guideHoldPending = false;
+        handler.removeCallbacks(guideHoldOpenRunnable);
         boolean gyroEnabled = preferences.getBoolean("gyro_enabled", false);
 
         if (gyroEnabled) {
@@ -7960,9 +7977,16 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             drawerStateHolder.updateControllerConnected(true);
             int kc = event.getKeyCode();
             boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-            if (kc == KeyEvent.KEYCODE_BUTTON_B || kc == KeyEvent.KEYCODE_BUTTON_MODE) {
-                // Only the initial press toggles; ignore auto-repeat so holding doesn't spam open/close.
-                if (down && event.getRepeatCount() == 0) handleNavigationBackPressed();
+            if (kc == KeyEvent.KEYCODE_BUTTON_MODE) {
+                // Menu open: a fresh press closes it; suppress the tail of the hold that opened it.
+                if (down && event.getEventTime() - guideMenuOpenedAt > GUIDE_HOLD_TAIL_MS) {
+                    guideMenuOpenedAt = 0L;
+                    handleNavigationBackPressed();
+                }
+                return true;
+            }
+            if (kc == KeyEvent.KEYCODE_BUTTON_B) {
+                if (down) handleNavigationBackPressed();
                 return true;
             }
             if (down) {
@@ -8032,12 +8056,21 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE) {
-            // Only the initial press toggles; ignore auto-repeat so holding doesn't spam open/close.
-            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                handleNavigationBackPressed();
+            // Menu closed: hold the guide button to open (a quick tap does nothing). Timer-based, so a
+            // missed release can never leave it stuck.
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (!guideHoldPending) {
+                    guideHoldPending = true;
+                    handler.removeCallbacks(guideHoldOpenRunnable);
+                    handler.postDelayed(guideHoldOpenRunnable, GUIDE_HOLD_OPEN_MS);
+                }
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                guideHoldPending = false;
+                handler.removeCallbacks(guideHoldOpenRunnable);
             }
             return true;
         }
+
 
         if (event.getAction() == KeyEvent.ACTION_DOWN &&
                 (event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
