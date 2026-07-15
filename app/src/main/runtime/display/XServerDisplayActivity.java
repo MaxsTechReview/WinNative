@@ -7961,7 +7961,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
             int kc = event.getKeyCode();
             boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
             if (kc == KeyEvent.KEYCODE_BUTTON_B || kc == KeyEvent.KEYCODE_BUTTON_MODE) {
-                if (down) handleNavigationBackPressed();
+                // Only the initial press toggles; ignore auto-repeat so holding doesn't spam open/close.
+                if (down && event.getRepeatCount() == 0) handleNavigationBackPressed();
                 return true;
             }
             if (down) {
@@ -8031,7 +8032,8 @@ public class XServerDisplayActivity extends FixedFontScaleAppCompatActivity {
         }
 
         if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            // Only the initial press toggles; ignore auto-repeat so holding doesn't spam open/close.
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                 handleNavigationBackPressed();
             }
             return true;
