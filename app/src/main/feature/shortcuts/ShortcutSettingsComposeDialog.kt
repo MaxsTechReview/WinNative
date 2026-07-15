@@ -42,6 +42,7 @@ import com.winlator.cmod.shared.ui.nav.PaneNavWindowHandlers
 import com.winlator.cmod.shared.ui.nav.bindPaneNav
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
+import androidx.core.net.toUri
 import com.winlator.cmod.shared.ui.focus.controllerMenuInput
 import com.winlator.cmod.feature.library.GameSettingsStateHolder
 import com.winlator.cmod.feature.library.WinComponentItem
@@ -280,12 +281,12 @@ class ShortcutSettingsComposeDialog private constructor(
                 clearLibraryArtwork(LibraryArtworkTarget.LIST)
             }
 
-            override fun onOpenArtworkSource() {
+            override fun onOpenArtworkSource(gameName: String) {
                 runCatching {
                     context.startActivity(
                         Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://www.steamgriddb.com/"),
+                            String.format("https://www.steamgriddb.com/search/grids?term=%s", gameName).toUri()
                         ),
                     )
                 }

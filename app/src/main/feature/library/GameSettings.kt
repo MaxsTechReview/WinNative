@@ -554,7 +554,7 @@ interface GameSettingsCallbacks {
     fun onRemoveCarouselArtwork() {}
     fun onPickListArtwork() {}
     fun onRemoveListArtwork() {}
-    fun onOpenArtworkSource() {}
+    fun onOpenArtworkSource(gameName: String) {}
     fun onRemoveEnvVar(index: Int)
     fun onUpdateWinComponent(isDirectX: Boolean, index: Int, newValue: Int)
     fun onSelectExe() {}
@@ -1232,8 +1232,8 @@ private fun GeneralSection(
                         .clip(RoundedCornerShape(10.dp))
                         .background(AccentBlue.copy(alpha = 0.08f))
                         .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource() }, highlightColor = NavHighlight)
-                        .clickable { callbacks.onOpenArtworkSource() }
+                        .paneNavItem(cornerRadius = 10.dp, onActivate = { callbacks.onOpenArtworkSource(state.name.value) }, highlightColor = NavHighlight)
+                        .clickable { callbacks.onOpenArtworkSource(state.name.value) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
